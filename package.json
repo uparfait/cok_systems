@@ -1,0 +1,38 @@
+{
+  "name": "cok_systems_backendside",
+  "version": "1.0.0",
+  "description": "this is a backend system folder",
+  "homepage": "https://github.com/uparfait/cok_systems#readme",
+  "bugs": {
+    "url": "https://github.com/uparfait/cok_systems/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/uparfait/cok_systems.git"
+  },
+  "license": "ISC",
+  "author": "cok_interns",
+  "type": "commonjs",
+  "main": "main.js",
+  "scripts": {
+    "test": "test"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "express-validator": "^7.3.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.2.1",
+    "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "nodemailer": "^8.0.1",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^10.0.0",
+    "nodemon": "^3.1.11"
+  }
+}
