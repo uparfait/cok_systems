@@ -4,7 +4,7 @@
  * And also should never be rewritten again
  */
 
-const Router = require("express").Router
+const Router = require("express").Router()
 const ALL_ROUTES = require('./routes.js')
 
 

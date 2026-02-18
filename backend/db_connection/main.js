@@ -1,7 +1,5 @@
 const mongoose = require("mongoose");
 
-// Configuring dotenv module in silent mode.
-require("dotenv").config({quiet: true});
 
 /*
 
