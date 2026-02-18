@@ -22,7 +22,7 @@ const DB_CONFIG = {
     // Schemas
     schemas: {
         system_user_schema: {
-            full_name: "",
+            full_name: "Amos",
             telephone: "",
             identification: { type: "", number: "" },
             picture: "",
