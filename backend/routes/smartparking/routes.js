@@ -2,7 +2,7 @@
  * Below are routes for smartparking system
  */
 
-const Router = require('express').Router
+const Router = require('express').Router()
 
 
 /**

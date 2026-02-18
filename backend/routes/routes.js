@@ -2,9 +2,9 @@
  * This file combines all routes together and can be rewritten.
  */
 
-const Router = require('express').Router
+const Router = require('express').Router()
 
-const service_deliver = require("./service_deliver/routes.js")
+const service_delivary = require("./service_delivary/routes.js")
 const smartparking = require("./smartparking/routes.js")
 
 
