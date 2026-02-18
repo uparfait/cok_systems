@@ -112,7 +112,7 @@ const DB_CONFIG = {
                 emergency_duration: ""
             },
             items: "",
-            status:  ['pending', 'inprogress', 'transfered', 'completed']
+            status:  ['pending', 'inprogress', 'transfered', 'completed'],
             notes: [],
             registered_by: ""
         },
