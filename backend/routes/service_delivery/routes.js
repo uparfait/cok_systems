@@ -1,5 +1,5 @@
 /**
- * Below are routes for smartparking system
+ * Below are routes for service delivary system
  */
 
 const Router = require('express').Router
@@ -13,7 +13,7 @@ Router.get('/', (req, res, next) => {
     return res.status(200).json({
         status: true,
         error: null,
-        message: "GET smartparking"
+        message: "GET service-delivery"
     })
 })
 
@@ -21,7 +21,7 @@ Router.post('/', (req, res, next) => {
     return res.status(200).json({
         status: true,
         error: null,
-        message: "POST smartparking"
+        message: "POST service-delivery"
     })
 })
 
@@ -30,7 +30,7 @@ Router.put('/', (req, res, next) => {
     return res.status(200).json({
         status: true,
         error: null,
-        message: "PUT smartparking"
+        message: "PUT service-delivery"
     })
 })
 
@@ -39,7 +39,7 @@ Router.delete('/', (req, res, next) => {
     return res.status(200).json({
         status: true,
         error: null,
-        message: "DELETE smartparking"
+        message: "DELETE service-delivery"
     })
 })
 
