@@ -8,7 +8,7 @@ module.exports = async function update_department(req, res, next) {
             department_name = null,
             department_leader = null,
             total_employees = null
-        } = req.body
+        } = req.body || {}
 
         // Find the document by its MongoDB internal _id
         const department = await department_model.findById(id)
