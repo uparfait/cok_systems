@@ -4,7 +4,7 @@
  */
 
 const jwt = require('jsonwebtoken');
-const config = require('../config/config');
+const config = require('../configurations/config.js');
 
 const JWT_EXPIRY = '24h';           // Access token expiry
 const REFRESH_TOKEN_EXPIRY = '7d';  // Refresh token expiry

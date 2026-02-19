@@ -8,7 +8,6 @@ const jwt = require('../../../utilities/jwt');
 const otp = require('../../../utilities/otp');
 const email = require('../../../utilities/email');
 const redis = require('../../../utilities/redis');
-const passwordValidator = require('../../../utilities/password');
 
 /**
  * POST /auth/login
