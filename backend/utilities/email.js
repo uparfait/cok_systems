@@ -53,7 +53,7 @@ const sendOTPEmail = async (email, otp, type = 'login') => {
 
     try {
         await transporter.sendMail({
-            from: config.email.from || '"COK Systems" <noreply@coksystems.com>',
+            from: config.email.from || 'cokservicedelivery@gmail.com',
             to: email,
             subject: subject,
             text: message,
