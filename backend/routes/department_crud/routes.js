@@ -17,7 +17,7 @@ const delete_department = require('../../controllers/department_crud/delete_depa
 
 
 Router.get('/', list_all_departments)
-Router.get('/:id', get_department_by_id)
+Router.get('/:department_id', get_department_by_id)
 Router.post('/', create_department)
 Router.put('/:id', update_department)
 Router.delete('/:id', delete_department)

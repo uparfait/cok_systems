@@ -2,7 +2,7 @@ const department_model = require('../../models/department.js')
 
 module.exports = async function list_all_departments(req, res, next) {
     try {
-        let { limit = 10, page = 1 } = req.query
+        let { limit = 10, page = 1 } = req.query || {}
 
         limit = Math.min(limit, 50)
 
