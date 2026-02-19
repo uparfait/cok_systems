@@ -1,8 +1,18 @@
 const department_model = require('../../models/department.js')
+const mongoose = require('mongoose')
 
 module.exports = async function delete_department(req, res, next) {
     try {
         const { id } = req.params
+
+        //  Validate if the ID is a valid MongoDB ObjectId
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                type: "warning",
+                message: `The provided ID '${id}' is not a valid format`
+            })
+        }
 
         // Delete using the MongoDB internal _id
         const deleted_dept = await department_model.findByIdAndDelete(id)
