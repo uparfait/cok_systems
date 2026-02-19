@@ -7,14 +7,14 @@ module.exports = async function list_all_departments(req, res, next) {
         limit = Math.min(limit, 50)
 
         const limit_val = parseInt(limit);
-        const skip_val = (parseInt(page) - 1) * limit_val;
+        const skip_val = (parseInt(page) - 1) * limit_val
 
         const departments = await department_model.find()
             .limit(limit_val)
             .skip(skip_val)
             .sort({ created_date: -1 });
 
-        const total_count = await department_model.countDocuments();
+        const total_count = await department_model.countDocuments()
 
         return res.status(200).json({
             success: true,
@@ -23,15 +23,15 @@ module.exports = async function list_all_departments(req, res, next) {
             total: total_count,
             page: parseInt(page),
             data: departments
-        });
+        })
 
     } catch (error) {
-        console.error("Error in list_all_departments:", error);
+        console.error("Error in list_all_departments:", error)
         return res.status(500).json({
             success: false,
             type: "error",
             message: "Something went wrong, try again later",
             error: error.message
-        });
+        })
     }
-};
+}

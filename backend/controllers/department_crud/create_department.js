@@ -19,7 +19,7 @@ module.exports = async function create_department(req, res, next) {
         }
 
         //  Check if department already exists
-        const existing_dept = await department_model.findOne({ department_id });
+        const existing_dept = await department_model.findOne({ department_id })
         if (existing_dept) {
             return res.status(409).json({
                 success: false,
@@ -37,10 +37,10 @@ module.exports = async function create_department(req, res, next) {
             department_leader,
             total_employees,
             registered_by
-        });
+        })
 
         //  Save to database
-        const saved_department = await new_department.save();
+        const saved_department = await new_department.save()
 
         return res.status(201).json({
             success: true,
