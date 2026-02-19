@@ -6,8 +6,8 @@ const DB_CONFIG = {
         host: process.env.EMAIL_HOST || 'smtp.gmail.com',
         port: process.env.EMAIL_PORT || 587,
         user: process.env.EMAIL_USER || 'cokservicedelivery@gmail.com',
-        pass: process.env.EMAIL_PASS || '',
-        from: process.env.EMAIL_FROM || 'dzyhubnokthpuvxa"COK Systems" <cokservicedelivery@gmail.com>'
+        pass: process.env.EMAIL_PASS || 'dzyhubnokthpuvxa',
+        from: process.env.EMAIL_FROM || 'cokservicedelivery@gmail.com'
     },
 
     // Redis Configuration

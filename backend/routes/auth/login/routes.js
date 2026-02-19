@@ -52,10 +52,12 @@ Router.post('/', async (req, res, next) => {
         
         // Store OTP in Redis with 5-minute TTL
         const otpKey = otp.getOTPKey('login', user._id);
-        await redis.storeOTP(otpKey, otpCode, otp.OTP_EXPIRY_SECONDS);
+        //await redis.storeOTP(otpKey, otpCode, otp.OTP_EXPIRY_SECONDS);
 
         // Send OTP via email
-        await email.sendOTPEmail(userEmail, otpCode, 'login');
+        const sent = await email.sendOTPEmail(userEmail, otpCode || 1234, 'login');
+
+        console.log(`OTP for user ${userEmail}: ${otpCode} (sent: ${sent})`);
 
         return res.status(200).json({
             status: true,
