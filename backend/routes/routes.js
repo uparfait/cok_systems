@@ -4,12 +4,12 @@
 
 const Router = require('express').Router()
 
-const service_delivary = require("./service_delivary/routes.js")
+const service_delivery = require("./service_delivery/routes.js")
 const smartparking = require("./smartparking/routes.js")
 const auth = require("./auth/routes.js")
 
 
-Router.use('/servicedelivary', service_delivary)
+Router.use('/servicedelivery', service_delivery)
 Router.use("/smartparking", smartparking)
 Router.use("/auth", auth)
 
