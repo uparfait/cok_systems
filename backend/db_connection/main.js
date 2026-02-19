@@ -26,6 +26,7 @@ const conne_string = process.env.conne_string || dev_mode_conne_string;
 /**
  * Connects to MongoDB and returns a response object
  */
+
 const connect_db = async () => {
     try {
         const conn = await mongoose.connect(conne_string);

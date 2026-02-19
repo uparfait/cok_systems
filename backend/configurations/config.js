@@ -1,6 +1,24 @@
 
 
 const DB_CONFIG = {
+    // Email Configuration
+    email: {
+        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+        port: process.env.EMAIL_PORT || 587,
+        user: process.env.EMAIL_USER || 'cokservicedelivery@gmail.com',
+        pass: process.env.EMAIL_PASS || 'dzyhubnokthpuvxa',
+        from: process.env.EMAIL_FROM || 'cokservicedelivery@gmail.com'
+    },
+
+    // Redis Configuration
+    redis: {
+        url: process.env.REDIS_URL || 'redis://localhost:6379'
+    },
+
+    // JWT Configuration
+    jwtSecret: process.env.JWT_SECRET || 'cok-jwt-secret-2026',
+    jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'cok-jwt-refresh-secret-2026',
+
     // Database Names
     db_names: {
         system_user: "system_users",
