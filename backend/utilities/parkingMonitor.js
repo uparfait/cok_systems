@@ -9,7 +9,7 @@ const STAFF_LIMIT_MS = 12 * 60 * 60 * 1000;
 const startParkingMonitor = (io) => {
     // This cron expression '*/5 * * * *' means "Run every 5 minutes"
     cron.schedule('*/5 * * * *', async () => {
-        console.log('🔄 [Cron] Running Parking Monitor Check...');
+        console.log('[Cron] Running Parking Monitor Check...');
 
         try {
             const now = new Date();
@@ -47,7 +47,7 @@ const startParkingMonitor = (io) => {
                     
                     await record.save();
 
-                    console.log(`🚨 ALERT: Vehicle ${record.plate_number} (${record.driver_type}) has overstayed!`);
+                    console.log(`ALERT: Vehicle ${record.plate_number} (${record.driver_type}) has overstayed!`);
 
                     // 5. Send real-time alert to Super Admin and Security (if Socket.io is passed in)
                     if (io) {
@@ -59,7 +59,7 @@ const startParkingMonitor = (io) => {
                 }
             }
         } catch (error) {
-            console.error('❌ Error in Parking Monitor:', error);
+            console.error(' Error in Parking Monitor:', error);
         }
     });
 };
