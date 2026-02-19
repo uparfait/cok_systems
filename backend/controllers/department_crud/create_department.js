@@ -7,7 +7,7 @@ module.exports = async function create_department(req, res, next) {
             department_id = null,
             department_leader = 'Not specified',
             total_employees = 0,
-        } = req.body
+        } = req.body || {}
 
         //  department validation
         if (!department_name || !department_id) {
