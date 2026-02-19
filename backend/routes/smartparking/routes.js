@@ -3,7 +3,15 @@
  */
 
 const Router = require('express').Router()
+const multer = require('multer');
 
+const { bulkUploadReservations } = require('../../controllers/reservationController');
+
+// 2. Configure Multer to store the uploaded Excel file in memory temporarily
+const upload = multer({ 
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 } // Optional: limit file size to 5MB
+});
 
 /**
  * Initial testing routes
@@ -43,5 +51,7 @@ Router.delete('/', (req, res, next) => {
     })
 })
 
+// POST: Bulk upload visitors via Excel sheet
+Router.post('/bulk-upload', upload.single('file'), bulkUploadReservations);
 
 module.exports = Router
