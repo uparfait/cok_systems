@@ -18,7 +18,8 @@ const DB_CONFIG = {
         "receptionist", 
         "head_of_department", 
         "department_employee", 
-        "vehicle_registra"
+        "vehicle_registrar",
+        "entrance_officer"
     ],
 
     // Schemas
