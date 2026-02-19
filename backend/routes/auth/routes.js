@@ -9,3 +9,5 @@ const passwordReset = require("./password-reset/routes.js")
 Router.use('/login', login)
 Router.use('/logout', logout)
 Router.use('/password-reset', passwordReset)
+
+module.exports = Router

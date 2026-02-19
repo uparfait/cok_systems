@@ -4,7 +4,7 @@
  */
 
 const nodemailer = require('nodemailer');
-const config = require('../config/config');
+const config = require('../configurations/config.js');
 
 // Create SMTP transporter
 const createTransporter = () => {

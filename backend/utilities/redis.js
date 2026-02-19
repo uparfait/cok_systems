@@ -4,7 +4,7 @@
  */
 
 const redis = require('redis');
-const config = require('../config/config');
+const config = require('../configurations/config.js');
 
 let client = null;
 

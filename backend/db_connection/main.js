@@ -48,8 +48,5 @@ const connect_db = async () => {
         };
     }
 };
-const passwordReset = require('./password-reset/routes.js');
-Router.use('/password-reset', passwordReset);
-
 
 module.exports = connect_db;
