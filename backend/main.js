@@ -13,10 +13,9 @@ require("dotenv").config({ quiet: true })
 /**
  * Import core dependencies
  */
-const express = require('express')
-const cors = require('cors')
-const cookieParser = require('cookie-parser')
-const http = require('http')
+const express = require('express');
+const cors = require('cors');
+const cookieParser = require('cookie-parser');
 
 /**
  * Import the central routes
