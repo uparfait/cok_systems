@@ -1,0 +1,33 @@
+const department_model = require('../../models/department.js')
+
+module.exports = async function get_department_by_id(req, res, next) {
+    try {
+        const { department_id } = req.params;
+
+        const department = await department_model.findOne({ department_id })
+
+        if (!department) {
+            return res.status(404).json({
+                success: false,
+                type: "warning",
+                message: `Department with ID ${department_id} not found.`
+            })
+        }
+
+        return res.status(200).json({
+            success: true,
+            type: "success",
+            message: "Department found",
+            data: department
+        })
+
+    } catch (error) {
+        console.error("Error in get_department_by_id:", error)
+        return res.status(500).json({
+            success: false,
+            type: "error",
+            message: "Something went wrong, try again later",
+            error: error.message
+        })
+    }
+}

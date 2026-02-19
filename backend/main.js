@@ -16,6 +16,9 @@ require("dotenv").config({ quiet: true })
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const http = require('http')
+const multer = require('multer')
+
 
 /**
  * Import the central routes
@@ -29,6 +32,7 @@ const app = express()
 const PORT = process.env.PORT || 2026
 const server = http.createServer(app)
 const web_socket_service = new WebSocketService(server)
+const upload = multer()
 
 
 /**
@@ -50,7 +54,7 @@ app.use(cors({
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser(process.env.COOKIE_SECRET || 'extensible-cok-2026'))
-
+app.use(upload.any())
 
 /**
  * Mount System Routes
@@ -76,7 +80,9 @@ app.use((err, req, res, next) => {
 
     res.status(500).json({
         success: false,
-        message: err.message || "Something got wrong please try again later!",
+        type: "error",
+        message:  "Something got wrong please try again later!",
+        error: err.message || ""
     })
 })
 

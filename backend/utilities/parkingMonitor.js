@@ -1,5 +1,5 @@
 const cron = require('node-cron');
-const DailyParkingRecord = require('../models/DailyParkingRecord');
+const ParkingRecord = require('../models/parking_record');
 
 // Define the limits (in milliseconds)
 // Example: 2 hours for visitors, 12 hours for staff
@@ -15,7 +15,7 @@ const startParkingMonitor = (io) => {
             const now = new Date();
             
             // 1. Find all active parking sessions that are not yet flagged
-            const activeRecords = await DailyParkingRecord.find({
+            const activeRecords = await ParkingRecord.find({
                 status: 'active',
                 is_flagged: false
             });
