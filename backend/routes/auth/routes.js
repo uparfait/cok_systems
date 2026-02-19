@@ -25,3 +25,4 @@ Router.put('/login', (req, res, next) => {
     })
 })
 
+module.exports = Router
