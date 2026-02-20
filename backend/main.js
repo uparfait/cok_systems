@@ -1,6 +1,48 @@
+
+/**
+ * To prevent app crash according to missed module we are overwritting require function
+ * to don't crash an application but we do this with caution
+ */
+const Module = require('module')
+const originalRequire = Module.prototype.require
+
+let IS_ANY_MISSED_MODULES = false
+let missed_modules = 0
+
+Module.prototype.require = function(path) {
+    try {
+        // Attempt to load the module using the original Node.js logic
+        return originalRequire.apply(this, arguments)
+    } catch (error) {
+        // We only intercept errors where the file physically does not exist
+        if (error.code === 'MODULE_NOT_FOUND') {
+            IS_ANY_MISSED_MODULES = true
+            missed_modules++
+
+            // 'this.filename' provides the absolute path of the file that called require()
+            const caller_file = this.filename || 'Unknown Origin'
+            
+            console.error('--------------------------------------------------')
+            console.error(`[REQUIRE ERROR]: Could not find ${path}`)
+            console.error(`[IMPORTED FROM]: ${caller_file}`)
+            console.error('--------------------------------------------------')
+
+            console.log('\n')
+
+            /**
+             * Returning null allows the app to keep running.
+             */
+            return null 
+        }
+
+        // Re-throw if the file EXISTS but has a Syntax Error or internal bug
+        throw error 
+    }
+}
 /**
  * Import database connection utility and real-time service initializer
  */
+
 const db_connection = require("./db_connection/main")
 const WebSocketService = require('./services/reatime_service/web_socket.js')
 const InitialiseAllRealtimeServices = require('./services/reatime_service/initialise_realtime_services.js')
@@ -101,6 +143,16 @@ db_connection().then(async response => {
         console.log("Database connected.")
         server.listen(PORT, () => {
             console.log(`Server running on http://localhost:${PORT}`)
+            if(IS_ANY_MISSED_MODULES) {
+
+                console.log(`
+                    
+                    APPICATION IS RUNNING BUT ${missed_modules} MODULES MISSED WHICH MIGHT COUSE AN ERROR IN FUTURE
+                    =============================================================================================
+                    
+                    `)
+                console.log(`[CRITICAL ERROR] ${missed_modules} missed modules found.`)
+            }
         })
 
     } else {
