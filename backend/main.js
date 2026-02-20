@@ -113,7 +113,11 @@ app.use('/cok/api', allRoutes)
  * Catches any request that doesn't match a defined route
  */
 app.use((req, res, next) => {
-    res.status(404).json({ success: false, message: "Endpoint notfound" })
+    res.status(404).json({ 
+        success: false, 
+        type: 'warning',
+        message: "[404] REQUESTED SERVICE NOT FOUND" 
+    })
 })
 
 /**
