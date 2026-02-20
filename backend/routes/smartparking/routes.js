@@ -10,7 +10,22 @@ const { bulkUploadReservations } = require('../../controllers/reservationControl
 // 2. Configure Multer to store the uploaded Excel file in memory temporarily
 const upload = multer({ 
     storage: multer.memoryStorage(),
-    limits: { fileSize: 5 * 1024 * 1024 } // Optional: limit file size to 5MB
+    limits: { fileSize: 5 * 1024 * 1024 }, // Optional: limit file size to 5MB
+    
+    // FILTER EXCEL FILES ONLY
+
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+            file.mimetype === 'application/vnd.ms-excel') {
+            cb(null, true); // Accept the file
+        } else {
+            req.UploadError = {
+                success: false,
+                message: 'Invalid file type. Please upload an Excel file (.xlsx or .xls).'
+            }
+            cb(null, true); // Reject the file
+        }
+    }
 });
 
 /**
@@ -52,7 +67,7 @@ Router.delete('/', (req, res, next) => {
 })
 
 // POST: Bulk upload visitors via Excel sheet
-Router.post('/bulk-upload', upload.single('file'), bulkUploadReservations);
+Router.post('/bulk-upload', upload.any(), bulkUploadReservations);
 
 
 module.exports = Router
