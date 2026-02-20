@@ -3,11 +3,10 @@ const EmergencyCar = require('../models/emergency_car');
 
 const bulkUploadReservations = async (req, res) => {
     try {
-        // 1. Check if a file was uploaded
+       // 1. Check if a file was uploaded (Multer puts it in req.file)
         if (!req.file) {
             return res.status(400).json({ success: false, message: 'Please upload an Excel file.' });
         }
-
         // 2. Read the Excel file from memory
         const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
         const sheetName = workbook.SheetNames[0]; // Get the first sheet
@@ -22,13 +21,15 @@ const bulkUploadReservations = async (req, res) => {
 
         // 4. Map the Excel data to match your database schema
         const mappedVisitors = visitorsData.map(row => ({
-            plate_number: row['Plate Number'] || '',
-            driver_name: row['Name'] || '',
+            plate_number: row['Plate Number'] || row['plate number'] || '',
+            driver_name: row['Name'] || row['name'] || '',
+            driver_type: 'visitor',
             driver_identification: {
-                type: row['ID Type'] || 'NID',
-                number: String(row['ID Number'] || '')
+                id_type: row['ID Type'] || row['ID type'] || 'NID',
+                number: String(row['ID Number'] || row['ID number'] || '')
             },
-            telephone_number: String(row['Phone'] || ''),
+            telephone_number: String(row['Phone'] || row['phone'] || ''),
+            slot_number: String(row['Slot Number'] || row['slot number'] || ''), 
             is_flagged: false
         }));
 
