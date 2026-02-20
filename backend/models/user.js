@@ -21,8 +21,8 @@ const user_schema = new mongoose.Schema({
     },
     auth: {
         access_token: { 
-            type: String,
-            token: String
+            token_type: {type: String},
+            token: {type: String}
          }
     },
     roles: {
@@ -31,6 +31,7 @@ const user_schema = new mongoose.Schema({
     },
     is_active: { type: Boolean, default: true },
     created_date: { type: Date, default: Date.now },
+    is_account_activated: {type: Boolean},
     registered_by: { type: String }
 });
 
