@@ -11,6 +11,7 @@ const emergency_car_history_schema = new mongoose.Schema({
             number: String
         },
         telephone_number: String,
+        slot_number: String,
         is_flagged: { type: Boolean, default: false }
     }],
     validity: {
