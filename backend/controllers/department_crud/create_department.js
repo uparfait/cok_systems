@@ -29,7 +29,7 @@ module.exports = async function create_department(req, res, next) {
             })
         }
 
-        let registered_by = req.user || "Not specified"
+        let registered_by = req.user.name || "Not specified"
 
         //  Create new department instance
         const new_department = new department_model({
