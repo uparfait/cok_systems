@@ -16,11 +16,15 @@ Module.prototype.require = function(path) {
     } catch (error) {
         // We only intercept errors where the file physically does not exist
         if (error.code === 'MODULE_NOT_FOUND') {
+            const caller_file = this.filename || 'Unknown Origin'
+            if(caller_file.includes('node_modules')) {
+                return null
+            }
             IS_ANY_MISSED_MODULES = true
             missed_modules++
 
             // 'this.filename' provides the absolute path of the file that called require()
-            const caller_file = this.filename || 'Unknown Origin'
+            
             
             console.error('--------------------------------------------------')
             console.error(`[REQUIRE ERROR]: Could not find ${path}`)
