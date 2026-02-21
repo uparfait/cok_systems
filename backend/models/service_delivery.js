@@ -51,15 +51,14 @@ const service_delivery_schema = new mongoose.Schema({
                 duration: String,
                 started_at: Date,
                 ended_at: Date,
-                provider_name: String
+                provider_name: String,
             }
         ]
     },
     items_entered_with: [
         {
             item_name: String,
-            quantity: Number,
-            description: { type: String, default: "Not specified" }
+            quantity: Number
         }
     ],
     items_exited_with: [
@@ -79,6 +78,7 @@ const service_delivery_schema = new mongoose.Schema({
             default: 'not started'
         }
     ],
+    is_still_inhouse: { type: Boolean, default: true },
     notes: [{
         writter_name: String,
         message: String,
