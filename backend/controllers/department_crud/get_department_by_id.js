@@ -4,6 +4,8 @@ module.exports = async function get_department_by_id(req, res, next) {
     try {
         const { department_id } = req.params;
 
+        department_id = department_id.toString().toUpperCase()
+
         const department = await department_model.findOne({ department_id })
 
         if (!department) {

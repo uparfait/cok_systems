@@ -19,6 +19,8 @@ module.exports = async function create_department(req, res, next) {
             })
         }
 
+        department_id = department_id.toString().toUpperCase()
+
         //  Check if department already exists
         const existing_dept = await department_model.findOne({ department_id })
         if (existing_dept) {
