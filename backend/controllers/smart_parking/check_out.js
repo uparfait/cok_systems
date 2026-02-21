@@ -1,5 +1,5 @@
-const ParkingRecord = require('../../models/ParkingRecord');
-const ServiceDelivery = require('../../models/ServiceDelivery');
+const ParkingRecord = require('../../models/parking_record.js');
+const ServiceDelivery = require('../../models/service_delivery.js');
 
 module.exports = async function car_check_out(req, res, next) {
     try {
