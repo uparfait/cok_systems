@@ -20,7 +20,7 @@ Router.use(
             .swagger-ui .topbar .download-url-wrapper { display: none; }
             .swagger-ui .info .title { color: #1a1a2e; }
         `,
-        
+
         swaggerOptions: {
             tryItOutEnabled: true,
             persistAuthorization: true,
