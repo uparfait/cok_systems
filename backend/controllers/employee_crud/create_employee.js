@@ -45,7 +45,7 @@ module.exports = async function create_user(req, res, next) {
         // Generate system-assigned values
         const generated_password = crypto.randomBytes(8).toString('hex'); // E.g., 'a1b2c3d4e5f67890'
         const default_picture = 'https://placehold.co/800?text=CoK&font=roboto';
-        const registered_by = req.user ? req.user.name : 'Not specified';
+        const registered_by = req.user ? req.user?.name : 'Not specified';
 
         // construct the new user object
         const new_user = new user_model({
