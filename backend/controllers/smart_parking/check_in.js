@@ -1,10 +1,10 @@
-const ParkingRecord = require('../../models/ParkingRecord');
+const ParkingRecord = require('../../models/parking_record.js');
 
 module.exports = async function car_check_in(req, res, next) {
     try {
         let {
             plate_number = null,
-            driver_identification = {} // Now completely optional
+            driver_identification = {} // completely optional
         } = req.body || {};
 
         if (!plate_number) {

@@ -1,4 +1,4 @@
-const ServiceDelivery = require('../../models/ServiceDelivery');
+const ServiceDelivery = require('../../models/service_delivery.js');
 const mongoose = require('mongoose');
 
 module.exports = async function transfer_visitor(req, res, next) {
