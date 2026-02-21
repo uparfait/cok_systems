@@ -38,7 +38,7 @@ module.exports = async function update_department(req, res, next) {
             total_employees === null
         ) {
             return res.status(400).json({
-                success: true,
+                success: false,
                 type: "warning",
                 message: "Some department data are invalid",
             })
