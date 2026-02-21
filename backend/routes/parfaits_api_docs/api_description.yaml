@@ -1,7 +1,7 @@
 openapi: 3.0.3
 
 info:
-  title: PARFAIT'S API
+  title: PARFAIT'S API (FIRST CHOOSE A SERVER BEFORE TESTING ENDPOINTS)
   version: "1.0.0"
 
 servers:
