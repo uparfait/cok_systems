@@ -50,7 +50,7 @@ module.exports = async function update_department(req, res, next) {
         if (total_employees !== undefined) department.total_employees = total_employees
         if (department_id !== undefined) department.department_id = department_id
 
-        department.registered_by = req.user.name || "Not specified"
+        department.registered_by = req.user?.name || "Not specified"
 
         // Save the document (this triggers Mongoose validation)
         const saved_department = await department.save()
