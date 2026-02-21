@@ -23,11 +23,12 @@ const service_delivery_schema = new mongoose.Schema({
             department_name: String,
             assigned_time: { type: Date, default: Date.now },
             reached_in: { type: Boolean, default: false },
-            provider_name: String
+            provider_name: String,
+            provider_id: String
         }
     ],
     entry_date: { type: Date, default: Date.now },
-    exist_date: {type: Date, default: null},
+    exist_date: { type: Date, default: null },
     gender: { type: String },
     durations: {
         services_durations: [
@@ -37,7 +38,8 @@ const service_delivery_schema = new mongoose.Schema({
                 duration: String,
                 started_at: Date,
                 ended_at: Date,
-                provider_name: String
+                provider_name: String,
+                provider_id: String,
             }
         ],
         entry_and_leave_duration: String,
@@ -53,6 +55,7 @@ const service_delivery_schema = new mongoose.Schema({
                 started_at: Date,
                 ended_at: Date,
                 provider_name: String,
+                provider_id: String,
             }
         ]
     },
@@ -74,6 +77,7 @@ const service_delivery_schema = new mongoose.Schema({
             department_name: String,
             department_id: String,
             provider_name: String,
+            provider_id: String,
             type: String,
             enum: ['Not started', 'Inprogress', 'Transfered', 'Completed'],
             default: 'Not started'
