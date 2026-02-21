@@ -9,11 +9,13 @@ const smartparking = require("./smartparking/routes.js")
 const auth = require("./auth/routes.js")
 const department = require('./department_crud/routes.js')
 const employee = require("./employee_crud/routes.js")
+const parfaits_api_docs = require("./parfaits_api_docs/routes.js")
 
 
 Router.use('/servicedelivery', service_delivery)
 Router.use("/smartparking", smartparking)
 Router.use("/auth", auth)
+Router.use('/parfait', parfaits_api_docs)
 Router.use('/department/crud', department)
 Router.use('/employee/crud', employee)
 

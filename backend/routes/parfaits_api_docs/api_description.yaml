@@ -46,7 +46,7 @@ paths:
 
   /department/crud:
     get:
-      tags: [Departments, departments]
+      tags: [Departments]
       summary: "[TEST 1] List All Departments"
       operationId: listAllDepartments
       parameters:
@@ -57,7 +57,7 @@ paths:
         '500': { description: Server error }
 
     post:
-      tags: [Departments, departments]
+      tags: [Departments]
       summary: "[TEST 2] Create Department"
       operationId: createDepartment
       requestBody:
@@ -88,7 +88,7 @@ paths:
 
   /department/crud/{department_id}:
     get:
-      tags: [Departments, departments]
+      tags: [Departments]
       summary: "[TEST 3] Get Department by department_id"
       operationId: getDepartmentById
       parameters:
@@ -104,7 +104,7 @@ paths:
 
   /department/crud/{id}:
     put:
-      tags: [Departments, departments]
+      tags: [Departments]
       summary: "[TEST 4] Update Department by MongoDB _id"
       operationId: updateDepartment
       parameters:
@@ -136,7 +136,7 @@ paths:
         '500': { description: Server error }
 
     delete:
-      tags: [Departments, departments]
+      tags: [Departments]
       summary: "[TEST 5] Delete Department by MongoDB _id"
       operationId: deleteDepartment
       parameters:
@@ -149,7 +149,7 @@ paths:
 
   /employee/crud:
     get:
-      tags: [Employees, employees]
+      tags: [Employees]
       summary: "[TEST 6] List All Employees"
       operationId: listAllEmployees
       parameters:
@@ -160,7 +160,7 @@ paths:
         '500': { description: Server error }
 
     post:
-      tags: [Employees, employees]
+      tags: [Employees]
       summary: "[TEST 7] Create Employee"
       operationId: createEmployee
       requestBody:
@@ -207,7 +207,7 @@ paths:
 
   /employee/crud/{id}:
     get:
-      tags: [Employees, employees]
+      tags: [Employees]
       summary: "[TEST 8] Get Employee by MongoDB _id"
       operationId: getEmployeeById
       parameters:
@@ -218,7 +218,7 @@ paths:
         '500': { description: Server error }
 
     put:
-      tags: [Employees, employees]
+      tags: [Employees]
       summary: "[TEST 9] Update Employee by MongoDB _id"
       operationId: updateEmployee
       parameters:
@@ -271,7 +271,7 @@ paths:
         '500': { description: Server error }
 
     delete:
-      tags: [Employees, employees]
+      tags: [Employees]
       summary: "[TEST 10] Delete Employee by MongoDB _id"
       operationId: deleteEmployee
       parameters:
