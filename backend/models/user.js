@@ -27,7 +27,10 @@ const user_schema = new mongoose.Schema({
     },
     roles: {
         role_name: { type: String },
-        permissions: [String]
+        permissions: [{
+            resource: { type: String },
+            actions: [{ type: String }]
+        }]
     },
     is_active: { type: Boolean, default: true },
     created_date: { type: Date, default: Date.now },
