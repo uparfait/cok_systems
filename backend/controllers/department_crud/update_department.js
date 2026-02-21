@@ -44,6 +44,8 @@ module.exports = async function update_department(req, res, next) {
             })
         }
 
+        department_id = department_id.toString().toUpperCase()
+
         //validate and update allowed fields
         if (department_name !== undefined) department.department_name = department_name
         if (department_leader !== undefined) department.department_leader = department_leader
