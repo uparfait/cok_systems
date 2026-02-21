@@ -1,0 +1,1294 @@
+openapi: 3.0.3
+
+info:
+  title: CoK (City of Kigali) HR Management API
+  description: |
+    ## Overview
+    This API provides full CRUD operations for managing **Departments** and **Employees**
+    within the CoK HR system. All endpoints are prefixed with `/cok/api`.
+
+    ## Authentication
+    All endpoints require a valid **Bearer JWT token** in the `Authorization` header.
+    The token must carry a `name` and `id` field in its payload, used internally for
+    `registered_by` tracking and self-deletion prevention.
+
+    ```
+    Authorization: Bearer <your_jwt_token>
+    ```
+
+    ## Input Format
+    The API uses **Multer** middleware, so it accepts both:
+    - `multipart/form-data` (primary)
+    - `application/json` (also works)
+
+    ## Pagination
+    List endpoints support `?limit=` (max 50) and `?page=` query parameters.
+
+    ## Known Behaviors
+    - `department_id` in departments is a **custom string ID** (e.g. `DEPT-001`), not MongoDB's `_id`.
+    - Delete and Update endpoints for both resources use MongoDB's internal `_id` (ObjectId).
+    - Employee passwords are auto-generated on creation and never returned in responses.
+    - New employee accounts are created as **inactive** (`is_active: false`) and require separate activation.
+
+  version: "1.0.0"
+  contact:
+    name: CoK HR System API Support
+
+servers:
+  - url: http://localhost:3000/cok/api
+    description: Local Development Server
+  - url: https://your-production-domain.com/cok/api
+    description: Production Server
+
+tags:
+  - name: Departments
+    description: |
+      Operations for managing organizational departments.
+      Base path: `/cok/api/department/crud`
+  - name: Employees
+    description: |
+      Operations for managing employee accounts.
+      Base path: `/cok/api/employee/crud`
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECURITY SCHEME
+# ─────────────────────────────────────────────────────────────────────────────
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token required for all endpoints. Must contain `name` and `id` in payload.
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # REUSABLE SCHEMAS
+  # ───────────────────────────────────────────────────────────────────────────
+  schemas:
+
+    # ── Generic Response Wrappers ──────────────────────────────────────────────
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        type:
+          type: string
+          example: success
+        message:
+          type: string
+          example: Operation completed successfully
+
+    WarningResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        type:
+          type: string
+          example: warning
+        message:
+          type: string
+          example: Validation or conflict error
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        type:
+          type: string
+          example: error
+        message:
+          type: string
+          example: Internal server error
+        error:
+          type: string
+          example: Detailed error message from the system
+
+    # ── Department Schemas ─────────────────────────────────────────────────────
+    DepartmentObject:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: MongoDB internal ObjectId — used in PUT and DELETE routes
+          example: "64f1a2b3c4d5e6f7a8b9c0d1"
+        department_name:
+          type: string
+          example: "Human Resources"
+        department_id:
+          type: string
+          description: Custom string identifier — used in GET by ID route
+          example: "DEPT-001"
+        department_leader:
+          type: string
+          example: "Jane Doe"
+        total_employees:
+          type: integer
+          example: 42
+        registered_by:
+          type: string
+          description: Automatically set from the authenticated user's name
+          example: "Admin User"
+        created_date:
+          type: string
+          format: date-time
+          example: "2025-01-15T08:30:00.000Z"
+
+    CreateDepartmentRequest:
+      type: object
+      required:
+        - department_name
+        - department_id
+      properties:
+        department_name:
+          type: string
+          description: Full name of the department (REQUIRED)
+          example: "Human Resources"
+        department_id:
+          type: string
+          description: Unique custom string ID for the department (REQUIRED)
+          example: "DEPT-001"
+        department_leader:
+          type: string
+          description: Name of the department leader (defaults to "Not specified")
+          example: "Jane Doe"
+        total_employees:
+          type: integer
+          description: Initial employee count (defaults to 0)
+          example: 0
+
+    UpdateDepartmentRequest:
+      type: object
+      required:
+        - department_name
+        - department_id
+        - department_leader
+        - total_employees
+      properties:
+        department_name:
+          type: string
+          description: Updated department name (ALL fields required for update)
+          example: "Human Resources & Talent"
+        department_id:
+          type: string
+          description: Updated custom department ID (ALL fields required for update)
+          example: "DEPT-001"
+        department_leader:
+          type: string
+          description: Updated leader name (ALL fields required for update)
+          example: "John Smith"
+        total_employees:
+          type: integer
+          description: Updated employee count (ALL fields required for update)
+          example: 55
+
+    DepartmentListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        type:
+          type: string
+          example: success
+        message:
+          type: string
+          example: Departments list
+        total:
+          type: integer
+          description: Total number of departments in the database
+          example: 15
+        page:
+          type: integer
+          example: 1
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DepartmentObject'
+
+    # ── Employee Schemas ───────────────────────────────────────────────────────
+    IdentificationObject:
+      type: object
+      properties:
+        id_type:
+          type: string
+          description: Type of identification document
+          example: "National ID"
+        number:
+          type: string
+          description: Identification document number
+          example: "1199880077665544"
+
+    AccessControlObject:
+      type: object
+      properties:
+        is_locked:
+          type: boolean
+          description: Whether the account is locked
+          example: false
+        reason:
+          type: string
+          nullable: true
+          description: Reason for locking the account
+          example: "Multiple failed login attempts"
+
+    RolesObject:
+      type: object
+      properties:
+        role_name:
+          type: string
+          example: "HR Manager"
+        permissions:
+          type: array
+          items:
+            type: string
+          example: ["read:employees", "write:employees", "read:departments"]
+
+    EmployeeObject:
+      type: object
+      description: Employee record (password and auth fields are always excluded from responses)
+      properties:
+        _id:
+          type: string
+          example: "64f1a2b3c4d5e6f7a8b9c0d2"
+        full_name:
+          type: string
+          example: "Alice Uwimana"
+        telephone:
+          type: string
+          example: "+250788123456"
+        email:
+          type: string
+          example: "alice.uwimana@cok.gov.rw"
+        gender:
+          type: string
+          example: "Female"
+        title:
+          type: string
+          example: "Ms."
+        picture:
+          type: string
+          example: "https://placehold.co/800?text=CoK&font=roboto"
+        identification:
+          $ref: '#/components/schemas/IdentificationObject'
+        department_name:
+          type: string
+          example: "Human Resources"
+        department_id:
+          type: string
+          example: "DEPT-001"
+        roles:
+          $ref: '#/components/schemas/RolesObject'
+        access_control:
+          $ref: '#/components/schemas/AccessControlObject'
+        is_active:
+          type: boolean
+          example: false
+        is_account_activated:
+          type: boolean
+          example: false
+        registered_by:
+          type: string
+          example: "Admin User"
+        created_date:
+          type: string
+          format: date-time
+          example: "2025-01-15T09:00:00.000Z"
+
+    CreateEmployeeRequest:
+      type: object
+      required:
+        - full_name
+        - telephone
+        - email
+      properties:
+        full_name:
+          type: string
+          description: Employee's full legal name (REQUIRED)
+          example: "Alice Uwimana"
+        telephone:
+          type: string
+          description: Unique telephone number (REQUIRED)
+          example: "+250788123456"
+        email:
+          type: string
+          format: email
+          description: Unique email address (REQUIRED)
+          example: "alice.uwimana@cok.gov.rw"
+        gender:
+          type: string
+          description: Employee gender (defaults to "Not specified")
+          example: "Female"
+        title:
+          type: string
+          description: Honorific title (defaults to "Not specified")
+          example: "Ms."
+        department_name:
+          type: string
+          description: Name of the department (defaults to "Not specified")
+          example: "Human Resources"
+        department_id:
+          type: string
+          description: Custom department ID to link to (defaults to "Not specified")
+          example: "DEPT-001"
+        identification:
+          $ref: '#/components/schemas/IdentificationObject'
+        roles:
+          $ref: '#/components/schemas/RolesObject'
+
+    UpdateEmployeeRequest:
+      type: object
+      description: |
+        All fields are optional. Only provided fields will be updated.
+        Email and telephone uniqueness is validated on change.
+      properties:
+        full_name:
+          type: string
+          example: "Alice B. Uwimana"
+        telephone:
+          type: string
+          example: "+250788654321"
+        email:
+          type: string
+          format: email
+          example: "alice.b.uwimana@cok.gov.rw"
+        gender:
+          type: string
+          example: "Female"
+        title:
+          type: string
+          example: "Dr."
+        department_name:
+          type: string
+          example: "Finance"
+        department_id:
+          type: string
+          example: "DEPT-003"
+        identification:
+          $ref: '#/components/schemas/IdentificationObject'
+        access_control:
+          $ref: '#/components/schemas/AccessControlObject'
+        roles:
+          $ref: '#/components/schemas/RolesObject'
+
+    EmployeeListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        type:
+          type: string
+          example: success
+        message:
+          type: string
+          example: Employees
+        total:
+          type: integer
+          example: 100
+        page:
+          type: integer
+          example: 1
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmployeeObject'
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # REUSABLE PARAMETERS
+  # ───────────────────────────────────────────────────────────────────────────
+  parameters:
+    MongoObjectId:
+      name: id
+      in: path
+      required: true
+      description: MongoDB internal ObjectId (`_id`) of the resource
+      schema:
+        type: string
+        pattern: '^[a-fA-F0-9]{24}$'
+      example: "64f1a2b3c4d5e6f7a8b9c0d1"
+
+    PageParam:
+      name: page
+      in: query
+      required: false
+      description: Page number for pagination (default 1)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      example: 1
+
+    LimitParam:
+      name: limit
+      in: query
+      required: false
+      description: Number of records per page (default 10, max 50)
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 10
+      example: 10
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GLOBAL SECURITY
+# ─────────────────────────────────────────────────────────────────────────────
+security:
+  - BearerAuth: []
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PATHS
+# ─────────────────────────────────────────────────────────────────────────────
+paths:
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # DEPARTMENT ENDPOINTS
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /department/crud:
+    get:
+      tags:
+        - Departments
+      summary: "[TEST 1] List All Departments (Paginated)"
+      operationId: listAllDepartments
+      description: |
+        **Test Title:** List All Departments with Pagination
+
+        Retrieves all departments from the database sorted by creation date (newest first).
+
+        **What to test:**
+        - Default call (no query params) → should return first 10 departments
+        - `?page=2&limit=5` → second page with 5 items
+        - `?limit=100` → should be capped at 50 (server enforces max)
+        - Empty database → should return `data: []` with `total: 0`
+
+        **Expected success:** `200 OK` with `total`, `page`, and `data[]` fields.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Departments listed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentListResponse'
+              examples:
+                success:
+                  summary: Successful paginated list
+                  value:
+                    success: true
+                    type: success
+                    message: "Departments list"
+                    total: 3
+                    page: 1
+                    data:
+                      - _id: "64f1a2b3c4d5e6f7a8b9c0d1"
+                        department_name: "Human Resources"
+                        department_id: "DEPT-001"
+                        department_leader: "Jane Doe"
+                        total_employees: 42
+                        registered_by: "Admin User"
+                empty:
+                  summary: No departments found
+                  value:
+                    success: true
+                    type: success
+                    message: "Departments list"
+                    total: 0
+                    page: 1
+                    data: []
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Departments
+      summary: "[TEST 2] Create a New Department"
+      operationId: createDepartment
+      description: |
+        **Test Title:** Create Department — Validation, Uniqueness & Success
+
+        Creates a new department record. `department_name` and `department_id` are mandatory.
+        The `registered_by` field is automatically populated from the authenticated user's JWT.
+
+        **What to test:**
+        - ✅ Valid payload → `201 Created`
+        - ❌ Missing `department_name` → `400 Bad Request`
+        - ❌ Missing `department_id` → `400 Bad Request`
+        - ❌ Duplicate `department_id` (already exists) → `409 Conflict`
+        - ✅ Omitting optional fields → defaults applied (`department_leader: "Not specified"`, `total_employees: 0`)
+        - ❌ No Authorization header → auth middleware should reject
+
+        **Note:** `registered_by` is set automatically and cannot be manually overridden.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDepartmentRequest'
+            examples:
+              full_valid:
+                summary: Full valid payload
+                value:
+                  department_name: "Human Resources"
+                  department_id: "DEPT-001"
+                  department_leader: "Jane Doe"
+                  total_employees: 10
+              minimal_valid:
+                summary: Minimal required fields only
+                value:
+                  department_name: "Finance"
+                  department_id: "DEPT-002"
+              missing_name:
+                summary: "[FAIL] Missing department_name"
+                value:
+                  department_id: "DEPT-003"
+              missing_id:
+                summary: "[FAIL] Missing department_id"
+                value:
+                  department_name: "Legal"
+              duplicate:
+                summary: "[FAIL] Duplicate department_id"
+                value:
+                  department_name: "HR Copy"
+                  department_id: "DEPT-001"
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateDepartmentRequest'
+      responses:
+        '201':
+          description: Department created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DepartmentObject'
+              example:
+                success: true
+                type: success
+                message: "Department created successfully"
+                data:
+                  department_name: "Human Resources"
+                  department_id: "DEPT-001"
+                  department_leader: "Jane Doe"
+                  total_employees: 10
+                  registered_by: "Admin User"
+        '400':
+          description: Validation failed — missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningResponse'
+              example:
+                success: false
+                type: warning
+                message: "department name and id are required"
+        '409':
+          description: Conflict — department_id already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningResponse'
+              example:
+                success: false
+                status: warning
+                message: "Department with ID DEPT-001 already exists."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /department/crud/{department_id}:
+    get:
+      tags:
+        - Departments
+      summary: "[TEST 3] Get Department by Custom department_id"
+      operationId: getDepartmentById
+      description: |
+        **Test Title:** Fetch Single Department by Custom String ID
+
+        Retrieves a single department using the **custom `department_id` string** (e.g. `DEPT-001`),
+        **NOT** the MongoDB `_id`. This is important — the path parameter here is the human-readable
+        department identifier set during creation.
+
+        **What to test:**
+        - ✅ Existing `department_id` → `200 OK` with full department object
+        - ❌ Non-existent `department_id` → `404 Not Found`
+        - ❌ Wrong type of ID (e.g. ObjectId format) → `404 Not Found` (treated as a literal string)
+
+        **⚠️ Important Distinction:**
+        This endpoint uses the custom `department_id` field.
+        PUT and DELETE use the MongoDB `_id` (`ObjectId`).
+      parameters:
+        - name: department_id
+          in: path
+          required: true
+          description: The custom department string ID set at creation time (e.g. "DEPT-001")
+          schema:
+            type: string
+          example: "DEPT-001"
+      responses:
+        '200':
+          description: Department found
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DepartmentObject'
+              example:
+                success: true
+                type: success
+                message: "Department found"
+                data:
+                  _id: "64f1a2b3c4d5e6f7a8b9c0d1"
+                  department_name: "Human Resources"
+                  department_id: "DEPT-001"
+                  department_leader: "Jane Doe"
+                  total_employees: 42
+                  registered_by: "Admin User"
+        '404':
+          description: Department not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningResponse'
+              example:
+                success: false
+                type: warning
+                message: "Department with ID DEPT-999 not found."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /department/crud/{id}:
+    put:
+      tags:
+        - Departments
+      summary: "[TEST 4] Update Department by MongoDB _id"
+      operationId: updateDepartment
+      description: |
+        **Test Title:** Full Department Update — All Fields Required
+
+        Updates a department document identified by its MongoDB `_id` (ObjectId, 24 hex characters).
+        **All four fields are required** — the controller validates that none are null
+        and returns `400` if any are missing.
+
+        **What to test:**
+        - ✅ Valid ObjectId + all 4 fields → `200 OK`
+        - ❌ Invalid ObjectId format → `400 Bad Request` (ObjectId validation)
+        - ❌ Valid ObjectId but not found → `404 Not Found`
+        - ❌ Missing any one field (`department_name`, `department_id`, `department_leader`, `total_employees`) → `400 Bad Request`
+        - ✅ Changing `department_id` to a new unique value → allowed
+
+        **⚠️ Known Bug:** The `400` response for missing fields incorrectly returns `success: true`
+        in the source code. The response is documented accurately to reflect actual system behavior.
+
+        **ID Format:** Must be a 24-character hex MongoDB ObjectId (e.g. `64f1a2b3c4d5e6f7a8b9c0d1`).
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDepartmentRequest'
+            examples:
+              valid_update:
+                summary: Valid full update
+                value:
+                  department_name: "Human Resources & Talent"
+                  department_id: "DEPT-001"
+                  department_leader: "John Smith"
+                  total_employees: 55
+              missing_leader:
+                summary: "[FAIL] Missing department_leader"
+                value:
+                  department_name: "HR"
+                  department_id: "DEPT-001"
+                  total_employees: 10
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UpdateDepartmentRequest'
+      responses:
+        '200':
+          description: Department updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                type: success
+                message: "Department updated"
+        '400':
+          description: Invalid ObjectId format OR missing required body fields
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  type:
+                    type: string
+                  message:
+                    type: string
+              examples:
+                invalid_id:
+                  summary: Invalid ObjectId format
+                  value:
+                    success: false
+                    type: warning
+                    message: "The provided ID 'abc' is not a valid format"
+                missing_fields:
+                  summary: Missing required fields (note — bug in source returns success:true)
+                  value:
+                    success: true
+                    type: warning
+                    message: "Some department data are invalid"
+        '404':
+          description: Department not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningResponse'
+              example:
+                success: false
+                type: warning
+                message: "Department not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Departments
+      summary: "[TEST 5] Delete Department by MongoDB _id"
+      operationId: deleteDepartment
+      description: |
+        **Test Title:** Delete Department — ID Validation & Existence Check
+
+        Permanently deletes a department by its MongoDB `_id` (ObjectId).
+        This action is irreversible.
+
+        **What to test:**
+        - ✅ Valid ObjectId of existing department → `200 OK`
+        - ❌ Invalid ObjectId format (non-hex, wrong length) → `400 Bad Request`
+        - ❌ Valid ObjectId but no matching department → `404 Not Found`
+        - ❌ Already deleted department (run DELETE twice) → `404 Not Found`
+
+        **ID Format:** Must be a valid 24-character MongoDB ObjectId.
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200':
+          description: Department deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                type: success
+                message: "Department deleted"
+        '400':
+          description: Invalid ObjectId format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningResponse'
+              example:
+                success: false
+                type: warning
+                message: "The provided ID 'not-valid' is not a valid format"
+        '404':
+          description: Department not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningResponse'
+              example:
+                success: false
+                type: warning
+                message: "Department not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # EMPLOYEE ENDPOINTS
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /employee/crud:
+    get:
+      tags:
+        - Employees
+      summary: "[TEST 6] List All Employees (Paginated, Sensitive Fields Excluded)"
+      operationId: listAllEmployees
+      description: |
+        **Test Title:** List Employees — Pagination & Sensitive Field Exclusion
+
+        Returns a paginated list of employees sorted by creation date (newest first).
+        Sensitive fields `password` and `auth` are **always excluded** from responses.
+
+        **What to test:**
+        - ✅ Default call → returns up to 10 employees, no `password` or `auth` fields
+        - ✅ `?page=2&limit=5` → correct pagination
+        - ✅ `?limit=200` → capped at 50 by server
+        - ✅ Verify that `password` and `auth` fields do NOT appear in any response object
+        - 🔍 Cross-check `total` count with actual DB count
+
+        **Security Note:** Even though passwords are hashed, the `.select('-password -auth')`
+        ensures they never leave the server.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Employees listed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeListResponse'
+              examples:
+                success:
+                  summary: Successful list response
+                  value:
+                    success: true
+                    type: success
+                    message: "Employees"
+                    total: 50
+                    page: 1
+                    data:
+                      - _id: "64f1a2b3c4d5e6f7a8b9c0d2"
+                        full_name: "Alice Uwimana"
+                        email: "alice@cok.gov.rw"
+                        telephone: "+250788123456"
+                        is_active: false
+                        is_account_activated: false
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Employees
+      summary: "[TEST 7] Create New Employee Account"
+      operationId: createEmployee
+      description: |
+        **Test Title:** Create Employee — Required Fields, Uniqueness & Auto-Generation
+
+        Creates a new employee account. The system automatically:
+        - Generates a random 16-character hex password (`crypto.randomBytes(8)`)
+        - Sets the profile picture to a placeholder URL
+        - Sets `is_active: false` and `is_account_activated: false`
+        - Sets `registered_by` from the JWT token payload
+
+        **What to test:**
+        - ✅ Full valid payload → `201 Created` (no password returned)
+        - ✅ Minimal payload (only `full_name`, `telephone`, `email`) → `201 Created`
+        - ❌ Missing `full_name` → `400 Bad Request`
+        - ❌ Missing `telephone` → `400 Bad Request`
+        - ❌ Missing `email` → `400 Bad Request`
+        - ❌ Duplicate email → `409 Conflict`
+        - ❌ Duplicate telephone → `409 Conflict`
+        - ✅ Verify password is NOT returned in the `201` response
+
+        **Note:** The created account requires a separate activation step before the
+        employee can log in (`is_active` starts as `false`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEmployeeRequest'
+            examples:
+              full_valid:
+                summary: Full valid employee payload
+                value:
+                  full_name: "Alice Uwimana"
+                  telephone: "+250788123456"
+                  email: "alice.uwimana@cok.gov.rw"
+                  gender: "Female"
+                  title: "Ms."
+                  department_name: "Human Resources"
+                  department_id: "DEPT-001"
+                  identification:
+                    id_type: "National ID"
+                    number: "1199880077665544"
+                  roles:
+                    role_name: "HR Officer"
+                    permissions:
+                      - "read:employees"
+                      - "write:employees"
+              minimal_valid:
+                summary: Minimal required fields only
+                value:
+                  full_name: "Bob Habimana"
+                  telephone: "+250788654321"
+                  email: "bob.habimana@cok.gov.rw"
+              missing_email:
+                summary: "[FAIL] Missing email"
+                value:
+                  full_name: "Carol Mukamana"
+                  telephone: "+250788111222"
+              duplicate_email:
+                summary: "[FAIL] Duplicate email"
+                value:
+                  full_name: "Duplicate User"
+                  telephone: "+250788999000"
+                  email: "alice.uwimana@cok.gov.rw"
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateEmployeeRequest'
+      responses:
+        '201':
+          description: Employee account created — activation required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                type: success
+                message: "Employee account created successfully. Account activation is required."
+        '400':
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningResponse'
+              example:
+                success: false
+                type: warning
+                message: "Full name, telephone and email are required fields."
+        '409':
+          description: Email or telephone already exists in system
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningResponse'
+              examples:
+                duplicate_email:
+                  summary: Duplicate email
+                  value:
+                    success: false
+                    type: warning
+                    message: "Email already exists in the system."
+                duplicate_phone:
+                  summary: Duplicate telephone
+                  value:
+                    success: false
+                    type: warning
+                    message: "Telephone already exists in the system."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /employee/crud/{id}:
+    get:
+      tags:
+        - Employees
+      summary: "[TEST 8] Get Employee by MongoDB _id"
+      operationId: getEmployeeById
+      description: |
+        **Test Title:** Fetch Single Employee by MongoDB ObjectId
+
+        Retrieves a single employee record by their MongoDB `_id`.
+
+        **What to test:**
+        - ✅ Valid ObjectId of existing employee → `200 OK` with full employee object
+        - ❌ Valid format ObjectId but not found → `404 Not Found`
+        - ❌ Invalid ObjectId format → observe behavior (may 500 or 404 depending on implementation)
+        - ✅ Confirm `password` and `auth` are excluded from the response
+
+        **Note:** This endpoint uses the MongoDB `_id`, not the `email` or `telephone`.
+        Obtain the `_id` from the list endpoint (`GET /employee/crud`).
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200':
+          description: Employee found
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/EmployeeObject'
+              example:
+                success: true
+                type: success
+                message: "Employee found"
+                data:
+                  _id: "64f1a2b3c4d5e6f7a8b9c0d2"
+                  full_name: "Alice Uwimana"
+                  email: "alice.uwimana@cok.gov.rw"
+                  telephone: "+250788123456"
+                  is_active: false
+                  is_account_activated: false
+        '404':
+          description: Employee not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningResponse'
+              example:
+                success: false
+                type: warning
+                message: "Employee not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Employees
+      summary: "[TEST 9] Update Employee by MongoDB _id"
+      operationId: updateEmployee
+      description: |
+        **Test Title:** Partial Employee Update — Field Allow-listing & Conflict Detection
+
+        Updates an employee document by MongoDB `_id`. Unlike the department update,
+        this endpoint uses **partial updates** — only fields present in the request body
+        are applied. Omitted fields remain unchanged.
+
+        **Updatable fields:** `full_name`, `telephone`, `email`, `gender`, `title`,
+        `department_name`, `department_id`, `identification`, `access_control`, `roles`
+
+        **Protected fields:** `password`, `auth`, `is_active`, `is_account_activated`,
+        `registered_by`, `picture` — these cannot be changed via this endpoint.
+
+        **What to test:**
+        - ✅ Update `full_name` only → `200 OK`, other fields unchanged
+        - ✅ Update `roles` nested object → `200 OK`
+        - ✅ Update `access_control.is_locked: true` → locks the account
+        - ❌ Change email to one already used by another account → `409 Conflict`
+        - ❌ Change telephone to one already used by another account → `409 Conflict`
+        - ✅ Change email to same value (no change) → no conflict, `200 OK`
+        - ❌ Invalid ObjectId → `400 Bad Request`
+        - ❌ Valid ObjectId not in DB → `404 Not Found`
+
+        **Note:** `department_name` defaults to `"Not specified"` if omitted from body.
+        Pass `null` carefully — the controller uses `undefined` checks internally.
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEmployeeRequest'
+            examples:
+              update_name_only:
+                summary: Update full_name only
+                value:
+                  full_name: "Alice B. Uwimana"
+              update_roles:
+                summary: Update roles
+                value:
+                  roles:
+                    role_name: "Senior HR Officer"
+                    permissions:
+                      - "read:employees"
+                      - "write:employees"
+                      - "delete:employees"
+              lock_account:
+                summary: Lock employee account
+                value:
+                  access_control:
+                    is_locked: true
+                    reason: "Suspicious login activity detected"
+              update_department:
+                summary: Move employee to different department
+                value:
+                  department_name: "Finance"
+                  department_id: "DEPT-003"
+              duplicate_email:
+                summary: "[FAIL] Email already used by another account"
+                value:
+                  email: "bob.habimana@cok.gov.rw"
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UpdateEmployeeRequest'
+      responses:
+        '200':
+          description: Employee updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                type: success
+                message: "Employee data updated successfully"
+        '400':
+          description: Invalid MongoDB ObjectId format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningResponse'
+              example:
+                success: false
+                type: warning
+                message: "Invalid user ID format."
+        '404':
+          description: Employee not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningResponse'
+              example:
+                success: false
+                type: warning
+                message: "User not found to update."
+        '409':
+          description: Email or telephone conflict with another account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningResponse'
+              examples:
+                email_conflict:
+                  summary: Email already in use
+                  value:
+                    success: false
+                    type: warning
+                    message: "Email is already in use by another account."
+                phone_conflict:
+                  summary: Telephone already in use
+                  value:
+                    success: false
+                    type: warning
+                    message: "Telephone is already in use by another account."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Employees
+      summary: "[TEST 10] Delete Employee by MongoDB _id (Self-Deletion Prevented)"
+      operationId: deleteEmployee
+      description: |
+        **Test Title:** Delete Employee — Self-Deletion Guard & ID Validation
+
+        Permanently deletes an employee account by MongoDB `_id`.
+        This action is irreversible. Includes a **self-deletion guard** —
+        an authenticated user cannot delete their own account.
+
+        **What to test:**
+        - ✅ Valid ObjectId of another employee → `200 OK` with deleted employee's name
+        - ❌ Attempt to delete your own account (same `id` as JWT `req.user.id`) → `403 Forbidden`
+        - ❌ Invalid ObjectId format → `400 Bad Request`
+        - ❌ Valid ObjectId but employee already deleted → `404 Not Found`
+        - ✅ Confirm deleted employee can no longer be retrieved via GET endpoint
+
+        **Self-Deletion Test:** Use the same token you're authenticating with
+        and pass the `_id` of the account that token belongs to. Should receive `403`.
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200':
+          description: Employee deleted successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            example: "64f1a2b3c4d5e6f7a8b9c0d2"
+              example:
+                success: true
+                type: success
+                message: "Account for Alice Uwimana has been successfully removed"
+                data:
+                  id: "64f1a2b3c4d5e6f7a8b9c0d2"
+        '400':
+          description: Invalid ObjectId format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningResponse'
+              example:
+                success: false
+                type: warning
+                message: "Invalid ID format"
+        '403':
+          description: Self-deletion is not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningResponse'
+              example:
+                success: false
+                type: warning
+                message: "You cannot delete your own account"
+        '404':
+          description: Employee not found or already deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningResponse'
+              example:
+                success: false
+                type: warning
+                message: "Employee not found or already deleted"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
