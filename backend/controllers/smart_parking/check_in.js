@@ -66,8 +66,7 @@ module.exports = async function car_check_in(req, res, next) {
         if (!driver_name) {
             const service_delivery = await ServiceDelivery.findOne({
                 "vehicle_storage.has_vehicle": true,
-                "vehicle_storage.vehicle_details.plate_number": plate_number,
-                is_still_inhouse: true
+                "vehicle_storage.vehicle_details.plate_number": plate_number
             });
             if (service_delivery) {
                 driver_name = service_delivery.full_name;
