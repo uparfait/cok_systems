@@ -6,17 +6,18 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
     try {
         let {
             visitor_id = null,
-            department_id = null,
-            department_name = null,
+            new_department_id = null,
+            new_department_name = null,
             provider_name = 'Not specified',
-            provider_id = null
+            provider_id = null,
+            previous_department_id = null // Added for strict security
         } = req.body || {};
 
-        if (!visitor_id || !department_id || !department_name) {
+        if (!visitor_id || !new_department_id || !new_department_name) {
             return res.status(400).json({
                 success: false,
                 type: 'warning',
-                message: "Visitor ID, Department ID, and Department Name are required"
+                message: "Visitor ID, New Department ID, and New Department Name are required"
             });
         }
 
@@ -27,33 +28,26 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
         const visitor = await ServiceDelivery.findById(visitor_id);
         
         if (!visitor || !visitor.is_still_inhouse) {
-            return res.status(404).json({
-                success: false,
-                type: 'warning',
-                message: "Visitor not found or has already left."
-            });
+            return res.status(404).json({ success: false, type: 'warning', message: "Visitor not found or has already left." });
         }
 
         const current_time = new Date();
 
-        // Check current service status to see if we need to close one out
-        const active_service_index = visitor.services_status.findIndex(s => s.type !== 'Completed');
+        // ONLY close the previous service if its ID strictly matches the one provided in the request
+        if (previous_department_id) {
+            const active_service_index = visitor.services_status.findIndex(
+                s => s.department_id === previous_department_id && s.type !== 'Completed'
+            );
 
-        if (active_service_index !== -1) {
-            const active_service = visitor.services_status[active_service_index];
-            
-            // If it was marked completed by provider but not processed yet, or if we force complete it
-            if (active_service.type === 'Completed' || active_service.type === 'Inprogress') {
+            if (active_service_index !== -1) {
+                const active_service = visitor.services_status[active_service_index];
                 
-                // Find matching assigned department to get the start time
-                const assigned_dept = visitor.departments_assigned.find(d => d.department_id === active_service.department_id);
+                const assigned_dept = visitor.departments_assigned.find(d => d.department_id === previous_department_id);
                 const start_time = assigned_dept ? assigned_dept.assigned_time : visitor.entry_date;
                 
-                // Calculate duration in minutes
                 const duration_minutes = Math.round((current_time - new Date(start_time)) / 60000);
                 const duration_str = `${duration_minutes} mins`;
 
-                // Save to ServiceTracking Model
                 await ServiceTracking.create({
                     department_id: active_service.department_id,
                     department_name: active_service.department_name,
@@ -64,7 +58,6 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
                     provider_id: active_service.provider_id
                 });
 
-                //  Push to durations array in ServiceDelivery
                 visitor.durations.services_durations.push({
                     department_id: active_service.department_id,
                     department_name: active_service.department_name,
@@ -75,15 +68,14 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
                     provider_id: active_service.provider_id
                 });
 
-                // Mark old service as completed
-                visitor.services_status[active_service_index].type = 'Completed';
+                visitor.services_status[active_service_index].type = 'Transfered';
             }
         }
 
         // Assign the new department
         visitor.departments_assigned.push({
-            department_id,
-            department_name,
+            department_id: new_department_id,
+            department_name: new_department_name,
             assigned_time: current_time,
             provider_name,
             provider_id,
@@ -91,8 +83,8 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
         });
 
         visitor.services_status.push({
-            department_id,
-            department_name,
+            department_id: new_department_id,
+            department_name: new_department_name,
             provider_name,
             provider_id,
             type: 'Not started'
@@ -109,11 +101,6 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
 
     } catch (error) {
         console.error("Error in assign_visitor:", error);
-        return res.status(500).json({
-            success: false,
-            type: "error",
-            message: "Something went wrong while assigning the visitor",
-            error: error.message
-        });
+        return res.status(500).json({ success: false, type: "error", message: "Failed to assign visitor", error: error.message });
     }
 };
