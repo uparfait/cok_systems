@@ -69,7 +69,7 @@ module.exports = async function visitor_checkin(req, res, next) {
             vehicle_storage,
             items_entered_with,
             departments_assigned,
-            services_status,
+            services_status: services_status,
             is_still_inhouse: true,
             entry_date: new Date(),
             registered_by

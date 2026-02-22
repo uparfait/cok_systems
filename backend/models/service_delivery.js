@@ -78,9 +78,8 @@ const service_delivery_schema = new mongoose.Schema({
             department_id: String,
             provider_name: String,
             provider_id: String,
-            type: String,
-            enum: ['Not started', 'Inprogress', 'Transfered', 'Completed'],
-            default: 'Not started'
+            s_type: {type: String, enum: ['Not started', 'Inprogress', 'Transfered', 'Completed']},
+            
         }
     ],
     is_still_inhouse: { type: Boolean, default: true },
