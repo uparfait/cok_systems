@@ -47,7 +47,7 @@ const service_delivery_schema = new mongoose.Schema({
             {
                 type_of_emergency: {
                     type: String,
-                    enum: ['Transifer to another department', 'Leave outside', 'Other'],
+                    enum: ['Leave outside', 'Other'],
                     default: 'Other'
                 },
 
