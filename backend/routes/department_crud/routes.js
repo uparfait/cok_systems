@@ -14,6 +14,7 @@ const list_all_departments = require('../../controllers/department_crud/list_all
 const get_department_by_id = require('../../controllers/department_crud/get_department_by_id.js')
 const update_department = require('../../controllers/department_crud/update_department.js')
 const delete_department = require('../../controllers/department_crud/delete_department.js')
+const search_department = require('../../controllers/department_crud/search_department.js')
 const multer = require('multer')
 const upload = multer()
 
@@ -42,6 +43,7 @@ Router.use((error, req, res, next) => {
 })
 
 Router.get('/', list_all_departments)
+Router.get('/search', search_department)
 Router.get('/:department_id', get_department_by_id)
 Router.post('/', create_department)
 Router.put('/:id', update_department)

@@ -14,6 +14,31 @@ const vistor_checkin = require('../../controllers/serivice_delivery/vistor_check
 const vistor_checkout =  require('../../controllers/serivice_delivery/vistor_checkout.js')
 const toggle_service_status = require('../../controllers/serivice_delivery/toggle_service_status.js')
 const toggle_leave_out_side_and_return = require('../../controllers/serivice_delivery/toggle_leave_out_side_and_return.js')
+const multer = require('multer')
+const upload = multer()
+
+
+Router.use(upload.any())
+
+/**
+ * Global Interceptor for Multer Errors
+ * This prevents the app from throwing a 500 error when:
+ * - No data is sent
+ * - Input is not formatted correctly as multipart/form-data
+ * - Unexpected fields are sent
+ */
+Router.use((error, req, res, next) => {
+    if (error instanceof multer.MulterError || error) {
+        // Log the issue internally for the dev
+        console.warn('[UPLOAD WARNING]: Handled unexpected or empty input:', error.message)
+
+        // Instead of crashing, we normalize the body to an empty object
+        // and let the request continue to the controllers
+        req.body = req.body || {}
+        return next()
+    }
+    next()
+})
 
 
 

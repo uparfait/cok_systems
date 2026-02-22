@@ -37,10 +37,6 @@ const upload = multer({
     }
 });
 
-/**
- * Initial testing routes
- */
-
 Router.get('/', (req, res, next) => {
     return res.status(200).json({
         status: true,
@@ -82,6 +78,27 @@ Router.post('/bulk-upload', upload.any(), bulkUploadReservations);
 
 
 // parfaits routes
+
+
+/**
+ * Global Interceptor for Multer Errors
+ * This prevents the app from throwing a 500 error when:
+ * - No data is sent
+ * - Input is not formatted correctly as multipart/form-data
+ * - Unexpected fields are sent
+ */
+Router.use((error, req, res, next) => {
+    if (error instanceof multer.MulterError || error) {
+        // Log the issue internally for the dev
+        console.warn('[UPLOAD WARNING]: Handled unexpected or empty input:', error.message)
+
+        // Instead of crashing, we normalize the body to an empty object
+        // and let the request continue to the controllers
+        req.body = req.body || {}
+        return next()
+    }
+    next()
+})
 
 Router.get('/vehicle', list_parking)
 Router.get('/vehicle/search', search_inparking_records)

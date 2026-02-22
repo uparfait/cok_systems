@@ -14,6 +14,7 @@ const list_all_employees = require('../../controllers/employee_crud/get_all_empl
 const get_employee_by_id = require('../../controllers/employee_crud/get_employee_by_id.js')
 const update_employee = require('../../controllers/employee_crud/update_employee.js')
 const delete_employee = require('../../controllers/employee_crud/delete_employee.js')
+const search_employees = require('../../controllers/employee_crud/search_employee.js')
 const multer = require('multer')
 const upload = multer()
 
@@ -41,6 +42,7 @@ Router.use((error, req, res, next) => {
 })
 
 Router.get('/', list_all_employees)
+Router.get('/search', search_employees)
 Router.get('/:id', get_employee_by_id)
 Router.post('/', create_employee)
 Router.put('/:id', update_employee)
