@@ -5,10 +5,10 @@ info:
   version: "1.0.0"
 
 servers:
-  - url: http://localhost:2026/cok/api
-    description: Local
   - url: https://cok-bc.onrender.com/cok/api
-    description: Production
+    description: Production Test
+  - url: http://localhost:2026/cok/api
+    description: Local Test
 
 tags:
   - name: Departments
