@@ -8,7 +8,6 @@ const path = require('path')
 const swagger_document = YAML.load(path.join(__dirname, 'api_description.yaml'))
 
 
-
 Router.use(
     '/docs',
     swaggerUi.serve,
