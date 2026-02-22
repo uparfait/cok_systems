@@ -2,7 +2,7 @@ const ServiceDelivery = require('../../models/service_delivery.js')
 
 module.exports = async function search_visitors(req, res, next) {
     try {
-        let { query = '', in_house = false, limit = 10, page = 1 } = req.query || {}
+        let { query = '', in_house = true, limit = 10, page = 1 } = req.query || {}
 
         const limit_val = Math.min(parseInt(limit), 50)
         const skip_val = (parseInt(page) - 1) * limit_val

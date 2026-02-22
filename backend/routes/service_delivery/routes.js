@@ -12,6 +12,8 @@ const list_vistors = require('../../controllers/serivice_delivery/list_vistors.j
 const search_vistor = require('../../controllers/serivice_delivery/search_vistor.js')
 const vistor_checkin = require('../../controllers/serivice_delivery/vistor_checkin.js')
 const vistor_checkout =  require('../../controllers/serivice_delivery/vistor_checkout.js')
+const toggle_service_status = require('../../controllers/serivice_delivery/toggle_service_status.js')
+const toggle_leave_out_side_and_return = require('../../controllers/serivice_delivery/toggle_leave_out_side_and_return.js')
 
 
 
@@ -62,5 +64,7 @@ Router.get('/visitor/:id', get_vistor_by_id)
 Router.post('/visitor/chekin', vistor_checkin)
 Router.post('/visitor/assign', assign_vistor_to_department)
 Router.post('/visitor/checkout', vistor_checkout)
+Router.post('/visitor/service/status', toggle_service_status)
+Router.post('/visitor/emergency/leave-return', toggle_leave_out_side_and_return)
 
 module.exports = Router
