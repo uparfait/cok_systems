@@ -10,7 +10,7 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
             new_department_name = null,
             provider_name = 'Not specified',
             provider_id = null,
-            previous_department_id = null // Added for strict security
+            previous_department_id = null
         } = req.body || {};
 
         if (!visitor_id || !new_department_id || !new_department_name) {
