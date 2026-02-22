@@ -9,7 +9,7 @@ const parking_record_schema = new mongoose.Schema({
     driver_name: { type: String },
     driver_telephone: { type: String },
     status: { type: String, enum: ['active', 'completed'], default: 'active' },
-    driver_type: { type: String, enum: ['staff', 'visitor', 'regular'] },
+    driver_type: { type: String, enum: ['staff', 'visitor', 'regular', 'Staff', 'Regular', 'Visitor'] },
     slot_number: { type: String },
     check_in: { type: Date, default: Date.now },
     check_out: { type: Date },
