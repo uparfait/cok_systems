@@ -1,5 +1,5 @@
 const mongoose = require('mongoose')
-const ServiceDelivery = require('../../models/ServiceDelivery.js')
+const ServiceDelivery = require('../../models/service_delivery.js')
 
 module.exports = async function get_visitor_by_id(req, res, next) {
     try {
