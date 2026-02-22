@@ -24,27 +24,28 @@ module.exports = async function car_check_out(req, res, next) {
 
         const current_time = new Date();
         const parked_minutes = Math.round((current_time - new Date(parking_session.check_in)) / 60000);
-        
+
         // Finalize parking record
         parking_session.status = 'completed';
         parking_session.check_out = current_time;
         parking_session.duration = `${parked_minutes} mins`;
-        
+
         await parking_session.save();
 
-        // Check if there is a pending Visitor waiting for this car to leave
+
         const pending_visitor = await ServiceDelivery.findOne({
             "vehicle_storage.has_vehicle": true,
             "vehicle_storage.vehicle_details.plate_number": plate_number,
             is_still_inhouse: true,
-            exist_date: { $ne: null } // asked to leave (exist_date set), but car was still here
+            exist_date: { $ne: null, $lte: current_time } // <-- updated condition
         });
+
 
         if (pending_visitor) {
             pending_visitor.is_still_inhouse = false;
             pending_visitor.vehicle_storage.vehicle_details.exited_time = current_time;
             pending_visitor.vehicle_storage.vehicle_details.duration = `${parked_minutes} mins`;
-            
+
 
             await pending_visitor.save();
         }
@@ -53,7 +54,7 @@ module.exports = async function car_check_out(req, res, next) {
             success: true,
             type: "success",
             message: pending_visitor ? "Car and associated Visitor successfully checked out." : "Car checked out successfully.",
-            
+
         });
 
     } catch (error) {
