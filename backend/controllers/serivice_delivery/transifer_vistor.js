@@ -10,8 +10,8 @@ module.exports = async function transfer_visitor(req, res, next) {
             reason_for_transfer = 'Transifer to another department'
         } = req.body || {};
 
-        if (!visitor_id || !new_department_id) {
-            return res.status(400).json({ success: false, type: 'warning', message: "Missing required fields" });
+        if (!visitor_id) {
+            return res.status(400).json({ success: false, type: 'warning', message: "Missing vistor id" });
         }
 
         const visitor = await ServiceDelivery.findById(visitor_id);
