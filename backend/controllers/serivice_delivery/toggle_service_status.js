@@ -30,7 +30,7 @@ module.exports = async function toggle_service_status(req, res, next) {
 
         // 1. Find the exact service status to update
         const service_index = visitor.services_status.findIndex(
-            s => s.department_id === department_id && s.type !== 'Completed' && s.type !== 'Transfered'
+            s => s.department_id === department_id && s.s_type !== 'Completed' && s.s_type !== 'Transfered'
         );
 
         if (service_index === -1) {
@@ -46,7 +46,7 @@ module.exports = async function toggle_service_status(req, res, next) {
 
         // 2. Logic for marking as 'Inprogress'
         if (status === 'Inprogress') {
-            active_service.type = 'Inprogress';
+            active_service.s_type = 'Inprogress';
             
             // Mark reached_in as true in departments_assigned
             const dept_assign = visitor.departments_assigned.find(d => d.department_id === department_id);
@@ -83,7 +83,7 @@ module.exports = async function toggle_service_status(req, res, next) {
                 provider_id: active_service.provider_id
             });
 
-            active_service.type = 'Completed';
+            active_service.s_type = 'Completed';
         }
 
         const updated_visitor = await visitor.save();

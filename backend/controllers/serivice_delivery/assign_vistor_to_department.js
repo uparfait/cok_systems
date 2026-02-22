@@ -8,7 +8,7 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
             visitor_id = null,
             new_department_id = null,
             new_department_name = null,
-            provider_name = 'Not specified',
+            provider_name = req.user?.name || 'Not specified',
             provider_id = null,
             previous_department_id = null
         } = req.body || {};
@@ -36,7 +36,7 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
         // ONLY close the previous service if its ID strictly matches the one provided in the request
         if (previous_department_id) {
             const active_service_index = visitor.services_status.findIndex(
-                s => s.department_id === previous_department_id && s.type !== 'Completed'
+                s => s.department_id === previous_department_id && s.s_type !== 'Completed'
             );
 
             if (active_service_index !== -1) {
@@ -68,7 +68,7 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
                     provider_id: active_service.provider_id
                 });
 
-                visitor.services_status[active_service_index].type = 'Transfered';
+                visitor.services_status[active_service_index].s_type = 'Transfered';
             }
         }
 
@@ -87,7 +87,7 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
             department_name: new_department_name,
             provider_name,
             provider_id,
-            type: 'Not started'
+            s_type: 'Not started'
         });
 
         const updated_visitor = await visitor.save();

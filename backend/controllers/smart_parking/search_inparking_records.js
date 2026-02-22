@@ -8,12 +8,12 @@ module.exports = async function search_parking_records(req, res, next) {
         const skip_val = (parseInt(page) - 1) * limit_val
 
         // Escape special characters to prevent Regex DDoS/NoSQL injection
-        const safe_query = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        const regex = new RegExp(safe_query, 'i') // 'i' makes it case-insensitive
+        const safe_query = query?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const regex = new RegExp(safe_query || '', 'i') // 'i' makes it case-insensitive
 
         const search_criteria = {
             $or: [
-                { plate_number: regex },
+                { plate_number: query?.toString().toUpperCase().replace(/\s+/g, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') },
                 { driver_name: regex },
                 { 'driver_identification.number': regex }
             ]

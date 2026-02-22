@@ -22,7 +22,7 @@ module.exports = async function toggle_temporary_leave(req, res, next) {
 
         const current_time = new Date();
 
-        if (action === 'leave') {
+        if (action.toLowerCase() === 'leave') {
             // Check if they are already outside
             const is_already_outside = visitor.durations.emergency_durations.some(e => e.type_of_emergency === 'Leave outside' && !e.ended_at);
             if (is_already_outside) {
@@ -47,8 +47,9 @@ module.exports = async function toggle_temporary_leave(req, res, next) {
                 message: message || 'Visitor stepped outside temporarily.',
                 timestamp: current_time
             });
+            visitor.is_still_inhouse = false;
 
-        } else if (action === 'return') {
+        } else if (action.toLowerCase() === 'return') {
             // Find the open 'Leave outside' record
             const open_leave_index = visitor.durations.emergency_durations.findIndex(e => e.type_of_emergency === 'Leave outside' && !e.ended_at);
             
@@ -68,6 +69,7 @@ module.exports = async function toggle_temporary_leave(req, res, next) {
                 message: message || `Visitor returned inside after ${duration_minutes} minutes.`,
                 timestamp: current_time
             });
+            visitor.is_still_inhouse = true;
         } else {
             return res.status(400).json({ success: false, type: 'warning', message: "Invalid action. Use 'leave' or 'return'." });
         }

@@ -51,7 +51,7 @@ module.exports = async function verify_car(req, res, next) {
                 vehicle_category: vehicle_type,
                 is_reserved: is_reserved,
                 staff_details: staff_car || null,
-                emergency_reservation_details: emergency_reservation.visitor_info || null
+                emergency_reservation_details: emergency_reservation?.visitor_info || null
             }
         });
 
@@ -61,7 +61,7 @@ module.exports = async function verify_car(req, res, next) {
             success: false,
             type: "error",
             message: "Something went wrong while verifying the car",
-            error: error.message
+            error: error?.message
         });
     }
 };
