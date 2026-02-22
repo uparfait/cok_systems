@@ -86,7 +86,7 @@ Router.delete('/', (req, res, next) => {
 Router.get('/visitor',list_vistors)
 Router.get('/visitor/search', search_vistor)
 Router.get('/visitor/:id', get_vistor_by_id)
-Router.post('/visitor/chekin', vistor_checkin)
+Router.post('/visitor/checkin', vistor_checkin)
 Router.post('/visitor/assign', assign_vistor_to_department)
 Router.post('/visitor/checkout', vistor_checkout)
 Router.post('/visitor/service/status', toggle_service_status)
