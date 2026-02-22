@@ -85,6 +85,7 @@ Router.post('/bulk-upload', upload.any(), bulkUploadReservations);
 
 Router.get('/vehicle', list_parking)
 Router.get('/vehicle/search', search_inparking_records)
+Router.get('/vehicle/flagged', list_flagged_cars)
 Router.get('/vehicle/:id', get_parking_record_by_id)
 Router.post('/vehicle/verify', verify_acar)
 Router.post('/vehicle/checkin', check_in)
