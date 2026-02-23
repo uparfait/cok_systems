@@ -17,6 +17,7 @@ module.exports = [
             { action_type: 'GET', description: 'View a list of all departments' },
             { action_type: 'POST', description: 'Create a new department' },
             { action_type: 'PUT', description: 'Update an existing department' },
+        
             { action_type: 'DELETE', description: 'Delete a department' },
             { action_type: 'REALTIME', description: 'Receive real-time updates on department changes' }
         ]

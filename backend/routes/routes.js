@@ -19,7 +19,7 @@ Router.use("/auth", auth)
 Router.use('/parfait', parfaits_api_docs)
 Router.use('/department/crud', department)
 Router.use('/employee/crud', employee)
-Router.use('/system/permissions', system_permission)
+Router.use('/permissions', system_permission)
 
 
 
