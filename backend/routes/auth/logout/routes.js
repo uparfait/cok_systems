@@ -5,7 +5,7 @@
 
 const Router = require('express').Router();
 const jwt = require('../../../utilities/jwt');
-const redis = require('../../../utilities/redis');
+const User = require('../../../models/user');
 
 /**
  * POST /auth/logout
@@ -27,18 +27,18 @@ Router.post('/', async (req, res, next) => {
         const token = jwt.extractToken(authHeader);
 
         if (token) {
-            // Decode token to get expiry
+            // Decode token to get userId
             const decoded = jwt.decodeToken(token);
             
-            if (decoded && decoded.exp) {
-                // Calculate TTL until token expires
-                const ttl = decoded.exp - Math.floor(Date.now() / 1000);
-                
-                if (ttl > 0) {
-                    // Store token in Redis blacklist with remaining TTL
-                    const blacklistKey = `blacklist:${token}`;
-                    await redis.setWithTTL(blacklistKey, true, ttl);
-                }
+            if (decoded && decoded.userId) {
+                // Increment token version to invalidate all existing tokens
+                await User.findByIdAndUpdate(decoded.userId, {
+                    $inc: { 'auth.token_version': 1 },
+                    $set: { 
+                        'auth.access_token': null, 
+                        'auth.access_token_hash': null 
+                    }
+                });
             }
         }
 
@@ -69,10 +69,15 @@ Router.post('/all', async (req, res, next) => {
             });
         }
 
-        // Store a flag in Redis to invalidate all tokens for this user
-        const userBlacklistKey = `user_blacklist:${userId}`;
-        // Set to expire in 24 hours (or use refresh token expiry)
-        await redis.setWithTTL(userBlacklistKey, true, 86400);
+        // Increment token version to invalidate all tokens for user
+        await User.findByIdAndUpdate(userId, {
+            $inc: { 'auth.token_version': 1 },
+            $set: { 
+                'auth.access_token': null, 
+                'auth.access_token_hash': null,
+                'auth.last_token_issued_at': null
+            }
+        });
 
         return res.status(200).json({
             status: true,
