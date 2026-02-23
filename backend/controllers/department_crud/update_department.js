@@ -7,8 +7,7 @@ module.exports = async function update_department(req, res, next) {
         const {
             department_id = null,
             department_name = null,
-            department_leader = null,
-            total_employees = null
+            department_leader = null
         } = req.body || {}
 
         //  Validate if the ID is a valid MongoDB ObjectId
@@ -34,8 +33,7 @@ module.exports = async function update_department(req, res, next) {
         if (
             department_id === null ||
             department_name === null ||
-            department_leader === null ||
-            total_employees === null
+            department_leader === null
         ) {
             return res.status(400).json({
                 success: false,
@@ -49,7 +47,6 @@ module.exports = async function update_department(req, res, next) {
         //validate and update allowed fields
         if (department_name !== undefined) department.department_name = department_name
         if (department_leader !== undefined) department.department_leader = department_leader
-        if (total_employees !== undefined) department.total_employees = total_employees
         if (department_id !== undefined) department.department_id = department_id
 
         department.registered_by = req.user?.name || "Not specified"
