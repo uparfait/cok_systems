@@ -84,7 +84,7 @@ paths:
                 department_name: { type: string, example: "Human Resources" }
                 department_id: { type: string, example: "DEPT-001" }
                 department_leader: { type: string, example: "Jane Doe" }
-                total_employees: { type: integer, example: 0 }
+                
           multipart/form-data:
             schema:
               type: object
@@ -92,7 +92,6 @@ paths:
                 department_name: { type: string }
                 department_id: { type: string }
                 department_leader: { type: string }
-                total_employees: { type: integer }
       responses:
         '201': { description: Created }
         '400': { description: Missing required fields }
@@ -142,12 +141,12 @@ paths:
           application/json:
             schema:
               type: object
-              required: [department_name, department_id, department_leader, total_employees]
+              required: [department_name, department_id, department_leader]
               properties:
                 department_name: { type: string, example: "Human Resources" }
                 department_id: { type: string, example: "DEPT-001" }
                 department_leader: { type: string, example: "Jane Doe" }
-                total_employees: { type: integer, example: 10 }
+                
           multipart/form-data:
             schema:
               type: object
@@ -155,7 +154,6 @@ paths:
                 department_name: { type: string }
                 department_id: { type: string }
                 department_leader: { type: string }
-                total_employees: { type: integer }
       responses:
         '200': { description: Updated }
         '400': { description: Invalid ObjectId or missing fields }

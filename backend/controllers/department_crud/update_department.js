@@ -1,5 +1,7 @@
 const department_model = require('../../models/department.js')
 const mongoose = require('mongoose')
+const user_model = require('../../models/user.js')
+
 
 module.exports = async function update_department(req, res, next) {
     try {
@@ -53,6 +55,20 @@ module.exports = async function update_department(req, res, next) {
 
         // Save the document (this triggers Mongoose validation)
         const saved_department = await department.save()
+
+        // also update all employees whose department_name and department_id was equal to this
+        // department updated
+
+        await user_model.updateMany(
+            
+            { department_id: department_id }, 
+            {
+                $set: {
+                    department_name: saved_department.department_name,
+                    department_id: saved_department.department_id
+                }
+            }
+        );
 
         return res.status(200).json({
             success: true,
