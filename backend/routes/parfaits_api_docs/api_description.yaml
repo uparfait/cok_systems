@@ -750,4 +750,27 @@ paths:
   /permissions/user/{userId}/remove:
     post:
       tags: [Permissions]
-      summary
+      summary: "Remove permissions from a user"
+      operationId: removePermissions
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resource]
+              properties:
+                resource: { type: string, example: "employees" }
+                actions:
+                  type: array
+                  items:
+                    type: string
+                    enum: ["GET", "POST", "PUT", "DELETE", "REALTIME"]
+                  example: ["DELETE"]
+      responses:
+        '200': { description: Permissions removed }
+        '400': { description: Invalid input }
+        '404': { description: User not found or permission not found }
+        '500': { description: Server error }
