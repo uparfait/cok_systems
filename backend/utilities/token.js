@@ -13,9 +13,10 @@ const SALT_ROUNDS = 10;
  * @param {string} token - Raw JWT token
  * @returns {Promise<string>} - Hashed token
  */
-const hashToken = async (token) => {
+const hashTokenLoginToken = async (token) => {
     try {
-        const hashed = await bcrypt.hash(token, SALT_ROUNDS);
+        // create a hashed token using jwt
+        const hashed = jwt.HashLoginToken(token);
         return hashed;
     } catch (error) {
         console.error('Error hashing token:', error);
@@ -114,10 +115,11 @@ const invalidateUserToken = async (userId, db) => {
 };
 
 module.exports = {
-    hashToken,
+    hashTokenLoginToken,
     compareToken,
     createUserToken,
     validateUserToken,
     invalidateUserToken,
+
     SALT_ROUNDS
 };

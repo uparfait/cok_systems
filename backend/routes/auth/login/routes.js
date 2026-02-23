@@ -7,72 +7,15 @@ const Router = require('express').Router();
 const jwt = require('../../../utilities/jwt');
 const otp = require('../../../utilities/otp');
 const email = require('../../../utilities/email');
-const redis = require('../../../utilities/redis');
+const tokenUtil = require('../../../utilities/token');
+const User = require('../../../models/user');
+const loginController = require('../../../controllers/auth/login/login');
 
 /**
  * POST /auth/login
  * Step 1: Verify credentials, send OTP for 2FA
  */
-Router.post('/', async (req, res, next) => {
-    try {
-        const { email: userEmail, password } = req.body;
-
-        // Validate input
-        if (!userEmail || !password) {
-            return res.status(400).json({
-                status: false,
-                error: 'Email and password are required',
-                message: null
-            });
-        }
-
-        // TODO: Check user in database
-        // const user = await User.findOne({ email: userEmail });
-        // const isValidPassword = await bcrypt.compare(password, user.password);
-
-        // For now, simulate user lookup (replace with actual database query)
-        const user = {
-            _id: 'user_id_placeholder',
-            email: userEmail,
-            password: 'hashed_password_placeholder', // Would be from DB
-            role: 'system_admin',
-            requires2FA: true
-        };
-
-        if (!user) {
-            return res.status(401).json({
-                status: false,
-                error: 'Invalid credentials',
-                message: null
-            });
-        }
-
-        // Generate OTP for 2FA
-        const { otp: otpCode, expiresAt } = otp.generateOTPWithExpiry();
-        
-        // Store OTP in Redis with 5-minute TTL
-        const otpKey = otp.getOTPKey('login', user._id);
-        //await redis.storeOTP(otpKey, otpCode, otp.OTP_EXPIRY_SECONDS);
-
-        // Send OTP via email
-        const sent = await email.sendOTPEmail(userEmail, otpCode || 1234, 'login');
-
-        console.log(`OTP for user ${userEmail}: ${otpCode} (sent: ${sent})`);
-
-        return res.status(200).json({
-            status: true,
-            error: null,
-            message: 'OTP sent to your email. Please verify to complete login.',
-            data: {
-                requiresOTP: true,
-                userId: user._id
-            }
-        });
-
-    } catch (error) {
-        next(error);
-    }
-});
+Router.post('/', loginController);
 
 /**
  * POST /auth/login/verify
@@ -116,7 +59,7 @@ Router.post('/verify', async (req, res, next) => {
         // OTP valid - delete it from Redis (one-time use)
         await redis.deleteOTP(otpKey);
 
-        // TODO: Get user from database
+        // TODO: Get user from database (replace with actual DB query)
         const user = {
             _id: userId,
             email: 'user@example.com',
@@ -128,6 +71,19 @@ Router.post('/verify', async (req, res, next) => {
             userId: user._id,
             email: user.email,
             role: user.role
+        });
+
+        // Hash the access token for database storage
+        const hashedToken = await tokenUtil.hashToken(tokens.accessToken);
+
+        // Store hashed token in user document in database
+        await User.findByIdAndUpdate(user._id, {
+            $set: {
+                'auth.access_token': tokens.accessToken,
+                'auth.access_token_hash': hashedToken,
+                'auth.token_version': 1,
+                'auth.last_token_issued_at': new Date()
+            }
         });
 
         return res.status(200).json({
