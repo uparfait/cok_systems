@@ -20,17 +20,7 @@ async function login(req, res, next) {
     }
 
     // TODO: Check user in database
-    // const user = await User.findOne({ email: userEmail });
-    // const isValidPassword = await bcrypt.compare(password, user.password);
-
-    // For now, simulate user lookup (replace with actual database query)
-    const user = {
-      _id: "user_id_placeholder",
-      email: userEmail,
-      password: "hashed_password_placeholder", // Would be from DB
-      role: "system_admin",
-      requires2FA: true,
-    };
+    const user = await User.findOne({ email: userEmail });
 
     if (!user) {
       return res.status(401).json({
@@ -43,40 +33,32 @@ async function login(req, res, next) {
     // Generate OTP for 2FA
     const { otp: otpCode, expiresAt } = otp.generateOTPWithExpiry();
 
-    // Store OTP in Redis with 5-minute TTL
-    const otpKey = otp.getOTPKey("login", user._id);
-    //await redis.storeOTP(otpKey, otpCode, otp.OTP_EXPIRY_SECONDS);
+    // Hash the OTP for database storage
+    const hashedOTP = await tokenUtil.hashTokenLoginToken(otpCode.toString());
+
+    // Calculate expiry time
+    const otpExpiry = new Date(Date.now() + otp.OTP_EXPIRY_SECONDS * 1000);
+
+    // Store OTP in database (instead of Redis)
+    await User.findByIdAndUpdate(user._id, {
+      $set: {
+        "auth.otp": hashedOTP,
+        "auth.otp_expiry": otpExpiry
+      }
+    });
 
     // Send OTP via email
     const sent = await email.sendOTPEmail(userEmail, otpCode || 1234, "login");
-    const hashedToken = await tokenUtil.hashTokenLoginToken(otpCode.toString());
-
-    const prepare_token_fordb = {
-      access_token: {
-        token_type: "login_otp",
-        token: hashedToken,
-      },
-    };
-
-    // Store hashed token in user document in database (for OTP verification later)
-    
-    
-    // await User.findByIdAndUpdate(user._id, {
-    //   $set: {
-    //     "auth.access_token": prepare_token_fordb
-    //   },
-    // });
 
     console.log(
-      `Generated OTP for user ${userEmail}: ${otpCode} (hashed: ${hashedToken}, expires in 5 mins)`,
+      `Generated OTP for user ${userEmail}: ${otpCode} (hashed: ${hashedOTP}, expires in 5 mins)`,
     );
-    ``;
 
     console.log(
       `OTP for user ${userEmail}: ${otpCode} (sent: ${JSON.stringify(sent)})`,
     );
     console.log(
-      `Generated OTP for user ${userEmail}: ${otpCode} (hashed: ${hashedToken}, expires at: ${expiresAt})`,
+      `Generated OTP for user ${userEmail}: ${otpCode} (expires at: ${expiresAt})`,
     );
 
     return res.status(200).json({

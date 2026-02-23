@@ -10,6 +10,8 @@ const email = require('../../../utilities/email');
 const tokenUtil = require('../../../utilities/token');
 const User = require('../../../models/user');
 const loginController = require('../../../controllers/auth/login/login');
+const passwordResetController = require('../../../controllers/auth/password-reset/password-reset');
+const logoutController = require('../../../controllers/auth/logout/logout');
 
 /**
  * POST /auth/login
@@ -33,9 +35,20 @@ Router.post('/verify', async (req, res, next) => {
             });
         }
 
-        // Get stored OTP from Redis
-        const otpKey = otp.getOTPKey('login', userId);
-        const storedOTP = await redis.getOTP(otpKey);
+        // Get user from database
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(400).json({
+                status: false,
+                error: 'User not found',
+                message: null
+            });
+        }
+
+        // Get stored OTP from database
+        const storedOTP = user.auth?.otp;
+        const otpExpiry = user.auth?.otp_expiry;
 
         if (!storedOTP) {
             return res.status(400).json({
@@ -45,42 +58,53 @@ Router.post('/verify', async (req, res, next) => {
             });
         }
 
-        // Validate OTP
-        const validation = otp.validateOTP(inputOTP, storedOTP, new Date(Date.now() + otp.OTP_EXPIRY_SECONDS * 1000));
-        
-        if (!validation.valid) {
+        // Check if OTP has expired
+        if (otpExpiry && new Date() > new Date(otpExpiry)) {
+            // Clear expired OTP
+            await User.findByIdAndUpdate(userId, {
+                $set: {
+                    'auth.otp': null,
+                    'auth.otp_expiry': null
+                }
+            });
+
             return res.status(400).json({
                 status: false,
-                error: validation.error,
+                error: 'OTP has expired. Please request a new one.',
                 message: null
             });
         }
 
-        // OTP valid - delete it from Redis (one-time use)
-        await redis.deleteOTP(otpKey);
+        // Validate OTP (compare hashed values)
+        const hashMatch = await tokenUtil.compareToken(inputOTP.toString(), storedOTP);
 
-        // TODO: Get user from database (replace with actual DB query)
-        const user = {
-            _id: userId,
-            email: 'user@example.com',
-            role: 'system_admin'
-        };
+        if (!hashMatch) {
+            return res.status(400).json({
+                status: false,
+                error: 'Invalid OTP',
+                message: null
+            });
+        }
+
+        // OTP valid - clear it from database (one-time use)
+        await User.findByIdAndUpdate(userId, {
+            $set: {
+                'auth.otp': null,
+                'auth.otp_expiry': null
+            }
+        });
 
         // Generate JWT tokens
         const tokens = jwt.generateTokens({
             userId: user._id,
             email: user.email,
-            role: user.role
+            role: user.roles?.role_name || 'system_admin'
         });
 
-        // Hash the access token for database storage
-        const hashedToken = await tokenUtil.hashToken(tokens.accessToken);
-
-        // Store hashed token in user document in database
-        await User.findByIdAndUpdate(user._id, {
+        // Store token in user document in database
+        await User.findByIdAndUpdate(userId, {
             $set: {
                 'auth.access_token': tokens.accessToken,
-                'auth.access_token_hash': hashedToken,
                 'auth.token_version': 1,
                 'auth.last_token_issued_at': new Date()
             }
@@ -94,7 +118,7 @@ Router.post('/verify', async (req, res, next) => {
                 user: {
                     userId: user._id,
                     email: user.email,
-                    role: user.role
+                    role: user.roles?.role_name || 'system_admin'
                 },
                 tokens
             }
@@ -124,9 +148,19 @@ Router.post('/resend', async (req, res, next) => {
         // Generate new OTP
         const { otp: otpCode } = otp.generateOTPWithExpiry();
 
-        // Store in Redis (overwrites old OTP if exists)
-        const otpKey = otp.getOTPKey('login', userId);
-        await redis.storeOTP(otpKey, otpCode, otp.OTP_EXPIRY_SECONDS);
+        // Hash the OTP for database storage
+        const hashedOTP = await tokenUtil.hashTokenLoginToken(otpCode.toString());
+
+        // Calculate expiry time
+        const otpExpiry = new Date(Date.now() + otp.OTP_EXPIRY_SECONDS * 1000);
+
+        // Store in database (overwrites old OTP if exists)
+        await User.findByIdAndUpdate(userId, {
+            $set: {
+                'auth.otp': hashedOTP,
+                'auth.otp_expiry': otpExpiry
+            }
+        });
 
         // Send new OTP via email
         await email.sendOTPEmail(userEmail, otpCode, 'login');
