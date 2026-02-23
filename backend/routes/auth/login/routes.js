@@ -7,7 +7,8 @@ const Router = require('express').Router();
 const jwt = require('../../../utilities/jwt');
 const otp = require('../../../utilities/otp');
 const email = require('../../../utilities/email');
-const redis = require('../../../utilities/redis');
+const tokenUtil = require('../../../utilities/token');
+const User = require('../../../models/user');
 
 /**
  * POST /auth/login
@@ -116,7 +117,7 @@ Router.post('/verify', async (req, res, next) => {
         // OTP valid - delete it from Redis (one-time use)
         await redis.deleteOTP(otpKey);
 
-        // TODO: Get user from database
+        // TODO: Get user from database (replace with actual DB query)
         const user = {
             _id: userId,
             email: 'user@example.com',
@@ -128,6 +129,19 @@ Router.post('/verify', async (req, res, next) => {
             userId: user._id,
             email: user.email,
             role: user.role
+        });
+
+        // Hash the access token for database storage
+        const hashedToken = await tokenUtil.hashToken(tokens.accessToken);
+
+        // Store hashed token in user document in database
+        await User.findByIdAndUpdate(user._id, {
+            $set: {
+                'auth.access_token': tokens.accessToken,
+                'auth.access_token_hash': hashedToken,
+                'auth.token_version': 1,
+                'auth.last_token_issued_at': new Date()
+            }
         });
 
         return res.status(200).json({

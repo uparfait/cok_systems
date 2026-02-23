@@ -87,7 +87,7 @@ const sendWelcomeEmail = async (email, name) => {
 
     try {
         await transporter.sendMail({
-            from: config.email.from || '"COK Systems" <noreply@coksystems.com>',
+            from: config.email.from || '"COK Systems" <cokservicedelively@gmail.com>',
             to: email,
             subject: 'Welcome to COK Systems',
             html: htmlContent
