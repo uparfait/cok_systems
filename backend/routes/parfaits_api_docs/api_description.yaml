@@ -680,22 +680,43 @@ paths:
         '400': { description: Invalid ObjectId format }
         '404': { description: Parking record not found }
         '500': { description: Server error }
-  /system/permissions:
+  
+  /permissions:
     get:
-      tags: [System Permissions]
-      summary: "List All System Permissions"
-      operationId: listSystemPermissions
+      tags: [Permissions]
+      summary: "List all permissions"
+      operationId: listPermissions
       parameters:
         - $ref: '#/components/parameters/PageParam'
         - $ref: '#/components/parameters/LimitParam'
       responses:
-        '200': { description: OK }
+        '200': { description: Permissions list returned }
+        '500': { description: Server error }
+  /permissions/resource/{resource}:
+    get:
+      tags: [Permissions]
+      summary: "Get permissions for a resource"
+      operationId: getResourcePermissions
+      parameters:
+        - name: resource
+          in: path
+          required: true
+          schema: { type: string }
+          example: "employees"
+      responses:
+        '200': { description: Resource permissions retrieved }
+        '400': { description: Invalid resource }
+        '404': { description: Resource not found }
         '500': { description: Server error }
 
+
+  /permissions/user/{userId}/assign:
     post:
-      tags: [System Permissions]
-      summary: "Create System Permission"
-      operationId: createSystemPermission
+      tags: [Permissions]
+      summary: "Assign permissions to a user"
+      operationId: assignPermissions
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
       requestBody:
         required: true
         content:
@@ -705,65 +726,14 @@ paths:
               required: [resource, actions]
               properties:
                 resource: { type: string, example: "employees" }
-                actions:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      action_type: { type: string, example: "GET" }
-                      description: { type: string, example: "View employee records" }
+                actions: { type: array, items: { type: string }, example: ["GET", "POST"] }
       responses:
-        '201': { description: Created }
-        '400': { description: Missing required fields }
+        '200': { description: Permissions assigned }
+        '400': { description: Invalid input }
+        '404': { description: User not found }
         '500': { description: Server error }
 
-  /system/permissions/{id}:
-    get:
-      tags: [System Permissions]
-      summary: "Get System Permission by ID"
-      operationId: getSystemPermissionById
-      parameters:
-        - $ref: '#/components/parameters/MongoObjectId'
-      responses:
-        '200': { description: Found }
-        '404': { description: Not found }
-        '500': { description: Server error }
-
-    put:
-      tags: [System Permissions]
-      summary: "Update System Permission by ID"
-      operationId: updateSystemPermission
-      parameters:
-        - $ref: '#/components/parameters/MongoObjectId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                resource: { type: string, example: "employees" }
-                actions:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      action_type: { type: string, example: "POST" }
-                      description: { type: string, example: "Create new employee" }
-      responses:
-        '200': { description: Updated }
-        '400': { description: Invalid ObjectId }
-        '404': { description: Not found }
-        '500': { description: Server error }
-
-    delete:
-      tags: [System Permissions]
-      summary: "Delete System Permission by ID"
-      operationId: deleteSystemPermission
-      parameters:
-        - $ref: '#/components/parameters/MongoObjectId'
-      responses:
-        '200': { description: Deleted }
-        '400': { description: Invalid ObjectId }
-        '404': { description: Not found }
-        '500': { description: Server error }
+  /permissions/user/{userId}/remove:
+    post:
+      tags: [Permissions]
+      summary
