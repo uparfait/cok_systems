@@ -20,17 +20,18 @@ const user_schema = new mongoose.Schema({
         last_login_attempt: { type: Number, default: 0 }
     },
     auth: {
-        access_token: { type: String },
-        access_token_hash: { type: String },
-        token_version: { type: Number, default: 0 },
-        last_token_issued_at: { type: Date }
+        access_token: { type: String }
     },
     roles: {
         role_name: { type: String },
-        permissions: [String]
+        permissions: [{
+            resource: { type: String },
+            actions: [{ type: String }]
+        }]
     },
     is_active: { type: Boolean, default: true },
     created_date: { type: Date, default: Date.now },
+    is_account_activated: {type: Boolean},
     registered_by: { type: String }
 });
 

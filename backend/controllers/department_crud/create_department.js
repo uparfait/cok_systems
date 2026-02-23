@@ -8,7 +8,7 @@ module.exports = async function create_department(req, res, next) {
             department_leader = 'Not specified',
             total_employees = 0,
         } = req.body || {}
-        console.log(req.body)
+    
 
         //  department validation
         if (!department_name || !department_id) {
@@ -18,6 +18,8 @@ module.exports = async function create_department(req, res, next) {
                 message: "department name and id are required"
             })
         }
+
+        department_id = department_id.toString().toUpperCase()
 
         //  Check if department already exists
         const existing_dept = await department_model.findOne({ department_id })
@@ -29,7 +31,7 @@ module.exports = async function create_department(req, res, next) {
             })
         }
 
-        let registered_by = req.user || "Not specified"
+        let registered_by = req.user?.name || "Not specified"
 
         //  Create new department instance
         const new_department = new department_model({
@@ -63,7 +65,7 @@ module.exports = async function create_department(req, res, next) {
         return res.status(500).json({
             success: false,
             type: "error",
-            message: "Something got wrong try again later",
+            message: "Something got wrong while creating department",
             error: error.message
         })
     }
