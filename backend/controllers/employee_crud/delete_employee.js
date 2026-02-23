@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const user_model = require('../../models/user.js')
+const department_model = require('../../models/department.js')
 
 module.exports = async function delete_employee(req, res, next) {
     try {
@@ -22,6 +23,25 @@ module.exports = async function delete_employee(req, res, next) {
                 message: "You cannot delete your own account"
             })
         }
+
+        // check if user have a department and decrement employee in that department
+
+            const user = await user_model.findById(id)
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    type: "warning",
+                    message: "Employee not found"
+                })
+            }
+
+            if(user.department_id && user.department_id !== 'Not specified') {
+                const dept = await department_model.findOne({ department_id: user.department_id })
+                if (dept) {
+                    dept.total_employees = Math.max(dept.total_employees - 1, 0)
+                    await dept.save()
+                }
+            }
 
         //  Perform deletion
         const deleted_user = await user_model.findByIdAndDelete(id)

@@ -6,8 +6,12 @@ module.exports = async function create_department(req, res, next) {
             department_name = null,
             department_id = null,
             department_leader = 'Not specified',
-            total_employees = 0,
+            
         } = req.body || {}
+
+        let total_employees = 0
+
+        // Validate essential required fields
     
 
         //  department validation
@@ -38,7 +42,7 @@ module.exports = async function create_department(req, res, next) {
             department_name,
             department_id,
             department_leader,
-            total_employees,
+            total_employees: 0,
             registered_by
         })
 

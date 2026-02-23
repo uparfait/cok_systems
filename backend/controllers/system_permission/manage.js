@@ -142,6 +142,8 @@ class PermissionManager {
             const { userId } = req.params;
             const { resource, actions = [] } = req.body || {};
 
+            //console.log('Request full url', req.originalUrl);
+
             if (!mongoose.Types.ObjectId.isValid(userId)) {
                 return res.status(400).json({
                     success: false,

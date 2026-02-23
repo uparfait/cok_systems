@@ -4,6 +4,7 @@ const Router = require("express").Router()
 const login = require("./login/routes.js")
 const logout = require("./logout/routes.js")
 const passwordReset = require("./password-reset/routes.js")
+const firstLogin = require("./first-login/routes.js")
 
 const multer = require('multer')
 const upload = multer()
@@ -36,5 +37,6 @@ Router.use((error, req, res, next) => {
 Router.use('/login', login)
 Router.use('/logout', logout)
 Router.use('/password-reset', passwordReset)
+Router.use('/first-login', firstLogin)
 
 module.exports = Router
