@@ -20,7 +20,7 @@ dns.setServers(['8.8.8.8', '1.1.1.1']);
 const conne_user = process.env.conne_user || 'cok_systems';
 const conne_password = process.env.conne_password || 'kigalicity';
 const conne_app_name = process.env.conne_app_name || 'cok_systems';
-const dev_mode_conne_string = `mongodb+srv://${conne_user}:${conne_password}@coksystems.rldhlb3.mongodb.net/?appName=coksystems`;
+const dev_mode_conne_string = `mongodb+srv://${conne_user}:${conne_password}@coksystems.rldhlb3.mongodb.net/cok?appName=coksystems`;
 const conne_string = process.env.conne_string || dev_mode_conne_string;
 
 /**
