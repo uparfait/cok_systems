@@ -724,7 +724,7 @@ paths:
         '500': { description: Server error }
 
 
-  /permissions/user/{userId}/assign:
+  /permissions/user/{id}/assign:
     post:
       tags: [Permissions]
       summary: "Assign permissions to a user"
@@ -747,7 +747,7 @@ paths:
         '404': { description: User not found }
         '500': { description: Server error }
 
-  /permissions/user/{userId}/remove:
+  /permissions/user/{id}/remove:
     post:
       tags: [Permissions]
       summary: "Remove permissions from a user"
