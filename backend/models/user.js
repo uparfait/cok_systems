@@ -20,23 +20,31 @@ const user_schema = new mongoose.Schema({
         last_login_attempt: { type: Number, default: 0 }
     },
     auth: {
-        access_token: { 
-            token_type: {type: String},
-            token: {type: String}
-         }
+        access_token: {
+            token_type: { type: String },
+            token: { type: String }
+        }
     },
     roles: {
         role_name: { type: String },
-        permissions: [{
-            resource: { type: String },
-            actions: [{ type: String }]
-        }]
-    },
+        permissions: [
+            {
+                resource: { type: String, required: true }, // e.g. "employees"
+                actions: [
+                    {
+                        type: String,
+                        required: true
+                    }
+                ]
+            }
+        ]
+    }
+    ,
     is_active: { type: Boolean, default: true },
     created_date: { type: Date, default: Date.now },
-    is_account_activated: {type: Boolean},
+    is_account_activated: { type: Boolean },
     registered_by: { type: String }
-},{
+}, {
     versionKey: false, // removes __v automatically
     toJSON: {
         transform: function (doc, ret) {
