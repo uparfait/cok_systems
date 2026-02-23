@@ -200,7 +200,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [full_name, telephone, email]
+              required: [full_name]
               properties:
                 full_name: { type: string, example: "Alice Uwimana" }
                 telephone: { type: string, example: "+250788123456" }
@@ -218,21 +218,16 @@ paths:
                   type: object
                   properties:
                     role_name: { type: string, example: "HR Manager" }
-                    roles:
-  type: object
-  properties:
-    role_name: { type: string, example: "HR Manager" }
-    permissions:
-      type: array
-      items:
-        type: object
-        properties:
-          resource: { type: string, example: "employees" }
-          actions:
-            type: array
-            items: { type: string}
-            example: ["GET", "POST"]
-
+                    permissions:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          resource: { type: string, example: "employees" }
+                          actions:
+                            type: array
+                            items: { type: string}
+                            example: ["GET", "POST"]
           multipart/form-data:
             schema:
               type: object
@@ -245,10 +240,11 @@ paths:
                 department_name: { type: string }
                 department_id: { type: string }
       responses:
-        '201': { description: Created — activation required }
+        '201': { description: Created }
         '400': { description: Missing required fields }
         '409': { description: Email or telephone already exists }
         '500': { description: Server error }
+        
 
   /employee/crud/search:
     get:
