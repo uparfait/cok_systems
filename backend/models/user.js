@@ -20,10 +20,11 @@ const user_schema = new mongoose.Schema({
         last_login_attempt: { type: Number, default: 0 }
     },
     auth: {
-        access_token: { 
-            token_type: {type: String},
-            token: {type: String}
-         }
+        access_token: { type: String },
+        token_version: { type: Number, default: 0 },
+        last_token_issued_at: { type: Date },
+        otp: { type: String },
+        otp_expiry: { type: Date }
     },
     roles: {
         role_name: { type: String },
