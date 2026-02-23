@@ -15,6 +15,7 @@ tags:
   - name: Employees
   - name: Visitors
   - name: Vehicles
+  - name: System Permissions
 
 components:
   securitySchemes:
@@ -59,7 +60,7 @@ paths:
   /department/crud:
     get:
       tags: [Departments]
-      summary: "[TEST 1] List All Departments"
+      summary: "List All Departments"
       operationId: listAllDepartments
       parameters:
         - $ref: '#/components/parameters/PageParam'
@@ -70,7 +71,7 @@ paths:
 
     post:
       tags: [Departments]
-      summary: "[TEST 2] Create Department"
+      summary: "Create Department"
       operationId: createDepartment
       requestBody:
         required: true
@@ -101,7 +102,7 @@ paths:
   /department/crud/search:
     get:
       tags: [Departments]
-      summary: "[TEST 3] Search Departments"
+      summary: "Search Departments"
       operationId: searchDepartments
       description: "Searches across department_name and department_id fields (case-insensitive)."
       parameters:
@@ -115,7 +116,7 @@ paths:
   /department/crud/{department_id}:
     get:
       tags: [Departments]
-      summary: "[TEST 4] Get Department by department_id"
+      summary: "Get Department by department_id"
       operationId: getDepartmentById
       parameters:
         - name: department_id
@@ -131,7 +132,7 @@ paths:
   /department/crud/{id}:
     put:
       tags: [Departments]
-      summary: "[TEST 5] Update Department by MongoDB _id"
+      summary: "Update Department by MongoDB _id"
       operationId: updateDepartment
       parameters:
         - $ref: '#/components/parameters/MongoObjectId'
@@ -163,7 +164,7 @@ paths:
 
     delete:
       tags: [Departments]
-      summary: "[TEST 6] Delete Department by MongoDB _id"
+      summary: "Delete Department by MongoDB _id"
       operationId: deleteDepartment
       parameters:
         - $ref: '#/components/parameters/MongoObjectId'
@@ -180,7 +181,7 @@ paths:
   /employee/crud:
     get:
       tags: [Employees]
-      summary: "[TEST 7] List All Employees"
+      summary: "List All Employees"
       operationId: listAllEmployees
       parameters:
         - $ref: '#/components/parameters/PageParam'
@@ -191,7 +192,7 @@ paths:
 
     post:
       tags: [Employees]
-      summary: "[TEST 8] Create Employee"
+      summary: "Create Employee"
       operationId: createEmployee
       requestBody:
         required: true
@@ -238,7 +239,7 @@ paths:
   /employee/crud/search:
     get:
       tags: [Employees]
-      summary: "[TEST 9] Search Employees"
+      summary: "Search Employees"
       operationId: searchEmployees
       description: "Searches across full_name, telephone, email, and title fields (case-insensitive)."
       parameters:
@@ -252,7 +253,7 @@ paths:
   /employee/crud/{id}:
     get:
       tags: [Employees]
-      summary: "[TEST 10] Get Employee by MongoDB _id"
+      summary: "Get Employee by MongoDB _id"
       operationId: getEmployeeById
       parameters:
         - $ref: '#/components/parameters/MongoObjectId'
@@ -263,7 +264,7 @@ paths:
 
     put:
       tags: [Employees]
-      summary: "[TEST 11] Update Employee by MongoDB _id"
+      summary: "Update Employee by MongoDB _id"
       operationId: updateEmployee
       parameters:
         - $ref: '#/components/parameters/MongoObjectId'
@@ -316,7 +317,7 @@ paths:
 
     delete:
       tags: [Employees]
-      summary: "[TEST 12] Delete Employee by MongoDB _id"
+      summary: "Delete Employee by MongoDB _id"
       operationId: deleteEmployee
       parameters:
         - $ref: '#/components/parameters/MongoObjectId'
@@ -334,7 +335,7 @@ paths:
   /servicedelivery/visitor:
     get:
       tags: [Visitors]
-      summary: "[TEST 13] List All Visitors"
+      summary: "List All Visitors"
       operationId: listVisitors
       description: "Filter by in_house status. Default returns only visitors currently in-house."
       parameters:
@@ -351,7 +352,7 @@ paths:
   /servicedelivery/visitor/search:
     get:
       tags: [Visitors]
-      summary: "[TEST 14] Search Visitors"
+      summary: "Search Visitors"
       operationId: searchVisitors
       description: "Searches across full_name, telephone, identification.number, and plate_number (case-insensitive)."
       parameters:
@@ -369,7 +370,7 @@ paths:
   /servicedelivery/visitor/checkin:
     post:
       tags: [Visitors]
-      summary: "[TEST 15] Visitor Check-In"
+      summary: "Visitor Check-In"
       operationId: visitorCheckin
       description: "Registers a new visitor. If they have a vehicle, links to an active parking record automatically."
       requestBody:
@@ -418,7 +419,7 @@ paths:
   /servicedelivery/visitor/assign:
     post:
       tags: [Visitors]
-      summary: "[TEST 16] Assign Visitor to Department"
+      summary: "Assign Visitor to Department"
       operationId: assignVisitorToDepartment
       description: "Assigns an in-house visitor to a new department. Optionally closes the previous department's service and logs duration."
       requestBody:
@@ -444,7 +445,7 @@ paths:
   /servicedelivery/visitor/checkout:
     post:
       tags: [Visitors]
-      summary: "[TEST 17] Visitor Check-Out"
+      summary: "Visitor Check-Out"
       operationId: visitorCheckout
       description: "Checks out a visitor. If they have a car still parked, sets status to pending until vehicle exits."
       requestBody:
@@ -472,7 +473,7 @@ paths:
   /servicedelivery/visitor/service/status:
     post:
       tags: [Visitors]
-      summary: "[TEST 18] Toggle Service Status"
+      summary: "Toggle Service Status"
       operationId: toggleServiceStatus
       description: "Updates a visitor's department service status to 'Inprogress' or 'Completed'. Logs duration when completed."
       requestBody:
@@ -498,7 +499,7 @@ paths:
   /servicedelivery/visitor/emergency/leave-return:
     post:
       tags: [Visitors]
-      summary: "[TEST 19] Toggle Temporary Leave / Return"
+      summary: "Toggle Temporary Leave / Return"
       operationId: toggleTemporaryLeave
       description: "Marks a visitor as temporarily outside ('leave') or returned ('return'). Tracks duration and optionally logs items taken out."
       requestBody:
@@ -533,7 +534,7 @@ paths:
   /servicedelivery/visitor/{id}:
     get:
       tags: [Visitors]
-      summary: "[TEST 20] Get Visitor by MongoDB _id"
+      summary: "Get Visitor by MongoDB _id"
       operationId: getVisitorById
       parameters:
         - $ref: '#/components/parameters/MongoObjectId'
@@ -550,7 +551,7 @@ paths:
   /smartparking/vehicle:
     get:
       tags: [Vehicles]
-      summary: "[TEST 21] List Parking Records"
+      summary: "List Parking Records"
       operationId: listParkingRecords
       description: "Filter by status. Default returns all records."
       parameters:
@@ -570,7 +571,7 @@ paths:
   /smartparking/vehicle/search:
     get:
       tags: [Vehicles]
-      summary: "[TEST 22] Search Parking Records"
+      summary: "Search Parking Records"
       operationId: searchParkingRecords
       description: "Searches across plate_number, driver_name, and driver_identification.number (case-insensitive)."
       parameters:
@@ -584,7 +585,7 @@ paths:
   /smartparking/vehicle/flagged:
     get:
       tags: [Vehicles]
-      summary: "[TEST 23] List Flagged Vehicles"
+      summary: "List Flagged Vehicles"
       operationId: listFlaggedCars
       description: "Returns only vehicles marked as flagged. Filter by status (active or completed)."
       parameters:
@@ -603,7 +604,7 @@ paths:
   /smartparking/vehicle/verify:
     post:
       tags: [Vehicles]
-      summary: "[TEST 24] Verify a Vehicle"
+      summary: "Verify a Vehicle"
       operationId: verifyVehicle
       description: "Checks if a plate number belongs to a Staff or Visitor (Emergency) car, and whether it is currently parked."
       requestBody:
@@ -623,7 +624,7 @@ paths:
   /smartparking/vehicle/checkin:
     post:
       tags: [Vehicles]
-      summary: "[TEST 25] Vehicle Check-In"
+      summary: "Vehicle Check-In"
       operationId: vehicleCheckin
       description: "Creates an active parking record. Auto-fills driver details from StaffCar, EmergencyCar, or ServiceDelivery if found."
       requestBody:
@@ -649,7 +650,7 @@ paths:
   /smartparking/vehicle/checkout:
     post:
       tags: [Vehicles]
-      summary: "[TEST 26] Vehicle Check-Out"
+      summary: "Vehicle Check-Out"
       operationId: vehicleCheckout
       description: "Closes the active parking session for a plate number. If linked to a visitor who requested checkout, marks that visitor as fully checked out."
       requestBody:
@@ -670,7 +671,7 @@ paths:
   /smartparking/vehicle/{id}:
     get:
       tags: [Vehicles]
-      summary: "[TEST 27] Get Parking Record by MongoDB _id"
+      summary: "Get Parking Record by MongoDB _id"
       operationId: getParkingRecordById
       parameters:
         - $ref: '#/components/parameters/MongoObjectId'
@@ -678,4 +679,91 @@ paths:
         '200': { description: Parking record details returned }
         '400': { description: Invalid ObjectId format }
         '404': { description: Parking record not found }
+        '500': { description: Server error }
+    /system/permissions:
+    get:
+      tags: [System Permissions]
+      summary: "List All System Permissions"
+      operationId: listSystemPermissions
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200': { description: OK }
+        '500': { description: Server error }
+
+    post:
+      tags: [System Permissions]
+      summary: "Create System Permission"
+      operationId: createSystemPermission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resource, actions]
+              properties:
+                resource: { type: string, example: "employees" }
+                actions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      action_type: { type: string, example: "GET" }
+                      description: { type: string, example: "View employee records" }
+      responses:
+        '201': { description: Created }
+        '400': { description: Missing required fields }
+        '500': { description: Server error }
+
+  /system/permissions/{id}:
+    get:
+      tags: [System Permissions]
+      summary: "Get System Permission by ID"
+      operationId: getSystemPermissionById
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200': { description: Found }
+        '404': { description: Not found }
+        '500': { description: Server error }
+
+    put:
+      tags: [System Permissions]
+      summary: "Update System Permission by ID"
+      operationId: updateSystemPermission
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resource: { type: string, example: "employees" }
+                actions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      action_type: { type: string, example: "POST" }
+                      description: { type: string, example: "Create new employee" }
+      responses:
+        '200': { description: Updated }
+        '400': { description: Invalid ObjectId }
+        '404': { description: Not found }
+        '500': { description: Server error }
+
+    delete:
+      tags: [System Permissions]
+      summary: "Delete System Permission by ID"
+      operationId: deleteSystemPermission
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200': { description: Deleted }
+        '400': { description: Invalid ObjectId }
+        '404': { description: Not found }
         '500': { description: Server error }
