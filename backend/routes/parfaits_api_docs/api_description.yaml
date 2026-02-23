@@ -218,7 +218,21 @@ paths:
                   type: object
                   properties:
                     role_name: { type: string, example: "HR Manager" }
-                    permissions: { type: array, items: { type: string }, example: ["read:employees"] }
+                    roles:
+  type: object
+  properties:
+    role_name: { type: string, example: "HR Manager" }
+    permissions:
+      type: array
+      items:
+        type: object
+        properties:
+          resource: { type: string, example: "employees" }
+          actions:
+            type: array
+            items: { type: string}
+            example: ["GET", "POST"]
+
           multipart/form-data:
             schema:
               type: object
