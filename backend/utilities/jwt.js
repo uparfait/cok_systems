@@ -8,12 +8,25 @@ const config = require('../configurations/config.js');
 
 const JWT_EXPIRY = '24h';           // Access token expiry
 const REFRESH_TOKEN_EXPIRY = '7d';  // Refresh token expiry
-
+const login_token_expiry_seconds = 5 * 60; // OTP expiry for login (5 minutes)
 /**
  * Generate access token
  * @param {object} payload - Data to encode in token
  * @returns {string} - JWT access token
+ * 
  */
+
+const HashLoginToken = async (token) => {
+    try {
+        // create a hashed token using jwt
+        return jwt.sign({ token }, config.jwtSecret || 'cok-jwt-secret-2026', {
+            expiresIn: login_token_expiry_seconds
+        });
+    } catch (error) { 
+        console.error('Error hashing token:', error);
+        throw error;
+    }
+};
 const generateAccessToken = (payload) => {
     return jwt.sign(payload, config.jwtSecret || 'cok-jwt-secret-2026', {
         expiresIn: JWT_EXPIRY
@@ -113,5 +126,6 @@ module.exports = {
     decodeToken,
     extractToken,
     JWT_EXPIRY,
-    REFRESH_TOKEN_EXPIRY
+    REFRESH_TOKEN_EXPIRY,
+    HashLoginToken 
 };
