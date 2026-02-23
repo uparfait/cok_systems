@@ -89,6 +89,20 @@ const service_delivery_schema = new mongoose.Schema({
         timestamp: { type: Date, default: Date.now }
     }],
     registered_by: { type: String }
+},{
+    versionKey: false, // removes __v automatically
+    toJSON: {
+        transform: function (doc, ret) {
+            delete ret.__v; // just in case
+            return ret;
+        }
+    },
+    toObject: {
+        transform: function (doc, ret) {
+            delete ret.__v;
+            return ret;
+        }
+    }
 });
 
 module.exports = mongoose.model('ServiceDelivery', service_delivery_schema);
