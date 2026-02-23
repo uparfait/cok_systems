@@ -30,6 +30,19 @@ async function login(req, res, next) {
       });
     }
 
+    // Check if account is activated (for first-time login users)
+    if (!user.is_account_activated) {
+      return res.status(403).json({
+        status: false,
+        error: "Account not activated",
+        message: "Please use First-Time Login to activate your account",
+        data: {
+          requiresActivation: true,
+          email: userEmail
+        }
+      });
+    }
+
     // Generate OTP for 2FA
     const { otp: otpCode, expiresAt } = otp.generateOTPWithExpiry();
 

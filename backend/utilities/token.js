@@ -27,12 +27,18 @@ const hashTokenLoginToken = async (token) => {
 /**
  * Compare raw token with hashed token from database
  * @param {string} rawToken - Raw JWT token
- * @param {string} hashedToken - Hashed token from database
+ * @param {string} hashedToken - Hashed token from database (JWT)
  * @returns {Promise<boolean>} - True if match
  */
 const compareToken = async (rawToken, hashedToken) => {
     try {
-        return await bcrypt.compare(rawToken, hashedToken);
+        // Verify the JWT token
+        const verification = jwt.verifyAccessToken(hashedToken);
+        if (!verification.valid) {
+            return false;
+        }
+        // Check if the token payload matches the raw token
+        return verification.decoded?.token === rawToken;
     } catch (error) {
         console.error('Error comparing token:', error);
         return false;

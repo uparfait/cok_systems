@@ -13,7 +13,7 @@ const user_schema = new mongoose.Schema({
     email: { type: String, unique: true },
     department_name: { type: String },
     department_id: { type: String },
-    password: { type: String, required: true },
+    password: { type: String },
     access_control: {
         is_locked: { type: Boolean, default: false },
         reason: { type: String },
@@ -42,7 +42,7 @@ const user_schema = new mongoose.Schema({
     ,
     is_active: { type: Boolean, default: true },
     created_date: { type: Date, default: Date.now },
-    is_account_activated: { type: Boolean },
+    is_account_activated: {type: Boolean},
     registered_by: { type: String }
 }, {
     versionKey: false, // removes __v automatically

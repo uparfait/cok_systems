@@ -4,6 +4,7 @@
  */
 
 const nodemailer = require('nodemailer');
+const config = require('../configurations/config');
 const config = require('../configurations/config.js');
 
 // Create SMTP transporter
@@ -29,14 +30,22 @@ const createTransporter = () => {
 const sendOTPEmail = async (email, otp, type = 'login') => {
     const transporter = createTransporter();
     
-    const subject = type === 'login' 
-        ? 'Your Login Verification Code' 
-        : 'Your Password Reset Code';
+    let subject, message;
     
-    const message = type === 'login'
-        ? `Your verification code is: ${otp}. This code will expire in 5 minutes.`
-        : `Your password reset code is: ${otp}. This code will expire in 5 minutes.`;
-
+    if (type === 'login') {
+        subject = 'Your Login Verification Code';
+        message = `Your verification code is: ${otp}. This code will expire in 5 minutes.`;
+    } else if (type === 'password_reset') {
+        subject = 'Your Password Reset Code';
+        message = `Your password reset code is: ${otp}. This code will expire in 5 minutes.`;
+    } else if (type === 'first_login') {
+        subject = 'Your Account Activation Code';
+        message = `Your account activation code is: ${otp}. This code will expire in 5 minutes.`;
+    } else {
+        subject = 'Your Verification Code';
+        message = `Your verification code is: ${otp}. This code will expire in 5 minutes.`;
+    }
+    
     const htmlContent = `
         <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
             <h2 style="color: #333;">${subject}</h2>
@@ -135,9 +144,46 @@ const sendPasswordChangedEmail = async (email, name) => {
     }
 };
 
+/**
+ * Send account activation confirmation email
+ * @param {string} email - Recipient email
+ * @param {string} name - User's name
+ * @returns {Promise<object>}
+ */
+const sendAccountActivatedEmail = async (email, name) => {
+    const transporter = createTransporter();
+    
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
+            <h2 style="color: #333;">Account Activated!</h2>
+            <p>Hello ${name},</p>
+            <p>Your account has been successfully activated.</p>
+            <p>You can now login to COK Systems using your email and password.</p>
+            <p style="color: #666; font-size: 14px;">
+                If you didn't activate this account, please contact support immediately.
+            </p>
+        </div>
+    `;
+
+    try {
+        await transporter.sendMail({
+            from: config.email.from || '"COK Systems" <noreply@coksystems.com>',
+            to: email,
+            subject: 'Account Activated - COK Systems',
+            html: htmlContent
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error('Email sending error:', error);
+        return { success: false, error: error.message };
+    }
+};
+
 module.exports = {
     sendOTPEmail,
     sendWelcomeEmail,
     sendPasswordChangedEmail,
+    sendAccountActivatedEmail,
     createTransporter
 };
