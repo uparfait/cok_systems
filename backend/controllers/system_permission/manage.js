@@ -16,6 +16,29 @@ class SystemPermissionsController {
                 });
             }
 
+            // check if permission for the same resource already exists
+            const existingPermission = await SystemPermission.findOne({ resource: resource.trim() });
+            if (existingPermission) {
+                return res.status(409).json({
+                    success: false,
+                    type: "warning",
+                    message: "A system permission for this resource already exists"
+                });
+            }
+
+            // check if actions are not in GET, POST, PUT, DELETE, REALTIME
+            const validActionTypes = ['GET', 'POST', 'PUT', 'DELETE', 'REALTIME'];
+            
+            for (const action of actions) {
+                if (!action.action_type || !validActionTypes.includes(action.action_type.toString().toUpperCase())) {
+                    return res.status(400).json({
+                        success: false,
+                        type: "warning",
+                        message: "Invalid action type. Must be one of GET, POST, PUT, DELETE, REALTIME"
+                    });
+                }
+            }
+
             // Normalize actions: uppercase action_type
             const normalizedActions = actions.map(action => ({
                 action_type: action.action_type?.toString().toUpperCase(),
