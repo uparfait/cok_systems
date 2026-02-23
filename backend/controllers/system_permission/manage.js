@@ -155,6 +155,22 @@ class SystemPermissionsController {
                 });
             }
 
+            // Validate actions if provided
+            const validActionTypes = ['GET', 'POST', 'PUT', 'DELETE', 'REALTIME'];
+            if (actions !== undefined) {
+                for (const action of actions) {
+                    if (!action.action_type || !validActionTypes.includes(action.action_type.toString().toUpperCase())) {
+                        return res.status(400).json({
+                            success: false,
+                            type: "warning",
+                            message: "Invalid action type. Must be one of GET, POST, PUT, DELETE, REALTIME"
+                        });
+                    }
+                }
+            }
+
+            
+
             const permission = await SystemPermission.findById(id);
             if (!permission) {
                 return res.status(404).json({
