@@ -19,6 +19,20 @@ const emergency_car_history_schema = new mongoose.Schema({
         to: { type: Date }
     },
     registered_by: { type: String }
+},{
+    versionKey: false, // removes __v automatically
+    toJSON: {
+        transform: function (doc, ret) {
+            delete ret.__v; // just in case
+            return ret;
+        }
+    },
+    toObject: {
+        transform: function (doc, ret) {
+            delete ret.__v;
+            return ret;
+        }
+    }
 });
 
 module.exports = mongoose.model('EmergencyCarHistory', emergency_car_history_schema);

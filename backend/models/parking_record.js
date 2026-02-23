@@ -16,6 +16,20 @@ const parking_record_schema = new mongoose.Schema({
     duration: { type: String, default: '0 mins'  },
     is_flagged: { type: Boolean, default: false, default: false  },
     checked_in_by: { type: String, default: "Not Specified"  }
+},{
+    versionKey: false, // removes __v automatically
+    toJSON: {
+        transform: function (doc, ret) {
+            delete ret.__v; // just in case
+            return ret;
+        }
+    },
+    toObject: {
+        transform: function (doc, ret) {
+            delete ret.__v;
+            return ret;
+        }
+    }
 });
 
 module.exports = mongoose.model('ParkingRecord', parking_record_schema);
