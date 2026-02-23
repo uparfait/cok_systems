@@ -38,11 +38,13 @@ module.exports = async function update_department(req, res, next) {
             total_employees === null
         ) {
             return res.status(400).json({
-                success: true,
+                success: false,
                 type: "warning",
                 message: "Some department data are invalid",
             })
         }
+
+        department_id = department_id.toString().toUpperCase()
 
         //validate and update allowed fields
         if (department_name !== undefined) department.department_name = department_name
@@ -50,7 +52,7 @@ module.exports = async function update_department(req, res, next) {
         if (total_employees !== undefined) department.total_employees = total_employees
         if (department_id !== undefined) department.department_id = department_id
 
-        department.registered_by = req.user || "Not specified"
+        department.registered_by = req.user?.name || "Not specified"
 
         // Save the document (this triggers Mongoose validation)
         const saved_department = await department.save()
