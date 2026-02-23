@@ -69,6 +69,7 @@ paths:
         '200': { description: OK }
         '500': { description: Server error }
 
+
     post:
       tags: [Departments]
       summary: "Create Department"
@@ -96,6 +97,22 @@ paths:
         '201': { description: Created }
         '400': { description: Missing required fields }
         '409': { description: department_id already exists }
+        '500': { description: Server error }
+
+  /department/crud/leader/{email}:
+    get:
+      tags: [Departments]
+      summary: "Get Departments by Leader Email"
+      operationId: getDepartmentsByLeaderEmail
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema: { type: string }
+          example: "jane@gmail.com"
+      responses:
+        '200': { description: OK }
+        '404': { description: Not found }
         '500': { description: Server error }
 
   /department/crud/search:
