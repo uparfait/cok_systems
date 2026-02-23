@@ -680,7 +680,7 @@ paths:
         '400': { description: Invalid ObjectId format }
         '404': { description: Parking record not found }
         '500': { description: Server error }
-    /system/permissions:
+  /system/permissions:
     get:
       tags: [System Permissions]
       summary: "List All System Permissions"
