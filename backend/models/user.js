@@ -36,6 +36,20 @@ const user_schema = new mongoose.Schema({
     created_date: { type: Date, default: Date.now },
     is_account_activated: {type: Boolean},
     registered_by: { type: String }
+},{
+    versionKey: false, // removes __v automatically
+    toJSON: {
+        transform: function (doc, ret) {
+            delete ret.__v; // just in case
+            return ret;
+        }
+    },
+    toObject: {
+        transform: function (doc, ret) {
+            delete ret.__v;
+            return ret;
+        }
+    }
 });
 
 module.exports = mongoose.model('User', user_schema);
