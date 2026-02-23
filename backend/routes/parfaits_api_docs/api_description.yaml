@@ -83,7 +83,7 @@ paths:
               properties:
                 department_name: { type: string, example: "Human Resources" }
                 department_id: { type: string, example: "DEPT-001" }
-                department_leader: { type: string, example: "Jane Doe" }
+                department_leader: { type: string, example: "Jane@gmail.com" }
                 
           multipart/form-data:
             schema:
@@ -145,7 +145,7 @@ paths:
               properties:
                 department_name: { type: string, example: "Human Resources" }
                 department_id: { type: string, example: "DEPT-001" }
-                department_leader: { type: string, example: "Jane Doe" }
+                department_leader: { type: string, example: "Jane@gmail.com" }
                 
           multipart/form-data:
             schema:
