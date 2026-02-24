@@ -3,11 +3,15 @@ const user_model = require('../../models/user.js') // Added user model
 
 module.exports = async function create_department(req, res, next) {
     try {
+
+        // 
         let {
             department_name = null,
             department_id = null,
             department_leader = null, // Expecting an email string here
+            department_response_time_in_minutes = 0
         } = req.body || {}
+        let leader_user = null
 
         // department validation
         if (!department_name || !department_id) {
@@ -33,7 +37,7 @@ module.exports = async function create_department(req, res, next) {
         // Verify and load user data if a leader email was provided
         let leader_data = null
         if (department_leader && department_leader !== 'Not specified') {
-            const leader_user = await user_model.findOne({ email: department_leader })
+            leader_user = await user_model.findOne({ email: department_leader })
             
             if (!leader_user) {
                 return res.status(404).json({
@@ -60,6 +64,7 @@ module.exports = async function create_department(req, res, next) {
             department_id,
             department_leader: leader_data, // Assign the newly structured object
             total_employees: leader_user?.full_name ? 1 : 0,
+            department_response_time_in_minutes,
             registered_by
         })
 
