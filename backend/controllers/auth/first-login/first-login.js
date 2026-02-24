@@ -148,7 +148,7 @@ async function sendOTP(req, res, next) {
         // Calculate expiry time
         const otpExpiry = new Date(Date.now() + otp.OTP_EXPIRY_SECONDS * 1000);
 
-             console.log('User', await User.findById(user._id));
+            // console.log('User', await User.findById(user._id));
 
         await User.findByIdAndUpdate(user._id, {
             $set: {
@@ -156,6 +156,8 @@ async function sendOTP(req, res, next) {
                 "auth.access_token.token": hashedOTP,
             },
         });
+
+        console.log(otpCode)
         // Send OTP via email
         await email.sendOTPEmail(normalizedEmail, otpCode, "first_login");
 
@@ -241,31 +243,12 @@ async function activateAccount(req, res, next) {
             });
         }
 
-        // Check if OTP exists and not expired
-        const storedOTP = user.auth?.otp;
-        const otpExpiry = user.auth?.otp_expiry;
+        const storedOTP = user.auth.access_token.token;
 
         if (!storedOTP) {
             return res.status(400).json({
                 status: false,
-                error: "OTP expired or not found",
-                message: "Please request a new OTP.",
-            });
-        }
-
-        // Check if OTP has expired
-        if (otpExpiry && new Date() > new Date(otpExpiry)) {
-            // Clear expired OTP
-            await User.findByIdAndUpdate(userId, {
-                $set: {
-                    "auth.otp": null,
-                    "auth.otp_expiry": null,
-                },
-            });
-
-            return res.status(400).json({
-                status: false,
-                error: "OTP has expired",
+                error: "No OTP found",
                 message: "Please request a new OTP.",
             });
         }
@@ -273,21 +256,15 @@ async function activateAccount(req, res, next) {
         // Validate OTP (compare hashed values)
         const hashMatch = await tokenUtil.compareToken(inputOTP.toString(), storedOTP);
 
+        console.log(hashMatch)
+
         if (!hashMatch) {
             return res.status(400).json({
                 status: false,
                 error: "Invalid OTP",
-                message: "Please enter the correct OTP sent to your email.",
+                message: "Token verification failed. it may have expired or is incorrect. Please request a new OTP.",
             });
         }
-
-        // OTP valid - clear it from database (one-time use)
-        await User.findByIdAndUpdate(userId, {
-            $set: {
-                "auth.otp": null,
-                "auth.otp_expiry": null,
-            },
-        });
 
         // Hash the new password
         const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
@@ -299,6 +276,7 @@ async function activateAccount(req, res, next) {
                 is_account_activated: true,
             },
         });
+
 
         // Send confirmation email
         try {
