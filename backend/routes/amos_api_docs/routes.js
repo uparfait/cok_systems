@@ -1,7 +1,9 @@
+/**
+ * AMOS API Documentation Routes
+ * Redirects to combined documentation
+ */
 
-
-const express = require('express')
-const Router = express.Router()
+const Router = require('express').Router()
 
 const multer = require('multer')
 const upload = multer()
@@ -21,7 +23,7 @@ Router.use((error, req, res, next) => {
 })
 
 /**
- * Redirect /parfait/docs to main /docs
+ * Redirect /amos/docs to main /docs
  */
 Router.get('/docs', (req, res) => {
     res.redirect('/cok/api/docs');
