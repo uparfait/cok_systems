@@ -1,14 +1,10 @@
 /**
- * AMOS Auth API Documentation Routes
- * Serves Swagger UI for Auth API documentation
+ * AMOS API Documentation Routes
+ * Redirects to combined documentation
  */
 
 const Router = require('express').Router()
 
-const swaggerUi = require('swagger-ui-express')
-const YAML = require('yamljs')
-const path = require('path')
-const swagger_document = YAML.load(path.join(__dirname, 'auth_api_description.yaml'))
 const multer = require('multer')
 const upload = multer()
 
@@ -26,52 +22,22 @@ Router.use((error, req, res, next) => {
     next()
 })
 
-// Serve swagger spec at unique path - prevent cache
-Router.get('/swagger.json', (req, res) => {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.json(swagger_document);
+/**
+ * Redirect /amos/docs to main /docs
+ */
+Router.get('/docs', (req, res) => {
+    res.redirect('/cok/api/docs');
 });
 
-// Serve swagger spec at unique path - prevent cache
-Router.get('/api-docs.json', (req, res) => {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.json(swagger_document);
+Router.get('/docs/', (req, res) => {
+    res.redirect('/cok/api/docs');
 });
 
 /**
- * Swagger UI for Auth API
+ * Also redirect root to /docs for convenience
  */
-Router.use(
-    '/docs',
-    swaggerUi.serveFiles(swagger_document, {
-        swaggerOptions: {
-            url: '/cok/api/amos/swagger.json',
-        }
-    }),
-    swaggerUi.setup(swagger_document, {
-        explorer: true,
-        customSiteTitle: 'AMOS Auth API Docs',
-        swaggerUrl: '/cok/api/amos/swagger.json',
-        customCss: `
-            .swagger-ui .topbar { background-color: #1a1a2e; }
-            .swagger-ui .topbar .download-url-wrapper { display: none; }
-            .swagger-ui .info .title { color: #1a1a2e; }
-        `,
-        swaggerOptions: {
-            tryItOutEnabled: true,
-            persistAuthorization: false,
-            displayRequestDuration: true,
-            filter: true,
-            docExpansion: 'list',
-            defaultModelsExpandDepth: 2,
-            defaultModelExpandDepth: 2,
-            url: '/cok/api/amos/swagger.json',
-        }
-    })
-)
+Router.get('/', (req, res) => {
+    res.redirect('/cok/api/docs');
+});
 
 module.exports = Router
