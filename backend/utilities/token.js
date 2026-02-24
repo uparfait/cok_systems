@@ -34,6 +34,7 @@ const compareToken = async (rawToken, hashedToken) => {
     try {
         // Verify the JWT token
         const verification = jwt.verifyAccessToken(hashedToken);
+        console.log('Token verification result:', verification);
         if (!verification.valid) {
             return false;
         }

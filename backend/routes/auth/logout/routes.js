@@ -3,19 +3,20 @@
  * Handles user logout and token invalidation
  */
 
-const Router = require("express").Router();
-const logoutController = require("../../../controllers/auth/logout/logout");
+const Router = require('express').Router();
+const singleLogoutController = require('../../../controllers/auth/logout/single_logout');
+const allLogoutController = require('../../../controllers/auth/logout/all_logout');
 
 /**
  * POST /auth/logout
- * Invalidate user's JWT token
+ * Invalidate user's current JWT token
  */
-Router.post("/", logoutController.logout);
+Router.post('/', singleLogoutController);
 
 /**
  * POST /auth/logout/all
  * Logout from all devices (invalidate all tokens for user)
  */
-Router.post("/all", logoutController.logoutAll);
+Router.post('/all', allLogoutController);
 
 module.exports = Router;
