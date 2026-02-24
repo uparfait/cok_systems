@@ -61,12 +61,12 @@ module.exports = async function update_user(req, res, next) {
         let newDeptId = department_id
 
         if (newDeptId && newDeptId !== 'Not specified' && newDeptId !== oldDeptId) {
-            const newDept = await department_model.findOne({ department_id: newDeptId.toString().toUpperCase() })
+            const newDept = await department_model.findOne({ department_id: newDeptId.toString().toUpperCase(), department_name: department_name || null })
             if (!newDept) {
                 return res.status(400).json({
                     success: false,
                     type: "warning",
-                    message: "Invalid department ID"
+                    message: "Incorrect department and or id"
                 })
             }
 
