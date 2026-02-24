@@ -1,4 +1,5 @@
 const xlsx = require('xlsx');
+const mongoose = require('mongoose');
 const EmergencyCar = require('../models/emergency_car');
 
 const bulkUploadReservations = async (req, res) => {
@@ -82,13 +83,39 @@ const bulkUploadReservations = async (req, res) => {
             registered_by: 'Super_Admin_Bulk_Upload' 
         });
 
-        await newReservationBatch.save();
+        // --- 2. THE TRANSACTION BUBBLE (Database Actions) ---
+        
+        // A. Start the session and the safety bubble
+        const session = await mongoose.startSession();
+        session.startTransaction();
+
+        try {
+            // B. Do the database work, explicitly passing the { session }
+            await newReservationBatch.save({ session });
+
+            // If we had to update parking slots later, we would do it here inside the try block:
+            // await ParkingSlot.updateMany(..., { session });
+
+            // C. If nothing crashed, make it permanent!
+            await session.commitTransaction();
+            
+            // End the session after committing
+            session.endSession();
 
         res.status(201).json({
             success: true,
             message: `Successfully registered ${mappedVisitors.length} visitors sequentially from ${uploadedFiles.length} file(s).`,
             data: newReservationBatch
         });
+
+        } catch (dbError) {
+            // D. If ANYTHING failed, hit the UNDO button!
+            await session.abortTransaction();
+            session.endSession();
+            
+            console.error('❌ Database Transaction Failed & Rolled Back:', dbError);
+            return res.status(500).json({ success: false, message: 'Database error during save. All changes were rolled back.' });
+        }
 
     } catch (error) {
         console.error('❌ Error in bulk upload:', error);
