@@ -84,7 +84,7 @@ paths:
               properties:
                 department_name: { type: string, example: "Human Resources" }
                 department_id: { type: string, example: "DEPT-001" }
-                department_leader: { type: string, example: "Jane@gmail.com" },
+                department_leader: { type: string, example: "Jane@gmail.com" }
                 department_response_time_in_minutes: { type: integer, example: 5 }
                 
           multipart/form-data:
@@ -93,7 +93,7 @@ paths:
               properties:
                 department_name: { type: string }
                 department_id: { type: string }
-                department_leader: { type: string },
+                department_leader: { type: string }
                 department_response_time_in_minutes: { type: integer }
       responses:
         '201': { description: Created }
