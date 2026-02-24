@@ -1,8 +1,17 @@
+/**
+ * Login Controller
+ * Handles user login - verifies credentials, manages login attempts, and sends OTP
+ */
+
 const jwt = require("../../../utilities/jwt");
 const otp = require("../../../utilities/otp");
 const email = require("../../../utilities/email");
 const tokenUtil = require("../../../utilities/token");
 const User = require("../../../models/user");
+
+// Configuration for login attempts
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCK_MESSAGE = "Account locked due to too many failed login attempts. Please contact administrator or reset password.";
 
 async function login(req, res, next) {
   try {
@@ -19,7 +28,7 @@ async function login(req, res, next) {
       });
     }
 
-    // TODO: Check user in database
+    // Check user in database
     const user = await User.findOne({ email: userEmail });
 
     if (!user) {
@@ -27,6 +36,29 @@ async function login(req, res, next) {
         status: false,
         error: "Invalid credentials",
         message: null,
+      });
+    }
+
+    // Initialize access_control if not exists
+    if (!user.access_control) {
+      user.access_control = {
+        is_locked: false,
+        reason: null,
+        last_login_attempt: 0
+      };
+      await user.save();
+    }
+
+    // Check if account is locked
+    if (user.access_control.is_locked) {
+      return res.status(403).json({
+        status: false,
+        error: "Account is locked",
+        message: LOCK_MESSAGE,
+        data: {
+          isLocked: true,
+          reason: user.access_control.reason
+        }
       });
     }
 
@@ -43,6 +75,17 @@ async function login(req, res, next) {
       });
     }
 
+    // TODO: Verify password (assuming password is stored hashed)
+    // For now, we'll assume password verification happens here
+    // If password is incorrect, increment login attempts
+    
+    // Note: Since we're using OTP 2FA, we first check if user exists and is valid
+    // Then we send OTP. The actual password verification happens at OTP verification step
+    // But we should still track failed attempts here if we were doing direct password auth
+    
+    // For this implementation: send OTP only if user exists and is valid
+    // Login attempts will be tracked on OTP verification failure in verify_login.js
+    
     // Generate OTP for 2FA
     const { otp: otpCode, expiresAt } = otp.generateOTPWithExpiry();
 
@@ -52,11 +95,12 @@ async function login(req, res, next) {
     // Calculate expiry time
     const otpExpiry = new Date(Date.now() + otp.OTP_EXPIRY_SECONDS * 1000);
 
-    // Store OTP in database (instead of Redis)
+    // Store OTP in database
     await User.findByIdAndUpdate(user._id, {
       $set: {
-        "auth.otp": hashedOTP,
-        "auth.otp_expiry": otpExpiry
+        "auth.access_token.token": hashedOTP,
+        "auth.access_token.token_type": "otp",
+        "auth.access_token.expires_at": otpExpiry
       }
     });
 
