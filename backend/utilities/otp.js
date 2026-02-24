@@ -26,7 +26,7 @@ const generateOTP = (length = OTP_LENGTH) => {
 const generateOTPWithExpiry = () => {
     return {
         otp: generateOTP(),
-        expiresAt: new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000)
+        expiresAt: new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000) // exires in 5 minutes
     };
 };
 
