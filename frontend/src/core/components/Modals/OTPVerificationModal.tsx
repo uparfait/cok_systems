@@ -1,0 +1,276 @@
+// OTPVerificationModal - OTP verification modal for existing users
+// Used when user logs in with credentials and system requires OTP verification
+
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+interface OTPVerificationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  email?: string;
+  userId?: string;
+}
+
+const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({ isOpen, onClose, email: initialEmail = '', userId: initialUserId = '' }) => {
+  const [email, setEmail] = useState(initialEmail);
+  const [otp, setOtp] = useState(['', '', '', '', '']); // 5 digits
+  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
+  const [isResending, setIsResending] = useState(false);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  
+  const [currentUserId, setCurrentUserId] = useState(initialUserId);
+  
+  const navigate = useNavigate();
+
+  // Background images
+  const cityHallImage = '/src/assets/cok_hall.jpg';
+  const logoImage = '/src/assets/LOGO_COK.jpg';
+
+  useEffect(() => {
+    if (!isOpen) {
+      // Reset state when modal closes
+      setTimeout(() => {
+        setEmail(initialEmail);
+        setOtp(['', '', '', '', '']);
+        setTimeLeft(300);
+        setError('');
+        setIsSuccess(false);
+        setCurrentUserId(initialUserId);
+      }, 300);
+    }
+  }, [isOpen]);
+
+  // Timer effect - 5 minutes
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isOpen && timeLeft > 0 && !isSuccess) {
+      timer = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 0) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [isOpen, timeLeft, isSuccess]);
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (value.length > 1) return;
+
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+    setError('');
+
+    // Auto-focus next input
+    if (value && index < 4) {
+      const nextInput = document.getElementById(`otp-verify-${index + 1}`);
+      if (nextInput) nextInput.focus();
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
+    // Handle backspace
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      const prevInput = document.getElementById(`otp-verify-${index - 1}`);
+      if (prevInput) prevInput.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').slice(0, 5).split('');
+    const newOtp = [...otp];
+    pastedData.forEach((value, index) => {
+      if (index < 5) newOtp[index] = value;
+    });
+    setOtp(newOtp);
+  };
+
+  const handleVerify = async () => {
+    const otpString = otp.join('');
+    if (otpString.length !== 5) {
+      setError('Please enter all 5 digits');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    // Simulate verification (show loading for 2 seconds)
+    // In production, call backend API
+    setTimeout(() => {
+      setIsLoading(false);
+      setIsSuccess(true);
+      
+      // After success, redirect to dashboard
+      setTimeout(() => {
+        onClose();
+        navigate('/dashboard');
+      }, 1500);
+    }, 2000);
+  };
+
+  const handleResend = async () => {
+    setIsResending(true);
+    setError('');
+
+    // Simulate resend OTP
+    setTimeout(() => {
+      setIsResending(false);
+      setTimeLeft(300); // Reset to 5 minutes
+    }, 1500);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Mask email for display
+  const maskEmail = (emailStr: string) => {
+    if (!emailStr) return '';
+    const [localPart, domain] = emailStr.split('@');
+    if (!domain) return emailStr;
+    
+    const maskedLocal = localPart.length > 2 
+      ? localPart.substring(0, 2) + '***' 
+      : localPart + '***';
+    
+    return `${maskedLocal}@${domain}`;
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      {/* Background with City Hall image and dark overlay */}
+      <div 
+        className="fixed inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url(${cityHallImage})` }}
+      >
+        <div className="absolute inset-0 bg-black/70" />
+      </div>
+
+      {/* Modal */}
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 transform transition-all">
+          {/* Success State */}
+          {isSuccess ? (
+            <div className="text-center py-8">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Verification Successful!</h3>
+              <p className="text-gray-600">
+                Redirecting to dashboard...
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Close button */}
+              <button
+                onClick={onClose}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition duration-200"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              {/* COK Logo */}
+              <div className="flex justify-center mb-4">
+                <img 
+                  src={logoImage} 
+                  alt="City of Kigali" 
+                  className="h-20 w-auto"
+                />
+              </div>
+
+              {/* Title */}
+              <h1 className="text-2xl font-bold text-center text-gray-900 mb-2">
+                Verify Your OTP
+              </h1>
+
+              {/* Subtitle */}
+              <p className="text-center text-gray-600 font-medium mb-4">
+                Enter the One-Time PIN sent to your email
+              </p>
+
+              {/* Description with masked email */}
+              <p className="text-center text-gray-500 mb-6">
+                We've sent a 5-digit verification code to<br />
+                <span className="font-semibold text-gray-700">{maskEmail(email)}</span>
+              </p>
+
+              {/* OTP Input Fields - Individual boxes styled */}
+              <div className="flex justify-center gap-2 mb-4" onPaste={handlePaste}>
+                {otp.map((digit, index) => (
+                  <input
+                    key={index}
+                    id={`otp-verify-${index}`}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(index, e.target.value.replace(/\D/g, ''))}
+                    onKeyDown={(e) => handleKeyDown(index, e)}
+                    className="w-12 h-12 text-center text-lg font-semibold border-2 border-gray-300 rounded-md focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 text-gray-800 bg-white"
+                    autoFocus={index === 0}
+                  />
+                ))}
+              </div>
+
+              {/* Timer display with bullet */}
+              <p className="text-center text-sm text-gray-500 mb-4">
+                • OTP expires in {formatTime(timeLeft)}
+              </p>
+
+              {/* Error message */}
+              {error && (
+                <p className="text-center text-sm text-red-600 mb-4">{error}</p>
+              )}
+
+              {/* Verify button */}
+              <button
+                onClick={handleVerify}
+                disabled={otp.join('').length !== 5 || isLoading}
+                className="w-full py-3 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+              >
+                {isLoading ? 'Verifying...' : 'Verify Your OTP'}
+              </button>
+
+              {/* Resend link with timer */}
+              <div className="text-center">
+                <span className="text-gray-600">Didn't receive the code? </span>
+                <button
+                  onClick={handleResend}
+                  disabled={timeLeft > 0 || isResending}
+                  className="text-blue-600 hover:text-blue-700 font-semibold transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isResending ? 'Resending...' : timeLeft > 0 ? `Resend OTP (${formatTime(timeLeft)})` : 'Resend OTP'}
+                </button>
+              </div>
+
+              {/* Secure portal footer - left aligned */}
+              <p className="text-left text-xs text-gray-400 mt-8">
+                © SECURE OFFICIAL CITY OF KIGALI PORTAL
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default OTPVerificationModal;
