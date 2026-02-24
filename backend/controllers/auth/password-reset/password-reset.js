@@ -218,7 +218,7 @@ async function verifyOTP(req, res, next) {
  */
 async function resetPassword(req, res, next) {
     try {
-        const { userId, tempToken, newPassword } = req.body;
+        const { userId, tempToken, asswnewPord } = req.body;
 
         if (!userId || !tempToken || !newPassword) {
             return res.status(400).json({

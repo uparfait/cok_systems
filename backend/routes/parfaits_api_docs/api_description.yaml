@@ -69,6 +69,7 @@ paths:
         '200': { description: OK }
         '500': { description: Server error }
 
+
     post:
       tags: [Departments]
       summary: "Create Department"
@@ -79,12 +80,13 @@ paths:
           application/json:
             schema:
               type: object
-              required: [department_name, department_id]
+              required: [department_name, department_id, department_response_time_in_minutes]
               properties:
                 department_name: { type: string, example: "Human Resources" }
                 department_id: { type: string, example: "DEPT-001" }
-                department_leader: { type: string, example: "Jane Doe" }
-                total_employees: { type: integer, example: 0 }
+                department_leader: { type: string, example: "Jane@gmail.com" }
+                department_response_time_in_minutes: { type: integer, example: 5 }
+                
           multipart/form-data:
             schema:
               type: object
@@ -92,11 +94,27 @@ paths:
                 department_name: { type: string }
                 department_id: { type: string }
                 department_leader: { type: string }
-                total_employees: { type: integer }
+                department_response_time_in_minutes: { type: integer }
       responses:
         '201': { description: Created }
         '400': { description: Missing required fields }
         '409': { description: department_id already exists }
+        '500': { description: Server error }
+
+  /department/crud/leader/{email}:
+    get:
+      tags: [Departments]
+      summary: "Get Departments by Leader Email"
+      operationId: getDepartmentsByLeaderEmail
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema: { type: string }
+          example: "jane@gmail.com"
+      responses:
+        '200': { description: OK }
+        '404': { description: Not found }
         '500': { description: Server error }
 
   /department/crud/search:
@@ -142,20 +160,17 @@ paths:
           application/json:
             schema:
               type: object
-              required: [department_name, department_id, department_leader, total_employees]
+              required: [department_response_time_in_minutes, department_leader]
               properties:
-                department_name: { type: string, example: "Human Resources" }
-                department_id: { type: string, example: "DEPT-001" }
-                department_leader: { type: string, example: "Jane Doe" }
-                total_employees: { type: integer, example: 10 }
+                department_response_time_in_minutes: { type: integer, example: 5 }
+                department_leader: { type: string, example: "Jane@gmail.com" }
+                
           multipart/form-data:
             schema:
               type: object
               properties:
-                department_name: { type: string }
-                department_id: { type: string }
+                department_response_time_in_minutes: { type: integer }
                 department_leader: { type: string }
-                total_employees: { type: integer }
       responses:
         '200': { description: Updated }
         '400': { description: Invalid ObjectId or missing fields }
@@ -200,7 +215,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [full_name, telephone, email]
+              required: [full_name]
               properties:
                 full_name: { type: string, example: "Alice Uwimana" }
                 telephone: { type: string, example: "+250788123456" }
@@ -218,21 +233,16 @@ paths:
                   type: object
                   properties:
                     role_name: { type: string, example: "HR Manager" }
-                    roles:
-  type: object
-  properties:
-    role_name: { type: string, example: "HR Manager" }
-    permissions:
-      type: array
-      items:
-        type: object
-        properties:
-          resource: { type: string, example: "employees" }
-          actions:
-            type: array
-            items: { type: string}
-            example: ["GET", "POST"]
-
+                    permissions:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          resource: { type: string, example: "employees" }
+                          actions:
+                            type: array
+                            items: { type: string}
+                            example: ["GET", "POST"]
           multipart/form-data:
             schema:
               type: object
@@ -245,10 +255,12 @@ paths:
                 department_name: { type: string }
                 department_id: { type: string }
       responses:
-        '201': { description: Created — activation required }
+        '201': { description: Created }
         '400': { description: Missing required fields }
         '409': { description: Email or telephone already exists }
         '500': { description: Server error }
+
+        
 
   /employee/crud/search:
     get:
