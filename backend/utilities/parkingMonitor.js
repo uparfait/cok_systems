@@ -6,7 +6,7 @@ const ParkingRecord = require('../models/parking_record');
 const VISITOR_LIMIT_MS = 2 * 60 * 60 * 1000; 
 const STAFF_LIMIT_MS = 12 * 60 * 60 * 1000;  
 
-const startParkingMonitor = (io) => {
+const startParkingMonitor = () => {
     // This cron expression '*/5 * * * *' means "Run every 5 minutes"
     cron.schedule('*/5 * * * *', async () => {
         console.log('[Cron] Running Parking Monitor Check...');
@@ -50,13 +50,17 @@ const startParkingMonitor = (io) => {
                     console.log(`ALERT: Vehicle ${record.plate_number} (${record.driver_type}) has overstayed!`);
 
                     // 5. Send real-time alert to Super Admin and Security (if Socket.io is passed in)
-                    if (io) {
-                        io.emit('parking_alert', {
+                    if (global.WebsocketIO) {
+                        global.WebsocketIO.emit('parking_alert', {
+                            type: 'OVERSTAY_WARNING',
                             message: `Vehicle ${record.plate_number} has overstayed its limit (${hours} hours).`,
                             record: record
                         });
-                    }
+                        console.log("📡 Real-time alert broadcasted to frontend!");
+                    }else {
+                        console.log("⚠️ WebSocket not initialized yet, skipping real-time alert.");
                 }
+              }
             }
         } catch (error) {
             console.error(' Error in Parking Monitor:', error);
