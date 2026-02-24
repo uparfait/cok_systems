@@ -35,10 +35,10 @@ const passwordValidator = (password) => {
     };
 };
 
-/**
- * POST /auth/first-login/check
- * Step 1: Check if email exists and account is not activated
- */
+// /**
+//  * POST /auth/first-login/check
+//  * Step 1: Check if email exists and account is not activated
+//  */
 async function checkEmail(req, res, next) {
     try {
         const { email: userEmail } = req.body;
@@ -148,14 +148,14 @@ async function sendOTP(req, res, next) {
         // Calculate expiry time
         const otpExpiry = new Date(Date.now() + otp.OTP_EXPIRY_SECONDS * 1000);
 
-        // Store OTP in database
+             console.log('User', await User.findById(user._id));
+
         await User.findByIdAndUpdate(user._id, {
             $set: {
-                "auth.otp": hashedOTP,
-                "auth.otp_expiry": otpExpiry,
+                "auth.access_token.token_type": "first_login_otp",
+                "auth.access_token.token": hashedOTP,
             },
         });
-
         // Send OTP via email
         await email.sendOTPEmail(normalizedEmail, otpCode, "first_login");
 
@@ -360,13 +360,8 @@ async function resendOTP(req, res, next) {
         // Hash and store in database
         const hashedOTP = await tokenUtil.hashTokenLoginToken(otpCode.toString());
         const otpExpiry = new Date(Date.now() + otp.OTP_EXPIRY_SECONDS * 1000);
+console.log('Generated new OTP for first-time login resend:', otpCode);
 
-        await User.findByIdAndUpdate(userId, {
-            $set: {
-                "auth.otp": hashedOTP,
-                "auth.otp_expiry": otpExpiry,
-            },
-        });
 
         // Send new OTP via email
         await email.sendOTPEmail(userEmail, otpCode, "first_login");
