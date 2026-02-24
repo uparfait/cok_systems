@@ -75,14 +75,6 @@ async function sendOTP(req, res, next) {
       },
     });
 
-    console.log(otpCode)
-    // Send OTP via email
-    await email.sendOTPEmail(normalizedEmail, otpCode, "first_login");
-
-    console.log(
-      `Generated OTP for first-time login ${normalizedEmail}: ${otpCode} (expires in 5 mins)`,
-    );
-
     return res.status(200).json({
       status: true,
       error: null,
