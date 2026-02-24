@@ -68,7 +68,6 @@ async function resendOTP(req, res, next) {
       $set: {
         "auth.access_token.token": hashedOTP,
         "auth.access_token.token_type": "first_login_otp",
-        "auth.access_token.expires_at": otpExpiry
       }
     });
 
