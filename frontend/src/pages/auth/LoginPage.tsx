@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { FiLogIn } from 'react-icons/fi';
-import { Link, useNavigate } from 'react-router-dom';
+import {  useNavigate } from 'react-router-dom';
 import FirstTimeLoginOTPModal from '../../core/components/Modals/FirstTimeLoginOTPModal';
 import PasswordSetupModal from '../../core/components/Modals/PasswordSetupModal';
 import OTPVerificationModal from '../../core/components/Modals/OTPVerificationModal';
@@ -24,8 +24,8 @@ const LoginPage = () => {
   const [passwordSetupUserId, setPasswordSetupUserId] = useState('');
   const [otpVerificationEmail, setOtpVerificationEmail] = useState('');
   const [otpVerificationUserId, setOtpVerificationUserId] = useState('');
-  const [resetPasswordEmail, setResetPasswordEmail] = useState('');
-  const [resetPasswordUserId, setResetPasswordUserId] = useState('');
+ // const [resetPasswordEmail, setResetPasswordEmail] = useState('');
+  //const [resetPasswordUserId, setResetPasswordUserId] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -123,6 +123,7 @@ const handlePasswordSetupSuccess = () => {
 
   // Handle OTP verification success for password reset - navigate to reset password
   const handlePasswordResetOTPSuccess = (userId: string, tempToken: string) => {
+    console.log(tempToken)
     setShowPasswordResetOTPModal(false);
     // Navigate to reset password page with userId
     navigate(`/reset-password?userId=${userId}`);
@@ -452,7 +453,7 @@ const handlePasswordSetupSuccess = () => {
         <PasswordResetOTPModal
           isOpen={showPasswordResetOTPModal}
           onClose={() => setShowPasswordResetOTPModal(false)}
-          email={resetPasswordEmail}
+          email={''}
           onVerified={handlePasswordResetOTPSuccess}
         />
       )}

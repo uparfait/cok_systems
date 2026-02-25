@@ -33,7 +33,7 @@ const OTPModal: React.FC<OTPModalProps> = ({ isOpen, onClose, email: initialEmai
     if (!isOpen) {
       // Reset state when modal closes
       setTimeout(() => {
-        setEmail(initialEmail);
+        setEmail(initialEmail || '');
         setOtp(['', '', '', '', '']);
         setTimeLeft(114);
         setError('');
@@ -58,7 +58,7 @@ const OTPModal: React.FC<OTPModalProps> = ({ isOpen, onClose, email: initialEmai
       const result = await login(email, 'dummy_password_for_otp');
       
       if (result.status && result.data?.requiresOTP) {
-        setCurrentUserId(result.data.userId);
+        setCurrentUserId(result.data.userId || '');
         setStep('otp');
         
         // Start timer

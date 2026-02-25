@@ -48,7 +48,12 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
     };
     
     const score = Object.values(strength).filter(Boolean).length;
-    setPasswordStrength({ ...strength, score });
+
+    setPasswordStrength({
+      ...strength,
+      hasLowercase: /[a-z]/.test(password),
+      score
+    });
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {

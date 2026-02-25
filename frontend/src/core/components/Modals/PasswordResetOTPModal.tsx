@@ -20,7 +20,9 @@ const PasswordResetOTPModal: React.FC<PasswordResetOTPModalProps> = ({ isOpen, o
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [userId, setUserId] = useState('');
+ // const [userId, setUserId] = useState('');
+
+  
   
   const navigate = useNavigate();
 
