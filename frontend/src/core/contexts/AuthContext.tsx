@@ -7,7 +7,7 @@ import {
   login as authLogin, 
   logout as authLogout, 
   getCurrentUser, 
-  isUserAuthenticated,
+ // isUserAuthenticated,
   verifyLoginOTP,
   resendLoginOTP,
   requestPasswordReset,
