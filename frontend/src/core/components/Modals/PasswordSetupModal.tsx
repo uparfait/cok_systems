@@ -3,16 +3,19 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { resetPassword } from '../../services/authService';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface PasswordSetupModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
   userId?: string;
   email?: string;
+  otp?: string;
 }
 
-const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose, userId = '', email = '' }) => {
+const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose, onSuccess, userId = '', email = '', otp = '' }) => {
+  const { activateAccount } = useAuth();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -23,6 +26,7 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
   const [passwordStrength, setPasswordStrength] = useState({
     hasMinLength: false,
     hasUppercase: false,
+    hasLowercase: false,
     hasNumber: false,
     hasSymbol: false,
     score: 0
@@ -80,6 +84,7 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
         setPasswordStrength({
           hasMinLength: false,
           hasUppercase: false,
+          hasLowercase: false,
           hasNumber: false,
           hasSymbol: false,
           score: 0
@@ -102,22 +107,33 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
       return;
     }
 
+    if (!userId || !otp) {
+      setError('Missing user information. Please try again.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // For first-time login, we need a different approach
-      // The userId and a temp token would be needed
-      // For demo, we'll simulate success
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Call the backend to activate account with OTP verification and password setup
+      const result = await activateAccount(userId, otp, newPassword, confirmPassword);
       
-      // In production, call: await resetPassword(userId, tempToken, newPassword);
-      setIsSuccess(true);
-      
-      // After 2 seconds, go back to login
-      setTimeout(() => {
-        onClose();
-        navigate('/login');
-      }, 2000);
+      if (result.status) {
+        setIsSuccess(true);
+        
+        // Call onSuccess callback if provided
+        if (onSuccess) {
+          onSuccess();
+        }
+        
+        // After 2 seconds, go back to login
+        setTimeout(() => {
+          onClose();
+          navigate('/login');
+        }, 2000);
+      } else {
+        setError(result.error || 'Failed to activate account');
+      }
     } catch (err: any) {
       setError(err?.error || err?.message || 'Failed to set password');
     } finally {
@@ -253,6 +269,10 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
                   <div className={`flex items-center ${passwordStrength.hasUppercase ? 'text-green-600' : 'text-gray-500'}`}>
                     <span className="mr-1">{passwordStrength.hasUppercase ? '✓' : '○'}</span>
                     One uppercase letter (A-Z)
+                  </div>
+                  <div className={`flex items-center ${passwordStrength.hasLowercase ? 'text-green-600' : 'text-gray-500'}`}>
+                    <span className="mr-1">{passwordStrength.hasLowercase ? '✓' : '○'}</span>
+                    One lowercase letter (a-z)
                   </div>
                   <div className={`flex items-center ${passwordStrength.hasNumber ? 'text-green-600' : 'text-gray-500'}`}>
                     <span className="mr-1">{passwordStrength.hasNumber ? '✓' : '○'}</span>

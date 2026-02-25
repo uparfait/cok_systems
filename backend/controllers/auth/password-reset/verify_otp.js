@@ -40,7 +40,7 @@ async function verifyOTP(req, res, next) {
       return res.status(400).json({
         status: false,
         error: "Invalid token type",
-        message: `Expected token type '${EXPECTED_TOKEN_TYPE}', but found '${storedTokenType || 'none'}'. Please request a new OTP.`
+        message: `Invalid token type`
       });
     }
 
@@ -95,7 +95,7 @@ async function verifyOTP(req, res, next) {
     });
 
     // Generate a temporary token for password change (valid for 5 minutes)
-    const tempToken = otp.generateOTP(5); // 5-char temp token
+    const tempToken = inputOTP.toString(); // 5-char temp token
 
     // Hash the temp token for storage
     const hashedTempToken = await tokenUtil.hashTokenLoginToken(tempToken);
@@ -105,7 +105,7 @@ async function verifyOTP(req, res, next) {
     await User.findByIdAndUpdate(userId, {
       $set: {
         "auth.access_token.token": hashedTempToken,
-        "auth.access_token.token_type": "password_reset_temp",
+        "auth.access_token.token_type": "password_reset_otp",
         "auth.access_token.expires_at": tempTokenExpiry,
       },
     });
