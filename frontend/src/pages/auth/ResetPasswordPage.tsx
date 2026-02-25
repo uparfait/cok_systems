@@ -145,7 +145,7 @@ const ResetPasswordPage = () => {
         <div className="hidden lg:flex lg:w-1/2 relative">
           <div 
             className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: 'url(/src/assets/cok_hall.jpg)' }}
+            style={{ backgroundImage: 'url(/cok_hall.jpg)' }}
           >
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
           </div>
@@ -186,7 +186,7 @@ const ResetPasswordPage = () => {
 
           <div className="mb-6">
             <img
-              src="/src/assets/LOGO_COK.jpg"
+              src="/LOGO_COK.jpg"
               alt="City of Kigali"
               className="h-16 w-auto"
             />
