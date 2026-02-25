@@ -48,6 +48,19 @@ async function requestReset(req, res, next) {
       });
     }
 
+    // chek if account is activated   
+      if (!user.is_account_activated) {
+      return res.status(403).json({
+        status: false,
+        error: "Account not activated",
+        message: "Account is not activated. Please contact your administrator.",
+        data: {
+          isActivated: false
+        }
+      });
+    }
+  
+
     // Generate 5-digit OTP
     const { otp: otpCode, expiresAt } = otp.generateOTPWithExpiry();
 

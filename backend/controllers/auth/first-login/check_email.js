@@ -4,7 +4,6 @@
  */
 
 const User = require("../../../models/user");
-
 // Lock message
 const LOCK_MESSAGE = "Account is locked. Please contact administrator.";
 
@@ -55,15 +54,6 @@ async function checkEmail(req, res, next) {
         data: {
           alreadyActivated: true
         }
-      });
-    }
-
-    // Check if user already has a password (should not for first-time login)
-    if (user.password) {
-      return res.status(400).json({
-        status: false,
-        error: "Account already has a password",
-        message: "This account appears to be set up. Please use the regular login.",
       });
     }
 

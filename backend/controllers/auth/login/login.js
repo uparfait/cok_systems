@@ -7,6 +7,7 @@ const jwt = require("../../../utilities/jwt");
 const otp = require("../../../utilities/otp");
 const email = require("../../../utilities/email");
 const tokenUtil = require("../../../utilities/token");
+const bcrypt = require('bcrypt');
 const User = require("../../../models/user");
 
 // Configuration for login attempts
@@ -75,16 +76,55 @@ async function login(req, res, next) {
       });
     }
 
-    // TODO: Verify password (assuming password is stored hashed)
-    // For now, we'll assume password verification happens here
-    // If password is incorrect, increment login attempts
+    // Verify password before sending OTP
+    const isPasswordValid = await bcrypt.compare(password, user.password);
     
-    // Note: Since we're using OTP 2FA, we first check if user exists and is valid
-    // Then we send OTP. The actual password verification happens at OTP verification step
-    // But we should still track failed attempts here if we were doing direct password auth
-    
-    // For this implementation: send OTP only if user exists and is valid
-    // Login attempts will be tracked on OTP verification failure in verify_login.js
+    if (!isPasswordValid) {
+      // Handle failed password attempt
+      const attempts = (user.access_control.last_login_attempt || 0) + 1;
+      const maxAttempts = 5;
+      
+      if (attempts >= maxAttempts) {
+        await User.findByIdAndUpdate(user._id, {
+          $set: {
+            "access_control.last_login_attempt": attempts,
+            "access_control.is_locked": true,
+            "access_control.reason": "Account locked due to too many failed login attempts"
+          }
+        });
+        
+        return res.status(403).json({
+          status: false,
+          error: "Account locked",
+          message: "Account locked due to too many failed login attempts. Please contact administrator or reset password.",
+          data: {
+            isLocked: true
+          }
+        });
+      }
+      
+      await User.findByIdAndUpdate(user._id, {
+        $set: {
+          "access_control.last_login_attempt": attempts
+        }
+      });
+      
+      return res.status(401).json({
+        status: false,
+        error: "Invalid credentials",
+        message: `Invalid email or password. Attempts remaining: ${maxAttempts - attempts}`,
+        data: {
+          remainingAttempts: maxAttempts - attempts
+        }
+      });
+    }
+
+    // Reset login attempts on successful password verification
+    await User.findByIdAndUpdate(user._id, {
+      $set: {
+        "access_control.last_login_attempt": 0
+      }
+    });
     
     // Generate OTP for 2FA
     const { otp: otpCode, expiresAt } = otp.generateOTPWithExpiry();
