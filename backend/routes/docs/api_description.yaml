@@ -17,7 +17,7 @@ servers:
 tags:
   # AMOS Auth API Tags
   - name: AMOS - Authentication
-    description: User login, logout, and session management
+    description: User login, logout, and session managements
   - name: AMOS - First-Time Login
     description: Account activation for new users
   - name: AMOS - Password Reset
