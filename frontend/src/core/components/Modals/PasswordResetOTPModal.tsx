@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { verifyPasswordResetOTP } from '../../services/authService';
 
 interface PasswordResetOTPModalProps {
   isOpen: boolean;
@@ -91,7 +92,7 @@ const PasswordResetOTPModal: React.FC<PasswordResetOTPModalProps> = ({ isOpen, o
     setOtp(newOtp);
   };
 
-  const handleVerify = async () => {
+const handleVerify = async () => {
     const otpString = otp.join('');
     if (otpString.length !== 5) {
       setError('Please enter all 5 digits');
@@ -101,22 +102,41 @@ const PasswordResetOTPModal: React.FC<PasswordResetOTPModalProps> = ({ isOpen, o
     setIsLoading(true);
     setError('');
 
-    // Simulate verification (show loading for 2 seconds)
-    // In production, call backend API
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsSuccess(true);
-      
-      // After success, call onVerified callback or go back to login
-      if (onVerified) {
-        onVerified('demo-user-id', 'demo-temp-token');
-      } else {
-        setTimeout(() => {
-          onClose();
-          navigate('/login');
-        }, 1500);
+    try {
+      // Get userId from sessionStorage
+      const storedUserId = sessionStorage.getItem('resetUserId');
+      if (!storedUserId) {
+        setError('Session expired. Please start the process again.');
+        setIsLoading(false);
+        return;
       }
-    }, 2000);
+
+      // Call backend API to verify OTP
+      const result = await verifyPasswordResetOTP(storedUserId, otpString);
+      
+      if (result.status && result.data?.tempToken) {
+        setIsSuccess(true);
+        
+        // Store tempToken in sessionStorage for use in reset password page
+        sessionStorage.setItem('resetTempToken', result.data.tempToken);
+        
+        // After success, call onVerified callback or navigate to reset password
+        if (onVerified) {
+          onVerified(storedUserId, result.data.tempToken);
+        } else {
+          setTimeout(() => {
+            onClose();
+            navigate(`/reset-password?userId=${storedUserId}`);
+          }, 1500);
+        }
+      } else {
+        setError(result.error || 'Invalid OTP. Please try again.');
+      }
+    } catch (err: any) {
+      setError(err?.error || err?.message || 'Failed to verify OTP');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleResend = async () => {
@@ -153,17 +173,17 @@ const PasswordResetOTPModal: React.FC<PasswordResetOTPModalProps> = ({ isOpen, o
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Background with City Hall image and dark overlay */}
+      {/* Background with City Hall image and gradient overlay */}
       <div 
         className="fixed inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url(${cityHallImage})` }}
       >
-        <div className="absolute inset-0 bg-black/70" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
       </div>
 
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 transform transition-all">
+      <div className="flex min-h-full items-center justify-center p-3 sm:p-4">
+        <div className="relative bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl max-w-sm w-full p-5 sm:p-6 transform transition-all">
           {/* Success State */}
           {isSuccess ? (
             <div className="text-center py-8">
