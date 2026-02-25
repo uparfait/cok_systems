@@ -31,8 +31,8 @@ const LoginPage = () => {
   const navigate = useNavigate();
 
   // Import images from assets
-  const cityHallImage = '/src/assets/cok_hall.jpg';
-  const logoImage = '/src/assets/LOGO_COK.jpg';
+  const cityHallImage = '/cok_hall.jpg';
+  const logoImage = '/LOGO_COK.jpg';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
