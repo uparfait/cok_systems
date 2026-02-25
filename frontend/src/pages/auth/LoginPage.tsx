@@ -107,15 +107,15 @@ const LoginPage = () => {
       </div>
 
       {/* Right side - Login form card */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-3 sm:px-6 lg:px-14">
-        <div className="w-full max-w-sm">
+      <div className="w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-12 xl:px-14 bg-white">
+        <div className="w-full max-w-sm md:max-w-md">
           <div className="bg-white">
             {/* Logo and intro text */}
             <div className="text-center mb-6 md:mb-8">
               <img
                 src={logoImage}
                 alt="City of Kigali"
-                className="h-[152px] md:h-[168px] w-auto mx-auto mb-3"
+                className="h-24 sm:h-32 md:h-36 lg:h-[152px] xl:h-[168px] w-auto mx-auto mb-3"
               />
               <p className="public-sans-bold-20 text-[#0D141C]">
                 Welcome Back

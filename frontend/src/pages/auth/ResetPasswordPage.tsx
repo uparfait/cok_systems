@@ -133,7 +133,7 @@ const ResetPasswordPage = () => {
         </div>
 
         {/* Right side - Success message */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
+        <div className="w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-8 bg-white">
           <div className="max-w-md w-full">
             <Link to="/login" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-8 transition-colors">
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -185,11 +185,11 @@ const ResetPasswordPage = () => {
       </div>
 
       {/* Right side - Reset Password form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
-        <div className="max-w-md w-full">
+      <div className="w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-8 bg-white">
+        <div className="max-w-md w-full space-y-8">
           {/* Back button */}
-          <Link to="/forgot-password" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-8 transition-colors">
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <Link to="/forgot-password" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6 sm:mb-8 transition-colors">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             Back
