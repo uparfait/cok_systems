@@ -2,18 +2,20 @@
 // Modal for users logging in for the first time using OTP
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface FirstTimeLoginOTPModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: (email: string, userId: string) => void;
+  onSuccess?: (email: string, userId: string, otp: string) => void;
 }
 
 const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen, onClose, onSuccess }) => {
+  const { checkEmailForFirstLogin, sendFirstLoginOTP, resendFirstLoginOTP } = useAuth();
+  
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '']); // 5 digits
-  const [timeLeft, setTimeLeft] = useState(114); // 1:54 in seconds
+  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
   const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -22,8 +24,6 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
   // State for tracking step: 'email' -> 'otp' -> 'success'
   const [step, setStep] = useState<'email' | 'otp' | 'success'>('email');
   const [currentUserId, setCurrentUserId] = useState('');
-  
-  const navigate = useNavigate();
 
   // Background images
   const cityHallImage = '/src/assets/cok_hall.jpg';
@@ -35,7 +35,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
       setTimeout(() => {
         setEmail('');
         setOtp(['', '', '', '', '']);
-        setTimeLeft(114);
+        setTimeLeft(300);
         setError('');
         setSuccess(false);
         setStep('email');
@@ -47,7 +47,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
   // Timer effect
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (step === 'otp' && timeLeft > 0) {
+    if (step === 'otp' && timeLeft > 0 && !success) {
       timer = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 0) {
@@ -59,8 +59,9 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
       }, 1000);
     }
     return () => clearInterval(timer);
-  }, [step, timeLeft]);
+  }, [step, timeLeft, success]);
 
+  // Step 1: Check email and send OTP
   const handleSendOTP = async () => {
     if (!email) {
       setError('Please enter your email');
@@ -70,15 +71,37 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
     setIsLoading(true);
     setError('');
 
-    // Simulate sending OTP (show loading for 2 seconds)
-    // In production, this would call the backend API
-    setTimeout(() => {
+    try {
+      // First check if email exists and account can be activated
+      const checkResult = await checkEmailForFirstLogin(email);
+      
+      if (!checkResult.status) {
+        setError(checkResult.error || 'Failed to verify email');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check if account is already activated
+      if (checkResult.data?.alreadyActivated) {
+        setError('This account is already active. Please use regular login.');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Now send OTP
+      const otpResult = await sendFirstLoginOTP(email);
+      
+      if (otpResult.status && otpResult.data?.userId) {
+        setCurrentUserId(otpResult.data.userId);
+        setStep('otp');
+      } else {
+        setError(otpResult.error || 'Failed to send OTP');
+      }
+    } catch (err: any) {
+      setError(err?.error || err?.message || 'An error occurred');
+    } finally {
       setIsLoading(false);
-      // For demo purposes, we assume email was sent successfully
-      // In production, you would call: await login(email, 'dummy_password_for_otp');
-      setCurrentUserId('demo-user-id'); // In production, use result.data.userId
-      setStep('otp');
-    }, 2000);
+    }
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -114,6 +137,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
     setOtp(newOtp);
   };
 
+  // Step 2: Verify OTP - this actually activates the account in PasswordSetupModal
   const handleVerify = async () => {
     const otpString = otp.join('');
     if (otpString.length !== 5) {
@@ -121,22 +145,10 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
       return;
     }
 
-    setIsLoading(true);
-    setError('');
-
-    // Simulate verification (show loading for 2 seconds)
-    // In production, this would call the backend API
-    setTimeout(() => {
-      setIsLoading(false);
-      // Call onSuccess callback to transition to password setup
-      if (onSuccess) {
-        onSuccess(email, currentUserId);
-      } else {
-        // Fallback: close modal and navigate
-        onClose();
-        navigate('/reset-password');
-      }
-    }, 2000);
+    // Pass the OTP to the next step for password setup
+    if (onSuccess) {
+      onSuccess(email, currentUserId, otpString);
+    }
   };
 
   const handleResend = async () => {
@@ -149,8 +161,8 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
     setError('');
 
     try {
-      await resendLoginOTP(currentUserId, email);
-      setTimeLeft(114);
+      await resendFirstLoginOTP(email);
+      setTimeLeft(300); // Reset to 5 minutes
     } catch (err: any) {
       setError(err?.error || 'Failed to resend OTP');
     } finally {
@@ -228,19 +240,19 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
 
               {/* Title */}
               <h1 className="text-2xl font-bold text-center text-gray-900 mb-2">
-                Login with OTP
+                First Time Login
               </h1>
 
               {/* Subtitle */}
               <p className="text-center text-gray-600 font-medium mb-4">
-                Verify Your Identity
+                Account Activation
               </p>
 
               {/* Step 1: Email Input */}
               {step === 'email' && (
                 <>
                   <p className="text-center text-gray-600 mb-6">
-                    Please enter your registered email to receive a verification code
+                    Please enter your registered email to receive a verification code for account activation
                   </p>
 
                   <div className="mb-6">
@@ -266,7 +278,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
                     disabled={isLoading || !email}
                     className="w-full py-3 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed mb-4"
                   >
-                    {isLoading ? 'Sending...' : 'Send Verification Code'}
+                    {isLoading ? 'Verifying...' : 'Send Verification Code'}
                   </button>
                 </>
               )}
@@ -315,7 +327,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
                     disabled={otp.join('').length !== 5 || isLoading}
                     className="w-full py-3 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed mb-4"
                   >
-                    {isLoading ? 'Verifying...' : 'Verify Your OTP'}
+                    {isLoading ? 'Verifying...' : 'Continue to Password Setup'}
                   </button>
 
                   {/* Resend link with timer */}

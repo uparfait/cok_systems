@@ -1,8 +1,9 @@
 // OTPVerificationModal - OTP verification modal for existing users
-// Used when user logs in with credentials and system requires OTP verification
+// Uses auth context for OTP verification
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface OTPVerificationModalProps {
   isOpen: boolean;
@@ -11,7 +12,13 @@ interface OTPVerificationModalProps {
   userId?: string;
 }
 
-const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({ isOpen, onClose, email: initialEmail = '', userId: initialUserId = '' }) => {
+const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  email: initialEmail = '', 
+  userId: initialUserId = '' 
+}) => {
+  const { verifyOTP, resendOTP } = useAuth();
   const [email, setEmail] = useState(initialEmail);
   const [otp, setOtp] = useState(['', '', '', '', '']); // 5 digits
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
@@ -102,29 +109,38 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({ isOpen, onC
     setIsLoading(true);
     setError('');
 
-    // Simulate verification (show loading for 2 seconds)
-    // In production, call backend API
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsSuccess(true);
+    try {
+      const result = await verifyOTP(currentUserId, otpString);
       
-      // After success, redirect to dashboard
-      setTimeout(() => {
-        onClose();
-        navigate('/dashboard');
-      }, 1500);
-    }, 2000);
+      if (result.status && result.data?.tokens) {
+        setIsSuccess(true);
+        // After success, redirect to dashboard
+        setTimeout(() => {
+          onClose();
+          navigate('/dashboard');
+        }, 1500);
+      } else {
+        setError(result.error || 'Invalid OTP');
+      }
+    } catch (err: any) {
+      setError(err?.error || err?.message || 'Failed to verify OTP');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleResend = async () => {
     setIsResending(true);
     setError('');
 
-    // Simulate resend OTP
-    setTimeout(() => {
-      setIsResending(false);
+    try {
+      await resendOTP(currentUserId, email);
       setTimeLeft(300); // Reset to 5 minutes
-    }, 1500);
+    } catch (err: any) {
+      setError(err?.error || 'Failed to resend OTP');
+    } finally {
+      setIsResending(false);
+    }
   };
 
   const formatTime = (seconds: number) => {

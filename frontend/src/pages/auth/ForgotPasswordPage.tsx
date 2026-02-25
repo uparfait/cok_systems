@@ -1,34 +1,48 @@
 // ForgotPasswordPage - Password recovery page
-// Page for requesting password reset
+// Page for requesting password reset with real API integration
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import PasswordResetOTPModal from '../../core/components/Modals/PasswordResetOTPModal';
+import { useAuth } from '../../core/contexts/AuthContext';
 
 const ForgotPasswordPage = () => {
+  const { requestPasswordReset } = useAuth();
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showOTPModal, setShowOTPModal] = useState(false);
+  const [userId, setUserId] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
     
-    // Simulate sending reset link (2 second delay)
-    setTimeout(() => {
+    try {
+      const result = await requestPasswordReset(email);
+      
+      if (result.status) {
+        // Store userId for next step
+        if (result.data?.userId) {
+          setUserId(result.data.userId);
+          sessionStorage.setItem('resetUserId', result.data.userId);
+        }
+        setIsSubmitted(true);
+      } else {
+        setError(result.error || 'Failed to send reset code');
+      }
+    } catch (err: any) {
+      setError(err?.error || err?.message || 'An error occurred');
+    } finally {
       setIsLoading(false);
-      setShowOTPModal(true);
-    }, 2000);
+    }
   };
 
   // Mask email for display
-  const maskEmail = (email: string) => {
-    if (!email) return '';
-    const [localPart, domain] = email.split('@');
-    if (!domain) return email;
+  const maskEmail = (emailStr: string) => {
+    if (!emailStr) return '';
+    const [localPart, domain] = emailStr.split('@');
+    if (!domain) return emailStr;
     
     const maskedLocal = localPart.length > 2 
       ? localPart.substring(0, 2) + '***' 
@@ -129,7 +143,7 @@ const ForgotPasswordPage = () => {
                       Sending...
                     </span>
                   ) : (
-                    'Send Reset Link'
+                    'Send Reset Code'
                   )}
                 </button>
               </form>
@@ -150,19 +164,26 @@ const ForgotPasswordPage = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Check Password</h2>
-                <p className="text-xl text-gray-900 mb-2">reset Link on your</p>
-                <p className="text-xl text-gray-900 mb-6">email</p>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Check Your Email</h2>
                 <p className="text-gray-600 mb-2">
-                  We've sent a reset link to:
+                  We've sent a reset code to:
                 </p>
                 <p className="text-blue-600 font-medium mb-6">{maskEmail(email)}</p>
+                
+                {/* Continue to OTP verification */}
                 <Link
-                  to="/login"
-                  className="inline-block w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  to={`/reset-password?userId=${userId}`}
+                  className="inline-block w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors mb-4"
                 >
-                  Return to Log In
+                  Continue to Verify Code
                 </Link>
+                
+                <button
+                  onClick={() => setIsSubmitted(false)}
+                  className="text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Didn't receive? Try again
+                </button>
               </div>
             </>
           )}
@@ -173,15 +194,6 @@ const ForgotPasswordPage = () => {
           </p>
         </div>
       </div>
-
-      {/* Password Reset OTP Modal */}
-      {showOTPModal && (
-        <PasswordResetOTPModal
-          isOpen={showOTPModal}
-          onClose={() => setShowOTPModal(false)}
-          email={email}
-        />
-      )}
     </div>
   );
 };
