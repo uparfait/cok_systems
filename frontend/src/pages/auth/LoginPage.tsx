@@ -1,5 +1,4 @@
-// LoginPage - User login page
-// Page for user authentication and login
+// LoginPage - User login page with proper auth integration
 
 import React, { useState } from 'react';
 import { FiLogIn } from 'react-icons/fi';
@@ -7,9 +6,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import FirstTimeLoginOTPModal from '../../core/components/Modals/FirstTimeLoginOTPModal';
 import PasswordSetupModal from '../../core/components/Modals/PasswordSetupModal';
 import OTPVerificationModal from '../../core/components/Modals/OTPVerificationModal';
-import { login as authLogin } from '../../core/services/authService';
+import { useAuth } from '../../core/contexts/AuthContext';
 
 const LoginPage = () => {
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -18,6 +18,7 @@ const LoginPage = () => {
   const [showPasswordSetupModal, setShowPasswordSetupModal] = useState(false);
   const [showOTPVerificationModal, setShowOTPVerificationModal] = useState(false);
   const [passwordSetupEmail, setPasswordSetupEmail] = useState('');
+  const [passwordSetupOtp, setPasswordSetupOtp] = useState('');
   const [passwordSetupUserId, setPasswordSetupUserId] = useState('');
   const [otpVerificationEmail, setOtpVerificationEmail] = useState('');
   const [otpVerificationUserId, setOtpVerificationUserId] = useState('');
@@ -35,7 +36,7 @@ const LoginPage = () => {
     setIsLoading(true);
     
     try {
-      const result = await authLogin(email, password);
+      const result = await login(email, password);
       
       if (result.status && result.data?.requiresOTP) {
         // User needs OTP verification (existing user with 2FA)
@@ -43,16 +44,34 @@ const LoginPage = () => {
         setOtpVerificationUserId(result.data.userId);
         setShowOTPVerificationModal(true);
       } else if (result.status && result.data?.tokens) {
-        // Direct login - store tokens and redirect to dashboard
-        localStorage.setItem('accessToken', result.data.tokens.accessToken);
-        localStorage.setItem('refreshToken', result.data.tokens.refreshToken);
-        localStorage.setItem('user', JSON.stringify(result.data.user));
+        // Direct login - tokens stored in context, redirect to dashboard
         navigate('/dashboard');
+      } else if (result.error?.includes('not activated') || result.error?.includes('Account not activated')) {
+        // First-time login - account not yet activated
+        setShowFirstTimeOTPModal(true);
+      } else if (result.error?.includes('not found')) {
+        setError('User not found. Please check your email or contact administrator.');
       } else {
-        setError(result.error || 'Login failed');
+        // Handle other errors including invalid credentials
+        const errorMsg = result.error || result.message || 'Login failed';
+        if (result.data?.remainingAttempts !== undefined) {
+          setError(`${errorMsg}. Attempts remaining: ${result.data.remainingAttempts}`);
+        } else {
+          setError(errorMsg);
+        }
       }
     } catch (err: any) {
-      setError(err?.error || err?.message || 'An error occurred during login');
+      // Check if it's a first-time login scenario
+      if (err?.error?.includes('not activated') || err?.message?.includes('not activated')) {
+        setShowFirstTimeOTPModal(true);
+      } else {
+        const errorMsg = err?.error || err?.message || 'An error occurred during login';
+        if (err?.data?.remainingAttempts !== undefined) {
+          setError(`${errorMsg}. Attempts remaining: ${err.data.remainingAttempts}`);
+        } else {
+          setError(errorMsg);
+        }
+      }
     } finally {
       setIsLoading(false);
     }
@@ -63,12 +82,23 @@ const LoginPage = () => {
     setShowFirstTimeOTPModal(true);
   };
 
-  const handleOTPSuccess = (email: string, userId: string) => {
+  const handleOTPSuccess = (email: string, userId: string, otp: string) => {
     // Close OTP modal and open password setup modal
     setShowFirstTimeOTPModal(false);
     setPasswordSetupEmail(email);
     setPasswordSetupUserId(userId);
+    setPasswordSetupOtp(otp);
     setShowPasswordSetupModal(true);
+  };
+
+  const handlePasswordSetupSuccess = () => {
+    // Close password setup modal and redirect to login
+    setShowPasswordSetupModal(false);
+    setEmail('');
+    setPassword('');
+    // Optionally show success message and redirect to login
+    alert('Account activated successfully! Please login with your email and password.');
+    navigate('/login');
   };
 
   return (
@@ -94,7 +124,7 @@ const LoginPage = () => {
           {/* Main heading and description */}
           <div className="space-y-3 max-w-xl">
             <h1 className="poetsen-one-regular text-3xl md:text-4xl lg:text-5xl tracking-tight leading-snug">
-              Smart Entry &amp; <br/> Service Management
+              Smart Entry & <br/> Service Management
             </h1>
             <p className="public-sans-regular text-sm md:text-base text-[#EFF6FF] font-semibold">
               Serving the City of Kigali with efficiency and security.
@@ -372,8 +402,10 @@ const LoginPage = () => {
         <PasswordSetupModal
           isOpen={showPasswordSetupModal}
           onClose={() => setShowPasswordSetupModal(false)}
+          onSuccess={handlePasswordSetupSuccess}
           email={passwordSetupEmail}
           userId={passwordSetupUserId}
+          otp={passwordSetupOtp}
         />
       )}
 
