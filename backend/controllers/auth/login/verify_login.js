@@ -1,21 +1,26 @@
 /**
  * Verify Login Controller
- * Only verifies the OTP JWT token - does NOT perform login
- * Returns simple verification status
+ * Verifies the OTP using tokenUtil.compareToken
+ * Accepts either 'otp' (plain OTP) or 'otpToken' (JWT) from user
  */
 
 const jwt = require("../../../utilities/jwt");
+const tokenUtil = require("../../../utilities/token");
 const User = require("../../../models/user");
 
 async function verifyLogin(req, res, next) {
     try {
-        const { userId, otpToken } = req.body;
+        // Accept either otp or otpToken from user
+        const { userId, otp, otpToken } = req.body;
+        
+        // Use whichever was provided
+        const inputOTP = otp || otpToken;
 
-        if (!userId || !otpToken) {
+        if (!userId || !inputOTP) {
             return res.status(400).json({
                 status: false,
-                error: 'User ID and OTP token are required',
-                message: null
+                error: 'User ID and OTP are required',
+                message: 'Please provide userId and either otp or otpToken'
             });
         }
 
@@ -39,26 +44,46 @@ async function verifyLogin(req, res, next) {
             });
         }
 
-        // Verify the OTP JWT token
-        const verification = jwt.verifyAccessToken(otpToken);
+        // Get stored OTP from database
+        const storedOTP = user.auth?.access_token?.token;
+        const storedTokenType = user.auth?.access_token?.token_type;
 
-        if (!verification.valid) {
+        if (!storedOTP) {
             return res.status(400).json({
                 status: false,
-                error: 'Invalid or expired OTP',
-                message: 'Please request a new OTP.'
+                error: 'No OTP found',
+                message: 'Please request a new OTP'
             });
         }
 
-        // Token is valid - extract the data from payload
-        const decoded = verification.decoded;
+        // Check if OTP has expired
+        const expiresAt = user.auth?.access_token?.expires_at;
+        if (expiresAt && new Date(expiresAt) < new Date()) {
+            // Clear expired OTP
+            await User.findByIdAndUpdate(userId, {
+                $set: {
+                    'auth.access_token.token': null,
+                    'auth.access_token.token_type': null,
+                    'auth.access_token.expires_at': null
+                }
+            });
+            
+            return res.status(400).json({
+                status: false,
+                error: 'OTP expired',
+                message: 'Please request a new OTP'
+            });
+        }
 
-        // Verify this token is for the correct user
-        if (decoded.userId !== userId) {
+        // Use tokenUtil.compareToken to verify OTP
+        // This works for both plain OTP and JWT tokens
+        const hashMatch = await tokenUtil.compareToken(inputOTP.toString(), storedOTP);
+
+        if (!hashMatch) {
             return res.status(400).json({
                 status: false,
                 error: 'Invalid OTP',
-                message: 'OTP does not match this user'
+                message: 'Please check the OTP and try again'
             });
         }
 
@@ -71,7 +96,7 @@ async function verifyLogin(req, res, next) {
             }
         });
 
-        // Return simple verification success - NO login tokens
+        // Return verification success - NO login tokens (client should call /login after verification)
         return res.status(200).json({
             status: true,
             error: null,

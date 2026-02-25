@@ -26,20 +26,30 @@ const hashTokenLoginToken = async (token) => {
 
 /**
  * Compare raw token with hashed token from database
- * @param {string} rawToken - Raw JWT token
- * @param {string} hashedToken - Hashed token from database (JWT)
+ * @param {string} rawToken - Raw OTP or JWT token from user
+ * @param {string} hashedToken - Hashed/JWT token from database
  * @returns {Promise<boolean>} - True if match
  */
 const compareToken = async (rawToken, hashedToken) => {
     try {
-        // Verify the JWT token
-        const verification = jwt.verifyAccessToken(hashedToken);
-        console.log('Token verification result:', verification);
-        if (!verification.valid) {
-            return false;
+        // Check if the hashedToken is a JWT (contains dots)
+        const isJWT = hashedToken && typeof hashedToken === 'string' && hashedToken.split('.').length === 3;
+        
+        if (isJWT) {
+            // Verify the JWT token
+            const verification = jwt.verifyAccessToken(hashedToken);
+            
+            if (!verification.valid) {
+                return false;
+            }
+            
+            // Check if the token payload's otp matches the raw token
+            // Also check if it's a direct token match (for backward compatibility)
+            return verification.decoded?.otp === rawToken || verification.decoded?.token === rawToken;
+        } else {
+            // Plain text comparison
+            return hashedToken === rawToken;
         }
-        // Check if the token payload matches the raw token
-        return verification.decoded?.token === rawToken;
     } catch (error) {
         console.error('Error comparing token:', error);
         return false;
