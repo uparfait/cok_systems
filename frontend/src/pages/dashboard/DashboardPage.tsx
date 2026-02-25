@@ -7,7 +7,13 @@ import { useAuth } from '../../core/contexts/AuthContext';
 import { useSocket } from '../../core/contexts/SocketContext';
 
 const DashboardPage: React.FC = () => {
-  const { user, permissions, isAuthenticated, isLoading, logout, hasPermission, hasRole } = useAuth();
+  const { user, 
+    permissions, 
+    isAuthenticated, 
+    isLoading, 
+    logout,
+     //hasPermission,
+     hasRole } = useAuth();
   const { isConnected, socket } = useSocket();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'profile' | 'permissions'>('profile');
@@ -62,9 +68,9 @@ const DashboardPage: React.FC = () => {
   };
 
   // Get permission display name
-  const getPermissionDisplayName = (resource: string, action: string) => {
-    return `${action} ${resource}`;
-  };
+  // const getPermissionDisplayName = (resource: string, action: string) => {
+  //   return `${action} ${resource}`;
+  // };
 
   return (
     <div className="min-h-screen bg-gray-50">

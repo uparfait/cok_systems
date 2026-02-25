@@ -1,21 +1,23 @@
 // ResetPasswordPage - Password reset page
 // Page for setting new password after reset request
 // src/pages/auth/ResetPasswordPage.jsx
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { verifyPasswordResetOTP, resetPassword } from '../../core/services/authService';
 
 const ResetPasswordPage = () => {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+//  const navigate = useNavigate();
   const token = searchParams.get('token');
   const userIdFromUrl = searchParams.get('userId');
   
   // Get userId and tempToken from URL or session storage
-  const [userId, setUserId] = useState(() => {
-    // Try URL first, then sessionStorage
-    return userIdFromUrl || sessionStorage.getItem('resetUserId') || '';
-  });
+  // const [userId, setUserId] = useState(() => {
+  //   // Try URL first, then sessionStorage
+  //   return userIdFromUrl || sessionStorage.getItem('resetUserId') || '';
+  // });
+
+  const userId = "";
   const [otp, setOtp] = useState('');
   // Get tempToken from URL param or sessionStorage (set by OTP modal)
   const [tempToken, setTempToken] = useState(() => {
