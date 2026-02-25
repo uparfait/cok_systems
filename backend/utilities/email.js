@@ -1,6 +1,43 @@
 /**
  * Email Utility - Render & Brevo API Version
  */
+
+const nodemailer = require('nodemailer');
+const config = require('../configurations/config');
+
+// Create SMTP transporter
+const createTransporter = () => {
+    const transporter = nodemailer.createTransport({
+        host: config.email.host,
+        port: config.email.port,
+        secure: false, // true for 465, false for other ports
+        auth: {
+            user: config.email.user,
+            pass: config.email.pass
+        },
+        tls: {
+            rejectUnauthorized: false
+        }
+    });
+    // Verify connection on creation
+    transporter.verify((error, success) => {
+        if (error) {
+            console.error('SMTP Connection Error:', error);
+        } else {
+            console.log('SMTP Server is ready');
+        }
+    });
+    
+    return transporter;
+};
+
+/**
+ * Send OTP email
+ * @param {string} email - Recipient email address
+ * @param {string} otp - OTP code to send
+ * @param {string} type - 'login' or 'password_reset'
+ * @returns {Promise<object>} - { success: boolean, error?: string }
+ */
 const SibApiV3Sdk = require('sib-api-v3-sdk');
 const defaultClient = SibApiV3Sdk.ApiClient.instance;
 
