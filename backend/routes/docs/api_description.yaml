@@ -24,6 +24,8 @@ tags:
     description: Password recovery and reset
   - name: AMOS - Account Lock
     description: Account locking and unlocking
+  - name: AMOS - Feedback
+    description: Service feedback and ratings
 
   # PARFAIT API Tags
   - name: PARFAIT - Departments
@@ -923,3 +925,81 @@ paths:
         '200': { description: Permission revoked }
         '400': { description: Missing required fields }
         '404': { description: Role or permission not found }
+
+  # ═══════════════════════════════════════════════════════
+  # AMOS FEEDBACK ENDPOINTS
+  # ═══════════════════════════════════════════════════════
+
+  /feedback/verify-phone:
+    post:
+      tags: [AMOS - Feedback]
+      summary: "Verify phone and get assigned departments"
+      description: "Verifies if phone number exists in service delivery and returns assigned departments for feedback"
+      operationId: verifyPhone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [telephone]
+              properties:
+                telephone:
+                  type: string
+                  example: "+250788123456"
+      responses:
+        '200':
+          description: Phone verified successfully
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Phone verified successfully"
+                data:
+                  visitor_name: "John Doe"
+                  telephone: "+250788123456"
+                  assigned_departments:
+                    - department_id: "DEPT-001"
+                      department_name: "Finance"
+                      reached_in: true
+        '404':
+          description: No service record found
+
+  /feedback/submit:
+    post:
+      tags: [AMOS - Feedback]
+      summary: "Submit feedback for a department"
+      description: "Submit rating and feedback for an assigned department"
+      operationId: submitFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [telephone, department_id, rate]
+              properties:
+                telephone:
+                  type: string
+                  example: "+250788123456"
+                department_id:
+                  type: string
+                  example: "DEPT-001"
+                rate:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  example: 8
+                textmessage:
+                  type: string
+                  maxLength: 500
+                  example: "Great service!"
+      responses:
+        '201':
+          description: Feedback submitted successfully
+        '400':
+          description: Validation error
+        '403':
+          description: Not assigned to this department
+        '404':
+          description: No service record found

@@ -6,7 +6,7 @@ const { Schema } = mongoose;
 const feedbackSchema = new Schema({
     user_name: String,
     telephone: String,
-    feedback_message: String,
+    textmessage: String,
     rate: Number,
     rate_out_of: Number,
     created_date: { type: Date, default: Date.now },
