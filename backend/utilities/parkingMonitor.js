@@ -7,8 +7,8 @@ const VISITOR_LIMIT_MS = 2 * 60 * 60 * 1000;
 const STAFF_LIMIT_MS = 12 * 60 * 60 * 1000;  
 
 const startParkingMonitor = () => {
-    // This cron expression '*/5 * * * *' means "Run every 5 minutes"
-    cron.schedule('*/5 * * * *', async () => {
+    // This cron expression '*/1 * * * *' means "Run every 5 minutes"
+    cron.schedule('*/1 * * * *', async () => {
         console.log('[Cron] Running Parking Monitor Check...');
 
         try {

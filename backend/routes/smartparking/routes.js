@@ -5,7 +5,7 @@
 const Router = require('express').Router()
 const multer = require('multer');
 
-const { bulkUploadReservations } = require('../../controllers/reservationController');
+const { bulkUploadReservations, registerSingleReservation } = require('../../controllers/reservationController');
 
 // parfait's controllers
 const check_in = require('../../controllers/smart_parking/check_in.js')
@@ -71,10 +71,6 @@ Router.delete('/', (req, res, next) => {
     })
 })
 
-// POST: Bulk upload visitors via Excel sheet
-Router.post('/bulk-upload', upload.any(), bulkUploadReservations);
-
-
 
 
 // parfaits routes
@@ -107,6 +103,11 @@ Router.get('/vehicle/:id', get_parking_record_by_id)
 Router.post('/vehicle/verify', verify_acar)
 Router.post('/vehicle/checkin', check_in)
 Router.post('/vehicle/checkout', check_out)
+// Option A: Single Visitor (Raw JSON)
+Router.post('/register-single', registerSingleReservation);
+
+// Option B: Bulk Excel Upload (Files)
+Router.post('/bulk-upload', upload.any(), bulkUploadReservations);
 
 
 module.exports = Router
