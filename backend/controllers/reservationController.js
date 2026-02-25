@@ -2,6 +2,57 @@ const xlsx = require('xlsx');
 const mongoose = require('mongoose');
 const EmergencyCar = require('../models/emergency_car');
 
+/**
+ * OPTION A: Single Visitor Reservation
+ * Used when the Admin fills out a web form for a single guest.
+ */
+const registerSingleReservation = async (req, res) => {
+    try {
+        const { plate_number, driver_name, id_type, id_number, telephone_number, slot_number } = req.body;
+
+        if (!plate_number || !driver_name) {
+            return res.status(400).json({ success: false, message: 'Plate number and driver name are required.' });
+        }
+
+        // 1. Create the single visitor object
+        const singleVisitor = {
+            plate_number,
+            driver_name,
+            driver_type: 'visitor',
+            driver_identification: {
+                id_type: id_type || 'NID',
+                number: id_number || ''
+            },
+            telephone_number: telephone_number || '',
+            slot_number: slot_number || '',
+            is_flagged: false
+        };
+
+        // 2. Save it inside the EmergencyCar batch format (with space = 1)
+        const newReservation = new EmergencyCar({
+            total_reserved_space: 1,
+            visitor_info: [singleVisitor],
+            validity: {
+                from: new Date(),
+                to: new Date(new Date().setHours(23, 59, 59, 999)) // Valid until end of today
+            },
+            registered_by: 'Super_Admin' 
+        });
+
+        await newReservation.save();
+
+        res.status(201).json({
+            success: true,
+            message: `Successfully registered visitor reservation for ${driver_name}.`,
+            data: newReservation
+        });
+
+    } catch (error) {
+        console.error('❌ Error in single reservation:', error);
+        res.status(500).json({ success: false, message: 'Server error during single reservation.' });
+    }
+};
+
 const bulkUploadReservations = async (req, res) => {
     try {
 
@@ -124,5 +175,6 @@ const bulkUploadReservations = async (req, res) => {
 };
 
 module.exports = {
-    bulkUploadReservations
+    bulkUploadReservations,
+    registerSingleReservation
 };
