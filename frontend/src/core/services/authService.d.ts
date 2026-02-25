@@ -35,7 +35,7 @@ export interface PasswordResetResult extends ApiResponse {}
 
 // Login APIs
 export function login(email: string, password: string): Promise<LoginResult>;
-export function verifyLoginOTP(userId: string, otp: string): Promise<VerifyOTPResult>;
+export function verifyLoginOTP(userId: string, otpToken: string): Promise<VerifyOTPResult>;
 export function resendLoginOTP(userId: string, email: string): Promise<ApiResponse>;
 
 // Logout APIs
@@ -45,7 +45,7 @@ export function logoutAll(): Promise<ApiResponse>;
 // Password Reset APIs
 export function requestPasswordReset(email: string): Promise<PasswordResetResult>;
 export function verifyPasswordResetOTP(userId: string, otp: string): Promise<VerifyOTPResult>;
-export function resetPassword(userId: string, tempToken: string, newPassword: string): Promise<PasswordResetResult>;
+export function resetPassword(userId: string, tempToken: string, newPassword: string, confirmPassword: string): Promise<PasswordResetResult>;
 export function resendPasswordResetOTP(userId: string, email: string): Promise<ApiResponse>;
 
 // First Time Login APIs

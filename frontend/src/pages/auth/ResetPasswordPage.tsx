@@ -11,11 +11,20 @@ const ResetPasswordPage = () => {
   const token = searchParams.get('token');
   const userIdFromUrl = searchParams.get('userId');
   
-  // Get userId from URL or session storage
-  const [userId, setUserId] = useState(userIdFromUrl || sessionStorage.getItem('resetUserId') || '');
+  // Get userId and tempToken from URL or session storage
+  const [userId, setUserId] = useState(() => {
+    // Try URL first, then sessionStorage
+    return userIdFromUrl || sessionStorage.getItem('resetUserId') || '';
+  });
   const [otp, setOtp] = useState('');
-  const [tempToken, setTempToken] = useState(token || '');
-  const [step, setStep] = useState(token ? 'reset' : 'verify'); // 'verify' or 'reset'
+  // Get tempToken from URL param or sessionStorage (set by OTP modal)
+  const [tempToken, setTempToken] = useState(() => {
+    return token || sessionStorage.getItem('resetTempToken') || '';
+  });
+  // If userId exists (from OTP modal), skip to reset step - no need to verify OTP again
+  const [step, setStep] = useState(() => {
+    return (token || userIdFromUrl || sessionStorage.getItem('resetUserId')) ? 'reset' : 'verify';
+  });
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -31,7 +40,7 @@ const ResetPasswordPage = () => {
   });
 
   // Password requirements check
-  const checkPasswordStrength = (password) => {
+  const checkPasswordStrength = (password: string) => {
     const strength = {
       hasMinLength: password.length >= 8,
       hasUppercase: /[A-Z]/.test(password),
@@ -43,7 +52,7 @@ const ResetPasswordPage = () => {
     setPasswordStrength({ ...strength, score });
   };
 
-  const handlePasswordChange = (e) => {
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const password = e.target.value;
     setNewPassword(password);
     checkPasswordStrength(password);
@@ -91,6 +100,17 @@ const ResetPasswordPage = () => {
       }
     } else {
       // Step 2: Reset password
+      // Validate that we have all required data
+      if (!userId) {
+        setError('User ID is missing. Please start the password reset process again.');
+        return;
+      }
+      
+      if (!tempToken) {
+        setError('Verification token is missing. Please start the password reset process again.');
+        return;
+      }
+      
       if (newPassword !== confirmPassword) {
         setError("Passwords don't match");
         return;
@@ -98,11 +118,13 @@ const ResetPasswordPage = () => {
 
       setIsLoading(true);
       try {
-        const result = await resetPassword(userId, tempToken, newPassword);
+        // Send all required parameters including confirmPassword
+        const result = await resetPassword(userId, tempToken, newPassword, confirmPassword);
         
         if (result.status) {
           setIsSuccess(true);
           sessionStorage.removeItem('resetUserId');
+          sessionStorage.removeItem('resetTempToken');
         } else {
           setError(result.error || 'Failed to reset password');
         }
@@ -123,17 +145,35 @@ const ResetPasswordPage = () => {
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: 'url(/src/assets/cok_hall.jpg)' }}
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-blue-900/50 to-black/80"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
           </div>
           
-          <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full">
-            <h1 className="text-4xl font-bold">KSESM</h1>
-            <div className="text-sm text-gray-400">© 2026 City of Kigali</div>
+          <div className="relative z-10 flex flex-col justify-end p-7 lg:p-10 text-white w-full h-full">
+            {/* COK OFFICIAL PORTAL pill */}
+            <div className="inline-flex items-center px-3 py-1.5 mb-3 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 text-xs font-semibold tracking-wide uppercase w-max cok-badge-animated">
+              <span className="mr-1.5 inline-flex h-3 w-3 items-center justify-center rounded-full border border-white/60">
+                <span className="h-1.5 w-1.5 rounded-full bg-white" />
+              </span>
+              <span className="font-bold">COK Official Portal</span>
+            </div>
+
+            {/* Main heading and description */}
+            <div className="space-y-2 max-w-xl">
+              <h1 className="poetsen-one-regular text-2xl md:text-3xl lg:text-4xl tracking-tight leading-snug">
+                Smart Entry & Service Management
+              </h1>
+              <p className="public-sans-regular text-xs md:text-sm text-[#EFF6FF] font-semibold">
+                Serving the City of Kigali with efficiency and security.
+              </p>
+              <p className="public-sans-regular text-xs text-[#EFF6FF] font-semibold max-w-md">
+                Access the KSESM portal to manage administrative tasks and secure entry logs.
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Right side - Success message */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
+        <div className="w-full lg:w-1/2 flex items-center justify-center px-3 sm:px-4 lg:px-6 py-6 lg:py-8 bg-white">
           <div className="max-w-md w-full">
             <Link to="/login" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-8 transition-colors">
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -142,9 +182,13 @@ const ResetPasswordPage = () => {
               Back
             </Link>
 
-            <div className="mb-6">
-              <p className="text-sm text-gray-500 uppercase tracking-wider">City of Kigali</p>
-            </div>
+          <div className="mb-6">
+            <img
+              src="/src/assets/LOGO_COK.jpg"
+              alt="City of Kigali"
+              className="h-16 w-auto"
+            />
+          </div>
 
             <div className="text-center">
               <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6">
@@ -163,7 +207,7 @@ const ResetPasswordPage = () => {
             </div>
           </div>
         </div>
-      </div>
+    </div>
     );
   }
 
@@ -175,34 +219,56 @@ const ResetPasswordPage = () => {
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: 'url(/src/assets/cok_hall.jpg)' }}
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-blue-900/50 to-black/80"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
         </div>
         
-        <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full">
-          <h1 className="text-4xl font-bold">KSESM</h1>
-          <div className="text-sm text-gray-400">© 2026 City of Kigali</div>
+        <div className="relative z-10 flex flex-col justify-end p-7 lg:p-10 text-white w-full h-full">
+          {/* COK OFFICIAL PORTAL pill */}
+          <div className="inline-flex items-center px-3 py-1.5 mb-3 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 text-xs font-semibold tracking-wide uppercase w-max cok-badge-animated">
+            <span className="mr-1.5 inline-flex h-3 w-3 items-center justify-center rounded-full border border-white/60">
+              <span className="h-1.5 w-1.5 rounded-full bg-white" />
+            </span>
+            <span className="font-bold">COK Official Portal</span>
+          </div>
+
+          {/* Main heading and description */}
+          <div className="space-y-2 max-w-xl">
+            <h1 className="poetsen-one-regular text-2xl md:text-3xl lg:text-4xl tracking-tight leading-snug">
+              Smart Entry & Service Management
+            </h1>
+            <p className="public-sans-regular text-xs md:text-sm text-[#EFF6FF] font-semibold">
+              Serving the City of Kigali with efficiency and security.
+            </p>
+            <p className="public-sans-regular text-xs text-[#EFF6FF] font-semibold max-w-md">
+              Access the KSESM portal to manage administrative tasks and secure entry logs.
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Right side - Reset Password form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
-        <div className="max-w-md w-full">
+      <div className="w-full lg:w-1/2 flex items-center justify-center px-3 sm:px-4 lg:px-6 py-6 lg:py-8 bg-white">
+        <div className="max-w-sm lg:max-w-md w-full space-y-5 sm:space-y-6">
           {/* Back button */}
-          <Link to="/forgot-password" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-8 transition-colors">
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <Link to="/forgot-password" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6 sm:mb-8 transition-colors">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             Back
           </Link>
 
-          {/* City of Kigali text */}
+          {/* City of Kigali Logo */}
           <div className="mb-6">
-            <p className="text-sm text-gray-500 uppercase tracking-wider">City of Kigali</p>
+            <img
+              src="/src/assets/LOGO_COK.jpg"
+              alt="City of Kigali"
+              className="h-16 w-auto"
+            />
           </div>
 
           {/* Header */}
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Update Credentials</h2>
-          <p className="text-gray-600 mb-8">
+          <h2 className="text-xl lg:text-2xl font-bold text-gray-900 mb-2">Update Credentials</h2>
+          <p className="text-sm text-gray-600 mb-6">
             Secure your account for KSESM access
           </p>
 
@@ -218,7 +284,7 @@ const ResetPasswordPage = () => {
             {/* OTP Field - Show during verify step */}
             {step === 'verify' && (
               <div>
-                <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="otp" className="block text-xs lg:text-sm font-medium text-gray-700 mb-1">
                   VERIFICATION CODE
                 </label>
                 <input
@@ -228,12 +294,12 @@ const ResetPasswordPage = () => {
                   inputMode="numeric"
                   maxLength={5}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                   placeholder="Enter 5-digit code"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                 />
-                <p className="text-sm text-gray-500 mt-2">
+                <p className="text-xs lg:text-sm text-gray-500 mt-1.5 lg:mt-2">
                   Enter the code sent to your email
                 </p>
               </div>
@@ -241,7 +307,7 @@ const ResetPasswordPage = () => {
 
             {/* New Password field */}
             <div>
-              <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="new-password" className="block text-xs lg:text-sm font-medium text-gray-700 mb-1">
                 NEW PASSWORD
               </label>
               <div className="relative">
@@ -250,7 +316,7 @@ const ResetPasswordPage = () => {
                   name="new-password"
                   type={showPassword ? "text" : "password"}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
+                  className="w-full px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 text-sm"
                   placeholder="SuperSecureP@ss123"
                   value={newPassword}
                   onChange={handlePasswordChange}
@@ -324,7 +390,7 @@ const ResetPasswordPage = () => {
 
             {/* Confirm New Password field */}
             <div>
-              <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="confirm-password" className="block text-xs lg:text-sm font-medium text-gray-700 mb-1">
                 CONFIRM NEW PASSWORD
               </label>
               <input
@@ -332,7 +398,7 @@ const ResetPasswordPage = () => {
                 name="confirm-password"
                 type="password"
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 placeholder="Re-enter password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -343,7 +409,7 @@ const ResetPasswordPage = () => {
             <button
               type="submit"
               disabled={isLoading || (step === 'reset' && (passwordStrength.score < 4 || newPassword !== confirmPassword))}
-              className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full py-2.5 lg:py-3 px-3 lg:px-4 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center">

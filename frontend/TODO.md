@@ -1,79 +1,34 @@
-# JSX to TSX Conversion Task
+# Forgot Password Flow Implementation - COMPLETED
 
-## Total Files: 47 .jsx files to convert
+## Task: Implement forgot password flow with OTP modal
+- Login "Forgot Password?" click → Email page → OTP modal (5 figures) → Reset password → Login
 
-### src/core/components/ (8 files)
-- [ ] ErrorBoundary.jsx → ErrorBoundary.tsx
-- [ ] Header.jsx → Header.tsx
-- [ ] Layout.jsx → Layout.tsx
-- [ ] LoadingSpinner.jsx → LoadingSpinner.tsx
-- [ ] NotificationBadge.jsx → NotificationBadge.tsx
-- [ ] ProtectedRoute.jsx → ProtectedRoute.tsx
-- [ ] Sidebar.jsx → Sidebar.tsx
-- [ ] Toast.jsx → Toast.tsx
+## Implementation Summary:
 
-### src/core/components/Modals/ (2 files)
-- [ ] ConfirmModal.jsx → ConfirmModal.tsx
-- [ ] OTPModal.jsx → OTPModal.tsx
+### 1. LoginPage.tsx - ✅ COMPLETED
+- Imported PasswordResetOTPModal
+- Added state for showing OTP modal (showPasswordResetOTPModal)
+- Modified "Forgot Password?" link to use handleForgotPassword handler
+- Added PasswordResetOTPModal component
 
-### src/core/contexts/ (2 files)
-- [ ] AuthContext.jsx → AuthContext.tsx
-- [ ] SocketContext.jsx → SocketContext.tsx
+### 2. ForgotPasswordPage.tsx - ✅ COMPLETED
+- Added PasswordResetOTPModal import
+- Added showOTPModal state
+- After successful email submission, OTP modal automatically shows
+- Added handleOTPSuccess to navigate to reset password after verification
+- Added PasswordResetOTPModal component at the end of JSX
 
-### src/core/layouts/ (1 file)
-- [ ] MainLayout.jsx → MainLayout.tsx
+### 3. App.tsx - ✅ NO CHANGES NEEDED
+- Routes for /forgot-password and /reset-password already exist
 
-### src/pages/ (1 file)
-- [ ] NotFoundPage.jsx → NotFoundPage.tsx
+## Files NOT modified (as per instructions):
+- apiClient.js
+- authService.js
+- AuthContext.tsx
+- Backend files
 
-### src/pages/auth/ (3 files)
-- [ ] ForgotPasswordPage.jsx → ForgotPasswordPage.tsx
-- [ ] LoginPage.jsx → LoginPage.tsx
-- [ ] ResetPasswordPage.jsx → ResetPasswordPage.tsx
-
-### src/pages/dashboard/ (1 file)
-- [ ] SystemSelector.jsx → SystemSelector.tsx
-
-### src/pages/profile/ (1 file)
-- [ ] ProfilePage.jsx → ProfilePage.tsx
-
-### src/systems/serviceDelivery/components/ (5 files)
-- [ ] ServiceTimer.jsx → ServiceTimer.tsx
-- [ ] StatusBadge.jsx → StatusBadge.tsx
-- [ ] VisitorCard.jsx → VisitorCard.tsx
-- [ ] VisitorCheckInForm.jsx → VisitorCheckInForm.tsx
-- [ ] VisitorFilter.jsx → VisitorFilter.tsx
-
-### src/systems/serviceDelivery/components/checkout/ (3 files)
-- [ ] FullCheckoutModal.jsx → FullCheckoutModal.tsx
-- [ ] PartialCheckoutModal.jsx → PartialCheckoutModal.tsx
-- [ ] PendingVehicleCheckout.jsx → PendingVehicleCheckout.tsx
-
-### src/systems/serviceDelivery/components/departmentFlow/ (7 files)
-- [ ] AssignmentNotificationBadge.jsx → AssignmentNotificationBadge.tsx
-- [ ] DepartmentOrientationModal.jsx → DepartmentOrientationModal.tsx
-- [ ] EmployeeAssignmentModal.jsx → EmployeeAssignmentModal.tsx
-- [ ] MyAssignedVisitors.jsx → MyAssignedVisitors.tsx
-- [ ] PendingDepartmentAssignments.jsx → PendingDepartmentAssignments.tsx
-- [ ] ServiceActionPanel.jsx → ServiceActionPanel.tsx
-- [ ] VisitorTransferHistory.jsx → VisitorTransferHistory.tsx
-
-### src/systems/serviceDelivery/pages/ (5 files)
-- [ ] DeptEmployeeDashboard.jsx → DeptEmployeeDashboard.tsx
-- [ ] DeptManagerDashboard.jsx → DeptManagerDashboard.tsx
-- [ ] ReceptionistDashboard.jsx → ReceptionistDashboard.tsx
-- [ ] ServiceLayout.jsx → ServiceLayout.tsx
-- [ ] VisitorJourneyView.jsx → VisitorJourneyView.tsx
-
-### src/systems/smartParking/components/ (6 files)
-- [ ] BulkReservationUploader.jsx → BulkReservationUploader.tsx
-- [ ] ParkingAlertBanner.jsx → ParkingAlertBanner.tsx
-- [ ] ReservationForm.jsx → ReservationForm.tsx
-- [ ] SlotDetails.jsx → SlotDetails.tsx
-- [ ] SpaceMap.jsx → SpaceMap.tsx
-- [ ] VehicleCheckoutPanel.jsx → VehicleCheckoutPanel.tsx
-
-### src/systems/smartParking/pages/ (3 files)
-- [ ] AdminDashboard.jsx → AdminDashboard.tsx
-- [ ] GateOfficerDashboard.jsx → GateOfficerDashboard.tsx
-- [ ] ParkingLayout.jsx → ParkingLayout.tsx
+## Flow:
+1. Login page → Click "Forgot Password?"
+2. Forgot Password page → Enter email → Submit
+3. OTP Modal (5 figures) appears → Enter OTP → Verify
+4. Reset Password page → Enter new password

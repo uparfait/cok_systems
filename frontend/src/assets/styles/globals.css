@@ -4,6 +4,7 @@
 @layer base {
   html {
     font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    scroll-behavior: smooth;
   }
   
   body {
@@ -69,4 +70,47 @@
     font-size: 20px;
     line-height: 1.4;
   }
+}
+
+/* Responsive container */
+.container-responsive {
+  @apply w-full mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+/* Mobile-first responsive text utilities */
+@layer utilities {
+  .text-responsive-xs {
+    @apply text-xs;
+  }
+  .text-responsive-sm {
+    @apply text-sm;
+  }
+  .text-responsive-base {
+    @apply text-base;
+  }
+  .text-responsive-lg {
+    @apply text-lg;
+  }
+  .text-responsive-xl {
+    @apply text-xl;
+  }
+}
+
+/* Responsive spacing utilities */
+@layer utilities {
+  .p-responsive {
+    @apply p-4 sm:p-6 lg:p-8;
+  }
+  .px-responsive {
+    @apply px-3 sm:px-4 md:px-6;
+  }
+  .py-responsive {
+    @apply py-4 sm:py-6;
+  }
+}
+
+/* Prevent horizontal scroll on mobile */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
 }
