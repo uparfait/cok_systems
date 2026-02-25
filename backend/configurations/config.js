@@ -1,13 +1,14 @@
+const Feedback = require("../models/feedback_db");
 
 
 const DB_CONFIG = {
-    // Email Configuration
+    // Email Configuration (Hardcoded for deployment)
     email: {
-        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-        port: process.env.EMAIL_PORT || 587,
-        user: process.env.EMAIL_USER || 'cokservicedelivery@gmail.com',
-        pass: process.env.EMAIL_PASS || 'dzyhubnokthpuvxa',
-        from: process.env.EMAIL_FROM || 'cokservicedelivery@gmail.com'
+        host: 'smtp.gmail.com',
+        port: 587,
+        user: 'cokservicedelivery@gmail.com',
+        pass: 'dzyhubnokthpuvxa',
+        from: 'cokservicedelivery@gmail.com'
     },
 
     // Redis Configuration
@@ -27,7 +28,8 @@ const DB_CONFIG = {
         emergency_reserved_cars: "vistors_reserved",
         daily_parking_records: "parking_slots",
         daily_parking_records_history: "parking_slots_history",
-        service_delivery: "service_delivary"
+        service_delivery: "service_delivary",
+        feedback: "feedback_db"
     },
 
     // Role Definitions
@@ -37,7 +39,8 @@ const DB_CONFIG = {
         "head_of_department", 
         "department_employee", 
         "vehicle_registrar",
-        "entrance_officer"
+        "entrance_officer",
+       
     ],
 
     // Schemas

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const staff_car_schema = new mongoose.Schema({
     plate_number: { type: String, required: true },
+    id_type: { type: String, default: 'NID' },
     identification: { type: String },
     owner_name: { type: String },
     department_name: { type: String },
