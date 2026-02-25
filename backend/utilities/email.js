@@ -7,15 +7,28 @@ const config = require('../configurations/config');
 
 // Create SMTP transporter
 const createTransporter = () => {
-    return nodemailer.createTransport({
-        host: config.email.host || 'smtp.gmail.com',
-        port: config.email.port || 587,
+    const transporter = nodemailer.createTransport({
+        host: config.email.host,
+        port: config.email.port,
         secure: false, // true for 465, false for other ports
         auth: {
-            user: config.email.user || '',
-            pass: config.email.pass || ''
+            user: config.email.user,
+            pass: config.email.pass
+        },
+        tls: {
+            rejectUnauthorized: false
         }
     });
+    // Verify connection on creation
+    transporter.verify((error, success) => {
+        if (error) {
+            console.error('SMTP Connection Error:', error);
+        } else {
+            console.log('SMTP Server is ready');
+        }
+    });
+    
+    return transporter;
 };
 
 /**
@@ -25,6 +38,37 @@ const createTransporter = () => {
  * @param {string} type - 'login' or 'password_reset'
  * @returns {Promise<object>} - { success: boolean, error?: string }
  */
+const SibApiV3Sdk = require('sib-api-v3-sdk');
+const defaultClient = SibApiV3Sdk.ApiClient.instance;
+
+// Authenticate with your API Key
+const apiKey = defaultClient.authentications['api-key'];
+apiKey.apiKey = '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';
+
+const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+
+/**
+ * Core function to send via Brevo API
+ */
+const sendViaAPI = async (toEmail, subject, htmlContent, textContent) => {
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+
+    sendSmtpEmail.subject = subject;
+    sendSmtpEmail.htmlContent = htmlContent;
+    sendSmtpEmail.textContent = textContent;
+    // IMPORTANT: The sender email MUST be verified in your Brevo dashboard
+    sendSmtpEmail.sender = { "name": "COK Systems", "email": "cokservicedelivery@gmail.com" };
+    sendSmtpEmail.to = [{ "email": toEmail }];
+
+    try {
+        await apiInstance.sendTransacEmail(sendSmtpEmail);
+        return { success: true };
+    } catch (error) {
+        console.error('Brevo API Error:', error.response ? error.response.body : error);
+        return { success: false, error: error.message };
+    }
+};
+
 const sendOTPEmail = async (email, otp, type = 'login') => {
     let subject = 'Your Verification Code';
     let message = `Your verification code is: ${otp}. This code will expire in 5 minutes.`;
