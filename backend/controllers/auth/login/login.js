@@ -9,7 +9,7 @@ const email = require("../../../utilities/email");
 const tokenUtil = require("../../../utilities/token");
 const bcrypt = require('bcrypt');
 const User = require("../../../models/user");
-const bcrypt = require("bcrypt");
+
 
 const SALT_ROUNDS = 10;
 
