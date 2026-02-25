@@ -1,7 +1,7 @@
 // OTPVerificationModal - OTP verification modal for existing users
 // Uses auth context for OTP verification
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -27,6 +27,9 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   
+  // Use a ref to store the userId - this ensures we always have access to the latest value
+  const userIdRef = useRef(initialUserId);
+  // Keep state for rendering
   const [currentUserId, setCurrentUserId] = useState(initialUserId);
   
   const navigate = useNavigate();
@@ -34,6 +37,13 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
   // Background images
   const cityHallImage = '/src/assets/cok_hall.jpg';
   const logoImage = '/src/assets/LOGO_COK.jpg';
+
+  // Update refs when props change - use useCallback to ensure this runs when props change
+  useEffect(() => {
+    userIdRef.current = initialUserId;
+    setCurrentUserId(initialUserId);
+    setEmail(initialEmail);
+  }, [initialUserId, initialEmail]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -44,7 +54,6 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
         setTimeLeft(300);
         setError('');
         setIsSuccess(false);
-        setCurrentUserId(initialUserId);
       }, 300);
     }
   }, [isOpen]);
@@ -99,8 +108,28 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
     setOtp(newOtp);
   };
 
-  const handleVerify = async () => {
+  const handleVerify = useCallback(async () => {
     const otpString = otp.join('');
+    
+    // Get userId from ref - this ensures we have the latest value
+    // Also fall back to initialUserId prop and currentUserId state
+    const uid = userIdRef.current || currentUserId || initialUserId;
+    
+    console.log('[OTPVerificationModal] handleVerify called with:', {
+      uid,
+      userIdRef: userIdRef.current,
+      currentUserId,
+      initialUserId,
+      otpString,
+      otpLength: otpString.length
+    });
+    
+    // Validate userId is present
+    if (!uid) {
+      setError('User ID is missing. Please try logging in again.');
+      return;
+    }
+    
     if (otpString.length !== 5) {
       setError('Please enter all 5 digits');
       return;
@@ -110,7 +139,10 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
     setError('');
 
     try {
-      const result = await verifyOTP(currentUserId, otpString);
+      // Call verifyOTP with userId and otp - ensure both are strings
+      const result = await verifyOTP(String(uid), String(otpString));
+      
+      console.log('[OTPVerificationModal] verifyOTP result:', JSON.stringify(result, null, 2));
       
       if (result.status && result.data?.tokens) {
         setIsSuccess(true);
@@ -123,25 +155,33 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
         setError(result.error || 'Invalid OTP');
       }
     } catch (err: any) {
+      console.error('[OTPVerificationModal] verifyOTP error:', err);
       setError(err?.error || err?.message || 'Failed to verify OTP');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [otp, verifyOTP, onClose, navigate, currentUserId, initialUserId]);
 
-  const handleResend = async () => {
+  const handleResend = useCallback(async () => {
+    const uid = userIdRef.current || currentUserId || initialUserId;
+    
+    if (!uid) {
+      setError('User ID is missing. Please try again.');
+      return;
+    }
+    
     setIsResending(true);
     setError('');
 
     try {
-      await resendOTP(currentUserId, email);
+      await resendOTP(uid, email);
       setTimeLeft(300); // Reset to 5 minutes
     } catch (err: any) {
       setError(err?.error || 'Failed to resend OTP');
     } finally {
       setIsResending(false);
     }
-  };
+  }, [resendOTP, email, currentUserId, initialUserId]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -166,17 +206,17 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Background with City Hall image and dark overlay */}
+      {/* Background with City Hall image and gradient overlay */}
       <div 
         className="fixed inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url(${cityHallImage})` }}
       >
-        <div className="absolute inset-0 bg-black/70" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
       </div>
 
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 transform transition-all">
+      <div className="flex min-h-full items-center justify-center p-3 sm:p-4">
+        <div className="relative bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl max-w-sm w-full p-5 sm:p-6 transform transition-all">
           {/* Success State */}
           {isSuccess ? (
             <div className="text-center py-8">
@@ -227,6 +267,13 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
                 <span className="font-semibold text-gray-700">{maskEmail(email)}</span>
               </p>
 
+              {/* Debug info - shows userId is properly passed */}
+              {process.env.NODE_ENV === 'development' && currentUserId && (
+                <p className="text-xs text-green-600 text-center mb-2">
+                  ✓ User ID received: {currentUserId.substring(0, 8)}...
+                </p>
+              )}
+
               {/* OTP Input Fields - Individual boxes styled */}
               <div className="flex justify-center gap-2 mb-4" onPaste={handlePaste}>
                 {otp.map((digit, index) => (
@@ -259,7 +306,7 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
               {/* Verify button */}
               <button
                 onClick={handleVerify}
-                disabled={otp.join('').length !== 5 || isLoading}
+                disabled={otp.join('').length !== 5 || isLoading || !currentUserId}
                 className="w-full py-3 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed mb-4"
               >
                 {isLoading ? 'Verifying...' : 'Verify Your OTP'}
@@ -270,7 +317,7 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
                 <span className="text-gray-600">Didn't receive the code? </span>
                 <button
                   onClick={handleResend}
-                  disabled={timeLeft > 0 || isResending}
+                  disabled={timeLeft > 0 || isResending || !currentUserId}
                   className="text-blue-600 hover:text-blue-700 font-semibold transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isResending ? 'Resending...' : timeLeft > 0 ? `Resend OTP (${formatTime(timeLeft)})` : 'Resend OTP'}

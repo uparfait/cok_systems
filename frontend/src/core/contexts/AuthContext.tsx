@@ -152,15 +152,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Verify OTP method
   const verifyOTP = async (userId: string, otp: string) => {
+    console.log('[AuthContext] verifyOTP called with userId:', userId, 'otp:', otp ? `${otp.length} digits` : 'EMPTY');
+    
+    if (!userId || !otp) {
+      console.error('[AuthContext] verifyOTP: Missing userId or otp!', { userId, otp });
+      throw {
+        status: false,
+        error: 'User ID and OTP are required',
+        message: 'Missing required parameters'
+      };
+    }
+    
     setIsLoading(true);
     try {
       const result = await verifyLoginOTP(userId, otp);
+      console.log('[AuthContext] verifyLoginOTP result:', result?.status, result?.data?.tokens ? 'has tokens' : 'no tokens');
       if (result.status && result.data?.tokens) {
         checkAuth();
       }
       setIsLoading(false);
       return result;
     } catch (error) {
+      console.error('[AuthContext] verifyLoginOTP error:', error);
       setIsLoading(false);
       throw error;
     }
@@ -243,7 +256,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const resetUserPassword = async (userId: string, tempToken: string, newPassword: string) => {
     try {
-      return await resetPassword(userId, tempToken, newPassword);
+      return await resetPassword(userId, tempToken, newPassword, newPassword);
     } catch (error) {
       throw error;
     }
