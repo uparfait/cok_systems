@@ -1,3 +1,4 @@
+const Feedback = require("../models/feedback_db");
 
 
 const DB_CONFIG = {
@@ -27,7 +28,8 @@ const DB_CONFIG = {
         emergency_reserved_cars: "vistors_reserved",
         daily_parking_records: "parking_slots",
         daily_parking_records_history: "parking_slots_history",
-        service_delivery: "service_delivary"
+        service_delivery: "service_delivary",
+        feedback: "feedback_db"
     },
 
     // Role Definitions
@@ -38,7 +40,7 @@ const DB_CONFIG = {
         "department_employee", 
         "vehicle_registrar",
         "entrance_officer",
-        "feedback_db"
+       
     ],
 
     // Schemas
