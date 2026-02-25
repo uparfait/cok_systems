@@ -11,7 +11,7 @@ const User = require("../../../models/user");
 const SALT_ROUNDS = 10;
 
 // Expected token type for password reset temp token
-const EXPECTED_TOKEN_TYPE = 'password_reset_temp';
+const EXPECTED_TOKEN_TYPE = 'password_reset_otp';
 
 // Password validation
 const passwordValidator = (password) => {
@@ -39,13 +39,29 @@ const passwordValidator = (password) => {
 
 async function resetPassword(req, res, next) {
   try {
-    const { userId, tempToken, newPassword } = req.body;
+    const { userId, tempToken, newPassword, confirmPassword } = req.body;
 
-    if (!userId || !tempToken || !newPassword) {
+    if (!userId || !tempToken || !newPassword || !confirmPassword) {
       return res.status(400).json({
         status: false,
-        error: "User ID, temp token, and new password are required",
+        error: "User ID, temp token, new password, and confirm password are required",
         message: null,
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        status: false,
+        error: "New password and confirm password do not match",
+        message: null,
+      });
+    }
+
+    async function resetLoginAttempts(userId) {
+      await User.findByIdAndUpdate(userId, {
+        $set: {
+          "access_control.last_login_attempt": 0
+        }
       });
     }
 
@@ -98,7 +114,6 @@ async function resetPassword(req, res, next) {
         $set: {
           "auth.access_token.token": null,
           "auth.access_token.token_type": null,
-          "auth.access_token.expires_at": null,
         },
       });
 
@@ -121,7 +136,7 @@ async function resetPassword(req, res, next) {
     }
 
     // Hash the new password
-    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    const hashedPassword = await bcrypt.hash(newPassword.trim(), SALT_ROUNDS);
 
     // Update user's password
     await User.findByIdAndUpdate(userId, {
@@ -135,9 +150,9 @@ async function resetPassword(req, res, next) {
       $set: {
         "auth.access_token.token": null,
         "auth.access_token.token_type": null,
-        "auth.access_token.expires_at": null,
       },
     });
+
 
     // Send confirmation email
     try {
@@ -145,6 +160,10 @@ async function resetPassword(req, res, next) {
     } catch (emailError) {
       console.error("Failed to send password change confirmation email:", emailError);
     }
+
+
+      // Reset login attempts for the user
+    await resetLoginAttempts(userId);
 
     return res.status(200).json({
       status: true,
