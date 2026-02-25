@@ -300,11 +300,12 @@ paths:
           application/json:
             schema:
               type: object
-              required: [userId, tempToken, newPassword]
+              required: [userId, tempToken, newPassword, confirmPassword]
               properties:
                 userId: { type: string }
                 tempToken: { type: string }
                 newPassword: { type: string }
+                confirmPassword: { type: string }
       responses:
         '200': { description: Password reset successfully }
         '400': { description: Invalid or expired token }
