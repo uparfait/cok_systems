@@ -8,10 +8,14 @@ const otp = require("../../../utilities/otp");
 const email = require("../../../utilities/email");
 const tokenUtil = require("../../../utilities/token");
 const User = require("../../../models/user");
+const bcrypt = require("bcrypt");
+
+const SALT_ROUNDS = 10;
 
 // Configuration for login attempts
+
 const MAX_LOGIN_ATTEMPTS = 5;
-const LOCK_MESSAGE = "Account locked due to too many failed login attempts. Please contact administrator or reset password.";
+const LOCK_MESSAGE = "Account locked due to too many failed login attempts. Please contact administrator to unlock your account";
 
 async function login(req, res, next) {
   try {
@@ -28,15 +32,67 @@ async function login(req, res, next) {
       });
     }
 
-    // Check user in database
+    // Check user in database and verify password using bcrypt
     const user = await User.findOne({ email: userEmail });
 
-    if (!user) {
+    // If user not found or password doesn't match
+    if (!user || !(await bcrypt.compare(password.trim(), user.password))) {
+
+      let loginAttempts = 0;
+
+
+      // check if user email exists to track login attempts and lock account if necessary
+      const userByEmail = await User.findOne({ email: userEmail });
+      if (userByEmail) {
+
+        // check if account is locked
+
+        if (userByEmail.access_control?.is_locked) {
+          return res.status(403).json({
+            status: false,
+            error: LOCK_MESSAGE,
+            message: LOCK_MESSAGE,
+            data: {
+              isLocked: true,
+              reason: userByEmail.access_control.reason
+            }
+          });
+        }
+
+        // Initialize access_control if not exists
+        if (!userByEmail.access_control) {
+          userByEmail.access_control = {
+            is_locked: false,
+            reason: null,
+            last_login_attempt: 1
+          };
+          await userByEmail.save();
+
+          loginAttempts = 1;
+        } else {
+          const last_attempt = (userByEmail.access_control.last_login_attempt || 0) + 1
+          userByEmail.access_control.last_login_attempt = last_attempt
+
+          loginAttempts = last_attempt;
+          // Check if should lock account
+          if (last_attempt >= MAX_LOGIN_ATTEMPTS) {
+            userByEmail.access_control.is_locked = true;
+            userByEmail.access_control.reason = `Account locked after ${MAX_LOGIN_ATTEMPTS} failed login attempts`;
+          }
+          await userByEmail.save();
+        }
+      }
+
+
+
+
       return res.status(401).json({
         status: false,
-        error: "Invalid credentials",
+        error: loginAttempts === 0 ? "Invalid email or password" : loginAttempts >= MAX_LOGIN_ATTEMPTS ? LOCK_MESSAGE : `Invalid password. You have ${MAX_LOGIN_ATTEMPTS - loginAttempts} attempts left before account lock.`,
         message: null,
       });
+
+
     }
 
     // Initialize access_control if not exists
@@ -100,23 +156,12 @@ async function login(req, res, next) {
       $set: {
         "auth.access_token.token": hashedOTP,
         "auth.access_token.token_type": "otp",
-        "auth.access_token.expires_at": otpExpiry
       }
     });
 
     // Send OTP via email
     const sent = await email.sendOTPEmail(userEmail, otpCode || 1234, "login");
 
-    console.log(
-      `Generated OTP for user ${userEmail}: ${otpCode} (hashed: ${hashedOTP}, expires in 5 mins)`,
-    );
-
-    console.log(
-      `OTP for user ${userEmail}: ${otpCode} (sent: ${JSON.stringify(sent)})`,
-    );
-    console.log(
-      `Generated OTP for user ${userEmail}: ${otpCode} (expires at: ${expiresAt})`,
-    );
 
     return res.status(200).json({
       status: true,
@@ -128,7 +173,11 @@ async function login(req, res, next) {
       },
     });
   } catch (error) {
-    next(error);
+    return res.status(500).json({
+      status: false,
+      error: "An error occurred during login",
+      message:  "An unexpected error occurred"
+    });
   }
 }
 
