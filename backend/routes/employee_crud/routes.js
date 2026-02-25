@@ -15,6 +15,12 @@ const get_employee_by_id = require('../../controllers/employee_crud/get_employee
 const update_employee = require('../../controllers/employee_crud/update_employee.js')
 const delete_employee = require('../../controllers/employee_crud/delete_employee.js')
 const search_employees = require('../../controllers/employee_crud/search_employee.js')
+// 👉 1. IMPORTED MY NEW STAFF VEHICLE CONTROLLER HERE
+const { 
+    registerSingleStaffCar, 
+    bulkUploadStaffCars 
+} = require('../../controllers/employee_crud/staffVehicleController.js')
+
 const multer = require('multer')
 const upload = multer()
 
@@ -45,6 +51,10 @@ Router.get('/', list_all_employees)
 Router.get('/search', search_employees)
 Router.get('/:id', get_employee_by_id)
 Router.post('/', create_employee)
+// 👉 2. ADDED MY NEW VEHICLE ROUTES HERE
+Router.post('/register-car', registerSingleStaffCar)
+Router.post('/bulk-upload-cars', bulkUploadStaffCars)
+
 Router.put('/:id', update_employee)
 Router.delete('/:id', delete_employee)
 
