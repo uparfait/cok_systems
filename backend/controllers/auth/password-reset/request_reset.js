@@ -83,7 +83,6 @@ async function requestReset(req, res, next) {
         $set: {
           "auth.access_token.token_type": "password_reset_otp",
           "auth.access_token.token": hashedOTP,
-          "auth.access_token.expires_at": otpExpiry,
         },
       });
     }

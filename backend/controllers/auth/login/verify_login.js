@@ -50,8 +50,7 @@ async function handleFailedLoginAttempt(userId) {
   await User.findByIdAndUpdate(userId, {
     $set: {
       "access_control.last_login_attempt": attempts,
-      "access_control.is_locked": isLocked,
-      "access_control.reason": lockReason || user.access_control.reason
+      "access_control.is_locked": isLocked
     }
   });
 
@@ -126,7 +125,7 @@ async function verifyLogin(req, res, next) {
       return res.status(400).json({
         status: false,
         error: 'Invalid token type',
-        message: `Expected token type '${EXPECTED_TOKEN_TYPE}', but found '${storedTokenType || 'none'}'. Please request a new OTP.`
+        message: `Invalid token type`
       });
     }
 
@@ -162,7 +161,6 @@ async function verifyLogin(req, res, next) {
         $set: {
           'auth.access_token.token': null,
           'auth.access_token.token_type': null,
-          'auth.access_token.expires_at': null
         }
       });
 
@@ -217,7 +215,6 @@ async function verifyLogin(req, res, next) {
       $set: {
         'auth.access_token.token': null,
         'auth.access_token.token_type': null,
-        'auth.access_token.expires_at': null
       }
     });
 
