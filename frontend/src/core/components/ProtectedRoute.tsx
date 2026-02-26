@@ -1,7 +1,7 @@
 // ProtectedRoute - Route protection component
 // Redirects unauthenticated users to login page
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -12,8 +12,22 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
+  const [isReady, setIsReady] = useState(false);
 
-  if (isLoading) {
+  // Wait for auth to be ready before making any decisions
+  useEffect(() => {
+    // Give a small delay to ensure auth state is initialized
+    const timer = setTimeout(() => {
+      setIsReady(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Debug logging
+  console.log('[ProtectedRoute] isLoading:', isLoading, 'isAuthenticated:', isAuthenticated, 'isReady:', isReady);
+
+  // Show loading spinner while auth is initializing or not ready
+  if (isLoading || !isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -22,9 +36,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   if (!isAuthenticated) {
+    console.log('[ProtectedRoute] Not authenticated, redirecting to login from:', location.pathname);
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  console.log('[ProtectedRoute] User is authenticated, rendering children');
   return <>{children}</>;
 };
 
