@@ -29,22 +29,31 @@ const LoginPage = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
   // Images from public folder
   const cityHallImage = '/cok_hall.jpg';
   const logoImage = '/LOGO_COK.jpg';
 
+  // Track if form is being submitted to prevent multiple submissions
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    e.stopPropagation();
+    
+    // Prevent multiple submissions
+    if (isSubmitting || isLoading) return;
+    
     setSuccessMessage('');
+    setError('');
     setIsLoading(true);
+    setIsSubmitting(true);
     
     try {
       const result = await login(email, password);
       
-      if (result.status && result.data?.requiresOTP) {
+      if ((result.status === true || result.success === true) && result.data?.requiresOTP) {
         // User needs OTP verification (existing user with 2FA)
         const userId = result.data.userId || result.data.user_id || result.data.id;
         
@@ -56,14 +65,18 @@ const LoginPage = () => {
         setOtpVerificationEmail(email);
         setOtpVerificationUserId(String(userId));
         setShowOTPVerificationModal(true);
-      } else if (result.status && result.data?.tokens) {
+        return;
+      } else if ((result.status === true || result.success === true) && result.data?.tokens) {
         // Direct login - tokens stored in context, redirect to dashboard
         navigate('/dashboard');
+        return;
       } else if (result.error?.includes('not activated') || result.error?.includes('Account not activated')) {
         // First-time login - account not yet activated
         setShowFirstTimeOTPModal(true);
+        return;
       } else if (result.error?.includes('not found')) {
         setError('User not found. Please check your email or contact administrator.');
+        return;
       } else {
         // Handle other errors including invalid credentials
         const errorMsg = result.error || result.message || 'Login failed';
@@ -72,21 +85,25 @@ const LoginPage = () => {
         } else {
           setError(errorMsg);
         }
+        return;
       }
     } catch (err: any) {
       // Check if it's a first-time login scenario
       if (err?.error?.includes('not activated') || err?.message?.includes('not activated')) {
         setShowFirstTimeOTPModal(true);
-      } else {
-        const errorMsg = err?.error || err?.message || 'An error occurred during login';
-        if (err?.data?.remainingAttempts !== undefined) {
-          setError(`${errorMsg}. Attempts remaining: ${err.data.remainingAttempts}`);
-        } else {
-          setError(errorMsg);
-        }
+        return;
       }
+      
+      const errorMsg = err?.error || err?.message || 'An error occurred during login';
+      if (err?.data?.remainingAttempts !== undefined) {
+        setError(`${errorMsg}. Attempts remaining: ${err.data.remainingAttempts}`);
+      } else {
+        setError(errorMsg);
+      }
+      return;
     } finally {
       setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -347,12 +364,16 @@ const LoginPage = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex items-center justify-center gap-1 py-1.5 sm:py-2 px-3 sm:px-4 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className={`w-full flex items-center justify-center gap-1 py-1.5 sm:py-2 px-3 sm:px-4 text-white text-xs font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ${
+                  isLoading 
+                    ? 'bg-blue-500 cursor-wait animate-pulse' 
+                    : 'bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                }`}
               >
-                {isLoading ? (
-                  <span className="flex items-center justify-center">
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-md border border-white/40 mr-1">
+                  {isLoading ? (
                     <svg
-                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      className="animate-spin h-3 w-3"
                       fill="none"
                       viewBox="0 0 24 24"
                     >
@@ -363,41 +384,36 @@ const LoginPage = () => {
                         r="10"
                         stroke="currentColor"
                         strokeWidth="4"
-                      ></circle>
+                      />
                       <path
                         className="opacity-75"
                         fill="currentColor"
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
+                      />
                     </svg>
-                    Signing in...
-                  </span>
-                ) : (
-                  <>
-                    <span className="inline-flex h-4 w-4 items-center justify-center rounded-md border border-white/40 mr-1">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-3 w-3"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M10 17l5-5-5-5"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M4 12h11"
-                        />
-                      </svg>
-                    </span>
-                    SIGN IN
-                  </>
-                )}
+                  ) : (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-3 w-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M10 17l5-5-5-5"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M4 12h11"
+                      />
+                    </svg>
+                  )}
+                </span>
+                SIGN IN
               </button>
             </form>
 

@@ -70,13 +70,13 @@ export const clearAuthData = () => {
 
 /**
  * Check if user is authenticated
- * Checks for token OR user data in localStorage (workaround for backend not returning tokens)
+ * Also checks localStorage for authenticated user data when no token exists
  */
 export const isAuthenticated = () => {
   const token = getAccessToken();
   if (token) return true;
   
-  // Also check for authenticated user data stored after OTP verification
+  // Check for authenticated user data stored after OTP verification
   const userData = localStorage.getItem('userData');
   const isAuth = localStorage.getItem('isAuthenticated');
   
@@ -110,9 +110,10 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const isLoginRequest = originalRequest?.url?.includes('/auth/login');
 
-    // If 401 and haven't tried to refresh yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // If 401 and haven't tried to refresh yet, and it's NOT a login request
+    if (error.response?.status === 401 && !originalRequest._retry && !isLoginRequest) {
       originalRequest._retry = true;
 
       try {
@@ -140,8 +141,8 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // For other errors, check if it's an auth error
-    if (error.response?.status === 401) {
+    // For other errors on non-login requests, check if it's an auth error
+    if (error.response?.status === 401 && !isLoginRequest) {
       redirectToLogin();
     }
 

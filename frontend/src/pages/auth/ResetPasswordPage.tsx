@@ -7,19 +7,19 @@ import { verifyPasswordResetOTP, resetPassword } from '../../core/services/authS
 
 const ResetPasswordPage = () => {
   const [searchParams] = useSearchParams();
-//  const navigate = useNavigate();
+  const navigate = useNavigate();
   const token = searchParams.get('token');
   const userIdFromUrl = searchParams.get('userId');
   
-  // Get userId and tempToken from URL or session storage
-  // const [userId, setUserId] = useState(() => {
-  //   // Try URL first, then sessionStorage
-  //   return userIdFromUrl || sessionStorage.getItem('resetUserId') || '';
-  // });
+  // Get userId from URL or session storage
+  const [userId, setUserId] = useState(() => {
+    return userIdFromUrl || sessionStorage.getItem('resetUserId') || '';
+  });
 
-  const userId = "";
   const [otp, setOtp] = useState('');
-  const [tempToken, setTempToken] = useState(() => token || sessionStorage.getItem('resetTempToken') || '');
+  const [tempToken, setTempToken] = useState(() => {
+    return token || sessionStorage.getItem('resetTempToken') || '';
+  });
   const [step, setStep] = useState(() => (token || userIdFromUrl || sessionStorage.getItem('resetUserId')) ? 'reset' : 'verify');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -62,17 +62,10 @@ const ResetPasswordPage = () => {
           sessionStorage.removeItem('resetUserId');
           sessionStorage.removeItem('resetTempToken');
           
-          // Auto-login with tokens from backend
-          if (result.data?.tokens) {
-            localStorage.setItem('token', result.data.tokens.bearerToken);
-            localStorage.setItem('refreshToken', result.data.tokens.refreshToken);
-            localStorage.setItem('user', JSON.stringify(result.data.user));
-            
-            // Redirect to dashboard after short delay
-            setTimeout(() => {
+          // Always redirect to login after password reset (even without tokens)
+          setTimeout(() => {
             navigate('/login');
-            }, 1500);
-          }
+          }, 1500);
         }
         else { setError(result.error || 'Failed to reset password'); }
       } catch (err: any) { setError(err?.error || err?.message || 'Failed to reset password'); }
