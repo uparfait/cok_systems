@@ -19,7 +19,8 @@ async function requestReset(req, res, next) {
       return res.status(400).json({
         status: false,
         error: "Email is required",
-        message: null,
+        type: 'warning',
+        message: "Email is required",
       });
     }
 
@@ -28,9 +29,10 @@ async function requestReset(req, res, next) {
 
     if (!user) {
       // Don't reveal if email exists or not
-      return res.status(200).json({
-        status: true,
-        error: null,
+      return res.status(404).json({
+        status: false,
+        type: 'warning',
+        error: `User with this email ${userEmail} does not exist. Please check and try again.`,
         message: `User with this email ${userEmail} does not exist. Please check and try again.`,
       });
     }
@@ -40,6 +42,7 @@ async function requestReset(req, res, next) {
       return res.status(403).json({
         status: false,
         error: "Account is locked",
+        type: 'warning',
         message: LOCK_MESSAGE,
         data: {
           isLocked: true,
@@ -53,6 +56,7 @@ async function requestReset(req, res, next) {
       return res.status(403).json({
         status: false,
         error: "Account not activated",
+        type: 'warning',
         message: "Account is not activated. Please contact your administrator.",
         data: {
           isActivated: false
@@ -96,6 +100,7 @@ async function requestReset(req, res, next) {
     return res.status(200).json({
       status: true,
       error: null,
+      type: 'success',
       message: "OTP sent to your email for password reset",
       data: {
         userId: user._id,
