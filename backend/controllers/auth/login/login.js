@@ -185,18 +185,10 @@ async function login(req, res, next) {
     // Generate OTP for 2FA
     const { otp: otpCode, expiresAt } = otp.generateOTPWithExpiry();
 
-    // Store OTP in database (plain OTP for JWT verification comparison)
+    // Store OTP JWT in database for verification comparison
     const otpExpiry = new Date(Date.now() + otp.OTP_EXPIRY_SECONDS * 1000);
 
-    await User.findByIdAndUpdate(user._id, {
-      $set: {
-        "auth.access_token.token": otpCode.toString(),
-        "auth.access_token.token_type": "otp",
-        "auth.access_token.expires_at": otpExpiry
-      }
-    });
-
-    // Create JWT token containing the OTP for secure transmission
+    // Create JWT token containing the OTP for secure storage and verification
     const otpPayload = {
       userId: user._id.toString(),
       otp: otpCode.toString(),
@@ -206,6 +198,15 @@ async function login(req, res, next) {
     // Sign JWT with short expiry (5 minutes)
     const otpToken = jwt.sign(otpPayload, jwt.JWT_SECRET, {
       expiresIn: '5m'
+    });
+
+    // Store the JWT token in database (not plain OTP)
+    await User.findByIdAndUpdate(user._id, {
+      $set: {
+        "auth.access_token.token": otpToken,
+        "auth.access_token.token_type": "otp_jwt",
+        "auth.access_token.expires_at": otpExpiry
+      }
     });
 
     // Send OTP via email (user sees just the OTP, not the JWT)

@@ -7,7 +7,7 @@ import {
   login as authLogin, 
   logout as authLogout, 
   getCurrentUser, 
-  isUserAuthenticated,
+ // isUserAuthenticated,
   verifyLoginOTP,
   resendLoginOTP,
   requestPasswordReset,
@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Check authentication on mount
   const checkAuth = useCallback(() => {
-    const authenticated = isUserAuthenticated();
+   // const authenticated = isUserAuthenticated();
     const currentUser = getCurrentUser();
     const currentToken = getToken();
     

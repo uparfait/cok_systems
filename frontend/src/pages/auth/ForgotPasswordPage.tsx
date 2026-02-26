@@ -46,6 +46,7 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
 
   // Handle OTP verification success
   const handleOTPSuccess = (verifiedUserId: string, tempToken: string) => {
+    console.log(tempToken);
     setShowOTPModal(false);
     // Navigate to reset password page with userId
     navigate(`/reset-password?userId=${verifiedUserId}`);

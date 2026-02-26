@@ -33,7 +33,7 @@ const OTPModal: React.FC<OTPModalProps> = ({ isOpen, onClose, email: initialEmai
     if (!isOpen) {
       // Reset state when modal closes
       setTimeout(() => {
-        setEmail(initialEmail);
+        setEmail(initialEmail || '');
         setOtp(['', '', '', '', '']);
         setTimeLeft(114);
         setError('');

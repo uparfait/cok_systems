@@ -17,7 +17,7 @@ servers:
 tags:
   # AMOS Auth API Tags
   - name: AMOS - Authentication
-    description: User login, logout, and session management
+    description: User login, logout, and session managements
   - name: AMOS - First-Time Login
     description: Account activation for new users
   - name: AMOS - Password Reset
@@ -965,7 +965,123 @@ paths:
         '404':
           description: No service record found
 
-  /feedback/submit:
+  /feedback/search-by-department:
+    get:
+      tags: [AMOS - Feedback]
+      summary: "Search feedback by department with date range"
+      description: "Query feedback by department_id with optional from and to date filters"
+      operationId: searchByDepartment
+      parameters:
+        - name: department_id
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "DEPT-001"
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2024-01-01"
+          description: "Start date (YYYY-MM-DD)"
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2024-12-31"
+          description: "End date (YYYY-MM-DD)"
+      responses:
+        '200':
+          description: Feedback search results
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Feedback search results"
+                total: 10
+                data: []
+        '400':
+          description: Invalid parameters
+
+  /feedback/search:
+    get:
+      tags: [AMOS - Feedback]
+      summary: "Search all feedback with limit"
+      description: "Query all feedback with optional pagination and limit"
+      operationId: searchAllFeedback
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+          example: 50
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          example: 1
+      responses:
+        '200':
+          description: Feedback list
+          content:
+            application/json:
+              example:
+                success: true
+                message: "All feedback results"
+                total: 100
+                page: 1
+                data: []
+
+  /feedback/{id}:
+    get:
+      tags: [AMOS - Feedback]
+      summary: "Get feedback by ID"
+      description: "Retrieve a single feedback by MongoDB _id"
+      operationId: getFeedbackById
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200':
+          description: Feedback details
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Feedback details"
+                data: {}
+        '400':
+          description: Invalid ID format
+        '404':
+          description: Feedback not found
+
+    delete:
+      tags: [AMOS - Feedback]
+      summary: "Delete feedback by ID"
+      description: "Delete a feedback record by MongoDB _id"
+      operationId: deleteFeedback
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200':
+          description: Feedback deleted successfully
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Feedback deleted successfully"
+        '400':
+          description: Invalid ID format
+        '404':
+          description: Feedback not found
     post:
       tags: [AMOS - Feedback]
       summary: "Submit feedback for a department"
