@@ -123,7 +123,8 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
       // Call the backend to activate account with OTP verification and password setup
       const result = await activateAccount(userId, otp, newPassword, confirmPassword);
       
-      if (result.status) {
+      // Check if status is true AND there's no error message
+      if (result.status && !result.error) {
         setIsSuccess(true);
         
         // Call onSuccess callback if provided
@@ -137,7 +138,8 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
           navigate('/login');
         }, 2000);
       } else {
-        setError(result.error || 'Failed to activate account');
+        // Handle both cases: status false or status true with error message
+        setError(result.message || result.error || 'Failed to activate account');
       }
     } catch (err: any) {
       setError(err?.error || err?.message || 'Failed to set password');

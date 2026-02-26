@@ -120,8 +120,6 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
     
     if (otpString.length !== 5) {
       setError('Please enter all 5 digits');
-      // Clear error after 2 seconds
-      setTimeout(() => setError(''), 2000);
       return;
     }
 
@@ -133,46 +131,43 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
       
       console.log('[OTPVerificationModal] verifyOTP result:', JSON.stringify(result, null, 2));
       
-      // Check for success - support multiple response formats
-      const isVerified = result.status === true && (result.data?.tokens || result.data?.verified === true || result.tokens);
+      // Check for success - support both 'status' and 'success' response formats
+      // The API returns accessToken directly in response.data
+      const hasAccessToken = !!result.data?.accessToken;
+      const isVerified = (result.status === true || result.success === true) && (hasAccessToken || result.data?.verified === true);
       
-      console.log('[OTPVerificationModal] isVerified:', isVerified, 'result.status:', result.status, 'has tokens:', !!result.data?.tokens);
+      console.log('[OTPVerificationModal] isVerified:', isVerified, 'result.status:', result.status, 'has accessToken:', hasAccessToken);
       
       if (isVerified) {
         setIsSuccess(true);
         
-        // Wait for auth state to be properly set before redirecting
-        // Use a polling mechanism to ensure auth state is ready
-        let attempts = 0;
-        const maxAttempts = 10;
+        // Store the tokens directly if provided in the response
+        if (hasAccessToken && result.data) {
+          const { accessToken, refreshToken, user, ...userInfo } = result.data;
+          
+          // Store tokens in localStorage
+          if (accessToken) {
+            localStorage.setItem('accessToken', accessToken);
+          }
+          if (refreshToken) {
+            localStorage.setItem('refreshToken', refreshToken);
+          }
+          if (user) {
+            localStorage.setItem('userData', JSON.stringify(user));
+          } else {
+            // Store user info if user object is not separate
+            localStorage.setItem('userData', JSON.stringify(userInfo));
+          }
+          
+          console.log('[OTPVerificationModal] Tokens stored successfully');
+        }
         
-        const waitForAuth = () => {
-          return new Promise<void>((resolve) => {
-            const check = () => {
-              const token = localStorage.getItem('accessToken');
-              const userData = localStorage.getItem('userData');
-              console.log('[OTPVerificationModal] Checking auth - token:', !!token, 'userData:', !!userData);
-              
-              if (token && userData) {
-                resolve();
-              } else if (attempts < maxAttempts) {
-                attempts++;
-                setTimeout(check, 200);
-              } else {
-                // Even if not found in localStorage, proceed with redirect
-                // The auth context will handle it on page load
-                resolve();
-              }
-            };
-            check();
-          });
-        };
-        
-        await waitForAuth();
+        // Small delay to allow state to update
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         // Close modal and redirect
         onClose();
-        // Use replace to avoid going back to login with modal still open
+        // Use navigate for client-side routing - the auth state is now set
         navigate('/dashboard', { replace: true });
       } else {
         setError(result.error || 'Invalid OTP');
@@ -180,6 +175,7 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
     } catch (err: any) {
       console.error('[OTPVerificationModal] verifyOTP error:', err);
       setError(err?.error || err?.message || 'Failed to verify OTP');
+    
     } finally {
       setIsLoading(false);
     }

@@ -25,7 +25,8 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
     try {
       const result = await requestPasswordReset(email);
       
-      if (result.status) {
+      // Check if status is true AND there's no error message
+      if (result.status && !result.error) {
         // Store userId for next step
         if (result.data?.userId) {
           setUserId(result.data.userId);
@@ -35,7 +36,8 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
         // Show OTP modal directly after successful email submission
         setShowOTPModal(true);
       } else {
-        setError(result.error || 'Failed to send reset code');
+        // Handle both cases: status false or status true with error message
+        setError(result.message || result.error || 'Failed to send reset code');
       }
     } catch (err: any) {
       setError(err?.error || err?.message || 'An error occurred');
@@ -205,7 +207,6 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
                 </p>
                 <p className="text-blue-600 font-medium mb-6">{maskEmail(email)}</p>
                 
-{/* Continue to OTP verification */}
                 <button
                   onClick={handleContinue}
                   className="inline-block w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors mb-4"
