@@ -189,11 +189,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(true);
     try {
       console.log('[AuthContext] Calling verifyLoginOTP...');
-      const result = await verifyLoginOTP(userId, otp);
+      const result: any = await verifyLoginOTP(userId, otp);
       console.log('[AuthContext] verifyLoginOTP returned - status:', result?.status, 'success:', result?.success, 'data:', result?.data);
       
       // Check for success - support both 'status' and 'success' response formats
-      const isSuccess = result.status === true || result.success === true;
+      const isSuccess = result?.status === true || result?.success === true;
       
       // Call checkAuth when OTP is verified
       if (isSuccess) {
@@ -312,6 +312,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(null);
       setPermissions([]);
       setToken(null);
+      setIsLoading(false);
+      // Force redirect to login page to ensure fresh authentication flow with OTP
+      window.location.href = '/login';
     }
   };
 
