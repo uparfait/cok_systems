@@ -205,7 +205,7 @@ const OTPModal: React.FC<OTPModalProps> = ({ isOpen, onClose, email: initialEmai
   if (!isOpen) return null;
 
   // Background images
-  const cityHallImage = '/src/assets/cok_hall.jpg';
+  const cityHallImage = '/cok_hall.jpg';
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
