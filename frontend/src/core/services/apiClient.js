@@ -70,8 +70,18 @@ export const clearAuthData = () => {
 
 /**
  * Check if user is authenticated
+ * Checks for token OR user data in localStorage (workaround for backend not returning tokens)
  */
-export const isAuthenticated = () => !!getAccessToken();
+export const isAuthenticated = () => {
+  const token = getAccessToken();
+  if (token) return true;
+  
+  // Also check for authenticated user data stored after OTP verification
+  const userData = localStorage.getItem('userData');
+  const isAuth = localStorage.getItem('isAuthenticated');
+  
+  return !!(userData && isAuth === 'true');
+};
 
 /**
  * Redirect to login page

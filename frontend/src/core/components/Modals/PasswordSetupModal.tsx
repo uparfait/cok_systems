@@ -35,8 +35,8 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
   const navigate = useNavigate();
 
   // Background images
-  const cityHallImage = '/src/assets/cok_hall.jpg';
-  const logoImage = '/src/assets/LOGO_COK.jpg';
+  const cityHallImage = '/cok_hall.jpg';
+  const logoImage = '/LOGO_COK.jpg';
 
   // Password requirements check
   const checkPasswordStrength = (password: string) => {
@@ -48,7 +48,7 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
     };
     
     const score = Object.values(strength).filter(Boolean).length;
-    setPasswordStrength({ ...strength, score });
+    setPasswordStrength({ ...strength, score } as any);
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
