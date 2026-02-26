@@ -1082,6 +1082,7 @@ paths:
           description: Invalid ID format
         '404':
           description: Feedback not found
+  /feedback/submit:
     post:
       tags: [AMOS - Feedback]
       summary: "Submit feedback for a department"
