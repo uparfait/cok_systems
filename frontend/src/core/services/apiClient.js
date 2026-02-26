@@ -66,6 +66,10 @@ export const clearAuthData = () => {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_DATA_KEY);
+  // Also clear any session flags
+  localStorage.removeItem('isAuthenticated');
+  localStorage.removeItem('pendingUserId');
+  localStorage.removeItem('pendingEmail');
 };
 
 /**

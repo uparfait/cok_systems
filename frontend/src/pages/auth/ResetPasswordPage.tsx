@@ -91,8 +91,8 @@ const ResetPasswordPage = () => {
             </div>
           </div>
         </div>
-        <div className="w-full lg:w-1/2 flex items-center justify-center px-3 sm:px-4 lg:px-6 py-6 lg:py-8 bg-white">
-          <div className="max-w-md w-full">
+        <div className="w-full md:w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-6 lg:py-8 bg-white">
+          <div className="w-full max-w-lg px-2 sm:px-4">
             <div className="mb-6 flex justify-center">
               <img src="/LOGO_COK.jpg" alt="City of Kigali" className="h-16 w-auto" />
             </div>
@@ -101,7 +101,7 @@ const ResetPasswordPage = () => {
                 <svg className="h-10 w-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
               </div>
               <h2 className="text-3xl font-bold text-gray-900 mb-2">Password updated</h2>
-              <p className="text-xl text-gray-600 mb-8">successfully! Redirecting to dashboard...</p>
+              <p className="text-xl text-gray-600 mb-8">successfully! Redirecting to login...</p>
             </div>
           </div>
         </div>
@@ -126,8 +126,8 @@ const ResetPasswordPage = () => {
           </div>
         </div>
       </div>
-      <div className="w-full lg:w-1/2 flex items-center justify-center px-3 sm:px-4 lg:px-6 py-6 lg:py-8 bg-white">
-        <div className="max-w-sm lg:max-w-md w-full space-y-5 sm:space-y-6">
+      <div className="w-full md:w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-6 lg:py-8 bg-white">
+        <div className="w-full max-w-lg px-2 sm:px-4 space-y-5 sm:space-y-6">
           <Link to="/forgot-password" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6 sm:mb-8 transition-colors">
             <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>Back
           </Link>

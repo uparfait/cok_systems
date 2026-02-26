@@ -1,7 +1,7 @@
 // Auth Service - Complete authentication API integration
 // Handles login, logout, password reset, OTP verification, and token management
 
-import { get, post, setAuthData, clearAuthData, getStoredUser, getAccessToken, isAuthenticated } from './apiClient';
+import { post, setAuthData, clearAuthData, getStoredUser, getAccessToken, isAuthenticated } from './apiClient';
 
 // ==================== LOGIN APIs ====================
 
@@ -69,55 +69,6 @@ export const verifyLoginOTP = async (userId, otpToken) => {
   }
 };
 
-// Exchange session token for login tokens
-export const exchangeSessionToken = async (sessionToken) => {
-  console.log('[authService] exchangeSessionToken STARTED');
-  
-  if (!sessionToken) {
-    console.error('[authService] Missing session token!');
-    throw { status: false, error: 'Session token is required', message: 'Missing session token' };
-  }
-  
-  try {
-    const response = await post('/auth/login/exchange', { sessionToken });
-    
-    console.log('[authService] Exchange response received:', JSON.stringify(response, null, 2));
-    
-    // Handle successful response
-    const isSuccess = response.status === true || response.success === true;
-    
-    if (isSuccess && response.data?.tokens) {
-      // Store tokens
-      const tokens = response.data.tokens;
-      const user = response.data.user;
-      
-      const accessToken = tokens.bearerToken || tokens.accessToken || tokens.token;
-      const refreshToken = tokens.refreshToken || tokens.refresh_token;
-      
-      console.log('[authService] accessToken:', accessToken ? 'present' : 'missing');
-      console.log('[authService] refreshToken:', refreshToken ? 'present' : 'missing');
-      
-      if (accessToken) {
-        setAuthData({ accessToken, refreshToken }, user);
-        console.log('[authService] Auth data stored successfully');
-        
-        // Verify it was stored
-        const storedToken = localStorage.getItem('accessToken');
-        const storedUser = localStorage.getItem('userData');
-        console.log('[authService] Verification - accessToken in localStorage:', storedToken ? 'YES' : 'NO');
-        console.log('[authService] Verification - userData in localStorage:', storedUser ? 'YES' : 'NO');
-      } else {
-        console.log('[authService] ERROR: No accessToken found in tokens object!', tokens);
-      }
-    }
-    
-    return response;
-  } catch (error) {
-    console.error('[authService] Exception in exchangeSessionToken:', error);
-    throw error;
-  }
-};
-
 export const resendLoginOTP = (userId, email) => post('/auth/login/resend', { userId, email });
 
 // ==================== LOGOUT APIs ====================
@@ -125,16 +76,22 @@ export const resendLoginOTP = (userId, email) => post('/auth/login/resend', { us
 export const logout = async () => {
   try { await post('/auth/logout', {}); } 
   catch (error) { console.warn('Logout API failed, clearing local data:', error); } 
-  finally { clearAuthData(); }
+  finally { 
+    clearAuthData();
+    // Force require OTP on next login by clearing any cached session
+    sessionStorage.clear();
+  }
 };
 
 export const logoutAll = async () => {
   try {
     const response = await post('/auth/logout/all', {});
     clearAuthData();
+    sessionStorage.clear();
     return response;
   } catch (error) {
     clearAuthData();
+    sessionStorage.clear();
     throw error;
   }
 };

@@ -114,8 +114,8 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
       </div>
 
       {/* Right side - Forgot Password form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center px-3 sm:px-4 lg:px-6 py-6 lg:py-8 bg-white">
-        <div className="max-w-sm lg:max-w-md w-full">
+      <div className="w-full md:w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-6 lg:py-8 bg-white">
+        <div className="w-full max-w-lg px-2 sm:px-4">
           {/* Back button */}
           <Link to="/login" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6 sm:mb-8 transition-colors">
             <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

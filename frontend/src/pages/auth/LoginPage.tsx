@@ -180,8 +180,8 @@ const LoginPage = () => {
       </div>
 
       {/* Right side - Login form card */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center px-2 sm:px-4 lg:px-6 bg-white">
-        <div className="w-full max-w-xs sm:max-w-sm">
+      <div className="w-full md:w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-white">
+        <div className="w-full max-w-lg px-2 sm:px-4">
           <div className="bg-white">
             {/* Logo and intro text */}
             <div className="text-center mb-4 sm:mb-5">
@@ -364,7 +364,7 @@ const LoginPage = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full flex items-center justify-center gap-1 py-1.5 sm:py-2 px-3 sm:px-4 text-white text-xs font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ${
+                className={`w-full flex items-center justify-center gap-1 py-2.5 sm:py-3 px-3 sm:px-4 text-white text-sm font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ${
                   isLoading 
                     ? 'bg-blue-500 cursor-wait animate-pulse' 
                     : 'bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
