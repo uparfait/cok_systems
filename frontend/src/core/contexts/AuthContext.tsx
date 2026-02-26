@@ -93,14 +93,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const currentUser = getCurrentUser();
     const currentToken = getToken();
     
+    console.log('[AuthContext checkAuth] isUserAuthenticated():', authenticated);
+    console.log('[AuthContext checkAuth] getCurrentUser():', currentUser ? 'present' : 'null');
+    console.log('[AuthContext checkAuth] getToken():', currentToken ? 'present' : 'null');
+    
     setToken(currentToken);
     
     if (currentUser) {
+      console.log('[AuthContext checkAuth] Setting user from token:', currentUser.email);
       setUser(currentUser);
       setPermissions(currentUser.permissions || []);
     } else {
-      setUser(null);
-      setPermissions([]);
+      // Check if user data exists in localStorage from OTP verification
+      const storedUserData = localStorage.getItem('userData');
+      const isAuth = localStorage.getItem('isAuthenticated');
+      
+      console.log('[AuthContext checkAuth] storedUserData:', !!storedUserData, 'isAuthenticated flag:', isAuth);
+      
+      if (storedUserData && isAuth === 'true') {
+        try {
+          const parsedUser = JSON.parse(storedUserData);
+          console.log('[AuthContext checkAuth] Setting user from localStorage:', parsedUser.email);
+          setUser(parsedUser);
+          setPermissions(parsedUser.permissions || []);
+        } catch (e) {
+          console.log('[AuthContext checkAuth] Failed to parse stored user data');
+          setUser(null);
+          setPermissions([]);
+        }
+      } else {
+        console.log('[AuthContext checkAuth] No user found, setting null');
+        setUser(null);
+        setPermissions([]);
+      }
     }
     
     setIsLoading(false);
@@ -165,11 +190,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     setIsLoading(true);
     try {
+      console.log('[AuthContext] Calling verifyLoginOTP...');
       const result = await verifyLoginOTP(userId, otp);
-      console.log('[AuthContext] verifyLoginOTP result:', result?.status, result?.data?.tokens ? 'has tokens' : 'no tokens');
-      if (result.status && result.data?.tokens) {
-        checkAuth();
+      console.log('[AuthContext] verifyLoginOTP returned - status:', result?.status, 'data:', result?.data);
+      
+      // Call checkAuth when OTP is verified - either with tokens or verified flag
+      if (result.status === true) {
+        console.log('[AuthContext] OTP verification successful, calling checkAuth...');
+        await checkAuth();
+        console.log('[AuthContext] checkAuth completed');
+      } else {
+        console.log('[AuthContext] OTP verification FAILED - result:', result);
       }
+      
       setIsLoading(false);
       return result;
     } catch (error) {

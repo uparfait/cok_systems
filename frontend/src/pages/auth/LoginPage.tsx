@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { FiLogIn } from 'react-icons/fi';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import FirstTimeLoginOTPModal from '../../core/components/Modals/FirstTimeLoginOTPModal';
 import PasswordSetupModal from '../../core/components/Modals/PasswordSetupModal';
 import OTPVerificationModal from '../../core/components/Modals/OTPVerificationModal';
@@ -28,26 +28,25 @@ const LoginPage = () => {
   const [resetPasswordUserId, setResetPasswordUserId] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const navigate = useNavigate();
 
-  // Import images from assets
-  const cityHallImage = '/src/assets/cok_hall.jpg';
-  const logoImage = '/src/assets/LOGO_COK.jpg';
+  // Images from public folder
+  const cityHallImage = '/cok_hall.jpg';
+  const logoImage = '/LOGO_COK.jpg';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
     setIsLoading(true);
     
     try {
       const result = await login(email, password);
       
-      console.log('[LoginPage] Login result:', JSON.stringify(result, null, 2));
-      
       if (result.status && result.data?.requiresOTP) {
         // User needs OTP verification (existing user with 2FA)
         const userId = result.data.userId || result.data.user_id || result.data.id;
-        console.log('[LoginPage] Setting OTP verification - userId:', userId, 'email:', email);
         
         if (!userId) {
           setError('Login succeeded but user ID was not returned. Please try again.');
@@ -105,14 +104,13 @@ const LoginPage = () => {
     setShowPasswordSetupModal(true);
   };
 
-const handlePasswordSetupSuccess = () => {
-    // Close password setup modal and redirect to login
+  const handlePasswordSetupSuccess = () => {
+    // Close password setup modal and show success message inline
     setShowPasswordSetupModal(false);
     setEmail('');
     setPassword('');
-    // Optionally show success message and redirect to login
-    alert('Account activated successfully! Please login with your email and password.');
-    navigate('/login');
+    // Show success message inline instead of alert
+    setSuccessMessage('Account activated successfully! You can now login with your email and password.');
   };
 
   // Handle forgot password click - navigate to forgot password page
@@ -181,6 +179,18 @@ const handlePasswordSetupSuccess = () => {
                 Please enter your credentials to continue.
               </p>
             </div>
+
+            {/* Success message */}
+            {successMessage && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center">
+                  <svg className="h-5 w-5 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <p className="text-sm text-green-700">{successMessage}</p>
+                </div>
+              </div>
+            )}
 
             {/* Login form */}
             <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
@@ -302,7 +312,7 @@ const handlePasswordSetupSuccess = () => {
                 </div>
               </div>
 
-{/* Remember me and Forgot Password row */}
+              {/* Remember me and Forgot Password row */}
               <div className="flex items-center justify-between text-xs">
                 <label className="flex items-center space-x-2 cursor-pointer select-none">
                   <input
@@ -437,7 +447,7 @@ const handlePasswordSetupSuccess = () => {
         />
       )}
 
-{/* OTP Verification Modal for existing users */}
+      {/* OTP Verification Modal for existing users */}
       {showOTPVerificationModal && (
         <OTPVerificationModal
           isOpen={showOTPVerificationModal}
@@ -461,4 +471,3 @@ const handlePasswordSetupSuccess = () => {
 };
 
 export default LoginPage;
-
