@@ -7,7 +7,6 @@ import {
   login as authLogin, 
   logout as authLogout, 
   getCurrentUser, 
- // isUserAuthenticated,
   verifyLoginOTP,
   resendLoginOTP,
   requestPasswordReset,
@@ -89,18 +88,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Check authentication on mount
   const checkAuth = useCallback(() => {
-   // const authenticated = isUserAuthenticated();
     const currentUser = getCurrentUser();
     const currentToken = getToken();
     
-    setToken(currentToken);
+    console.log('[AuthContext checkAuth] getCurrentUser():', currentUser ? 'present' : 'null');
+    console.log('[AuthContext checkAuth] getToken():', currentToken ? 'present' : 'null');
     
-    if (currentUser) {
+    if (currentUser && currentToken) {
+      console.log('[AuthContext checkAuth] Setting user from token:', currentUser.email);
       setUser(currentUser);
       setPermissions(currentUser.permissions || []);
+      setToken(currentToken);
     } else {
-      setUser(null);
-      setPermissions([]);
+      // Check if tokens exist in localStorage from OTP verification
+      const storedUserData = localStorage.getItem('userData');
+      const storedAccessToken = localStorage.getItem('accessToken');
+      
+      console.log('[AuthContext checkAuth] storedUserData:', !!storedUserData, 'accessToken:', !!storedAccessToken);
+      
+      if (storedUserData && storedAccessToken) {
+        try {
+          const parsedUser = JSON.parse(storedUserData);
+          console.log('[AuthContext checkAuth] Setting user from localStorage:', parsedUser.email);
+          setUser(parsedUser);
+          setPermissions(parsedUser.permissions || []);
+          setToken(storedAccessToken);
+        } catch (e) {
+          console.log('[AuthContext checkAuth] Failed to parse stored user data');
+          setUser(null);
+          setPermissions([]);
+          setToken(null);
+        }
+      } else {
+        console.log('[AuthContext checkAuth] No user found, setting null');
+        setUser(null);
+        setPermissions([]);
+      }
     }
     
     setIsLoading(false);
@@ -165,11 +188,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     setIsLoading(true);
     try {
-      const result = await verifyLoginOTP(userId, otp);
-      console.log('[AuthContext] verifyLoginOTP result:', result?.status, result?.data?.tokens ? 'has tokens' : 'no tokens');
-      if (result.status && result.data?.tokens) {
+      console.log('[AuthContext] Calling verifyLoginOTP...');
+      const result: any = await verifyLoginOTP(userId, otp);
+      console.log('[AuthContext] verifyLoginOTP returned - status:', result?.status, 'success:', result?.success, 'data:', result?.data);
+      
+      // Check for success - support both 'status' and 'success' response formats
+      const isSuccess = result?.status === true || result?.success === true;
+      
+      // Call checkAuth when OTP is verified
+      if (isSuccess) {
+        console.log('[AuthContext] OTP verification successful, calling checkAuth...');
         checkAuth();
+        console.log('[AuthContext] checkAuth completed');
+      } else {
+        console.log('[AuthContext] OTP verification FAILED - result:', result);
       }
+      
       setIsLoading(false);
       return result;
     } catch (error) {
@@ -278,6 +312,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(null);
       setPermissions([]);
       setToken(null);
+      setIsLoading(false);
+      // Force redirect to login page to ensure fresh authentication flow with OTP
+      window.location.href = '/login';
     }
   };
 

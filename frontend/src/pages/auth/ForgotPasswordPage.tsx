@@ -25,7 +25,8 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
     try {
       const result = await requestPasswordReset(email);
       
-      if (result.status) {
+      // Check if status is true AND there's no error message
+      if (result.status && !result.error) {
         // Store userId for next step
         if (result.data?.userId) {
           setUserId(result.data.userId);
@@ -35,7 +36,8 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
         // Show OTP modal directly after successful email submission
         setShowOTPModal(true);
       } else {
-        setError(result.error || 'Failed to send reset code');
+        // Handle both cases: status false or status true with error message
+        setError(result.message || result.error || 'Failed to send reset code');
       }
     } catch (err: any) {
       setError(err?.error || err?.message || 'An error occurred');
@@ -82,7 +84,7 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
       <div className="hidden lg:flex lg:w-1/2 relative">
         <div 
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: 'url(/src/assets/cok_hall.jpg)' }}
+          style={{ backgroundImage: 'url(/cok_hall.jpg)' }}
         >
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
         </div>
@@ -112,8 +114,8 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
       </div>
 
       {/* Right side - Forgot Password form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center px-3 sm:px-4 lg:px-6 py-6 lg:py-8 bg-white">
-        <div className="max-w-sm lg:max-w-md w-full">
+      <div className="w-full md:w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-6 lg:py-8 bg-white">
+        <div className="w-full max-w-lg px-2 sm:px-4">
           {/* Back button */}
           <Link to="/login" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6 sm:mb-8 transition-colors">
             <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -125,7 +127,7 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
           {/* City of Kigali Logo */}
           <div className="mb-6 ml-4  flex justify-center">
             <img
-              src="/src/assets/LOGO_COK.jpg"
+              src="/LOGO_COK.jpg"
               alt="City of Kigali"
               className="h-30 w-auto"
             />
@@ -205,7 +207,6 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
                 </p>
                 <p className="text-blue-600 font-medium mb-6">{maskEmail(email)}</p>
                 
-{/* Continue to OTP verification */}
                 <button
                   onClick={handleContinue}
                   className="inline-block w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors mb-4"
