@@ -20,7 +20,7 @@ async function requestReset(req, res, next) {
         status: false,
         error: "Email is required",
         type: 'warning',
-        message: null,
+        message: "Email is required",
       });
     }
 
@@ -32,7 +32,7 @@ async function requestReset(req, res, next) {
       return res.status(404).json({
         status: false,
         type: 'warning',
-        error: null,
+        error: `User with this email ${userEmail} does not exist. Please check and try again.`,
         message: `User with this email ${userEmail} does not exist. Please check and try again.`,
       });
     }
