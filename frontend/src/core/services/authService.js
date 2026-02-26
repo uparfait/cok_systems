@@ -1,22 +1,72 @@
 // Auth Service - Complete authentication API integration
 // Handles login, logout, password reset, OTP verification, and token management
 
-import { get, post, setAuthData, clearAuthData, getStoredUser, getAccessToken, isAuthenticated } from './apiClient';
+import { post, setAuthData, clearAuthData, getStoredUser, getAccessToken, isAuthenticated } from './apiClient';
 
 // ==================== LOGIN APIs ====================
 
 export const login = (email, password) => post('/auth/login', { email, password });
 
 export const verifyLoginOTP = async (userId, otpToken) => {
+  console.log('[authService] verifyLoginOTP STARTED');
+  
   if (!userId || !otpToken) {
+    console.error('[authService] Missing parameters!');
     throw { status: false, error: 'User ID and OTP token are required', message: 'Missing required parameters for OTP verification' };
   }
+  
   const otpValue = String(otpToken);
-  const response = await post('/auth/login/verify', { userId: String(userId), otpToken: otpValue, otp: otpValue });
-  if (response.status && response.data?.tokens) {
-    setAuthData({ accessToken: response.data.tokens.bearerToken || response.data.tokens.accessToken, refreshToken: response.data.tokens.refreshToken }, response.data.user);
+  console.log('[authService] Calling API with userId:', userId);
+  
+  try {
+    // Send both otp and otpToken to support different backend versions
+    const response = await post('/auth/login/verify', { 
+      userId: String(userId), 
+      otp: otpValue,
+      otpToken: otpValue
+    });
+    
+    console.log('[authService] API response received:', JSON.stringify(response, null, 2));
+    
+    // Handle successful response
+    // Support both 'status' and 'success' response formats
+    const isSuccess = response.status === true || response.success === true;
+    
+    if (isSuccess) {
+      // Store tokens directly in localStorage
+      const { accessToken, refreshToken, verified, userId: uid, email, fullName, role, ...userInfo } = response.data || {};
+      
+      if (accessToken) {
+        console.log('[authService] Storing accessToken and refreshToken directly');
+        localStorage.setItem('accessToken', accessToken);
+        
+        if (refreshToken) {
+          localStorage.setItem('refreshToken', refreshToken);
+        }
+        
+        // Store user info
+        const userData = {
+          userId: uid,
+          email,
+          fullName,
+          role,
+          permissions: response.data?.permissions || [],
+          ...userInfo
+        };
+        localStorage.setItem('userData', JSON.stringify(userData));
+        
+        console.log('[authService] Tokens stored successfully');
+      }
+      
+      return response;
+    }
+    
+    console.log('[authService] Response status is not true - status:', response.status, 'success:', response.success);
+    return response;
+  } catch (error) {
+    console.error('[authService] Exception in verifyLoginOTP:', error);
+    throw error;
   }
-  return response;
 };
 
 export const resendLoginOTP = (userId, email) => post('/auth/login/resend', { userId, email });
@@ -26,16 +76,22 @@ export const resendLoginOTP = (userId, email) => post('/auth/login/resend', { us
 export const logout = async () => {
   try { await post('/auth/logout', {}); } 
   catch (error) { console.warn('Logout API failed, clearing local data:', error); } 
-  finally { clearAuthData(); }
+  finally { 
+    clearAuthData();
+    // Force require OTP on next login by clearing any cached session
+    sessionStorage.clear();
+  }
 };
 
 export const logoutAll = async () => {
   try {
     const response = await post('/auth/logout/all', {});
     clearAuthData();
+    sessionStorage.clear();
     return response;
   } catch (error) {
     clearAuthData();
+    sessionStorage.clear();
     throw error;
   }
 };

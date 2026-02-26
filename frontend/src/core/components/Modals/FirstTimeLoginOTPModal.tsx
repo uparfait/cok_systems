@@ -26,8 +26,8 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
   const [currentUserId, setCurrentUserId] = useState('');
 
   // Background images
-  const cityHallImage = '/src/assets/cok_hall.jpg';
-  const logoImage = '/src/assets/LOGO_COK.jpg';
+  const cityHallImage = '/cok_hall.jpg';
+  const logoImage = '/LOGO_COK.jpg';
 
   useEffect(() => {
     if (!isOpen) {
