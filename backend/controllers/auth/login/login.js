@@ -220,8 +220,6 @@ async function login(req, res, next) {
       data: {
         requiresOTP: true,
         userId: user._id,
-        // Also send the JWT token for verification
-        otpToken: otpToken
       },
     });
   } catch (error) {
