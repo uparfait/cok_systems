@@ -45,15 +45,7 @@ async function verifyLogin(req, res, next) {
             });
         }
 
-        // Check if user is active
-        if (!user.is_active) {
-            return res.status(403).json({
-                success: false,
-                type: "warning",
-                message: "Account is inactive",
-                error: "Your account has been deactivated"
-            });
-        }
+      
 
         // Check if account is activated
         if (!user.is_account_activated) {
