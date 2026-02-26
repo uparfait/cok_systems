@@ -29,7 +29,7 @@ const service_delivery_schema = new mongoose.Schema({
     ],
     entry_date: { type: Date, default: Date.now },
     exist_date: { type: Date, default: null },
-    gender: { type: String },
+    gender: { type: String, default: 'Not Specified' },
     durations: {
         services_durations: [
             {

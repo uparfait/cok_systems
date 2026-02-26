@@ -4,11 +4,11 @@ module.exports = [
     {
         resource_name: 'employees',
         actions: [
-            { action_type: 'GET', description: 'View a list of all employees' },
-            { action_type: 'POST', description: 'Create a new employee record' },
-            { action_type: 'PUT', description: 'Update an existing employee record' },
-            { action_type: 'DELETE', description: 'Delete an employee record' },
-            { action_type: 'REALTIME', description: 'Receive real-time updates on employee status changes' }
+            { action_type: 'read:employees', description: 'View a list of all employees' },
+            { action_type: 'create:employees', description: 'Create a new employee record' },
+            { action_type: 'update:employees', description: 'Update an existing employee record' },
+            { action_type: 'delete:employees', description: 'Delete an employee record' },
+            { action_type: 'REALTIME:employees', description: 'Receive real-time updates on employee status changes' }
         ]
     },
     {

@@ -69,6 +69,11 @@ components:
       in: query
       schema: { type: string, default: "" }
       description: "Search keyword (case-insensitive)"
+    StatusParam:
+      name: status
+      in: query
+      schema: { type: string, enum: ['active', 'completed'] }
+      description: "Filter by parking record status (active or completed)"
 
 security:
   - BearerAuth: []
@@ -548,6 +553,7 @@ paths:
                 full_name: { type: string, example: "Alice Uwimana" }
                 telephone: { type: string, example: "+250788123456" }
                 email: { type: string, example: "alice.uwimana@cok.gov.rw" }
+                identification: { type: object, example: { type: "National ID", number: "123456789" } }
                 gender: { type: string, example: "Female" }
                 title: { type: string, example: "Ms." }
                 department_name: { type: string, example: "Human Resources" }
@@ -675,12 +681,22 @@ paths:
           application/json:
             schema:
               type: object
-              required: [full_name]
+              required: [full_name, telephone]
               properties:
                 full_name: { type: string, example: "Jean Pierre Habimana" }
                 telephone: { type: string, example: "+250788000111" }
                 email: { type: string, example: "jean@example.com" }
                 gender: { type: string, example: "Male" }
+                identification: { type: object, example: { type: "National ID", number: "123456789" } }
+                vehicle_storage: {
+                  type: object, 
+                  example: {
+                  has_vehicle: true,
+                  vehicle_details: {
+                      plate_number: "RAC123A",
+                }
+                }
+                }
       responses:
         '201': { description: Visitor checked in successfully }
         '400': { description: full_name is required }
@@ -711,10 +727,10 @@ paths:
 
   /servicedelivery/visitor/checkout:
     post:
-      tags: [PARFAIT - Visitors]
+      tags: [Visitors]
       summary: "Visitor Check-Out"
       operationId: visitorCheckout
-      description: "Checks out a visitor."
+      description: "Checks out a visitor. If they have a car still parked, sets status to pending until vehicle exits."
       requestBody:
         required: true
         content:
@@ -724,10 +740,17 @@ paths:
               required: [visitor_id]
               properties:
                 visitor_id: { type: string, example: "64f1a2b3c4d5e6f7a8b9c0d1" }
+                items_exited_with:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      item_name: { type: string, example: "Laptop" }
+                      quantity: { type: integer, example: 1 }
       responses:
-        '200': { description: Visitor checked out }
+        '200': { description: Visitor checked out or marked pending (car still parked) }
         '400': { description: visitor_id is required }
-        '404': { description: Visitor not found }
+        '404': { description: Visitor not found or already checked out }
         '500': { description: Server error }
 
   /servicedelivery/visitor/service/status:
@@ -750,30 +773,46 @@ paths:
         '400': { description: Missing required fields }
         '404': { description: Visitor not found }
 
-  /servicedelivery/visitor/leave:
+  /servicedelivery/visitor/emergency/leave-return:
     post:
-      tags: [PARFAIT - Visitors]
-      summary: "Visitor Leave and Return"
-      operationId: toggleLeaveOutSideAndReturn
+      tags: [Visitors]
+      summary: "Toggle Temporary Leave / Return"
+      operationId: toggleTemporaryLeave
+      description: "Marks a visitor as temporarily outside ('leave') or returned ('return'). Tracks duration and optionally logs items taken out."
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [visitor_id]
+              required: [visitor_id, action]
               properties:
-                visitor_id: { type: string }
+                visitor_id: { type: string, example: "64f1a2b3c4d5e6f7a8b9c0d1" }
+                action:
+                  type: string
+                  enum: [leave, return]
+                  example: "leave"
+                items_exited_with:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      item_name: { type: string, example: "Laptop" }
+                      quantity: { type: integer, example: 1 }
+                provider_name: { type: string, example: "Jane Doe" }
+                provider_id: { type: string, example: "64f1a2b3c4d5e6f7a8b9c0d2" }
+                message: { type: string, example: "Visitor went to get documents from car" }
       responses:
-        '200': { description: Status toggled }
-        '400': { description: Missing required fields }
-        '404': { description: Visitor not found }
+        '200': { description: Visitor marked as outside or returned }
+        '400': { description: Missing fields, already outside, or no active leave record to close }
+        '404': { description: Visitor not found or not in-house }
+        '500': { description: Server error }
 
   # ═══════════════════════════════════════════════════════
   # PARFAIT VEHICLE/SMART PARKING ENDPOINTS
   # ═══════════════════════════════════════════════════════
 
-  /smartparking/checkin:
+  /smartparking/vehicle/checkin:
     post:
       tags: [PARFAIT - Vehicles]
       summary: "Vehicle Check-In (Smart Parking)"
@@ -788,13 +827,17 @@ paths:
               properties:
                 plate_number: { type: string, example: "RAC123A" }
                 driver_telephone: { type: string, example: "+250788123456" }
-                driver_name: { type: string, example: "John Doe" }
+                driver_name: { type: string, example: "Uwayo parfait" }
+                driver_email: { type: string, example: "me@example.com"}
+                driver_type: { type: string, example: "Visitor,Staff,Regular" }
+                driver_identification: { type: object, example: { type: "National ID", number: "123456789" } }
+                driver_gender: { type: string, example: "Male" }
       responses:
         '201': { description: Vehicle checked in }
         '400': { description: Missing required fields }
         '409': { description: Vehicle already parked }
 
-  /smartparking/checkout:
+  /smartparking/vehicle/checkout:
     post:
       tags: [PARFAIT - Vehicles]
       summary: "Vehicle Check-Out (Smart Parking)"
@@ -813,7 +856,7 @@ paths:
         '400': { description: Missing required fields }
         '404': { description: Vehicle not found }
 
-  /smartparking/verify:
+  /smartparking/vehicle/verify:
     post:
       tags: [PARFAIT - Vehicles]
       summary: "Verify Vehicle"
@@ -831,16 +874,15 @@ paths:
         '200': { description: Vehicle verified }
         '404': { description: Vehicle not found }
 
-  /smartparking/flagged:
+  /smartparking/vehicle/flagged:
     get:
       tags: [PARFAIT - Vehicles]
-      summary: "List Flagged Cars"
-      operationId: listFlaggedCars
+      summary: "List Active Flagged Cars"
       responses:
         '200': { description: OK }
         '500': { description: Server error }
 
-  /smartparking/search:
+  /smartparking/vehicle/search:
     get:
       tags: [PARFAIT - Vehicles]
       summary: "Search Parking Records"
@@ -849,11 +891,12 @@ paths:
         - $ref: '#/components/parameters/QueryParam'
         - $ref: '#/components/parameters/PageParam'
         - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/StatusParam'
       responses:
         '200': { description: Search results }
         '500': { description: Server error }
 
-  /smartparking/{id}:
+  /smartparking/vehicle/{id}:
     get:
       tags: [PARFAIT - Vehicles]
       summary: "Get Parking Record by ID"
@@ -864,67 +907,102 @@ paths:
         '200': { description: Found }
         '404': { description: Not found }
 
+  /smartparking/vehicle:
+     get:
+      tags: [PARFAIT - Vehicles]
+      summary: "List All Parking Records"
+      operationId: listAllParkingRecords
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/StatusParam'
+      responses:
+        '200': { description: OK }
+        '500': { description: Server error }
+
   # ═══════════════════════════════════════════════════════
   # PARFAIT SYSTEM PERMISSIONS ENDPOINTS
   # ═══════════════════════════════════════════════════════
 
   /permissions:
     get:
-      tags: [PARFAIT - System Permissions]
-      summary: "List All Permissions"
+      tags: [Permissions]
+      summary: "List all permissions"
       operationId: listPermissions
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
       responses:
-        '200': { description: OK }
+        '200': { description: Permissions list returned }
         '500': { description: Server error }
-
-  /permissions/roles:
+  /permissions/resource/{resource}:
     get:
-      tags: [PARFAIT - System Permissions]
-      summary: "List All Roles"
-      operationId: listRoles
+      tags: [Permissions]
+      summary: "Get permissions for a resource"
+      operationId: getResourcePermissions
+      parameters:
+        - name: resource
+          in: path
+          required: true
+          schema: { type: string }
+          example: "employees"
       responses:
-        '200': { description: OK }
+        '200': { description: Resource permissions retrieved }
+        '400': { description: Invalid resource }
+        '404': { description: Resource not found }
         '500': { description: Server error }
 
-  /permissions/assign:
-    post:
-      tags: [PARFAIT - System Permissions]
-      summary: "Assign Permission to Role"
-      operationId: assignPermission
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [role_id, permission_id]
-              properties:
-                role_id: { type: string }
-                permission_id: { type: string }
-      responses:
-        '200': { description: Permission assigned }
-        '400': { description: Missing required fields }
-        '404': { description: Role or permission not found }
 
-  /permissions/revoke:
+  /permissions/user/{id}/assign:
     post:
-      tags: [PARFAIT - System Permissions]
-      summary: "Revoke Permission from Role"
-      operationId: revokePermission
+      tags: [Permissions]
+      summary: "Assign permissions to a user"
+      operationId: assignPermissions
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [role_id, permission_id]
+              required: [resource, actions]
               properties:
-                role_id: { type: string }
-                permission_id: { type: string }
+                resource: { type: string, example: "employees" }
+                actions: { type: array, items: { type: string }, example: ["create:employees", "update:employees"] }
       responses:
-        '200': { description: Permission revoked }
-        '400': { description: Missing required fields }
-        '404': { description: Role or permission not found }
+        '200': { description: Permissions assigned }
+        '400': { description: Invalid input }
+        '404': { description: User not found }
+        '500': { description: Server error }
+
+  /permissions/user/{id}/remove:
+    post:
+      tags: [Permissions]
+      summary: "Remove permissions from a user"
+      operationId: removePermissions
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resource]
+              properties:
+                resource: { type: string, example: "employees" }
+                actions:
+                  type: array
+                  items:
+                    type: string
+                  example: ["create:employees"]
+      responses:
+        '200': { description: Permissions removed }
+        '400': { description: Invalid input }
+        '404': { description: User not found or permission not found }
+        '500': { description: Server error }
+   
 
   # ═══════════════════════════════════════════════════════
   # AMOS FEEDBACK ENDPOINTS
@@ -956,7 +1034,7 @@ paths:
                 success: true
                 message: "Phone verified successfully"
                 data:
-                  visitor_name: "John Doe"
+                  visitor_name: "Uwayo parfait"
                   telephone: "+250788123456"
                   assigned_departments:
                     - department_id: "DEPT-001"
