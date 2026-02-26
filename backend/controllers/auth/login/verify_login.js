@@ -1,26 +1,35 @@
 /**
  * Verify Login Controller
  * Verifies the OTP using tokenUtil.compareToken
- * Accepts either 'otp' (plain OTP) or 'otpToken' (JWT) from user
+ * Uses Bearer token from Authorization header or body parameters
  */
 
 const jwt = require("../../../utilities/jwt");
 const tokenUtil = require("../../../utilities/token");
 const User = require("../../../models/user");
+const department = require("../../../models/department");
 
 async function verifyLogin(req, res, next) {
     try {
-        // Accept either otp or otpToken from user
-        const { userId, otp, otpToken } = req.body;
+
+        let inputOTP;
+      
+        const { userId: userIdFromBody, otp, otpToken } = req.body;
         
-        // Use whichever was provided
-        const inputOTP = otp || otpToken;
+        // Use body params if header not provided
+        if (!inputOTP && (otp || otpToken)) {
+            inputOTP = otp || otpToken;
+        }
+        
+        // Use userId from body
+        const userId =  userIdFromBody;
 
         if (!userId || !inputOTP) {
             return res.status(400).json({
-                status: false,
-                error: 'User ID and OTP are required',
-                message: 'Please provide userId and either otp or otpToken'
+                success: false,
+                type: "warning",
+                message: "User ID and OTP are required",
+                error: "Please provide userId and OTP"
             });
         }
 
@@ -28,31 +37,45 @@ async function verifyLogin(req, res, next) {
         const user = await User.findById(userId);
 
         if (!user) {
-            return res.status(400).json({
-                status: false,
-                error: 'User not found',
-                message: null
+            return res.status(401).json({
+                success: false,
+                type: "warning",
+                message: "User not found",
+                error: "User associated with token no longer exists"
+            });
+        }
+
+      
+
+        // Check if account is activated
+        if (!user.is_account_activated) {
+            return res.status(403).json({
+                success: false,
+                type: "warning",
+                message: "Account not activated",
+                error: "Please activate your account first"
             });
         }
 
         // Check if account is locked
         if (user.access_control?.is_locked) {
             return res.status(403).json({
-                status: false,
-                error: 'Account is locked',
-                message: "Account locked. Please contact administrator."
+                success: false,
+                type: "warning",
+                message: "Account is locked",
+                error: user.access_control?.reason || "Your account has been locked. Please contact administrator."
             });
         }
 
         // Get stored OTP from database
         const storedOTP = user.auth?.access_token?.token;
-        const storedTokenType = user.auth?.access_token?.token_type;
 
         if (!storedOTP) {
             return res.status(400).json({
-                status: false,
-                error: 'No OTP found',
-                message: 'Please request a new OTP'
+                success: false,
+                type: "warning",
+                message: "No OTP found",
+                error: "Please request a new OTP"
             });
         }
 
@@ -69,21 +92,22 @@ async function verifyLogin(req, res, next) {
             });
             
             return res.status(400).json({
-                status: false,
-                error: 'OTP expired',
-                message: 'Please request a new OTP'
+                success: false,
+                type: "warning",
+                message: "OTP expired",
+                error: "Please request a new OTP"
             });
         }
 
         // Use tokenUtil.compareToken to verify OTP
-        // This works for both plain OTP and JWT tokens
         const hashMatch = await tokenUtil.compareToken(inputOTP.toString(), storedOTP);
 
         if (!hashMatch) {
             return res.status(400).json({
-                status: false,
-                error: 'Invalid OTP',
-                message: 'Please check the OTP and try again'
+                success: false,
+                type: "warning",
+                message: "Invalid OTP",
+                error: "Please check the OTP and try again"
             });
         }
 
@@ -96,20 +120,51 @@ async function verifyLogin(req, res, next) {
             }
         });
 
-        // Return verification success - NO login tokens (client should call /login after verification)
+        // Get user role and permissions from database
+        const userRole = user.roles?.role_name || 'user';
+        const userPermissions = user.roles?.permissions || [];
+
+        // Create JWT tokens for client to use in future requests
+        // Using jwt utility functions
+        const payload = {
+            userId: user._id.toString(),
+            email: user.email,
+            fullName: user.full_name,
+            role: userRole,
+            permissions: userPermissions
+        };
+
+        const accessToken = jwt.generateAccessToken(payload);
+        const refreshToken = jwt.generateRefreshToken({ userId: user._id.toString() });
+
+        // Return verification success with tokens
         return res.status(200).json({
-            status: true,
-            error: null,
-            message: 'OTP verified successfully',
+            success: true,
+            type: "success",
+            message: "Login successful",
             data: {
                 verified: true,
                 userId: user._id,
-                email: user.email
+                email: user.email,
+                fullName: user.full_name,
+                role: userRole,
+                telephone: user.telephone,
+                department_name: user.department_name,
+                department_id: user.department_id,
+                permissions: userPermissions,
+                accessToken: accessToken,
+                refreshToken: refreshToken
             }
         });
 
     } catch (error) {
-        next(error);
+        console.error("Verify login error:", error);
+        return res.status(500).json({
+            success: false,
+            type: "error",
+            message: "Verification failed",
+            error: error.message
+        });
     }
 }
 
