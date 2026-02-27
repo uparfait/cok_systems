@@ -13,6 +13,20 @@ const feedbackSchema = new Schema({
     department_name: String,
     department_id: String,
     provider_name: String,
+}, {
+    versionKey: false, // removes __v automatically
+    toJSON: {
+        transform: function (doc, ret) {
+            delete ret.__v; // just in case
+            return ret;
+        }
+    },
+    toObject: {
+        transform: function (doc, ret) {
+            delete ret.__v;
+            return ret;
+        }
+    }
 });
 
 const Feedback = mongoose.model("feedback_db", feedbackSchema);

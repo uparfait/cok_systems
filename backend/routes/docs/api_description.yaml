@@ -70,13 +70,19 @@ components:
       schema: { type: string, default: "" }
       description: "Search keyword (case-insensitive)"
 
+    StatusParam:
+      name: status
+      in: query
+      schema: { type: string, enum: ['active', 'completed'] }
+      description: "Filter by parking record status (active or completed)"
+
 security:
   - BearerAuth: []
 
 paths:
 
   # ═══════════════════════════════════════════════════════
-  # AMOS AUTHENTICATION ENDPOINTS
+  # AMOS - AUTHENTICATION
   # ═══════════════════════════════════════════════════════
 
   /auth/login:
@@ -167,7 +173,7 @@ paths:
         '200': { description: Logged out from all devices }
 
   # ═══════════════════════════════════════════════════════
-  # AMOS FIRST-TIME LOGIN ENDPOINTS
+  # AMOS - FIRST-TIME LOGIN
   # ═══════════════════════════════════════════════════════
 
   /auth/first-login/check:
@@ -251,7 +257,7 @@ paths:
         '403': { description: Account is locked }
 
   # ═══════════════════════════════════════════════════════
-  # AMOS PASSWORD RESET ENDPOINTS
+  # AMOS - PASSWORD RESET
   # ═══════════════════════════════════════════════════════
 
   /auth/password-reset:
@@ -332,7 +338,7 @@ paths:
         '403': { description: Account is locked }
 
   # ═══════════════════════════════════════════════════════
-  # AMOS ACCOUNT LOCK ENDPOINTS
+  # AMOS - ACCOUNT LOCK
   # ═══════════════════════════════════════════════════════
 
   /auth/lock-unlock:
@@ -399,7 +405,203 @@ paths:
         '404': { description: User not found }
 
   # ═══════════════════════════════════════════════════════
-  # PARFAIT DEPARTMENT ENDPOINTS
+  # AMOS - FEEDBACK
+  # ═══════════════════════════════════════════════════════
+
+  /feedback/verify-phone:
+    post:
+      tags: [AMOS - Feedback]
+      summary: "Verify phone and get assigned departments"
+      description: "Verifies if phone number exists in service delivery and returns assigned departments for feedback"
+      operationId: verifyPhone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [telephone]
+              properties:
+                telephone:
+                  type: string
+                  example: "+250788123456"
+      responses:
+        '200':
+          description: Phone verified successfully
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Phone verified successfully"
+                data:
+                  visitor_name: "Uwayo parfait"
+                  telephone: "+250788123456"
+                  assigned_departments:
+                    - department_id: "DEPT-001"
+                      department_name: "Finance"
+                      reached_in: true
+        '404':
+          description: No service record found
+
+  /feedback/submit:
+    post:
+      tags: [AMOS - Feedback]
+      summary: "Submit feedback for a department"
+      description: "Submit rating and feedback for an assigned department"
+      operationId: submitFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [telephone, department_id, rate]
+              properties:
+                telephone:
+                  type: string
+                  example: "+250788123456"
+                department_id:
+                  type: string
+                  example: "DEPT-001"
+                rate:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  example: 8
+                textmessage:
+                  type: string
+                  maxLength: 500
+                  example: "Great service!"
+      responses:
+        '201':
+          description: Feedback submitted successfully
+        '400':
+          description: Validation error
+        '403':
+          description: Not assigned to this department
+        '404':
+          description: No service record found
+
+  /feedback/search:
+    get:
+      tags: [AMOS - Feedback]
+      summary: "Search all feedback with limit"
+      description: "Query all feedback with optional pagination and limit"
+      operationId: searchAllFeedback
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+          example: 50
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          example: 1
+      responses:
+        '200':
+          description: Feedback list
+          content:
+            application/json:
+              example:
+                success: true
+                message: "All feedback results"
+                total: 100
+                page: 1
+                data: []
+
+  /feedback/search-by-department:
+    get:
+      tags: [AMOS - Feedback]
+      summary: "Search feedback by department with date range"
+      description: "Query feedback by department_id with optional from and to date filters"
+      operationId: searchByDepartment
+      parameters:
+        - name: department_id
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "DEPT-001"
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2024-01-01"
+          description: "Start date (YYYY-MM-DD)"
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2024-12-31"
+          description: "End date (YYYY-MM-DD)"
+      responses:
+        '200':
+          description: Feedback search results
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Feedback search results"
+                total: 10
+                data: []
+        '400':
+          description: Invalid parameters
+
+  /feedback/{id}:
+    get:
+      tags: [AMOS - Feedback]
+      summary: "Get feedback by ID"
+      description: "Retrieve a single feedback by MongoDB _id"
+      operationId: getFeedbackById
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200':
+          description: Feedback details
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Feedback details"
+                data: {}
+        '400':
+          description: Invalid ID format
+        '404':
+          description: Feedback not found
+
+    delete:
+      tags: [AMOS - Feedback]
+      summary: "Delete feedback by ID"
+      description: "Delete a feedback record by MongoDB _id"
+      operationId: deleteFeedback
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200':
+          description: Feedback deleted successfully
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Feedback deleted successfully"
+        '400':
+          description: Invalid ID format
+        '404':
+          description: Feedback not found
+
+  # ═══════════════════════════════════════════════════════
+  # PARFAIT - DEPARTMENTS
   # ═══════════════════════════════════════════════════════
 
   /department/crud:
@@ -436,6 +638,20 @@ paths:
         '409': { description: department_id already exists }
         '500': { description: Server error }
 
+  /department/crud/search:
+    get:
+      tags: [PARFAIT - Departments]
+      summary: "Search Departments"
+      operationId: searchDepartments
+      description: "Searches across department_name and department_id fields (case-insensitive)."
+      parameters:
+        - $ref: '#/components/parameters/QueryParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200': { description: Search results returned }
+        '500': { description: Server error }
+
   /department/crud/leader/{email}:
     get:
       tags: [PARFAIT - Departments]
@@ -450,20 +666,6 @@ paths:
       responses:
         '200': { description: OK }
         '404': { description: Not found }
-        '500': { description: Server error }
-
-  /department/crud/search:
-    get:
-      tags: [PARFAIT - Departments]
-      summary: "Search Departments"
-      operationId: searchDepartments
-      description: "Searches across department_name and department_id fields (case-insensitive)."
-      parameters:
-        - $ref: '#/components/parameters/QueryParam'
-        - $ref: '#/components/parameters/PageParam'
-        - $ref: '#/components/parameters/LimitParam'
-      responses:
-        '200': { description: Search results returned }
         '500': { description: Server error }
 
   /department/crud/{department_id}:
@@ -518,7 +720,7 @@ paths:
         '500': { description: Server error }
 
   # ═══════════════════════════════════════════════════════
-  # PARFAIT EMPLOYEE ENDPOINTS
+  # PARFAIT - EMPLOYEES
   # ═══════════════════════════════════════════════════════
 
   /employee/crud:
@@ -548,6 +750,7 @@ paths:
                 full_name: { type: string, example: "Alice Uwimana" }
                 telephone: { type: string, example: "+250788123456" }
                 email: { type: string, example: "alice.uwimana@cok.gov.rw" }
+                identification: { type: object, example: { type: "National ID", number: "123456789" } }
                 gender: { type: string, example: "Female" }
                 title: { type: string, example: "Ms." }
                 department_name: { type: string, example: "Human Resources" }
@@ -625,7 +828,7 @@ paths:
         '500': { description: Server error }
 
   # ═══════════════════════════════════════════════════════
-  # PARFAIT VISITOR ENDPOINTS
+  # PARFAIT - VISITORS
   # ═══════════════════════════════════════════════════════
 
   /servicedelivery/visitor:
@@ -675,12 +878,22 @@ paths:
           application/json:
             schema:
               type: object
-              required: [full_name]
+              required: [full_name, telephone]
               properties:
                 full_name: { type: string, example: "Jean Pierre Habimana" }
                 telephone: { type: string, example: "+250788000111" }
                 email: { type: string, example: "jean@example.com" }
                 gender: { type: string, example: "Male" }
+                identification: { type: object, example: { type: "National ID", number: "123456789" } }
+                vehicle_storage: {
+                  type: object,
+                  example: {
+                    has_vehicle: true,
+                    vehicle_details: {
+                      plate_number: "RAC123A",
+                    }
+                  }
+                }
       responses:
         '201': { description: Visitor checked in successfully }
         '400': { description: full_name is required }
@@ -709,27 +922,6 @@ paths:
         '404': { description: Visitor not found }
         '500': { description: Server error }
 
-  /servicedelivery/visitor/checkout:
-    post:
-      tags: [PARFAIT - Visitors]
-      summary: "Visitor Check-Out"
-      operationId: visitorCheckout
-      description: "Checks out a visitor."
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [visitor_id]
-              properties:
-                visitor_id: { type: string, example: "64f1a2b3c4d5e6f7a8b9c0d1" }
-      responses:
-        '200': { description: Visitor checked out }
-        '400': { description: visitor_id is required }
-        '404': { description: Visitor not found }
-        '500': { description: Server error }
-
   /servicedelivery/visitor/service/status:
     post:
       tags: [PARFAIT - Visitors]
@@ -750,11 +942,47 @@ paths:
         '400': { description: Missing required fields }
         '404': { description: Visitor not found }
 
-  /servicedelivery/visitor/leave:
+  /servicedelivery/visitor/emergency/leave-return:
     post:
       tags: [PARFAIT - Visitors]
-      summary: "Visitor Leave and Return"
-      operationId: toggleLeaveOutSideAndReturn
+      summary: "Toggle Temporary Leave / Return"
+      operationId: toggleTemporaryLeave
+      description: "Marks a visitor as temporarily outside ('leave') or returned ('return'). Tracks duration and optionally logs items taken out."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visitor_id, action]
+              properties:
+                visitor_id: { type: string, example: "64f1a2b3c4d5e6f7a8b9c0d1" }
+                action:
+                  type: string
+                  enum: [leave, return]
+                  example: "leave"
+                items_exited_with:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      item_name: { type: string, example: "Laptop" }
+                      quantity: { type: integer, example: 1 }
+                provider_name: { type: string, example: "Jane Doe" }
+                provider_id: { type: string, example: "64f1a2b3c4d5e6f7a8b9c0d2" }
+                message: { type: string, example: "Visitor went to get documents from car" }
+      responses:
+        '200': { description: Visitor marked as outside or returned }
+        '400': { description: Missing fields, already outside, or no active leave record to close }
+        '404': { description: Visitor not found or not in-house }
+        '500': { description: Server error }
+
+  /servicedelivery/visitor/checkout:
+    post:
+      tags: [PARFAIT - Visitors]
+      summary: "Visitor Check-Out"
+      operationId: visitorCheckout
+      description: "Checks out a visitor. If they have a car still parked, sets status to pending until vehicle exits."
       requestBody:
         required: true
         content:
@@ -763,17 +991,60 @@ paths:
               type: object
               required: [visitor_id]
               properties:
-                visitor_id: { type: string }
+                visitor_id: { type: string, example: "64f1a2b3c4d5e6f7a8b9c0d1" }
+                items_exited_with:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      item_name: { type: string, example: "Laptop" }
+                      quantity: { type: integer, example: 1 }
       responses:
-        '200': { description: Status toggled }
-        '400': { description: Missing required fields }
-        '404': { description: Visitor not found }
+        '200': { description: Visitor checked out or marked pending (car still parked) }
+        '400': { description: visitor_id is required }
+        '404': { description: Visitor not found or already checked out }
+        '500': { description: Server error }
 
   # ═══════════════════════════════════════════════════════
-  # PARFAIT VEHICLE/SMART PARKING ENDPOINTS
+  # PARFAIT - VEHICLES / SMART PARKING
   # ═══════════════════════════════════════════════════════
 
-  /smartparking/checkin:
+  /smartparking/vehicle:
+    get:
+      tags: [PARFAIT - Vehicles]
+      summary: "List All Parking Records"
+      operationId: listAllParkingRecords
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/StatusParam'
+      responses:
+        '200': { description: OK }
+        '500': { description: Server error }
+
+  /smartparking/vehicle/search:
+    get:
+      tags: [PARFAIT - Vehicles]
+      summary: "Search Parking Records"
+      operationId: searchParkingRecords
+      parameters:
+        - $ref: '#/components/parameters/QueryParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/StatusParam'
+      responses:
+        '200': { description: Search results }
+        '500': { description: Server error }
+
+  /smartparking/vehicle/flagged:
+    get:
+      tags: [PARFAIT - Vehicles]
+      summary: "List Active Flagged Cars"
+      responses:
+        '200': { description: OK }
+        '500': { description: Server error }
+
+  /smartparking/vehicle/checkin:
     post:
       tags: [PARFAIT - Vehicles]
       summary: "Vehicle Check-In (Smart Parking)"
@@ -788,13 +1059,17 @@ paths:
               properties:
                 plate_number: { type: string, example: "RAC123A" }
                 driver_telephone: { type: string, example: "+250788123456" }
-                driver_name: { type: string, example: "John Doe" }
+                driver_name: { type: string, example: "Uwayo parfait" }
+                driver_email: { type: string, example: "me@example.com" }
+                driver_type: { type: string, example: "Visitor,Staff,Regular" }
+                driver_identification: { type: object, example: { type: "National ID", number: "123456789" } }
+                driver_gender: { type: string, example: "Male" }
       responses:
         '201': { description: Vehicle checked in }
         '400': { description: Missing required fields }
         '409': { description: Vehicle already parked }
 
-  /smartparking/checkout:
+  /smartparking/vehicle/checkout:
     post:
       tags: [PARFAIT - Vehicles]
       summary: "Vehicle Check-Out (Smart Parking)"
@@ -813,7 +1088,7 @@ paths:
         '400': { description: Missing required fields }
         '404': { description: Vehicle not found }
 
-  /smartparking/verify:
+  /smartparking/vehicle/verify:
     post:
       tags: [PARFAIT - Vehicles]
       summary: "Verify Vehicle"
@@ -831,29 +1106,7 @@ paths:
         '200': { description: Vehicle verified }
         '404': { description: Vehicle not found }
 
-  /smartparking/flagged:
-    get:
-      tags: [PARFAIT - Vehicles]
-      summary: "List Flagged Cars"
-      operationId: listFlaggedCars
-      responses:
-        '200': { description: OK }
-        '500': { description: Server error }
-
-  /smartparking/search:
-    get:
-      tags: [PARFAIT - Vehicles]
-      summary: "Search Parking Records"
-      operationId: searchParkingRecords
-      parameters:
-        - $ref: '#/components/parameters/QueryParam'
-        - $ref: '#/components/parameters/PageParam'
-        - $ref: '#/components/parameters/LimitParam'
-      responses:
-        '200': { description: Search results }
-        '500': { description: Server error }
-
-  /smartparking/{id}:
+  /smartparking/vehicle/{id}:
     get:
       tags: [PARFAIT - Vehicles]
       summary: "Get Parking Record by ID"
@@ -865,258 +1118,84 @@ paths:
         '404': { description: Not found }
 
   # ═══════════════════════════════════════════════════════
-  # PARFAIT SYSTEM PERMISSIONS ENDPOINTS
+  # PARFAIT - SYSTEM PERMISSIONS
   # ═══════════════════════════════════════════════════════
 
   /permissions:
     get:
       tags: [PARFAIT - System Permissions]
-      summary: "List All Permissions"
+      summary: "List all permissions"
       operationId: listPermissions
-      responses:
-        '200': { description: OK }
-        '500': { description: Server error }
-
-  /permissions/roles:
-    get:
-      tags: [PARFAIT - System Permissions]
-      summary: "List All Roles"
-      operationId: listRoles
-      responses:
-        '200': { description: OK }
-        '500': { description: Server error }
-
-  /permissions/assign:
-    post:
-      tags: [PARFAIT - System Permissions]
-      summary: "Assign Permission to Role"
-      operationId: assignPermission
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [role_id, permission_id]
-              properties:
-                role_id: { type: string }
-                permission_id: { type: string }
-      responses:
-        '200': { description: Permission assigned }
-        '400': { description: Missing required fields }
-        '404': { description: Role or permission not found }
-
-  /permissions/revoke:
-    post:
-      tags: [PARFAIT - System Permissions]
-      summary: "Revoke Permission from Role"
-      operationId: revokePermission
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [role_id, permission_id]
-              properties:
-                role_id: { type: string }
-                permission_id: { type: string }
-      responses:
-        '200': { description: Permission revoked }
-        '400': { description: Missing required fields }
-        '404': { description: Role or permission not found }
-
-  # ═══════════════════════════════════════════════════════
-  # AMOS FEEDBACK ENDPOINTS
-  # ═══════════════════════════════════════════════════════
-
-  /feedback/verify-phone:
-    post:
-      tags: [AMOS - Feedback]
-      summary: "Verify phone and get assigned departments"
-      description: "Verifies if phone number exists in service delivery and returns assigned departments for feedback"
-      operationId: verifyPhone
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [telephone]
-              properties:
-                telephone:
-                  type: string
-                  example: "+250788123456"
-      responses:
-        '200':
-          description: Phone verified successfully
-          content:
-            application/json:
-              example:
-                success: true
-                message: "Phone verified successfully"
-                data:
-                  visitor_name: "John Doe"
-                  telephone: "+250788123456"
-                  assigned_departments:
-                    - department_id: "DEPT-001"
-                      department_name: "Finance"
-                      reached_in: true
-        '404':
-          description: No service record found
-
-  /feedback/search-by-department:
-    get:
-      tags: [AMOS - Feedback]
-      summary: "Search feedback by department with date range"
-      description: "Query feedback by department_id with optional from and to date filters"
-      operationId: searchByDepartment
       parameters:
-        - name: department_id
-          in: query
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200': { description: Permissions list returned }
+        '500': { description: Server error }
+
+  /permissions/resource/{resource}:
+    get:
+      tags: [PARFAIT - System Permissions]
+      summary: "Get permissions for a resource"
+      operationId: getResourcePermissions
+      parameters:
+        - name: resource
+          in: path
           required: true
-          schema:
-            type: string
-          example: "DEPT-001"
-        - name: from
-          in: query
-          required: false
-          schema:
-            type: string
-            format: date
-          example: "2024-01-01"
-          description: "Start date (YYYY-MM-DD)"
-        - name: to
-          in: query
-          required: false
-          schema:
-            type: string
-            format: date
-          example: "2024-12-31"
-          description: "End date (YYYY-MM-DD)"
+          schema: { type: string }
+          example: "employees"
       responses:
-        '200':
-          description: Feedback search results
-          content:
-            application/json:
-              example:
-                success: true
-                message: "Feedback search results"
-                total: 10
-                data: []
-        '400':
-          description: Invalid parameters
+        '200': { description: Resource permissions retrieved }
+        '400': { description: Invalid resource }
+        '404': { description: Resource not found }
+        '500': { description: Server error }
 
-  /feedback/search:
-    get:
-      tags: [AMOS - Feedback]
-      summary: "Search all feedback with limit"
-      description: "Query all feedback with optional pagination and limit"
-      operationId: searchAllFeedback
-      parameters:
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-            default: 50
-            maximum: 100
-          example: 50
-        - name: page
-          in: query
-          required: false
-          schema:
-            type: integer
-            default: 1
-          example: 1
-      responses:
-        '200':
-          description: Feedback list
-          content:
-            application/json:
-              example:
-                success: true
-                message: "All feedback results"
-                total: 100
-                page: 1
-                data: []
-
-  /feedback/{id}:
-    get:
-      tags: [AMOS - Feedback]
-      summary: "Get feedback by ID"
-      description: "Retrieve a single feedback by MongoDB _id"
-      operationId: getFeedbackById
-      parameters:
-        - $ref: '#/components/parameters/MongoObjectId'
-      responses:
-        '200':
-          description: Feedback details
-          content:
-            application/json:
-              example:
-                success: true
-                message: "Feedback details"
-                data: {}
-        '400':
-          description: Invalid ID format
-        '404':
-          description: Feedback not found
-
-    delete:
-      tags: [AMOS - Feedback]
-      summary: "Delete feedback by ID"
-      description: "Delete a feedback record by MongoDB _id"
-      operationId: deleteFeedback
-      parameters:
-        - $ref: '#/components/parameters/MongoObjectId'
-      responses:
-        '200':
-          description: Feedback deleted successfully
-          content:
-            application/json:
-              example:
-                success: true
-                message: "Feedback deleted successfully"
-        '400':
-          description: Invalid ID format
-        '404':
-          description: Feedback not found
-  /feedback/submit:
+  /permissions/user/{id}/assign:
     post:
-      tags: [AMOS - Feedback]
-      summary: "Submit feedback for a department"
-      description: "Submit rating and feedback for an assigned department"
-      operationId: submitFeedback
+      tags: [PARFAIT - System Permissions]
+      summary: "Assign permissions to a user"
+      operationId: assignPermissions
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [telephone, department_id, rate]
+              required: [resource, actions]
               properties:
-                telephone:
-                  type: string
-                  example: "+250788123456"
-                department_id:
-                  type: string
-                  example: "DEPT-001"
-                rate:
-                  type: integer
-                  minimum: 1
-                  maximum: 10
-                  example: 8
-                textmessage:
-                  type: string
-                  maxLength: 500
-                  example: "Great service!"
+                resource: { type: string, example: "employees" }
+                actions: { type: array, items: { type: string }, example: ["create:employees", "update:employees"] }
       responses:
-        '201':
-          description: Feedback submitted successfully
-        '400':
-          description: Validation error
-        '403':
-          description: Not assigned to this department
-        '404':
-          description: No service record found
+        '200': { description: Permissions assigned }
+        '400': { description: Invalid input }
+        '404': { description: User not found }
+        '500': { description: Server error }
+
+  /permissions/user/{id}/remove:
+    post:
+      tags: [PARFAIT - System Permissions]
+      summary: "Remove permissions from a user"
+      operationId: removePermissions
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resource]
+              properties:
+                resource: { type: string, example: "employees" }
+                actions:
+                  type: array
+                  items:
+                    type: string
+                  example: ["create:employees"]
+      responses:
+        '200': { description: Permissions removed }
+        '400': { description: Invalid input }
+        '404': { description: User not found or permission not found }
+        '500': { description: Server error }

@@ -29,6 +29,31 @@ module.exports = async function verify_car(req, res, next) {
             "validity.to": { $gte: new Date() } // Ensure reservation hasn't expired
         });
 
+        // check if is flagged
+
+        const is_flagged = await ParkingRecord.findOne({ plate_number, is_flagged: true });
+
+        // also check if it was parked before and provide vistor info
+
+        let driver_name = null
+        let driver_telephone = null
+        let driver_gender = null
+        let driver_identification = null
+
+        let driver_type = null
+        let driver_email = null
+
+        const past_parking = await ParkingRecord.findOne({ plate_number }).sort({ check_in: -1 });
+
+        if (past_parking) {
+            driver_name = past_parking.driver_name || null
+            driver_telephone = past_parking.driver_telephone || null
+            driver_gender = past_parking.driver_gender || null
+            driver_identification = past_parking.driver_identification || null
+            driver_type = past_parking.driver_type || null
+            driver_email = past_parking.driver_email || null
+        }
+
         let vehicle_type = 'Unknown';
         let is_reserved = false;
 
@@ -38,6 +63,8 @@ module.exports = async function verify_car(req, res, next) {
         } else if (emergency_reservation) {
             vehicle_type = 'Visitor';
             is_reserved = true;
+        } else if(driver_telephone) {
+            vehicle_type = 'Regular';
         }
 
         return res.status(200).json({
@@ -49,9 +76,18 @@ module.exports = async function verify_car(req, res, next) {
                 is_currently_parked: !!active_parking,
                 parking_details: active_parking || null,
                 vehicle_category: vehicle_type,
+                is_flagged: !!is_flagged,
                 is_reserved: is_reserved,
                 staff_details: staff_car || null,
-                emergency_reservation_details: emergency_reservation?.visitor_info || null
+                emergency_reservation_details: emergency_reservation?.visitor_info || null,
+                driver_details: {
+                    name: driver_name,
+                    telephone: driver_telephone,
+                    gender: driver_gender,
+                    identification: driver_identification,
+                    type: driver_type,
+                    email: driver_email
+                }
             }
         });
 
