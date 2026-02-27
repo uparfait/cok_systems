@@ -40,6 +40,7 @@ Router.get('/search', searchAllController);
 /**
  * GET /feedback/:id
  * Get feedback by MongoDB _id
+ * NOTE: This must come AFTER /search and /search-by-department
  */
 Router.get('/:id', getByIdController);
 

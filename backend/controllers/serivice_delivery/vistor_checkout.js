@@ -34,12 +34,6 @@ module.exports = async function visitor_checkout(req, res, next) {
         }
 
         if (is_car_still_parked) {
-            // Visitor is pending final checkout until car leaves
-            visitor.notes.push({
-                writter_name: 'System',
-                message: 'Visitor requested checkout, but vehicle is still in parking. Final checkout pending.',
-                timestamp: current_time
-            });
             // We keep is_still_inhouse = true because the car is still here
         } else {
             // Full checkout
