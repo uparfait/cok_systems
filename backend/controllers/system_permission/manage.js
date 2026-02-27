@@ -122,7 +122,7 @@ class PermissionManager {
             return res.status(200).json({
                 success: true,
                 type: "success",
-                message: "Permissions assigned successfully.",
+                message: "Permissions assigned successfully",
                 data: user.roles.permissions
             });
         } catch (error) {
