@@ -203,7 +203,7 @@ async function login(req, res, next) {
     });
 
     // check if user has auth attribute, if not create it and save data accordingly
-    if (!user.auth.access_token) {
+    if (!user.auth.access_token?.token) {
       user.auth.access_token = {
         token_type: "otp_jwt",
         token: otpToken,
