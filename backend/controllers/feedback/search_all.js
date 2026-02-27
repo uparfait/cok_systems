@@ -11,7 +11,7 @@ module.exports = async function searchAll(req, res, next) {
 
         // Parse and validate limit
         const limit_val = Math.min(parseInt(limit) || 50, 100); // Max 100
-        const skip_val = (parseInt(page) || 1 - 1) * limit_val;
+        const skip_val = ((parseInt(page) || 1) - 1) * limit_val;
 
         // Execute query with sorting (newest first)
         const feedback = await Feedback.find({})
