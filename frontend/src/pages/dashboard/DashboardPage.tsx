@@ -18,12 +18,14 @@ const DashboardPage: React.FC = () => {
   const [activeMenu, setActiveMenu] = useState('dashboard');
 
   // Default user for demo - use from auth context
+  // Note: API returns department_name but User interface uses departmentName
   const displayName = user?.fullName || 'Guest User';
   const displayRole = user?.role || 'User';
-  const displayDepartment = user?.departmentName || '';
+  // Check both departmentName (from interface) and department_name (from API response)
+  const displayDepartment = (user as any)?.departmentName || (user as any)?.department_name || '';
   
   // Check if user is admin based on department name (System admin gives full access)
-  const isAdmin = displayDepartment.toLowerCase().includes('system admin') || displayDepartment.toLowerCase().includes('system admin');
+  const isAdmin = displayDepartment.toLowerCase().includes('system admin');
 
   React.useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -954,7 +956,7 @@ const DashboardPage: React.FC = () => {
                   {displayName}
                 </p>
                 <p className="text-xs text-blue-100 truncate">
-                  {displayRole}{displayDepartment ? ` | ${displayDepartment}` : ''}
+                  {displayDepartment || displayRole}
                 </p>
               </div>
               <button 
@@ -1017,7 +1019,7 @@ const DashboardPage: React.FC = () => {
               </div>
               <div className="hidden sm:block">
                 <p className="text-sm font-medium text-gray-900">{displayName}</p>
-                <p className="text-xs text-gray-500">{displayRole}{displayDepartment ? ` | ${displayDepartment}` : ''}</p>
+                <p className="text-xs text-gray-500">{displayDepartment || displayRole}</p>
               </div>
             </div>
           </div>
