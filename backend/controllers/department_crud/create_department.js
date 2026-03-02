@@ -47,13 +47,8 @@ module.exports = async function create_department(req, res, next) {
                 })
             }
 
-            // Map the user's data to the new leader object structure
-            leader_data = {
-                name: leader_user?.full_name,
-                email: leader_user?.email,
-                title: leader_user?.title || "",
-                picture: leader_user?.picture || ""
-            }
+            
+            leader_data = leader_user._id // Store the ObjectId reference to the User document
         }
 
         let registered_by = req.user?.name || "Not specified"
@@ -62,7 +57,7 @@ module.exports = async function create_department(req, res, next) {
         const new_department = new department_model({
             department_name,
             department_id,
-            department_leader: leader_data, // Assign the newly structured object
+            department_leader: leader_data,
             total_employees: leader_user?.full_name ? 1 : 0,
             department_response_time_in_minutes,
             registered_by
@@ -70,12 +65,13 @@ module.exports = async function create_department(req, res, next) {
 
         // Save to database
         const saved_department = await new_department.save()
+        const saved_dpt_data = await department_model.findById(saved_department._id).populate('department_leader', 'full_name email title picture')
 
         return res.status(201).json({
             success: true,
             type: "success",
             message: "Department created successfully",
-            data: saved_department
+            data: saved_dpt_data
         })
 
     } catch (error) {

@@ -14,6 +14,7 @@ const vistor_checkin = require('../../controllers/serivice_delivery/vistor_check
 const vistor_checkout =  require('../../controllers/serivice_delivery/vistor_checkout.js')
 const toggle_service_status = require('../../controllers/serivice_delivery/toggle_service_status.js')
 const toggle_leave_out_side_and_return = require('../../controllers/serivice_delivery/toggle_leave_out_side_and_return.js')
+const update_vistor_data = require('../../controllers/serivice_delivery/update_vistor_data.js')
 const multer = require('multer')
 const upload = multer()
 
@@ -86,6 +87,7 @@ Router.delete('/', (req, res, next) => {
 Router.get('/visitor',list_vistors)
 Router.get('/visitor/search', search_vistor)
 Router.get('/visitor/:id', get_vistor_by_id)
+Router.put('/visitor/:id', update_vistor_data)
 Router.post('/visitor/checkin', vistor_checkin)
 Router.post('/visitor/assign', assign_vistor_to_department)
 Router.post('/visitor/checkout', vistor_checkout)
