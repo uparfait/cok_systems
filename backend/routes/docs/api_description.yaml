@@ -863,7 +863,7 @@ paths:
       responses:
         '200': { description: Search results returned }
         '500': { description: Server error }
-   /servicedelivery/visitor/{id}:
+  /servicedelivery/visitor/{id}:
      get:
        tags: [PARFAIT - Visitors]
        summary: "Get Visitor by MongoDB _id"
