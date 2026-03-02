@@ -35,9 +35,7 @@ module.exports = async function car_check_out(req, res, next) {
 
         const pending_visitor = await ServiceDelivery.findOne({
             "vehicle_storage.has_vehicle": true,
-            "vehicle_storage.vehicle_details.plate_number": plate_number,
-            is_still_inhouse: true,
-            exist_date: { $ne: null, $lte: current_time } // <-- updated condition
+            "vehicle_storage.vehicle_details.plate_number": plate_number
         });
 
 
