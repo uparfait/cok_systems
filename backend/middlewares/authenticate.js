@@ -20,9 +20,10 @@ const authenticate = async (req, res, next) => {
     if (!authHeader) {
       return res.status(401).json({
         success: false,
+        goto_login: true,
         type: "warning",
-        message: "No token provided",
-        error: "Authorization header is required"
+        message: "Your are required to login",
+        error: "Authorization header is required: Login first to get a token"
       });
     }
 
@@ -30,11 +31,13 @@ const authenticate = async (req, res, next) => {
     const token = jwt.extractToken(authHeader);
 
     if (!token) {
-      return res.status(401).json({
+
+        return res.status(401).json({
         success: false,
+        goto_login: true,
         type: "warning",
-        message: "Invalid token format",
-        error: "Use Bearer <token> format"
+        message: "Your are required to login",
+        error: "Authorization Failed: token is malformed. Login first to get a valid token"
       });
     }
 
@@ -45,7 +48,8 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         type: "warning",
-        message: "Token expired or invalid",
+        goto_login: true,
+        message: "Your are required to login",
         error: verification.error
       });
     }
@@ -59,19 +63,10 @@ const authenticate = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({
         success: false,
+        goto_login: true,
         type: "warning",
-        message: "User not found",
+        message: "Sorry we can't find your account yet!",
         error: "User associated with token no longer exists"
-      });
-    }
-
-    // Check if user is active
-    if (!user.is_active) {
-      return res.status(403).json({
-        success: false,
-        type: "warning",
-        message: "Account is inactive",
-        error: "Your account has been deactivated"
       });
     }
 
@@ -79,6 +74,7 @@ const authenticate = async (req, res, next) => {
     if (!user.is_account_activated) {
       return res.status(403).json({
         success: false,
+        goto_login: false,
         type: "warning",
         message: "Account not activated",
         error: "Please activate your account first"
@@ -89,6 +85,7 @@ const authenticate = async (req, res, next) => {
     if (user.access_control?.is_locked) {
       return res.status(403).json({
         success: false,
+        goto_login: false,
         type: "warning",
         message: "Account is locked",
         error: user.access_control?.reason || "Your account has been locked. Please contact administrator."
@@ -111,8 +108,9 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         type: "warning",
-        message: "Token data mismatch",
-        error: "User ID in token does not match database"
+        goto_login: true,
+        message: "I:: Data corrupted!",
+        error: "Some user data may be corrupted!"
       });
     }
 
@@ -121,8 +119,9 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         type: "warning",
-        message: "Token data mismatch",
-        error: "Email in token does not match database"
+        goto_login: true,
+        message: "E:: Data corrupted!",
+        error: "Some user data may be corrupted!"
       });
     }
 
@@ -166,8 +165,11 @@ const authenticate = async (req, res, next) => {
     // Attach fresh user data to request
     req.user = {
       userId: user._id,
+      id: user._id,
       email: user.email,
       fullName: user.full_name,
+      name: user.full_name,
+      full_name: user.full_name,
       role: dbRole,
       permissions: dbPermissions,
       departmentId: user.department_id,
@@ -185,7 +187,7 @@ const authenticate = async (req, res, next) => {
       success: false,
       type: "error",
       message: "Authentication failed",
-      error: error.message
+      error: "Authentication failed"
     });
   }
 };
