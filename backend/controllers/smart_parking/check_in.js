@@ -46,7 +46,7 @@ module.exports = async function car_check_in(req, res, next) {
         const staff_car = await StaffCar.findOne({ plate_number, is_active: true })
         
         
-        if(!driver_telephone && !driver_name && staff_car) {
+        if((!driver_telephone && !driver_name && staff_car) || staff_car) {
             driver_name = staff_car.driver_name
             driver_telephone = staff_car.telephone
             driver_type = "Staff"

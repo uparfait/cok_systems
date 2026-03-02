@@ -2,6 +2,7 @@ const crypto = require('crypto')
 const user_model = require('../../models/user.js')
 const allowed_resources = require('../../resources/resources.js')
 const department_model = require('../../models/department.js')
+const mongoose = require('mongoose')
 
 module.exports = async function create_user(req, res, next) {
     try {
@@ -12,31 +13,37 @@ module.exports = async function create_user(req, res, next) {
             gender = null,
             title = null,
             email = null,
-            department_name = 'Not specified',
-            department_id = 'Not specified',
+            department_id = null,
             roles = {}
         } = req.body || {}
+
+        let dpt = null
 
         // Validate essential required fields
         if (!full_name || !email || !telephone) {
             return res.status(400).json({
                 success: false,
                 type: "warning",
-                message: "Full name, telephone and email are required fields."
+                message: "Full name, telephone and email are required"
             })
         }
 
-        // if department_name and id are available, chek if they are available in database
+        // if department_id is available andn is of mongodb valid id
 
-        if(department_name && department_id && department_name !== 'Not specified' && department_id !== 'Not specified') {
-            const dept = await department_model.findOne({ department_id: department_id.toString().toUpperCase(), department_name: department_name.trim() })
-            if (!dept) {
-                return res.status(404).json({
-                    success: false,
-                    type: "warning",
-                    message: `Department with ID ${department_id} and name ${department_name} does not exist.`
-                })
-            }
+        if (department_id && department_id !== 'Not specified') { 
+            if(mongoose.Types.ObjectId.isValid(department_id)) {
+                const dept = await department_model.findById(department_id)
+
+                if (!dept) {
+                    return res.status(404).json({
+                        success: false,
+                        type: "warning",
+                        message: `This department not found! create it or use another department.`
+                    })
+                }
+
+                dpt = dept
+         }
         }
 
         // Uniqueness check
@@ -108,8 +115,7 @@ module.exports = async function create_user(req, res, next) {
             gender: gender || 'Not specified',
             title: title || 'Not specified',
             email,
-            department_name,
-            department_id,
+            department: dpt ? dpt._id : null,
             password: generated_password,
             access_control: {
                 is_locked: false,
@@ -155,4 +161,5 @@ module.exports = async function create_user(req, res, next) {
             error: error.message
         })
     }
+
 }
