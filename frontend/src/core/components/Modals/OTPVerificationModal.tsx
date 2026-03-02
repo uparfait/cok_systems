@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { getDashboardRoute } from '../../utils/departmentUtils';
 
 interface OTPVerificationModalProps {
   isOpen: boolean;
@@ -167,8 +168,23 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
         
         // Close modal and redirect
         onClose();
-        // Use navigate for client-side routing - the auth state is now set
-        navigate('/dashboard', { replace: true });
+        // Get user from localStorage to check role and department
+        const storedUser = localStorage.getItem('userData');
+        let userRole = '';
+        let userDepartment = '';
+        if (storedUser) {
+          try {
+            const userData = JSON.parse(storedUser);
+            // Handle both role and department_name
+            userRole = userData.role || '';
+            userDepartment = userData.department_name || userData.departmentName || userData.department || '';
+          } catch (e) {
+            console.error('[OTPVerificationModal] Failed to parse user data:', e);
+          }
+        }
+        // Redirect based on role (async to get route)
+        const redirectPath = await getDashboardRoute(userRole, userDepartment);
+        navigate(redirectPath, { replace: true });
       } else {
         setError(result.error || 'Invalid OTP');
       }
