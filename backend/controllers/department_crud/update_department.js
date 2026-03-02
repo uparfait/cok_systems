@@ -44,23 +44,18 @@ module.exports = async function update_department(req, res, next) {
                 })
             }
 
-            department.department_leader = {
-                name: leader_user.full_name,
-                email: leader_user.email,
-                title: leader_user.title || "",
-                picture: leader_user.picture || ""
-            }
+            department.department_leader = leader_user._id 
         }
         department.department_response_time_in_minutes = department_response_time_in_minutes
-        department.registered_by = req.user?.name || "Not specified"
 
         const saved_department = await department.save()
+        const saved_dpt_data = await department_model.findById(saved_department._id).populate('department_leader', 'full_name email title picture')
 
         return res.status(200).json({
             success: true,
             type: "success",
             message: "Department updated",
-            data: saved_department
+            data: saved_dpt_data
         })
 
     } catch (error) {

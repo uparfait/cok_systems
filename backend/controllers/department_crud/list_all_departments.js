@@ -6,13 +6,13 @@ module.exports = async function list_all_departments(req, res, next) {
 
         limit = Math.min(limit, 50)
 
-        const limit_val = parseInt(limit);
+        const limit_val = parseInt(limit)
         const skip_val = (parseInt(page) - 1) * limit_val
 
         const departments = await department_model.find()
             .limit(limit_val)
             .skip(skip_val)
-            .sort({ created_date: -1 });
+            .sort({ created_date: -1 }).populate('department_leader', 'full_name email title picture')
 
         const total_count = await department_model.countDocuments()
 

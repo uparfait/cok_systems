@@ -745,7 +745,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [full_name]
+              required: [full_name, email, telephone]
               properties:
                 full_name: { type: string, example: "Alice Uwimana" }
                 telephone: { type: string, example: "+250788123456" }
@@ -753,8 +753,7 @@ paths:
                 identification: { type: object, example: { type: "National ID", number: "123456789" } }
                 gender: { type: string, example: "Female" }
                 title: { type: string, example: "Ms." }
-                department_name: { type: string, example: "Human Resources" }
-                department_id: { type: string, example: "DEPT-001" }
+                department_id: { type: string, example: "669efcbb56d78e89c7a" }
       responses:
         '201': { description: Created }
         '400': { description: Missing required fields }
@@ -805,8 +804,7 @@ paths:
                 email: { type: string, example: "alice.uwimana@cok.gov.rw" }
                 gender: { type: string, example: "Female" }
                 title: { type: string, example: "Ms." }
-                department_name: { type: string, example: "Human Resources" }
-                department_id: { type: string, example: "DEPT-001" }
+                department_id: { type: string, example: "669efcbb56d78e89c7a" }
       responses:
         '200': { description: Updated }
         '400': { description: Invalid ObjectId }
