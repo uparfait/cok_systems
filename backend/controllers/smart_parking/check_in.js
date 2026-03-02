@@ -46,7 +46,7 @@ module.exports = async function car_check_in(req, res, next) {
         const staff_car = await StaffCar.findOne({ plate_number, is_active: true })
         
         
-        if(!driver_telephone && !driver_name && staff_car) {
+        if((!driver_telephone && !driver_name && staff_car) || staff_car) {
             driver_name = staff_car.driver_name
             driver_telephone = staff_car.telephone
             driver_type = "Staff"
@@ -119,10 +119,30 @@ module.exports = async function car_check_in(req, res, next) {
 
         await ParkingRecord.updateMany({ plate_number, is_flagged: true }, { is_flagged: false })
 
+        // if driver_type is Regular save this one toa service deliver also
+
+        if (driver_type.toLowerCase() === 'regular' && driver_name) {
+            const service_delivery = new ServiceDelivery({
+                full_name: driver_name,
+                telephone: driver_telephone,
+                gender: driver_gender,
+                email: driver_email,
+                identification: driver_identification,
+                vehicle_storage: {
+                    has_vehicle: true,
+                    vehicle_details: {
+                        plate_number,
+                        slot_number
+                    }
+                }
+            })
+            await service_delivery.save()
+        }
+
         return res.status(201).json({
             success: true,
             type: "success",
-            message: "Vehicle checked in successfully",
+            message: "Data saved successfully",
             data: {
                 plate_number,
                 driver_name,

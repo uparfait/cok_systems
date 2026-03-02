@@ -12,7 +12,7 @@ module.exports = async function get_employees(req, res, next) {
             .select('-password -auth') 
             .limit(limit_val)
             .skip(skip_val)
-            .sort({ created_date: -1 })
+            .sort({ created_date: -1 }).populate('department', 'department_name department_id')
 
         const total_count = await user_model.countDocuments()
 

@@ -22,7 +22,6 @@ module.exports = async function update_user(req, res, next) {
             gender,
             title,
             email,
-            department_name,
             department_id,
             access_control,
             roles
@@ -57,32 +56,49 @@ module.exports = async function update_user(req, res, next) {
         /**
          * Handle department change: decrement old department, increment new department
          */
-        let oldDeptId = user.department_id
+        let oldDeptId = user.department
         let newDeptId = department_id
 
         if (newDeptId && newDeptId !== 'Not specified' && newDeptId !== oldDeptId) {
-            const newDept = await department_model.findOne({ department_id: newDeptId.toString().toUpperCase(), department_name: department_name || null })
+            if (!mongoose.Types.ObjectId.isValid(newDeptId)) {
+                return res.status(400).json({
+                    success: false,
+                    type: "warning",
+                    message: "Invalid department ID format."
+                })
+            }
+
+            const newDept = await department_model.findById(newDeptId)
             if (!newDept) {
                 return res.status(400).json({
                     success: false,
                     type: "warning",
-                    message: "Incorrect department and or id"
+                    message: "Department not found."
                 })
             }
 
             // Decrement old department employee count
             if (oldDeptId && oldDeptId !== 'Not specified') {
-                const oldDept = await department_model.findOne({ department_id: oldDeptId.toString().toUpperCase() })
+                const oldDept = await department_model.findById(oldDeptId)
                 if (oldDept) {
-                    oldDept.total_employees = Math.max(0, oldDept.total_employees - 1)
+                    oldDept.number_of_employees = Math.max(0, oldDept.number_of_employees - 1)
                     await oldDept.save()
                 }
             }
 
             // Increment new department employee count
-            newDept.total_employees = (newDept.total_employees || 0) + 1
+            newDept.number_of_employees = (newDept.number_of_employees || 0) + 1
             await newDept.save()
+        } else if (newDeptId === 'Not specified' && user.department && user.department !== 'Not specified') {
+            // If changing to 'Not specified', decrement old department count
+            const oldDept = await department_model.findById(user.department)
+            if (oldDept) {
+                oldDept.number_of_employees = Math.max(0, oldDept.number_of_employees - 1)
+                await oldDept.save()
+            }
         }
+
+    
 
         // Apply updates safely
         if (full_name !== undefined) user.full_name = full_name
@@ -90,8 +106,7 @@ module.exports = async function update_user(req, res, next) {
         if (gender !== undefined) user.gender = gender
         if (title !== undefined) user.title = title
         if (email !== undefined) user.email = email
-        if (department_name !== undefined) user.department_name = department_name
-        if (department_id !== undefined) user.department_id = department_id
+        if (department_id) user.department = department_id
 
         if (identification) {
             if (identification.id_type !== undefined) user.identification.id_type = identification.id_type

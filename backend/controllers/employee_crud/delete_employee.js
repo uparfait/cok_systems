@@ -24,8 +24,7 @@ module.exports = async function delete_employee(req, res, next) {
             })
         }
 
-        // check if user have a department and decrement employee in that department
-
+      
             const user = await user_model.findById(id)
             if (!user) {
                 return res.status(404).json({
@@ -35,10 +34,26 @@ module.exports = async function delete_employee(req, res, next) {
                 })
             }
 
-            if(user.department_id && user.department_id !== 'Not specified') {
-                const dept = await department_model.findOne({ department_id: user.department_id })
-                if (dept) {
-                    dept.total_employees = Math.max(dept.total_employees - 1, 0)
+        // prevent from deleting department leader account if they are assigned as leader to any department, they need to be removed as leader first before deleting their account
+
+        const leading_departments = await department_model.find({ department_leader: id })
+
+        if (leading_departments && leading_departments.length > 0) {
+            const dept_names = leading_departments.map(d => d.department_name).join(', ')
+            return res.status(400).json({
+                success: false, 
+                type: "warning",
+                message: `Cannot delete a Employee because he/she is department leader in: ${dept_names}`
+            })
+        }
+
+          // check if user have a department and decrement employee in that department
+
+
+            if(user.department && user.department !== 'Not specified') {
+                const dept = await department_model.findById(user.department)
+                if(dept) {
+                    dept.number_of_employees = Math.max(0, (dept.number_of_employees || 1) - 1)
                     await dept.save()
                 }
             }
