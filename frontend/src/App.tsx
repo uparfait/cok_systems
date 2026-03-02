@@ -5,8 +5,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import LoginPage from './pages/auth/LoginPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
-import DashboardPage from './pages/dashboard/DashboardPage';
+import { DepartmentsPage, EmployeesPage } from './pages/Admin';
+import AdminDashboard from './pages/Admin/AdminDashboard';
+import SmartParkingDashboard from './pages/smart_parking/SmartParkingDashboard';
+import ServiceDeliveryDashboard from './pages/service_delivery/ServiceDeliveryDashboard';
 import ProtectedRoute from './core/components/ProtectedRoute';
+import Layout from './core/components/Layout';
 import { AuthProvider } from './core/contexts/AuthContext';
 import { SocketProvider } from './core/contexts/SocketContext';
 
@@ -21,17 +25,67 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             
-            {/* Protected Routes */}
+            {/* Protected Routes - Wrapped with Layout (Sidebar + Header) */}
+            
+            {/* ==================== ADMIN ROUTES ==================== */}
             <Route
-              path="/dashboard"
+              path="/admin/dashboard"
               element={
                 <ProtectedRoute>
-                  <DashboardPage />
+                  <Layout>
+                    <AdminDashboard />
+                  </Layout>
                 </ProtectedRoute>
               }
             />
             
-            {/* Default redirect */}
+            <Route
+              path="/admin/departments"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <DepartmentsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/admin/employees"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <EmployeesPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* ==================== SMART PARKING ROUTES ==================== */}
+            <Route
+              path="/smart_parking/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <SmartParkingDashboard />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* ==================== SERVICE DELIVERY ROUTES ==================== */}
+            <Route
+              path="/service_delivery/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ServiceDeliveryDashboard />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Default redirect - Go to login */}
             <Route path="/" element={<Navigate to="/login" replace />} />
             
             {/* 404 */}
