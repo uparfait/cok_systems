@@ -2,7 +2,7 @@ const ParkingRecord = require('../../models/parking_record.js')
 
 module.exports = async function search_parking_records(req, res, next) {
     try {
-        let { query = '', limit = 10, page = 1 } = req.query || {}
+        let { query = '', limit = 10, page = 1, status = 'active' } = req.query || {}
 
         const limit_val = Math.min(parseInt(limit), 50)
         const skip_val = (parseInt(page) - 1) * limit_val
@@ -11,11 +11,23 @@ module.exports = async function search_parking_records(req, res, next) {
         const safe_query = query?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
         const regex = new RegExp(safe_query || '', 'i') // 'i' makes it case-insensitive
 
+        const plate_regex = new RegExp(safe_query?.replace(/\s+/g, '') || '', 'i');
+
+        // use and to search with appropriate status
         const search_criteria = {
-            $or: [
-                { plate_number: query?.toString().toUpperCase().replace(/\s+/g, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') },
-                { driver_name: regex },
-                { 'driver_identification.number': regex }
+
+            $and: [
+                {
+                    $or: [
+                        { plate_number: plate_regex },
+                        { driver_name: regex },
+                        { 'driver_identification.number': regex },
+                        { driver_telephone: regex },
+                        { driver_email: regex },
+                        { badge_number: regex }
+                    ]
+                },
+                { status: status }
             ]
         }
 

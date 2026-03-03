@@ -66,12 +66,26 @@ export const clearAuthData = () => {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_DATA_KEY);
+  // Also clear any session flags
+  localStorage.removeItem('isAuthenticated');
+  localStorage.removeItem('pendingUserId');
+  localStorage.removeItem('pendingEmail');
 };
 
 /**
  * Check if user is authenticated
+ * Also checks localStorage for authenticated user data when no token exists
  */
-export const isAuthenticated = () => !!getAccessToken();
+export const isAuthenticated = () => {
+  const token = getAccessToken();
+  if (token) return true;
+  
+  // Check for authenticated user data stored after OTP verification
+  const userData = localStorage.getItem('userData');
+  const isAuth = localStorage.getItem('isAuthenticated');
+  
+  return !!(userData && isAuth === 'true');
+};
 
 /**
  * Redirect to login page
@@ -100,9 +114,10 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const isLoginRequest = originalRequest?.url?.includes('/auth/login');
 
-    // If 401 and haven't tried to refresh yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // If 401 and haven't tried to refresh yet, and it's NOT a login request
+    if (error.response?.status === 401 && !originalRequest._retry && !isLoginRequest) {
       originalRequest._retry = true;
 
       try {
@@ -130,8 +145,8 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // For other errors, check if it's an auth error
-    if (error.response?.status === 401) {
+    // For other errors on non-login requests, check if it's an auth error
+    if (error.response?.status === 401 && !isLoginRequest) {
       redirectToLogin();
     }
 

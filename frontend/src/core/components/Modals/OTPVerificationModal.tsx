@@ -1,7 +1,7 @@
 // OTPVerificationModal - OTP verification modal for existing users
 // Uses auth context for OTP verification
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -18,7 +18,7 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
   email: initialEmail = '', 
   userId: initialUserId = '' 
 }) => {
-  const { verifyOTP, resendOTP } = useAuth();
+  const { verifyOTP, resendOTP, checkAuth } = useAuth();
   const [email, setEmail] = useState(initialEmail);
   const [otp, setOtp] = useState(['', '', '', '', '']); // 5 digits
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
@@ -27,24 +27,32 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   
+  // Use a ref to store the userId - this ensures we always have access to the latest value
+  const userIdRef = useRef(initialUserId);
+  // Keep state for rendering
   const [currentUserId, setCurrentUserId] = useState(initialUserId);
   
   const navigate = useNavigate();
 
   // Background images
-  const cityHallImage = '/src/assets/cok_hall.jpg';
-  const logoImage = '/src/assets/LOGO_COK.jpg';
+  const cityHallImage = '/cok_hall.jpg';
+  const logoImage = '/LOGO_COK.jpg';
+
+  // Update refs when props change
+  useEffect(() => {
+    userIdRef.current = initialUserId;
+    setCurrentUserId(initialUserId);
+    setEmail(initialEmail);
+  }, [initialUserId, initialEmail]);
 
   useEffect(() => {
     if (!isOpen) {
-      // Reset state when modal closes
       setTimeout(() => {
         setEmail(initialEmail);
         setOtp(['', '', '', '', '']);
         setTimeLeft(300);
         setError('');
         setIsSuccess(false);
-        setCurrentUserId(initialUserId);
       }, 300);
     }
   }, [isOpen]);
@@ -99,8 +107,17 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
     setOtp(newOtp);
   };
 
-  const handleVerify = async () => {
+  const handleVerify = useCallback(async () => {
     const otpString = otp.join('');
+    
+    // Get userId from ref
+    const uid = userIdRef.current || currentUserId || initialUserId;
+    
+    if (!uid) {
+      setError('User ID is missing. Please try logging in again.');
+      return;
+    }
+    
     if (otpString.length !== 5) {
       setError('Please enter all 5 digits');
       return;
@@ -110,38 +127,80 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
     setError('');
 
     try {
-      const result = await verifyOTP(currentUserId, otpString);
+      const result = await verifyOTP(String(uid), String(otpString));
       
-      if (result.status && result.data?.tokens) {
+      console.log('[OTPVerificationModal] verifyOTP result:', JSON.stringify(result, null, 2));
+      
+      // Check for success - support both 'status' and 'success' response formats
+      // The API returns accessToken directly in response.data
+      const hasAccessToken = !!result.data?.accessToken;
+      const isVerified = (result.status === true || result.success === true) && (hasAccessToken || result.data?.verified === true);
+      
+      console.log('[OTPVerificationModal] isVerified:', isVerified, 'result.status:', result.status, 'has accessToken:', hasAccessToken);
+      
+      if (isVerified) {
         setIsSuccess(true);
-        // After success, redirect to dashboard
-        setTimeout(() => {
-          onClose();
-          navigate('/dashboard');
-        }, 1500);
+        
+        // Store the tokens directly if provided in the response
+        if (hasAccessToken && result.data) {
+          const { accessToken, refreshToken, user, ...userInfo } = result.data;
+          
+          // Store tokens in localStorage
+          if (accessToken) {
+            localStorage.setItem('accessToken', accessToken);
+          }
+          if (refreshToken) {
+            localStorage.setItem('refreshToken', refreshToken);
+          }
+          if (user) {
+            localStorage.setItem('userData', JSON.stringify(user));
+          } else {
+            // Store user info if user object is not separate
+            localStorage.setItem('userData', JSON.stringify(userInfo));
+          }
+          
+          console.log('[OTPVerificationModal] Tokens stored successfully');
+        }
+        
+        // Small delay to allow state to update
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Close modal and redirect
+        onClose();
+        // Use navigate for client-side routing - the auth state is now set
+        navigate('/dashboard', { replace: true });
       } else {
         setError(result.error || 'Invalid OTP');
       }
     } catch (err: any) {
+      console.error('[OTPVerificationModal] verifyOTP error:', err);
       setError(err?.error || err?.message || 'Failed to verify OTP');
+    
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [otp, verifyOTP, onClose, currentUserId, initialUserId, checkAuth, navigate]);
 
-  const handleResend = async () => {
+  const handleResend = useCallback(async () => {
+    const uid = userIdRef.current || currentUserId || initialUserId;
+    
+    if (!uid) {
+      setError('User ID is missing. Please try again.');
+      return;
+    }
+    
     setIsResending(true);
     setError('');
 
     try {
-      await resendOTP(currentUserId, email);
-      setTimeLeft(300); // Reset to 5 minutes
+      await resendOTP(uid, email);
+      setTimeLeft(300);
     } catch (err: any) {
       setError(err?.error || 'Failed to resend OTP');
     } finally {
       setIsResending(false);
     }
-  };
+  }, [resendOTP, email, currentUserId, initialUserId]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -149,7 +208,6 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Mask email for display
   const maskEmail = (emailStr: string) => {
     if (!emailStr) return '';
     const [localPart, domain] = emailStr.split('@');
@@ -166,17 +224,17 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Background with City Hall image and dark overlay */}
+      {/* Background with City Hall image and gradient overlay */}
       <div 
         className="fixed inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url(${cityHallImage})` }}
       >
-        <div className="absolute inset-0 bg-black/70" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
       </div>
 
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 transform transition-all">
+      <div className="flex min-h-full items-center justify-center p-3 sm:p-4">
+        <div className="relative bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl max-w-sm w-full p-5 sm:p-6 transform transition-all">
           {/* Success State */}
           {isSuccess ? (
             <div className="text-center py-8">
@@ -227,7 +285,7 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
                 <span className="font-semibold text-gray-700">{maskEmail(email)}</span>
               </p>
 
-              {/* OTP Input Fields - Individual boxes styled */}
+              {/* OTP Input Fields */}
               <div className="flex justify-center gap-2 mb-4" onPaste={handlePaste}>
                 {otp.map((digit, index) => (
                   <input
@@ -246,7 +304,7 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
                 ))}
               </div>
 
-              {/* Timer display with bullet */}
+              {/* Timer display */}
               <p className="text-center text-sm text-gray-500 mb-4">
                 • OTP expires in {formatTime(timeLeft)}
               </p>
@@ -259,7 +317,7 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
               {/* Verify button */}
               <button
                 onClick={handleVerify}
-                disabled={otp.join('').length !== 5 || isLoading}
+                disabled={otp.join('').length !== 5 || isLoading || !currentUserId}
                 className="w-full py-3 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed mb-4"
               >
                 {isLoading ? 'Verifying...' : 'Verify Your OTP'}
@@ -270,14 +328,14 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
                 <span className="text-gray-600">Didn't receive the code? </span>
                 <button
                   onClick={handleResend}
-                  disabled={timeLeft > 0 || isResending}
+                  disabled={timeLeft > 0 || isResending || !currentUserId}
                   className="text-blue-600 hover:text-blue-700 font-semibold transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isResending ? 'Resending...' : timeLeft > 0 ? `Resend OTP (${formatTime(timeLeft)})` : 'Resend OTP'}
                 </button>
               </div>
 
-              {/* Secure portal footer - left aligned */}
+              {/* Secure portal footer */}
               <p className="text-left text-xs text-gray-400 mt-8">
                 © SECURE OFFICIAL CITY OF KIGALI PORTAL
               </p>

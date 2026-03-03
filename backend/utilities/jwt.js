@@ -57,6 +57,7 @@ const verifyAccessToken = (token) => {
             valid: true,
             decoded: jwt.verify(token, JWT_SECRET)
         };
+        
     } catch (error) {
         return {
             valid: false,

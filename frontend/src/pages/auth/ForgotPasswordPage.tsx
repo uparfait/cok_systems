@@ -1,17 +1,21 @@
-// ForgotPasswordPage - Password recovery page
-// Page for requesting password reset with real API integration
-
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../core/contexts/AuthContext';
+import PasswordResetOTPModal from '../../core/components/Modals/PasswordResetOTPModal';
 
-const ForgotPasswordPage = () => {
+interface ForgotPasswordPageProps {
+  onVerified?: (userId: string, tempToken?: string) => void;
+}
+
+const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) => {
   const { requestPasswordReset } = useAuth();
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [userId, setUserId] = useState('');
+  const [showOTPModal, setShowOTPModal] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,20 +25,43 @@ const ForgotPasswordPage = () => {
     try {
       const result = await requestPasswordReset(email);
       
-      if (result.status) {
+      // Check if status is true AND there's no error message
+      if (result.status && !result.error) {
         // Store userId for next step
         if (result.data?.userId) {
           setUserId(result.data.userId);
           sessionStorage.setItem('resetUserId', result.data.userId);
+          sessionStorage.setItem('resetEmail', email);
         }
-        setIsSubmitted(true);
+        // Show OTP modal directly after successful email submission
+        setShowOTPModal(true);
       } else {
-        setError(result.error || 'Failed to send reset code');
+        // Handle both cases: status false or status true with error message
+        setError(result.message || result.error || 'Failed to send reset code');
       }
     } catch (err: any) {
       setError(err?.error || err?.message || 'An error occurred');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Handle OTP verification success
+  const handleOTPSuccess = (verifiedUserId: string, tempToken: string) => {
+    console.log(tempToken);
+    setShowOTPModal(false);
+    // Navigate to reset password page with userId
+    navigate(`/reset-password?userId=${verifiedUserId}`);
+  };
+
+  // Handle continue to OTP verification
+  const handleContinue = () => {
+    // If onVerified callback is provided, call it
+    if (onVerified) {
+      onVerified(userId);
+    } else {
+      // Default behavior - navigate to reset password page
+      navigate(`/reset-password?userId=${userId}`);
     }
   };
 
@@ -57,50 +84,60 @@ const ForgotPasswordPage = () => {
       <div className="hidden lg:flex lg:w-1/2 relative">
         <div 
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: 'url(/src/assets/cok_hall.jpg)' }}
+          style={{ backgroundImage: 'url(/cok_hall.jpg)' }}
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-blue-900/50 to-black/80"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
         </div>
         
-        <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">KSESM</h1>
+        <div className="relative z-10 flex flex-col justify-end p-7 lg:p-10 text-white w-full h-full">
+          {/* COK OFFICIAL PORTAL pill */}
+          <div className="inline-flex items-center px-3 py-1.5 mb-3 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 text-xs font-semibold tracking-wide uppercase w-max cok-badge-animated">
+            <span className="mr-1.5 inline-flex h-3 w-3 items-center justify-center rounded-full border border-white/60">
+              <span className="h-1.5 w-1.5 rounded-full bg-white" />
+            </span>
+            <span className="font-bold">COK Official Portal</span>
           </div>
-          
-          <div className="space-y-2">
-            <p className="text-xl text-gray-200">Need Help?</p>
-            <p className="text-sm text-gray-300 max-w-md">
-              Contact support at support@kigali.rw or visit the IT department
+
+          {/* Main heading and description */}
+          <div className="space-y-2 max-w-xl">
+            <h1 className="poetsen-one-regular text-2xl md:text-3xl lg:text-4xl tracking-tight leading-snug">
+              Smart Entry & <br/> Service Management
+            </h1>
+            <p className="public-sans-regular text-xs md:text-sm text-[#EFF6FF] font-semibold">
+              Serving the City of Kigali with efficiency and security.
             </p>
-          </div>
-          
-          <div className="flex items-center text-sm text-gray-400">
-            <span>© 2026 City of Kigali</span>
+            <p className="public-sans-regular text-xs text-[#EFF6FF] font-semibold max-w-md">
+              Access the KSESM portal to manage administrative tasks and secure entry logs.
+            </p>
           </div>
         </div>
       </div>
 
       {/* Right side - Forgot Password form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
-        <div className="max-w-md w-full">
+      <div className="w-full md:w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-6 lg:py-8 bg-white">
+        <div className="w-full max-w-lg px-2 sm:px-4">
           {/* Back button */}
-          <Link to="/login" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-8 transition-colors">
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <Link to="/login" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6 sm:mb-8 transition-colors">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             Back
           </Link>
 
-          {/* City of Kigali text */}
-          <div className="mb-6">
-            <p className="text-sm text-gray-500 uppercase tracking-wider">CITY OF KIGALI</p>
+          {/* City of Kigali Logo */}
+          <div className="mb-6 ml-4  flex justify-center">
+            <img
+              src="/LOGO_COK.jpg"
+              alt="City of Kigali"
+              className="h-30 w-auto"
+            />
           </div>
 
           {!isSubmitted ? (
             <>
               {/* Forgot Password Header */}
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Forgot Password?</h2>
-              <p className="text-gray-600 mb-8">
+              <h2 className="text-xl lg:text-2xl font-bold text-gray-900 mb-2">Forgot Password?</h2>
+              <p className="text-sm text-gray-600 mb-6">
                 Don't worry, it happens. Enter your<br />
                 registered email to receive a recovery link.
               </p>
@@ -114,7 +151,7 @@ const ForgotPasswordPage = () => {
                 )}
                 
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="email" className="block text-xs lg:text-sm font-medium text-gray-700 mb-1">
                     Email Address
                   </label>
                   <input
@@ -122,7 +159,7 @@ const ForgotPasswordPage = () => {
                     name="email"
                     type="email"
                     required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     placeholder="evode@cok.gov.rw"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -132,7 +169,7 @@ const ForgotPasswordPage = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="w-full py-2.5 lg:py-3 px-3 lg:px-4 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {isLoading ? (
                     <span className="flex items-center justify-center">
@@ -170,13 +207,12 @@ const ForgotPasswordPage = () => {
                 </p>
                 <p className="text-blue-600 font-medium mb-6">{maskEmail(email)}</p>
                 
-                {/* Continue to OTP verification */}
-                <Link
-                  to={`/reset-password?userId=${userId}`}
+                <button
+                  onClick={handleContinue}
                   className="inline-block w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors mb-4"
                 >
                   Continue to Verify Code
-                </Link>
+                </button>
                 
                 <button
                   onClick={() => setIsSubmitted(false)}
@@ -194,6 +230,16 @@ const ForgotPasswordPage = () => {
           </p>
         </div>
       </div>
+
+      {/* Password Reset OTP Modal */}
+      {showOTPModal && (
+        <PasswordResetOTPModal
+          isOpen={showOTPModal}
+          onClose={() => setShowOTPModal(false)}
+          email={email}
+          onVerified={handleOTPSuccess}
+        />
+      )}
     </div>
   );
 };

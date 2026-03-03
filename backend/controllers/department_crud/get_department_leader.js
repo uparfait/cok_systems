@@ -1,4 +1,5 @@
 const department_model = require('../../models/department.js')
+const user_model = require('../../models/user.js')
 
 module.exports = async function get_departments_by_leader(req, res, next) {
     try {
@@ -12,8 +13,23 @@ module.exports = async function get_departments_by_leader(req, res, next) {
             })
         }
 
+        const final_email = email.toString().toLowerCase()
+
+        const find_user = await user_model.findOne({ email: final_email })
+
+        if (!find_user) {
+            return res.status(404).json({
+                success: false,
+                type: "warning",
+                message: `User with email ${final_email} not found.`
+            })
+        }
+
+        const user_id = find_user._id
+
         // Find all departments where this email matches the leader object's email
-        const departments = await department_model.find({ "department_leader.email": email })
+        const departments = await department_model.find({ "department_leader": user_id }).populate('department_leader', 'full_name email title picture')
+        
 
         if (!departments || departments.length === 0) {
             return res.status(404).json({

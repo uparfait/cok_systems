@@ -14,19 +14,35 @@ const system_permission = require("./system_permission/routes.js")
 const amos_api_docs = require("./amos_api_docs/routes.js")
 const docs = require("./docs/routes.js")
 const feedback = require("./feedback/routes.js")
+const authenticate = require('../middlewares/authenticate.js')
 
 
-Router.use('/servicedelivery', service_delivery)
-Router.use("/smartparking", smartparking)
+Router.use('/servicedelivery', 
+    // authenticate, 
+    service_delivery)
+
+Router.use("/smartparking", 
+    // authenticate,
+    smartparking)
+
+Router.use('/department/crud', 
+    // authenticate, 
+    department)
+
+Router.use('/employee/crud', 
+    // authenticate, 
+    employee)
+
+Router.use('/permissions', 
+    // authenticate, 
+    system_permission)
+
+
 Router.use("/auth", auth)
 Router.use('/parfait', parfaits_api_docs)
 Router.use('/amos', amos_api_docs)
 Router.use('/docs', docs)
 Router.use('/feedback', feedback)
-Router.use('/department/crud', department)
-Router.use('/employee/crud', employee)
-Router.use('/permissions', system_permission)
-
 
 
 module.exports = Router

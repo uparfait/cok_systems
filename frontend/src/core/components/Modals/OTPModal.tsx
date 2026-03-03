@@ -33,7 +33,7 @@ const OTPModal: React.FC<OTPModalProps> = ({ isOpen, onClose, email: initialEmai
     if (!isOpen) {
       // Reset state when modal closes
       setTimeout(() => {
-        setEmail(initialEmail);
+        setEmail(initialEmail || '');
         setOtp(['', '', '', '', '']);
         setTimeLeft(114);
         setError('');
@@ -58,7 +58,7 @@ const OTPModal: React.FC<OTPModalProps> = ({ isOpen, onClose, email: initialEmai
       const result = await login(email, 'dummy_password_for_otp');
       
       if (result.status && result.data?.requiresOTP) {
-        setCurrentUserId(result.data.userId);
+        setCurrentUserId(result.data.userId || '');
         setStep('otp');
         
         // Start timer
@@ -204,17 +204,22 @@ const OTPModal: React.FC<OTPModalProps> = ({ isOpen, onClose, email: initialEmai
 
   if (!isOpen) return null;
 
+  // Background images
+  const cityHallImage = '/cok_hall.jpg';
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Backdrop */}
+      {/* Background with City Hall image and gradient overlay */}
       <div 
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-        onClick={onClose}
-      ></div>
+        className="fixed inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url(${cityHallImage})` }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
+      </div>
 
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full p-8 transform transition-all">
+      <div className="flex min-h-full items-center justify-center p-3 sm:p-4">
+        <div className="relative bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl max-w-sm w-full p-5 sm:p-6 transform transition-all">
           {/* Success State */}
           {success || step === 'success' ? (
             <div className="text-center py-8">
