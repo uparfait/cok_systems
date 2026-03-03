@@ -13,7 +13,8 @@ module.exports = async function car_check_in(req, res, next) {
             driver_telephone = null,
             driver_gender = null,
             driver_type = 'Regular',
-            driver_email = null
+            driver_email = null,
+            badge_number = null
 
         } = req.body || {}
 
@@ -110,7 +111,8 @@ module.exports = async function car_check_in(req, res, next) {
             slot_number,
             status: 'active',
             check_in: check_in_date,
-            checked_in_by
+            checked_in_by,
+            badge_number
         })
 
         await new_parking.save()
@@ -134,7 +136,8 @@ module.exports = async function car_check_in(req, res, next) {
                         plate_number,
                         slot_number
                     }
-                }
+                },
+                badge_number
             })
             await service_delivery.save()
         }
@@ -153,7 +156,8 @@ module.exports = async function car_check_in(req, res, next) {
                 slot_number,
                 status: 'active',
                 check_in: check_in_date,
-                checked_in_by
+                checked_in_by,
+                badge_number
             }
         })
 
