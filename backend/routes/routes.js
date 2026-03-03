@@ -18,23 +18,23 @@ const authenticate = require('../middlewares/authenticate.js')
 
 
 Router.use('/servicedelivery', 
-    authenticate, 
+    // authenticate, 
     service_delivery)
 
 Router.use("/smartparking", 
-    authenticate,
+    // authenticate,
     smartparking)
 
 Router.use('/department/crud', 
-    authenticate, 
+    // authenticate, 
     department)
 
 Router.use('/employee/crud', 
-    authenticate, 
+    // authenticate, 
     employee)
 
 Router.use('/permissions', 
-    authenticate, 
+    // authenticate, 
     system_permission)
 
 
