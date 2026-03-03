@@ -7,6 +7,7 @@ const staff_car_schema = new mongoose.Schema({
     owner_name: { type: String },
     department_name: { type: String },
     owner_title: { type: String },
+    telephone: {type: String , default: "Not Specified" },
     owner_picture: { type: String },
     is_active: { type: Boolean, default: true },
     registered_by: { type: String },

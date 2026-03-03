@@ -11,8 +11,10 @@ const user_schema = new mongoose.Schema({
     gender: { type: String },
     title: { type: String },
     email: { type: String, unique: true },
-    department_name: { type: String },
-    department_id: { type: String },
+    department: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Department'
+    },
     password: { type: String },
     access_control: {
         is_locked: { type: Boolean, default: false },

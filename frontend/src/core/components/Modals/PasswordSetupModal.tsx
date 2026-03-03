@@ -35,8 +35,8 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
   const navigate = useNavigate();
 
   // Background images
-  const cityHallImage = '/src/assets/cok_hall.jpg';
-  const logoImage = '/src/assets/LOGO_COK.jpg';
+  const cityHallImage = '/cok_hall.jpg';
+  const logoImage = '/LOGO_COK.jpg';
 
   // Password requirements check
   const checkPasswordStrength = (password: string) => {
@@ -48,7 +48,12 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
     };
     
     const score = Object.values(strength).filter(Boolean).length;
-    setPasswordStrength({ ...strength, score });
+
+    setPasswordStrength({
+      ...strength,
+      hasLowercase: /[a-z]/.test(password),
+      score
+    });
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -118,7 +123,8 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
       // Call the backend to activate account with OTP verification and password setup
       const result = await activateAccount(userId, otp, newPassword, confirmPassword);
       
-      if (result.status) {
+      // Check if status is true AND there's no error message
+      if (result.status && !result.error) {
         setIsSuccess(true);
         
         // Call onSuccess callback if provided
@@ -132,7 +138,8 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
           navigate('/login');
         }, 2000);
       } else {
-        setError(result.error || 'Failed to activate account');
+        // Handle both cases: status false or status true with error message
+        setError(result.message || result.error || 'Failed to activate account');
       }
     } catch (err: any) {
       setError(err?.error || err?.message || 'Failed to set password');
@@ -145,17 +152,17 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Background with City Hall image and dark overlay */}
+      {/* Background with City Hall image and gradient overlay */}
       <div 
         className="fixed inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url(${cityHallImage})` }}
       >
-        <div className="absolute inset-0 bg-black/70" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
       </div>
 
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 transform transition-all">
+      <div className="flex min-h-full items-center justify-center p-3 sm:p-4">
+        <div className="relative bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl max-w-sm w-full p-5 sm:p-6 transform transition-all">
           {/* Success State */}
           {isSuccess ? (
             <div className="text-center py-8">

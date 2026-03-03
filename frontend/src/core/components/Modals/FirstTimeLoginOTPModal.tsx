@@ -26,8 +26,8 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
   const [currentUserId, setCurrentUserId] = useState('');
 
   // Background images
-  const cityHallImage = '/src/assets/cok_hall.jpg';
-  const logoImage = '/src/assets/LOGO_COK.jpg';
+  const cityHallImage = '/cok_hall.jpg';
+  const logoImage = '/LOGO_COK.jpg';
 
   useEffect(() => {
     if (!isOpen) {
@@ -193,17 +193,17 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Background with City Hall image and dark overlay */}
+      {/* Background with City Hall image and gradient overlay */}
       <div 
         className="fixed inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url(${cityHallImage})` }}
       >
-        <div className="absolute inset-0 bg-black/70" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
       </div>
 
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 transform transition-all">
+      <div className="flex min-h-full items-center justify-center p-3 sm:p-4">
+        <div className="relative bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl max-w-sm w-full p-5 sm:p-6 transform transition-all">
           {/* Success State */}
           {success || step === 'success' ? (
             <div className="text-center py-8">

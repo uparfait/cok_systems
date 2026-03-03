@@ -80,10 +80,10 @@ class PermissionManager {
             }
 
             // Validate actions
-            const validActionTypes = resourceDef.actions.map(a => a.action_type);
+            const validActionTypes = resourceDef.actions.map(a => a.action_type.toString().toUpperCase().trim());
             const normalizedActions = [];
             for (const action of actions) {
-                const upperAction = action.toString().toUpperCase();
+                const upperAction = action.toString().toUpperCase().trim();
                 if (!validActionTypes.includes(upperAction)) {
                     return res.status(400).json({
                         success: false,

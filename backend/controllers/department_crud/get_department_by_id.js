@@ -6,7 +6,7 @@ module.exports = async function get_department_by_id(req, res, next) {
 
         department_id = department_id.toString().toUpperCase()
 
-        const department = await department_model.findOne({ department_id })
+        const department = await department_model.findOne({ department_id }).populate('department_leader', 'full_name email title picture')
 
         if (!department) {
             return res.status(404).json({
