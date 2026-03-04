@@ -2,6 +2,11 @@
  * To prevent app crash according to missed module we are overwritting require function
  * to don't crash an application but we do this with caution
  */
+
+
+process.env.WS_NO_BUFFER_UTIL = 'true';
+process.env.WS_NO_UTF_8_VALIDATE = 'true';
+
 const Module = require('module')
 const originalRequire = Module.prototype.require
 
@@ -84,7 +89,7 @@ app.set('x-powered-by', 'Linux-sys')
  * Defines allowed origins and enables credential support (cookies/auth headers)
  */
 app.use(cors({
-    origin: process.env.CLIENT_URL || '*',
+    origin: process.env.CLIENT_URL_SET || ['https://cok-fr.vercel.app', 'http://localhost:5173', 'http://localhost:3000', 'http://localhost:5000'],
     credentials: true
 }))
 
