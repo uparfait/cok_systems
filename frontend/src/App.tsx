@@ -16,12 +16,14 @@ import ProtectedRoute from './core/components/ProtectedRoute';
 import Layout from './core/components/Layout';
 import { AuthProvider } from './core/contexts/AuthContext';
 import { SocketProvider } from './core/contexts/SocketContext';
+import { NotificationProvider } from './core/contexts/NotificationContext';
 
 function App() {
   return (
     <AuthProvider>
       <SocketProvider>
-        <Router>
+        <NotificationProvider>
+          <Router>
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<LoginPage />} />
@@ -131,8 +133,9 @@ function App() {
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </Router>
-      </SocketProvider>
-    </AuthProvider>
+      </NotificationProvider>
+    </SocketProvider>
+  </AuthProvider>
   );
 }
 

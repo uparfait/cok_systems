@@ -5,9 +5,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { 
   FiMenu, FiBell, FiChevronDown, FiUser, 
-  FiSettings, FiLogOut, FiHelpCircle, FiGrid
+  FiSettings, FiLogOut, FiHelpCircle, FiGrid, FiCheck
 } from 'react-icons/fi';
 import { getUserDepartment } from './Layout';
 
@@ -32,9 +33,11 @@ const Header: React.FC<HeaderProps> = ({
   onSystemChange 
 }) => {
   const { user, logout } = useAuth();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotification();
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showSystemDropdown, setShowSystemDropdown] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(() => {
     const now = new Date();
     const options: Intl.DateTimeFormatOptions = {
@@ -113,10 +116,68 @@ const Header: React.FC<HeaderProps> = ({
       {/* Right Section */}
       <div className="flex items-center gap-2">
         {/* Notifications */}
-        <button className="relative p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors">
-          <FiBell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-        </button>
+        <div className="relative">
+          <button 
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="relative p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+          >
+            <FiBell className="w-5 h-5" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full border-2 border-white text-white text-xs flex items-center justify-center font-medium">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
+
+          {/* Notifications Dropdown */}
+          {showNotifications && (
+            <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50 max-h-96 overflow-y-auto">
+              <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900">Notifications</h3>
+                {unreadCount > 0 && (
+                  <button 
+                    onClick={markAllAsRead}
+                    className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                  >
+                    <FiCheck className="w-3 h-3" /> Mark all read
+                  </button>
+                )}
+              </div>
+              {notifications.length === 0 ? (
+                <div className="px-4 py-8 text-center text-gray-500">
+                  No notifications
+                </div>
+              ) : (
+                notifications.slice(0, 10).map((notification) => (
+                  <div 
+                    key={notification.id}
+                    onClick={() => markAsRead(notification.id)}
+                    className={`px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 ${
+                      !notification.read ? 'bg-blue-50' : ''
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${
+                        notification.type === 'warning' ? 'bg-yellow-500' :
+                        notification.type === 'error' ? 'bg-red-500' :
+                        notification.type === 'success' ? 'bg-green-500' : 'bg-blue-500'
+                      }`} />
+                      <div className="flex-1 min-w-0">
+                        {notification.title && (
+                          <p className="text-sm font-medium text-gray-900">{notification.title}</p>
+                        )}
+                        <p className="text-sm text-gray-600 truncate">{notification.message}</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {notification.timestamp.toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Help */}
         <button className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors hidden sm:block">
