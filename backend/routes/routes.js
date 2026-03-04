@@ -30,7 +30,7 @@ Router.use('/department/crud',
     department)
 
 Router.use('/employee/crud', 
-     authenticate, 
+    // authenticate, 
     employee)
 
 Router.use('/permissions', 
