@@ -15,7 +15,8 @@ module.exports = async function search_visitors(req, res, next) {
                 { full_name: regex },
                 { telephone: regex },
                 { 'identification.number': regex },
-                { plate_number: regex }
+                { plate_number: regex },
+                {badge_number: regex}
             ]
         }
 

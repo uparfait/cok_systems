@@ -17,6 +17,7 @@ const service_delivery_schema = new mongoose.Schema({
     full_name: { type: String },
     telephone: { type: String },
     email: { type: String },
+    badge_number: { type: String },
     departments_assigned: [
         {
             department_id: String,
