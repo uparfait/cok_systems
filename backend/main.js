@@ -84,7 +84,7 @@ app.set('x-powered-by', 'Linux-sys')
  * Defines allowed origins and enables credential support (cookies/auth headers)
  */
 app.use(cors({
-    origin: process.env.CLIENT_URL || '*',
+    origin: process.env.CLIENT_URL_SET || ['https://cok-fr.vercel.app', 'http://localhost:5173', 'http://localhost:3000', 'http://localhost:5000'],
     credentials: true
 }))
 
