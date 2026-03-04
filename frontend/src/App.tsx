@@ -9,6 +9,9 @@ import { DepartmentsPage, EmployeesPage } from './pages/Admin';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import SmartParkingDashboard from './pages/smart_parking/SmartParkingDashboard';
 import ServiceDeliveryDashboard from './pages/service_delivery/ServiceDeliveryDashboard';
+import SystemSelector from './pages/dashboard/SystemSelector';
+import UnderDevelopment from './pages/dashboard/UnderDevelopment';
+import ProfilePage from './pages/profile/ProfilePage';
 import ProtectedRoute from './core/components/ProtectedRoute';
 import Layout from './core/components/Layout';
 import { AuthProvider } from './core/contexts/AuthContext';
@@ -80,6 +83,42 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <ServiceDeliveryDashboard />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* ==================== SYSTEM SELECTOR ROUTE ==================== */}
+            <Route
+              path="/system-selector"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <SystemSelector />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* ==================== PROFILE ROUTE ==================== */}
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ProfilePage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* ==================== UNDER DEVELOPMENT ROUTE ==================== */}
+            <Route
+              path="/under-development"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <UnderDevelopment />
                   </Layout>
                 </ProtectedRoute>
               }

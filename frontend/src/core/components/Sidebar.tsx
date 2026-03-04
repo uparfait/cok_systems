@@ -7,7 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   FiHome, FiGrid, FiTruck, FiUsers, FiSettings, FiChevronLeft, 
-  FiChevronRight, FiMessageSquare, FiBarChart2, FiMapPin, FiLogOut
+  FiChevronRight, FiMessageSquare, FiBarChart2, FiMapPin, FiLogOut, FiUser
 } from 'react-icons/fi';
 import { HiOutlineOfficeBuilding } from 'react-icons/hi';
 
@@ -69,8 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   // Additional menu items that might be available to all
   const commonMenuItems = [
-    { id: 'profile', label: 'Profile', icon: FiUsers, path: '/dashboard/profile' },
-    { id: 'settings', label: 'Settings', icon: FiSettings, path: '/dashboard/settings' },
+    { id: 'profile', label: 'Profile', icon: FiUser, path: '/profile' },
   ];
 
   return (
@@ -106,7 +105,10 @@ const Sidebar: React.FC<SidebarProps> = ({
       <nav className="p-3 space-y-1 overflow-y-auto flex-1">
         {systems.map((system) => {
           const Icon = getIcon(system.icon);
-          const isActive = currentSystem === system.id || location.pathname === system.path;
+          // Check if current path matches or starts with the system path
+          const isActive = currentSystem === system.id || 
+            location.pathname === system.path || 
+            location.pathname.startsWith(system.path + '/');
           
           return (
             <button
@@ -132,7 +134,8 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="absolute bottom-20 left-0 right-0 px-3 space-y-1 border-t border-gray-200 pt-2">
         {commonMenuItems.map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.path;
+          // Check if current path matches or starts with the item path
+          const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
           
           return (
             <button

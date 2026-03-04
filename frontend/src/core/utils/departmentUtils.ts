@@ -6,6 +6,7 @@ const ROLE_ROUTES: { [key: string]: string } = {
   'system': '/admin/dashboard',
   'admin': '/admin/dashboard',
   'administrator': '/admin/dashboard',
+  'system admin': '/admin/dashboard',
   'it': '/smart_parking/dashboard',
   'finance': '/smart_parking/dashboard',
   'hr': '/service_delivery/dashboard',
@@ -61,15 +62,15 @@ export const getDashboardRoute = async (role: string, departmentName?: string): 
     }
   }
   
-  // Default fallback - go to admin dashboard for now
-  console.log('[getDashboardRoute] No match found, defaulting to /admin/dashboard');
-  return '/admin/dashboard';
+  // Default fallback - go to under-development page for unrecognized roles
+  console.log('[getDashboardRoute] No match found, redirecting to Under Development');
+  return '/under-development';
 };
 
 // Sync version for cases where we can't await
 export const getDashboardRouteSync = (role: string, departmentName?: string): string => {
   if (!role && !departmentName) {
-    return '/admin/dashboard';
+    return '/under-development';
   }
   
   const normalizedRole = (role || '').toLowerCase().trim();
@@ -94,7 +95,7 @@ export const getDashboardRouteSync = (role: string, departmentName?: string): st
     }
   }
   
-  return '/admin/dashboard';
+  return '/under-development';
 };
 
 // Check if user has admin access

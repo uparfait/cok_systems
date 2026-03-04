@@ -52,53 +52,6 @@ const UnderDevelopment: React.FC<UnderDevelopmentProps> = ({ departmentName }) =
 
           {/* Content */}
           <div className="px-8 py-8">
-            {/* Department Info */}
-            <div className="bg-gray-50 rounded-2xl p-6 mb-6">
-              <div className="flex items-center gap-3 mb-4">
-                <HiOutlineOfficeBuilding className="w-5 h-5 text-gray-500" />
-                <span className="text-sm font-medium text-gray-500 uppercase tracking-wide">Your Department</span>
-              </div>
-              <h2 className="text-xl font-bold text-gray-900">{userDepartment || 'Unknown'}</h2>
-              <p className="text-gray-600 mt-2">
-                We're working hard to bring you a personalized dashboard for your department. 
-                Our team is currently developing custom features that will meet your specific needs.
-              </p>
-            </div>
-
-            {/* What's Coming */}
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <FiClock className="w-5 h-5 text-blue-600" />
-                What's Coming
-              </h3>
-              <ul className="space-y-3">
-                <li className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-green-600 text-sm">✓</span>
-                  </div>
-                  <span className="text-gray-600">Custom dashboard tailored to your department</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-green-600 text-sm">✓</span>
-                  </div>
-                  <span className="text-gray-600">Department-specific reports and analytics</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-green-600 text-sm">✓</span>
-                  </div>
-                  <span className="text-gray-600">Custom workflows and processes</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <FiClock className="w-3 h-3 text-yellow-600" />
-                  </div>
-                  <span className="text-gray-600">Integration with existing systems</span>
-                </li>
-              </ul>
-            </div>
-
             {/* Alert */}
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
               <div className="flex items-start gap-3">
@@ -110,54 +63,6 @@ const UnderDevelopment: React.FC<UnderDevelopmentProps> = ({ departmentName }) =
                   </p>
                 </div>
               </div>
-            </div>
-
-            {/* Available Systems */}
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Available Systems</h3>
-              <div className="grid grid-cols-2 gap-3">
-                {userSystems.slice(0, 4).map((system) => (
-                  <button
-                    key={system.id}
-                    onClick={() => handleAccessSystem(system.path)}
-                    className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-300 rounded-xl transition-all text-left"
-                  >
-                    <FiGrid className="w-5 h-5 text-gray-500" />
-                    <span className="text-sm font-medium text-gray-700">{system.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Contact Info */}
-            <div className="bg-blue-50 rounded-xl p-4 mb-6">
-              <div className="flex items-center gap-3">
-                <FiMail className="w-5 h-5 text-blue-600" />
-                <div>
-                  <p className="font-medium text-blue-900">Have suggestions?</p>
-                  <p className="text-sm text-blue-700">
-                    Contact us to share your ideas for the department dashboard
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={handleGoBack}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors"
-              >
-                <FiArrowLeft className="w-5 h-5" />
-                Back to System Selection
-              </button>
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors"
-              >
-                <FiGrid className="w-5 h-5" />
-                Go to Main Dashboard
-              </button>
             </div>
           </div>
         </div>

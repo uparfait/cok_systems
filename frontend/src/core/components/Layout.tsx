@@ -77,8 +77,22 @@ export const getUserSystems = (user: any) => {
   const normalizedDept = department.toLowerCase();
   
   // Check user's role first - if role is system/admin, show admin dashboard
+  // If role is not recognized, show under-development message
   const userRole = user?.role?.toLowerCase() || '';
-  if (userRole === 'system' || userRole === 'admin') {
+  
+  // Define valid roles that have dashboards
+  const validRoles = ['system', 'admin', 'system admin', 'it', 'finance', 'hr', 'legal', 'operations'];
+  const isValidRole = validRoles.includes(userRole);
+  
+  if (!isValidRole) {
+    // Return minimal systems - user will be redirected to under-development
+    return [
+      { id: 'dashboard', name: 'Dashboard', path: '/under-development', icon: 'FiHome' },
+    ];
+  }
+  
+  // Check for system admin roles (system, admin, system admin)
+  if (userRole === 'system' || userRole === 'admin' || userRole === 'system admin') {
     return SYSTEM_CONFIGS['System Admin'].systems;
   }
   

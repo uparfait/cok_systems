@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
-  FiMenu, FiBell, FiSearch, FiChevronDown, FiUser, 
+  FiMenu, FiBell, FiChevronDown, FiUser, 
   FiSettings, FiLogOut, FiHelpCircle, FiGrid
 } from 'react-icons/fi';
 import { getUserDepartment } from './Layout';
@@ -35,7 +35,6 @@ const Header: React.FC<HeaderProps> = ({
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showSystemDropdown, setShowSystemDropdown] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [currentDateTime, setCurrentDateTime] = useState(() => {
     const now = new Date();
     const options: Intl.DateTimeFormatOptions = {
@@ -110,19 +109,6 @@ const Header: React.FC<HeaderProps> = ({
         </button>
       </div>
 
-      {/* Center Section - Search */}
-      <div className="hidden md:flex flex-1 max-w-md mx-8">
-        <div className="relative w-full">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-gray-100 border border-transparent focus:bg-white focus:border-blue-300 rounded-lg text-sm transition-all outline-none"
-          />
-        </div>
-      </div>
 
       {/* Right Section */}
       <div className="flex items-center gap-2">
