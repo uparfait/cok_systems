@@ -12,7 +12,8 @@ module.exports = async function visitor_checkin(req, res, next) {
             vehicle_storage = {},
             items_entered_with = [],
             departments_assigned = [],
-            services_status = []
+            services_status = [],
+            badge_number = null
         } = req.body || {}
 
         // Identification is no longer strictly required
@@ -113,7 +114,8 @@ module.exports = async function visitor_checkin(req, res, next) {
             services_status: services_status,
             is_still_inhouse: true,
             entry_date: new Date(),
-            registered_by
+            registered_by,
+            badge_number
         })
 
         const saved_visitor = await new_visitor.save()

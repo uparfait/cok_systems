@@ -21,7 +21,10 @@ module.exports = async function search_parking_records(req, res, next) {
                     $or: [
                         { plate_number: plate_regex },
                         { driver_name: regex },
-                        { 'driver_identification.number': regex }
+                        { 'driver_identification.number': regex },
+                        { driver_telephone: regex },
+                        { driver_email: regex },
+                        { badge_number: regex }
                     ]
                 },
                 { status: status }

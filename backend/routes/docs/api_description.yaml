@@ -924,6 +924,7 @@ paths:
                 telephone: { type: string, example: "+250788000111" }
                 email: { type: string, example: "jean@example.com" }
                 gender: { type: string, example: "Male" }
+                badge_number: { type: string, example: "BADGE-001" }
                 identification: { type: object, example: { type: "National ID", number: "123456789" } }
                 vehicle_storage: {
                   type: object,
@@ -1104,6 +1105,7 @@ paths:
                 driver_type: { type: string, example: "Visitor,Staff,Regular" }
                 driver_identification: { type: object, example: { type: "National ID", number: "123456789" } }
                 driver_gender: { type: string, example: "Male" }
+                badge_number: { type: string, example: "BADGE-001" }
       responses:
         '201': { description: Vehicle checked in }
         '400': { description: Missing required fields }

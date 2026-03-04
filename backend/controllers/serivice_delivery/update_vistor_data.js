@@ -23,7 +23,7 @@ module.exports = async function visitor_update(req, res, next) {
         const allowedFields = [
             'full_name', 'telephone', 'email', 'identification', 
             'gender', 'items_entered_with', 'departments_assigned', 
-            'services_status', 'is_still_inhouse'
+            'services_status', 'is_still_inhouse', 'badge_number'
         ]
 
         allowedFields.forEach(field => {
