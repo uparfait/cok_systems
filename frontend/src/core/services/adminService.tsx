@@ -220,8 +220,16 @@ export const serviceDeliveryServiceWithVisitors = {
 
 // ==================== PERMISSION APIs ====================
 
+export interface SystemPermission {
+  resource: string;
+  actions: Array<{
+    action_type: string;
+    description: string;
+  }>;
+}
+
 export const permissionService = {
-  // Get all system resources and their available actions
+  // Get all system resources and their available actions (from backend)
   getSystemPermissions: () => get('/system_permission'),
   
   // Get permissions for a specific resource

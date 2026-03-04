@@ -1,14 +1,15 @@
 // EmployeesPage - Admin Employee Management
 // Page for managing employees in the COK Systems
+// Updated with inline form errors/success and no close button
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
-import { employeeService, departmentService } from '../../../core/services/adminService';
-import { USER_ROLES, SYSTEM_RESOURCES } from '../../../core/constants/roles';
+import { employeeService, departmentService, permissionService } from '../../../core/services/adminService';
+import { USER_ROLES } from '../../../core/constants/roles';
 import { 
   FiPlus, FiSearch, FiEdit2, FiTrash2, FiRefreshCw, FiUsers,
-  FiMail, FiPhone, FiMapPin, FiBriefcase, FiUser, FiShield, FiCheck, FiX
+  FiMail, FiPhone, FiBriefcase, FiUser, FiShield, FiCheck, FiX, FiAlertCircle
 } from 'react-icons/fi';
 
 interface Employee {
@@ -45,18 +46,29 @@ interface Department {
   department_leader?: string;
 }
 
+// Interface for system permissions from backend
+type SystemPermissionResource = {
+  resource: string;
+  actions: string[];
+};
+
 const EmployeesPage: React.FC = () => {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [systemPermissions, setSystemPermissions] = useState<SystemPermissionResource[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  
+  // Form-level error and success states
+  const [formError, setFormError] = useState('');
+  const [formSuccess, setFormSuccess] = useState('');
 
   // Form state
   const [formData, setFormData] = useState<Partial<Employee>>({
@@ -78,6 +90,14 @@ const EmployeesPage: React.FC = () => {
     }
   });
 
+  // Clear messages when modal opens
+  useEffect(() => {
+    if (showModal) {
+      setFormError('');
+      setFormSuccess('');
+    }
+  }, [showModal]);
+
   // Check auth and load employees
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -85,8 +105,28 @@ const EmployeesPage: React.FC = () => {
     } else if (isAuthenticated) {
       loadEmployees();
       loadDepartments();
+      loadSystemPermissions();
     }
   }, [isAuthenticated, authLoading, navigate]);
+
+  // Load system permissions from backend
+  const loadSystemPermissions = async () => {
+    try {
+      const response = await permissionService.getSystemPermissions();
+      console.log('System Permissions Response:', response);
+      
+      if (response.success && response.data) {
+        // Transform backend data to simpler format
+        const transformed = response.data.map((item: any) => ({
+          resource: item.resource,
+          actions: item.actions.map((a: any) => a.action_type)
+        }));
+        setSystemPermissions(transformed);
+      }
+    } catch (err) {
+      console.error('Error loading system permissions:', err);
+    }
+  };
 
   // Load employees
   const loadEmployees = async () => {
@@ -189,6 +229,8 @@ const EmployeesPage: React.FC = () => {
         permissions: []
       }
     });
+    setFormError('');
+    setFormSuccess('');
     setShowModal(true);
   };
 
@@ -210,6 +252,8 @@ const EmployeesPage: React.FC = () => {
         permissions: []
       }
     });
+    setFormError('');
+    setFormSuccess('');
     setShowModal(true);
   };
 
@@ -217,15 +261,18 @@ const EmployeesPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Clear previous messages
+    setFormError('');
+    setFormSuccess('');
+    
     // Validate form data
     if (!formData.full_name?.trim() || !formData.email?.trim()) {
-      setError('Please fill in all required fields');
+      setFormError('Please fill in all required fields');
       return;
     }
 
     try {
       setSubmitting(true);
-      setError('');
 
       console.log('Submitting employee data:', formData);
 
@@ -233,25 +280,42 @@ const EmployeesPage: React.FC = () => {
         const id = editingEmployee._id || editingEmployee.employee_id || '';
         const response = await employeeService.update(id, formData);
         console.log('Update response:', response);
+        
+        if (response.success) {
+          setFormSuccess('Employee updated successfully!');
+          setTimeout(() => {
+            setShowModal(false);
+            loadEmployees();
+          }, 1500);
+        } else {
+          setFormError(response.error || 'Failed to update employee');
+        }
       } else {
         const response = await employeeService.create(formData);
         console.log('Create response:', response);
+        
+        if (response.success) {
+          setFormSuccess('Employee created successfully!');
+          setTimeout(() => {
+            setShowModal(false);
+            loadEmployees();
+          }, 1500);
+        } else {
+          setFormError(response.error || 'Failed to create employee');
+        }
       }
-
-      setShowModal(false);
-      loadEmployees();
     } catch (err: any) {
       console.error('Employee save error:', err);
       
       // Check if it's a network error
       if (err.message && (err.message.includes('Network') || err.message.includes('Failed to fetch'))) {
-        setError('Cannot connect to server. Please check your internet connection and try again.');
+        setFormError('Cannot connect to server. Please check your internet connection and try again.');
       } else if (err.error) {
-        setError(err.error);
+        setFormError(err.error);
       } else if (err.message) {
-        setError(err.message);
+        setFormError(err.message);
       } else {
-        setError('Failed to save employee. Please try again.');
+        setFormError('Failed to save employee. Please try again.');
       }
     } finally {
       setSubmitting(false);
@@ -297,7 +361,7 @@ const EmployeesPage: React.FC = () => {
         </div>
         <button
           onClick={handleNewEmployee}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-blue-200 hover:shadow-xl transform hover:-translate-y-0.5"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors"
         >
           <FiPlus className="w-5 h-5" />
           Add Employee
@@ -320,7 +384,7 @@ const EmployeesPage: React.FC = () => {
           </div>
           <button
             onClick={handleSearch}
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
           >
             Search
           </button>
@@ -336,7 +400,8 @@ const EmployeesPage: React.FC = () => {
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-2">
+          <FiAlertCircle className="w-5 h-5 flex-shrink-0" />
           {error}
         </div>
       )}
@@ -359,9 +424,6 @@ const EmployeesPage: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Position
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -370,7 +432,7 @@ const EmployeesPage: React.FC = () => {
             <tbody className="divide-y divide-gray-200">
               {employees.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
                     No employees found
                   </td>
                 </tr>
@@ -415,15 +477,6 @@ const EmployeesPage: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        employee.status === 'active' 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-gray-100 text-gray-600'
-                      }`}>
-                        {employee.status || 'Active'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => handleEdit(employee)}
@@ -449,29 +502,48 @@ const EmployeesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal with smooth animation */}
+      {/* Modal - No close button, clicking outside won't close */}
       {showModal && (
         <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn"
-          onClick={() => setShowModal(false)}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
         >
           <div 
             className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl transform animate-scaleIn"
-            onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-5 border-b bg-gradient-to-r from-gray-50 to-white rounded-t-2xl">
-              <h2 className="text-xl font-bold text-gray-800">
-                {editingEmployee ? 'Edit Employee' : 'Add Employee'}
-              </h2>
-              <button
-                onClick={() => setShowModal(false)}
-                className="p-2 hover:bg-gray-200 rounded-xl transition-colors"
-              >
-                <FiX className="w-5 h-5 text-gray-500" />
-              </button>
+            {/* Modal Header */}
+            <div className="p-5 border-b bg-gray-50 sticky top-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <FiUser className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {editingEmployee ? 'Edit Employee' : 'Add Employee'}
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    {editingEmployee ? 'Update employee details' : 'Create a new employee'}
+                  </p>
+                </div>
+              </div>
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              {/* Inline Error Message */}
+              {formError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-start gap-2">
+                  <FiAlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <span>{formError}</span>
+                </div>
+              )}
+
+              {/* Inline Success Message */}
+              {formSuccess && (
+                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl flex items-start gap-2">
+                  <FiCheck className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <span>{formSuccess}</span>
+                </div>
+              )}
+
               {/* Personal Information Section */}
               <div className="bg-gray-50 rounded-xl p-4 space-y-4">
                 <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center gap-2">
@@ -668,102 +740,108 @@ const EmployeesPage: React.FC = () => {
                 </p>
 
                 <div className="space-y-4 max-h-64 overflow-y-auto">
-                  {SYSTEM_RESOURCES.map((resource) => {
-                    const currentPerm = formData.roles?.permissions?.find(
-                      p => p.resource.toLowerCase() === resource.resource_name.toLowerCase()
-                    );
-                    const selectedActions = currentPerm?.actions || [];
+                  {systemPermissions.length > 0 ? (
+                    systemPermissions.map((resource) => {
+                      const currentPerm = formData.roles?.permissions?.find(
+                        p => p.resource.toLowerCase() === resource.resource.toLowerCase()
+                      );
+                      const selectedActions = currentPerm?.actions || [];
 
-                    return (
-                      <div key={resource.resource_name} className="border border-gray-200 rounded-lg bg-white p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-medium text-gray-900 capitalize">
-                            {resource.resource_name}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const allActions = resource.actions.map(a => a.action_type);
-                              const newActions = selectedActions.length === allActions.length 
-                                ? [] 
-                                : allActions;
-                              
-                              const newPermissions = (formData.roles?.permissions || []).filter(
-                                p => p.resource.toLowerCase() !== resource.resource_name.toLowerCase()
-                              );
-                              
-                              if (newActions.length > 0) {
-                                newPermissions.push({
-                                  resource: resource.resource_name,
-                                  actions: newActions
-                                });
-                              }
-                              
-                              setFormData({
-                                ...formData,
-                                roles: {
-                                  role_name: formData.roles?.role_name || 'department_employee',
-                                  permissions: newPermissions
+                      return (
+                        <div key={resource.resource} className="border border-gray-200 rounded-lg bg-white p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium text-gray-900 capitalize">
+                              {resource.resource}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const allActions = resource.actions;
+                                const newActions = selectedActions.length === allActions.length 
+                                  ? [] 
+                                  : allActions;
+                                
+                                const newPermissions = (formData.roles?.permissions || []).filter(
+                                  p => p.resource.toLowerCase() !== resource.resource.toLowerCase()
+                                );
+                                
+                                if (newActions.length > 0) {
+                                  newPermissions.push({
+                                    resource: resource.resource,
+                                    actions: newActions
+                                  });
                                 }
-                              });
-                            }}
-                            className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                          >
-                            {selectedActions.length === resource.actions.length ? 'Deselect All' : 'Select All'}
-                          </button>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {resource.actions.map((action) => {
-                            const isSelected = selectedActions.includes(action.action_type);
-                            return (
-                              <button
-                                key={action.action_type}
-                                type="button"
-                                onClick={() => {
-                                  const newPermissions = (formData.roles?.permissions || []).filter(
-                                    p => p.resource.toLowerCase() !== resource.resource_name.toLowerCase()
-                                  );
-                                  
-                                  if (isSelected) {
-                                    const remainingActions = selectedActions.filter(
-                                      a => a !== action.action_type
+                                
+                                setFormData({
+                                  ...formData,
+                                  roles: {
+                                    role_name: formData.roles?.role_name || 'department_employee',
+                                    permissions: newPermissions
+                                  }
+                                });
+                              }}
+                              className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                              {selectedActions.length === resource.actions.length ? 'Deselect All' : 'Select All'}
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {resource.actions.map((action) => {
+                              const isSelected = selectedActions.includes(action);
+                              return (
+                                <button
+                                  key={action}
+                                  type="button"
+                                  onClick={() => {
+                                    const newPermissions = (formData.roles?.permissions || []).filter(
+                                      p => p.resource.toLowerCase() !== resource.resource.toLowerCase()
                                     );
-                                    if (remainingActions.length > 0) {
+                                    
+                                    if (isSelected) {
+                                      const remainingActions = selectedActions.filter(
+                                        (a) => a !== action
+                                      );
+                                      if (remainingActions.length > 0) {
+                                        newPermissions.push({
+                                          resource: resource.resource,
+                                          actions: remainingActions
+                                        });
+                                      }
+                                    } else {
                                       newPermissions.push({
-                                        resource: resource.resource_name,
-                                        actions: remainingActions
+                                        resource: resource.resource,
+                                        actions: [...selectedActions, action]
                                       });
                                     }
-                                  } else {
-                                    newPermissions.push({
-                                      resource: resource.resource_name,
-                                      actions: [...selectedActions, action.action_type]
+                                    
+                                    setFormData({
+                                      ...formData,
+                                      roles: {
+                                        role_name: formData.roles?.role_name || 'department_employee',
+                                        permissions: newPermissions
+                                      }
                                     });
-                                  }
-                                  
-                                  setFormData({
-                                    ...formData,
-                                    roles: {
-                                      role_name: formData.roles?.role_name || 'department_employee',
-                                      permissions: newPermissions
-                                    }
-                                  });
-                                }}
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
-                                  isSelected 
-                                    ? 'bg-purple-600 text-white' 
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
-                              >
-                                {isSelected && <FiCheck className="w-3 h-3" />}
-                                {action.description}
-                              </button>
-                            );
-                          })}
+                                  }}
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
+                                    isSelected 
+                                      ? 'bg-purple-600 text-white' 
+                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {isSelected && <FiCheck className="w-3 h-3" />}
+                                  {action}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-4 text-gray-500">
+                      Loading permissions...
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -771,16 +849,21 @@ const EmployeesPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors disabled:opacity-50"
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium transition-colors disabled:opacity-50"
                 >
-                  {submitting ? 'Saving...' : editingEmployee ? 'Update' : 'Create'}
+                  {submitting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <FiRefreshCw className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </span>
+                  ) : editingEmployee ? 'Update' : 'Create'}
                 </button>
               </div>
             </form>
@@ -792,3 +875,4 @@ const EmployeesPage: React.FC = () => {
 };
 
 export default EmployeesPage;
+
