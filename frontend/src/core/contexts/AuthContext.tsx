@@ -23,11 +23,11 @@ import {
 
 // User interface
 export interface User {
-  userId: string;
-  email: string;
-  fullName: string;
-  role: string;
-  permissions: Permission[];
+  userId?: string;
+  email?: string;
+  fullName?: string;
+  role?: string;
+  permissions?: Permission[];
   departmentId?: string;
   departmentName?: string;
   picture?: string;

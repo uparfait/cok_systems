@@ -6,14 +6,14 @@ import { useState, useEffect } from 'react';
 
 /**
  * Hook to manage localStorage with React state
- * @param {string} key - The key to store in localStorage
- * @param {*} initialValue - The initial value if nothing is stored
- * @returns {Array} [storedValue, setValue] - The stored value and setter function
+ * @param key - The key to store in localStorage
+ * @param initialValue - The initial value if nothing is stored
+ * @returns [storedValue, setValue] - The stored value and setter function
  */
-export const useLocalStorage = (key, initialValue) => {
+export const useLocalStorage = <T,>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] => {
   // State to store our value
   // Pass initial state function to useState so logic is only executed once
-  const [storedValue, setStoredValue] = useState(() => {
+  const [storedValue, setStoredValue] = useState<T>(() => {
     if (typeof window === 'undefined') {
       return initialValue;
     }
@@ -32,7 +32,7 @@ export const useLocalStorage = (key, initialValue) => {
 
   // Return a wrapped version of useState's setter function that
   // persists the new value to localStorage
-  const setValue = (value) => {
+  const setValue = (value: T | ((val: T) => T)) => {
     try {
       // Allow value to be a function so we have same API as useState
       const valueToStore = value instanceof Function ? value(storedValue) : value;
@@ -54,7 +54,7 @@ export const useLocalStorage = (key, initialValue) => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const handleStorageChange = (e) => {
+    const handleStorageChange = (e: StorageEvent) => {
       if (e.key === key && e.newValue) {
         setStoredValue(JSON.parse(e.newValue));
       }
