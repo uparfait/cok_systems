@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { employeeService, departmentService, permissionService } from '../../../core/services/adminService';
 import { USER_ROLES } from '../../../core/constants/roles';
+import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import { 
   FiPlus, FiSearch, FiEdit2, FiTrash2, FiRefreshCw, FiUsers,
   FiMail, FiPhone, FiBriefcase, FiUser, FiShield, FiCheck, FiX, FiAlertCircle
@@ -24,19 +25,51 @@ interface Employee {
   };
   gender?: string;
   title?: string;
-  department?: string;
+  department?: string | {
+    _id?: string;
+    department_id?: string;
+    department_name?: string;
+  };
   department_name?: string;
   department_id?: string;
   status?: string;
   roles?: {
     role_name: string;
-    permissions: Array<{
-      resource: string;
-      actions: string[];
-    }>;
+    permissions: any[];
   };
   createdAt?: string;
 }
+
+// Interface for employee permissions from backend (with is_enabled)
+type EmployeePermissionBackend = {
+  resource_name: string;
+  actions: Array<{
+    action_type: string;
+    description: string;
+    is_enabled?: string;
+  }>;
+};
+
+// Helper function to convert backend permission format to frontend format
+// Backend: { resource_name: 'employees', actions: [{ action_type: 'read', is_enabled: 'enabled', ... }] }
+// Frontend: { resource: 'employees', actions: ['read', 'create', ...] }
+const convertBackendPermissionsToFrontend = (
+  backendPermissions: EmployeePermissionBackend[]
+): Array<{ resource: string; actions: string[] }> => {
+  if (!backendPermissions || !Array.isArray(backendPermissions)) {
+    return [];
+  }
+
+  return backendPermissions
+    .filter((perm) => perm.actions && Array.isArray(perm.actions))
+    .map((perm) => ({
+      resource: perm.resource_name,
+      actions: perm.actions
+        .filter((action) => action.is_enabled === 'enabled')
+        .map((action) => action.action_type),
+    }))
+    .filter((perm) => perm.actions.length > 0);
+};
 
 // Department interface for dropdown
 interface Department {
@@ -46,10 +79,13 @@ interface Department {
   department_leader?: string;
 }
 
-// Interface for system permissions from backend
+// Interface for system permissions from backend (with descriptions)
 type SystemPermissionResource = {
   resource: string;
-  actions: string[];
+  actions: Array<{
+    action_type: string;
+    description: string;
+  }>;
 };
 
 const EmployeesPage: React.FC = () => {
@@ -65,6 +101,12 @@ const EmployeesPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Delete confirmation modal state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingName, setDeletingName] = useState<string>('');
+  const [deleting, setDeleting] = useState(false);
   
   // Form-level error and success states
   const [formError, setFormError] = useState('');
@@ -98,6 +140,13 @@ const EmployeesPage: React.FC = () => {
     }
   }, [showModal]);
 
+  // Check if modal is opened and load permissions if needed
+  useEffect(() => {
+    if (showModal && systemPermissions.length === 0) {
+      loadSystemPermissions();
+    }
+  }, [showModal, systemPermissions.length]);
+
   // Check auth and load employees
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -116,12 +165,8 @@ const EmployeesPage: React.FC = () => {
       console.log('System Permissions Response:', response);
       
       if (response.success && response.data) {
-        // Transform backend data to simpler format
-        const transformed = response.data.map((item: any) => ({
-          resource: item.resource,
-          actions: item.actions.map((a: any) => a.action_type)
-        }));
-        setSystemPermissions(transformed);
+        // Keep the full action objects with descriptions
+        setSystemPermissions(response.data);
       }
     } catch (err) {
       console.error('Error loading system permissions:', err);
@@ -236,6 +281,20 @@ const EmployeesPage: React.FC = () => {
 
   // Open modal for editing
   const handleEdit = (employee: Employee) => {
+    // Convert backend permissions format to frontend format
+    const convertedPermissions = convertBackendPermissionsToFrontend(
+      employee.roles?.permissions as unknown as EmployeePermissionBackend[] || []
+    );
+    
+    // Handle department - can be string, object with department_name, or undefined
+    const deptObj = employee.department as { _id?: string; department_id?: string; department_name?: string } | undefined;
+    const deptName = typeof employee.department === 'object' 
+      ? employee.department?.department_name 
+      : employee.department_name || '';
+    const deptId = typeof employee.department === 'object' 
+      ? employee.department?._id 
+      : employee.department_id || '';
+    
     setEditingEmployee(employee);
     setFormData({
       full_name: employee.full_name || '',
@@ -244,12 +303,12 @@ const EmployeesPage: React.FC = () => {
       identification: employee.identification || { id_type: 'National ID', number: '' },
       gender: employee.gender || '',
       title: employee.title || '',
-      department: employee.department || '',
-      department_name: employee.department_name || '',
-      department_id: employee.department_id || '',
-      roles: employee.roles || {
-        role_name: 'department_employee',
-        permissions: []
+      department: deptName,
+      department_name: deptName,
+      department_id: deptId,
+      roles: {
+        role_name: employee.roles?.role_name || 'department_employee',
+        permissions: convertedPermissions
       }
     });
     setFormError('');
@@ -282,7 +341,7 @@ const EmployeesPage: React.FC = () => {
         console.log('Update response:', response);
         
         if (response.success) {
-          setFormSuccess('Employee updated successfully!');
+          setFormSuccess(response.message || 'Employee updated successfully!');
           setTimeout(() => {
             setShowModal(false);
             loadEmployees();
@@ -295,7 +354,7 @@ const EmployeesPage: React.FC = () => {
         console.log('Create response:', response);
         
         if (response.success) {
-          setFormSuccess('Employee created successfully!');
+          setFormSuccess(response.message || 'Employee created successfully!');
           setTimeout(() => {
             setShowModal(false);
             loadEmployees();
@@ -322,19 +381,36 @@ const EmployeesPage: React.FC = () => {
     }
   };
 
-  // Handle delete
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this employee?')) return;
+  // Handle delete - show confirmation modal
+  const handleDeleteClick = (id: string, name: string) => {
+    setDeletingId(id);
+    setDeletingName(name);
+    setShowDeleteConfirm(true);
+  };
 
+  // Confirm delete handler
+  const handleConfirmDelete = async () => {
+    if (!deletingId) return;
+    
     try {
-      setLoading(true);
-      await employeeService.delete(id);
+      setDeleting(true);
+      await employeeService.delete(deletingId);
+      setShowDeleteConfirm(false);
       loadEmployees();
     } catch (err: any) {
       setError(err.message || 'Failed to delete employee');
     } finally {
-      setLoading(false);
+      setDeleting(false);
+      setDeletingId(null);
+      setDeletingName('');
     }
+  };
+
+  // Cancel delete handler
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setDeletingId(null);
+    setDeletingName('');
   };
 
   if (authLoading || loading) {
@@ -408,9 +484,9 @@ const EmployeesPage: React.FC = () => {
 
       {/* Employees Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-[calc(100vh-300px)]">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Employee
@@ -469,7 +545,10 @@ const EmployeesPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm text-gray-900">{employee.department_name || '-'}</span>
+                      <span className="text-sm text-gray-900">
+                        {/* Handle both direct department_name and populated department object */}
+                        {employee.department_name || (typeof employee.department === 'object' && employee.department?.department_name) || '-'}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-gray-600">
@@ -486,7 +565,7 @@ const EmployeesPage: React.FC = () => {
                           <FiEdit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(employee._id || employee.employee_id || '')}
+                          onClick={() => handleDeleteClick(employee._id || employee.employee_id || '', employee.full_name || 'this employee')}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Delete"
                         >
@@ -538,9 +617,14 @@ const EmployeesPage: React.FC = () => {
 
               {/* Inline Success Message */}
               {formSuccess && (
-                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl flex items-start gap-2">
-                  <FiCheck className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                  <span>{formSuccess}</span>
+                <div className="bg-green-50 border-2 border-green-500 text-green-800 px-6 py-4 rounded-xl flex items-center gap-3 animate-pulse">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <FiCheck className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-lg">Success!</p>
+                    <p className="text-green-700">{formSuccess}</p>
+                  </div>
                 </div>
               )}
 
@@ -739,30 +823,30 @@ const EmployeesPage: React.FC = () => {
                   Select the permissions this employee should have for each system resource.
                 </p>
 
-                <div className="space-y-4 max-h-64 overflow-y-auto">
+                <div className="space-y-4 max-h-80 overflow-y-auto">
                   {systemPermissions.length > 0 ? (
                     systemPermissions.map((resource) => {
                       const currentPerm = formData.roles?.permissions?.find(
-                        p => p.resource.toLowerCase() === resource.resource.toLowerCase()
+                        p => p?.resource?.toLowerCase() === resource.resource?.toLowerCase()
                       );
                       const selectedActions = currentPerm?.actions || [];
 
                       return (
                         <div key={resource.resource} className="border border-gray-200 rounded-lg bg-white p-3">
-                          <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center justify-between mb-3">
                             <span className="font-medium text-gray-900 capitalize">
                               {resource.resource}
                             </span>
                             <button
                               type="button"
                               onClick={() => {
-                                const allActions = resource.actions;
-                                const newActions = selectedActions.length === allActions.length 
+                                const allActionTypes = resource.actions.map(a => a.action_type);
+                                const newActions = selectedActions.length === allActionTypes.length 
                                   ? [] 
-                                  : allActions;
+                                  : allActionTypes;
                                 
                                 const newPermissions = (formData.roles?.permissions || []).filter(
-                                  p => p.resource.toLowerCase() !== resource.resource.toLowerCase()
+                                  p => p?.resource?.toLowerCase() !== resource.resource?.toLowerCase()
                                 );
                                 
                                 if (newActions.length > 0) {
@@ -785,52 +869,43 @@ const EmployeesPage: React.FC = () => {
                               {selectedActions.length === resource.actions.length ? 'Deselect All' : 'Select All'}
                             </button>
                           </div>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="space-y-2">
                             {resource.actions.map((action) => {
-                              const isSelected = selectedActions.includes(action);
+                              const isSelected = selectedActions.includes(action.action_type);
                               return (
-                                <button
-                                  key={action}
-                                  type="button"
-                                  onClick={() => {
-                                    const newPermissions = (formData.roles?.permissions || []).filter(
-                                      p => p.resource.toLowerCase() !== resource.resource.toLowerCase()
-                                    );
-                                    
-                                    if (isSelected) {
-                                      const remainingActions = selectedActions.filter(
-                                        (a) => a !== action
-                                      );
-                                      if (remainingActions.length > 0) {
-                                        newPermissions.push({
-                                          resource: resource.resource,
-                                          actions: remainingActions
+                                <div key={action.action_type} className="flex items-center justify-between">
+                                  <span className="text-sm text-gray-600 flex-1">
+                                    {action.description}
+                                  </span>
+                                  <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={(e) => {
+                                        const newPermissions = (formData.roles?.permissions || []).filter(
+                                          p => p?.resource?.toLowerCase() !== resource.resource?.toLowerCase()
+                                        );
+                                        
+                                        if (e.target.checked) {
+                                          newPermissions.push({
+                                            resource: resource.resource,
+                                            actions: [...selectedActions, action.action_type]
+                                          });
+                                        }
+                                        
+                                        setFormData({
+                                          ...formData,
+                                          roles: {
+                                            role_name: formData.roles?.role_name || 'department_employee',
+                                            permissions: newPermissions
+                                          }
                                         });
-                                      }
-                                    } else {
-                                      newPermissions.push({
-                                        resource: resource.resource,
-                                        actions: [...selectedActions, action]
-                                      });
-                                    }
-                                    
-                                    setFormData({
-                                      ...formData,
-                                      roles: {
-                                        role_name: formData.roles?.role_name || 'department_employee',
-                                        permissions: newPermissions
-                                      }
-                                    });
-                                  }}
-                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
-                                    isSelected 
-                                      ? 'bg-purple-600 text-white' 
-                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                  }`}
-                                >
-                                  {isSelected && <FiCheck className="w-3 h-3" />}
-                                  {action}
-                                </button>
+                                      }}
+                                      className="sr-only peer"
+                                    />
+                                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+                                  </label>
+                                </div>
                               );
                             })}
                           </div>
@@ -855,13 +930,22 @@ const EmployeesPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting}
-                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium transition-colors disabled:opacity-50"
+                  disabled={submitting || !!formSuccess}
+                  className={`flex-1 px-4 py-2.5 rounded-xl font-medium transition-all ${
+                    formSuccess 
+                      ? 'bg-green-600 text-white' 
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  } ${submitting ? 'opacity-50' : ''}`}
                 >
                   {submitting ? (
                     <span className="flex items-center justify-center gap-2">
                       <FiRefreshCw className="w-4 h-4 animate-spin" />
                       Saving...
+                    </span>
+                  ) : formSuccess ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <FiCheck className="w-4 h-4" />
+                      Saved!
                     </span>
                   ) : editingEmployee ? 'Update' : 'Create'}
                 </button>
@@ -870,6 +954,19 @@ const EmployeesPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="Delete Employee"
+        message={`Are you sure you want to delete "${deletingName}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        type="danger"
+        isLoading={deleting}
+      />
     </div>
   );
 };

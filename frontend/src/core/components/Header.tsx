@@ -75,7 +75,11 @@ const Header: React.FC<HeaderProps> = ({
   const displayName = user?.fullName || 'User';
   const displayRole = user?.role || 'Guest';
   const userDepartment = getUserDepartment(user);
-  const userInitial = displayName.charAt(0).toUpperCase();
+  // Get first two initials (e.g., "John Doe" -> "JD", "BYIRINGIRO Steven" -> "BS")
+  const nameParts = displayName.trim().split(' ').filter(part => part.length > 0);
+  const userInitial = nameParts.length >= 2 
+    ? (nameParts[0].charAt(0) + nameParts[1].charAt(0)).toUpperCase()
+    : displayName.charAt(0).toUpperCase();
 
   // Get current system name
   const currentSystemData = systems.find(s => s.id === currentSystem);
@@ -212,31 +216,7 @@ const Header: React.FC<HeaderProps> = ({
                 )}
               </div>
 
-              {/* Menu Items */}
-              <div className="py-1">
-                <button
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    navigate('/dashboard/profile');
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  <FiUser className="w-4 h-4" />
-                  Profile
-                </button>
-                <button
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    navigate('/dashboard/settings');
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  <FiSettings className="w-4 h-4" />
-                  Settings
-                </button>
-              </div>
-
-              {/* Logout */}
+              {/* Logout only - Profile and Settings are in Sidebar */}
               <div className="border-t border-gray-100 pt-1">
                 <button
                   onClick={handleLogout}

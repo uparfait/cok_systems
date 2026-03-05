@@ -188,14 +188,40 @@ apiClient.interceptors.response.use(
     }
 
     // Return the error data with standardized format
-    const errorData = error.response?.data as { error?: string; message?: string } | undefined;
+    const errorData = error.response?.data as { error?: string; message?: string; success?: boolean } | undefined;
+    
+    // Handle different backend response formats
+    // Backend can return: { success: false, message: "..." } or { error: "...", message: "..." }
+    let errorMessage = 'An error occurred';
+    let errorField = 'Error';
+    
+    if (errorData) {
+      // Check for 'message' field first (used by backend like { success: false, message: "..." })
+      if ('message' in errorData && errorData.message) {
+        errorMessage = errorData.message;
+        errorField = errorData.message;
+      }
+      // Check for 'error' field as fallback
+      if ('error' in errorData && errorData.error) {
+        errorMessage = errorData.error;
+        errorField = errorData.error;
+      }
+    } else if (error.message) {
+      // Fallback to axios error message only if no backend message available
+      errorMessage = error.message;
+      errorField = error.message;
+    }
+    
     return Promise.reject({
       status: false,
-      error: (errorData && 'error' in errorData ? errorData.error : undefined) || error.message,
-      message: (errorData && 'message' in errorData ? errorData.message : undefined) || error.message || 'An error occurred',
+      error: errorField,
+      message: errorMessage,
     });
   }
 );
+
+// Status codes that should NOT be retried (client errors and server errors that won't change on retry)
+const NON_RETRYABLE_STATUS_CODES = [400, 403, 404, 409, 500, 505];
 
 /**
  * Centralized API request function with retry capability
@@ -231,9 +257,13 @@ export const apiRequest = async (
     const response = await apiClient(config);
     return response.data;
   } catch (error: any) {
-    // Check if this is a network error (no response) - retry on these only
+    // Get the status code from the response
+    const statusCode = error.response?.status;
+    
+    // Check if this is a network error (no response) or a retriable status code
     const isNetworkError = !error.response;
-    const shouldRetry = isNetworkError && retryCount < maxRetries;
+    const isRetriableStatus = statusCode && !NON_RETRYABLE_STATUS_CODES.includes(statusCode);
+    const shouldRetry = (isNetworkError || isRetriableStatus) && retryCount < maxRetries;
     
     if (shouldRetry) {
       // Wait before retrying (exponential backoff: 1s, 2s, 3s, 4s, 5s)
