@@ -35,8 +35,8 @@ Router.use((error, req, res, next) => {
 
 
 Router.get('/', SystemPermissionManager.listSystemPermissions) // Get all system permissions
-Router.get('/resource/:resource', SystemPermissionManager.getResourcePermissions) // get system permissions by resource
-Router.post('/user/:userId/assign', SystemPermissionManager.assignPermissions) // Assign system permissions to a user
-Router.post('/user/:userId/remove', SystemPermissionManager.removePermissions) // Remove system permissions from a user
+// Router.get('/resource/:resource', SystemPermissionManager.getResourcePermissions) // get system permissions by resource
+// Router.post('/user/:userId/assign', SystemPermissionManager.assignPermissions) // Assign system permissions to a user
+// Router.post('/user/:userId/remove', SystemPermissionManager.removePermissions) // Remove system permissions from a user
 
 module.exports = Router

@@ -36,7 +36,7 @@ tags:
     description: Visitor check-in, check-out and service delivery
   - name: PARFAIT - Vehicles
     description: Smart parking and vehicle management
-  - name: PARFAIT - System Permissions
+  - name: PARFAIT - System Permissions And Role based access
     description: Role-based access control
 
 components:
@@ -1158,45 +1158,246 @@ paths:
       responses:
         '200': { description: Found }
         '404': { description: Not found }
-
+          # ═══════════════════════════════════════════════════════
+  # PARFAIT - ROLE MANAGEMENT (DEFAULT ROLES)
   # ═══════════════════════════════════════════════════════
-  # PARFAIT - SYSTEM PERMISSIONS
-  # ═══════════════════════════════════════════════════════
 
-  /permissions:
+  /roles:
     get:
-      tags: [PARFAIT - System Permissions]
-      summary: "List all permissions"
-      operationId: listPermissions
+      tags: [PARFAIT - System Permissions And Role based access]
+      summary: "Get all default roles"
+      description: "Retrieves a list of all default roles with their permissions"
+      operationId: getAllRoles
       parameters:
         - $ref: '#/components/parameters/PageParam'
         - $ref: '#/components/parameters/LimitParam'
       responses:
-        '200': { description: Permissions list returned }
-        '500': { description: Server error }
+        '200':
+          description: Roles retrieved successfully
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Roles retrieved successfully"
+                total: 5
+                page: 1
+                data:
+                  - _id: "64f1a2b3c4d5e6f7a8b9c0d1"
+                    role_name: "System Administrator"
+                    permissions:
+                      - resource_name: "employees"
+                        actions:
+                          - action: "read:employees"
+                            description: "A user with this permission can view a list of all employees"
+                            is_enabled: true
+                          - action: "create:employees"
+                            description: "A user with this permission can create an employee"
+                            is_enabled: true
+                    created_at: "2024-01-01T00:00:00.000Z"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              example:
+                success: false
+                type: "error"
+                message: "Something went wrong while fetching roles"
+                error: "Database error"
 
-  /permissions/resource/{resource}:
+    post:
+      tags: [PARFAIT - System Permissions And Role based access]
+      summary: "Create a new default role"
+      description: "Creates a new role with complete permissions structure. All actions are disabled by default unless specified."
+      operationId: createRole
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role_name]
+              properties:
+                role_name:
+                  type: string
+                  example: "Department Manager"
+                  description: "Unique role name"
+                permissions:
+                  type: array
+                  description: "Optional permissions to enable (others will be disabled by default)"
+                  items:
+                    type: object
+                    properties:
+                      resource_name:
+                        type: string
+                        example: "employees"
+                      actions:
+                        type: array
+                        items:
+                          type: string
+                        example: ["read:employees", "create:employees"]
+              example:
+                role_name: "Department Manager"
+                permissions:
+                  - resource_name: "employees"
+                    actions: ["read:employees", "update:employees"]
+                  - resource_name: "departments"
+                    actions: ["read:departments"]
+      responses:
+        '201':
+          description: Role created successfully
+          content:
+            application/json:
+              example:
+                success: true
+                type: "success"
+                message: "Role \"Department Manager\" created successfully"
+                data:
+                  _id: "64f1a2b3c4d5e6f7a8b9c0d2"
+                  role_name: "Department Manager"
+                  permissions:
+                    - resource_name: "employees"
+                      actions:
+                        - action: "read:employees"
+                          description: "A user with this permission can view a list of all employees"
+                          is_enabled: true
+                        - action: "create:employees"
+                          description: "A user with this permission can create an employee"
+                          is_enabled: false
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              examples:
+                missing_name:
+                  value:
+                    success: false
+                    type: "warning"
+                    message: "Role name is required"
+                invalid_permissions:
+                  value:
+                    success: false
+                    type: "warning"
+                    message: "Permission validation failed"
+                    errors:
+                      - "Invalid resource: \"invalid_resource\" at index 0"
+        '409':
+          description: Role already exists
+          content:
+            application/json:
+              example:
+                success: false
+                type: "warning"
+                message: "Role \"Department Manager\" already exists"
+        '500':
+          description: Server error
+
+  /roles/resources/available:
     get:
-      tags: [PARFAIT - System Permissions]
-      summary: "Get permissions for a resource"
-      operationId: getResourcePermissions
+      tags: [PARFAIT - System Permissions And Role based access]
+      summary: "Get all available resources and actions"
+      description: "Returns the complete list of resources and actions from the system permissions file (useful for UI dropdowns)"
+      operationId: getAvailableResources
+      responses:
+        '200':
+          description: Available resources retrieved successfully
+          content:
+            application/json:
+              example:
+                success: true
+                type: "success"
+                message: "Available resources retrieved successfully"
+                data:
+                  - resource_name: "employees"
+                    actions:
+                      - action: "read:employees"
+                        description: "A user with this permission can view a list of all employees"
+                      - action: "create:employees"
+                        description: "A user with this permission can create an employee"
+                      - action: "update:employees"
+                        description: "A user with this permission can update an existing employee data"
+                      - action: "delete:employees"
+                        description: "A user with this permission can delete an employee"
+                      - action: "REALTIME:employees"
+                        description: "A user with this permission can receive real-time updates on employee status changes"
+        '500':
+          description: Server error
+
+  /roles/name/{name}:
+    get:
+      tags: [PARFAIT - System Permissions And Role based access]
+      summary: "Get role by name"
+      description: "Retrieves a specific role by its unique name"
+      operationId: getRoleByName
       parameters:
-        - name: resource
+        - name: name
           in: path
           required: true
-          schema: { type: string }
-          example: "employees"
+          schema:
+            type: string
+          example: "System Administrator"
       responses:
-        '200': { description: Resource permissions retrieved }
-        '400': { description: Invalid resource }
-        '404': { description: Resource not found }
-        '500': { description: Server error }
+        '200':
+          description: Role retrieved successfully
+          content:
+            application/json:
+              example:
+                success: true
+                type: "success"
+                message: "Role retrieved successfully"
+                data:
+                  _id: "64f1a2b3c4d5e6f7a8b9c0d1"
+                  role_name: "System Administrator"
+                  permissions:
+                    - resource_name: "employees"
+                      actions:
+                        - action: "read:employees"
+                          is_enabled: true
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              example:
+                success: false
+                type: "warning"
+                message: "Role \"System Administrator\" not found"
+        '500':
+          description: Server error
 
-  /permissions/user/{id}/assign:
-    post:
-      tags: [PARFAIT - System Permissions]
-      summary: "Assign permissions to a user"
-      operationId: assignPermissions
+  /roles/{id}:
+    get:
+      tags: [PARFAIT - System Permissions And Role based access]
+      summary: "Get role by ID"
+      description: "Retrieves a specific role by its MongoDB ObjectId"
+      operationId: getRoleById
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200':
+          description: Role retrieved successfully
+        '400':
+          description: Invalid role ID format
+          content:
+            application/json:
+              example:
+                success: false
+                type: "warning"
+                message: "Invalid role ID format"
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              example:
+                success: false
+                type: "warning"
+                message: "Role not found"
+        '500':
+          description: Server error
+
+    put:
+      tags: [PARFAIT - System Permissions And Role based access]
+      summary: "Update role by ID"
+      description: "Updates an existing role's name and/or permissions. Preserves existing enabled permissions unless explicitly changed."
+      operationId: updateRole
       parameters:
         - $ref: '#/components/parameters/MongoObjectId'
       requestBody:
@@ -1205,21 +1406,86 @@ paths:
           application/json:
             schema:
               type: object
-              required: [resource, actions]
               properties:
-                resource: { type: string, example: "employees" }
-                actions: { type: array, items: { type: string }, example: ["create:employees", "update:employees"] }
+                role_name:
+                  type: string
+                  example: "Senior Department Manager"
+                permissions:
+                  type: array
+                  description: "Complete permissions structure or partial updates"
+                  items:
+                    type: object
+                    properties:
+                      resource_name:
+                        type: string
+                      actions:
+                        type: array
+                        items:
+                          type: string
+              example:
+                role_name: "Senior Department Manager"
+                permissions:
+                  - resource_name: "employees"
+                    actions: ["read:employees", "create:employees", "update:employees"]
+                  - resource_name: "departments"
+                    actions: ["read:departments", "update:departments"]
       responses:
-        '200': { description: Permissions assigned }
-        '400': { description: Invalid input }
-        '404': { description: User not found }
-        '500': { description: Server error }
+        '200':
+          description: Role updated successfully
+          content:
+            application/json:
+              example:
+                success: true
+                type: "success"
+                message: "Role \"Senior Department Manager\" updated successfully"
+                data:
+                  _id: "64f1a2b3c4d5e6f7a8b9c0d2"
+                  role_name: "Senior Department Manager"
+                  permissions:
+                    - resource_name: "employees"
+                      actions:
+                        - action: "read:employees"
+                          is_enabled: true
+                        - action: "create:employees"
+                          is_enabled: true
+        '400':
+          description: Validation error or invalid ID
+        '404':
+          description: Role not found
+        '409':
+          description: Role name already exists
+        '500':
+          description: Server error
 
-  /permissions/user/{id}/remove:
-    post:
-      tags: [PARFAIT - System Permissions]
-      summary: "Remove permissions from a user"
-      operationId: removePermissions
+    delete:
+      tags: [PARFAIT - System Permissions And Role based access]
+      summary: "Delete role by ID"
+      description: "Permanently removes a role from the system"
+      operationId: deleteRole
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200':
+          description: Role deleted successfully
+          content:
+            application/json:
+              example:
+                success: true
+                type: "success"
+                message: "Role \"Department Manager\" deleted successfully"
+        '400':
+          description: Invalid role ID format
+        '404':
+          description: Role not found
+        '500':
+          description: Server error
+
+  /roles/{id}/permissions/toggle:
+    patch:
+      tags: [PARFAIT - System Permissions And Role based access]
+      summary: "Toggle a specific permission"
+      description: "Enable or disable a single permission for a role"
+      operationId: togglePermission
       parameters:
         - $ref: '#/components/parameters/MongoObjectId'
       requestBody:
@@ -1228,16 +1494,327 @@ paths:
           application/json:
             schema:
               type: object
-              required: [resource]
+              required: [resource_name, action]
               properties:
-                resource: { type: string, example: "employees" }
-                actions:
+                resource_name:
+                  type: string
+                  example: "employees"
+                action:
+                  type: string
+                  example: "create:employees"
+                enabled:
+                  type: boolean
+                  description: "If not provided, toggles the current value"
+                  example: true
+      responses:
+        '200':
+          description: Permission toggled successfully
+          content:
+            application/json:
+              example:
+                success: true
+                type: "success"
+                message: "Permission toggled successfully"
+                data:
+                  _id: "64f1a2b3c4d5e6f7a8b9c0d2"
+                  role_name: "Department Manager"
+                  permissions:
+                    - resource_name: "employees"
+                      actions:
+                        - action: "create:employees"
+                          is_enabled: true
+        '400':
+          description: Missing required fields or invalid input
+        '404':
+          description: Role not found or permission not found
+        '500':
+          description: Server error
+
+  /roles/{id}/permissions/bulk:
+    patch:
+      tags: [PARFAIT - System Permissions And Role based access]
+      summary: "Bulk update permissions"
+      description: "Update multiple permissions at once for a role"
+      operationId: bulkUpdatePermissions
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [permissions]
+              properties:
+                permissions:
+                  type: array
+                  description: "Complete permissions array to replace existing ones"
+                  items:
+                    type: object
+                    properties:
+                      resource_name:
+                        type: string
+                      actions:
+                        type: array
+                        items:
+                          type: string
+              example:
+                permissions:
+                  - resource_name: "employees"
+                    actions: ["read:employees", "create:employees", "update:employees", "delete:employees"]
+                  - resource_name: "departments"
+                    actions: ["read:departments"]
+                  - resource_name: "service delivery"
+                    actions: []
+      responses:
+        '200':
+          description: Permissions updated successfully
+          content:
+            application/json:
+              example:
+                success: true
+                type: "success"
+                message: "Permissions updated successfully"
+                data:
+                  _id: "64f1a2b3c4d5e6f7a8b9c0d2"
+                  role_name: "Department Manager"
+                  permissions:
+                    - resource_name: "employees"
+                      actions:
+                        - action: "read:employees"
+                          is_enabled: true
+                        - action: "create:employees"
+                          is_enabled: true
+        '400':
+          description: Validation error
+        '404':
+          description: Role not found
+        '500':
+          description: Server error
+
+  /roles/{id}/duplicate:
+    post:
+      tags: [PARFAIT - System Permissions And Role based access]
+      summary: "Duplicate an existing role"
+      description: "Creates a new role by copying permissions from an existing role"
+      operationId: duplicateRole
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [new_role_name]
+              properties:
+                new_role_name:
+                  type: string
+                  example: "Assistant Department Manager"
+      responses:
+        '201':
+          description: Role duplicated successfully
+          content:
+            application/json:
+              example:
+                success: true
+                type: "success"
+                message: "Role duplicated successfully as \"Assistant Department Manager\""
+                data:
+                  _id: "64f1a2b3c4d5e6f7a8b9c0d3"
+                  role_name: "Assistant Department Manager"
+                  permissions:
+                    - resource_name: "employees"
+                      actions:
+                        - action: "read:employees"
+                          is_enabled: true
+        '400':
+          description: Missing new role name
+        '404':
+          description: Source role not found
+        '409':
+          description: New role name already exists
+        '500':
+          description: Server error
+
+  /roles/validate/permissions:
+    post:
+      tags: [PARFAIT - System Permissions And Role based access]
+      summary: "Validate permissions structure"
+      description: "Validates a permissions array against the allowed resources without saving"
+      operationId: validatePermissions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [permissions]
+              properties:
+                permissions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      resource_name:
+                        type: string
+                      actions:
+                        type: array
+                        items:
+                          type: string
+              example:
+                permissions:
+                  - resource_name: "employees"
+                    actions: ["read:employees", "invalid:action"]
+      responses:
+        '200':
+          description: Validation complete
+          content:
+            application/json:
+              examples:
+                valid:
+                  value:
+                    success: true
+                    type: "success"
+                    message: "Permissions are valid"
+                    data:
+                      valid: true
+                invalid:
+                  value:
+                    success: false
+                    type: "warning"
+                    message: "Permission validation failed"
+                    errors:
+                      - "Invalid action \"invalid:action\" for resource \"employees\" at permission 0, action 1"
+        '500':
+          description: Server error
+
+  /roles/{id}/export:
+    get:
+      tags: [PARFAIT - System Permissions And Role based access]
+      summary: "Export role configuration"
+      description: "Exports a role's complete configuration as JSON (useful for backup or templating)"
+      operationId: exportRole
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200':
+          description: Role exported successfully
+          content:
+            application/json:
+              example:
+                success: true
+                type: "success"
+                message: "Role exported successfully"
+                data:
+                  role_name: "Department Manager"
+                  permissions:
+                    - resource_name: "employees"
+                      actions:
+                        - action: "read:employees"
+                          description: "A user with this permission can view a list of all employees"
+                          is_enabled: true
+                  metadata:
+                    exported_at: "2024-01-01T00:00:00.000Z"
+                    version: "1.0"
+        '404':
+          description: Role not found
+        '500':
+          description: Server error
+
+  /roles/bulk:
+    post:
+      tags: [PARFAIT - System Permissions And Role based access]
+      summary: "Bulk create roles"
+      description: "Create multiple roles at once"
+      operationId: bulkCreateRoles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [roles]
+              properties:
+                roles:
+                  type: array
+                  items:
+                    type: object
+                    required: [role_name]
+                    properties:
+                      role_name:
+                        type: string
+                      permissions:
+                        type: array
+              example:
+                roles:
+                  - role_name: "Manager"
+                    permissions:
+                      - resource_name: "employees"
+                        actions: ["read:employees"]
+                  - role_name: "Supervisor"
+                    permissions:
+                      - resource_name: "employees"
+                        actions: ["read:employees"]
+      responses:
+        '201':
+          description: Roles created successfully
+          content:
+            application/json:
+              example:
+                success: true
+                type: "success"
+                message: "2 roles created successfully"
+                data:
+                  created: 2
+                  failed: 0
+                  details:
+                    - role_name: "Manager"
+                      status: "created"
+                    - role_name: "Supervisor"
+                      status: "created"
+        '400':
+          description: Invalid input
+        '409':
+          description: Some roles already exist
+        '500':
+          description: Server error
+
+  /roles/bulk/delete:
+    post:
+      tags: [PARFAIT - System Permissions And Role based access]
+      summary: "Bulk delete roles"
+      description: "Delete multiple roles by their IDs"
+      operationId: bulkDeleteRoles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role_ids]
+              properties:
+                role_ids:
                   type: array
                   items:
                     type: string
-                  example: ["create:employees"]
+              example:
+                role_ids:
+                  - "64f1a2b3c4d5e6f7a8b9c0d1"
+                  - "64f1a2b3c4d5e6f7a8b9c0d2"
       responses:
-        '200': { description: Permissions removed }
-        '400': { description: Invalid input }
-        '404': { description: User not found or permission not found }
-        '500': { description: Server error }
+        '200':
+          description: Roles deleted successfully
+          content:
+            application/json:
+              example:
+                success: true
+                type: "success"
+                message: "2 roles deleted successfully"
+                data:
+                  deleted: 2
+                  failed: 0
+        '400':
+          description: Invalid input
+        '500':
+          description: Server error

@@ -94,14 +94,31 @@ module.exports = async function car_check_out(req, res, next) {
 
             await violation.save();
             console.log(`[SECURITY] Vehicle ${plate_number} automatically flagged at checkout for overstaying by ${flagged_duration} minutes.`);
+
+            // Populate the violation details for the frontend response
+            violation_details = {
+                allowed_minutes: allowed_duration_minutes,
+                total_minutes: parked_minutes,
+                overstayed_minutes: flagged_duration
+            };
         }
         // ================================================================
 
         return res.status(200).json({
             success: true,
-            type: "success",
-            message: pending_visitor ? "Car and associated Visitor successfully checked out." : "Car checked out successfully.",
-
+            type: is_flagged ? "info" : "success", 
+            message: final_message,
+            data: {
+                plate_number: plate_number,
+                driver_type: parking_session.driver_type || "Not Specified",
+                driver_name: parking_session.driver_name || "Not Specified",
+                driver_telephone: parking_session.driver_telephone || "Not Specified",
+                check_in_time: check_in_time,
+                check_out_time: current_time,
+                total_duration: `${parked_minutes} mins`,
+                is_flagged: is_flagged,
+                violation_details: violation_details
+            }
         });
 
     } catch (error) {
