@@ -5,9 +5,9 @@ import { post, setAuthData, clearAuthData, getStoredUser, getAccessToken, isAuth
 
 // ==================== LOGIN APIs ====================
 
-export const login = (email, password) => post('/auth/login', { email, password });
+export const login = (email: string, password: string) => post('/auth/login', { email, password });
 
-export const verifyLoginOTP = async (userId, otpToken) => {
+export const verifyLoginOTP = async (userId: string, otpToken: string) => {
   console.log('[authService] verifyLoginOTP STARTED');
   
   if (!userId || !otpToken) {
@@ -69,7 +69,7 @@ export const verifyLoginOTP = async (userId, otpToken) => {
   }
 };
 
-export const resendLoginOTP = (userId, email) => post('/auth/login/resend', { userId, email });
+export const resendLoginOTP = (userId: string, email: string) => post('/auth/login/resend', { userId, email });
 
 // ==================== LOGOUT APIs ====================
 
@@ -98,33 +98,33 @@ export const logoutAll = async () => {
 
 // ==================== PASSWORD RESET APIs ====================
 
-export const requestPasswordReset = (email) => post('/auth/password-reset', { email });
+export const requestPasswordReset = (email: string) => post('/auth/password-reset', { email });
 
-export const verifyPasswordResetOTP = (userId, otp) => post('/auth/password-reset/verify', { userId, otp });
+export const verifyPasswordResetOTP = (userId: string, otp: string) => post('/auth/password-reset/verify', { userId, otp });
 
-export const resetPassword = (userId, tempToken, newPassword, confirmPassword) => 
+export const resetPassword = (userId: string, tempToken: string, newPassword: string, confirmPassword: string) => 
   post('/auth/password-reset/reset', { userId, tempToken, newPassword, confirmPassword });
 
-export const resendPasswordResetOTP = (userId, email) => post('/auth/password-reset/resend', { userId, email });
+export const resendPasswordResetOTP = (userId: string, email: string) => post('/auth/password-reset/resend', { userId, email });
 
 // ==================== FIRST TIME LOGIN APIs ====================
 
-export const checkEmailForFirstLogin = (email) => post('/auth/first-login/check', { email });
+export const checkEmailForFirstLogin = (email: string) => post('/auth/first-login/check', { email });
 
-export const sendFirstLoginOTP = (email) => post('/auth/first-login/send-otp', { email });
+export const sendFirstLoginOTP = (email: string) => post('/auth/first-login/send-otp', { email });
 
-export const verifyFirstLoginOTP = (email, otp) => post('/auth/first-login/activate', { email, otp });
+export const verifyFirstLoginOTP = (email: string, otp: string) => post('/auth/first-login/activate', { email, otp });
 
-export const activateAccount = (userId, otp, newPassword, confirmPassword) => 
+export const activateAccount = (userId: string, otp: string, newPassword: string, confirmPassword: string) => 
   post('/auth/first-login/activate', { userId, otp, newPassword, confirmPassword });
 
-export const resendFirstLoginOTP = (email) => post('/auth/first-login/resend', { email });
+export const resendFirstLoginOTP = (email: string) => post('/auth/first-login/resend', { email });
 
 // ==================== ACCOUNT LOCK/UNLOCK APIs ====================
 
-export const lockAccount = (userId, reason) => post('/auth/lock-unlock/lock', { userId, reason });
+export const lockAccount = (userId: string, reason: string) => post('/auth/lock-unlock/lock', { userId, reason });
 
-export const unlockAccount = (userId) => post('/auth/lock-unlock/unlock', { userId });
+export const unlockAccount = (userId: string) => post('/auth/lock-unlock/unlock', { userId });
 
 // ==================== USER DATA APIs ====================
 
