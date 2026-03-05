@@ -15,6 +15,7 @@ const amos_api_docs = require("./amos_api_docs/routes.js")
 const docs = require("./docs/routes.js")
 const feedback = require("./feedback/routes.js")
 const authenticate = require('../middlewares/authenticate.js')
+const roles_managment = require('./roles_managment/routes.js')
 
 
 Router.use('/servicedelivery', 
@@ -37,6 +38,7 @@ Router.use('/permissions',
      // 
     system_permission)
 
+Router.use('/roles', roles_managment)
 
 Router.use("/auth", auth)
 Router.use('/parfait', parfaits_api_docs)
