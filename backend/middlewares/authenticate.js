@@ -58,7 +58,7 @@ const authenticate = async (req, res, next) => {
     const tokenPayload = verification.decoded;
 
     // Fetch user from database
-    const user = await User.findById(tokenPayload.userId);
+    const user = await User.findById(tokenPayload.userId).populate('department');
 
     if (!user) {
       return res.status(401).json({
@@ -100,7 +100,7 @@ const authenticate = async (req, res, next) => {
 
     const dbUserId = user._id?.toString();
     const dbEmail = user.email?.toLowerCase();
-    const dbRole = user.roles?.role_name || 'system_admin';
+    const dbRole = user.roles?.role_name || 'Not specified'; // Changed default to match schema
     const dbPermissions = user.roles?.permissions || [];
 
     // Compare userId
@@ -135,12 +135,18 @@ const authenticate = async (req, res, next) => {
     }
 
     // Compare permissions - check if database has different permissions
-    const tokenPermsSet = new Set(tokenPermissions.map(p => 
-      typeof p === 'object' ? JSON.stringify(p) : p
-    ));
-    const dbPermsSet = new Set(dbPermissions.map(p => 
-      typeof p === 'object' ? JSON.stringify(p) : p
-    ));
+    // Create a string representation for comparison that handles the nested structure
+    const tokenPermsSet = new Set(
+      tokenPermissions.map(p => 
+        typeof p === 'object' ? JSON.stringify(p) : p
+      )
+    );
+    
+    const dbPermsSet = new Set(
+      dbPermissions.map(p => 
+        typeof p === 'object' ? JSON.stringify(p) : p
+      )
+    );
 
     let permissionsChanged = false;
     if (tokenPermsSet.size !== dbPermsSet.size) {
@@ -162,6 +168,12 @@ const authenticate = async (req, res, next) => {
       tokenPayload.permissions = dbPermissions;
     }
 
+    // Get department information if it exists
+    let department = null;
+    if (user.department) {
+      department = user.department;
+    }
+
     // Attach fresh user data to request
     req.user = {
       userId: user._id,
@@ -170,10 +182,16 @@ const authenticate = async (req, res, next) => {
       fullName: user.full_name,
       name: user.full_name,
       full_name: user.full_name,
+      telephone: user.telephone,
+      gender: user.gender, 
+      title: user.title,
       role: dbRole,
+      role_name: dbRole,
       permissions: dbPermissions,
-      departmentId: user.department_id,
-      departmentName: user.department_name
+      department: department,
+      is_active: user.is_active,
+      is_account_activated: user.is_account_activated,
+      access_control: user.access_control
     };
 
     // Also attach the raw token payload for reference

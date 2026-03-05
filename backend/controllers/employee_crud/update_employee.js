@@ -81,7 +81,7 @@ module.exports = async function update_user(req, res, next) {
             if (oldDeptId && oldDeptId !== 'Not specified') {
                 const oldDept = await department_model.findById(oldDeptId)
                 if (oldDept) {
-                    oldDept.number_of_employees = Math.max(0, oldDept.number_of_employees - 1)
+                    oldDept.number_of_employees = Math.max(0, (oldDept.number_of_employees || 0) - 1)
                     await oldDept.save()
                 }
             }
@@ -93,12 +93,10 @@ module.exports = async function update_user(req, res, next) {
             // If changing to 'Not specified', decrement old department count
             const oldDept = await department_model.findById(user.department)
             if (oldDept) {
-                oldDept.number_of_employees = Math.max(0, oldDept.number_of_employees - 1)
+                oldDept.number_of_employees = Math.max(0, (oldDept.number_of_employees || 0) - 1)
                 await oldDept.save()
             }
         }
-
-    
 
         // Apply updates safely
         if (full_name !== undefined) user.full_name = full_name
@@ -106,7 +104,7 @@ module.exports = async function update_user(req, res, next) {
         if (gender !== undefined) user.gender = gender
         if (title !== undefined) user.title = title
         if (email !== undefined) user.email = email
-        if (department_id) user.department = department_id
+        if (department_id) user.department = department_id === 'Not specified' ? null : department_id
 
         if (identification) {
             if (identification.id_type !== undefined) user.identification.id_type = identification.id_type
@@ -121,40 +119,105 @@ module.exports = async function update_user(req, res, next) {
         if (roles) {
             if (roles.role_name !== undefined) user.roles.role_name = roles.role_name
 
-            if (roles.permissions !== undefined && Array.isArray(roles.permissions)) {
-                const validatedPermissions = []
-                for (const perm of roles.permissions) {
-                    const resourceDef = allowed_resources.find(
-                        r => r.resource_name.toLowerCase() === perm.resource.trim().toLowerCase()
-                    )
-                    if (!resourceDef) {
-                        return res.status(400).json({
-                            success: false,
-                            type: "warning",
-                            message: `Invalid resource: ${perm.resource}`
+            // Handle permissions update
+            if (roles.permissions !== undefined) {
+                if (Array.isArray(roles.permissions)) {
+                    // Build complete permissions structure
+                    const allResources = allowed_resources.map(r => r.resource_name)
+                    const updatedPermissions = []
+                    
+                    // Get existing permissions for reference
+                    const existingPermissions = user.roles.permissions || []
+                    
+                    // Create a map of existing enabled actions
+                    const existingEnabledMap = new Map()
+                    existingPermissions.forEach(perm => {
+                        const resourceName = perm.resource_name
+                        perm.actions.forEach(action => {
+                            if (action.is_enabled === 'enabled') {
+                                const key = `${resourceName}:${action.action_type}`
+                                existingEnabledMap.set(key, true)
+                            }
                         })
-                    }
+                    })
 
-                    const validActionTypes = resourceDef.actions.map(a => a.action_type)
-                    const normalizedActions = []
-                    for (const action of perm.actions || []) {
-                        const upperAction = action.toString().toUpperCase()
-                        if (!validActionTypes.includes(upperAction)) {
+                    // Process incoming permissions to enable specific actions
+                    const incomingEnabledMap = new Map()
+                    for (const perm of roles.permissions) {
+                        const resourceName = perm.resource?.trim() || perm.resource_name?.trim()
+                        
+                        if (!resourceName) continue
+
+                        // Validate resource
+                        const resourceDef = allowed_resources.find(
+                            r => r.resource_name.toLowerCase() === resourceName.toLowerCase()
+                        )
+                        
+                        if (!resourceDef) {
                             return res.status(400).json({
                                 success: false,
                                 type: "warning",
-                                message: `Invalid action type: ${action} for resource ${perm.resource}`
+                                message: `Invalid resource: ${resourceName}`
                             })
                         }
-                        normalizedActions.push(upperAction)
+
+                        // Get actions to enable
+                        const actionsToEnable = perm.actions || []
+                        actionsToEnable.forEach(action => {
+                            const actionType = typeof action === 'string' ? action : action.action_type
+                            const validActionTypes = resourceDef.actions.map(a => a.action_type)
+                            
+                            if (!validActionTypes.includes(actionType)) {
+                                return res.status(400).json({
+                                    success: false,
+                                    type: "warning",
+                                    message: `Invalid action type: ${actionType} for resource ${resourceName}`
+                                })
+                            }
+                            
+                            const key = `${resourceName}:${actionType}`
+                            incomingEnabledMap.set(key, true)
+                        })
                     }
 
-                    validatedPermissions.push({
-                        resource: perm.resource.trim(),
-                        actions: normalizedActions
+                    // Build complete permissions for all resources
+                    allResources.forEach(resourceName => {
+                        const resourceDef = allowed_resources.find(r => r.resource_name === resourceName)
+                        
+                        if (resourceDef) {
+                            const resourcePermissions = {
+                                resource_name: resourceName,
+                                actions: []
+                            }
+                            
+                            resourceDef.actions.forEach(actionDef => {
+                                const key = `${resourceName}:${actionDef.action_type}`
+                                
+                                // Determine if action should be enabled
+                                let isEnabled = "disabled"
+                                
+                                // Check if this action is enabled in incoming request
+                                if (incomingEnabledMap.has(key)) {
+                                    isEnabled = "enabled"
+                                }
+                                // Otherwise, preserve existing state if any
+                                else if (existingEnabledMap.has(key)) {
+                                    isEnabled = "enabled"
+                                }
+                                
+                                resourcePermissions.actions.push({
+                                    action_type: actionDef.action_type,
+                                    description: actionDef.description,
+                                    is_enabled: isEnabled
+                                })
+                            })
+                            
+                            updatedPermissions.push(resourcePermissions)
+                        }
                     })
+                    
+                    user.roles.permissions = updatedPermissions
                 }
-                user.roles.permissions = validatedPermissions
             }
         }
 

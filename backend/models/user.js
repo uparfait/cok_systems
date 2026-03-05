@@ -31,12 +31,14 @@ const user_schema = new mongoose.Schema({
         role_name: { type: String },
         permissions: [
             {
-                resource: { type: String, required: true }, // e.g. "employees"
+                resource_name: { type: String, required: true }, // e.g. "employees"
                 actions: [
                     {
-                        type: String,
-                        required: true
+                        action_type: {type: String},
+                        description: {type: String},
+                        is_enabled: {type: String}
                     }
+            
                 ]
             }
         ]
