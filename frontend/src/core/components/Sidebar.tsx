@@ -65,7 +65,11 @@ const Sidebar: React.FC<SidebarProps> = ({
   // Get user display info
   const displayName = user?.fullName || 'User';
   const displayRole = user?.role || 'Guest';
-  const userInitial = displayName.charAt(0).toUpperCase();
+  // Get first two initials (e.g., "John Doe" -> "JD", "BYIRINGIRO Steven" -> "BS")
+  const nameParts = displayName.trim().split(' ').filter(part => part.length > 0);
+  const userInitial = nameParts.length >= 2 
+    ? (nameParts[0].charAt(0) + nameParts[1].charAt(0)).toUpperCase()
+    : displayName.charAt(0).toUpperCase();
 
   // Additional menu items that might be available to all
   const commonMenuItems = [

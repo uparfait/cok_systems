@@ -6,6 +6,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { departmentService, employeeService, type Employee } from '../../../core/services/adminService';
+import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import { 
   FiPlus, FiSearch, FiEdit2, FiTrash2, FiRefreshCw, FiUsers, FiGrid,
   FiX, FiCheck, FiAlertCircle
@@ -34,7 +35,7 @@ interface Department {
 }
 
 const DepartmentsPage: React.FC = () => {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -45,6 +46,12 @@ const DepartmentsPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Delete confirmation modal state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingName, setDeletingName] = useState<string>('');
+  const [deleting, setDeleting] = useState(false);
   
   // Form-level error and success states
   const [formError, setFormError] = useState('');
@@ -249,7 +256,7 @@ const DepartmentsPage: React.FC = () => {
         console.log('Update response:', response);
         
         if (response.success) {
-          setFormSuccess('Department updated successfully!');
+          setFormSuccess(response.message || 'Department updated successfully!');
           setTimeout(() => {
             setShowModal(false);
             loadDepartments();
@@ -263,7 +270,7 @@ const DepartmentsPage: React.FC = () => {
         console.log('Create response:', response);
         
         if (response.success) {
-          setFormSuccess('Department created successfully!');
+          setFormSuccess(response.message || 'Department created successfully!');
           setTimeout(() => {
             setShowModal(false);
             loadDepartments();
@@ -291,19 +298,36 @@ const DepartmentsPage: React.FC = () => {
     }
   };
 
-  // Handle delete
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this department?')) return;
+  // Handle delete - show confirmation modal
+  const handleDeleteClick = (id: string, name: string) => {
+    setDeletingId(id);
+    setDeletingName(name);
+    setShowDeleteConfirm(true);
+  };
 
+  // Confirm delete handler
+  const handleConfirmDelete = async () => {
+    if (!deletingId) return;
+    
     try {
-      setLoading(true);
-      await departmentService.delete(id);
+      setDeleting(true);
+      await departmentService.delete(deletingId);
+      setShowDeleteConfirm(false);
       loadDepartments();
     } catch (err: any) {
       setError(err.message || 'Failed to delete department');
     } finally {
-      setLoading(false);
+      setDeleting(false);
+      setDeletingId(null);
+      setDeletingName('');
     }
+  };
+
+  // Cancel delete handler
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setDeletingId(null);
+    setDeletingName('');
   };
 
   if (authLoading || loading) {
@@ -466,7 +490,7 @@ const DepartmentsPage: React.FC = () => {
                   Edit
                 </button>
                 <button
-                  onClick={() => handleDelete(dept._id || dept.department_id || '')}
+                  onClick={() => handleDeleteClick(dept._id || dept.department_id || '', dept.department_name || 'this department')}
                   className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors"
                 >
                   <FiTrash2 className="w-4 h-4" />
@@ -478,7 +502,7 @@ const DepartmentsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Modal - No close button, clicking outside won't close */}
+      {/* Modal */}
       {showModal && (
         <div 
           className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
@@ -488,19 +512,19 @@ const DepartmentsPage: React.FC = () => {
           >
             {/* Modal Header */}
             <div className="p-5 border-b bg-gray-50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <HiOutlineOfficeBuilding className="w-5 h-5 text-blue-600" />
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <HiOutlineOfficeBuilding className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">
+                      {editingDepartment ? 'Edit Department' : 'Add Department'}
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      {editingDepartment ? 'Update department details' : 'Create a new department'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">
-                    {editingDepartment ? 'Edit Department' : 'Add Department'}
-                  </h2>
-                  <p className="text-sm text-gray-500">
-                    {editingDepartment ? 'Update department details' : 'Create a new department'}
-                  </p>
-                </div>
-              </div>
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
@@ -582,7 +606,12 @@ const DepartmentsPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-semibold transition-colors"
+                  disabled={submitting}
+                  className={`flex-1 px-4 py-2.5 rounded-xl font-semibold transition-colors ${
+                    submitting
+                      ? 'border border-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
                 >
                   Cancel
                 </button>
@@ -603,6 +632,19 @@ const DepartmentsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="Delete Department"
+        message={`Are you sure you want to delete "${deletingName}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        type="danger"
+        isLoading={deleting}
+      />
     </div>
   );
 };

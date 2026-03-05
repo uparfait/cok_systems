@@ -76,7 +76,11 @@ export interface Employee {
   };
   gender?: string;
   title?: string;
-  department?: string;
+  department?: string | {
+    _id?: string;
+    department_id?: string;
+    department_name?: string;
+  };
   department_name?: string;
   department_id?: string;
   status?: string;
@@ -230,18 +234,18 @@ export interface SystemPermission {
 
 export const permissionService = {
   // Get all system resources and their available actions (from backend)
-  getSystemPermissions: () => get('/system_permission'),
+  getSystemPermissions: () => get('/permissions'),
   
   // Get permissions for a specific resource
-  getResourcePermissions: (resource: string) => get(`/system_permission/resource/${encodeURIComponent(resource)}`),
+  getResourcePermissions: (resource: string) => get(`/permissions/resource/${encodeURIComponent(resource)}`),
   
   // Assign permissions to a user
   assignPermissions: (userId: string, resource: string, actions: string[]) => 
-    post(`/system_permission/assign/${userId}`, { resource, actions }),
+    post(`/permissions/user/${userId}/assign`, { resource, actions }),
   
   // Remove permissions from a user
   removePermissions: (userId: string, resource: string, actions?: string[]) => 
-    post(`/system_permission/remove/${userId}`, { resource, actions }),
+    post(`/permissions/user/${userId}/remove`, { resource, actions }),
 };
 
 export default {
