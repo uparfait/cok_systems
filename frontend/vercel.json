@@ -5,6 +5,10 @@
   "installCommand": "npm install",
   "rewrites": [
     {
+      "source": "/cok/api/:path*",
+      "destination": "https://cok-bc.onrender.com/cok/api/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

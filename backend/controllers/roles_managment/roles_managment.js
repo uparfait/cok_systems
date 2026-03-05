@@ -1,6 +1,6 @@
 // controllers/role/RoleController.js
 const mongoose = require('mongoose');
-const role_model = require('../../models/role.js');
+const role_model = require('../../models/default_roles.js');
 const allowed_resources = require('../../resources/resources.js');
 
 class RoleController {
@@ -100,10 +100,7 @@ class RoleController {
         return completePermissions;
     }
 
-    /**
-     * Create a new role
-     * Express middleware: POST /api/roles
-     */
+    
     static async createRole(req, res, next) {
         try {
             const { role_name, permissions = [] } = req.body;
@@ -169,10 +166,7 @@ class RoleController {
         }
     }
 
-    /**
-     * Get all roles
-     * Express middleware: GET /api/roles
-     */
+   
     static async getAllRoles(req, res, next) {
         try {
             const roles = await role_model.find({});
@@ -195,10 +189,7 @@ class RoleController {
         }
     }
 
-    /**
-     * Get role by ID
-     * Express middleware: GET /api/roles/:id
-     */
+    
     static async getRoleById(req, res, next) {
         try {
             const { id } = req.params;
@@ -239,10 +230,7 @@ class RoleController {
         }
     }
 
-    /**
-     * Get role by name
-     * Express middleware: GET /api/roles/name/:name
-     */
+    
     static async getRoleByName(req, res, next) {
         try {
             const { name } = req.params;
@@ -275,10 +263,7 @@ class RoleController {
         }
     }
 
-    /**
-     * Update role
-     * Express middleware: PUT /api/roles/:id
-     */
+    
     static async updateRole(req, res, next) {
         try {
             const { id } = req.params;
@@ -382,10 +367,7 @@ class RoleController {
         }
     }
 
-    /**
-     * Delete role
-     * Express middleware: DELETE /api/roles/:id
-     */
+    
     static async deleteRole(req, res, next) {
         try {
             const { id } = req.params;
@@ -425,10 +407,7 @@ class RoleController {
         }
     }
 
-    /**
-     * Get all available resources (for frontend dropdowns)
-     * Express middleware: GET /api/roles/resources/available
-     */
+    
     static async getAvailableResources(req, res, next) {
         try {
             const resources = allowed_resources.map(resource => ({
@@ -457,10 +436,7 @@ class RoleController {
         }
     }
 
-    /**
-     * Toggle specific permission
-     * Express middleware: PATCH /api/roles/:id/permissions/toggle
-     */
+    
     static async togglePermission(req, res, next) {
         try {
             const { id } = req.params;
@@ -532,10 +508,7 @@ class RoleController {
         }
     }
 
-    /**
-     * Bulk update permissions
-     * Express middleware: PATCH /api/roles/:id/permissions/bulk
-     */
+   
     static async bulkUpdatePermissions(req, res, next) {
         try {
             const { id } = req.params;

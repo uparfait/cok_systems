@@ -8,6 +8,7 @@ import PasswordSetupModal from '../../core/components/Modals/PasswordSetupModal'
 import OTPVerificationModal from '../../core/components/Modals/OTPVerificationModal';
 import PasswordResetOTPModal from '../../core/components/Modals/PasswordResetOTPModal';
 import { useAuth } from '../../core/contexts/AuthContext';
+import { getDashboardRoute } from '../../core/utils/departmentUtils';
 
 const LoginPage = () => {
   const { login } = useAuth();
@@ -67,8 +68,13 @@ const LoginPage = () => {
         setShowOTPVerificationModal(true);
         return;
       } else if ((result.status === true || result.success === true) && result.data?.tokens) {
-        // Direct login - tokens stored in context, redirect to dashboard
-        navigate('/dashboard');
+        // Direct login - tokens stored in context, redirect based on role
+        const userRole = result.data.role || '';
+        const userDepartment = result.data.department_name || result.data.departmentName || result.data.department;
+        
+        // Use async version to get route based on role
+        const redirectPath = await getDashboardRoute(userRole, userDepartment);
+        navigate(redirectPath);
         return;
       } else if (result.error?.includes('not activated') || result.error?.includes('Account not activated')) {
         // First-time login - account not yet activated
