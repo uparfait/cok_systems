@@ -56,7 +56,7 @@ const sendViaAPI = async (toEmail, subject, htmlContent, textContent) => {
     sendSmtpEmail.subject = subject;
     sendSmtpEmail.htmlContent = htmlContent;
     sendSmtpEmail.textContent = textContent;
-    // IMPORTANT: The sender email MUST be verified in your Brevo dashboard
+    // The sender email MUST be verified Brevo dashboard
     sendSmtpEmail.sender = { "name": "COK Systems", "email": "cokservicedelivery@gmail.com" };
     sendSmtpEmail.to = [{ "email": toEmail }];
 
