@@ -20,12 +20,12 @@ module.exports = async function delete_employee(req, res, next) {
             return res.status(403).json({
                 success: false,
                 type: "warning",
-                message: "You cannot delete your own account"
+                message: "You cannot delete your own account!"
             })
         }
-
       
             const user = await user_model.findById(id)
+
             if (!user) {
                 return res.status(404).json({
                     success: false,
