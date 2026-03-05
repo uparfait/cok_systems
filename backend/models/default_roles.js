@@ -8,14 +8,15 @@ const role_schema = new mongoose.Schema({
     },
     permissions: [
         {
-        
-        resource_name: { type: String, required: true },
-        permissions: {
-            action: { type: String, required: true },
-            description: { type: String },
-            is_enabled: { type: Boolean, default: false }
+            resource_name: { type: String, required: true },
+            actions: [
+                {
+                    action: { type: String, required: true },
+                    description: { type: String },
+                    is_enabled: { type: Boolean, default: false }
+                }
+            ]
         }
-    }
     ]
 }, {
     versionKey: false,
