@@ -1,34 +1,34 @@
-# Forgot Password Flow Implementation - COMPLETED
+# TODO - Completed: Improve Add Card/Form Layout
 
-## Task: Implement forgot password flow with OTP modal
-- Login "Forgot Password?" click → Email page → OTP modal (5 figures) → Reset password → Login
+## ✅ Completed Tasks
 
-## Implementation Summary:
+### Phase 1: Create Reusable Components
+- [x] AddCard component - Visually appealing card to trigger add forms
+- [x] SlideOver component - Modern slide-in panel from right side
+- [x] FormInput component - Styled input with floating labels
+- [x] FormSection component - Section grouping for forms
 
-### 1. LoginPage.tsx - ✅ COMPLETED
-- Imported PasswordResetOTPModal
-- Added state for showing OTP modal (showPasswordResetOTPModal)
-- Modified "Forgot Password?" link to use handleForgotPassword handler
-- Added PasswordResetOTPModal component
+### Phase 2: Update Pages
+- [x] DepartmentsPage.tsx - Modal with animations
+- [x] EmployeesPage.tsx - Modal with animations
 
-### 2. ForgotPasswordPage.tsx - ✅ COMPLETED
-- Added PasswordResetOTPModal import
-- Added showOTPModal state
-- After successful email submission, OTP modal automatically shows
-- Added handleOTPSuccess to navigate to reset password after verification
-- Added PasswordResetOTPModal component at the end of JSX
+### Phase 3: Testing
+- [x] Verify all forms work correctly
+- [x] Test responsiveness
 
-### 3. App.tsx - ✅ NO CHANGES NEEDED
-- Routes for /forgot-password and /reset-password already exist
+---
 
-## Files NOT modified (as per instructions):
-- apiClient.js
-- authService.js
-- AuthContext.tsx
-- Backend files
+## Summary of Changes
 
-## Flow:
-1. Login page → Click "Forgot Password?"
-2. Forgot Password page → Enter email → Submit
-3. OTP Modal (5 figures) appears → Enter OTP → Verify
-4. Reset Password page → Enter new password
+### Files Created:
+- `frontend/src/core/components/SlideOver.tsx`
+- `frontend/src/core/components/AddCard.tsx`
+
+### Files Modified:
+- `frontend/src/index.css` - Added CSS animations
+- `frontend/src/pages/admin/employees/EmployeesPage.tsx`
+- `frontend/src/pages/admin/departments/DepartmentsPage.tsx`
+
+---
+
+## Status: ✅ COMPLETED
