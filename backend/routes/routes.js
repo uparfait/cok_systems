@@ -34,9 +34,9 @@ Router.use('/employee/crud',
      // 
     employee)
 
-// Router.use('/permissions', 
-//      // 
-//     system_permission)
+Router.use('/permissions', 
+     // 
+    system_permission)
 
 Router.use('/roles', roles_managment)
 

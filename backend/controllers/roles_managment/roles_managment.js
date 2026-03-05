@@ -1,6 +1,6 @@
 // controllers/role/RoleController.js
 const mongoose = require('mongoose');
-const role_model = require('../../models/role.js');
+const role_model = require('../../models/default_roles.js');
 const allowed_resources = require('../../resources/resources.js');
 
 class RoleController {
