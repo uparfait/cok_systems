@@ -218,7 +218,7 @@ paths:
   /auth/first-login/activate:
     post:
       tags: [AMOS - First-Time Login]
-      summary: "Activate account with OTP and set password"
+      summary: "Activate account with signature (after OTP verification)"
       operationId: activateAccount
       requestBody:
         required: true
@@ -226,15 +226,15 @@ paths:
           application/json:
             schema:
               type: object
-              required: [userId, otp, newPassword, confirmPassword]
+              required: [userId, signature, newPassword, confirmPassword]
               properties:
                 userId: { type: string }
-                otp: { type: string }
+                signature: { type: string, description: "Signature token received from /verify-otp endpoint" }
                 newPassword: { type: string }
                 confirmPassword: { type: string }
       responses:
         '200': { description: Account activated successfully }
-        '400': { description: Invalid OTP or password }
+        '400': { description: Invalid or expired signature }
         '403': { description: Account is locked }
 
   /auth/first-login/resend:
@@ -255,6 +255,26 @@ paths:
       responses:
         '200': { description: OTP resent successfully }
         '403': { description: Account is locked }
+
+  /auth/first-login/verify-otp:
+    post:
+      tags: [AMOS - First-Time Login]
+      summary: "Verify OTP before setting password"
+      operationId: verifyFirstLoginOTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, otp]
+              properties:
+                userId: { type: string }
+                otp: { type: string }
+      responses:
+        '200': { description: OTP verified successfully }
+        '400': { description: Invalid OTP or no OTP found }
+        '404': { description: User not found }
 
   # ═══════════════════════════════════════════════════════
   # AMOS - PASSWORD RESET
