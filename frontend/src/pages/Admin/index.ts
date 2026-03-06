@@ -3,6 +3,7 @@
 
 export { default as DepartmentsPage } from './departments/DepartmentsPage';
 export { default as EmployeesPage } from './employees/EmployeesPage';
+export { default as UserManagementPage } from './user_management/UserManagementPage';
 
 // Placeholder exports for other admin pages
 // These can be implemented as needed

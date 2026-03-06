@@ -189,22 +189,28 @@ apiClient.interceptors.response.use(
 
     // Return the error data with standardized format
     const errorData = error.response?.data as { error?: string; message?: string; success?: boolean } | undefined;
+    const statusCode = error.response?.status;
     
     // Handle different backend response formats
     // Backend can return: { success: false, message: "..." } or { error: "...", message: "..." }
     let errorMessage = 'An error occurred';
     let errorField = 'Error';
     
-    if (errorData) {
+    // Handle 404 specifically with cleaner message
+    if (statusCode === 404) {
+      errorMessage = 'Service not found. Please check your connection.';
+      errorField = 'Not Found';
+    } else if (errorData) {
       // Check for 'message' field first (used by backend like { success: false, message: "..." })
       if ('message' in errorData && errorData.message) {
-        errorMessage = errorData.message;
-        errorField = errorData.message;
+        // Filter out raw 404 codes from message
+        errorMessage = errorData.message.replace(/\[\d+\]\s*/, '').trim();
+        errorField = errorMessage;
       }
       // Check for 'error' field as fallback
       if ('error' in errorData && errorData.error) {
-        errorMessage = errorData.error;
-        errorField = errorData.error;
+        errorMessage = errorData.error.replace(/\[\d+\]\s*/, '').trim();
+        errorField = errorMessage;
       }
     } else if (error.message) {
       // Fallback to axios error message only if no backend message available
@@ -221,7 +227,8 @@ apiClient.interceptors.response.use(
 );
 
 // Status codes that should NOT be retried (client errors and server errors that won't change on retry)
-const NON_RETRYABLE_STATUS_CODES = [400, 403, 404, 409, 500, 505];
+// 401 (Unauthorized) is NOT retried to prevent automatic retry on failed login attempts
+const NON_RETRYABLE_STATUS_CODES = [400, 401, 403, 404, 409, 500, 505];
 
 /**
  * Centralized API request function with retry capability
@@ -259,11 +266,14 @@ export const apiRequest = async (
   } catch (error: any) {
     // Get the status code from the response
     const statusCode = error.response?.status;
+    const isLoginEndpoint = endpoint.includes('/auth/login');
     
     // Check if this is a network error (no response) or a retriable status code
     const isNetworkError = !error.response;
+    // Don't retry login requests - they should fail immediately on wrong credentials
+    const isLoginRequest = isLoginEndpoint;
     const isRetriableStatus = statusCode && !NON_RETRYABLE_STATUS_CODES.includes(statusCode);
-    const shouldRetry = (isNetworkError || isRetriableStatus) && retryCount < maxRetries;
+    const shouldRetry = !isLoginRequest && (isNetworkError || isRetriableStatus) && retryCount < maxRetries;
     
     if (shouldRetry) {
       // Wait before retrying (exponential backoff: 1s, 2s, 3s, 4s, 5s)

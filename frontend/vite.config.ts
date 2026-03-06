@@ -25,6 +25,7 @@ export default defineConfig({
         target: 'https://cok-bc.onrender.com',
         changeOrigin: true,
         secure: true,
+        // Don't rewrite the path - keep /cok/api
       },
     },
   },

@@ -5,7 +5,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import LoginPage from './pages/auth/LoginPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
-import { DepartmentsPage, EmployeesPage } from './pages/Admin';
+import { DepartmentsPage, EmployeesPage, UserManagementPage } from './pages/Admin';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import SmartParkingDashboard from './pages/smart_parking/SmartParkingDashboard';
 import ServiceDeliveryDashboard from './pages/service_delivery/ServiceDeliveryDashboard';
@@ -61,6 +61,17 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <EmployeesPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/admin/user-management"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <UserManagementPage />
                   </Layout>
                 </ProtectedRoute>
               }

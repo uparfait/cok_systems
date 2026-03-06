@@ -131,83 +131,83 @@ export const feedbackService = {
 
 export const serviceDeliveryService = {
   // Get all visitors
-  getAll: () => get('/service_delivery'),
+  getAll: () => get('/servicedelivery/visitor'),
   
   // Get all visitors (alias)
-  getAllVisitors: () => get('/service_delivery'),
+  getAllVisitors: () => get('/servicedelivery/visitor'),
   
   // Search visitors
-  search: (query: string) => get(`/service_delivery/search?q=${encodeURIComponent(query)}`),
+  search: (query: string) => get(`/servicedelivery/visitor/search?q=${encodeURIComponent(query)}`),
   
   // Search visitors (alias)
-  searchVisitors: (query: string) => get(`/service_delivery/search?q=${encodeURIComponent(query)}`),
+  searchVisitors: (query: string) => get(`/servicedelivery/visitor/search?q=${encodeURIComponent(query)}`),
   
   // Get visitor by ID
-  getById: (id: string) => get(`/service_delivery/${id}`),
+  getById: (id: string) => get(`/servicedelivery/visitor/${id}`),
   
   // Get visitor by ID (alias)
-  getVisitorById: (id: string) => get(`/service_delivery/${id}`),
+  getVisitorById: (id: string) => get(`/servicedelivery/visitor/${id}`),
   
   // Check in visitor
-  checkIn: (data: any) => post('/service_delivery/checkin', data),
+  checkIn: (data: any) => post('/servicedelivery/visitor/checkin', data),
   
   // Check out visitor
-  checkOut: (id: string) => post(`/service_delivery/checkout/${id}`, {}),
+  checkOut: (id: string) => post(`/servicedelivery/visitor/checkout/${id}`, {}),
   
   // Toggle service status
-  toggleStatus: (id: string, status: string) => post(`/service_delivery/toggle-status/${id}`, { status }),
+  toggleStatus: (id: string, status: string) => post(`/servicedelivery/visitor/service/status/${id}`, { status }),
   
   // Toggle service status (alias)
-  toggleServiceStatus: (id: string, status: string) => post(`/service_delivery/toggle-status/${id}`, { status }),
+  toggleServiceStatus: (id: string, status: string) => post(`/servicedelivery/visitor/service/status/${id}`, { status }),
   
   // Assign to department
-  assignToDepartment: (id: string, departmentId: string) => post(`/service_delivery/assign/${id}`, { department_id: departmentId }),
+  assignToDepartment: (id: string, departmentId: string) => post(`/servicedelivery/visitor/assign/${id}`, { department_id: departmentId }),
   
   // Emergency leave return
-  emergencyLeaveReturn: (id: string, data: any) => post(`/service_delivery/emergency-leave-return/${id}`, data),
+  emergencyLeaveReturn: (id: string, data: any) => post(`/servicedelivery/visitor/emergency/leave-return/${id}`, data),
 };
 
 // ==================== SMART PARKING APIs ====================
 
 export const parkingService = {
   // Get all parking records
-  getAll: () => get('/smartparking'),
+  getAll: () => get('/smartparking/vehicle'),
   
   // Get all vehicles (alias)
-  getAllVehicles: () => get('/smartparking'),
+  getAllVehicles: () => get('/smartparking/vehicle'),
   
   // Search parking records
-  search: (query: string) => get(`/smartparking/search?q=${encodeURIComponent(query)}`),
+  search: (query: string) => get(`/smartparking/vehicle/search?q=${encodeURIComponent(query)}`),
   
   // Search vehicles (alias)
-  searchVehicles: (query: string) => get(`/smartparking/search?q=${encodeURIComponent(query)}`),
+  searchVehicles: (query: string) => get(`/smartparking/vehicle/search?q=${encodeURIComponent(query)}`),
   
   // Get parking record by ID
-  getById: (id: string) => get(`/smartparking/${id}`),
+  getById: (id: string) => get(`/smartparking/vehicle/${id}`),
   
   // Get vehicle by ID (alias)
-  getVehicleById: (id: string) => get(`/smartparking/${id}`),
+  getVehicleById: (id: string) => get(`/smartparking/vehicle/${id}`),
   
   // Check in vehicle
-  checkIn: (data: any) => post('/smartparking/checkin', data),
+  checkIn: (data: any) => post('/smartparking/vehicle/checkin', data),
   
   // Check out vehicle
-  checkOut: (id: string) => post(`/smartparking/checkout/${id}`, {}),
+  checkOut: (id: string) => post(`/smartparking/vehicle/checkout/${id}`, {}),
   
   // Verify vehicle
-  verifyVehicle: (plateNumber: string) => get(`/smartparking/verify/${encodeURIComponent(plateNumber)}`),
+  verifyVehicle: (plateNumber: string) => get(`/smartparking/vehicle/verify?plateNumber=${encodeURIComponent(plateNumber)}`),
   
   // Verify car (alias)
-  verifyCar: (plateNumber: string) => get(`/smartparking/verify/${encodeURIComponent(plateNumber)}`),
+  verifyCar: (plateNumber: string) => get(`/smartparking/vehicle/verify?plateNumber=${encodeURIComponent(plateNumber)}`),
   
   // Get flagged cars
-  getFlagged: () => get('/smartparking/flagged'),
+  getFlagged: () => get('/smartparking/vehicle/flagged'),
   
   // Get flagged vehicles (alias)
-  getFlaggedVehicles: () => get('/smartparking/flagged'),
+  getFlaggedVehicles: () => get('/smartparking/vehicle/flagged'),
   
   // Register single vehicle
-  registerSingle: (data: any) => post('/smartparking/register', data),
+  registerSingle: (data: any) => post('/smartparking/register-single', data),
   
   // Bulk upload vehicles
   bulkUpload: (formData: FormData) => post('/smartparking/bulk-upload', formData),
@@ -254,4 +254,77 @@ export default {
   feedbackService,
   serviceDeliveryService,
   parkingService,
+};
+
+// ==================== USER ACCOUNT LOCK/UNLOCK APIs ====================
+
+export interface UserAccount {
+  _id?: string;
+  full_name?: string;
+  email?: string;
+  telephone?: string;
+  department?: string | {
+    _id?: string;
+    department_id?: string;
+    department_name?: string;
+  };
+  department_name?: string;
+  is_active?: boolean;
+  is_account_activated?: boolean;
+  created_date?: string;
+  access_control?: {
+    is_locked?: boolean;
+    reason?: string;
+    last_login_attempt?: number;
+  };
+}
+
+export interface LockUnlockResponse {
+  success: boolean;
+  type: string;
+  message: string;
+  data?: {
+    userId: string;
+    email: string;
+    fullName: string;
+    isLocked: boolean;
+    reason?: string;
+  };
+}
+
+export interface LockStatusResponse {
+  success: boolean;
+  type: string;
+  message: string;
+  data?: {
+    userId: string;
+    email: string;
+    fullName: string;
+    isLocked: boolean;
+    reason?: string;
+    lastLoginAttempt?: number;
+  };
+}
+
+export const userAccountService = {
+  // Get all users (employees)
+  getAllUsers: () => get('/employee/crud'),
+  
+  // Search users
+  searchUsers: (query: string) => get(`/employee/crud/search?q=${encodeURIComponent(query)}`),
+  
+  // Get user by ID
+  getUserById: (id: string) => get(`/employee/crud/${id}`),
+  
+  // Lock or unlock a user account
+  lockUnlock: (userId: string, action: 'lock' | 'unlock', reason?: string) => 
+    post('/auth/lock-unlock', { userId, action, reason }),
+  
+  // Check account lock status
+  checkLockStatus: (userId: string) => 
+    post('/auth/lock-unlock/status', { userId }),
+  
+  // Reset login attempts
+  resetLoginAttempts: (userId: string) => 
+    post('/auth/lock-unlock/reset-attempts', { userId }),
 };

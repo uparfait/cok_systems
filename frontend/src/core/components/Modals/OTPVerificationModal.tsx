@@ -190,7 +190,8 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
       }
     } catch (err: any) {
       console.error('[OTPVerificationModal] verifyOTP error:', err);
-      setError(err?.error || err?.message || 'Failed to verify OTP');
+      // Use backend message with priority
+      setError(err?.message || err?.error || 'Failed to verify OTP');
     
     } finally {
       setIsLoading(false);

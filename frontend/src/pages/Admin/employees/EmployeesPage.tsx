@@ -189,12 +189,14 @@ const EmployeesPage: React.FC = () => {
           : (response.data?.data || []);
         setEmployees(empData);
       } else {
-        setError(response.error || 'Failed to load employees');
+        // Use backend message with priority
+        setError(response.message || response.error || 'Failed to load employees');
       }
     } catch (err: any) {
       console.error('Error loading employees:', err);
       if (err?.status === false) {
-        setError(err.error || 'Failed to load employees. Please try again.');
+        // Use backend message with priority
+        setError(err.message || err.error || 'Failed to load employees. Please try again.');
       } else if (err?.message?.includes('Network')) {
         setError('Cannot connect to server. Please check your internet connection.');
       } else if (err?.response?.status === 401) {
@@ -247,7 +249,8 @@ const EmployeesPage: React.FC = () => {
         setEmployees(empData);
       }
     } catch (err: any) {
-      setError(err.message || 'Search failed');
+      // Use backend message with priority
+      setError(err.message || err.error || 'Search failed');
     } finally {
       setLoading(false);
     }
@@ -398,7 +401,8 @@ const EmployeesPage: React.FC = () => {
       setShowDeleteConfirm(false);
       loadEmployees();
     } catch (err: any) {
-      setError(err.message || 'Failed to delete employee');
+      // Use backend message with priority
+      setError(err.message || err.error || 'Failed to delete employee');
     } finally {
       setDeleting(false);
       setDeletingId(null);
@@ -484,8 +488,8 @@ const EmployeesPage: React.FC = () => {
 
       {/* Employees Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto max-h-[calc(100vh-300px)]">
-          <table className="w-full">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px]">
             <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -587,7 +591,7 @@ const EmployeesPage: React.FC = () => {
           className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
         >
           <div 
-            className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl transform animate-scaleIn"
+            className="bg-white rounded-2xl w-full max-w-lg sm:max-w-xl md:max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl transform animate-scaleIn m-3 sm:m-6"
           >
             {/* Modal Header */}
             <div className="p-5 border-b bg-gray-50 sticky top-0">
