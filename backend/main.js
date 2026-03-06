@@ -52,6 +52,8 @@ Module.prototype.require = function(path) {
 const db_connection = require("./db_connection/main")
 const WebSocketService = require('./services/reatime_service/web_socket.js')
 const InitialiseAllRealtimeServices = require('./services/reatime_service/initialise_realtime_services.js')
+// 👉 1. Imported my monitor here
+const parkingMonitor = require('./utilities/parkingMonitor.js')
 
 /**
  * Load environment variables from .env file in silent mode
@@ -149,6 +151,20 @@ db_connection().then(async response => {
      */
     if (websocketInitiated && realtimeServicesInitiated && response.status) {
         console.log("Database connected.")
+        // 👉 START THE BACKGROUND MONITOR
+        // We wrap this in a try-catch so if the monitor has a bug, it doesn't prevent the server from starting!
+        try {
+            // Check if parkingMonitor is directly a function
+            if (typeof parkingMonitor === 'function') {
+                parkingMonitor(); // Call it directly!
+                console.log("Parking Monitor background service started successfully.");
+            } else {
+                console.log("⚠️ Parking Monitor imported, but it is not a function.");
+            }
+        } catch (monitorError) {
+            console.error("⚠️ Failed to start Parking Monitor:", monitorError);
+        }
+
         server.listen(PORT, () => {
             console.log(`Server running on http://localhost:${PORT}`)
 
