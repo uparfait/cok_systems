@@ -71,7 +71,7 @@ async function resendOTP(req, res, next) {
 
     // Store in database (overwrites old OTP if exists)
 
-    if (!user.auth) {
+    if (!user.auth || !user.auth?.access_token?.token_type) {
         user.auth = {};
         user.auth.access_token = {};
         user.auth.access_token.token_type = "login_otp";
