@@ -66,7 +66,7 @@ async function resendOTP(req, res, next) {
     const hashedOTP = await tokenUtil.hashTokenLoginToken(otpCode.toString());
     const otpExpiry = new Date(Date.now() + otp.OTP_EXPIRY_SECONDS * 1000);
 
-    if (!user.auth) {
+    if (!user.auth || !user.auth?.access_token?.token_type) {
       user.auth = {};
        user.auth.access_token = {}
        user.auth.access_token.token_type = "password_reset_otp";
