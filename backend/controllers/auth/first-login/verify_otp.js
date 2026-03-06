@@ -4,8 +4,8 @@
  * Use this endpoint to verify OTP before setting password
  */
 
-const tokenUtil = require("../../utilities/token");
-const User = require("../../models/user");
+const tokenUtil = require("../../../utilities/token");
+const User = require("../../../models/user");
 
 const EXPECTED_TOKEN_TYPE = 'first_login_otp';
 const OTP_VERIFICATION_TYPE = 'otp_verification';
