@@ -49,8 +49,8 @@ module.exports = async function update_department(req, res, next) {
             department.department_leader = leader_user._id 
         }
         department.department_response_time_in_minutes = department_response_time_in_minutes
-        if(department_name) department.department_name
-        if(department_id) department.department_id
+        if(department_name) department.department_name = department_name
+        if(department_id) department.department_id = department_id
 
         const saved_department = await department.save()
         const saved_dpt_data = await department_model.findById(saved_department._id).populate('department_leader', 'full_name email title picture')
