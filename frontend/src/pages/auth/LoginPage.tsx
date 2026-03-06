@@ -21,6 +21,7 @@ const LoginPage = () => {
   const [showOTPVerificationModal, setShowOTPVerificationModal] = useState(false);
   const [showPasswordResetOTPModal, setShowPasswordResetOTPModal] = useState(false);
   const [passwordSetupEmail, setPasswordSetupEmail] = useState('');
+  const [passwordSetupSignature, setPasswordSetupSignature] = useState('');
   const [passwordSetupOtp, setPasswordSetupOtp] = useState('');
   const [passwordSetupUserId, setPasswordSetupUserId] = useState('');
   const [otpVerificationEmail, setOtpVerificationEmail] = useState('');
@@ -117,12 +118,12 @@ const LoginPage = () => {
     setShowFirstTimeOTPModal(true);
   };
 
-  const handleOTPSuccess = (email: string, userId: string, otp: string) => {
+  const handleOTPSuccess = (email: string, userId: string, signature: string) => {
     // Close OTP modal and open password setup modal
     setShowFirstTimeOTPModal(false);
     setPasswordSetupEmail(email);
     setPasswordSetupUserId(userId);
-    setPasswordSetupOtp(otp);
+    setPasswordSetupSignature(signature);
     setShowPasswordSetupModal(true);
   };
 
@@ -465,7 +466,7 @@ const LoginPage = () => {
           onSuccess={handlePasswordSetupSuccess}
           email={passwordSetupEmail}
           userId={passwordSetupUserId}
-          otp={passwordSetupOtp}
+          signature={passwordSetupSignature}
         />
       )}
 

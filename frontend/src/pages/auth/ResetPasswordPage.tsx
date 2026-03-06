@@ -4,10 +4,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { verifyPasswordResetOTP, resetPassword } from '../../core/services/authService';
+import { useToast } from '../../core/contexts/ToastContext';
 
 const ResetPasswordPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { showSuccess, showError, showWarning } = useToast();
   const token = searchParams.get('token');
   const userIdFromUrl = searchParams.get('userId');
   
@@ -42,23 +44,28 @@ const ResetPasswordPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setError('');
     if (step === 'verify') {
-      if (!userId || !otp) { setError('User ID and OTP are required'); return; }
+      if (!userId || !otp) { showWarning('User ID and OTP are required'); return; }
       setIsLoading(true);
       try {
         const result = await verifyPasswordResetOTP(userId, otp);
-        if (result.status && result.data?.tempToken) { setTempToken(result.data.tempToken); setStep('reset'); }
-        else { setError(result.message || result.error || 'Invalid OTP'); }
-      } catch (err: any) { setError(err?.message || err?.error || 'Failed to verify OTP'); }
+        if (result.status && result.data?.signature) { 
+          setTempToken(result.data.signature); 
+          setStep('reset');
+          showSuccess('OTP verified successfully!');
+        }
+        else { showError(result.message || result.error || 'Invalid OTP'); }
+      } catch (err: any) { showError(err?.message || err?.error || 'Failed to verify OTP'); }
       finally { setIsLoading(false); }
     } else {
-      if (!userId) { setError('User ID is missing. Please start the password reset process again.'); return; }
-      if (!tempToken) { setError('Verification token is missing. Please start the password reset process again.'); return; }
-      if (newPassword !== confirmPassword) { setError("Passwords don't match"); return; }
+      if (!userId) { showError('User ID is missing. Please start the password reset process again.'); return; }
+      if (!tempToken) { showError('Verification token is missing. Please start the password reset process again.'); return; }
+      if (newPassword !== confirmPassword) { showWarning("Passwords don't match"); return; }
       setIsLoading(true);
       try {
         const result = await resetPassword(userId, tempToken, newPassword, confirmPassword);
         if (result.status) { 
           setIsSuccess(true); 
+          showSuccess('Password reset successfully!');
           sessionStorage.removeItem('resetUserId');
           sessionStorage.removeItem('resetTempToken');
           
@@ -67,8 +74,8 @@ const ResetPasswordPage = () => {
             navigate('/login');
           }, 1500);
         }
-        else { setError(result.message || result.error || 'Failed to reset password'); }
-      } catch (err: any) { setError(err?.message || err?.error || 'Failed to reset password'); }
+        else { showError(result.message || result.error || 'Failed to reset password'); }
+      } catch (err: any) { showError(err?.message || err?.error || 'Failed to reset password'); }
       finally { setIsLoading(false); }
     }
   };

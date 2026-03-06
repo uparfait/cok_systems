@@ -3,15 +3,17 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 
 interface FirstTimeLoginOTPModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: (email: string, userId: string, otp: string) => void;
+  onSuccess?: (email: string, userId: string, signature: string) => void;
 }
 
 const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen, onClose, onSuccess }) => {
-  const { checkEmailForFirstLogin, sendFirstLoginOTP, resendFirstLoginOTP } = useAuth();
+  const { checkEmailForFirstLogin, sendFirstLoginOTP, resendFirstLoginOTP, verifyFirstLoginOTP } = useAuth();
+  const { showSuccess, showError, showWarning } = useToast();
   
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '']); // 5 digits
@@ -64,7 +66,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
   // Step 1: Check email and send OTP
   const handleSendOTP = async () => {
     if (!email) {
-      setError('Please enter your email');
+      showWarning('Please enter your email');
       return;
     }
 
@@ -76,14 +78,14 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
       const checkResult = await checkEmailForFirstLogin(email);
       
       if (!checkResult.status) {
-        setError(checkResult.error || 'Failed to verify email');
+        showError(checkResult.error || 'Failed to verify email');
         setIsLoading(false);
         return;
       }
       
       // Check if account is already activated
       if (checkResult.data?.alreadyActivated) {
-        setError('This account is already active. Please use regular login.');
+        showWarning('This account is already active. Please use regular login.');
         setIsLoading(false);
         return;
       }
@@ -93,13 +95,13 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
       
       if (otpResult.status && otpResult.data?.userId) {
         setCurrentUserId(otpResult.data.userId);
+        showSuccess('OTP sent to your email successfully!');
         setStep('otp');
       } else {
-        setError(otpResult.error || 'Failed to send OTP');
+        showError(otpResult.error || 'Failed to send OTP');
       }
     } catch (err: any) {
-      // Use backend message with priority
-      setError(err?.message || err?.error || 'An error occurred');
+      showError(err?.message || err?.error || 'An error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -138,23 +140,40 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
     setOtp(newOtp);
   };
 
-  // Step 2: Verify OTP - this actually activates the account in PasswordSetupModal
+  // Step 2: Verify OTP and get signature for password setup
   const handleVerify = async () => {
     const otpString = otp.join('');
     if (otpString.length !== 5) {
-      setError('Please enter all 5 digits');
+      showWarning('Please enter all 5 digits');
       return;
     }
 
-    // Pass the OTP to the next step for password setup
-    if (onSuccess) {
-      onSuccess(email, currentUserId, otpString);
+    setIsLoading(true);
+    setError('');
+
+    try {
+      // Call verify-otp to get signature token
+      const result = await verifyFirstLoginOTP(currentUserId, otpString);
+      
+      if (result.status && result.data?.signature) {
+        showSuccess('OTP verified successfully!');
+        // Pass the signature to the next step for password setup
+        if (onSuccess) {
+          onSuccess(email, currentUserId, result.data.signature);
+        }
+      } else {
+        showError(result.error || 'Invalid OTP. Please try again.');
+      }
+    } catch (err: any) {
+      showError(err?.error || err?.message || 'Failed to verify OTP');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleResend = async () => {
     if (!currentUserId) {
-      setError('Please enter your email first');
+      showWarning('Please enter your email first');
       return;
     }
 
@@ -164,8 +183,9 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
     try {
       await resendFirstLoginOTP(email);
       setTimeLeft(300); // Reset to 5 minutes
+      showSuccess('OTP resent successfully!');
     } catch (err: any) {
-      setError(err?.error || 'Failed to resend OTP');
+      showError(err?.error || 'Failed to resend OTP');
     } finally {
       setIsResending(false);
     }
