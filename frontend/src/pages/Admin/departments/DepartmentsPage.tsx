@@ -261,6 +261,8 @@ const DepartmentsPage: React.FC = () => {
         }
         
         submitData = {
+          department_name: formData?.department_name,
+          department_id: formData?.department_id,
           department_response_time_in_minutes: formData?.department_response_time_in_minutes ?? 0,
           department_leader: leaderValue
         };

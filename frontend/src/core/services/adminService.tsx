@@ -32,6 +32,7 @@ export interface Department {
   status?: string;
   createdAt?: string;
   updatedAt?: string;
+  department_response_time_in_minutes?: number;
 }
 
 export const departmentService = {
