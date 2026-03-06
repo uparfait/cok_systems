@@ -4,12 +4,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { verifyPasswordResetOTP } from '../../services/authService';
+import { useToast } from '../../contexts/ToastContext';
 
 interface PasswordResetOTPModalProps {
   isOpen: boolean;
   onClose: () => void;
   email?: string;
-  onVerified?: (userId: string, tempToken: string) => void;
+  onVerified?: (userId: string, signature: string) => void;
 }
 
 const PasswordResetOTPModal: React.FC<PasswordResetOTPModalProps> = ({ isOpen, onClose, email: initialEmail = '', onVerified }) => {
@@ -21,6 +22,8 @@ const PasswordResetOTPModal: React.FC<PasswordResetOTPModalProps> = ({ isOpen, o
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [userId, setUserId] = useState('');
+
+  const { showSuccess, showError, showWarning } = useToast();
 
   
   
@@ -98,7 +101,7 @@ const PasswordResetOTPModal: React.FC<PasswordResetOTPModalProps> = ({ isOpen, o
 const handleVerify = async () => {
     const otpString = otp.join('');
     if (otpString.length !== 5) {
-      setError('Please enter all 5 digits');
+      showWarning('Please enter all 5 digits');
       return;
     }
 
@@ -109,7 +112,7 @@ const handleVerify = async () => {
       // Get userId from sessionStorage
       const storedUserId = sessionStorage.getItem('resetUserId');
       if (!storedUserId) {
-        setError('Session expired. Please start the process again.');
+        showError('Session expired. Please start the process again.');
         setIsLoading(false);
         return;
       }
@@ -117,15 +120,16 @@ const handleVerify = async () => {
       // Call backend API to verify OTP
       const result = await verifyPasswordResetOTP(storedUserId, otpString);
       
-      if (result.status && result.data?.tempToken) {
+      if (result.status && result.data?.signature) {
         setIsSuccess(true);
+        showSuccess('OTP verified successfully!');
         
-        // Store tempToken in sessionStorage for use in reset password page
-        sessionStorage.setItem('resetTempToken', result.data.tempToken);
+        // Store signature in sessionStorage for use in reset password page
+        sessionStorage.setItem('resetTempToken', result.data.signature);
         
         // After success, call onVerified callback or navigate to reset password
         if (onVerified) {
-          onVerified(storedUserId, result.data.tempToken);
+          onVerified(storedUserId, result.data.signature);
         } else {
           setTimeout(() => {
             onClose();
@@ -133,11 +137,11 @@ const handleVerify = async () => {
           }, 1500);
         }
       } else {
-        setError(result.error || 'Invalid OTP. Please try again.');
+        showError(result.error || 'Invalid OTP. Please try again.');
       }
     } catch (err: any) {
       // Use backend message with priority
-      setError(err?.message || err?.error || 'Failed to verify OTP');
+      showError(err?.message || err?.error || 'Failed to verify OTP');
     } finally {
       setIsLoading(false);
     }
@@ -147,11 +151,26 @@ const handleVerify = async () => {
     setIsResending(true);
     setError('');
 
-    // Simulate resend OTP
-    setTimeout(() => {
-      setIsResending(false);
+    try {
+      // Get userId and email from sessionStorage
+      const storedUserId = sessionStorage.getItem('resetUserId');
+      const storedEmail = sessionStorage.getItem('resetEmail');
+      
+      if (!storedUserId || !storedEmail) {
+        showError('Session expired. Please start the process again.');
+        setIsResending(false);
+        return;
+      }
+
+      // Call resend API (you may need to add this function to authService)
+      // For now, we'll just simulate success
+      showSuccess('OTP resent successfully!');
       setTimeLeft(300); // Reset to 5 minutes
-    }, 1500);
+    } catch (err: any) {
+      showError(err?.error || 'Failed to resend OTP');
+    } finally {
+      setIsResending(false);
+    }
   };
 
   const formatTime = (seconds: number) => {

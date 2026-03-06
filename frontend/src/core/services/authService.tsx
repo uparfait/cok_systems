@@ -114,8 +114,8 @@ export const requestPasswordReset = (email: string) => post('/auth/password-rese
 
 export const verifyPasswordResetOTP = (userId: string, otp: string) => post('/auth/password-reset/verify', { userId, otp });
 
-export const resetPassword = (userId: string, tempToken: string, newPassword: string, confirmPassword: string) => 
-  post('/auth/password-reset/reset', { userId, tempToken, newPassword, confirmPassword });
+export const resetPassword = (userId: string, signature: string, newPassword: string, confirmPassword: string) => 
+  post('/auth/password-reset/reset', { userId, signature, newPassword, confirmPassword });
 
 export const resendPasswordResetOTP = (userId: string, email: string) => post('/auth/password-reset/resend', { userId, email });
 
@@ -125,10 +125,10 @@ export const checkEmailForFirstLogin = (email: string) => post('/auth/first-logi
 
 export const sendFirstLoginOTP = (email: string) => post('/auth/first-login/send-otp', { email });
 
-export const verifyFirstLoginOTP = (email: string, otp: string) => post('/auth/first-login/activate', { email, otp });
+export const verifyFirstLoginOTP = (userId: string, otp: string) => post('/auth/first-login/verify-otp', { userId, otp });
 
-export const activateAccount = (userId: string, otp: string, newPassword: string, confirmPassword: string) => 
-  post('/auth/first-login/activate', { userId, otp, newPassword, confirmPassword });
+export const activateAccount = (userId: string, signature: string, newPassword: string, confirmPassword: string) => 
+  post('/auth/first-login/activate', { userId, signature, newPassword, confirmPassword });
 
 export const resendFirstLoginOTP = (email: string) => post('/auth/first-login/resend', { email });
 

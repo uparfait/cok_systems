@@ -264,6 +264,16 @@ export const apiRequest = async (
     const response = await apiClient(config);
     return response.data;
   } catch (error: any) {
+
+        // If error is already an object with message/error properties (from interceptor)
+    if (error && typeof error === 'object' && (error.message || error.error) && 'status' in error) {
+      throw {
+        status: false,
+        error: error.error || error.message,
+        message: error.message || error.error || 'An error occurred',
+      };
+    }
+
     // Get the status code from the response
     const statusCode = error.response?.status;
     const isLoginEndpoint = endpoint.includes('/auth/login');
@@ -289,14 +299,7 @@ export const apiRequest = async (
     if (error?.status === false) {
       throw error; // Already formatted error from interceptor
     }
-    // If error is already an object with message/error properties (from interceptor)
-    if (error && typeof error === 'object' && (error.message || error.error)) {
-      throw {
-        status: false,
-        error: error.error || error.message,
-        message: error.message || error.error || 'An error occurred',
-      };
-    }
+
     // Fallback for unknown error formats
     throw {
       status: false,

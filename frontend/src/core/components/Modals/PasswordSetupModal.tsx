@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 
 interface PasswordSetupModalProps {
   isOpen: boolean;
@@ -11,11 +12,12 @@ interface PasswordSetupModalProps {
   onSuccess?: () => void;
   userId?: string;
   email?: string;
-  otp?: string;
+  signature?: string;
 }
 
-const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose, onSuccess, userId = '', email = '', otp = '' }) => {
+const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose, onSuccess, userId = '', email = '', signature = '' }) => {
   const { activateAccount } = useAuth();
+  const { showSuccess, showError, showWarning } = useToast();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -103,28 +105,29 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
     setError('');
 
     if (newPassword !== confirmPassword) {
-      setError("Passwords don't match");
+      showWarning("Passwords don't match");
       return;
     }
 
     if (passwordStrength.score < 3) {
-      setError('Please choose a stronger password');
+      showWarning('Please choose a stronger password');
       return;
     }
 
-    if (!userId || !otp) {
-      setError('Missing user information. Please try again.');
+    if (!userId || !signature) {
+      showError('Missing user information. Please try again.');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // Call the backend to activate account with OTP verification and password setup
-      const result = await activateAccount(userId, otp, newPassword, confirmPassword);
+      // Call the backend to activate account with signature verification
+      const result = await activateAccount(userId, signature, newPassword, confirmPassword);
       
       // Check if status is true AND there's no error message
       if (result.status && !result.error) {
+        showSuccess('Password set successfully! Account activated.');
         setIsSuccess(true);
         
         // Call onSuccess callback if provided
@@ -140,11 +143,11 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
       } else {
         // Handle both cases: status false or status true with error message
         // Use backend message with priority
-        setError(result.message || result.error || 'Failed to activate account');
+        showError(result.message || result.error || 'Failed to activate account');
       }
     } catch (err: any) {
       // Use backend message with priority
-      setError(err?.message || err?.error || 'Failed to set password');
+      showError(err?.message || err?.error || 'Failed to set password');
     } finally {
       setIsLoading(false);
     }
