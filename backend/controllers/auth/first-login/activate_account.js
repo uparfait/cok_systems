@@ -13,6 +13,8 @@ const SALT_ROUNDS = 10;
 
 // Expected token type for first login OTP
 const EXPECTED_TOKEN_TYPE = 'first_login_otp';
+// Token type for OTP verification signature
+const OTP_VERIFICATION_TYPE = 'otp_verification';
 
 // Lock message
 const LOCK_MESSAGE = "Account is locked. Please contact administrator.";
@@ -42,14 +44,15 @@ const passwordValidator = (password) => {
 };
 
 async function activateAccount(req, res, next) {
+  
   try {
-    const { userId, otp: inputOTP, newPassword, confirmPassword } = req.body;
+    const { userId, signature, newPassword, confirmPassword } = req.body;
 
     // Validate input
-    if (!userId || !inputOTP) {
+    if (!userId || !signature) {
       return res.status(400).json({
         status: false,
-        error: "User ID and OTP are required",
+        error: "User ID and signature are required",
         message: null,
       });
     }
@@ -113,35 +116,23 @@ async function activateAccount(req, res, next) {
       });
     }
 
-    // Check token type stored in database
-    const storedTokenType = user.auth?.access_token?.token_type;
-    
-    if (storedTokenType !== EXPECTED_TOKEN_TYPE) {
+    // Verify signature token (from verified OTP)
+    const signatureVerification = tokenUtil.verifyToken(signature, OTP_VERIFICATION_TYPE);
+
+    if (!signatureVerification.valid) {
       return res.status(400).json({
         status: false,
-        error: "Invalid token type",
-        message: `Expected token type '${EXPECTED_TOKEN_TYPE}', but found '${storedTokenType || 'none'}'. Please request a new OTP.`
+        error: "Invalid or expired signature",
+        message: "Please try requesting a new OTP and verify it again.",
       });
     }
 
-    const storedOTP = user.auth.access_token.token;
-
-    if (!storedOTP) {
+    // Verify the signature belongs to this user
+    if (signatureVerification.decoded.userId !== userId.toString()) {
       return res.status(400).json({
         status: false,
-        error: "No OTP found",
-        message: "Please request a new OTP.",
-      });
-    }
-
-    // Validate OTP (compare hashed values)
-    const hashMatch = await tokenUtil.compareToken(inputOTP.toString(), storedOTP);
-
-    if (!hashMatch) {
-      return res.status(400).json({
-        status: false,
-        error: "Invalid OTP",
-        message: "Token verification failed. It may have expired or is incorrect. Please request a new OTP.",
+        error: "Signature mismatch",
+        message: "We  have found a signature but it does not match try again later.",
       });
     }
 
