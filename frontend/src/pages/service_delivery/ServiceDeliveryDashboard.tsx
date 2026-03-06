@@ -52,10 +52,12 @@ const ServiceDeliveryDashboard: React.FC = () => {
       if (response.status) {
         setVisitors(response.data || []);
       } else {
-        setError(response.error || 'Failed to load visitor data');
+        // Use backend message with priority
+        setError(response.message || response.error || 'Failed to load visitor data');
       }
     } catch (err: any) {
-      setError('Failed to load visitor data');
+      // Use backend message with priority
+      setError(err?.message || err?.error || 'Failed to load visitor data');
     } finally {
       setLoading(false);
     }
@@ -74,7 +76,8 @@ const ServiceDeliveryDashboard: React.FC = () => {
         setVisitors(response.data || []);
       }
     } catch (err: any) {
-      setError('Search failed');
+      // Use backend message with priority
+      setError(err?.message || err?.error || 'Search failed');
     } finally {
       setLoading(false);
     }

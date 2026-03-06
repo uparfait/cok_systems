@@ -7,6 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import LoadingSpinner from './LoadingSpinner';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -56,6 +57,7 @@ export const SYSTEM_CONFIGS = {
       { id: 'parking', name: 'Smart Parking', path: '/smart_parking/dashboard', icon: 'FiTruck' },
       { id: 'service', name: 'Service Delivery', path: '/service_delivery/dashboard', icon: 'FiClipboard' },
       { id: 'employees', name: 'Employees', path: '/admin/employees', icon: 'FiUsers' },
+      { id: 'user-mgmt', name: 'User Management', path: '/admin/user-management', icon: 'FiUsers' },
       { id: 'departments', name: 'Departments', path: '/admin/departments', icon: 'FiGrid' },
       { id: 'feedback', name: 'Feedback', path: '#', icon: 'FiMessageSquare' },
       { id: 'reports', name: 'Reports', path: '#', icon: 'FiBarChart' },
@@ -126,7 +128,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  
+  // Track if we're on desktop
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Default to closed
   const [currentSystem, setCurrentSystem] = useState('dashboard');
 
   // Get user's available systems
@@ -140,6 +145,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       setCurrentSystem(systemMatch.id);
     }
   }, [location.pathname, userSystems]);
+
+  // Handle window resize - update sidebar state based on screen size
+  useEffect(() => {
+    const handleResize = () => {
+      const nowDesktop = window.innerWidth >= 1024;
+      setIsDesktop(nowDesktop);
+      // On desktop, sidebar should always be open
+      // On mobile, sidebar should be closed
+      setSidebarOpen(nowDesktop);
+    };
+    
+    // Set initial state
+    handleResize();
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Redirect to system selector if no specific system is selected
   useEffect(() => {
@@ -173,28 +195,46 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading...</p>
-        </div>
+        <LoadingSpinner 
+          message="Loading your dashboard..."
+          longLoadingMessage="This is taking longer than usual. Please check your connection."
+          longLoadingDelay={3000}
+        />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <Sidebar 
-        isOpen={sidebarOpen} 
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
-        systems={userSystems}
-        currentSystem={currentSystem}
-        onSystemChange={handleSystemChange}
-        userDepartment={getUserDepartment(user)}
-      />
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 ml-64">
+      {/* Sidebar - Hidden on mobile (default), always visible on desktop (lg:) */}
+      <div 
+        className={`fixed inset-y-0 left-0 z-40 transition-transform duration-300 
+          lg:translate-x-0 
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          ${!sidebarOpen && 'lg:block hidden'}
+        `}
+      >
+        <Sidebar 
+          isOpen={sidebarOpen} 
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          isDesktop={isDesktop}
+          systems={userSystems}
+          currentSystem={currentSystem}
+          onSystemChange={handleSystemChange}
+          userDepartment={getUserDepartment(user)}
+        />
+      </div>
+
+      {/* Main Content Area - Margin based on screen size */}
+      <div className={`flex-1 flex flex-col min-w-0 ${isDesktop ? 'lg:ml-64 ml-0' : 'ml-0'}`}>
         {/* Header */}
         <Header 
           onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
@@ -204,7 +244,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         />
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto p-4 lg:p-6">
+        <main className="flex-1 overflow-auto p-3 sm:p-4 lg:p-6">
           {children}
         </main>
       </div>

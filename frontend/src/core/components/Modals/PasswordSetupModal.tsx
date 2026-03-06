@@ -139,10 +139,12 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
         }, 2000);
       } else {
         // Handle both cases: status false or status true with error message
+        // Use backend message with priority
         setError(result.message || result.error || 'Failed to activate account');
       }
     } catch (err: any) {
-      setError(err?.error || err?.message || 'Failed to set password');
+      // Use backend message with priority
+      setError(err?.message || err?.error || 'Failed to set password');
     } finally {
       setIsLoading(false);
     }

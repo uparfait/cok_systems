@@ -98,7 +98,8 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen,
         setError(otpResult.error || 'Failed to send OTP');
       }
     } catch (err: any) {
-      setError(err?.error || err?.message || 'An error occurred');
+      // Use backend message with priority
+      setError(err?.message || err?.error || 'An error occurred');
     } finally {
       setIsLoading(false);
     }

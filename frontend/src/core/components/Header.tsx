@@ -101,12 +101,6 @@ const Header: React.FC<HeaderProps> = ({
     <header className="h-16 bg-white border-b border-gray-200 px-4 lg:px-6 flex items-center justify-between sticky top-0 z-30">
       {/* Left Section */}
       <div className="flex items-center gap-4">
-        {/* Dashboard Title with Date/Time */}
-        <div className="hidden lg:flex flex-col">
-          <span className="font-semibold text-gray-900 text-lg">Dashboard</span>
-          <span className="text-xs font-bold  text-gray-500">{currentDateTime}</span>
-        </div>
-
         {/* Mobile Menu Toggle */}
         <button
           onClick={onMenuToggle}
@@ -114,6 +108,12 @@ const Header: React.FC<HeaderProps> = ({
         >
           <FiMenu className="w-5 h-5" />
         </button>
+
+        {/* Dashboard Title with Date/Time */}
+        <div className="flex flex-col">
+          <span className="font-semibold text-gray-900 text-lg">Dashboard</span>
+          <span className="text-xs font-bold text-gray-500 hidden sm:block">{currentDateTime}</span>
+        </div>
       </div>
 
 

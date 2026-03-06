@@ -136,7 +136,8 @@ const handleVerify = async () => {
         setError(result.error || 'Invalid OTP. Please try again.');
       }
     } catch (err: any) {
-      setError(err?.error || err?.message || 'Failed to verify OTP');
+      // Use backend message with priority
+      setError(err?.message || err?.error || 'Failed to verify OTP');
     } finally {
       setIsLoading(false);
     }

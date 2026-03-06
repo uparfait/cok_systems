@@ -48,10 +48,12 @@ const SmartParkingDashboard: React.FC = () => {
       if (response.status) {
         setRecords(response.data || []);
       } else {
-        setError(response.error || 'Failed to load parking data');
+        // Use backend message with priority
+        setError(response.message || response.error || 'Failed to load parking data');
       }
     } catch (err: any) {
-      setError('Failed to load parking data');
+      // Use backend message with priority
+      setError(err?.message || err?.error || 'Failed to load parking data');
     } finally {
       setLoading(false);
     }
@@ -70,7 +72,8 @@ const SmartParkingDashboard: React.FC = () => {
         setRecords(response.data || []);
       }
     } catch (err: any) {
-      setError('Search failed');
+      // Use backend message with priority
+      setError(err?.message || err?.error || 'Search failed');
     } finally {
       setLoading(false);
     }

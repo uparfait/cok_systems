@@ -47,8 +47,8 @@ const ResetPasswordPage = () => {
       try {
         const result = await verifyPasswordResetOTP(userId, otp);
         if (result.status && result.data?.tempToken) { setTempToken(result.data.tempToken); setStep('reset'); }
-        else { setError(result.error || 'Invalid OTP'); }
-      } catch (err: any) { setError(err?.error || err?.message || 'Failed to verify OTP'); }
+        else { setError(result.message || result.error || 'Invalid OTP'); }
+      } catch (err: any) { setError(err?.message || err?.error || 'Failed to verify OTP'); }
       finally { setIsLoading(false); }
     } else {
       if (!userId) { setError('User ID is missing. Please start the password reset process again.'); return; }
@@ -67,8 +67,8 @@ const ResetPasswordPage = () => {
             navigate('/login');
           }, 1500);
         }
-        else { setError(result.error || 'Failed to reset password'); }
-      } catch (err: any) { setError(err?.error || err?.message || 'Failed to reset password'); }
+        else { setError(result.message || result.error || 'Failed to reset password'); }
+      } catch (err: any) { setError(err?.message || err?.error || 'Failed to reset password'); }
       finally { setIsLoading(false); }
     }
   };

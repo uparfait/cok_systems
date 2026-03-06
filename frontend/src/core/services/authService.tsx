@@ -1,7 +1,19 @@
-// Auth Service - Complete authentication API integration
+ // Auth Service - Complete authentication API integration
 // Handles login, logout, password reset, OTP verification, and token management
 
-import { post, setAuthData, clearAuthData, getStoredUser, getAccessToken, isAuthenticated } from './apiClient';
+import { post, put, setAuthData, clearAuthData, getStoredUser, getAccessToken, isAuthenticated, get } from './apiClient';
+
+// ==================== USER PROFILE APIs ====================
+
+export const getUserProfile = (userId: string) => get(`/employee/crud/${userId}`);
+
+export const updateUserProfile = (userId: string, data: {
+  full_name?: string;
+  telephone?: string;
+  picture?: string;
+  gender?: string;
+  title?: string;
+}) => put(`/employee/crud/${userId}`, data);
 
 // ==================== LOGIN APIs ====================
 

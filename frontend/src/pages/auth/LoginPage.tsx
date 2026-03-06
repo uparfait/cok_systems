@@ -25,8 +25,6 @@ const LoginPage = () => {
   const [passwordSetupUserId, setPasswordSetupUserId] = useState('');
   const [otpVerificationEmail, setOtpVerificationEmail] = useState('');
   const [otpVerificationUserId, setOtpVerificationUserId] = useState('');
- // const [resetPasswordEmail, setResetPasswordEmail] = useState('');
-  //const [resetPasswordUserId, setResetPasswordUserId] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -84,8 +82,8 @@ const LoginPage = () => {
         setError('User not found. Please check your email or contact administrator.');
         return;
       } else {
-        // Handle other errors including invalid credentials
-        const errorMsg = result.error || result.message || 'Login failed';
+        // Handle other errors including invalid credentials - use backend message with fallback
+        const errorMsg = result.message || result.error || 'Login failed';
         if (result.data?.remainingAttempts !== undefined) {
           setError(`${errorMsg}. Attempts remaining: ${result.data.remainingAttempts}`);
         } else {
@@ -95,12 +93,13 @@ const LoginPage = () => {
       }
     } catch (err: any) {
       // Check if it's a first-time login scenario
-      if (err?.error?.includes('not activated') || err?.message?.includes('not activated')) {
+      if (err?.message?.includes('not activated') || err?.error?.includes('not activated')) {
         setShowFirstTimeOTPModal(true);
         return;
       }
       
-      const errorMsg = err?.error || err?.message || 'An error occurred during login';
+      // Use backend message with priority, fallback to error field
+      const errorMsg = err?.message || err?.error || 'An error occurred during login';
       if (err?.data?.remainingAttempts !== undefined) {
         setError(`${errorMsg}. Attempts remaining: ${err.data.remainingAttempts}`);
       } else {
