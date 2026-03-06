@@ -70,13 +70,23 @@ async function resendOTP(req, res, next) {
     const otpExpiry = new Date(Date.now() + otp.OTP_EXPIRY_SECONDS * 1000);
 
     // Store in database (overwrites old OTP if exists)
-    await User.findByIdAndUpdate(userId, {
-      $set: {
-        'auth.access_token.token': hashedOTP,
-        'auth.access_token.token_type': 'otp',
-        'auth.access_token.expires_at': otpExpiry
-      }
-    });
+
+    if (!user.auth) {
+        user.auth = {};
+        user.auth.access_token = {};
+        user.auth.access_token.token_type = "login_otp";
+        user.auth.access_token.token = hashedOTP;
+        user.auth.access_token.expires_at = otpExpiry;
+        await user.save();
+    } else {
+        await User.findByIdAndUpdate(user._id, {
+        $set: {
+          "auth.access_token.token_type": "login_otp",
+          "auth.access_token.token": hashedOTP,
+          "auth.access_token.expires_at": otpExpiry,
+        },
+      });
+    }
 
     // Send new OTP via email
     await email.sendOTPEmail(userEmail, otpCode, 'login');
