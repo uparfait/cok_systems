@@ -8,7 +8,9 @@ module.exports = async function update_department(req, res, next) {
         // oly allow to change reader and response time only
         let {
             department_response_time_in_minutes = 0,
-            department_leader = null // Expecting an email string
+            department_leader = null, // Expecting an email 
+            department_name = null,
+            department_id = null,
         } = req.body || {}
             let leader_user = null
 
@@ -47,6 +49,8 @@ module.exports = async function update_department(req, res, next) {
             department.department_leader = leader_user._id 
         }
         department.department_response_time_in_minutes = department_response_time_in_minutes
+        if(department_name) department.department_name
+        if(department_id) department.department_id
 
         const saved_department = await department.save()
         const saved_dpt_data = await department_model.findById(saved_department._id).populate('department_leader', 'full_name email title picture')
