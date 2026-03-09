@@ -312,38 +312,8 @@ class RoleController {
                     });
                 }
 
-                // Create map of existing enabled permissions
-                const existingEnabledMap = new Map();
-                role.permissions.forEach(resource => {
-                    resource.actions.forEach(action => {
-                        if (action.is_enabled) {
-                            const key = `${resource.resource_name}:${action.action}`;
-                            existingEnabledMap.set(key.toLowerCase(), true);
-                        }
-                    });
-                });
-
                 // Merge new permissions while preserving existing enabled states
                 const mergedPermissions = RoleController.mergePermissions(permissions);
-                
-                // Preserve existing enabled states if not explicitly disabled
-                mergedPermissions.forEach(resource => {
-                    resource.actions.forEach(action => {
-                        const key = `${resource.resource_name}:${action.action}`.toLowerCase();
-                        if (existingEnabledMap.has(key) && !action.is_enabled) {
-                            // Check if this action was explicitly disabled in incoming permissions
-                            const wasExplicitlySet = permissions.some(p => 
-                                p.resource_name === resource.resource_name && 
-                                p.actions.some(a => (a.action || a) === action.action)
-                            );
-                            
-                            if (!wasExplicitlySet) {
-                                action.is_enabled = true; // Preserve existing state
-                            }
-                        }
-                    });
-                });
-
                 role.permissions = mergedPermissions;
             }
 
