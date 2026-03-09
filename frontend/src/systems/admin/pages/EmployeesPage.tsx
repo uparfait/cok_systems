@@ -5,9 +5,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
-import { employeeService, departmentService, permissionService } from '../../../core/services/adminService';
-import { USER_ROLES } from '../../../core/constants/roles';
+import { employeeService, departmentService, permissionService, roleService } from '../../../core/services/adminService';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
+import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
   FiPlus, FiSearch, FiEdit2, FiTrash2, FiRefreshCw, FiUsers,
   FiMail, FiPhone, FiBriefcase, FiUser, FiShield, FiCheck, FiX, FiAlertCircle
@@ -88,6 +88,20 @@ type SystemPermissionResource = {
   }>;
 };
 
+// Interface for role from backend
+interface RoleFromBackend {
+  _id?: string;
+  role_name: string;
+  permissions?: Array<{
+    resource_name: string;
+    actions: Array<{
+      action: string;
+      description?: string;
+      is_enabled?: boolean;
+    }>;
+  }>;
+}
+
 const EmployeesPage: React.FC = () => {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -95,6 +109,7 @@ const EmployeesPage: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [systemPermissions, setSystemPermissions] = useState<SystemPermissionResource[]>([]);
+  const [roles, setRoles] = useState<RoleFromBackend[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -140,12 +155,19 @@ const EmployeesPage: React.FC = () => {
     }
   }, [showModal]);
 
-  // Check if modal is opened and load permissions if needed
+  // Check if modal is opened and load permissions/roles if needed
   useEffect(() => {
-    if (showModal && systemPermissions.length === 0) {
-      loadSystemPermissions();
+    if (showModal) {
+      setFormError('');
+      setFormSuccess('');
+      if (systemPermissions.length === 0) {
+        loadSystemPermissions();
+      }
+      if (roles.length === 0) {
+        loadRoles();
+      }
     }
-  }, [showModal, systemPermissions.length]);
+  }, [showModal, systemPermissions.length, roles.length]);
 
   // Check auth and load employees
   useEffect(() => {
@@ -189,12 +211,14 @@ const EmployeesPage: React.FC = () => {
           : (response.data?.data || []);
         setEmployees(empData);
       } else {
-        setError(response.error || 'Failed to load employees');
+        // Use backend message with priority
+        setError(response.message || response.error || 'Failed to load employees');
       }
     } catch (err: any) {
       console.error('Error loading employees:', err);
       if (err?.status === false) {
-        setError(err.error || 'Failed to load employees. Please try again.');
+        // Use backend message with priority
+        setError(err.message || err.error || 'Failed to load employees. Please try again.');
       } else if (err?.message?.includes('Network')) {
         setError('Cannot connect to server. Please check your internet connection.');
       } else if (err?.response?.status === 401) {
@@ -229,6 +253,23 @@ const EmployeesPage: React.FC = () => {
     }
   };
 
+  // Load roles from backend
+  const loadRoles = async () => {
+    try {
+      const response = await roleService.getAll();
+      console.log('Roles Response:', response);
+      
+      if (response.success && response.data) {
+        const rolesData = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data?.data || []);
+        setRoles(rolesData);
+      }
+    } catch (err) {
+      console.error('Error loading roles:', err);
+    }
+  };
+
   // Search employees
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
@@ -247,7 +288,8 @@ const EmployeesPage: React.FC = () => {
         setEmployees(empData);
       }
     } catch (err: any) {
-      setError(err.message || 'Search failed');
+      // Use backend message with priority
+      setError(err.message || err.error || 'Search failed');
     } finally {
       setLoading(false);
     }
@@ -398,7 +440,8 @@ const EmployeesPage: React.FC = () => {
       setShowDeleteConfirm(false);
       loadEmployees();
     } catch (err: any) {
-      setError(err.message || 'Failed to delete employee');
+      // Use backend message with priority
+      setError(err.message || err.error || 'Failed to delete employee');
     } finally {
       setDeleting(false);
       setDeletingId(null);
@@ -413,18 +456,8 @@ const EmployeesPage: React.FC = () => {
     setDeletingName('');
   };
 
-  if (authLoading || loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading employees...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
+    <MainLayout>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -484,8 +517,8 @@ const EmployeesPage: React.FC = () => {
 
       {/* Employees Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto max-h-[calc(100vh-300px)]">
-          <table className="w-full">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px]">
             <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -506,7 +539,16 @@ const EmployeesPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {employees.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center">
+                    <div className="flex justify-center items-center gap-2">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <span className="text-gray-500">Loading employees...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : employees.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
                     No employees found
@@ -587,10 +629,10 @@ const EmployeesPage: React.FC = () => {
           className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
         >
           <div 
-            className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl transform animate-scaleIn"
+            className="bg-white rounded-2xl w-full max-w-lg sm:max-w-xl md:max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl transform animate-scaleIn m-3 sm:m-6"
           >
             {/* Modal Header */}
-            <div className="p-5 border-b bg-gray-50 sticky top-0">
+            <div className="p-5 border-b bg-gray-50 sticky top-0 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
                   <FiUser className="w-5 h-5 text-blue-600" />
@@ -604,6 +646,13 @@ const EmployeesPage: React.FC = () => {
                   </p>
                 </div>
               </div>
+              <button
+                onClick={() => setShowModal(false)}
+                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                title="Close"
+              >
+                <FiX className="w-5 h-5 text-gray-500" />
+              </button>
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -793,20 +842,42 @@ const EmployeesPage: React.FC = () => {
                     </label>
                     <select
                       value={formData.roles?.role_name || 'department_employee'}
-                      onChange={(e) => setFormData({ 
-                        ...formData, 
-                        roles: {
-                          role_name: e.target.value,
-                          permissions: formData.roles?.permissions || []
+                      onChange={(e) => {
+                        const selectedRole = roles.find(r => r.role_name === e.target.value);
+                        let rolePermissions: Array<{ resource: string; actions: string[] }> = [];
+                        
+                        // If role has permissions, convert them to frontend format
+                        if (selectedRole?.permissions) {
+                          rolePermissions = selectedRole.permissions
+                            .filter(p => p.actions && Array.isArray(p.actions))
+                            .map(p => ({
+                              resource: p.resource_name,
+                              actions: p.actions
+                                .filter(a => a.is_enabled)
+                                .map(a => a.action)
+                            }))
+                            .filter(p => p.actions.length > 0);
                         }
-                      })}
+                        
+                        setFormData({ 
+                          ...formData, 
+                          roles: {
+                            role_name: e.target.value,
+                            permissions: rolePermissions
+                          }
+                        });
+                      }}
                       className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                     >
-                      {USER_ROLES.map((role) => (
-                        <option key={role.value} value={role.value}>
-                          {role.label}
-                        </option>
-                      ))}
+                      {roles.length > 0 ? (
+                        roles.map((role) => (
+                          <option key={role._id || role.role_name} value={role.role_name}>
+                            {role.role_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="">No roles available</option>
+                      )}
                     </select>
                   </div>
                 </div>
@@ -968,6 +1039,7 @@ const EmployeesPage: React.FC = () => {
         isLoading={deleting}
       />
     </div>
+    </MainLayout>
   );
 };
 

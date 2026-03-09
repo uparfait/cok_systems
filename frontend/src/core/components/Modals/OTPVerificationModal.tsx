@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getDashboardRoute } from '../../utils/departmentUtils';
+import { getDashboardRoute } from '../Layout/layoutUtils';
 
 interface OTPVerificationModalProps {
   isOpen: boolean;
@@ -37,7 +37,7 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
 
   // Background images
   const cityHallImage = '/cok_hall.jpg';
-  const logoImage = '/LOGO_COK.jpg';
+const logoImage = '/LOGO_COK.png';
 
   // Update refs when props change
   useEffect(() => {
@@ -190,7 +190,8 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
       }
     } catch (err: any) {
       console.error('[OTPVerificationModal] verifyOTP error:', err);
-      setError(err?.error || err?.message || 'Failed to verify OTP');
+      // Use backend message with priority
+      setError(err?.message || err?.error || 'Failed to verify OTP');
     
     } finally {
       setIsLoading(false);

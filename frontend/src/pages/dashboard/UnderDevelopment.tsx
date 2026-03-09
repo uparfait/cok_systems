@@ -4,7 +4,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../core/contexts/AuthContext';
-import { getUserDepartment, getUserSystems } from '../../core/components/Layout';
+import { getUserDepartment, getUserSystems } from '../../core/components/Layout/layoutUtils';
 import { 
   FiSettings, FiClock, FiMail, FiArrowLeft, FiGrid,
   FiAlertCircle

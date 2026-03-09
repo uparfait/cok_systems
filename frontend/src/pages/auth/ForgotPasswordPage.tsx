@@ -37,10 +37,12 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
         setShowOTPModal(true);
       } else {
         // Handle both cases: status false or status true with error message
+        // Use backend message with priority
         setError(result.message || result.error || 'Failed to send reset code');
       }
     } catch (err: any) {
-      setError(err?.error || err?.message || 'An error occurred');
+      // Use backend message with priority
+      setError(err?.message || err?.error || 'An error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -127,7 +129,7 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
           {/* City of Kigali Logo */}
           <div className="mb-6 ml-4  flex justify-center">
             <img
-              src="/LOGO_COK.jpg"
+              src="/LOGO_COK.png"
               alt="City of Kigali"
               className="h-30 w-auto"
             />

@@ -4,10 +4,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../core/contexts/AuthContext';
-import { useSocket } from '../../core/contexts/SocketContext';
-import LoadingSpinner from '../../core/components/LoadingSpinner';
-import { departmentService, employeeService, smartParkingService, serviceDeliveryService } from '../../core/services/adminService';
+import { useAuth } from '../../../core/contexts/AuthContext';
+import { useSocket } from '../../../core/contexts/SocketContext';
+import LoadingSpinner from '../../../core/components/LoadingSpinner';
+import { departmentService, employeeService, smartParkingService, serviceDeliveryService } from '../../../core/services/adminService';
+import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
   FiUsers, FiGrid, FiTruck, FiSettings, FiRefreshCw, FiTrendingUp, FiTrendingDown,
   FiAlertTriangle, FiCheckCircle, FiClock, FiActivity, FiArrowRight, FiEye,
@@ -121,13 +122,25 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     setSocketConnected(isConnected);
 
+    // Debounce timer for reload
+    let debounceTimer: NodeJS.Timeout | null = null;
+
+    const scheduleReload = () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      debounceTimer = setTimeout(() => {
+        loadData();
+      }, 2000); // 2 second delay to batch multiple events
+    };
+
     if (socket && isConnected) {
       // Listen for parking check-in events
       socket.on('parking_checkin', (data) => {
         console.log('Real-time parking check-in:', data);
         setRealtimeNotification(data.message || 'New vehicle checked in');
         // Refresh data when new check-in happens
-        loadData();
+        scheduleReload();
         // Clear notification after 5 seconds
         setTimeout(() => setRealtimeNotification(null), 5000);
       });
@@ -136,7 +149,7 @@ const AdminDashboard: React.FC = () => {
       socket.on('parking_checkout', (data) => {
         console.log('Real-time parking check-out:', data);
         setRealtimeNotification(data.message || 'Vehicle checked out');
-        loadData();
+        scheduleReload();
         setTimeout(() => setRealtimeNotification(null), 5000);
       });
 
@@ -144,7 +157,7 @@ const AdminDashboard: React.FC = () => {
       socket.on('visitor_checkin', (data) => {
         console.log('Real-time visitor check-in:', data);
         setRealtimeNotification(data.message || 'New visitor checked in');
-        loadData();
+        scheduleReload();
         setTimeout(() => setRealtimeNotification(null), 5000);
       });
 
@@ -152,8 +165,7 @@ const AdminDashboard: React.FC = () => {
       socket.on('visitor_checkout', (data) => {
         console.log('Real-time visitor check-out:', data);
         setRealtimeNotification(data.message || 'Visitor checked out');
-        loadData();
-        setTimeout(() => setRealtimeNotification(null), 5000);
+        scheduleReload();
       });
 
       // Listen for global notifications
@@ -165,6 +177,9 @@ const AdminDashboard: React.FC = () => {
 
       // Cleanup listeners on unmount
       return () => {
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+        }
         socket.off('parking_checkin');
         socket.off('parking_checkout');
         socket.off('visitor_checkin');
@@ -356,6 +371,7 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
+    <MainLayout>
     <div className="space-y-6">
       {/* Header Section */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -811,6 +827,7 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
     </div>
+    </MainLayout>
   );
 };
 

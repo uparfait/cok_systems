@@ -1,20 +1,20 @@
 // ResetPasswordPage - Password reset page
 // Page for setting new password after reset request
 // src/pages/auth/ResetPasswordPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { verifyPasswordResetOTP, resetPassword } from '../../core/services/authService';
+import { useToast } from '../../core/contexts/ToastContext';
 
 const ResetPasswordPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { showSuccess, showError, showWarning } = useToast();
   const token = searchParams.get('token');
   const userIdFromUrl = searchParams.get('userId');
-  
+    
   // Get userId from URL or session storage
-  const [userId, setUserId] = useState(() => {
-    return userIdFromUrl || sessionStorage.getItem('resetUserId') || '';
-  });
+  const userId = userIdFromUrl || sessionStorage.getItem('resetUserId') || '';
 
   const [otp, setOtp] = useState('');
   const [tempToken, setTempToken] = useState(() => {
@@ -42,18 +42,22 @@ const ResetPasswordPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setError('');
     if (step === 'verify') {
-      if (!userId || !otp) { setError('User ID and OTP are required'); return; }
+      if (!userId || !otp) { showWarning('User ID and OTP are required'); return; }
       setIsLoading(true);
       try {
         const result = await verifyPasswordResetOTP(userId, otp);
-        if (result.status && result.data?.tempToken) { setTempToken(result.data.tempToken); setStep('reset'); }
-        else { setError(result.error || 'Invalid OTP'); }
-      } catch (err: any) { setError(err?.error || err?.message || 'Failed to verify OTP'); }
-      finally { setIsLoading(false); }
+        if (result.status && result.data?.signature) { 
+          setTempToken(result.data.signature); 
+          setStep('reset');
+        }
+        else { showError(result.message || result.error || 'Invalid OTP'); }
+      } catch (err: any) {
+        // Error toast is already shown by apiClient interceptor
+      } finally { setIsLoading(false); }
     } else {
-      if (!userId) { setError('User ID is missing. Please start the password reset process again.'); return; }
-      if (!tempToken) { setError('Verification token is missing. Please start the password reset process again.'); return; }
-      if (newPassword !== confirmPassword) { setError("Passwords don't match"); return; }
+      if (!userId) { showError('User ID is missing. Please start the password reset process again.'); return; }
+      if (!tempToken) { showError('Verification token is missing. Please start the password reset process again.'); return; }
+      if (newPassword !== confirmPassword) { showWarning("Passwords don't match"); return; }
       setIsLoading(true);
       try {
         const result = await resetPassword(userId, tempToken, newPassword, confirmPassword);
@@ -67,9 +71,10 @@ const ResetPasswordPage = () => {
             navigate('/login');
           }, 1500);
         }
-        else { setError(result.error || 'Failed to reset password'); }
-      } catch (err: any) { setError(err?.error || err?.message || 'Failed to reset password'); }
-      finally { setIsLoading(false); }
+        else { showError(result.message || result.error || 'Failed to reset password'); }
+      } catch (err: any) {
+        // Error toast is already shown by apiClient interceptor
+      } finally { setIsLoading(false); }
     }
   };
 
@@ -94,7 +99,7 @@ const ResetPasswordPage = () => {
         <div className="w-full md:w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-6 lg:py-8 bg-white">
           <div className="w-full max-w-lg px-2 sm:px-4">
             <div className="mb-6 flex justify-center">
-              <img src="/LOGO_COK.jpg" alt="City of Kigali" className="h-16 w-auto" />
+<img src="/LOGO_COK.png" alt="City of Kigali" className="h-16 w-auto" />
             </div>
             <div className="text-center">
               <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6">
@@ -132,7 +137,7 @@ const ResetPasswordPage = () => {
             <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>Back
           </Link>
           <div className="mb-6 flex justify-center">
-            <img src="/LOGO_COK.jpg" alt="City of Kigali" className="h-16 w-auto" />
+<img src="/LOGO_COK.png" alt="City of Kigali" className="h-16 w-auto" />
           </div>
           <h2 className="text-xl lg:text-2xl font-bold text-gray-900 mb-2">Update Credentials</h2>
           <p className="text-sm text-gray-600 mb-6">Secure your account for KSESM access</p>
