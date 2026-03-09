@@ -39,6 +39,7 @@ export const NAVIGATION_CONFIG: NavItem[] = [
       { id: 'departments', label: 'Departments', path: '/admin/departments', icon: 'FiGrid', resource: 'departments', requiredAction: 'read:departments' },
       { id: 'employees', label: 'Employees', path: '/admin/employees', icon: 'FiUsers', resource: 'employees', requiredAction: 'read:employees' },
       { id: 'user-mgmt', label: 'User Management', path: '/admin/user-management', icon: 'FiUserCheck', resource: 'user_management', requiredAction: 'read:user_management' },
+      { id: 'roles-mgmt', label: 'Roles Management', path: '/admin/roles-management', icon: 'FiShield', resource: 'roles_management', requiredAction: 'read:roles_management' },
     ],
   },
   

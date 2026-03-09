@@ -15,42 +15,7 @@ interface LayoutProps {
 
 // Department-based system configurations
 export const SYSTEM_CONFIGS = {
-  // 'IT Department': {
-  //   systems: [
-  //     { id: 'parking', name: 'Smart Parking', path: '/dashboard/parking', icon: 'FiTruck' },
-  //     { id: 'service', name: 'Service Delivery', path: '/dashboard/service', icon: 'FiClipboard' },
-  //   ],
-  //   defaultSystem: 'parking'
-  // },
-  // 'Finance Department': {
-  //   systems: [
-  //     { id: 'parking', name: 'Smart Parking', path: '/dashboard/parking', icon: 'FiTruck' },
-  //     { id: 'reports', name: 'Financial Reports', path: '/dashboard/reports', icon: 'FiBarChart' },
-  //   ],
-  //   defaultSystem: 'reports'
-  // },
-  // 'HR Department': {
-  //   systems: [
-  //     { id: 'service', name: 'Service Delivery', path: '/dashboard/service', icon: 'FiClipboard' },
-  //     { id: 'employees', name: 'Employees', path: '/dashboard/employees', icon: 'FiUsers' },
-  //   ],
-  //   defaultSystem: 'service'
-  // },
-  // 'Legal Department': {
-  //   systems: [
-  //     { id: 'service', name: 'Service Delivery', path: '/dashboard/service', icon: 'FiClipboard' },
-  //     { id: 'parking', name: 'Smart Parking', path: '/dashboard/parking', icon: 'FiTruck' },
-  //   ],
-  //   defaultSystem: 'service'
-  // },
-  // 'Operations': {
-  //   systems: [
-  //     { id: 'parking', name: 'Smart Parking', path: '/dashboard/parking', icon: 'FiTruck' },
-  //     { id: 'service', name: 'Service Delivery', path: '/dashboard/service', icon: 'FiClipboard' },
-  //     { id: 'employees', name: 'Employees', path: '/dashboard/employees', icon: 'FiUsers' },
-  //   ],
-  //   defaultSystem: 'parking'
-  // },
+ 
   'System Admin': {
     systems: [
       { id: 'dashboard', name: 'Dashboard', path: '/admin/dashboard', icon: 'FiHome' },
@@ -58,6 +23,7 @@ export const SYSTEM_CONFIGS = {
       { id: 'service', name: 'Service Delivery', path: '/service_delivery/dashboard', icon: 'FiClipboard' },
       { id: 'employees', name: 'Employees', path: '/admin/employees', icon: 'FiUsers' },
       { id: 'user-mgmt', name: 'User Management', path: '/admin/user-management', icon: 'FiUsers' },
+      { id: 'roles-mgmt', name: 'Roles Management', path: '/admin/roles-management', icon: 'FiShield' },
       { id: 'departments', name: 'Departments', path: '/admin/departments', icon: 'FiGrid' },
       { id: 'feedback', name: 'Feedback', path: '#', icon: 'FiMessageSquare' },
       { id: 'reports', name: 'Reports', path: '#', icon: 'FiBarChart' },

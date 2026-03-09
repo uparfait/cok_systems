@@ -7,7 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   FiHome, FiGrid, FiTruck, FiUsers, FiSettings, 
-  FiMessageSquare, FiBarChart2, FiMapPin, FiLogOut, FiUser
+  FiMessageSquare, FiBarChart2, FiMapPin, FiLogOut, FiUser, FiShield
 } from 'react-icons/fi';
 import { HiOutlineOfficeBuilding } from 'react-icons/hi';
 
@@ -40,6 +40,7 @@ const getIcon = (iconName: string) => {
     FiBarChart: FiBarChart2,
     FiMapPin,
     FiLogOut,
+    FiShield,
     HiOutlineOfficeBuilding,
   };
   return icons[iconName] || FiGrid;
