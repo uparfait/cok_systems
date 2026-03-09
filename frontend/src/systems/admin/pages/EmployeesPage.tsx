@@ -6,7 +6,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { employeeService, departmentService, permissionService, roleService } from '../../../core/services/adminService';
-import { USER_ROLES } from '../../../core/constants/roles';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
@@ -457,17 +456,6 @@ const EmployeesPage: React.FC = () => {
     setDeletingName('');
   };
 
-  if (authLoading || loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading employees...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <MainLayout>
     <div className="space-y-6">
@@ -551,7 +539,16 @@ const EmployeesPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {employees.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center">
+                    <div className="flex justify-center items-center gap-2">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <span className="text-gray-500">Loading employees...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : employees.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
                     No employees found
@@ -635,7 +632,7 @@ const EmployeesPage: React.FC = () => {
             className="bg-white rounded-2xl w-full max-w-lg sm:max-w-xl md:max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl transform animate-scaleIn m-3 sm:m-6"
           >
             {/* Modal Header */}
-            <div className="p-5 border-b bg-gray-50 sticky top-0">
+            <div className="p-5 border-b bg-gray-50 sticky top-0 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
                   <FiUser className="w-5 h-5 text-blue-600" />
@@ -649,6 +646,13 @@ const EmployeesPage: React.FC = () => {
                   </p>
                 </div>
               </div>
+              <button
+                onClick={() => setShowModal(false)}
+                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                title="Close"
+              >
+                <FiX className="w-5 h-5 text-gray-500" />
+              </button>
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -838,13 +842,31 @@ const EmployeesPage: React.FC = () => {
                     </label>
                     <select
                       value={formData.roles?.role_name || 'department_employee'}
-                      onChange={(e) => setFormData({ 
-                        ...formData, 
-                        roles: {
-                          role_name: e.target.value,
-                          permissions: formData.roles?.permissions || []
+                      onChange={(e) => {
+                        const selectedRole = roles.find(r => r.role_name === e.target.value);
+                        let rolePermissions: Array<{ resource: string; actions: string[] }> = [];
+                        
+                        // If role has permissions, convert them to frontend format
+                        if (selectedRole?.permissions) {
+                          rolePermissions = selectedRole.permissions
+                            .filter(p => p.actions && Array.isArray(p.actions))
+                            .map(p => ({
+                              resource: p.resource_name,
+                              actions: p.actions
+                                .filter(a => a.is_enabled)
+                                .map(a => a.action)
+                            }))
+                            .filter(p => p.actions.length > 0);
                         }
-                      })}
+                        
+                        setFormData({ 
+                          ...formData, 
+                          roles: {
+                            role_name: e.target.value,
+                            permissions: rolePermissions
+                          }
+                        });
+                      }}
                       className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                     >
                       {roles.length > 0 ? (
@@ -854,11 +876,7 @@ const EmployeesPage: React.FC = () => {
                           </option>
                         ))
                       ) : (
-                        USER_ROLES.map((role) => (
-                          <option key={role.value} value={role.value}>
-                            {role.label}
-                          </option>
-                        ))
+                        <option value="">No roles available</option>
                       )}
                     </select>
                   </div>

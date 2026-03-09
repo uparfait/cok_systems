@@ -5,7 +5,7 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../core/contexts/AuthContext';
 import LoadingSpinner from '../../core/components/LoadingSpinner';
-import { getUserSystems, getUserDepartment, hasDedicatedDashboard, SYSTEM_CONFIGS } from '../../core/components/Layout';
+import { getUserSystems, getUserDepartment, hasDedicatedDashboard } from '../../core/components/Layout/layoutUtils';
 import { 
   FiHome, FiGrid, FiTruck, FiUsers, FiSettings, FiMessageSquare, 
   FiBarChart2, FiMapPin, FiArrowRight, FiCheckCircle

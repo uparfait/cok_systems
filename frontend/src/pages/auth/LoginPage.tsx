@@ -8,10 +8,12 @@ import PasswordSetupModal from '../../core/components/Modals/PasswordSetupModal'
 import OTPVerificationModal from '../../core/components/Modals/OTPVerificationModal';
 import PasswordResetOTPModal from '../../core/components/Modals/PasswordResetOTPModal';
 import { useAuth } from '../../core/contexts/AuthContext';
-import { getDashboardRoute } from '../../core/utils/departmentUtils';
+import { useToast } from '../../core/contexts/ToastContext';
+import { getDashboardRoute } from '../../core/components/Layout/layoutUtils';
 
 const LoginPage = () => {
   const { login } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -27,7 +29,6 @@ const LoginPage = () => {
   const [otpVerificationUserId, setOtpVerificationUserId] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
@@ -44,8 +45,6 @@ const LoginPage = () => {
     // Prevent multiple submissions
     if (isSubmitting || isLoading) return;
     
-    setSuccessMessage('');
-    setError('');
     setIsLoading(true);
     setIsSubmitting(true);
     
@@ -131,8 +130,8 @@ const LoginPage = () => {
     setShowPasswordSetupModal(false);
     setEmail('');
     setPassword('');
-    // Show success message inline instead of alert
-    setSuccessMessage('Account activated successfully! You can now login with your email and password.');
+    // Show success message via toast
+    showSuccess('Account activated successfully! You can now login with your email and password.');
   };
 
   // Handle forgot password click - navigate to forgot password page
@@ -202,18 +201,6 @@ const LoginPage = () => {
                 Please enter your credentials to continue.
               </p>
             </div>
-
-            {/* Success message */}
-            {successMessage && (
-              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center">
-                  <svg className="h-5 w-5 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <p className="text-sm text-green-700">{successMessage}</p>
-                </div>
-              </div>
-            )}
 
             {/* Login form */}
             <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">

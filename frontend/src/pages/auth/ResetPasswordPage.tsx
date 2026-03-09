@@ -12,7 +12,7 @@ const ResetPasswordPage = () => {
   const { showSuccess, showError, showWarning } = useToast();
   const token = searchParams.get('token');
   const userIdFromUrl = searchParams.get('userId');
-  
+    
   // Get userId from URL or session storage
   const userId = userIdFromUrl || sessionStorage.getItem('resetUserId') || '';
 
@@ -49,11 +49,11 @@ const ResetPasswordPage = () => {
         if (result.status && result.data?.signature) { 
           setTempToken(result.data.signature); 
           setStep('reset');
-          showSuccess('OTP verified successfully!');
         }
         else { showError(result.message || result.error || 'Invalid OTP'); }
-      } catch (err: any) { showError(err?.message || err?.error || 'Failed to verify OTP'); }
-      finally { setIsLoading(false); }
+      } catch (err: any) {
+        // Error toast is already shown by apiClient interceptor
+      } finally { setIsLoading(false); }
     } else {
       if (!userId) { showError('User ID is missing. Please start the password reset process again.'); return; }
       if (!tempToken) { showError('Verification token is missing. Please start the password reset process again.'); return; }
@@ -63,7 +63,6 @@ const ResetPasswordPage = () => {
         const result = await resetPassword(userId, tempToken, newPassword, confirmPassword);
         if (result.status) { 
           setIsSuccess(true); 
-          showSuccess('Password reset successfully!');
           sessionStorage.removeItem('resetUserId');
           sessionStorage.removeItem('resetTempToken');
           
@@ -73,8 +72,9 @@ const ResetPasswordPage = () => {
           }, 1500);
         }
         else { showError(result.message || result.error || 'Failed to reset password'); }
-      } catch (err: any) { showError(err?.message || err?.error || 'Failed to reset password'); }
-      finally { setIsLoading(false); }
+      } catch (err: any) {
+        // Error toast is already shown by apiClient interceptor
+      } finally { setIsLoading(false); }
     }
   };
 

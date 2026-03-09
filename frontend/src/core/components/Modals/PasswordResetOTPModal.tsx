@@ -23,7 +23,7 @@ const PasswordResetOTPModal: React.FC<PasswordResetOTPModalProps> = ({ isOpen, o
   const [isSuccess, setIsSuccess] = useState(false);
   const [userId, setUserId] = useState('');
 
-  const { showSuccess, showError, showWarning } = useToast();
+  const { showError, showWarning } = useToast();
 
   
   
@@ -122,7 +122,6 @@ const handleVerify = async () => {
       
       if (result.status && result.data?.signature) {
         setIsSuccess(true);
-        showSuccess('OTP verified successfully!');
         
         // Store signature in sessionStorage for use in reset password page
         sessionStorage.setItem('resetTempToken', result.data.signature);
@@ -137,11 +136,11 @@ const handleVerify = async () => {
           }, 1500);
         }
       } else {
-        showError(result.error || 'Invalid OTP. Please try again.');
+        showError(result.error);
       }
     } catch (err: any) {
-      // Use backend message with priority
-      showError(err?.message || err?.error || 'Failed to verify OTP');
+      // Error toast is already shown by apiClient interceptor, no need to show again
+      console.error('OTP verification error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -164,10 +163,9 @@ const handleVerify = async () => {
 
       // Call resend API (you may need to add this function to authService)
       // For now, we'll just simulate success
-      showSuccess('OTP resent successfully!');
       setTimeLeft(300); // Reset to 5 minutes
     } catch (err: any) {
-      showError(err?.error || 'Failed to resend OTP');
+      // Error toast is already shown by apiClient interceptor
     } finally {
       setIsResending(false);
     }

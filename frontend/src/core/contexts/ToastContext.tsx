@@ -3,8 +3,9 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import Toast from '../components/Toast';
-import type { ToastType } from '../components/Toast';
+
+// Toast types
+export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
 interface ToastItem {
   id: string;
@@ -12,6 +13,44 @@ interface ToastItem {
   message: string;
   duration?: number;
 }
+
+// Inline Toast Component
+const Toast: React.FC<{
+  id: string;
+  type: ToastType;
+  message: string;
+  duration?: number;
+  onClose: (id: string) => void;
+}> = ({ id, type, message, duration = 5000, onClose }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+
+  useEffect(() => {
+    setTimeout(() => setIsVisible(true), 10);
+    const timer = setTimeout(() => {
+      setIsLeaving(true);
+      setTimeout(() => onClose(id), 300);
+    }, duration);
+    return () => clearTimeout(timer);
+  }, [duration, id, onClose]);
+
+  const styles = {
+    success: { bg: 'bg-green-50', border: 'border-green-400', icon: 'text-green-500' },
+    error: { bg: 'bg-red-50', border: 'border-red-400', icon: 'text-red-500' },
+    warning: { bg: 'bg-yellow-50', border: 'border-yellow-400', icon: 'text-yellow-500' },
+    info: { bg: 'bg-blue-50', border: 'border-blue-400', icon: 'text-blue-500' },
+  };
+  const style = styles[type];
+
+  return (
+    <div className={`${style.bg} ${style.border} border-l-4 rounded-md shadow-lg p-4 mb-3 transform transition-all duration-300 ${isVisible && !isLeaving ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0'}`}>
+      <div className="flex items-center justify-between">
+        <span className={`text-sm font-medium ${style.icon === 'text-green-500' ? 'text-green-800' : style.icon === 'text-red-500' ? 'text-red-800' : style.icon === 'text-yellow-500' ? 'text-yellow-800' : 'text-blue-800'}`}>{message}</span>
+        <button onClick={() => { setIsLeaving(true); setTimeout(() => onClose(id), 300); }} className="ml-2 text-gray-400 hover:text-gray-600">✕</button>
+      </div>
+    </div>
+  );
+};
 
 interface ToastContextType {
   showToast: (type: ToastType, message: string, duration?: number) => void;

@@ -368,7 +368,7 @@ export const roleService = {
   create: (data: CreateRoleInput) => post('/roles', data),
   
   // Update role
-  update: (id: string, data: Partial<Role>) => put(`/roles/${id}`, data),
+  update: (id: string, data: { role_name?: string; permissions?: Array<{ resource_name: string; actions: string[] }> }) => put(`/roles/${id}`, data),
   
   // Delete role
   delete: (id: string) => del(`/roles/${id}`),
