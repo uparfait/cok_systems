@@ -7,7 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import { 
   FiMenu, FiBell, FiChevronDown, 
-  FiLogOut, FiHelpCircle, FiCheck
+  FiLogOut, FiHelpCircle, FiCheck, FiUser
 } from 'react-icons/fi';
 
 interface SidebarLink {
@@ -90,9 +90,6 @@ const Header: React.FC<HeaderProps> = ({
       window.location.href = '/login';
     }
   };
-
-  // Get quick navigation links (top-level only)
-  const quickLinks = links.filter(link => link.isParent).slice(0, 5);
 
   return (
     <header className="h-16 bg-white border-b border-gray-200 px-4 lg:px-6 flex items-center justify-between sticky top-0 z-30">
@@ -212,22 +209,20 @@ const Header: React.FC<HeaderProps> = ({
                 )}
               </div>
 
-              {/* Quick Links */}
+              {/* Profile Link */}
               <div className="py-1">
-                {quickLinks.map((link) => (
-                  <button
-                    key={link.id}
-                    onClick={() => {
-                      onNavigate(link.path);
-                      setShowUserMenu(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
-                      currentPath === link.path ? 'text-blue-600 bg-blue-50' : 'text-gray-700'
-                    }`}
-                  >
-                    {link.name}
-                  </button>
-                ))}
+                <button
+                  onClick={() => {
+                    onNavigate('/profile');
+                    setShowUserMenu(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50 ${
+                    currentPath === '/profile' ? 'text-blue-600 bg-blue-50' : 'text-gray-700'
+                  }`}
+                >
+                  <FiUser className="w-4 h-4" />
+                  Profile
+                </button>
               </div>
 
               {/* Logout */}

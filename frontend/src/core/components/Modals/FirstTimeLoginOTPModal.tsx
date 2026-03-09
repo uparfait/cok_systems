@@ -13,7 +13,7 @@ interface FirstTimeLoginOTPModalProps {
 
 const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const { checkEmailForFirstLogin, sendFirstLoginOTP, resendFirstLoginOTP, verifyFirstLoginOTP } = useAuth();
-  const { showSuccess, showError, showWarning } = useToast();
+  const { showError, showWarning } = useToast();
   
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '']); // 5 digits
@@ -95,13 +95,12 @@ const logoImage = '/LOGO_COK.png';
       
       if (otpResult.status && otpResult.data?.userId) {
         setCurrentUserId(otpResult.data.userId);
-        showSuccess('OTP sent to your email successfully!');
         setStep('otp');
       } else {
         showError(otpResult.error || 'Failed to send OTP');
       }
     } catch (err: any) {
-      showError(err?.message || err?.error || 'An error occurred');
+      // Error toast is already shown by apiClient interceptor
     } finally {
       setIsLoading(false);
     }
@@ -156,7 +155,6 @@ const logoImage = '/LOGO_COK.png';
       const result = await verifyFirstLoginOTP(currentUserId, otpString);
       
       if (result.status && result.data?.signature) {
-        showSuccess('OTP verified successfully!');
         // Pass the signature to the next step for password setup
         if (onSuccess) {
           onSuccess(email, currentUserId, result.data.signature);
@@ -165,7 +163,7 @@ const logoImage = '/LOGO_COK.png';
         showError(result.error || 'Invalid OTP. Please try again.');
       }
     } catch (err: any) {
-      showError(err?.error || err?.message || 'Failed to verify OTP');
+      // Error toast is already shown by apiClient interceptor
     } finally {
       setIsLoading(false);
     }
@@ -183,9 +181,8 @@ const logoImage = '/LOGO_COK.png';
     try {
       await resendFirstLoginOTP(email);
       setTimeLeft(300); // Reset to 5 minutes
-      showSuccess('OTP resent successfully!');
     } catch (err: any) {
-      showError(err?.error || 'Failed to resend OTP');
+      // Error toast is already shown by apiClient interceptor
     } finally {
       setIsResending(false);
     }

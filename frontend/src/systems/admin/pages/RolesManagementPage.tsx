@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { roleService, type Role, type CreateRoleInput } from '../../../core/services/adminService';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import MainLayout from '../../../core/components/Layout/MainLayout';
+import { useToast } from '../../../core/contexts/ToastContext';
 import { 
   FiSearch, FiPlus, FiEdit2, FiTrash2, FiRefreshCw, FiShield,
   FiCheck, FiX, FiAlertCircle, FiChevronDown, FiChevronRight
@@ -30,6 +31,7 @@ interface AvailableResource {
 }
 
 const RolesManagementPage: React.FC = () => {
+  const { showSuccess, showError } = useToast();
   const [roles, setRoles] = useState<Role[]>([]);
   const [availableResources, setAvailableResources] = useState<AvailableResource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,8 +47,6 @@ const RolesManagementPage: React.FC = () => {
   const [roleName, setRoleName] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [actionLoading, setActionLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
 
   // Expanded permissions state
   const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set());
@@ -158,8 +158,6 @@ const RolesManagementPage: React.FC = () => {
     if (!roleName.trim()) return;
     
     setActionLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
     
     // Convert selected permissions to backend format
     // Format: [{ resource_name: "employees", actions: ["read:employees"] }]
@@ -193,17 +191,17 @@ const RolesManagementPage: React.FC = () => {
       });
       
       if (response.success) {
-        setSuccessMessage(`Role "${roleName}" created successfully.`);
+        // Toast is handled by interceptor (backend returns message)
         setShowCreateModal(false);
         setRoleName('');
         setSelectedPermissions([]);
         loadRoles();
       } else {
-        setErrorMessage(response.message || 'Failed to create role');
+        showError(response.message || 'Failed to create role');
       }
     } catch (err: any) {
+      // Error toast is already shown by apiClient interceptor
       console.error('Error creating role:', err);
-      setErrorMessage(err.message || 'Failed to create role');
     } finally {
       setActionLoading(false);
     }
@@ -213,8 +211,6 @@ const RolesManagementPage: React.FC = () => {
     if (!selectedRole?._id || !roleName.trim()) return;
     
     setActionLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
     
     // Convert selected permissions to backend format
     const permissions: Array<{ resource_name: string; actions: string[] }> = [];
@@ -245,18 +241,18 @@ const RolesManagementPage: React.FC = () => {
       });
       
       if (response.success) {
-        setSuccessMessage(`Role updated successfully.`);
+        // Toast is handled by interceptor (backend returns message)
         setShowEditModal(false);
         setSelectedRole(null);
         setRoleName('');
         setEditSelectedPermissions([]);
         loadRoles();
       } else {
-        setErrorMessage(response.message || 'Failed to update role');
+        
       }
     } catch (err: any) {
+      // Error toast is already shown by apiClient interceptor
       console.error('Error updating role:', err);
-      setErrorMessage(err.message || 'Failed to update role');
     } finally {
       setActionLoading(false);
     }
@@ -266,23 +262,21 @@ const RolesManagementPage: React.FC = () => {
     if (!selectedRole?._id) return;
     
     setActionLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
     
     try {
       const response = await roleService.delete(selectedRole._id);
       
       if (response.success) {
-        setSuccessMessage(`Role "${selectedRole.role_name}" deleted successfully.`);
+        // Toast is handled by interceptor (backend returns message)
         setShowDeleteModal(false);
         setSelectedRole(null);
         loadRoles();
       } else {
-        setErrorMessage(response.message || 'Failed to delete role');
+        showError(response.message || 'Failed to delete role');
       }
     } catch (err: any) {
+      // Error toast is already shown by apiClient interceptor
       console.error('Error deleting role:', err);
-      setErrorMessage(err.message || 'Failed to delete role');
     } finally {
       setActionLoading(false);
     }
@@ -293,14 +287,14 @@ const RolesManagementPage: React.FC = () => {
       const response = await roleService.togglePermission(roleId, resourceName, action, !currentState);
       
       if (response.success) {
-        setSuccessMessage(`Permission toggled successfully.`);
+        // Toast is handled by interceptor (backend returns message)
         loadRoles();
       } else {
-        setErrorMessage(response.message || 'Failed to toggle permission');
+        showError(response.message || 'Failed to toggle permission');
       }
     } catch (err: any) {
+      // Error toast is already shown by apiClient interceptor
       console.error('Error toggling permission:', err);
-      setErrorMessage(err.message || 'Failed to toggle permission');
     }
   };
 
@@ -355,23 +349,88 @@ const RolesManagementPage: React.FC = () => {
     return editSelectedPermissions.includes(`${resourceName}:${action}`);
   };
 
+  // Select all permissions for create modal
+  const selectAllCreatePermissions = () => {
+    const allPermissions: string[] = [];
+    availableResources.forEach(resource => {
+      resource.actions.forEach(action => {
+        allPermissions.push(`${resource.resource_name}:${action.action}`);
+      });
+    });
+    setSelectedPermissions(allPermissions);
+  };
+
+  // Deselect all permissions for create modal
+  const deselectAllCreatePermissions = () => {
+    setSelectedPermissions([]);
+  };
+
+  // Select all permissions for a specific resource (create modal)
+  const selectAllCreateResourcePermissions = (resourceName: string) => {
+    const resource = availableResources.find(r => r.resource_name === resourceName);
+    if (!resource) return;
+    
+    setSelectedPermissions(prev => {
+      const newPermissions = [...prev];
+      resource.actions.forEach(action => {
+        const permKey = `${resourceName}:${action.action}`;
+        if (!newPermissions.includes(permKey)) {
+          newPermissions.push(permKey);
+        }
+      });
+      return newPermissions;
+    });
+  };
+
+  // Deselect all permissions for a specific resource (create modal)
+  const deselectAllCreateResourcePermissions = (resourceName: string) => {
+    setSelectedPermissions(prev => prev.filter(p => !p.startsWith(`${resourceName}:`)));
+  };
+
+  // Select all permissions for edit modal
+  const selectAllEditPermissions = () => {
+    const allPermissions: string[] = [];
+    availableResources.forEach(resource => {
+      resource.actions.forEach(action => {
+        allPermissions.push(`${resource.resource_name}:${action.action}`);
+      });
+    });
+    setEditSelectedPermissions(allPermissions);
+  };
+
+  // Deselect all permissions for edit modal
+  const deselectAllEditPermissions = () => {
+    setEditSelectedPermissions([]);
+  };
+
+  // Select all permissions for a specific resource (edit modal)
+  const selectAllEditResourcePermissions = (resourceName: string) => {
+    const resource = availableResources.find(r => r.resource_name === resourceName);
+    if (!resource) return;
+    
+    setEditSelectedPermissions(prev => {
+      const newPermissions = [...prev];
+      resource.actions.forEach(action => {
+        const permKey = `${resourceName}:${action.action}`;
+        if (!newPermissions.includes(permKey)) {
+          newPermissions.push(permKey);
+        }
+      });
+      return newPermissions;
+    });
+  };
+
+  // Deselect all permissions for a specific resource (edit modal)
+  const deselectAllEditResourcePermissions = (resourceName: string) => {
+    setEditSelectedPermissions(prev => prev.filter(p => !p.startsWith(`${resourceName}:`)));
+  };
+
   const getPermissionsCount = (permissions?: ResourcePermission[]) => {
     if (!permissions) return 0;
     return permissions.reduce((count, resource) => {
       return count + resource.actions.filter(a => a.is_enabled).length;
     }, 0);
   };
-
-  // Clear messages after 5 seconds
-  useEffect(() => {
-    if (successMessage || errorMessage) {
-      const timer = setTimeout(() => {
-        setSuccessMessage('');
-        setErrorMessage('');
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [successMessage, errorMessage]);
 
   return (
     <MainLayout>
@@ -386,21 +445,6 @@ const RolesManagementPage: React.FC = () => {
           Create, edit, and manage roles with their permissions
         </p>
       </div>
-
-      {/* Messages */}
-      {successMessage && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
-          <FiCheck className="w-5 h-5 text-green-600" />
-          <span className="text-green-700">{successMessage}</span>
-        </div>
-      )}
-
-      {errorMessage && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-          <FiAlertCircle className="w-5 h-5 text-red-600" />
-          <span className="text-red-700">{errorMessage}</span>
-        </div>
-      )}
 
       {/* Search and Actions Bar */}
       <div className="mb-6 flex flex-col sm:flex-row gap-4 justify-between">
@@ -604,9 +648,28 @@ const RolesManagementPage: React.FC = () => {
             </div>
             
             <div className="mb-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Permissions ({selectedPermissions.length} selected)
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Select Permissions ({selectedPermissions.length} selected)
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={selectAllCreatePermissions}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    Select All
+                  </button>
+                  <span className="text-gray-300">|</span>
+                  <button
+                    type="button"
+                    onClick={deselectAllCreatePermissions}
+                    className="text-xs text-gray-600 hover:text-gray-800 font-medium"
+                  >
+                    Deselect All
+                  </button>
+                </div>
+              </div>
               <div className="space-y-2">
                 {availableResources.map((resource) => {
                   const isExpanded = expandedCreateResources.has(resource.resource_name);
@@ -634,11 +697,40 @@ const RolesManagementPage: React.FC = () => {
                             </span>
                           )}
                         </div>
+                        {!isExpanded && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              selectAllCreateResourcePermissions(resource.resource_name);
+                            }}
+                            className="text-xs text-blue-600 hover:text-blue-800 font-medium mr-2"
+                          >
+                            Select All
+                          </button>
+                        )}
                       </button>
                       
                       {isExpanded && (
                         <div className="px-3 pb-3 border-t border-gray-200">
-                          <div className="pt-3 grid grid-cols-1 gap-2">
+                          <div className="pt-2 flex justify-end gap-2 mb-2">
+                            <button
+                              type="button"
+                              onClick={() => selectAllCreateResourcePermissions(resource.resource_name)}
+                              className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                            >
+                              Select All
+                            </button>
+                            <span className="text-gray-300">|</span>
+                            <button
+                              type="button"
+                              onClick={() => deselectAllCreateResourcePermissions(resource.resource_name)}
+                              className="text-xs text-gray-600 hover:text-gray-800 font-medium"
+                            >
+                              Deselect All
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-1 gap-2">
                             {resource.actions.map((action) => (
                               <label
                                 key={action.action}
@@ -701,9 +793,28 @@ const RolesManagementPage: React.FC = () => {
             </div>
             
             <div className="mb-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Permissions ({editSelectedPermissions.length} selected)
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Select Permissions ({editSelectedPermissions.length} selected)
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={selectAllEditPermissions}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    Select All
+                  </button>
+                  <span className="text-gray-300">|</span>
+                  <button
+                    type="button"
+                    onClick={deselectAllEditPermissions}
+                    className="text-xs text-gray-600 hover:text-gray-800 font-medium"
+                  >
+                    Deselect All
+                  </button>
+                </div>
+              </div>
               <div className="space-y-2">
                 {availableResources.map((resource) => {
                   const isExpanded = expandedEditResources.has(resource.resource_name);
@@ -731,11 +842,40 @@ const RolesManagementPage: React.FC = () => {
                             </span>
                           )}
                         </div>
+                        {!isExpanded && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              selectAllEditResourcePermissions(resource.resource_name);
+                            }}
+                            className="text-xs text-blue-600 hover:text-blue-800 font-medium mr-2"
+                          >
+                            Select All
+                          </button>
+                        )}
                       </button>
                       
                       {isExpanded && (
                         <div className="px-3 pb-3 border-t border-gray-200">
-                          <div className="pt-3 grid grid-cols-1 gap-2">
+                          <div className="pt-2 flex justify-end gap-2 mb-2">
+                            <button
+                              type="button"
+                              onClick={() => selectAllEditResourcePermissions(resource.resource_name)}
+                              className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                            >
+                              Select All
+                            </button>
+                            <span className="text-gray-300">|</span>
+                            <button
+                              type="button"
+                              onClick={() => deselectAllEditResourcePermissions(resource.resource_name)}
+                              className="text-xs text-gray-600 hover:text-gray-800 font-medium"
+                            >
+                              Deselect All
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-1 gap-2">
                             {resource.actions.map((action) => (
                               <label
                                 key={action.action}

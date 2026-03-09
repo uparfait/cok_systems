@@ -122,13 +122,25 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     setSocketConnected(isConnected);
 
+    // Debounce timer for reload
+    let debounceTimer: NodeJS.Timeout | null = null;
+
+    const scheduleReload = () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      debounceTimer = setTimeout(() => {
+        loadData();
+      }, 2000); // 2 second delay to batch multiple events
+    };
+
     if (socket && isConnected) {
       // Listen for parking check-in events
       socket.on('parking_checkin', (data) => {
         console.log('Real-time parking check-in:', data);
         setRealtimeNotification(data.message || 'New vehicle checked in');
         // Refresh data when new check-in happens
-        loadData();
+        scheduleReload();
         // Clear notification after 5 seconds
         setTimeout(() => setRealtimeNotification(null), 5000);
       });
@@ -137,7 +149,7 @@ const AdminDashboard: React.FC = () => {
       socket.on('parking_checkout', (data) => {
         console.log('Real-time parking check-out:', data);
         setRealtimeNotification(data.message || 'Vehicle checked out');
-        loadData();
+        scheduleReload();
         setTimeout(() => setRealtimeNotification(null), 5000);
       });
 
@@ -145,7 +157,7 @@ const AdminDashboard: React.FC = () => {
       socket.on('visitor_checkin', (data) => {
         console.log('Real-time visitor check-in:', data);
         setRealtimeNotification(data.message || 'New visitor checked in');
-        loadData();
+        scheduleReload();
         setTimeout(() => setRealtimeNotification(null), 5000);
       });
 
@@ -153,8 +165,7 @@ const AdminDashboard: React.FC = () => {
       socket.on('visitor_checkout', (data) => {
         console.log('Real-time visitor check-out:', data);
         setRealtimeNotification(data.message || 'Visitor checked out');
-        loadData();
-        setTimeout(() => setRealtimeNotification(null), 5000);
+        scheduleReload();
       });
 
       // Listen for global notifications
@@ -166,6 +177,9 @@ const AdminDashboard: React.FC = () => {
 
       // Cleanup listeners on unmount
       return () => {
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+        }
         socket.off('parking_checkin');
         socket.off('parking_checkout');
         socket.off('visitor_checkin');

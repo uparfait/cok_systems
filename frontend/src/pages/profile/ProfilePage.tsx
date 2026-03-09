@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../core/contexts/AuthContext';
+import MainLayout from '../../core/components/Layout/MainLayout';
 import { getUserProfile, updateUserProfile } from '../../core/services/authService';
 import { employeeService } from '../../core/services/adminService';
 import { 
@@ -365,12 +366,14 @@ const ProfilePage: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading profile...</p>
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading profile...</p>
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
@@ -383,8 +386,9 @@ const ProfilePage: React.FC = () => {
   const permissions = getPermissions();
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-5xl mx-auto">
+    <MainLayout>
+      <div className="min-h-screen bg-gray-50 py-8 px-4">
+        <div className="max-w-5xl mx-auto">
         {/* Success Message */}
         {showSuccessMessage && (
           <div className="fixed top-4 right-4 z-50 animate-fade-in">
@@ -1063,6 +1067,7 @@ const ProfilePage: React.FC = () => {
         </div>
       </div>
     </div>
+    </MainLayout>
   );
 };
 

@@ -1,106 +1,10 @@
-// Layout Utilities - Dynamic sidebar navigation based on user PERMISSIONS
+// Layout Utilities - Dynamic sidebar navigation based on user PERMISSIONS from backend
 // This module filters navigation based on each user's specific permissions from backend
+// NO hardcoded navigation - everything is derived from user's permissions
 
 import type { User, Permission } from '../../contexts/AuthContext';
 
-// Navigation item interface
-export interface NavItem {
-  id: string;
-  label: string;
-  path: string;
-  icon: string;
-  // Resource name in backend (e.g., 'employees', 'departments', 'smart parking')
-  resource?: string;
-  // Action required to see this item (e.g., 'read:employees')
-  requiredAction?: string;
-  children?: NavItem[];
-}
-
-// All available navigation items for the application
-// Each item maps to a backend resource and action
-// Parent items (with children) become dropdowns
-export const NAVIGATION_CONFIG: NavItem[] = [
-  // Dashboard - standalone (no dropdown)
-  {
-    id: 'dashboard',
-    label: 'Dashboard',
-    path: '/dashboard',
-    icon: 'FiHome',
-  },
-  
-  // Admin System - dropdown menu
-  {
-    id: 'admin',
-    label: 'Admin',
-    path: '/admin/dashboard', // Default to first child
-    icon: 'FiSettings',
-    children: [
-      { id: 'admin-dashboard', label: 'Dashboard', path: '/admin/dashboard', icon: 'FiHome', resource: 'admin', requiredAction: 'read:admin' },
-      { id: 'departments', label: 'Departments', path: '/admin/departments', icon: 'FiGrid', resource: 'departments', requiredAction: 'read:departments' },
-      { id: 'employees', label: 'Employees', path: '/admin/employees', icon: 'FiUsers', resource: 'employees', requiredAction: 'read:employees' },
-      { id: 'user-mgmt', label: 'User Management', path: '/admin/user-management', icon: 'FiUserCheck', resource: 'user_management', requiredAction: 'read:user_management' },
-      { id: 'roles-mgmt', label: 'Roles Management', path: '/admin/roles-management', icon: 'FiShield', resource: 'roles_management', requiredAction: 'read:roles_management' },
-    ],
-  },
-  
-  // Smart Parking System - dropdown menu
-  {
-    id: 'smartParking',
-    label: 'Smart Parking',
-    path: '/smart-parking/dashboard',
-    icon: 'FiTruck',
-    children: [
-      { id: 'parking-dashboard', label: 'Dashboard', path: '/smart-parking/dashboard', icon: 'FiHome', resource: 'smart parking', requiredAction: 'read:smart parking' },
-      { id: 'parking-checkin', label: 'Check In', path: '/smart-parking/check-in', icon: 'FiLogIn', resource: 'smart parking', requiredAction: 'create:smart parking' },
-      { id: 'parking-checkout', label: 'Check Out', path: '/smart-parking/check-out', icon: 'FiLogOut', resource: 'smart parking', requiredAction: 'update:smart parking' },
-      { id: 'parking-records', label: 'Records', path: '/smart-parking/records', icon: 'FiList', resource: 'smart parking', requiredAction: 'read:smart parking' },
-      { id: 'parking-reports', label: 'Reports', path: '/smart-parking/reports', icon: 'FiBarChart', resource: 'smart parking', requiredAction: 'read:smart parking' },
-    ],
-  },
-  
-  // Service Delivery System - dropdown menu
-  {
-    id: 'serviceDelivery',
-    label: 'Service Delivery',
-    path: '/service-delivery/dashboard',
-    icon: 'FiClipboard',
-    children: [
-      { id: 'service-dashboard', label: 'Dashboard', path: '/service-delivery/dashboard', icon: 'FiHome', resource: 'service delivery', requiredAction: 'read:service delivery' },
-      { id: 'service-visitors', label: 'Visitors', path: '/service-delivery/visitors', icon: 'FiUsers', resource: 'service delivery', requiredAction: 'read:service delivery' },
-      { id: 'service-checkin', label: 'Check In', path: '/service-delivery/check-in', icon: 'FiLogIn', resource: 'service delivery', requiredAction: 'create:service delivery' },
-      { id: 'service-checkout', label: 'Check Out', path: '/service-delivery/check-out', icon: 'FiLogOut', resource: 'service delivery', requiredAction: 'update:service delivery' },
-      { id: 'service-department-flow', label: 'Department Flow', path: '/service-delivery/department-flow', icon: 'FiArrowRight', resource: 'service delivery', requiredAction: 'read:service delivery' },
-    ],
-  },
-  
-  // Profile - standalone
-  {
-    id: 'profile',
-    label: 'Profile',
-    path: '/profile',
-    icon: 'FiUser',
-  },
-  
-  // Reports - standalone
-  {
-    id: 'reports',
-    label: 'Reports',
-    path: '/reports',
-    icon: 'FiBarChart',
-    resource: 'reports',
-    requiredAction: 'read:reports',
-  },
-  
-  // Settings - standalone
-  {
-    id: 'settings',
-    label: 'Settings',
-    path: '/settings',
-    icon: 'FiSettings',
-    resource: 'settings',
-    requiredAction: 'read:settings',
-  },
-];
+// ==================== Permission Helpers ====================
 
 // Convert user permissions to a Set for fast lookup
 const buildPermissionSet = (permissions: Permission[] | undefined): Set<string> => {
@@ -124,28 +28,46 @@ const buildPermissionSet = (permissions: Permission[] | undefined): Set<string> 
   return permSet;
 };
 
-// Check if user has permission to view a nav item
-const hasAccessToNavItem = (item: NavItem, permissionSet: Set<string>): boolean => {
-  // If no specific permission required, allow access
-  if (!item.resource && !item.requiredAction) {
-    return true;
-  }
+// Check if user has permission for a specific resource and action
+export const hasPermission = (user: User | null, resource: string, action?: string): boolean => {
+  if (!user) return false;
   
-  // If resource is specified but no action, check if user has any access to that resource
-  if (item.resource && !item.requiredAction) {
-    return permissionSet.has(item.resource.toLowerCase());
+  const permissionSet = buildPermissionSet(user.permissions);
+  const normalizedResource = resource.toLowerCase();
+  
+  // If no specific action, check if user has any access to that resource
+  if (!action) {
+    return permissionSet.has(normalizedResource);
   }
   
   // Check for specific resource:action permission
-  if (item.resource && item.requiredAction) {
-    const permKey = `${item.resource.toLowerCase()}:${item.requiredAction.toLowerCase()}`;
-    return permissionSet.has(permKey);
-  }
-  
-  return false;
+  const permKey = `${normalizedResource}:${action.toLowerCase()}`;
+  return permissionSet.has(permKey);
 };
 
-// Get navigation items based on user's actual permissions from backend
+// Check if user has admin access (based on role from backend)
+export const isAdminRole = (role: string | undefined): boolean => {
+  if (!role) return false;
+  const normalized = role.toLowerCase().trim();
+  return normalized.includes('admin') || normalized.includes('system');
+};
+
+// ==================== Dynamic Navigation ====================
+
+// Navigation item interface - resource/action reference backend permissions
+export interface NavItem {
+  id: string;
+  label: string;
+  path: string;
+  icon: string;
+  // Resource name in backend (e.g., 'employees', 'departments')
+  resource?: string;
+  // Action required to see this item (e.g., 'read:employees')
+  requiredAction?: string;
+  children?: NavItem[];
+}
+
+// Build navigation dynamically based on user permissions from backend
 export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   // If no user, return empty (should be protected by auth)
   if (!user) {
@@ -158,98 +80,169 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   // Build permission set for fast lookup
   const permissionSet = buildPermissionSet(userPermissions);
   
-  // Get user role
+  // Get user role from backend
   const userRole = user.role?.toLowerCase() || '';
   
-  // System admins and admins get full access (also check for empty permissions as fallback)
-  const adminRoles = ['system_admin', 'system admin', 'admin', 'system', 'it', 'super_admin', 'superadmin'];
-  const isAdmin = adminRoles.includes(userRole);
+  // Check if user is admin (from backend role)
+  const isAdmin = isAdminRole(userRole);
   const hasPermissions = userPermissions && userPermissions.length > 0;
   
-  // If user is admin OR has no permissions set, show all navigation (for development/fallback)
-  if (isAdmin || !hasPermissions) {
-    console.log('[Layout] Showing full navigation - Role:', userRole, 'Has permissions:', hasPermissions);
-    
-    // For admin, modify navigation to remove dashboard from other systems
-    if (isAdmin) {
-      return NAVIGATION_CONFIG.map(item => {
-        // Skip the standalone dashboard at top level for admin
-        if (item.id === 'dashboard') {
-          return null;
-        }
-        
-        // For Smart Parking and Service Delivery, remove Dashboard child
-        if ((item.id === 'smartParking' || item.id === 'serviceDelivery') && item.children) {
-          return {
-            ...item,
-            children: item.children.filter(child => 
-              child.id !== 'parking-dashboard' && child.id !== 'service-dashboard'
-            ),
-          };
-        }
-        
-        return item;
-      }).filter(Boolean) as NavItem[];
-    }
-    
-    return NAVIGATION_CONFIG;
+  // If no permissions set yet, return minimal navigation
+  if (!hasPermissions) {
+    console.log('[Layout] No permissions from backend, showing minimal nav');
+    return getMinimalNavigation(userRole);
   }
   
-  // Filter navigation based on user permissions
-  const filteredNav: NavItem[] = [];
+  // Build dynamic navigation based on user's actual permissions
+  const navigation: NavItem[] = [];
   
-  for (const item of NAVIGATION_CONFIG) {
-    // Check if user has access to this item
-    const hasAccess = hasAccessToNavItem(item, permissionSet);
+  // Add Dashboard for non-admin users only (admin has Dashboard inside Admin dropdown)
+  if (!isAdmin) {
+    navigation.push({
+      id: 'dashboard',
+      label: 'Dashboard',
+      path: getDashboardRoute(userRole, user.departmentName || user.department_name),
+      icon: 'FiHome',
+    });
+  }
+  
+  // Check for Admin system permissions
+  const hasAdminAccess = hasPermission(user, 'admin') || hasPermission(user, 'departments') || 
+                        hasPermission(user, 'employees') || hasPermission(user, 'roles_management');
+  if (hasAdminAccess || isAdmin) {
+    const adminChildren: NavItem[] = [];
     
-    if (hasAccess) {
-      // If item has children, filter them too
-      if (item.children && item.children.length > 0) {
-        const filteredChildren = item.children.filter(child => 
-          hasAccessToNavItem(child, permissionSet)
-        );
-        
-        // Only add parent if it has accessible children
-        if (filteredChildren.length > 0) {
-          filteredNav.push({
-            ...item,
-            children: filteredChildren,
-          });
-        }
-      } else {
-        // Add item without children
-        filteredNav.push(item);
-      }
+    if (hasPermission(user, 'admin') || isAdmin) {
+      adminChildren.push({ id: 'admin-dashboard', label: 'Dashboard', path: '/admin/dashboard', icon: 'FiHome' });
+    }
+    if (hasPermission(user, 'departments') || isAdmin) {
+      adminChildren.push({ id: 'departments', label: 'Departments', path: '/admin/departments', icon: 'FiGrid', resource: 'departments', requiredAction: 'read:departments' });
+    }
+    if (hasPermission(user, 'employees') || isAdmin) {
+      adminChildren.push({ id: 'employees', label: 'Employees', path: '/admin/employees', icon: 'FiUsers', resource: 'employees', requiredAction: 'read:employees' });
+    }
+    if (hasPermission(user, 'roles_management') || isAdmin) {
+      adminChildren.push({ id: 'roles-mgmt', label: 'Roles Management', path: '/admin/roles-management', icon: 'FiShield', resource: 'roles_management', requiredAction: 'read:roles_management' });
+    } 
+    if ((hasPermission(user, 'admin') || isAdmin) && (hasPermission(user, 'user_management') || isAdmin)) {
+      adminChildren.push({ id: 'user-mgmt', label: 'User Management', path: '/admin/user-management', icon: 'FiUser', resource: 'user_management', requiredAction: 'read:user_management' });
+    } 
+    
+    if (adminChildren.length > 0) {
+      navigation.push({
+        id: 'admin',
+        label: 'Admin',
+        path: '/admin/dashboard',
+        icon: 'FiSettings',
+        children: adminChildren,
+      });
     }
   }
   
-  return filteredNav;
+  // Check for Smart Parking permissions
+  const hasParkingAccess = hasPermission(user, 'smart parking') || hasPermission(user, 'parking');
+  if (hasParkingAccess || isAdmin) {
+    const parkingChildren: NavItem[] = [];
+    
+    if (hasPermission(user, 'smart parking', 'read') || isAdmin) {
+      parkingChildren.push({ id: 'parking-dashboard', label: 'Dashboard', path: '/smart-parking/dashboard', icon: 'FiHome', resource: 'smart parking', requiredAction: 'read:smart parking' });
+    }
+    if (hasPermission(user, 'smart parking', 'create') || isAdmin) {
+      parkingChildren.push({ id: 'parking-checkin', label: 'Check In', path: '/smart-parking/check-in', icon: 'FiLogIn', resource: 'smart parking', requiredAction: 'create:smart parking' });
+    }
+    if (hasPermission(user, 'smart parking', 'update') || isAdmin) {
+      parkingChildren.push({ id: 'parking-checkout', label: 'Check Out', path: '/smart-parking/check-out', icon: 'FiLogOut', resource: 'smart parking', requiredAction: 'update:smart parking' });
+    }
+    
+    if (parkingChildren.length > 0) {
+      navigation.push({
+        id: 'smartParking',
+        label: 'Smart Parking',
+        path: '/smart-parking/dashboard',
+        icon: 'FiTruck',
+        children: parkingChildren,
+      });
+    }
+  }
+  
+  // Check for Service Delivery permissions
+  const hasServiceAccess = hasPermission(user, 'service delivery');
+  if (hasServiceAccess || isAdmin) {
+    const serviceChildren: NavItem[] = [];
+    
+    if (hasPermission(user, 'service delivery', 'read') || isAdmin) {
+      serviceChildren.push({ id: 'service-dashboard', label: 'Dashboard', path: '/service-delivery/dashboard', icon: 'FiHome', resource: 'service delivery', requiredAction: 'read:service delivery' });
+    }
+    if (hasPermission(user, 'service delivery', 'create') || isAdmin) {
+      serviceChildren.push({ id: 'service-checkin', label: 'Check In', path: '/service-delivery/check-in', icon: 'FiLogIn', resource: 'service delivery', requiredAction: 'create:service delivery' });
+    }
+    if (hasPermission(user, 'service delivery', 'update') || isAdmin) {
+      serviceChildren.push({ id: 'service-checkout', label: 'Check Out', path: '/service-delivery/check-out', icon: 'FiLogOut', resource: 'service delivery', requiredAction: 'update:service delivery' });
+    }
+    
+    if (serviceChildren.length > 0) {
+      navigation.push({
+        id: 'serviceDelivery',
+        label: 'Service Delivery',
+        path: '/service-delivery/dashboard',
+        icon: 'FiClipboard',
+        children: serviceChildren,
+      });
+    }
+  }
+  
+  console.log('[Layout] Generated dynamic navigation for role:', userRole, 'Items:', navigation.length);
+  return navigation;
 };
 
-// Convert navigation to sidebar link format (with dropdown info)
+// Get minimal navigation for users without permissions yet
+const getMinimalNavigation = (role: string): NavItem[] => {
+  const nav: NavItem[] = [
+    {
+      id: 'dashboard',
+      label: 'Dashboard',
+      path: '/under-development',
+      icon: 'FiHome',
+    },
+  ];
+  
+  // If admin, show admin link
+  if (isAdminRole(role)) {
+    nav.splice(1, 0, {
+      id: 'admin',
+      label: 'Admin',
+      path: '/admin/dashboard',
+      icon: 'FiSettings',
+    });
+  }
+  
+  return nav;
+};
+
+// ==================== Sidebar Link Conversion ====================
+
 export interface SidebarLink {
   id: string;
   name: string;
   path: string;
   icon: string;
-  isParent: boolean;         // true if this is a dropdown header
-  isExpandable?: boolean;    // true if this has children (dropdown) - optional for compatibility
+  isParent: boolean;
+  isExpandable?: boolean;
   parentId?: string;
-  children?: SidebarLink[]; // Child if this is a dropdown
+  children?: SidebarLink[];
 }
 
+// Convert navigation to sidebar link format
 export const toSidebarLinks = (navigation: NavItem[]): SidebarLink[] => {
   const links: SidebarLink[] = [];
   
   for (const item of navigation) {
-    // Check if this item has children (is a dropdown)
     const isExpandable = !!(item.children && item.children.length > 0);
     
-    // Add parent as dropdown header (not clickable, just expandable)
     links.push({
       id: item.id,
       name: item.label,
-      path: item.path, // Default path when clicking the dropdown
+      path: item.path,
       icon: item.icon,
       isParent: true,
       isExpandable: isExpandable,
@@ -268,7 +261,9 @@ export const toSidebarLinks = (navigation: NavItem[]): SidebarLink[] => {
   return links;
 };
 
-// Get current system from path
+// ==================== Route Helpers ====================
+
+// Get current system from path (derived from URL, not hardcoded)
 export const getCurrentSystemFromPath = (pathname: string): string => {
   const path = pathname.toLowerCase();
   
@@ -277,16 +272,116 @@ export const getCurrentSystemFromPath = (pathname: string): string => {
   if (path.includes('/service-delivery') || path.includes('/service')) return 'Service Delivery';
   if (path.includes('/dashboard') || path === '/') return 'Dashboard';
   if (path.includes('/profile')) return 'Profile';
-  if (path.includes('/reports')) return 'Reports';
-  if (path.includes('/settings')) return 'Settings';
   
   return 'Dashboard';
 };
 
-// Hook to get navigation for current user based on their permissions
+// Get dashboard route based on user's role from backend
+export const getDashboardRoute = (role: string | undefined, departmentName?: string): string => {
+  console.log('[getDashboardRoute] Determining route for role:', role, 'dept:', departmentName);
+  
+  // If no role, go to under-development
+  if (!role) {
+    return '/under-development';
+  }
+  
+  const normalizedRole = role.toLowerCase().trim();
+  
+  // If admin/system role, go to admin dashboard
+  if (normalizedRole.includes('admin') || normalizedRole.includes('system')) {
+    return '/admin/dashboard';
+  }
+  
+  // Check department name for department-specific routing
+  if (departmentName) {
+    const dept = departmentName.toLowerCase();
+    
+    if (dept.includes('it') || dept.includes('finance') || dept.includes('operations')) {
+      return '/smart-parking/dashboard';
+    }
+    if (dept.includes('hr') || dept.includes('human') || dept.includes('legal')) {
+      return '/service-delivery/dashboard';
+    }
+  }
+  
+  // Default - try to determine from role
+  if (normalizedRole.includes('parking') || normalizedRole.includes('it')) {
+    return '/smart-parking/dashboard';
+  }
+  if (normalizedRole.includes('service') || normalizedRole.includes('hr')) {
+    return '/service-delivery/dashboard';
+  }
+  
+  // Fallback to under-development
+  return '/under-development';
+};
+
+// Get user department (supports both departmentName and department_name from backend)
+export const getUserDepartment = (user: any): string => {
+  if (!user) return '';
+  return user.departmentName || user.department_name || '';
+};
+
+// Get user's available systems based on role (for SystemSelector page)
+// Returns list of systems user can access
+export const getUserSystems = (user: any): Array<{ id: string; name: string; path: string; icon: string }> => {
+  if (!user) return [];
+  
+  const userRole = (user.role || '').toLowerCase().trim();
+  const isAdmin = isAdminRole(userRole);
+  const hasPermissions = user.permissions && user.permissions.length > 0;
+  
+  // If admin, show all systems
+  if (isAdmin) {
+    return [
+      { id: 'admin', name: 'Admin', path: '/admin/dashboard', icon: 'FiSettings' },
+      { id: 'parking', name: 'Smart Parking', path: '/smart-parking/dashboard', icon: 'FiTruck' },
+      { id: 'service', name: 'Service Delivery', path: '/service-delivery/dashboard', icon: 'FiClipboard' },
+    ];
+  }
+  
+  // If no permissions yet, return minimal
+  if (!hasPermissions) {
+    return [
+      { id: 'dashboard', name: 'Dashboard', path: '/under-development', icon: 'FiHome' },
+    ];
+  }
+  
+  // Build systems based on permissions
+  const systems: Array<{ id: string; name: string; path: string; icon: string }> = [];
+  
+  // Check each permission
+  const hasParking = hasPermission(user, 'smart parking') || hasPermission(user, 'parking');
+  const hasService = hasPermission(user, 'service delivery');
+  const hasAdmin = hasPermission(user, 'admin') || hasPermission(user, 'departments') || hasPermission(user, 'employees');
+  
+  if (hasAdmin || hasParking || hasService) {
+    systems.push({ id: 'dashboard', name: 'Dashboard', path: getDashboardRoute(userRole, getUserDepartment(user)), icon: 'FiHome' });
+  }
+  if (hasAdmin) {
+    systems.push({ id: 'admin', name: 'Admin', path: '/admin/dashboard', icon: 'FiSettings' });
+  }
+  if (hasParking) {
+    systems.push({ id: 'parking', name: 'Smart Parking', path: '/smart-parking/dashboard', icon: 'FiTruck' });
+  }
+  if (hasService) {
+    systems.push({ id: 'service', name: 'Service Delivery', path: '/service-delivery/dashboard', icon: 'FiClipboard' });
+  }
+  
+  return systems.length > 0 ? systems : [{ id: 'dashboard', name: 'Dashboard', path: '/under-development', icon: 'FiHome' }];
+};
+
+// Check if department has a dedicated dashboard
+export const hasDedicatedDashboard = (user: any): boolean => {
+  const department = getUserDepartment(user);
+  return department.toLowerCase().includes('system admin');
+};
+
+// ==================== Legacy Support (Deprecated) ====================
+
+// DEPRECATED: Use getNavigationByPermissions instead
+// Kept for backward compatibility with older components
 export const useUserNavigation = () => {
-  // This will be called from MainLayout which has access to AuthContext
-  // We return a function that accepts user as parameter
   return {
     getNavigation: (user: User | null) => getNavigationByPermissions(user),
     toSidebarLinks,
@@ -294,9 +389,14 @@ export const useUserNavigation = () => {
 };
 
 export default {
-  NAVIGATION_CONFIG,
+  hasPermission,
+  isAdminRole,
   getNavigationByPermissions,
   toSidebarLinks,
   getCurrentSystemFromPath,
+  getDashboardRoute,
+  getUserDepartment,
+  getUserSystems,
+  hasDedicatedDashboard,
   useUserNavigation,
 };

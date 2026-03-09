@@ -17,7 +17,7 @@ interface PasswordSetupModalProps {
 
 const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose, onSuccess, userId = '', email = '', signature = '' }) => {
   const { activateAccount } = useAuth();
-  const { showSuccess, showError, showWarning } = useToast();
+  const { showError, showWarning } = useToast();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -127,7 +127,6 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
       
       // Check if status is true AND there's no error message
       if (result.status && !result.error) {
-        showSuccess('Password set successfully! Account activated.');
         setIsSuccess(true);
         
         // Call onSuccess callback if provided
@@ -146,8 +145,7 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
         showError(result.message || result.error || 'Failed to activate account');
       }
     } catch (err: any) {
-      // Use backend message with priority
-      showError(err?.message || err?.error || 'Failed to set password');
+      // Error toast is already shown by apiClient interceptor
     } finally {
       setIsLoading(false);
     }

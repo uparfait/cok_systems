@@ -7,9 +7,10 @@ import { userAccountService } from '../../../core/services/adminService';
 import type { Employee } from '../../../core/services/adminService';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import MainLayout from '../../../core/components/Layout/MainLayout';
-import { 
+import {  
   FiSearch, FiLock, FiUnlock, FiRefreshCw, FiUsers,
-  FiMail, FiPhone, FiCheck, FiX, FiAlertCircle, FiUser
+  FiMail, FiPhone, FiCheck, FiX, FiAlertCircle, FiUser,
+  FiAlertTriangle
 } from 'react-icons/fi';
 
 interface UserWithLock extends Employee {
@@ -22,10 +23,9 @@ interface UserWithLock extends Employee {
 }
 
 const UserManagementPage: React.FC = () => {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();  
   const [users, setUsers] = useState<UserWithLock[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredUsers, setFilteredUsers] = useState<UserWithLock[]>([]);
@@ -36,8 +36,6 @@ const UserManagementPage: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<UserWithLock | null>(null);
   const [lockReason, setLockReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
 
   // Load users on mount
   useEffect(() => {
@@ -95,8 +93,6 @@ const UserManagementPage: React.FC = () => {
     if (!selectedUser?._id) return;
     
     setActionLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
     
     try {
       const response = await userAccountService.lockUnlock(
@@ -106,7 +102,7 @@ const UserManagementPage: React.FC = () => {
       );
       
       if (response.success) {
-        setSuccessMessage(`Account for ${selectedUser.full_name || selectedUser.email} has been locked successfully.`);
+        // Let the interceptor handle the toast (it shows response.data.message)
         // Update the user in the list
         setUsers(prev => prev.map(u => 
           u._id === selectedUser._id 
@@ -116,11 +112,11 @@ const UserManagementPage: React.FC = () => {
         setShowLockModal(false);
         setSelectedUser(null);
       } else {
-        setErrorMessage(response.message || 'Failed to lock account');
+        // Error toast is already shown by apiClient interceptor
       }
     } catch (err: any) {
+      // Error toast is already shown by apiClient interceptor
       console.error('Error locking account:', err);
-      setErrorMessage(err.response?.data?.message || 'Failed to lock account');
     } finally {
       setActionLoading(false);
     }
@@ -130,14 +126,12 @@ const UserManagementPage: React.FC = () => {
     if (!selectedUser?._id) return;
     
     setActionLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
     
     try {
       const response = await userAccountService.lockUnlock(selectedUser._id, 'unlock');
       
       if (response.success) {
-        setSuccessMessage(`Account for ${selectedUser.full_name || selectedUser.email} has been unlocked successfully.`);
+        // Let the interceptor handle the toast (it shows response.data.message)
         // Update the user in the list
         setUsers(prev => prev.map(u => 
           u._id === selectedUser._id 
@@ -147,11 +141,11 @@ const UserManagementPage: React.FC = () => {
         setShowUnlockModal(false);
         setSelectedUser(null);
       } else {
-        setErrorMessage(response.message || 'Failed to unlock account');
+        // Error toast is already shown by apiClient interceptor
       }
     } catch (err: any) {
+      // Error toast is already shown by apiClient interceptor
       console.error('Error unlocking account:', err);
-      setErrorMessage(err.response?.data?.message || 'Failed to unlock account');
     } finally {
       setActionLoading(false);
     }
@@ -164,7 +158,7 @@ const UserManagementPage: React.FC = () => {
       const response = await userAccountService.resetLoginAttempts(userItem._id);
       
       if (response.success) {
-        setSuccessMessage(`Login attempts reset for ${userItem.full_name || userItem.email}.`);
+        // Toast is handled by interceptor (backend returns message)
         // Update the user in the list
         setUsers(prev => prev.map(u => 
           u._id === userItem._id 
@@ -172,32 +166,13 @@ const UserManagementPage: React.FC = () => {
             : u
         ));
       } else {
-        setErrorMessage(response.message || 'Failed to reset login attempts');
+        // Error toast is already shown by apiClient interceptor
       }
     } catch (err: any) {
+      // Error toast is already shown by apiClient interceptor
       console.error('Error resetting login attempts:', err);
-      setErrorMessage(err.response?.data?.message || 'Failed to reset login attempts');
     }
   };
-
-  // Clear messages after 5 seconds
-  useEffect(() => {
-    if (successMessage || errorMessage) {
-      const timer = setTimeout(() => {
-        setSuccessMessage('');
-        setErrorMessage('');
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [successMessage, errorMessage]);
-
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
 
   return (
     <MainLayout>
@@ -212,21 +187,6 @@ const UserManagementPage: React.FC = () => {
           Manage user account lock/unlock status
         </p>
       </div>
-
-      {/* Messages */}
-      {successMessage && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
-          <FiCheck className="w-5 h-5 text-green-600" />
-          <span className="text-green-700">{successMessage}</span>
-        </div>
-      )}
-
-      {errorMessage && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-          <FiAlertCircle className="w-5 h-5 text-red-600" />
-          <span className="text-red-700">{errorMessage}</span>
-        </div>
-      )}
 
       {/* Search and Actions Bar */}
       <div className="mb-6 flex flex-col sm:flex-row gap-4 justify-between">
@@ -407,22 +367,110 @@ const UserManagementPage: React.FC = () => {
         Showing {filteredUsers.length} of {users.length} users
       </div>
 
-      {/* Lock Account Modal */}
-      <ConfirmModal
-        isOpen={showLockModal}
-        onCancel={() => {
-          setShowLockModal(false);
-          setSelectedUser(null);
-          setLockReason('');
-        }}
-        onConfirm={handleLockAccount}
-        title="Lock User Account"
-        message={`Are you sure you want to lock the account for ${selectedUser?.full_name || selectedUser?.email}?`}
-        confirmText={actionLoading ? 'Locking...' : 'Lock Account'}
-        cancelText="Cancel"
-        type="danger"
-        isLoading={actionLoading}
-      />
+      {/* Lock Account Modal with Reason Input */}
+      {showLockModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => {
+              setShowLockModal(false);
+              setSelectedUser(null);
+              setLockReason('');
+            }}
+          />
+          
+          {/* Modal Content */}
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 transform animate-scaleIn">
+            {/* Header with Close Button */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <FiLock className="w-5 h-5 text-red-600" />
+                Lock User Account
+              </h3>
+              <button
+                onClick={() => {
+                  setShowLockModal(false);
+                  setSelectedUser(null);
+                  setLockReason('');
+                }}
+                disabled={actionLoading}
+                className="p-1 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                title="Close"
+              >
+                <FiX className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6">
+              {/* Icon */}
+              <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <FiAlertTriangle className="w-8 h-8 text-red-600" />
+              </div>
+              
+              {/* Message */}
+              <div className="text-center mb-4">
+                <p className="text-gray-600">
+                  Are you sure you want to lock the account for <span className="font-semibold text-gray-900">{selectedUser?.full_name || selectedUser?.email}</span>?
+                </p>
+              </div>
+
+              {/* Reason Input */}
+              <div className="mb-6">
+                <label htmlFor="lockReason" className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for locking <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  id="lockReason"
+                  value={lockReason}
+                  onChange={(e) => setLockReason(e.target.value)}
+                  placeholder="Enter reason for locking this account..."
+                  rows={3}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                  disabled={actionLoading}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  This reason will be visible to the user when they try to log in.
+                </p>
+              </div>
+              
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowLockModal(false);
+                    setSelectedUser(null);
+                    setLockReason('');
+                  }}
+                  disabled={actionLoading}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <FiX className="w-4 h-4" />
+                  Cancel
+                </button>
+                <button
+                  onClick={handleLockAccount}
+                  disabled={actionLoading || !lockReason.trim()}
+                  className={`flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50`}
+                >
+                  {actionLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Locking...
+                    </>
+                  ) : (
+                    <>
+                      <FiLock className="w-4 h-4" />
+                      Lock Account
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Unlock Account Modal */}
       <ConfirmModal

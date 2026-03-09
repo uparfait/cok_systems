@@ -72,21 +72,34 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
       
       {/* Modal Content */}
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 transform animate-scaleIn">
-        <div className="p-6 text-center">
+        {/* Header with Close Button */}
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="text-xl font-bold text-gray-900">
+            {title}
+          </h3>
+          <button
+            onClick={onCancel}
+            disabled={isLoading}
+            className="p-1 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+            title="Close"
+          >
+            <FiX className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+        
+        {/* Content */}
+        <div className="p-6">
           {/* Icon */}
           <div className={`mx-auto w-16 h-16 ${styles.icon} rounded-full flex items-center justify-center mb-4`}>
             {styles.iconElement}
           </div>
           
-          {/* Title */}
-          <h3 className="text-xl font-bold text-gray-900 mb-2">
-            {title}
-          </h3>
-          
           {/* Message */}
-          <p className="text-gray-600 mb-6">
-            {message}
-          </p>
+          <div className="text-center mb-6">
+            <p className="text-gray-600">
+              {message}
+            </p>
+          </div>
           
           {/* Buttons */}
           <div className="flex gap-3">

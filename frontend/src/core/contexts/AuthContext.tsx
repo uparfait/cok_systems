@@ -208,7 +208,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsLoading(false);
       return result;
     } catch (error) {
-      console.error('[AuthContext] verifyLoginOTP error:', error);
       setIsLoading(false);
       throw error;
     }

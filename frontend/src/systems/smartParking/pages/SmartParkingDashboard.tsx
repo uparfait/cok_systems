@@ -75,6 +75,7 @@ const SmartParkingDashboard: React.FC = () => {
     } catch (err: any) {
       // Use backend message with priority
       setError(err?.message || err?.error || 'Search failed');
+      
     } finally {
       setLoading(false);
     }

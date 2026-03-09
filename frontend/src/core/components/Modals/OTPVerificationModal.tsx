@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getDashboardRoute } from '../../utils/departmentUtils';
+import { getDashboardRoute } from '../Layout/layoutUtils';
 
 interface OTPVerificationModalProps {
   isOpen: boolean;
