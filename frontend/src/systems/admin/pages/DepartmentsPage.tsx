@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { departmentService, employeeService, type Employee } from '../../../core/services/adminService';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
+import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
   FiPlus, FiSearch, FiEdit2, FiTrash2, FiRefreshCw, FiUsers, FiGrid,
   FiX, FiCheck, FiAlertCircle
@@ -32,6 +33,7 @@ interface Department {
   status?: string;
   createdAt?: string;
   updatedAt?: string;
+  department_response_time_in_minutes?: number;
 }
 
 const DepartmentsPage: React.FC = () => {
@@ -62,6 +64,7 @@ const DepartmentsPage: React.FC = () => {
     department_name: '',
     department_id: '',
     department_leader: '',
+    department_response_time_in_minutes: 0,
   });
 
   // Clear messages when modal opens/closes
@@ -113,7 +116,8 @@ const DepartmentsPage: React.FC = () => {
         setDepartments(deptData);
       } else if (deptResponse) {
         console.error('Department response failed:', deptResponse);
-        setError(deptResponse.error || 'Failed to load departments');
+        // Use backend message with priority
+        setError(deptResponse.message || deptResponse.error || 'Failed to load departments');
       }
       
       if (empResponse?.success) {
@@ -136,7 +140,14 @@ const DepartmentsPage: React.FC = () => {
     }
   };
 
-  // Filter departments based on search
+  // Calculate employee count for each department
+  const getEmployeeCount = (departmentName?: string) => {
+    if (!departmentName) return 0;
+    return employees.filter((emp: any) => 
+      emp.department === departmentName || 
+      emp.department?.department_name === departmentName
+    ).length;
+  };
   const filteredDepartments = useMemo(() => {
     let filtered = departments;
     
@@ -173,10 +184,12 @@ const DepartmentsPage: React.FC = () => {
       if (response.success) {
         setDepartments(response.data || []);
       } else {
-        setError(response.error || 'Search failed');
+        // Use backend message with priority
+        setError(response.message || response.error || 'Search failed');
       }
     } catch (err: any) {
-      setError(err.message || 'Search failed');
+      // Use backend message with priority
+      setError(err.message || err.error || 'Search failed');
     } finally {
       setLoading(false);
     }
@@ -189,6 +202,7 @@ const DepartmentsPage: React.FC = () => {
       department_name: '',
       department_id: '',
       department_leader: '',
+      department_response_time_in_minutes: 0,
     });
     setFormError('');
     setFormSuccess('');
@@ -213,6 +227,7 @@ const DepartmentsPage: React.FC = () => {
       department_name: department.department_name || '',
       department_id: department.department_id || '',
       department_leader: leaderEmail,
+      department_response_time_in_minutes: department.department_response_time_in_minutes || 0,
     });
     setFormError('');
     setFormSuccess('');
@@ -236,16 +251,36 @@ const DepartmentsPage: React.FC = () => {
     try {
       setSubmitting(true);
 
-      // Prepare data - send null if no leader selected, otherwise send email
-      let leaderValue: string | undefined = undefined;
-      if (formData?.department_leader && typeof formData?.department_leader === 'string' && formData?.department_leader.trim()) {
-        leaderValue = formData?.department_leader?.trim();
-      }
+      // Prepare data - send appropriate fields based on create vs update
+      let submitData: any;
       
-      const submitData = {
-        ...formData,
-        department_leader: leaderValue
-      } as any;
+      if (editingDepartment?._id || editingDepartment?.department_id) {
+        // Update existing - only send fields that backend accepts
+        let leaderValue: string | undefined = undefined;
+        if (formData?.department_leader && typeof formData?.department_leader === 'string' && formData?.department_leader.trim()) {
+          leaderValue = formData?.department_leader?.trim();
+        }
+        
+        submitData = {
+          department_name: formData?.department_name,
+          department_id: formData?.department_id,
+          department_response_time_in_minutes: formData?.department_response_time_in_minutes ?? 0,
+          department_leader: leaderValue
+        };
+      } else {
+        // Create new - send all required fields
+        let leaderValue: string | undefined = undefined;
+        if (formData?.department_leader && typeof formData?.department_leader === 'string' && formData?.department_leader.trim()) {
+          leaderValue = formData?.department_leader?.trim();
+        }
+        
+        submitData = {
+          department_name: formData?.department_name,
+          department_id: formData?.department_id,
+          department_leader: leaderValue,
+          department_response_time_in_minutes: formData?.department_response_time_in_minutes ?? 0
+        };
+      }
       
       console.log('Submitting department data:', submitData);
 
@@ -262,7 +297,7 @@ const DepartmentsPage: React.FC = () => {
             loadDepartments();
           }, 1500);
         } else {
-          setFormError(response.error || 'Failed to update department');
+          setFormError(response.message || response.error || 'Failed to update department');
         }
       } else {
         // Create new
@@ -276,7 +311,7 @@ const DepartmentsPage: React.FC = () => {
             loadDepartments();
           }, 1500);
         } else {
-          setFormError(response.error || 'Failed to create department');
+          setFormError(response.message || response.error || 'Failed to create department');
         }
       }
     } catch (err: any) {
@@ -287,7 +322,8 @@ const DepartmentsPage: React.FC = () => {
       if (err.message && (err.message.includes('Network') || err.message.includes('Failed to fetch'))) {
         setFormError('Cannot connect to server. Please check your internet connection and try again.');
       } else if (err.error) {
-        setFormError(err.error);
+        // Use backend message with priority
+        setFormError(err.message || err.error);
       } else if (err.message) {
         setFormError(err.message);
       } else {
@@ -315,7 +351,8 @@ const DepartmentsPage: React.FC = () => {
       setShowDeleteConfirm(false);
       loadDepartments();
     } catch (err: any) {
-      setError(err.message || 'Failed to delete department');
+      // Use backend message with priority
+      setError(err.message || err.error || 'Failed to delete department');
     } finally {
       setDeleting(false);
       setDeletingId(null);
@@ -330,18 +367,8 @@ const DepartmentsPage: React.FC = () => {
     setDeletingName('');
   };
 
-  if (authLoading || loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading departments...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
+    <MainLayout>
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-2xl border border-gray-200 p-6">
@@ -420,7 +447,16 @@ const DepartmentsPage: React.FC = () => {
 
       {/* Departments Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filteredDepartments.length === 0 ? (
+        {loading ? (
+          <div className="col-span-full">
+            <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
+              <div className="flex justify-center items-center gap-2">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="text-gray-500">Loading departments...</span>
+              </div>
+            </div>
+          </div>
+        ) : filteredDepartments.length === 0 ? (
           <div className="col-span-full">
             <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
               <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -462,7 +498,7 @@ const DepartmentsPage: React.FC = () => {
                   <div className="w-6 h-6 bg-gray-100 rounded-md flex items-center justify-center">
                     <FiUsers className="w-3.5 h-3.5" />
                   </div>
-                  <span className="font-medium">{dept.employees || 0}</span>
+                  <span className="font-medium">{getEmployeeCount(dept.department_name)}</span>
                   <span className="text-gray-400">employees</span>
                 </div>
               </div>
@@ -646,6 +682,7 @@ const DepartmentsPage: React.FC = () => {
         isLoading={deleting}
       />
     </div>
+    </MainLayout>
   );
 };
 

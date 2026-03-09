@@ -8,10 +8,12 @@ import PasswordSetupModal from '../../core/components/Modals/PasswordSetupModal'
 import OTPVerificationModal from '../../core/components/Modals/OTPVerificationModal';
 import PasswordResetOTPModal from '../../core/components/Modals/PasswordResetOTPModal';
 import { useAuth } from '../../core/contexts/AuthContext';
-import { getDashboardRoute } from '../../core/utils/departmentUtils';
+import { useToast } from '../../core/contexts/ToastContext';
+import { getDashboardRoute } from '../../core/components/Layout/layoutUtils';
 
 const LoginPage = () => {
   const { login } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -21,21 +23,18 @@ const LoginPage = () => {
   const [showOTPVerificationModal, setShowOTPVerificationModal] = useState(false);
   const [showPasswordResetOTPModal, setShowPasswordResetOTPModal] = useState(false);
   const [passwordSetupEmail, setPasswordSetupEmail] = useState('');
-  const [passwordSetupOtp, setPasswordSetupOtp] = useState('');
+  const [passwordSetupSignature, setPasswordSetupSignature] = useState('');
   const [passwordSetupUserId, setPasswordSetupUserId] = useState('');
   const [otpVerificationEmail, setOtpVerificationEmail] = useState('');
   const [otpVerificationUserId, setOtpVerificationUserId] = useState('');
- // const [resetPasswordEmail, setResetPasswordEmail] = useState('');
-  //const [resetPasswordUserId, setResetPasswordUserId] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
   // Images from public folder
   const cityHallImage = '/cok_hall.jpg';
-  const logoImage = '/LOGO_COK.jpg';
+  const logoImage = '/LOGO_COK.png';
 
   // Track if form is being submitted to prevent multiple submissions
 
@@ -46,8 +45,6 @@ const LoginPage = () => {
     // Prevent multiple submissions
     if (isSubmitting || isLoading) return;
     
-    setSuccessMessage('');
-    setError('');
     setIsLoading(true);
     setIsSubmitting(true);
     
@@ -84,8 +81,8 @@ const LoginPage = () => {
         setError('User not found. Please check your email or contact administrator.');
         return;
       } else {
-        // Handle other errors including invalid credentials
-        const errorMsg = result.error || result.message || 'Login failed';
+        // Handle other errors including invalid credentials - use backend message with fallback
+        const errorMsg = result.message || result.error || 'Login failed';
         if (result.data?.remainingAttempts !== undefined) {
           setError(`${errorMsg}. Attempts remaining: ${result.data.remainingAttempts}`);
         } else {
@@ -95,12 +92,13 @@ const LoginPage = () => {
       }
     } catch (err: any) {
       // Check if it's a first-time login scenario
-      if (err?.error?.includes('not activated') || err?.message?.includes('not activated')) {
+      if (err?.message?.includes('not activated') || err?.error?.includes('not activated')) {
         setShowFirstTimeOTPModal(true);
         return;
       }
       
-      const errorMsg = err?.error || err?.message || 'An error occurred during login';
+      // Use backend message with priority, fallback to error field
+      const errorMsg = err?.message || err?.error || 'An error occurred during login';
       if (err?.data?.remainingAttempts !== undefined) {
         setError(`${errorMsg}. Attempts remaining: ${err.data.remainingAttempts}`);
       } else {
@@ -118,12 +116,12 @@ const LoginPage = () => {
     setShowFirstTimeOTPModal(true);
   };
 
-  const handleOTPSuccess = (email: string, userId: string, otp: string) => {
+  const handleOTPSuccess = (email: string, userId: string, signature: string) => {
     // Close OTP modal and open password setup modal
     setShowFirstTimeOTPModal(false);
     setPasswordSetupEmail(email);
     setPasswordSetupUserId(userId);
-    setPasswordSetupOtp(otp);
+    setPasswordSetupSignature(signature);
     setShowPasswordSetupModal(true);
   };
 
@@ -132,8 +130,8 @@ const LoginPage = () => {
     setShowPasswordSetupModal(false);
     setEmail('');
     setPassword('');
-    // Show success message inline instead of alert
-    setSuccessMessage('Account activated successfully! You can now login with your email and password.');
+    // Show success message via toast
+    showSuccess('Account activated successfully! You can now login with your email and password.');
   };
 
   // Handle forgot password click - navigate to forgot password page
@@ -203,18 +201,6 @@ const LoginPage = () => {
                 Please enter your credentials to continue.
               </p>
             </div>
-
-            {/* Success message */}
-            {successMessage && (
-              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center">
-                  <svg className="h-5 w-5 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <p className="text-sm text-green-700">{successMessage}</p>
-                </div>
-              </div>
-            )}
 
             {/* Login form */}
             <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
@@ -466,7 +452,7 @@ const LoginPage = () => {
           onSuccess={handlePasswordSetupSuccess}
           email={passwordSetupEmail}
           userId={passwordSetupUserId}
-          otp={passwordSetupOtp}
+          signature={passwordSetupSignature}
         />
       )}
 
