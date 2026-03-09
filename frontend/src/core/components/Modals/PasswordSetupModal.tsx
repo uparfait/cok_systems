@@ -38,7 +38,7 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
 
   // Background images
   const cityHallImage = '/cok_hall.jpg';
-  const logoImage = '/LOGO_COK.jpg';
+  const logoImage = '/LOGO_COK.png';
 
   // Password requirements check
   const checkPasswordStrength = (password: string) => {

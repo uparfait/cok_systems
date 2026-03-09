@@ -31,7 +31,7 @@ const PasswordResetOTPModal: React.FC<PasswordResetOTPModalProps> = ({ isOpen, o
 
   // Background images
   const cityHallImage = '/cok_hall.jpg';
-  const logoImage = '/LOGO_COK.jpg';
+  const logoImage = '/LOGO_COK.png';
 
   useEffect(() => {
     if (!isOpen) {

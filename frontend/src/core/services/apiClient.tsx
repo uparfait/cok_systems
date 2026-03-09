@@ -3,6 +3,24 @@
 
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosError } from 'axios';
 
+// Custom events for toast notifications from API client
+// These events are listened to by ToastContext
+export const TOAST_EVENTS = {
+  SHOW_SUCCESS: 'cok:toast-success',
+  SHOW_ERROR: 'cok:toast-error',
+  SHOW_WARNING: 'cok:toast-warning',
+};
+
+// Helper to dispatch toast events
+export const dispatchToast = (type: 'success' | 'error' | 'warning', message: string) => {
+  if (typeof window !== 'undefined') {
+    const event = new CustomEvent(TOAST_EVENTS[type === 'success' ? 'SHOW_SUCCESS' : type === 'error' ? 'SHOW_ERROR' : 'SHOW_WARNING'], {
+      detail: { message }
+    });
+    window.dispatchEvent(event);
+  }
+};
+
 // Base URL - uses Vite proxy in development, production URL in production
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/cok/api';
 
@@ -115,11 +133,18 @@ export const isAuthenticated = (): boolean => {
 };
 
 /**
- * Redirect to login page
+ * Redirect to login page using browser history for smoother transition
  */
 const redirectToLogin = () => {
   clearAuthData();
-  window.location.href = '/login';
+  // Use custom event for smoother navigation (components can listen and use React Router)
+  window.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: 'unauthorized' } }));
+  // Fallback to direct redirect after short delay (for when no component is listening)
+  setTimeout(() => {
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
+  }, 100);
 };
 
 // Request interceptor - Add auth token to every request
@@ -138,7 +163,17 @@ apiClient.interceptors.request.use(
 
 // Response interceptor - Handle auth errors and token refresh
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Show success toast for successful POST, PUT, DELETE requests with success message
+    const method = response.config.method?.toUpperCase();
+    const isMutationRequest = method === 'POST' || method === 'PUT' || method === 'DELETE';
+    
+    if (isMutationRequest && response.data?.message) {
+      dispatchToast('success', response.data.message);
+    }
+    
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
     const isLoginRequest = originalRequest?.url?.includes('/auth/login');
@@ -150,10 +185,15 @@ apiClient.interceptors.response.use(
       try {
         const refreshToken = getRefreshToken();
         if (refreshToken) {
-          // Try to refresh the token
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-            refreshToken,
-          });
+          // Try to refresh the token with timeout
+          const response = await Promise.race([
+            axios.post(`${API_BASE_URL}/auth/refresh`, {
+              refreshToken,
+            }),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Token refresh timeout')), 3000)
+            )
+          ]);
 
           if (response.data?.status && response.data?.data?.tokens) {
             const { accessToken, refreshToken: newRefreshToken } = response.data.data.tokens;
@@ -180,6 +220,7 @@ apiClient.interceptors.response.use(
 
     // Handle network errors (no response)
     if (!error.response) {
+      dispatchToast('error', 'Network error. Please check your connection.');
       return Promise.reject({ 
         status: false, 
         error: 'Network Error', 
@@ -216,6 +257,11 @@ apiClient.interceptors.response.use(
       // Fallback to axios error message only if no backend message available
       errorMessage = error.message;
       errorField = error.message;
+    }
+
+    // Show error toast for API errors (skip for 401 as it redirects to login)
+    if (statusCode && statusCode >= 400 && statusCode !== 401) {
+      dispatchToast('error', errorMessage);
     }
     
     return Promise.reject({

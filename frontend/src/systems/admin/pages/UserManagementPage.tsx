@@ -6,6 +6,7 @@ import { useAuth } from '../../../core/contexts/AuthContext';
 import { userAccountService } from '../../../core/services/adminService';
 import type { Employee } from '../../../core/services/adminService';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
+import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
   FiSearch, FiLock, FiUnlock, FiRefreshCw, FiUsers,
   FiMail, FiPhone, FiCheck, FiX, FiAlertCircle, FiUser
@@ -199,6 +200,7 @@ const UserManagementPage: React.FC = () => {
   }
 
   return (
+    <MainLayout>
     <div className="p-6">
       {/* Page Header */}
       <div className="mb-6">
@@ -438,6 +440,7 @@ const UserManagementPage: React.FC = () => {
         isLoading={actionLoading}
       />
     </div>
+    </MainLayout>
   );
 };
 

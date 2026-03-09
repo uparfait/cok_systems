@@ -22,7 +22,6 @@ const LoginPage = () => {
   const [showPasswordResetOTPModal, setShowPasswordResetOTPModal] = useState(false);
   const [passwordSetupEmail, setPasswordSetupEmail] = useState('');
   const [passwordSetupSignature, setPasswordSetupSignature] = useState('');
-  const [passwordSetupOtp, setPasswordSetupOtp] = useState('');
   const [passwordSetupUserId, setPasswordSetupUserId] = useState('');
   const [otpVerificationEmail, setOtpVerificationEmail] = useState('');
   const [otpVerificationUserId, setOtpVerificationUserId] = useState('');
@@ -34,7 +33,7 @@ const LoginPage = () => {
 
   // Images from public folder
   const cityHallImage = '/cok_hall.jpg';
-  const logoImage = '/LOGO_COK.jpg';
+  const logoImage = '/LOGO_COK.png';
 
   // Track if form is being submitted to prevent multiple submissions
 

@@ -1,34 +1,39 @@
-// SmartParkingDashboard - Smart Parking System Dashboard
-// Dashboard for parking management
+// ServiceDeliveryDashboard - Service Delivery System Dashboard
+// Dashboard for visitor management
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../core/contexts/AuthContext';
-import { smartParkingService } from '../../core/services/adminService';
+import { useAuth } from '../../../core/contexts/AuthContext';
+import { serviceDeliveryService } from '../../../core/services/adminService';
+import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
-  FiTruck, FiSearch, FiRefreshCw, FiAlertTriangle, FiCheckCircle,
-  FiClock, FiMapPin, FiUser
+  FiUsers, FiSearch, FiRefreshCw, FiClock, FiCheckCircle,
+  FiUserPlus, FiLogOut
 } from 'react-icons/fi';
+import { HiOutlineClipboardList } from 'react-icons/hi';
 
-interface ParkingRecord {
+interface Visitor {
   _id?: string;
-  vehicle?: string;
-  plateNumber?: string;
-  owner?: string;
-  ownerName?: string;
+  name?: string;
+  visitorName?: string;
+  phone?: string;
+  department?: string;
+  departmentName?: string;
+  purpose?: string;
   status?: string;
   checkInTime?: string;
-  spot?: string;
-  flagged?: boolean;
+  checkIn?: string;
+  checkOutTime?: string;
+  checkOut?: string;
 }
 
-const SmartParkingDashboard: React.FC = () => {
+const ServiceDeliveryDashboard: React.FC = () => {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [records, setRecords] = useState<ParkingRecord[]>([]);
+  const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -44,16 +49,16 @@ const SmartParkingDashboard: React.FC = () => {
     setError('');
     
     try {
-      const response = await smartParkingService.getAllVehicles();
+      const response = await serviceDeliveryService.getAllVisitors();
       if (response.status) {
-        setRecords(response.data || []);
+        setVisitors(response.data || []);
       } else {
         // Use backend message with priority
-        setError(response.message || response.error || 'Failed to load parking data');
+        setError(response.message || response.error || 'Failed to load visitor data');
       }
     } catch (err: any) {
       // Use backend message with priority
-      setError(err?.message || err?.error || 'Failed to load parking data');
+      setError(err?.message || err?.error || 'Failed to load visitor data');
     } finally {
       setLoading(false);
     }
@@ -67,9 +72,9 @@ const SmartParkingDashboard: React.FC = () => {
     
     setLoading(true);
     try {
-      const response = await smartParkingService.searchVehicles(searchQuery);
+      const response = await serviceDeliveryService.searchVisitors(searchQuery);
       if (response.status) {
-        setRecords(response.data || []);
+        setVisitors(response.data || []);
       }
     } catch (err: any) {
       // Use backend message with priority
@@ -80,23 +85,20 @@ const SmartParkingDashboard: React.FC = () => {
   };
 
   // Calculate stats
-  const totalVehicles = records.length;
-  const parkedVehicles = records.filter(r => r.status === 'Parked').length;
-  const availableSlots = Math.max(0, 250 - totalVehicles);
-  const flaggedVehicles = records.filter(r => r.flagged).length;
+  const totalVisitors = visitors.length;
+  const checkedIn = visitors.filter(v => v.status === 'Inside').length;
+  const checkedOut = visitors.filter(v => v.status === 'Left').length;
 
   const statCards = [
-    { label: 'Total Vehicles', value: totalVehicles, icon: FiTruck, color: 'blue' },
-    { label: 'Currently Parked', value: parkedVehicles, icon: FiCheckCircle, color: 'green' },
-    { label: 'Available Slots', value: availableSlots, icon: FiMapPin, color: 'purple' },
-    { label: 'Flagged Vehicles', value: flaggedVehicles, icon: FiAlertTriangle, color: 'red' },
+    { label: 'Total Visitors', value: totalVisitors, icon: FiUsers, color: 'blue' },
+    { label: 'Currently Inside', value: checkedIn, icon: FiClock, color: 'green' },
+    { label: 'Checked Out', value: checkedOut, icon: FiCheckCircle, color: 'purple' },
   ];
 
   const colorClasses: { [key: string]: { bg: string; text: string } } = {
     blue: { bg: 'bg-blue-100', text: 'text-blue-600' },
     green: { bg: 'bg-green-100', text: 'text-green-600' },
     purple: { bg: 'bg-purple-100', text: 'text-purple-600' },
-    red: { bg: 'bg-red-100', text: 'text-red-600' },
   };
 
   if (authLoading || loading) {
@@ -104,31 +106,38 @@ const SmartParkingDashboard: React.FC = () => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading parking data...</p>
+          <p className="text-gray-600">Loading visitor data...</p>
         </div>
       </div>
     );
   }
 
   return (
+    <MainLayout>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-            <FiTruck className="w-8 h-8 text-blue-600" />
-            Smart Parking
+            <HiOutlineClipboardList className="w-8 h-8 text-green-600" />
+            Service Delivery
           </h1>
-          <p className="text-gray-500 mt-1">Manage parking and vehicle tracking</p>
+          <p className="text-gray-500 mt-1">Manage visitors and service delivery</p>
         </div>
-        <button
-          onClick={loadData}
-          disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50"
-        >
-          <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={loadData}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium disabled:opacity-50"
+          >
+            <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
+            <FiUserPlus className="w-4 h-4" />
+            New Visitor
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -138,7 +147,7 @@ const SmartParkingDashboard: React.FC = () => {
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {statCards.map((stat, index) => {
           const Icon = stat.icon;
           const colors = colorClasses[stat.color] || colorClasses.blue;
@@ -165,7 +174,7 @@ const SmartParkingDashboard: React.FC = () => {
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by vehicle plate, owner name..."
+              placeholder="Search by name, phone, or department..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -181,52 +190,55 @@ const SmartParkingDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Records Table */}
+      {/* Visitors Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="font-semibold text-gray-900">Parking Records</h2>
+          <h2 className="font-semibold text-gray-900">Visitor Records</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Vehicle</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Owner</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Check-in Time</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Spot</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Phone</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Department</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Purpose</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Check In</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {records.slice(0, 10).map((record, index) => (
+              {visitors.slice(0, 10).map((visitor, index) => (
                 <tr key={index} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <FiTruck className="w-5 h-5 text-gray-400" />
-                      <span className="font-medium text-gray-900">{record.plateNumber || record.vehicle || 'N/A'}</span>
-                      {record.flagged && (
-                        <FiAlertTriangle className="w-4 h-4 text-red-500" title="Flagged" />
-                      )}
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <FiUsers className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <span className="font-medium text-gray-900">{visitor.name || visitor.visitorName || 'N/A'}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-gray-600">{record.ownerName || record.owner || 'N/A'}</td>
-                  <td className="px-6 py-4 text-gray-500">{record.checkInTime || 'N/A'}</td>
-                  <td className="px-6 py-4 text-gray-600">{record.spot || '-'}</td>
+                  <td className="px-6 py-4 text-gray-600">{visitor.phone || 'N/A'}</td>
+                  <td className="px-6 py-4 text-gray-600">{visitor.departmentName || visitor.department || 'N/A'}</td>
+                  <td className="px-6 py-4 text-gray-500">{visitor.purpose || '-'}</td>
+                  <td className="px-6 py-4 text-gray-500">{visitor.checkInTime || visitor.checkIn || 'N/A'}</td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
-                      record.status === 'Parked' 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-gray-100 text-gray-600'
+                      visitor.status === 'Inside' 
+                        ? 'bg-blue-100 text-blue-700' 
+                        : visitor.status === 'Left'
+                        ? 'bg-gray-100 text-gray-600'
+                        : 'bg-yellow-100 text-yellow-700'
                     }`}>
-                      {record.status || 'Unknown'}
+                      {visitor.status || 'Waiting'}
                     </span>
                   </td>
                 </tr>
               ))}
-              {records.length === 0 && (
+              {visitors.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                    No parking records found
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    No visitors found
                   </td>
                 </tr>
               )}
@@ -235,7 +247,8 @@ const SmartParkingDashboard: React.FC = () => {
         </div>
       </div>
     </div>
+    </MainLayout>
   );
 };
 
-export default SmartParkingDashboard;
+export default ServiceDeliveryDashboard;

@@ -1,14 +1,14 @@
 // DashboardPage - Admin Dashboard for Parking & Service Delivery Management
 // Real API integration for data fetching
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../core/contexts/AuthContext';
 import LoadingSpinner from '../../core/components/LoadingSpinner';
 import { departmentService, employeeService, smartParkingService, serviceDeliveryService } from '../../core/services/adminService';
 import { 
-  FiHome, FiGrid, FiTruck, FiUsers, FiSettings, FiSearch, FiBell, 
+  FiHome, FiGrid, FiTruck, FiUsers, FiSettings, FiBell, 
   FiLogOut, FiMenu, FiArrowUpRight, FiArrowDownRight, FiCheck,
-  FiChevronRight, FiActivity, FiAlertTriangle, FiFileText, FiRefreshCw
+  FiChevronRight, FiActivity, FiAlertTriangle, FiRefreshCw
 } from 'react-icons/fi';
 import { 
   HiOutlineOfficeBuilding, HiOutlineChartBar, HiOutlineClipboardList
@@ -36,7 +36,7 @@ const DashboardPage: React.FC = () => {
   const displayDepartment = (user as any)?.departmentName || (user as any)?.department_name || '';
   
   // Check if user is admin based on department name (System admin gives full access)
-  const isAdmin = displayDepartment.toLowerCase().includes('system admin');
+  // Note: isAdmin is kept for potential future role-based features
 
   React.useEffect(() => {
     if (!isLoading && !isAuthenticated) {
