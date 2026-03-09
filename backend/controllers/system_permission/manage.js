@@ -149,6 +149,7 @@ class PermissionManager {
                     success: false,
                     type: "warning",
                     message: "Invalid user ID format"
+
                 });
             }
 
