@@ -66,12 +66,24 @@ async function resendOTP(req, res, next) {
     const hashedOTP = await tokenUtil.hashTokenLoginToken(otpCode.toString());
     const otpExpiry = new Date(Date.now() + otp.OTP_EXPIRY_SECONDS * 1000);
 
-    await User.findByIdAndUpdate(userId, {
-      $set: {
-        "auth.access_token.token": hashedOTP,
-        "auth.access_token.token_type": "password_reset_otp",
-      },
-    });
+    if (!user.auth || !user.auth?.access_token?.token_type) {
+      user.auth = {};
+       user.auth.access_token = {}
+       user.auth.access_token.token_type = "password_reset_otp";
+       user.auth.access_token.token = hashedOTP;
+       user.auth.access_token.expires_at = otpExpiry;
+      await user.save();
+    } else {
+      // Store OTP in database (instead of Redis)
+      await User.findByIdAndUpdate(user._id, {
+        $set: {
+          "auth.access_token.token_type": "password_reset_otp",
+          "auth.access_token.token": hashedOTP,
+          "auth.access_token.expires_at": otpExpiry,
+        },
+      });
+    }
+    
 
     // Send new OTP via email
     await email.sendOTPEmail(userEmail, otpCode, "password_reset");
