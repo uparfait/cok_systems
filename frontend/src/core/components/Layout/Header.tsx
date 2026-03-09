@@ -1,39 +1,42 @@
 // Header Component - Main application header with navigation and user controls
 // Contains logo, navigation links, notification bell, and user profile dropdown
-// Dynamic based on user department and permissions
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useNotification } from '../contexts/NotificationContext';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { useNotification } from '../../contexts/NotificationContext';
 import { 
   FiMenu, FiBell, FiChevronDown, 
   FiLogOut, FiHelpCircle, FiCheck
 } from 'react-icons/fi';
-import { getUserDepartment } from './Layout';
 
-interface System {
+interface SidebarLink {
   id: string;
   name: string;
   path: string;
   icon: string;
+  isParent: boolean;
+  parentId?: string;
 }
 
 interface HeaderProps {
   onMenuToggle: () => void;
-  systems: System[];
   currentSystem: string;
-  onSystemChange: (systemId: string) => void;
+  links: SidebarLink[];
+  currentPath: string;
+  onNavigate: (path: string) => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
   onMenuToggle, 
-  systems, 
-  currentSystem
+  currentSystem,
+  links,
+  currentPath,
+  onNavigate
 }) => {
   const { user, logout } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotification();
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showSystemDropdown, setShowSystemDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(() => {
     const now = new Date();
@@ -63,7 +66,6 @@ const Header: React.FC<HeaderProps> = ({
       setCurrentDateTime(`${date}|${time}`);
     };
 
-    // Update every minute
     const interval = setInterval(updateDateTime, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -71,15 +73,13 @@ const Header: React.FC<HeaderProps> = ({
   // Get user info
   const displayName = user?.fullName || 'User';
   const displayRole = user?.role || 'Guest';
-  const userDepartment = getUserDepartment(user);
-  // Get first two initials (e.g., "John Doe" -> "JD", "BYIRINGIRO Steven" -> "BS")
+  const userDepartment = user?.departmentName || user?.department_name || '';
+  
+  // Get first two initials
   const nameParts = displayName.trim().split(' ').filter(part => part.length > 0);
   const userInitial = nameParts.length >= 2 
     ? (nameParts[0].charAt(0) + nameParts[1].charAt(0)).toUpperCase()
     : displayName.charAt(0).toUpperCase();
-
-  // Get current system name
-  const currentSystemData = systems.find(s => s.id === currentSystem);
 
   // Handle logout
   const handleLogout = async () => {
@@ -91,7 +91,8 @@ const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  
+  // Get quick navigation links (top-level only)
+  const quickLinks = links.filter(link => link.isParent).slice(0, 5);
 
   return (
     <header className="h-16 bg-white border-b border-gray-200 px-4 lg:px-6 flex items-center justify-between sticky top-0 z-30">
@@ -105,13 +106,12 @@ const Header: React.FC<HeaderProps> = ({
           <FiMenu className="w-5 h-5" />
         </button>
 
-        {/* Dashboard Title with Date/Time */}
+        {/* Current System Title */}
         <div className="flex flex-col">
-          <span className="font-semibold text-gray-900 text-lg">Dashboard</span>
+          <span className="font-semibold text-gray-900 text-lg">{currentSystem}</span>
           <span className="text-xs font-bold text-gray-500 hidden sm:block">{currentDateTime}</span>
         </div>
       </div>
-
 
       {/* Right Section */}
       <div className="flex items-center gap-2">
@@ -212,7 +212,25 @@ const Header: React.FC<HeaderProps> = ({
                 )}
               </div>
 
-              {/* Logout only - Profile and Settings are in Sidebar */}
+              {/* Quick Links */}
+              <div className="py-1">
+                {quickLinks.map((link) => (
+                  <button
+                    key={link.id}
+                    onClick={() => {
+                      onNavigate(link.path);
+                      setShowUserMenu(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
+                      currentPath === link.path ? 'text-blue-600 bg-blue-50' : 'text-gray-700'
+                    }`}
+                  >
+                    {link.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Logout */}
               <div className="border-t border-gray-100 pt-1">
                 <button
                   onClick={handleLogout}
@@ -228,12 +246,12 @@ const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Click outside to close dropdowns */}
-      {(showUserMenu || showSystemDropdown) && (
+      {(showUserMenu || showNotifications) && (
         <div 
           className="fixed inset-0 z-40" 
           onClick={() => {
             setShowUserMenu(false);
-            setShowSystemDropdown(false);
+            setShowNotifications(false);
           }}
         />
       )}

@@ -6,8 +6,8 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
-  FiHome, FiGrid, FiTruck, FiUsers, FiSettings, FiChevronLeft, 
-  FiChevronRight, FiMessageSquare, FiBarChart2, FiMapPin, FiLogOut, FiUser
+  FiHome, FiGrid, FiTruck, FiUsers, FiSettings, 
+  FiMessageSquare, FiBarChart2, FiMapPin, FiLogOut, FiUser
 } from 'react-icons/fi';
 import { HiOutlineOfficeBuilding } from 'react-icons/hi';
 
@@ -46,7 +46,7 @@ const getIcon = (iconName: string) => {
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ 
-  isOpen, 
+  // isOpen prop kept for potential future use
   onToggle, 
   isDesktop = true,
   systems, 
@@ -90,8 +90,8 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="h-20 flex items-center px-4 border-b border-gray-200">
         <div className="flex items-center gap-3">
           <img 
-            src="/LOGO_COK.jpg" 
-            alt="COK Logo" 
+            src="/LOGO_COK.png"
+            alt="COK Logo"
             className="h-10 w-auto object-contain"
           />
           <div className="flex flex-col">

@@ -40,7 +40,7 @@ export const departmentService = {
   getAll: () => get('/department/crud'),
   
   // Search departments
-  search: (query: string) => get(`/department/crud/search?q=${encodeURIComponent(query)}`),
+  search: (query: string) => get(`/department/crud/search?query=${encodeURIComponent(query)}`),
   
   // Get department by ID
   getById: (id: string) => get(`/department/crud/${id}`),
@@ -94,7 +94,7 @@ export const employeeService = {
   getAll: () => get('/employee/crud'),
   
   // Search employees
-  search: (query: string) => get(`/employee/crud/search?q=${encodeURIComponent(query)}`),
+  search: (query: string) => get(`/employee/crud/search?query=${encodeURIComponent(query)}`),
   
   // Get employee by ID
   getById: (id: string) => get(`/employee/crud/${id}`),
@@ -116,7 +116,7 @@ export const feedbackService = {
   getAll: () => get('/feedback'),
   
   // Search feedback
-  search: (query: string) => get(`/feedback/search?q=${encodeURIComponent(query)}`),
+  search: (query: string) => get(`/feedback/search?query=${encodeURIComponent(query)}`),
   
   // Get feedback by ID
   getById: (id: string) => get(`/feedback/${id}`),
@@ -138,10 +138,10 @@ export const serviceDeliveryService = {
   getAllVisitors: () => get('/servicedelivery/visitor'),
   
   // Search visitors
-  search: (query: string) => get(`/servicedelivery/visitor/search?q=${encodeURIComponent(query)}`),
+  search: (query: string) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}`),
   
   // Search visitors (alias)
-  searchVisitors: (query: string) => get(`/servicedelivery/visitor/search?q=${encodeURIComponent(query)}`),
+  searchVisitors: (query: string) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}`),
   
   // Get visitor by ID
   getById: (id: string) => get(`/servicedelivery/visitor/${id}`),
@@ -153,13 +153,13 @@ export const serviceDeliveryService = {
   checkIn: (data: any) => post('/servicedelivery/visitor/checkin', data),
   
   // Check out visitor
-  checkOut: (id: string) => post(`/servicedelivery/visitor/checkout/${id}`, {}),
+  checkOut: (id: string) => post(`/servicedelivery/visitor/checkout`, { id }),
   
   // Toggle service status
-  toggleStatus: (id: string, status: string) => post(`/servicedelivery/visitor/service/status/${id}`, { status }),
+  toggleStatus: (id: string, status: string) => post(`/servicedelivery/visitor/service/status`, { id, status }),
   
   // Toggle service status (alias)
-  toggleServiceStatus: (id: string, status: string) => post(`/servicedelivery/visitor/service/status/${id}`, { status }),
+  toggleServiceStatus: (id: string, status: string) => post(`/servicedelivery/visitor/service/status`, { id, status }),
   
   // Assign to department
   assignToDepartment: (id: string, departmentId: string) => post(`/servicedelivery/visitor/assign/${id}`, { department_id: departmentId }),
@@ -178,10 +178,10 @@ export const parkingService = {
   getAllVehicles: () => get('/smartparking/vehicle'),
   
   // Search parking records
-  search: (query: string) => get(`/smartparking/vehicle/search?q=${encodeURIComponent(query)}`),
+  search: (query: string) => get(`/smartparking/vehicle/search?query=${encodeURIComponent(query)}`),
   
   // Search vehicles (alias)
-  searchVehicles: (query: string) => get(`/smartparking/vehicle/search?q=${encodeURIComponent(query)}`),
+  searchVehicles: (query: string) => get(`/smartparking/vehicle/search?query=${encodeURIComponent(query)}`),
   
   // Get parking record by ID
   getById: (id: string) => get(`/smartparking/vehicle/${id}`),
@@ -193,7 +193,7 @@ export const parkingService = {
   checkIn: (data: any) => post('/smartparking/vehicle/checkin', data),
   
   // Check out vehicle
-  checkOut: (id: string) => post(`/smartparking/vehicle/checkout/${id}`, {}),
+  checkOut: (id: string) => post(`/smartparking/vehicle/checkout`, { id }),
   
   // Verify vehicle
   verifyVehicle: (plateNumber: string) => get(`/smartparking/vehicle/verify?plateNumber=${encodeURIComponent(plateNumber)}`),
@@ -312,7 +312,7 @@ export const userAccountService = {
   getAllUsers: () => get('/employee/crud'),
   
   // Search users
-  searchUsers: (query: string) => get(`/employee/crud/search?q=${encodeURIComponent(query)}`),
+  searchUsers: (query: string) => get(`/employee/crud/search?query=${encodeURIComponent(query)}`),
   
   // Get user by ID
   getUserById: (id: string) => get(`/employee/crud/${id}`),
@@ -328,4 +328,39 @@ export const userAccountService = {
   // Reset login attempts
   resetLoginAttempts: (userId: string) => 
     post('/auth/lock-unlock/reset-attempts', { userId }),
+};
+
+// ==================== ROLE APIs ====================
+
+export interface Role {
+  _id?: string;
+  role_name: string;
+  permissions?: Array<{
+    resource_name: string;
+    actions: Array<{
+      action: string;
+      description?: string;
+      is_enabled?: boolean;
+    }>;
+  }>;
+}
+
+export const roleService = {
+  // Get all roles from backend
+  getAll: () => get('/roles'),
+  
+  // Get role by ID
+  getById: (id: string) => get(`/roles/${id}`),
+  
+  // Get role by name
+  getByName: (name: string) => get(`/roles/name/${name}`),
+  
+  // Create new role
+  create: (data: Partial<Role>) => post('/roles', data),
+  
+  // Update role
+  update: (id: string, data: Partial<Role>) => put(`/roles/${id}`, data),
+  
+  // Delete role
+  delete: (id: string) => del(`/roles/${id}`),
 };

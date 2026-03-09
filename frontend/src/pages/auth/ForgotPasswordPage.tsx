@@ -129,7 +129,7 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
           {/* City of Kigali Logo */}
           <div className="mb-6 ml-4  flex justify-center">
             <img
-              src="/LOGO_COK.jpg"
+              src="/LOGO_COK.png"
               alt="City of Kigali"
               className="h-30 w-auto"
             />

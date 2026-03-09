@@ -30,6 +30,7 @@ export interface User {
   permissions?: Permission[];
   departmentId?: string;
   departmentName?: string;
+  department_name?: string; // Alternative naming from some APIs
   picture?: string;
 }
 
@@ -313,8 +314,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setPermissions([]);
       setToken(null);
       setIsLoading(false);
-      // Force redirect to login page to ensure fresh authentication flow with OTP
-      window.location.href = '/login';
+      // Use event for smoother navigation
+      window.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: 'manual_logout' } }));
+      setTimeout(() => {
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }, 100);
     }
   };
 

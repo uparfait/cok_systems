@@ -37,7 +37,7 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
 
   // Background images
   const cityHallImage = '/cok_hall.jpg';
-  const logoImage = '/LOGO_COK.jpg';
+const logoImage = '/LOGO_COK.png';
 
   // Update refs when props change
   useEffect(() => {

@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { departmentService, employeeService, type Employee } from '../../../core/services/adminService';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
+import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
   FiPlus, FiSearch, FiEdit2, FiTrash2, FiRefreshCw, FiUsers, FiGrid,
   FiX, FiCheck, FiAlertCircle
@@ -378,6 +379,7 @@ const DepartmentsPage: React.FC = () => {
   }
 
   return (
+    <MainLayout>
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-2xl border border-gray-200 p-6">
@@ -682,6 +684,7 @@ const DepartmentsPage: React.FC = () => {
         isLoading={deleting}
       />
     </div>
+    </MainLayout>
   );
 };
 

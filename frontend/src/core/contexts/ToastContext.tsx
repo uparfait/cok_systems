@@ -1,7 +1,7 @@
 // ToastContext - Global toast notification state management
 // Provides methods to show toast notifications from anywhere in the app
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import Toast from '../components/Toast';
 import type { ToastType } from '../components/Toast';
@@ -37,6 +37,31 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const id = generateId();
     setToasts((prev) => [...prev, { id, type, message, duration }]);
   }, []);
+
+  // Listen for custom toast events from apiClient
+  useEffect(() => {
+    const handleSuccessEvent = (event: CustomEvent) => {
+      showToast('success', event.detail.message);
+    };
+    
+    const handleErrorEvent = (event: CustomEvent) => {
+      showToast('error', event.detail.message);
+    };
+    
+    const handleWarningEvent = (event: CustomEvent) => {
+      showToast('warning', event.detail.message);
+    };
+
+    window.addEventListener('cok:toast-success', handleSuccessEvent as EventListener);
+    window.addEventListener('cok:toast-error', handleErrorEvent as EventListener);
+    window.addEventListener('cok:toast-warning', handleWarningEvent as EventListener);
+
+    return () => {
+      window.removeEventListener('cok:toast-success', handleSuccessEvent as EventListener);
+      window.removeEventListener('cok:toast-error', handleErrorEvent as EventListener);
+      window.removeEventListener('cok:toast-warning', handleWarningEvent as EventListener);
+    };
+  }, [showToast]);
 
   const showSuccess = useCallback((message: string, duration?: number) => {
     showToast('success', message, duration);

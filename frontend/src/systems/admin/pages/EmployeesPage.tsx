@@ -5,9 +5,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
-import { employeeService, departmentService, permissionService } from '../../../core/services/adminService';
+import { employeeService, departmentService, permissionService, roleService } from '../../../core/services/adminService';
 import { USER_ROLES } from '../../../core/constants/roles';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
+import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
   FiPlus, FiSearch, FiEdit2, FiTrash2, FiRefreshCw, FiUsers,
   FiMail, FiPhone, FiBriefcase, FiUser, FiShield, FiCheck, FiX, FiAlertCircle
@@ -88,6 +89,20 @@ type SystemPermissionResource = {
   }>;
 };
 
+// Interface for role from backend
+interface RoleFromBackend {
+  _id?: string;
+  role_name: string;
+  permissions?: Array<{
+    resource_name: string;
+    actions: Array<{
+      action: string;
+      description?: string;
+      is_enabled?: boolean;
+    }>;
+  }>;
+}
+
 const EmployeesPage: React.FC = () => {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -95,6 +110,7 @@ const EmployeesPage: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [systemPermissions, setSystemPermissions] = useState<SystemPermissionResource[]>([]);
+  const [roles, setRoles] = useState<RoleFromBackend[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -140,12 +156,19 @@ const EmployeesPage: React.FC = () => {
     }
   }, [showModal]);
 
-  // Check if modal is opened and load permissions if needed
+  // Check if modal is opened and load permissions/roles if needed
   useEffect(() => {
-    if (showModal && systemPermissions.length === 0) {
-      loadSystemPermissions();
+    if (showModal) {
+      setFormError('');
+      setFormSuccess('');
+      if (systemPermissions.length === 0) {
+        loadSystemPermissions();
+      }
+      if (roles.length === 0) {
+        loadRoles();
+      }
     }
-  }, [showModal, systemPermissions.length]);
+  }, [showModal, systemPermissions.length, roles.length]);
 
   // Check auth and load employees
   useEffect(() => {
@@ -228,6 +251,23 @@ const EmployeesPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Failed to load departments:', err);
+    }
+  };
+
+  // Load roles from backend
+  const loadRoles = async () => {
+    try {
+      const response = await roleService.getAll();
+      console.log('Roles Response:', response);
+      
+      if (response.success && response.data) {
+        const rolesData = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data?.data || []);
+        setRoles(rolesData);
+      }
+    } catch (err) {
+      console.error('Error loading roles:', err);
     }
   };
 
@@ -429,6 +469,7 @@ const EmployeesPage: React.FC = () => {
   }
 
   return (
+    <MainLayout>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -806,11 +847,19 @@ const EmployeesPage: React.FC = () => {
                       })}
                       className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                     >
-                      {USER_ROLES.map((role) => (
-                        <option key={role.value} value={role.value}>
-                          {role.label}
-                        </option>
-                      ))}
+                      {roles.length > 0 ? (
+                        roles.map((role) => (
+                          <option key={role._id || role.role_name} value={role.role_name}>
+                            {role.role_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </option>
+                        ))
+                      ) : (
+                        USER_ROLES.map((role) => (
+                          <option key={role.value} value={role.value}>
+                            {role.label}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
                 </div>
@@ -972,6 +1021,7 @@ const EmployeesPage: React.FC = () => {
         isLoading={deleting}
       />
     </div>
+    </MainLayout>
   );
 };
 
