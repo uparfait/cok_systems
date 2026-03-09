@@ -190,10 +190,10 @@ apiClient.interceptors.response.use(
             axios.post(`${API_BASE_URL}/auth/refresh`, {
               refreshToken,
             }),
-            new Promise((_, reject) => 
+            new Promise<never>((_, reject) => 
               setTimeout(() => reject(new Error('Token refresh timeout')), 3000)
             )
-          ]);
+          ]) as { data?: { status?: boolean; data?: { tokens?: { accessToken: string; refreshToken: string } } } };
 
           if (response.data?.status && response.data?.data?.tokens) {
             const { accessToken, refreshToken: newRefreshToken } = response.data.data.tokens;

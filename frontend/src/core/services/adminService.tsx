@@ -345,6 +345,15 @@ export interface Role {
   }>;
 }
 
+// Role creation input - matches backend format
+export interface CreateRoleInput {
+  role_name: string;
+  permissions?: Array<{
+    resource_name: string;
+    actions: string[]; // Backend accepts simple string array
+  }>;
+}
+
 export const roleService = {
   // Get all roles from backend
   getAll: () => get('/roles'),
@@ -356,11 +365,22 @@ export const roleService = {
   getByName: (name: string) => get(`/roles/name/${name}`),
   
   // Create new role
-  create: (data: Partial<Role>) => post('/roles', data),
+  create: (data: CreateRoleInput) => post('/roles', data),
   
   // Update role
   update: (id: string, data: Partial<Role>) => put(`/roles/${id}`, data),
   
   // Delete role
   delete: (id: string) => del(`/roles/${id}`),
+  
+  // Get available resources
+  getAvailableResources: () => get('/roles/resources/available'),
+  
+  // Toggle permission
+  togglePermission: (id: string, resource_name: string, action: string, enabled?: boolean) => 
+    put(`/roles/${id}/permissions/toggle`, { resource_name, action, enabled }),
+  
+  // Bulk update permissions
+  bulkUpdatePermissions: (id: string, permissions: Array<{ resource_name: string; actions: string[] }>) => 
+    put(`/roles/${id}/permissions/bulk`, { permissions }),
 };

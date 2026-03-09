@@ -20,7 +20,8 @@ import {
   AdminDashboard, 
   DepartmentsPage, 
   EmployeesPage, 
-  UserManagementPage 
+  UserManagementPage,
+  RolesManagementPage
 } from './systems/admin';
 import { ParkingDashboard } from './systems/smartParking';
 import { ServiceDashboard } from './systems/serviceDelivery';
@@ -73,6 +74,15 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <UserManagementPage />
+                  </ProtectedRoute>
+                }
+              />
+              
+              <Route
+                path="/admin/roles-management"
+                element={
+                  <ProtectedRoute>
+                    <RolesManagementPage />
                   </ProtectedRoute>
                 }
               />

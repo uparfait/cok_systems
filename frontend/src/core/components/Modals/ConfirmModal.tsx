@@ -2,17 +2,18 @@
 // Used for confirming destructive or important actions like delete
 
 import React from 'react';
+import type { ReactNode } from 'react';
 import { FiAlertTriangle, FiCheck, FiX } from 'react-icons/fi';
 
 interface ConfirmModalProps {
   isOpen: boolean;
   title: string;
-  message: string;
+  message: string | ReactNode;
   confirmText?: string;
   cancelText?: string;
   onConfirm: () => void;
   onCancel: () => void;
-  type?: 'danger' | 'warning' | 'info';
+  type?: 'danger' | 'warning' | 'info' | 'success';
   isLoading?: boolean;
 }
 
@@ -42,6 +43,12 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
           icon: 'bg-yellow-100 text-yellow-600',
           button: 'bg-yellow-600 hover:bg-yellow-700',
           iconElement: <FiAlertTriangle className="w-6 h-6" />
+        };
+      case 'success':
+        return {
+          icon: 'bg-green-100 text-green-600',
+          button: 'bg-green-600 hover:bg-green-700',
+          iconElement: <FiCheck className="w-6 h-6" />
         };
       case 'info':
       default:
@@ -99,7 +106,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
               {isLoading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Deleting...
+                  {confirmText}
                 </>
               ) : (
                 <>
