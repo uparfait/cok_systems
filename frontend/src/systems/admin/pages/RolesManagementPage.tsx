@@ -51,6 +51,10 @@ const RolesManagementPage: React.FC = () => {
   // Expanded permissions state
   const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set());
   const [expandedCreateResources, setExpandedCreateResources] = useState<Set<string>>(new Set());
+  const [expandedEditResources, setExpandedEditResources] = useState<Set<string>>(new Set());
+
+  // Edit modal permissions state
+  const [editSelectedPermissions, setEditSelectedPermissions] = useState<string[]>([]);
 
   // Load roles on mount
   useEffect(() => {
@@ -112,6 +116,21 @@ const RolesManagementPage: React.FC = () => {
   const handleEditClick = (role: Role) => {
     setSelectedRole(role);
     setRoleName(role.role_name || '');
+    
+    // Load existing enabled permissions
+    const existingPermissions: string[] = [];
+    if (role.permissions) {
+      role.permissions.forEach((resource) => {
+        resource.actions.forEach((action) => {
+          if (action.is_enabled) {
+            // Format: resource_name:action
+            existingPermissions.push(`${resource.resource_name}:${action.action}`);
+          }
+        });
+      });
+    }
+    setEditSelectedPermissions(existingPermissions);
+    setExpandedEditResources(new Set());
     setShowEditModal(true);
   };
 
@@ -147,9 +166,16 @@ const RolesManagementPage: React.FC = () => {
     const permissions: CreateRoleInput['permissions'] = [];
     
     // Group selected permissions by resource
+    // Format in selectedPermissions is "resource_name:action_type" (e.g., "employees:read:employees")
     const permMap = new Map<string, string[]>();
     selectedPermissions.forEach(perm => {
-      const [resource_name, action] = perm.split(':');
+      // Split only at the first colon to get resource_name and the rest (action)
+      const firstColonIndex = perm.indexOf(':');
+      if (firstColonIndex === -1) return; // Skip invalid entries
+      
+      const resource_name = perm.substring(0, firstColonIndex);
+      const action = perm.substring(firstColonIndex + 1);
+      
       if (!permMap.has(resource_name)) {
         permMap.set(resource_name, []);
       }
@@ -190,14 +216,40 @@ const RolesManagementPage: React.FC = () => {
     setErrorMessage('');
     setSuccessMessage('');
     
+    // Convert selected permissions to backend format
+    const permissions: Array<{ resource_name: string; actions: string[] }> = [];
+    const permMap = new Map<string, string[]>();
+    
+    editSelectedPermissions.forEach(perm => {
+      // Split only at the first colon to get resource_name and the rest (action)
+      const firstColonIndex = perm.indexOf(':');
+      if (firstColonIndex === -1) return;
+      
+      const resource_name = perm.substring(0, firstColonIndex);
+      const action = perm.substring(firstColonIndex + 1);
+      
+      if (!permMap.has(resource_name)) {
+        permMap.set(resource_name, []);
+      }
+      permMap.get(resource_name)!.push(action);
+    });
+    
+    permMap.forEach((actions, resource_name) => {
+      permissions.push({ resource_name, actions });
+    });
+    
     try {
-      const response = await roleService.update(selectedRole._id, { role_name: roleName.trim() });
+      const response = await roleService.update(selectedRole._id, { 
+        role_name: roleName.trim(),
+        permissions
+      });
       
       if (response.success) {
         setSuccessMessage(`Role updated successfully.`);
         setShowEditModal(false);
         setSelectedRole(null);
         setRoleName('');
+        setEditSelectedPermissions([]);
         loadRoles();
       } else {
         setErrorMessage(response.message || 'Failed to update role');
@@ -274,6 +326,33 @@ const RolesManagementPage: React.FC = () => {
       }
       return newSet;
     });
+  };
+
+  const toggleEditResourceExpansion = (resourceName: string) => {
+    setExpandedEditResources(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(resourceName)) {
+        newSet.delete(resourceName);
+      } else {
+        newSet.add(resourceName);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleEditPermission = (resourceName: string, action: string) => {
+    const permissionKey = `${resourceName}:${action}`;
+    setEditSelectedPermissions(prev => {
+      if (prev.includes(permissionKey)) {
+        return prev.filter(p => p !== permissionKey);
+      } else {
+        return [...prev, permissionKey];
+      }
+    });
+  };
+
+  const isEditPermissionSelected = (resourceName: string, action: string): boolean => {
+    return editSelectedPermissions.includes(`${resourceName}:${action}`);
   };
 
   const getPermissionsCount = (permissions?: ResourcePermission[]) => {
@@ -601,10 +680,90 @@ const RolesManagementPage: React.FC = () => {
           setShowEditModal(false);
           setSelectedRole(null);
           setRoleName('');
+          setEditSelectedPermissions([]);
         }}
         onConfirm={handleUpdateRole}
         title="Edit Role"
-        message={`Enter a new name for the role "${selectedRole?.role_name}"`}
+        message={
+          <div className="py-2 max-h-96 overflow-y-auto text-left">
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Role Name
+              </label>
+              <input
+                type="text"
+                value={roleName}
+                onChange={(e) => setRoleName(e.target.value)}
+                placeholder="Enter role name"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                autoFocus
+              />
+            </div>
+            
+            <div className="mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Permissions ({editSelectedPermissions.length} selected)
+              </label>
+              <div className="space-y-2">
+                {availableResources.map((resource) => {
+                  const isExpanded = expandedEditResources.has(resource.resource_name);
+                  const selectedCount = resource.actions.filter(a => 
+                    isEditPermissionSelected(resource.resource_name, a.action)
+                  ).length;
+                  
+                  return (
+                    <div key={resource.resource_name} className="bg-gray-50 rounded border border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => toggleEditResourceExpansion(resource.resource_name)}
+                        className="w-full flex items-center justify-between p-3 hover:bg-gray-100"
+                      >
+                        <div className="flex items-center gap-2">
+                          {isExpanded ? (
+                            <FiChevronDown className="w-4 h-4 text-gray-500" />
+                          ) : (
+                            <FiChevronRight className="w-4 h-4 text-gray-500" />
+                          )}
+                          <span className="font-medium text-gray-900">{resource.resource_name}</span>
+                          {selectedCount > 0 && (
+                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                              {selectedCount}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                      
+                      {isExpanded && (
+                        <div className="px-3 pb-3 border-t border-gray-200">
+                          <div className="pt-3 grid grid-cols-1 gap-2">
+                            {resource.actions.map((action) => (
+                              <label
+                                key={action.action}
+                                className="flex items-center gap-2 p-2 rounded hover:bg-gray-100 cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isEditPermissionSelected(resource.resource_name, action.action)}
+                                  onChange={() => toggleEditPermission(resource.resource_name, action.action)}
+                                  className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                />
+                                <div className="flex-1">
+                                  {action.description && (
+                                    <p className="text-xs text-gray-500">{action.description}</p>
+                                  )}
+                                </div>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        }
         confirmText={actionLoading ? 'Updating...' : 'Update Role'}
         cancelText="Cancel"
         type="info"
