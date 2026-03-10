@@ -322,7 +322,7 @@ class RoleController {
             return res.status(200).json({
                 success: true,
                 type: 'success',
-                message: `Role "${updatedRole.role_name}" updated successfully`,
+                message: `Role "${updatedRole.role_name}" updated successfully.`,
                 data: updatedRole
             });
 
