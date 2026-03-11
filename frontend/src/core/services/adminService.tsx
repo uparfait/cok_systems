@@ -166,6 +166,8 @@ export const serviceDeliveryService = {
   
   // Emergency leave return
   emergencyLeaveReturn: (id: string, data: any) => post(`/servicedelivery/visitor/emergency/leave-return/${id}`, data),
+  // 👉 ADD THIS NEW UPDATE FUNCTION:
+  update: (id: string, data: any) => put(`/servicedelivery/visitor/${id}`, data),
 };
 
 // ==================== SMART PARKING APIs ====================
