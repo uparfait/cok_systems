@@ -30,6 +30,7 @@ export interface User {
   permissions?: Permission[];
   departmentId?: string;
   departmentName?: string;
+  department_name?: string; // Alternative naming from some APIs
   picture?: string;
 }
 
@@ -55,14 +56,14 @@ interface AuthContextType {
   // First time login methods
   checkEmailForFirstLogin: (email: string) => Promise<any>;
   sendFirstLoginOTP: (email: string) => Promise<any>;
-  verifyFirstLoginOTP: (email: string, otp: string) => Promise<any>;
-  activateAccount: (userId: string, otp: string, newPassword: string, confirmPassword: string) => Promise<any>;
+  verifyFirstLoginOTP: (userId: string, otp: string) => Promise<any>;
+  activateAccount: (userId: string, signature: string, newPassword: string, confirmPassword: string) => Promise<any>;
   resendFirstLoginOTP: (email: string) => Promise<any>;
   
   // Password reset methods
   requestPasswordReset: (email: string) => Promise<any>;
   verifyPasswordResetOTP: (userId: string, otp: string) => Promise<any>;
-  resetPassword: (userId: string, tempToken: string, newPassword: string) => Promise<any>;
+  resetPassword: (userId: string, signature: string, newPassword: string) => Promise<any>;
   resendPasswordResetOTP: (userId: string, email: string) => Promise<any>;
   
   // Logout
@@ -207,7 +208,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsLoading(false);
       return result;
     } catch (error) {
-      console.error('[AuthContext] verifyLoginOTP error:', error);
       setIsLoading(false);
       throw error;
     }
@@ -240,18 +240,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const verifyFirstLogin = async (email: string, otp: string) => {
+  const verifyFirstLogin = async (userId: string, otp: string) => {
     try {
-      return await verifyFirstLoginOTP(email, otp);
+      return await verifyFirstLoginOTP(userId, otp);
     } catch (error) {
       throw error;
     }
   };
 
-  const activateAcc = async (userId: string, otp: string, newPassword: string, confirmPassword: string) => {
+  const activateAcc = async (userId: string, signature: string, newPassword: string, confirmPassword: string) => {
     setIsLoading(true);
     try {
-      const result = await activateAccount(userId, otp, newPassword, confirmPassword);
+      const result = await activateAccount(userId, signature, newPassword, confirmPassword);
       if (result.status && result.data?.tokens) {
         checkAuth();
       }
@@ -288,9 +288,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const resetUserPassword = async (userId: string, tempToken: string, newPassword: string) => {
+  const resetUserPassword = async (userId: string, signature: string, newPassword: string) => {
     try {
-      return await resetPassword(userId, tempToken, newPassword, newPassword);
+      return await resetPassword(userId, signature, newPassword, newPassword);
     } catch (error) {
       throw error;
     }
@@ -313,8 +313,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setPermissions([]);
       setToken(null);
       setIsLoading(false);
-      // Force redirect to login page to ensure fresh authentication flow with OTP
-      window.location.href = '/login';
+      // Use event for smoother navigation
+      window.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: 'manual_logout' } }));
+      setTimeout(() => {
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }, 100);
     }
   };
 

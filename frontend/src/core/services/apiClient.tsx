@@ -3,6 +3,24 @@
 
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosError } from 'axios';
 
+// Custom events for toast notifications from API client
+// These events are listened to by ToastContext
+export const TOAST_EVENTS = {
+  SHOW_SUCCESS: 'cok:toast-success',
+  SHOW_ERROR: 'cok:toast-error',
+  SHOW_WARNING: 'cok:toast-warning',
+};
+
+// Helper to dispatch toast events
+export const dispatchToast = (type: 'success' | 'error' | 'warning', message: string) => {
+  if (typeof window !== 'undefined') {
+    const event = new CustomEvent(TOAST_EVENTS[type === 'success' ? 'SHOW_SUCCESS' : type === 'error' ? 'SHOW_ERROR' : 'SHOW_WARNING'], {
+      detail: { message }
+    });
+    window.dispatchEvent(event);
+  }
+};
+
 // Base URL - uses Vite proxy in development, production URL in production
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/cok/api';
 
@@ -115,11 +133,18 @@ export const isAuthenticated = (): boolean => {
 };
 
 /**
- * Redirect to login page
+ * Redirect to login page using browser history for smoother transition
  */
 const redirectToLogin = () => {
   clearAuthData();
-  window.location.href = '/login';
+  // Use custom event for smoother navigation (components can listen and use React Router)
+  window.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: 'unauthorized' } }));
+  // Fallback to direct redirect after short delay (for when no component is listening)
+  setTimeout(() => {
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
+  }, 100);
 };
 
 // Request interceptor - Add auth token to every request
@@ -138,7 +163,17 @@ apiClient.interceptors.request.use(
 
 // Response interceptor - Handle auth errors and token refresh
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Show success toast for successful POST, PUT, DELETE requests with success message
+    const method = response.config.method?.toUpperCase();
+    const isMutationRequest = method === 'POST' || method === 'PUT' || method === 'DELETE';
+    
+    if (isMutationRequest && response.data?.message) {
+      dispatchToast('success', response.data.message);
+    }
+    
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
     const isLoginRequest = originalRequest?.url?.includes('/auth/login');
@@ -150,10 +185,15 @@ apiClient.interceptors.response.use(
       try {
         const refreshToken = getRefreshToken();
         if (refreshToken) {
-          // Try to refresh the token
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-            refreshToken,
-          });
+          // Try to refresh the token with timeout
+          const response = await Promise.race([
+            axios.post(`${API_BASE_URL}/auth/refresh`, {
+              refreshToken,
+            }),
+            new Promise<never>((_, reject) => 
+              setTimeout(() => reject(new Error('Token refresh timeout')), 3000)
+            )
+          ]) as { data?: { status?: boolean; data?: { tokens?: { accessToken: string; refreshToken: string } } } };
 
           if (response.data?.status && response.data?.data?.tokens) {
             const { accessToken, refreshToken: newRefreshToken } = response.data.data.tokens;
@@ -180,6 +220,7 @@ apiClient.interceptors.response.use(
 
     // Handle network errors (no response)
     if (!error.response) {
+      dispatchToast('error', 'Network error. Please check your connection.');
       return Promise.reject({ 
         status: false, 
         error: 'Network Error', 
@@ -189,27 +230,38 @@ apiClient.interceptors.response.use(
 
     // Return the error data with standardized format
     const errorData = error.response?.data as { error?: string; message?: string; success?: boolean } | undefined;
+    const statusCode = error.response?.status;
     
     // Handle different backend response formats
     // Backend can return: { success: false, message: "..." } or { error: "...", message: "..." }
     let errorMessage = 'An error occurred';
     let errorField = 'Error';
     
-    if (errorData) {
+    // Handle 404 specifically with cleaner message
+    if (statusCode === 404) {
+      errorMessage = 'Service not found. Please check your connection.';
+      errorField = 'Not Found';
+    } else if (errorData) {
       // Check for 'message' field first (used by backend like { success: false, message: "..." })
       if ('message' in errorData && errorData.message) {
-        errorMessage = errorData.message;
-        errorField = errorData.message;
+        // Filter out raw 404 codes from message
+        errorMessage = errorData.message.replace(/\[\d+\]\s*/, '').trim();
+        errorField = errorMessage;
       }
       // Check for 'error' field as fallback
       if ('error' in errorData && errorData.error) {
-        errorMessage = errorData.error;
-        errorField = errorData.error;
+        errorMessage = errorData.error.replace(/\[\d+\]\s*/, '').trim();
+        errorField = errorMessage;
       }
     } else if (error.message) {
       // Fallback to axios error message only if no backend message available
       errorMessage = error.message;
       errorField = error.message;
+    }
+
+    // Show error toast for API errors (skip for 401 as it redirects to login)
+    if (statusCode && statusCode >= 400 && statusCode !== 401) {
+      dispatchToast('error', errorMessage);
     }
     
     return Promise.reject({
@@ -221,7 +273,8 @@ apiClient.interceptors.response.use(
 );
 
 // Status codes that should NOT be retried (client errors and server errors that won't change on retry)
-const NON_RETRYABLE_STATUS_CODES = [400, 403, 404, 409, 500, 505];
+// 401 (Unauthorized) is NOT retried to prevent automatic retry on failed login attempts
+const NON_RETRYABLE_STATUS_CODES = [400, 401, 403, 404, 409, 500, 505];
 
 /**
  * Centralized API request function with retry capability
@@ -257,13 +310,26 @@ export const apiRequest = async (
     const response = await apiClient(config);
     return response.data;
   } catch (error: any) {
+
+        // If error is already an object with message/error properties (from interceptor)
+    if (error && typeof error === 'object' && (error.message || error.error) && 'status' in error) {
+      throw {
+        status: false,
+        error: error.error || error.message,
+        message: error.message || error.error || 'An error occurred',
+      };
+    }
+
     // Get the status code from the response
     const statusCode = error.response?.status;
+    const isLoginEndpoint = endpoint.includes('/auth/login');
     
     // Check if this is a network error (no response) or a retriable status code
     const isNetworkError = !error.response;
+    // Don't retry login requests - they should fail immediately on wrong credentials
+    const isLoginRequest = isLoginEndpoint;
     const isRetriableStatus = statusCode && !NON_RETRYABLE_STATUS_CODES.includes(statusCode);
-    const shouldRetry = (isNetworkError || isRetriableStatus) && retryCount < maxRetries;
+    const shouldRetry = !isLoginRequest && (isNetworkError || isRetriableStatus) && retryCount < maxRetries;
     
     if (shouldRetry) {
       // Wait before retrying (exponential backoff: 1s, 2s, 3s, 4s, 5s)
@@ -279,14 +345,7 @@ export const apiRequest = async (
     if (error?.status === false) {
       throw error; // Already formatted error from interceptor
     }
-    // If error is already an object with message/error properties (from interceptor)
-    if (error && typeof error === 'object' && (error.message || error.error)) {
-      throw {
-        status: false,
-        error: error.error || error.message,
-        message: error.message || error.error || 'An error occurred',
-      };
-    }
+
     // Fallback for unknown error formats
     throw {
       status: false,
