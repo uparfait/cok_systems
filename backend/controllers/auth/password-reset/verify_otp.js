@@ -9,6 +9,8 @@ const User = require("../../../models/user");
 
 // Expected token type for password reset OTP
 const EXPECTED_TOKEN_TYPE = 'password_reset_otp';
+// Token type for password reset verification signature
+const PASSWORD_RESET_VERIFICATION_TYPE = 'password_reset_verification';
 
 async function verifyOTP(req, res, next) {
   try {
@@ -94,29 +96,15 @@ async function verifyOTP(req, res, next) {
       },
     });
 
-    // Generate a temporary token for password change (valid for 5 minutes)
-    const tempToken = inputOTP.toString(); // 5-char temp token
-
-    // Hash the temp token for storage
-    const hashedTempToken = await tokenUtil.hashTokenLoginToken(tempToken);
-
-    // Store temp token in user document with expiry
-    const tempTokenExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-    await User.findByIdAndUpdate(userId, {
-      $set: {
-        "auth.access_token.token": hashedTempToken,
-        "auth.access_token.token_type": "password_reset_otp",
-        "auth.access_token.expires_at": tempTokenExpiry,
-      },
-    });
+    // Generate signature token for password reset (expires in 30 minutes)
+    const signature = tokenUtil.generateToken({ userId: user._id.toString() }, '30m', PASSWORD_RESET_VERIFICATION_TYPE);
 
     return res.status(200).json({
       status: true,
       error: null,
       message: "OTP verified. You can now reset your password.",
       data: {
-        tempToken,
-        userId,
+        signature: signature,
       },
     });
   } catch (error) {

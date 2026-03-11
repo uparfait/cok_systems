@@ -118,7 +118,7 @@ module.exports = async function create_user(req, res, next) {
                     // Find the matching permission in allPermissions
                     const targetPermission = allPermissions.find(p => 
                         p.resource_name.toLowerCase() === resourceName.toLowerCase() &&
-                        p.actions[0].action_type === actionType && (p.actions[0].is_enabled ? p.actions[0].is_enabled === 'enabled' : true)
+                        p.actions[0].action_type === actionType
                     )
                     
                     if (targetPermission) {

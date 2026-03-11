@@ -21,9 +21,14 @@ module.exports = async function visitor_update(req, res, next) {
         // This prevents overwriting existing data with 'null' if missing in request
         let updateData = {}
         const allowedFields = [
-            'full_name', 'telephone', 'email', 'identification', 
-            'gender', 'items_entered_with', 'departments_assigned', 
-            'services_status', 'is_still_inhouse', 'badge_number'
+            'full_name',
+            'telephone',
+            'email',
+            'identification', // Optional
+            'gender',
+            'vehicle_storage',
+            'items_entered_with',
+            'badge_number'
         ]
 
         allowedFields.forEach(field => {

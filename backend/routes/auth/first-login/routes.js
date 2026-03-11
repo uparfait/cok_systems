@@ -8,6 +8,7 @@ const checkEmailController = require('../../../controllers/auth/first-login/chec
 const sendOTPController = require('../../../controllers/auth/first-login/send_otp');
 const activateAccountController = require('../../../controllers/auth/first-login/activate_account');
 const resendOTPController = require('../../../controllers/auth/first-login/resend_otp');
+const verifyOTPController = require('../../../controllers/auth/first-login/verify_otp');
 
 /**
  * POST /auth/first-login/check
@@ -25,12 +26,20 @@ Router.post('/send-otp', sendOTPController);
  * POST /auth/first-login/activate
  * Step 3: Verify OTP and create password
  */
+
 Router.post('/activate', activateAccountController);
+
+/**
+ * POST /auth/first-login/verify-otp
+ * Step 2b: Verify OTP without setting password
+ */
+Router.post('/verify-otp', verifyOTPController);
 
 /**
  * POST /auth/first-login/resend
  * Resend OTP if previous one expired
  */
 Router.post('/resend', resendOTPController);
+
 
 module.exports = Router;
