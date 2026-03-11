@@ -1655,7 +1655,6 @@ paths:
       tags: [PARFAIT - Statistics]
       summary: "Get Hourly Service Delivery Statistics (for graphs)"
       operationId: getHourlyServiceDeliveryStats
-      parameters:
       responses:
         '200':
           description: Hourly service delivery statistics
