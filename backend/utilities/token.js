@@ -131,12 +131,52 @@ const invalidateUserToken = async (userId, db) => {
     }
 };
 
+/**
+ * Generate a JWT token with custom expiry and type
+ * @param {object} payload - Data to encode in token
+ * @param {string} expiry - Expiry time (e.g., '30m', '1h')
+ * @param {string} type - Token type identifier
+ * @returns {string} - Generated JWT token
+ */
+const generateToken = (payload, expiry = '30m', type = 'general') => {
+    return jwt.sign({ ...payload, tokenType: type }, jwt.JWT_SECRET, {
+        expiresIn: expiry
+    });
+};
+
+/**
+ * Verify a generated token and check its type
+ * @param {string} token - JWT token to verify
+ * @param {string} expectedType - Expected token type
+ * @returns {object} - { valid: boolean, decoded?: object, error?: string }
+ */
+const verifyToken = (token, expectedType) => {
+    try {
+        const verification = jwt.verifyAccessToken(token);
+        
+        if (!verification.valid) {
+            return { valid: false, error: verification.error };
+        }
+        
+        // Check token type if expectedType is provided
+        if (expectedType && verification.decoded?.tokenType !== expectedType) {
+            return { valid: false, error: 'Invalid token type' };
+        }
+        
+        return { valid: true, decoded: verification.decoded };
+    } catch (error) {
+        return { valid: false, error: error.message };
+    }
+};
+
 module.exports = {
     hashTokenLoginToken,
     compareToken,
     createUserToken,
     validateUserToken,
     invalidateUserToken,
+    generateToken,
+    verifyToken,
 
     SALT_ROUNDS
 };

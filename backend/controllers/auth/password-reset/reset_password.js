@@ -1,6 +1,6 @@
 /**
  * Reset Password Controller
- * Step 3: Set new password with temp token
+ * Step 3: Set new password with signature
  */
 
 const bcrypt = require('bcrypt');
@@ -10,8 +10,8 @@ const User = require("../../../models/user");
 
 const SALT_ROUNDS = 10;
 
-// Expected token type for password reset temp token
-const EXPECTED_TOKEN_TYPE = 'password_reset_otp';
+// Token type for password reset verification signature
+const PASSWORD_RESET_VERIFICATION_TYPE = 'password_reset_verification';
 
 // Password validation
 const passwordValidator = (password) => {
@@ -39,12 +39,12 @@ const passwordValidator = (password) => {
 
 async function resetPassword(req, res, next) {
   try {
-    const { userId, tempToken, newPassword, confirmPassword } = req.body;
+    const { userId, signature, newPassword, confirmPassword } = req.body;
 
-    if (!userId || !tempToken || !newPassword || !confirmPassword) {
+    if (!userId || !signature || !newPassword || !confirmPassword) {
       return res.status(400).json({
         status: false,
-        error: "User ID, temp token, new password, and confirm password are required",
+        error: "User ID, signature, new password, and confirm password are required",
         message: null,
       });
     }
@@ -86,52 +86,23 @@ async function resetPassword(req, res, next) {
       });
     }
 
-    // Verify temp token from database
-    const storedToken = user.auth?.access_token?.token;
-    const tokenExpiry = user.auth?.access_token?.expires_at;
-    const tokenType = user.auth?.access_token?.token_type;
+    // Verify signature token (from verified OTP)
+    const signatureVerification = tokenUtil.verifyToken(signature, PASSWORD_RESET_VERIFICATION_TYPE);
 
-    // Check token type stored in database
-    if (tokenType !== EXPECTED_TOKEN_TYPE) {
+    if (!signatureVerification.valid) {
       return res.status(400).json({
         status: false,
-        error: "Invalid token type",
-        message: `Expected token type '${EXPECTED_TOKEN_TYPE}', but found '${tokenType || 'none'}'. Please start the password reset process again.`
+        error: "Invalid or expired signature",
+        message: "Please try requesting a new OTP and verify it again.",
       });
     }
 
-    if (!storedToken) {
+    // Verify the signature belongs to this user
+    if (signatureVerification.decoded.userId !== userId.toString()) {
       return res.status(400).json({
         status: false,
-        error: "Invalid or expired reset token",
-        message: "Please start the password reset process again."
-      });
-    }
-
-    // Check if token has expired
-    if (tokenExpiry && new Date() > new Date(tokenExpiry)) {
-      await User.findByIdAndUpdate(userId, {
-        $set: {
-          "auth.access_token.token": null,
-          "auth.access_token.token_type": null,
-        },
-      });
-
-      return res.status(400).json({
-        status: false,
-        error: "Reset token has expired",
-        message: "Please start the password reset process again."
-      });
-    }
-
-    // Verify the temp token
-    const hashMatch = await tokenUtil.compareToken(tempToken, storedToken);
-
-    if (!hashMatch) {
-      return res.status(400).json({
-        status: false,
-        error: "Invalid or expired reset token",
-        message: "Please start the password reset process again."
+        error: "Signature mismatch",
+        message: "Signature does not match user. Please verify your OTP again.",
       });
     }
 
@@ -145,11 +116,12 @@ async function resetPassword(req, res, next) {
       },
     });
 
-    // Clear the reset token from user document
+    // Clear any remaining reset tokens from user document
     await User.findByIdAndUpdate(userId, {
       $set: {
         "auth.access_token.token": null,
         "auth.access_token.token_type": null,
+        "auth.access_token.expires_at": null,
       },
     });
 

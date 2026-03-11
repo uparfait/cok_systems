@@ -25,7 +25,6 @@ import {
 } from './systems/admin';
 import { ParkingDashboard } from './systems/smartParking';
 import { ServiceDashboard } from './systems/serviceDelivery';
-import TestLoginPage from './systems/serviceDelivery/pages/TestLoginPage';
 
 function App() {
   return (
@@ -37,7 +36,6 @@ function App() {
             <Routes>
               {/* Public Routes - No layout needed */}
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/test-login" element={<TestLoginPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               
@@ -208,23 +206,6 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-
-               {/* Receptionist Dashboard */}
-              <Route
-                path="/service-delivery/receptionist"
-                element={
-                  <ProtectedRoute>
-                    <ServiceDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              
-              {/* Legacy receptionist route */}
-              <Route
-                path="/service_delivery/ReceptionistDashboard"
-                element={<Navigate to="/service-delivery/receptionist" replace />}
-              />
-
               
               {/* ==================== SYSTEM SELECTOR ==================== */}
               <Route

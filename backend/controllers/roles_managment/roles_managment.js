@@ -71,7 +71,7 @@ class RoleController {
      * Merge incoming permissions with complete resource list
      */
     static mergePermissions(incomingPermissions = []) {
-        const completePermissions = this.getAllResources();
+        const completePermissions = RoleController.getAllResources();
         
         // Create map of incoming enabled permissions
         const incomingEnabledMap = new Map();
@@ -126,7 +126,7 @@ class RoleController {
 
             // Validate incoming permissions if provided
             if (permissions.length > 0) {
-                const validation = this.validatePermissions(permissions);
+                const validation = RoleController.validatePermissions(permissions);
                 if (!validation.valid) {
                     return res.status(400).json({
                         success: false,
@@ -138,7 +138,7 @@ class RoleController {
             }
 
             // Merge permissions with complete resource list
-            const mergedPermissions = this.mergePermissions(permissions);
+            const mergedPermissions = RoleController.mergePermissions(permissions);
 
             // Create new role
             const newRole = new role_model({
@@ -302,7 +302,7 @@ class RoleController {
             // Update permissions if provided
             if (permissions) {
                 // Validate incoming permissions
-                const validation = this.validatePermissions(permissions);
+                const validation = RoleController.validatePermissions(permissions);
                 if (!validation.valid) {
                     return res.status(400).json({
                         success: false,
@@ -312,38 +312,8 @@ class RoleController {
                     });
                 }
 
-                // Create map of existing enabled permissions
-                const existingEnabledMap = new Map();
-                role.permissions.forEach(resource => {
-                    resource.actions.forEach(action => {
-                        if (action.is_enabled) {
-                            const key = `${resource.resource_name}:${action.action}`;
-                            existingEnabledMap.set(key.toLowerCase(), true);
-                        }
-                    });
-                });
-
                 // Merge new permissions while preserving existing enabled states
-                const mergedPermissions = this.mergePermissions(permissions);
-                
-                // Preserve existing enabled states if not explicitly disabled
-                mergedPermissions.forEach(resource => {
-                    resource.actions.forEach(action => {
-                        const key = `${resource.resource_name}:${action.action}`.toLowerCase();
-                        if (existingEnabledMap.has(key) && !action.is_enabled) {
-                            // Check if this action was explicitly disabled in incoming permissions
-                            const wasExplicitlySet = permissions.some(p => 
-                                p.resource_name === resource.resource_name && 
-                                p.actions.some(a => (a.action || a) === action.action)
-                            );
-                            
-                            if (!wasExplicitlySet) {
-                                action.is_enabled = true; // Preserve existing state
-                            }
-                        }
-                    });
-                });
-
+                const mergedPermissions = RoleController.mergePermissions(permissions);
                 role.permissions = mergedPermissions;
             }
 
@@ -352,7 +322,7 @@ class RoleController {
             return res.status(200).json({
                 success: true,
                 type: 'success',
-                message: `Role "${updatedRole.role_name}" updated successfully`,
+                message: `Role "${updatedRole.role_name}" updated successfully.`,
                 data: updatedRole
             });
 
@@ -531,7 +501,7 @@ class RoleController {
             }
 
             // Validate permissions
-            const validation = this.validatePermissions(permissions);
+            const validation = RoleController.validatePermissions(permissions);
             if (!validation.valid) {
                 return res.status(400).json({
                     success: false,
@@ -551,7 +521,7 @@ class RoleController {
             }
 
             // Merge and update permissions
-            const mergedPermissions = this.mergePermissions(permissions);
+            const mergedPermissions = RoleController.mergePermissions(permissions);
             role.permissions = mergedPermissions;
             await role.save();
 

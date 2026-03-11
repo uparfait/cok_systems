@@ -75,11 +75,12 @@ async function requestReset(req, res, next) {
     const otpExpiry = new Date(Date.now() + otp.OTP_EXPIRY_SECONDS * 1000);
 
     // Check if user has auth attribute, if not create it and save data accordingly
-    if (!user.auth) {
+    if (!user.auth || !user.auth?.access_token?.token_type) {
       user.auth = {};
       user.auth.access_token = {}
       user.auth.access_token.token_type = "password_reset_otp";
       user.auth.access_token.token = hashedOTP;
+      user.auth.access_token.expires_at = otpExpiry;
       await user.save();
     } else {
       // Store OTP in database (instead of Redis)
@@ -87,6 +88,7 @@ async function requestReset(req, res, next) {
         $set: {
           "auth.access_token.token_type": "password_reset_otp",
           "auth.access_token.token": hashedOTP,
+          "auth.access_token.expires_at": otpExpiry,
         },
       });
     }

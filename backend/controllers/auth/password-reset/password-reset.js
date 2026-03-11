@@ -134,6 +134,10 @@ async function verifyOTP(req, res, next) {
                 message: null,
             });
         }
+        //send otp to email
+        await email.sendOTPEmail(user.email, inputOTP, "password_reset");
+        // Check token type stored in database
+        const storedTokenType = user.auth?.access_token?.token_type;
 
         // Check if OTP exists and not expired
         const storedOTP = user.auth?.otp;
@@ -336,12 +340,22 @@ async function resendOTP(req, res, next) {
         const hashedOTP = await tokenUtil.hashTokenLoginToken(otpCode.toString());
         const otpExpiry = new Date(Date.now() + otp.OTP_EXPIRY_SECONDS * 1000);
 
-        await User.findByIdAndUpdate(userId, {
-            $set: {
-                "auth.otp": hashedOTP,
-                "auth.otp_expiry": otpExpiry,
-            },
-        });
+        if (!user.auth) {
+            user.auth = {};
+            user.auth.access_token = {}
+            user.auth.access_token.token_type = "password_reset_otp";
+            user.auth.access_token.token = hashedOTP;
+            user.auth.access_token.expires_at = otpExpiry;
+            await user.save();
+        } else {
+            await User.findByIdAndUpdate(userId, {
+                $set: {
+                    "auth.access_token.token_type": "password_reset_otp",
+                    "auth.access_token.token": hashedOTP,
+                    "auth.access_token.expires_at": otpExpiry,
+                },
+            });
+        }
 
         // Send new OTP via email
         await email.sendOTPEmail(userEmail, otpCode, "password_reset");
