@@ -16,6 +16,7 @@ const docs = require("./docs/routes.js")
 const feedback = require("./feedback/routes.js")
 const authenticate = require('../middlewares/authenticate.js')
 const roles_managment = require('./roles_managment/routes.js')
+const statistics = require('./statistics/routes.js')
 
 
 Router.use('/servicedelivery', 
@@ -45,6 +46,7 @@ Router.use('/parfait', parfaits_api_docs)
 Router.use('/amos', amos_api_docs)
 Router.use('/docs', docs)
 Router.use('/feedback', feedback)
+Router.use('/statistics', statistics)
 
 
 module.exports = Router
