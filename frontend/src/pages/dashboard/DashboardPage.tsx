@@ -1,13 +1,14 @@
 // DashboardPage - Admin Dashboard for Parking & Service Delivery Management
 // Real API integration for data fetching
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../core/contexts/AuthContext';
+import LoadingSpinner from '../../core/components/LoadingSpinner';
 import { departmentService, employeeService, smartParkingService, serviceDeliveryService } from '../../core/services/adminService';
 import { 
-  FiHome, FiGrid, FiTruck, FiUsers, FiSettings, FiSearch, FiBell, 
+  FiHome, FiGrid, FiTruck, FiUsers, FiSettings, FiBell, 
   FiLogOut, FiMenu, FiArrowUpRight, FiArrowDownRight, FiCheck,
-  FiChevronRight, FiActivity, FiAlertTriangle, FiFileText, FiRefreshCw
+  FiChevronRight, FiActivity, FiAlertTriangle, FiRefreshCw
 } from 'react-icons/fi';
 import { 
   HiOutlineOfficeBuilding, HiOutlineChartBar, HiOutlineClipboardList
@@ -35,7 +36,7 @@ const DashboardPage: React.FC = () => {
   const displayDepartment = (user as any)?.departmentName || (user as any)?.department_name || '';
   
   // Check if user is admin based on department name (System admin gives full access)
-  const isAdmin = displayDepartment.toLowerCase().includes('system admin');
+  // Note: isAdmin is kept for potential future role-based features
 
   React.useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -76,7 +77,8 @@ const DashboardPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Error loading dashboard data:', err);
-      setError('Failed to load some dashboard data');
+      // Use backend message with priority
+      setError(err?.message || err?.error || 'Failed to load some dashboard data');
     } finally {
       setLoadingData(false);
     }
@@ -85,27 +87,28 @@ const DashboardPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading...</p>
-        </div>
+        <LoadingSpinner 
+          message="Loading dashboard..."
+          longLoadingMessage="This is taking longer than usual. Please check your connection."
+          longLoadingDelay={3000}
+        />
       </div>
     );
   }
 
   // Calculate stats from real data
   const parkingStats = [
-    { label: 'Total Parking Slots', value: parkingRecords.length || 0, change: '+12', trend: 'up', icon: HiOutlineClipboardList, color: 'blue' },
-    { label: 'Currently Parked', value: parkingRecords.filter((p: any) => p.status === 'Parked').length || 0, change: '+5', trend: 'up', icon: FiGrid, color: 'green' },
-    { label: 'Available Slots', value: Math.max(0, 250 - parkingRecords.length), change: '-3', trend: 'down', icon: FiCheck, color: 'emerald' },
-    { label: 'Flagged Vehicles', value: parkingRecords.filter((p: any) => p.flagged).length || 0, change: '+2', trend: 'up', icon: FiAlertTriangle, color: 'red' },
+    { label: 'Total Parking Records', value: parkingRecords.length || 0, icon: HiOutlineClipboardList, color: 'blue' },
+    { label: 'Currently Parked', value: parkingRecords.filter((p: any) => p.status === 'Parked').length || 0, icon: FiGrid, color: 'green' },
+    { label: 'Checked Out', value: parkingRecords.filter((p: any) => p.status === 'Left').length || 0, icon: FiCheck, color: 'emerald' },
+    { label: 'Flagged Vehicles', value: parkingRecords.filter((p: any) => p.flagged).length || 0, icon: FiAlertTriangle, color: 'red' },
   ];
 
   const serviceStats = [
-    { label: 'Total Visitors Today', value: visitors.length || 0, change: '+18', trend: 'up', icon: FiUsers, color: 'purple' },
-    { label: 'Checked In', value: visitors.filter((v: any) => v.status === 'Inside').length || 0, change: '+12', trend: 'up', icon: FiArrowUpRight, color: 'green' },
-    { label: 'Checked Out', value: visitors.filter((v: any) => v.status === 'Left').length || 0, change: '+8', trend: 'up', icon: FiArrowDownRight, color: 'orange' },
-    { label: 'Currently Inside', value: visitors.filter((v: any) => v.status === 'Inside').length || 0, change: '+4', trend: 'up', icon: FiActivity, color: 'blue' },
+    { label: 'Total Visitors', value: visitors.length || 0, icon: FiUsers, color: 'purple' },
+    { label: 'Currently Inside', value: visitors.filter((v: any) => v.status === 'Inside').length || 0, icon: FiArrowUpRight, color: 'green' },
+    { label: 'Checked Out', value: visitors.filter((v: any) => v.status === 'Left').length || 0, icon: FiArrowDownRight, color: 'orange' },
+    { label: 'Total Departments', value: departments.length || 0, icon: HiOutlineOfficeBuilding, color: 'blue' },
   ];
 
   const getColorClasses = (color: string) => {
@@ -173,13 +176,9 @@ const DashboardPage: React.FC = () => {
                           <Icon className={`w-5 h-5 ${colors.text}`} />
                         </div>
                       </div>
-                      <div className="mt-4 flex items-center">
-                        <span className={`inline-flex items-center text-sm font-semibold ${stat.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                          {stat.trend === 'up' ? <FiArrowUpRight className="w-3 h-3 mr-1" /> : <FiArrowDownRight className="w-3 h-3 mr-1" />}
-                          {stat.change}
-                        </span>
-                        <span className="text-sm text-gray-400 ml-1">from yesterday</span>
-                      </div>
+                      {stat.value === 0 && (
+                        <p className="text-xs text-gray-400 mt-2">No records found</p>
+                      )}
                     </div>
                   );
                 })}
@@ -211,13 +210,9 @@ const DashboardPage: React.FC = () => {
                           <Icon className={`w-5 h-5 ${colors.text}`} />
                         </div>
                       </div>
-                      <div className="mt-4 flex items-center">
-                        <span className={`inline-flex items-center text-sm font-semibold ${stat.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                          {stat.trend === 'up' ? <FiArrowUpRight className="w-3 h-3 mr-1" /> : <FiArrowDownRight className="w-3 h-3 mr-1" />}
-                          {stat.change}
-                        </span>
-                        <span className="text-sm text-gray-400 ml-1">from yesterday</span>
-                      </div>
+                      {stat.value === 0 && (
+                        <p className="text-xs text-gray-400 mt-2">No records found</p>
+                      )}
                     </div>
                   );
                 })}

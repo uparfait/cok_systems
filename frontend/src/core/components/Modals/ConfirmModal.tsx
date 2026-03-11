@@ -2,17 +2,18 @@
 // Used for confirming destructive or important actions like delete
 
 import React from 'react';
+import type { ReactNode } from 'react';
 import { FiAlertTriangle, FiCheck, FiX } from 'react-icons/fi';
 
 interface ConfirmModalProps {
   isOpen: boolean;
   title: string;
-  message: string;
+  message: string | ReactNode;
   confirmText?: string;
   cancelText?: string;
   onConfirm: () => void;
   onCancel: () => void;
-  type?: 'danger' | 'warning' | 'info';
+  type?: 'danger' | 'warning' | 'info' | 'success';
   isLoading?: boolean;
 }
 
@@ -43,6 +44,12 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
           button: 'bg-yellow-600 hover:bg-yellow-700',
           iconElement: <FiAlertTriangle className="w-6 h-6" />
         };
+      case 'success':
+        return {
+          icon: 'bg-green-100 text-green-600',
+          button: 'bg-green-600 hover:bg-green-700',
+          iconElement: <FiCheck className="w-6 h-6" />
+        };
       case 'info':
       default:
         return {
@@ -65,21 +72,34 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
       
       {/* Modal Content */}
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 transform animate-scaleIn">
-        <div className="p-6 text-center">
+        {/* Header with Close Button */}
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="text-xl font-bold text-gray-900">
+            {title}
+          </h3>
+          <button
+            onClick={onCancel}
+            disabled={isLoading}
+            className="p-1 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+            title="Close"
+          >
+            <FiX className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+        
+        {/* Content */}
+        <div className="p-6">
           {/* Icon */}
           <div className={`mx-auto w-16 h-16 ${styles.icon} rounded-full flex items-center justify-center mb-4`}>
             {styles.iconElement}
           </div>
           
-          {/* Title */}
-          <h3 className="text-xl font-bold text-gray-900 mb-2">
-            {title}
-          </h3>
-          
           {/* Message */}
-          <p className="text-gray-600 mb-6">
-            {message}
-          </p>
+          <div className="text-center mb-6">
+            <p className="text-gray-600">
+              {message}
+            </p>
+          </div>
           
           {/* Buttons */}
           <div className="flex gap-3">
@@ -99,7 +119,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
               {isLoading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Deleting...
+                  {confirmText}
                 </>
               ) : (
                 <>
