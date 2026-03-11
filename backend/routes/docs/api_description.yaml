@@ -1640,12 +1640,6 @@ paths:
       tags: [PARFAIT - Statistics]
       summary: "Get Hourly Parking Statistics (for graphs)"
       operationId: getHourlyParkingStats
-      parameters:
-        - name: date
-          in: query
-          required: false
-          schema: { type: string, format: date }
-          example: "2024-01-15"
       responses:
         '200':
           description: Hourly parking statistics
@@ -1662,11 +1656,6 @@ paths:
       summary: "Get Hourly Service Delivery Statistics (for graphs)"
       operationId: getHourlyServiceDeliveryStats
       parameters:
-        - name: date
-          in: query
-          required: false
-          schema: { type: string, format: date }
-          example: "2024-01-15"
       responses:
         '200':
           description: Hourly service delivery statistics
