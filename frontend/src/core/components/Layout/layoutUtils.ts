@@ -112,7 +112,12 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   }
 
   // 👉 DEPT MANAGER INTERCEPTOR: Custom Sidebar
-  if (userRole.includes('department manager') || userRole.includes('manager')) {
+  if (userRole.includes('department manager') || 
+      userRole.includes('department head') ||
+      userRole.includes('head of department') ||
+      userRole.includes('manager') ||
+      userRole.includes('head') ||
+      userRole.includes('director')) {
     return [
       { id: 'dashboard', label: 'Dashboard', path: '/service-delivery/department-manager', icon: 'FiGrid' },
       { id: 'status', label: 'Service Status', path: '/service-delivery/department-manager?tab=status', icon: 'FiClock' },
@@ -318,18 +323,33 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
   
   // If no role, go to under-development
   if (!role) {
+    console.log('[getDashboardRoute] No role provided, going to under-development');
     return '/under-development';
   }
   
   const normalizedRole = role.toLowerCase().trim();
+  console.log('[getDashboardRoute] Normalized role:', normalizedRole);
 
   // Receptionist role check - redirect to receptionist dashboard
   if (normalizedRole.includes('receptionist')) {
+    console.log('[getDashboardRoute] Matched receptionist');
     return '/service-delivery/receptionist';
+  }
+
+  // 👉 ADDED THIS MANAGER CHECK RIGHT HERE:
+  if (normalizedRole.includes('department manager') || 
+      normalizedRole.includes('department head') ||
+      normalizedRole.includes('head of department') ||
+      normalizedRole.includes('manager') ||
+      normalizedRole.includes('head') ||
+      normalizedRole.includes('director')) {
+    console.log('[getDashboardRoute] Matched department manager/head/director');
+    return '/service-delivery/department-manager';
   }
   
   // If admin/system role, go to admin dashboard
   if (normalizedRole.includes('admin') || normalizedRole.includes('system')) {
+    console.log('[getDashboardRoute] Matched admin/system');
     return '/admin/dashboard';
   }
   
@@ -338,22 +358,27 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
     const dept = departmentName.toLowerCase();
     
     if (dept.includes('it') || dept.includes('finance') || dept.includes('operations')) {
+      console.log('[getDashboardRoute] Matched IT/Finance/Ops department');
       return '/smart-parking/dashboard';
     }
     if (dept.includes('hr') || dept.includes('human') || dept.includes('legal')) {
+      console.log('[getDashboardRoute] Matched HR/Legal department');
       return '/service-delivery/dashboard';
     }
   }
   
   // Default - try to determine from role
   if (normalizedRole.includes('parking') || normalizedRole.includes('it')) {
+    console.log('[getDashboardRoute] Matched parking/IT');
     return '/smart-parking/dashboard';
   }
   if (normalizedRole.includes('service') || normalizedRole.includes('hr')) {
+    console.log('[getDashboardRoute] Matched service/HR');
     return '/service-delivery/dashboard';
   }
   
   // Fallback to under-development
+  console.log('[getDashboardRoute] No match found, going to under-development');
   return '/under-development';
 };
 
