@@ -47,7 +47,11 @@ interface Employee {
 const DepartmentManagerDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  
+  // Get department ID from user context
+  const departmentId = user?.departmentId || user?.department_id;
+  const departmentName = user?.departmentName || user?.department_name;
   
   // Tab State (Driven by URL)
   const tabParam = searchParams.get('tab');
@@ -97,10 +101,18 @@ const DepartmentManagerDashboard: React.FC = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [visitorRes, empRes] = await Promise.all([
-        serviceDeliveryService.getAll(),
-        employeeService.getAll()
-      ]);
+      let visitorRes;
+      let empRes;
+
+      // If user has a department, fetch department-specific data
+      if (departmentId) {
+        visitorRes = await serviceDeliveryService.getVisitorsByDepartment(departmentId);
+        empRes = await employeeService.getByDepartment(departmentId, false);
+      } else {
+        // Fallback to all data if no department assigned
+        visitorRes = await serviceDeliveryService.getAll();
+        empRes = await employeeService.getAll();
+      }
 
       if (visitorRes.status || visitorRes.success) {
         setVisitors(Array.isArray(visitorRes.data) ? visitorRes.data : []);

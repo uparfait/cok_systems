@@ -29,6 +29,7 @@ export interface User {
   role?: string;
   permissions?: Permission[];
   departmentId?: string;
+  department_id?: string; // Alternative naming from some APIs
   departmentName?: string;
   department_name?: string; // Alternative naming from some APIs
   picture?: string;
