@@ -8,9 +8,24 @@ import {
   FiHome, FiGrid, FiTruck, FiUsers, FiSettings, 
   FiMessageSquare, FiBarChart2, FiMapPin, FiLogOut, FiUser,
   FiClipboard, FiUserCheck, FiLogIn, FiLogOut as FiExit, FiList, FiArrowRight,
-  FiChevronRight, FiShield
+  FiChevronRight, FiShield, FiFile
 } from 'react-icons/fi';
 import { HiOutlineOfficeBuilding } from 'react-icons/hi';
+import { IoExitOutline } from 'react-icons/io5';
+
+// Custom SVG component for Parking "P" icon
+const FiParkingIcon = ({ className }: { className?: string }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    viewBox="0 0 24 24" 
+    fill="currentColor" 
+    className={className}
+    style={{ color: '#6b7280' }}
+  >
+    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 1.75A1.75 1.75 0 014.75 4h6.5a1.75 1.75 0 011.75 1.75v.5h-10v-.5zM7.75 7a2.25 2.25 0 104.5 0 2.25 2.25 0 00-4.5 0z" clipRule="evenodd" />
+    <path d="M7 14a1 1 0 100-2 1 1 0 000 2zm5-1a1 1 0 11-2 0 1 1 0 012 0z" />
+  </svg>
+);
 
 interface SidebarLink {
   id: string;
@@ -54,6 +69,9 @@ const getIcon = (iconName: string): React.ComponentType<any> => {
     FiArrowRight,
     FiShield,
     HiOutlineOfficeBuilding,
+    FiDoorExit: IoExitOutline,
+    FiParkingIcon,
+    FiFile,
   };
   return icons[iconName] || FiGrid;
 };
