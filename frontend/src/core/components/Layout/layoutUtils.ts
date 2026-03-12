@@ -4,7 +4,7 @@
 
 import type { User, Permission } from '../../contexts/AuthContext';
 
-// ==================== Permission Helpers ====================
+// ==================== Permission Helpers ===============a=====
 
 // Convert user permissions to a Set for fast lookup
 const buildPermissionSet = (permissions: Permission[] | undefined): Set<string> => {
@@ -123,7 +123,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     }
     if (hasPermission(user, 'roles_management') || isAdmin) {
       adminChildren.push({ id: 'roles-mgmt', label: 'Roles Management', path: '/admin/roles-management', icon: 'FiShield', resource: 'roles_management', requiredAction: 'read:roles_management' });
-    } 
+    }
     if ((hasPermission(user, 'admin') || isAdmin) && (hasPermission(user, 'user_management') || isAdmin)) {
       adminChildren.push({ id: 'user-mgmt', label: 'User Management', path: '/admin/user-management', icon: 'FiUser', resource: 'user_management', requiredAction: 'read:user_management' });
     } 
@@ -139,20 +139,15 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     }
   }
   
-  // Check for Smart Parking permissions
-  const hasParkingAccess = hasPermission(user, 'smart parking') || hasPermission(user, 'parking');
-  if (hasParkingAccess || isAdmin) {
+  // Smart Parking - always show for now
+  {
     const parkingChildren: NavItem[] = [];
     
-    if (hasPermission(user, 'smart parking', 'read') || isAdmin) {
-      parkingChildren.push({ id: 'parking-dashboard', label: 'Dashboard', path: '/smart-parking/dashboard', icon: 'FiHome', resource: 'smart parking', requiredAction: 'read:smart parking' });
-    }
-    if (hasPermission(user, 'smart parking', 'create') || isAdmin) {
-      parkingChildren.push({ id: 'parking-checkin', label: 'Check In', path: '/smart-parking/check-in', icon: 'FiLogIn', resource: 'smart parking', requiredAction: 'create:smart parking' });
-    }
-    if (hasPermission(user, 'smart parking', 'update') || isAdmin) {
-      parkingChildren.push({ id: 'parking-checkout', label: 'Check Out', path: '/smart-parking/check-out', icon: 'FiLogOut', resource: 'smart parking', requiredAction: 'update:smart parking' });
-    }
+    parkingChildren.push({ id: 'parking-dashboard', label: 'Dashboard', path: '/smart-parking/dashboard', icon: 'FiHome', resource: 'smart parking', requiredAction: 'read:smart parking' });
+    parkingChildren.push({ id: 'parking-register', label: 'Register Visitor', path: '/smart-parking/register', icon: 'FiUsers', resource: 'smart parking', requiredAction: 'create:smart parking' });
+    parkingChildren.push({ id: 'parking-checkout', label: 'Checkout', path: '/smart-parking/checkout', icon: 'FiLogOut', resource: 'smart parking', requiredAction: 'update:smart parking' });
+    parkingChildren.push({ id: 'parking-monitor', label: 'Monitor', path: '/smart-parking/monitor', icon: 'FiParkingIcon', resource: 'smart parking', requiredAction: 'read:smart parking' });
+    parkingChildren.push({ id: 'parking-reports', label: 'Reports', path: '/smart-parking/reports', icon: 'FiFile', resource: 'smart parking', requiredAction: 'read:smart parking' });
     
     if (parkingChildren.length > 0) {
       navigation.push({
@@ -294,21 +289,33 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
   
   // Check department name for department-specific routing
   if (departmentName) {
-    const dept = departmentName.toLowerCase();
+    const dept = departmentName.toLowerCase().trim();
     
-    if (dept.includes('it') || dept.includes('finance') || dept.includes('operations')) {
+    // Check for Gate/Security department - goes to smart parking
+    if (dept.includes('gate') || dept.includes('security') || dept.includes('parking')) {
+      console.log('[getDashboardRoute] Department matched Gate/Security, routing to smart-parking');
       return '/smart-parking/dashboard';
     }
-    if (dept.includes('hr') || dept.includes('human') || dept.includes('legal')) {
+    
+    // Check for Service/HR department - goes to service delivery
+    if (dept.includes('service') || dept.includes('human') || dept.includes('hr') || dept.includes('legal')) {
+      console.log('[getDashboardRoute] Department matched Service/HR, routing to service-delivery');
       return '/service-delivery/dashboard';
     }
   }
   
   // Default - try to determine from role
-  if (normalizedRole.includes('parking') || normalizedRole.includes('it')) {
+  // Check for Gate and Vehicle Registrar role (parking/security related)
+  if (normalizedRole.includes('gate') && normalizedRole.includes('vehicle')) {
+    console.log('[getDashboardRoute] Role matched gate+vehicle, routing to smart-parking');
+    return '/smart-parking/dashboard';
+  }
+  if (normalizedRole.includes('Gate and Vehicle Registrar')) {
+    console.log('[getDashboardRoute] Role matched Gate and Vehicle Registrar, routing to smart-parking');
     return '/smart-parking/dashboard';
   }
   if (normalizedRole.includes('service') || normalizedRole.includes('hr')) {
+    console.log('[getDashboardRoute] Role matched service/hr, routing to service-delivery');
     return '/service-delivery/dashboard';
   }
   
