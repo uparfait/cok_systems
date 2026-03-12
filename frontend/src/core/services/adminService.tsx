@@ -93,6 +93,14 @@ export const employeeService = {
   // Get all employees
   getAll: () => get('/employee/crud'),
   
+  // Get employees by department (filters by is_active=true by default for only active employees)
+  getByDepartment: (departmentId: string, activeOnly: boolean = true) => {
+    const params = `department_id=${encodeURIComponent(departmentId)}`;
+    return activeOnly 
+      ? get(`/employee/crud/by-department?${params}&is_active=true`)
+      : get(`/employee/crud/by-department?${params}`);
+  },
+  
   // Search employees
   search: (query: string) => get(`/employee/crud/search?query=${encodeURIComponent(query)}`),
   
@@ -131,17 +139,17 @@ export const feedbackService = {
 // ==================== SERVICE DELIVERY APIs ====================
 
 export const serviceDeliveryService = {
-  // Get all visitors (active - still in house)
-  getAll: () => get('/servicedelivery/visitor?in_house=true&limit=1000'),
+  // Get all visitors with pagination
+  getAll: (page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}`),
   
   // Get all visitors (alias)
-  getAllVisitors: () => get('/servicedelivery/visitor?in_house=true&limit=1000'),
+  getAllVisitors: (page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}`),
   
-  // Search visitors
-  search: (query: string) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}`),
+  // Search visitors with pagination
+  search: (query: string, page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`),
   
   // Search visitors (alias)
-  searchVisitors: (query: string) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}`),
+  searchVisitors: (query: string, page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`),
   
   // Get visitor by ID
   getById: (id: string) => get(`/servicedelivery/visitor/${id}`),
@@ -153,7 +161,7 @@ export const serviceDeliveryService = {
   checkIn: (data: any) => post('/servicedelivery/visitor/checkin', data),
   
   // Check out visitor
-  checkOut: (id: string) => post(`/servicedelivery/visitor/checkout`, { visitor_id: id }),
+  checkOut: (id: string) => post(`/servicedelivery/visitor/checkout`, { id }),
   
   // Toggle service status
   toggleStatus: (id: string, status: string) => post(`/servicedelivery/visitor/service/status`, { id, status }),
@@ -162,10 +170,34 @@ export const serviceDeliveryService = {
   toggleServiceStatus: (id: string, status: string) => post(`/servicedelivery/visitor/service/status`, { id, status }),
   
   // Assign to department
-  assignToDepartment: (id: string, departmentId: string) => post(`/servicedelivery/visitor/assign/${id}`, { department_id: departmentId }),
+  assignToDepartment: (visitorId: string, departmentId: string, departmentName: string, providerId?: string, providerName?: string) => 
+    post(`/servicedelivery/visitor/assign`, { 
+      visitor_id: visitorId, 
+      new_department_id: departmentId,
+      new_department_name: departmentName,
+      provider_id: providerId,
+      provider_name: providerName
+    }),
+  
+  // Get visitors by department (with pagination)
+  getVisitorsByDepartment: (departmentId: string, page?: number, limit?: number, is_still_inhouse?: boolean) => {
+    let url = `/servicedelivery/visitor/by-department?department_id=${encodeURIComponent(departmentId)}`;
+    if (page) url += `&page=${page}`;
+    if (limit) url += `&limit=${limit}`;
+    if (is_still_inhouse !== undefined) url += `&is_still_inhouse=${is_still_inhouse}`;
+    return get(url);
+  },
+  
+  // Get current visitors count by department
+  getCurrentVisitorsByDepartment: (departmentId: string) => get(`/servicedelivery/visitor/by-department-current/${encodeURIComponent(departmentId)}`),
+  
+  // Get current visitors count by provider (employee)
+  getCurrentVisitorsByProvider: (providerId: string) => get(`/servicedelivery/visitor/by-provider-current/${encodeURIComponent(providerId)}`),
   
   // Emergency leave return
   emergencyLeaveReturn: (id: string, data: any) => post(`/servicedelivery/visitor/emergency/leave-return/${id}`, data),
+  // 👉 ADD THIS NEW UPDATE FUNCTION:
+  update: (id: string, data: any) => put(`/servicedelivery/visitor/${id}`, data),
 };
 
 // ==================== SMART PARKING APIs ====================
@@ -193,13 +225,13 @@ export const parkingService = {
   checkIn: (data: any) => post('/smartparking/vehicle/checkin', data),
   
   // Check out vehicle
-  checkOut: (plateNumber: string) => post(`/smartparking/vehicle/checkout`, { plate_number: plateNumber }),
+  checkOut: (id: string) => post(`/smartparking/vehicle/checkout`, { id }),
   
   // Verify vehicle
-  verifyVehicle: (plateNumber: string) => post('/smartparking/vehicle/verify', { plate_number: plateNumber }),
+  verifyVehicle: (plateNumber: string) => get(`/smartparking/vehicle/verify?plateNumber=${encodeURIComponent(plateNumber)}`),
   
   // Verify car (alias)
-  verifyCar: (plateNumber: string) => post('/smartparking/vehicle/verify', { plate_number: plateNumber }),
+  verifyCar: (plateNumber: string) => get(`/smartparking/vehicle/verify?plateNumber=${encodeURIComponent(plateNumber)}`),
   
   // Get flagged cars
   getFlagged: () => get('/smartparking/vehicle/flagged'),
@@ -212,125 +244,6 @@ export const parkingService = {
   
   // Bulk upload vehicles
   bulkUpload: (formData: FormData) => post('/smartparking/bulk-upload', formData),
-
-  // Get parking stats (includes service delivery visitors)
-  getStats: async () => {
-    try {
-      // Fetch parking stats
-      const response = await get('/smartparking/vehicle?status=active&limit=1000');
-      // Fetch service delivery visitors (active)
-      const serviceResponse = await get('/servicedelivery/visitor?in_house=true&limit=1000');
-      
-      let activeVehicles: any[] = [];
-      let serviceVisitors: any[] = [];
-      
-      // Process smart parking vehicles
-      if (response.success && response.data) {
-        activeVehicles = response.data.filter((v: any) => v.status === 'active');
-      }
-      
-      // Process service delivery visitors
-      if (serviceResponse.success && serviceResponse.data) {
-        serviceVisitors = serviceResponse.data;
-      }
-      
-      // Combine all active visitors
-      const totalActive = activeVehicles.length + serviceVisitors.length;
-      
-      // Staff vehicles (only from smart parking)
-      const staffVehicles = activeVehicles.filter((v: any) => 
-        v.driver_type?.toLowerCase() === 'staff'
-      );
-      
-      // Visitors today - from both smart parking and service delivery
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const parkingVisitorsToday = activeVehicles.filter((v: any) => {
-        const checkInDate = new Date(v.check_in);
-        checkInDate.setHours(0, 0, 0, 0);
-        return checkInDate.getTime() === today.getTime();
-      });
-      
-      const serviceVisitorsToday = serviceVisitors.filter((v: any) => {
-        const entryDate = new Date(v.entry_date);
-        entryDate.setHours(0, 0, 0, 0);
-        return entryDate.getTime() === today.getTime();
-      });
-      
-      const visitorsToday = parkingVisitorsToday.length + serviceVisitorsToday.length;
-      
-      // Reserved slots (emergency reservations)
-      const reservedVehicles = activeVehicles.filter((v: any) => 
-        v.driver_type?.toLowerCase() === 'emergency'
-      );
-      
-      return {
-        success: true,
-        data: {
-          totalSlots: 200,
-          availableSlots: Math.max(0, 200 - totalActive),
-          activeVehicles: totalActive,
-          staffVehicles: staffVehicles.length,
-          reservedSlots: reservedVehicles.length,
-          newVisitors: visitorsToday,
-          visitorsToday: visitorsToday
-        }
-      };
-    } catch (error) {
-      console.error('Error fetching parking stats:', error);
-      return { success: false, message: 'Failed to fetch stats' };
-    }
-  },
-
-  // Get long duration vehicles (>8 hours)
-  getLongDurationVehicles: async () => {
-    try {
-      const response = await get('/smartparking/vehicle?status=active&limit=100');
-      // Backend returns: { success: true, total: number, page: number, data: records[] }
-      if (response.success && response.data) {
-        const vehicles = response.data || [];
-        const now = new Date();
-        const longDuration = vehicles.filter((v: any) => {
-          const checkInDate = new Date(v.check_in);
-          const hours = (now.getTime() - checkInDate.getTime()) / (1000 * 60 * 60);
-          return hours > 8;
-        }).map((v: any) => {
-          const checkInDate = new Date(v.check_in);
-          const hours = Math.floor((now.getTime() - checkInDate.getTime()) / (1000 * 60 * 60));
-          const minutes = Math.floor(((now.getTime() - checkInDate.getTime()) % (1000 * 60 * 60)) / (1000 * 60));
-          return {
-            plate_no: v.plate_number,
-            entry_time: checkInDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-            duration: `${hours}h ${minutes}m`
-          };
-        });
-        
-        return {
-          success: true,
-          data: longDuration
-        };
-      }
-      return { success: false, message: 'Failed to fetch long duration vehicles', data: [] };
-    } catch (error) {
-      console.error('Error fetching long duration vehicles:', error);
-      return { success: false, message: 'Failed to fetch long duration vehicles', data: [] };
-    }
-  },
-
-  // Flag a vehicle
-  flagVehicle: async (plateNumber: string, reason?: string) => {
-    try {
-      const response = await post('/smartparking/vehicle/flag', { 
-        plate_number: plateNumber,
-        reason: reason || 'Flagged by gate officer'
-      });
-      return response;
-    } catch (error) {
-      console.error('Error flagging vehicle:', error);
-      return { success: false, message: 'Failed to flag vehicle' };
-    }
-  }
 };
 
 // Alias for smartParkingService (used by DashboardPage)
@@ -368,12 +281,38 @@ export const permissionService = {
     post(`/permissions/user/${userId}/remove`, { resource, actions }),
 };
 
+// ==================== STATISTICS APIs ====================
+
+export const statisticsService = {
+  // Get service delivery statistics
+  getServiceDeliveryStats: () => get('/statistics/service-delivery'),
+  
+  // Get hourly service delivery statistics
+  getHourlyServiceDeliveryStats: () => get('/statistics/hourly-service-delivery'),
+  
+  // Get hourly parking statistics
+  getHourlyParkingStats: () => get('/statistics/hourly-parking'),
+  
+  // Get departments with leaders
+  getDepartmentsWithLeaders: () => get('/statistics/departments-leaders'),
+  
+  // Get employee statistics
+  getEmployeeStats: () => get('/statistics/employees'),
+  
+  // Get feedback totals
+  getFeedbackTotals: () => get('/statistics/feedback-totals'),
+  
+  // Get feedback average by department
+  getFeedbackAverageByDepartment: () => get('/statistics/feedback-average'),
+};
+
 export default {
   departmentService,
   employeeService,
   feedbackService,
   serviceDeliveryService,
   parkingService,
+  statisticsService,
 };
 
 // ==================== USER ACCOUNT LOCK/UNLOCK APIs ====================

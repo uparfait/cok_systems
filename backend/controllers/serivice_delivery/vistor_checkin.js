@@ -11,8 +11,6 @@ module.exports = async function visitor_checkin(req, res, next) {
             gender = 'Not specified',
             vehicle_storage = {},
             items_entered_with = [],
-            departments_assigned = [],
-            services_status = [],
             badge_number = null
         } = req.body || {}
 
@@ -110,8 +108,8 @@ module.exports = async function visitor_checkin(req, res, next) {
             gender,
             vehicle_storage,
             items_entered_with,
-            departments_assigned,
-            services_status: services_status,
+            departments_assigned: [],
+            services_status: [],
             is_still_inhouse: true,
             entry_date: new Date(),
             registered_by,
