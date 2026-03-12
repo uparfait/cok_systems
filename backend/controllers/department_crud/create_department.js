@@ -25,12 +25,18 @@ module.exports = async function create_department(req, res, next) {
         department_id = department_id.toString().toUpperCase()
 
         // Check if department already exists
-        const existing_dept = await department_model.findOne({ department_id })
+        const existing_dept = await department_model.findOne({ 
+            // name or id should be unique
+            $or: [
+                { department_name: department_name },
+                { department_id: department_id }
+            ]
+         })
         if (existing_dept) {
             return res.status(409).json({
                 success: false,
                 type: 'warning', // user's schema previously used status: 'warning', matching type here
-                message: `Department with ID ${department_id} already exists.`
+                message: `Department with this name or ID already exists.`
             })
         }
 

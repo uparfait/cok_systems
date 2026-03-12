@@ -26,6 +26,16 @@ module.exports = async function car_check_in(req, res, next) {
             })
         }
 
+        const allowed_driver_type = ['regular', 'vistor', 'staff']
+
+        if(!allowed_driver_type.includes(driver_type.toLowerCase())) {
+            return res.status(400).json({
+                success: false,
+                type: 'warning',
+                message: "Invalid driver type allowed types are Regular, Visitor, Staff"
+            })
+        }
+
         // Normalize plate number
         plate_number = plate_number.toString().toUpperCase().replace(/\s+/g, '')
 
