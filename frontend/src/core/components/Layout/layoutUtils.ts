@@ -15,12 +15,18 @@ const buildPermissionSet = (permissions: Permission[] | undefined): Set<string> 
   }
   
   for (const perm of permissions) {
-    if (perm.resource && perm.actions) {
+    // Handle both 'resource' and 'resource_name' from backend
+    const resource = perm.resource || perm.resource_name;
+    if (resource && perm.actions) {
       for (const action of perm.actions) {
-        // Store as "resource:action" format
-        permSet.add(`${perm.resource.toLowerCase()}:${action.toLowerCase()}`);
-        // Also store just the resource for "has any access" checks
-        permSet.add(perm.resource.toLowerCase());
+        // Handle both action string and action object
+        const actionType = typeof action === 'string' ? action : action.action_type;
+        if (actionType) {
+          // Store as "resource:action" format
+          permSet.add(`${resource.toLowerCase()}:${actionType.toLowerCase()}`);
+          // Also store just the resource for "has any access" checks
+          permSet.add(resource.toLowerCase());
+        }
       }
     }
   }
@@ -124,6 +130,17 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       { id: 'employees', label: 'Employee Management', path: '/service-delivery/department-manager?tab=employees', icon: 'FiUsers' },
       { id: 'availability', label: 'Dept. Availability', path: '/service-delivery/department-manager?tab=availability', icon: 'FiCheckCircle' },
       { id: 'reports', label: 'Reports', path: '/service-delivery/department-manager?tab=reports', icon: 'FiFile' }
+    ];
+  }
+
+  // 👉 GATE AND VEHICLE REGISTRAR INTERCEPTOR: Smart Parking Sidebar
+  if (userRole.includes('gate') && userRole.includes('vehicle')) {
+    return [
+      { id: 'dashboard', label: 'Dashboard', path: '/smart-parking/dashboard', icon: 'FiHome' },
+      { id: 'parking-register', label: 'Register Visitor', path: '/smart-parking/register', icon: 'FiUsers' },
+      { id: 'parking-checkout', label: 'Checkout', path: '/smart-parking/checkout', icon: 'FiLogOut' },
+      { id: 'parking-monitor', label: 'Monitor', path: '/smart-parking/monitor', icon: 'FiGrid' },
+      { id: 'parking-reports', label: 'Reports', path: '/smart-parking/reports', icon: 'FiFile' }
     ];
   }
   
