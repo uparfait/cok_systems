@@ -103,7 +103,7 @@ module.exports = async function car_check_out(req, res, next) {
                 total_minutes: parked_minutes,
                 overstayed_minutes: flagged_duration
             };
-            final_message = 'Vehical checked out. WARNING: Vehicle overstayed by ${flagged_duration} minutes.';
+            final_message = `Vehical checked out. WARNING: Vehicle overstayed by ${flagged_duration} minutes.`;
         }
         // ================================================================
 
