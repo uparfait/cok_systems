@@ -9,7 +9,7 @@ import { smartParkingService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
   FiTruck, FiAlertTriangle, FiClock, FiMapPin, FiDownload,
-  FiCalendar, FiFilter, FiRefreshCw, FiFileText
+  FiCalendar, FiFilter, FiRefreshCw, FiFileText, FiUser
 } from 'react-icons/fi';
 
 interface ParkingRecord {
@@ -37,6 +37,7 @@ const ReportsPage: React.FC = () => {
   const [filteredRecords, setFilteredRecords] = useState<ParkingRecord[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('today');
+  const [selectedRecord, setSelectedRecord] = useState<ParkingRecord | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -281,11 +282,12 @@ const ReportsPage: React.FC = () => {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Vehicle</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Driver</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Slot</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Check In</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Check Out</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Duration</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -299,11 +301,20 @@ const ReportsPage: React.FC = () => {
                           <FiAlertTriangle className="w-4 h-4 text-red-500" title="Flagged" />
                         )}
                       </div>
+                      <span className="text-xs text-gray-500">{record.driver_type || 'Visitor'}</span>
                     </td>
-                    <td className="px-6 py-4 text-gray-600">{record.driver_name || 'N/A'}</td>
-                    <td className="px-6 py-4 text-gray-600">{record.driver_type || 'Visitor'}</td>
-                    <td className="px-6 py-4 text-gray-500">{formatDate(record.check_in)}</td>
-                    <td className="px-6 py-4 text-gray-500">{formatDate(record.check_out)}</td>
+                    <td className="px-6 py-4">
+                      <div className="text-gray-900">{record.driver_name || 'N/A'}</div>
+                      <div className="text-xs text-gray-500">{record.driver_telephone || 'N/A'}</div>
+                    </td>
+                    <td className="px-6 py-4 text-gray-600">{record.slot_number || 'N/A'}</td>
+                    <td className="px-6 py-4">
+                      <div className="text-gray-500 text-sm">{formatDate(record.check_in)}</div>
+                      <div className="text-xs text-gray-400">{record.checked_in_by || 'System'}</div>
+                    </td>
+                    <td className="px-6 py-4 text-gray-500 text-sm">
+                      {record.check_out ? formatDate(record.check_out) : '-'}
+                    </td>
                     <td className="px-6 py-4 text-gray-600">{record.duration || '-'}</td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
@@ -316,11 +327,19 @@ const ReportsPage: React.FC = () => {
                         {record.status === 'active' ? 'Active' : record.status === 'completed' ? 'Completed' : record.status}
                       </span>
                     </td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => setSelectedRecord(record)}
+                        className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                      >
+                        View
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {filteredRecords.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                       No records found
                     </td>
                   </tr>
@@ -335,7 +354,98 @@ const ReportsPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Detail Modal */}
+      {selectedRecord && (
+        <RecordDetailModal record={selectedRecord} onClose={() => setSelectedRecord(null)} />
+      )}
     </MainLayout>
+  );
+};
+
+// Detail Modal Component
+const RecordDetailModal: React.FC<{ record: ParkingRecord; onClose: () => void }> = ({ record, onClose }) => {
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-gray-900">Record Details</h2>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-sm text-gray-500">License Plate</p>
+              <p className="font-semibold text-gray-900">{record.plate_number}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-sm text-gray-500">Driver Type</p>
+              <p className="font-semibold text-gray-900">{record.driver_type || 'Visitor'}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-sm text-gray-500">Driver Name</p>
+              <p className="font-semibold text-gray-900">{record.driver_name || 'N/A'}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-sm text-gray-500">Telephone</p>
+              <p className="font-semibold text-gray-900">{record.driver_telephone || 'N/A'}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-sm text-gray-500">Slot Number</p>
+              <p className="font-semibold text-gray-900">{record.slot_number || 'N/A'}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-sm text-gray-500">Status</p>
+              <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
+                record.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+              }`}>
+                {record.status === 'active' ? 'Active' : 'Completed'}
+              </span>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-sm text-gray-500">Check In Time</p>
+              <p className="font-semibold text-gray-900">{formatDate(record.check_in)}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-sm text-gray-500">Check Out Time</p>
+              <p className="font-semibold text-gray-900">{formatDate(record.check_out) || 'Not checked out'}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-sm text-gray-500">Duration</p>
+              <p className="font-semibold text-gray-900">{record.duration || 'N/A'}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-sm text-gray-500">Checked In By</p>
+              <p className="font-semibold text-gray-900">{record.checked_in_by || 'System'}</p>
+            </div>
+          </div>
+
+          {record.is_flagged && (
+            <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-4">
+              <div className="flex items-center gap-2 text-red-700">
+                <FiAlertTriangle className="w-5 h-5" />
+                <span className="font-semibold">This vehicle is flagged</span>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-6 flex justify-end">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
