@@ -24,7 +24,7 @@ import {
   RolesManagementPage
 } from './systems/admin';
 import { ParkingDashboard, RegisterVisitorPage, CheckoutPage, MonitorPage, ReportsPage } from './systems/smartParking';
-import { ServiceDashboard } from './systems/serviceDelivery';
+import { ServiceDashboard, ReceptionistDashboard, DepartmentManagerDashboard } from './systems/serviceDelivery';
 
 function App() {
   return (
@@ -96,7 +96,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              
+               
               {/* Smart Parking - Register Visitor */}
               <Route
                 path="/smart-parking/register"
@@ -136,7 +136,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              
+
               {/* Legacy route support */}
               <Route
                 path="/smart_parking/dashboard"
@@ -148,6 +148,27 @@ function App() {
               />
               
               {/* ==================== SERVICE DELIVERY SYSTEM ==================== */}
+
+              {/* Receptionist Route */}
+              <Route
+                path="/service-delivery/receptionist"
+                element={
+                  <ProtectedRoute>
+                    <ReceptionistDashboard />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Department Manager Route */}
+              <Route
+                path="/service-delivery/department-manager"
+                element={
+                  <ProtectedRoute>
+                    <DepartmentManagerDashboard />
+                  </ProtectedRoute>
+                }
+              />
+
               <Route
                 path="/service-delivery/dashboard"
                 element={

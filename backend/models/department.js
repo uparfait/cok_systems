@@ -5,13 +5,6 @@ const department_schema = new mongoose.Schema({
     department_response_time_in_minutes: { type: Number, default: 0 },
     department_id: { type: String, unique: true },
     created_date: { type: Date, default: Date.now },
-    // Updated department_leader to hold an object
-    // department_leader: { 
-    //     name: { type: String },
-    //     email: { type: String },
-    //     title: { type: String },
-    //     picture: { type: String }
-    // },
 
     department_leader: { 
         type: mongoose.Schema.Types.ObjectId, 
