@@ -23,7 +23,7 @@ import {
   UserManagementPage,
   RolesManagementPage
 } from './systems/admin';
-import { ParkingDashboard } from './systems/smartParking';
+import { ParkingDashboard, RegisterVisitorPage, CheckoutPage, MonitorPage, ReportsPage } from './systems/smartParking';
 import { ServiceDashboard, ReceptionistDashboard, DepartmentManagerDashboard } from './systems/serviceDelivery';
 
 function App() {
@@ -96,33 +96,33 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              
-              {/* Smart Parking - Check In */}
+               
+              {/* Smart Parking - Register Visitor */}
               <Route
-                path="/smart-parking/check-in"
+                path="/smart-parking/register"
                 element={
                   <ProtectedRoute>
-                    <UnderDevelopment />
+                    <RegisterVisitorPage />
                   </ProtectedRoute>
                 }
               />
               
-              {/* Smart Parking - Check Out */}
+              {/* Smart Parking - Checkout */}
               <Route
-                path="/smart-parking/check-out"
+                path="/smart-parking/checkout"
                 element={
                   <ProtectedRoute>
-                    <UnderDevelopment />
+                    <CheckoutPage />
                   </ProtectedRoute>
                 }
               />
               
-              {/* Smart Parking - Records */}
+              {/* Smart Parking - Monitor */}
               <Route
-                path="/smart-parking/records"
+                path="/smart-parking/monitor"
                 element={
                   <ProtectedRoute>
-                    <UnderDevelopment />
+                    <MonitorPage />
                   </ProtectedRoute>
                 }
               />
@@ -132,11 +132,11 @@ function App() {
                 path="/smart-parking/reports"
                 element={
                   <ProtectedRoute>
-                    <UnderDevelopment />
+                    <ReportsPage />
                   </ProtectedRoute>
                 }
               />
-              
+
               {/* Legacy route support */}
               <Route
                 path="/smart_parking/dashboard"
@@ -149,7 +149,7 @@ function App() {
               
               {/* ==================== SERVICE DELIVERY SYSTEM ==================== */}
 
-              {/* 👉 2. ADD THIS RECEPTIONIST ROUTE HERE */}
+              {/* Receptionist Route */}
               <Route
                 path="/service-delivery/receptionist"
                 element={
@@ -159,7 +159,7 @@ function App() {
                 }
               />
 
-              {/* 👉 NEW ROUTE: Department Manager */}
+              {/* Department Manager Route */}
               <Route
                 path="/service-delivery/department-manager"
                 element={
@@ -168,17 +168,6 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-
-              <Route
-                path="/service-delivery/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <ServiceDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              
-              {/* Service Delivery - Visitors */}
 
               <Route
                 path="/service-delivery/dashboard"
