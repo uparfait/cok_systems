@@ -24,7 +24,8 @@ import {
   RolesManagementPage
 } from './systems/admin';
 import { ParkingDashboard } from './systems/smartParking';
-import { ServiceDashboard } from './systems/serviceDelivery';
+import { ServiceDashboard, ReceptionistDashboard } from './systems/serviceDelivery';
+import DepartmentManagerDashboard from './systems/serviceDelivery/pages/DepartmentManagerDashboard';
 
 function App() {
   return (
@@ -148,6 +149,38 @@ function App() {
               />
               
               {/* ==================== SERVICE DELIVERY SYSTEM ==================== */}
+
+              {/* 👉 2. ADD THIS RECEPTIONIST ROUTE HERE */}
+              <Route
+                path="/service-delivery/receptionist"
+                element={
+                  <ProtectedRoute>
+                    <ReceptionistDashboard />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* 👉 NEW ROUTE: Department Manager */}
+              <Route
+                path="/service-delivery/department-manager"
+                element={
+                  <ProtectedRoute>
+                    <DepartmentManagerDashboard />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/service-delivery/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <ServiceDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Service Delivery - Visitors */}
+
               <Route
                 path="/service-delivery/dashboard"
                 element={

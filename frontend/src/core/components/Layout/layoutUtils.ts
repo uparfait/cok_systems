@@ -87,6 +87,41 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   const isAdmin = isAdminRole(userRole);
   const hasPermissions = userPermissions && userPermissions.length > 0;
   
+  // 👉 RECEPTIONIST INTERCEPTOR: Return ONLY the Receptionist sidebar
+  if (userRole.includes('receptionist')) {
+    return [
+      {
+        id: 'dashboard',
+        label: 'Dashboard',
+        path: '/service-delivery/receptionist',
+        icon: 'FiHome',
+      },
+      {
+        id: 'assigned-visitors',
+        label: 'Assigned Visitors',
+        path: '/service-delivery/receptionist?tab=visitors',
+        icon: 'FiUsers',
+      },
+      {
+        id: 'dept-availability',
+        label: 'Dept. Availability',
+        path: '/service-delivery/receptionist?tab=availability',
+        icon: 'FiGrid', 
+      }
+    ];
+  }
+
+  // 👉 DEPT MANAGER INTERCEPTOR: Custom Sidebar
+  if (userRole.includes('department manager') || userRole.includes('manager')) {
+    return [
+      { id: 'dashboard', label: 'Dashboard', path: '/service-delivery/department-manager', icon: 'FiGrid' },
+      { id: 'status', label: 'Service Status', path: '/service-delivery/department-manager?tab=status', icon: 'FiClock' },
+      { id: 'employees', label: 'Employee Management', path: '/service-delivery/department-manager?tab=employees', icon: 'FiUsers' },
+      { id: 'availability', label: 'Dept. Availability', path: '/service-delivery/department-manager?tab=availability', icon: 'FiCheckCircle' },
+      { id: 'reports', label: 'Reports', path: '/service-delivery/department-manager?tab=reports', icon: 'FiFile' }
+    ];
+  }
+  
   // If no permissions set yet, return minimal navigation
   if (!hasPermissions) {
     console.log('[Layout] No permissions from backend, showing minimal nav');
@@ -167,6 +202,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   
   // Check for Service Delivery permissions
   const hasServiceAccess = hasPermission(user, 'service delivery');
+  
   if (hasServiceAccess || isAdmin) {
     const serviceChildren: NavItem[] = [];
     
@@ -269,7 +305,7 @@ export const getCurrentSystemFromPath = (pathname: string): string => {
   
   if (path.includes('/admin')) return 'Admin';
   if (path.includes('/smart-parking') || path.includes('/parking')) return 'Smart Parking';
-  if (path.includes('/service-delivery') || path.includes('/service')) return 'Service Delivery';
+  if (path.includes('/service-delivery') || path.includes('/service')|| path.includes('/receptionist')) return 'Service Delivery';
   if (path.includes('/dashboard') || path === '/') return 'Dashboard';
   if (path.includes('/profile')) return 'Profile';
   
@@ -286,6 +322,11 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
   }
   
   const normalizedRole = role.toLowerCase().trim();
+
+  // Receptionist role check - redirect to receptionist dashboard
+  if (normalizedRole.includes('receptionist')) {
+    return '/service-delivery/receptionist';
+  }
   
   // If admin/system role, go to admin dashboard
   if (normalizedRole.includes('admin') || normalizedRole.includes('system')) {

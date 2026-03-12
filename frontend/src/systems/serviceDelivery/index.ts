@@ -3,6 +3,7 @@
 
 // Pages
 export { default as ServiceDashboard } from './pages/ServiceDeliveryDashboard';
+export { default as ReceptionistDashboard } from './pages/ReceptionistDashboardWrapper';
 
 // Components
 export * from './components';
