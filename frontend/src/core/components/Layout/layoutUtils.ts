@@ -368,6 +368,15 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
   }
   
   // Default - try to determine from role
+  // Check for Gate and Vehicle Registrar role (parking/security related)
+  if (normalizedRole.includes('gate') && normalizedRole.includes('vehicle')) {
+    console.log('[getDashboardRoute] Role matched gate+vehicle, routing to smart-parking');
+    return '/smart-parking/dashboard';
+  }
+  if (normalizedRole.includes('Gate and Vehicle Registrar')) {
+    console.log('[getDashboardRoute] Role matched Gate and Vehicle Registrar, routing to smart-parking');
+    return '/smart-parking/dashboard';
+  }
   if (normalizedRole.includes('parking') || normalizedRole.includes('it')) {
     console.log('[getDashboardRoute] Matched parking/IT');
     return '/smart-parking/dashboard';
