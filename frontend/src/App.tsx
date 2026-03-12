@@ -24,8 +24,7 @@ import {
   RolesManagementPage
 } from './systems/admin';
 import { ParkingDashboard } from './systems/smartParking';
-import { ServiceDashboard, ReceptionistDashboard } from './systems/serviceDelivery';
-import DepartmentManagerDashboard from './systems/serviceDelivery/pages/DepartmentManagerDashboard';
+import { ServiceDashboard, ReceptionistDashboard, DepartmentManagerDashboard } from './systems/serviceDelivery';
 
 function App() {
   return (

@@ -31,95 +31,6 @@ interface AssignedVisitorsListProps {
   visitors?: AssignedVisitor[];
 }
 
-// Mock visitors data
-const mockVisitors: AssignedVisitor[] = [
-  {
-    id: "1",
-    fullName: "Evode Munyensenga",
-    nationalId: "120050000000",
-    service: "Construction Permit",
-    department: "Land Management",
-    assignmentTime: "08:30 AM",
-    status: "inprogress",
-    phone: "0785550123",
-    checkInTime: "08:45 AM",
-    roomNumber: "Room 201",
-    queuePosition: 1,
-    checkedInTime: "08:40 AM",
-    checkedInGate: "Main Gate",
-    receptionistName: "Marie",
-    officerName: "",
-  },
-  {
-    id: "2",
-    fullName: "Alice Uwase",
-    nationalId: "119990000000",
-    service: "Service Complaint",
-    department: "HR",
-    assignmentTime: "09:10 AM",
-    status: "completed",
-    phone: "0781112233",
-    checkInTime: "09:15 AM",
-    roomNumber: "Room 105",
-    queuePosition: 2,
-    checkedInTime: "09:00 AM",
-    checkedInGate: "Main Gate",
-    receptionistName: "Jean",
-    officerName: "Mr. Kagaba",
-  },
-  {
-    id: "3",
-    fullName: "John Mugisha",
-    nationalId: "120080000000",
-    service: "Permit Request",
-    department: "Legal",
-    assignmentTime: "09:45 AM",
-    status: "transferred",
-    phone: "0789998877",
-    checkInTime: "09:50 AM",
-    roomNumber: "Room 302",
-    queuePosition: 3,
-    checkedInTime: "09:30 AM",
-    checkedInGate: "Side Gate",
-    receptionistName: "Marie",
-    officerName: "",
-  },
-  {
-    id: "4",
-    fullName: "Sarah Kemiremare",
-    nationalId: "120030000000",
-    service: "Tax Inquiry",
-    department: "Finance",
-    assignmentTime: "10:00 AM",
-    status: "waiting",
-    phone: "0784445566",
-    checkInTime: "10:05 AM",
-    roomNumber: "Room 401",
-    queuePosition: 4,
-    checkedInTime: "09:55 AM",
-    checkedInGate: "Main Gate",
-    receptionistName: "Jean",
-    officerName: "",
-  },
-  {
-    id: "5",
-    fullName: "Marie Mukamana",
-    nationalId: "120060000000",
-    service: "Business Registration",
-    department: "Registry",
-    assignmentTime: "10:15 AM",
-    status: "accepted",
-    phone: "0782223344",
-    checkInTime: "10:20 AM",
-    roomNumber: "Room 102",
-    queuePosition: 5,
-    checkedInTime: "10:10 AM",
-    checkedInGate: "Main Gate",
-    receptionistName: "Marie",
-    officerName: "Mr. Niyonkuru",
-  },
-];
-
 // Status configurations
 const statusConfig = {
   accepted: { bg: "bg-yellow-100", text: "text-yellow-700", dot: "bg-yellow-500", label: "ACCEPTED" },
@@ -149,8 +60,8 @@ const getColorFromName = (name: string) => {
 };
 
 const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: propVisitors }) => {
-  // Use prop visitors if provided, otherwise use mock data
-  const [visitors, setVisitors] = useState<AssignedVisitor[]>(propVisitors && propVisitors.length > 0 ? propVisitors : mockVisitors);
+  // Use prop visitors from backend
+  const [visitors, setVisitors] = useState<AssignedVisitor[]>(propVisitors || []);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -162,7 +73,7 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
 
   // Update visitors when propVisitors changes
   useEffect(() => {
-    if (propVisitors && propVisitors.length > 0) {
+    if (propVisitors) {
       setVisitors(propVisitors);
     }
   }, [propVisitors]);
@@ -181,15 +92,6 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
     setSelectedVisitor(null);
   };
   
-  // Update visitors when props change
-  useEffect(() => {
-    if (propVisitors && propVisitors.length > 0) {
-      const combined = [...propVisitors, ...mockVisitors.filter(v => !propVisitors.some(pv => pv.id === v.id))];
-      setVisitors(combined);
-    } else {
-      setVisitors(mockVisitors);
-    }
-  }, [propVisitors]);
 
   // Handle save edited visitor
   const handleSaveEdit = () => {
