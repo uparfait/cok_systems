@@ -1,11 +1,12 @@
 // DepartmentAvailability Component - Real-time monitoring dashboard for receptionist guidance
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   FiSearch, FiMapPin, FiCheckCircle, FiClock, FiAlertCircle,
   FiUsers, FiInfo, FiChevronRight, FiXCircle
 } from "react-icons/fi";
 import QueueStatusModal from "./QueueStatusModal";
+import { departmentService, serviceDeliveryService } from "../../../../core/services/adminService";
 
 // Department data interface
 interface DepartmentData {
@@ -19,69 +20,11 @@ interface DepartmentData {
   queueCount?: number;
 }
 
-// Mock department data
-const DEPARTMENTS_DATA: DepartmentData[] = [
-  {
-    id: '1',
-    name: 'Land Bureau',
-    headName: 'Sarah Murekatete',
-    status: 'available',
-    staffOnSite: 3,
-    waitingTime: 'All staff available',
-    lastUpdated: '5 mins ago',
-    queueCount: 5,
-  },
-  {
-    id: '2',
-    name: 'Social Affairs',
-    headName: 'Jean Paul N',
-    status: 'busy',
-    staffOnSite: 2,
-    waitingTime: 'Current waiting time about 45 mins (on break)',
-    lastUpdated: '12 mins ago',
-    queueCount: 8,
-  },
-  {
-    id: '3',
-    name: 'Infrastructure',
-    headName: 'Marie Claire U.',
-    status: 'at_capacity',
-    staffOnSite: 0,
-    waitingTime: 'Queue full. No new tickets issued until 2:00 PM',
-    lastUpdated: '2 mins ago',
-    queueCount: 12,
-  },
-  {
-    id: '4',
-    name: 'Urban Planning',
-    headName: 'Dr. Patrick K.',
-    status: 'available',
-    staffOnSite: 4,
-    waitingTime: 'All staff Available',
-    lastUpdated: '1 hour ago',
-    queueCount: 3,
-  },
-  {
-    id: '5',
-    name: 'Public Health',
-    headName: 'Beatrice M.',
-    status: 'closed',
-    staffOnSite: 0,
-    waitingTime: '2 days meeting',
-    lastUpdated: '4 hours ago',
-    queueCount: 0,
-  },
-  {
-    id: '6',
-    name: 'Education Office',
-    headName: 'Eric T.',
-    status: 'busy',
-    staffOnSite: 1,
-    waitingTime: 'Staff in weekly meeting until 10:00AM',
-    lastUpdated: '30 mins ago',
-    queueCount: 6,
-  },
-];
+interface DepartmentAvailabilityProps {
+  // Can optionally receive data from parent if available
+  departments?: DepartmentData[];
+  visitorCounts?: Record<string, number>;
+}
 
 // Status configuration
 const statusConfig = {
@@ -115,10 +58,76 @@ const statusConfig = {
   },
 };
 
-const DepartmentAvailability: React.FC = () => {
+const DepartmentAvailability: React.FC<DepartmentAvailabilityProps> = ({ departments: propDepartments, visitorCounts: propVisitorCounts }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
+  const [departmentsData, setDepartmentsData] = useState<DepartmentData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch departments from backend if not provided via props
+  useEffect(() => {
+    const fetchData = async () => {
+      // Use props if available, otherwise fetch from backend
+      if (propDepartments && propDepartments.length > 0) {
+        // Transform prop data to DepartmentData format
+        const transformed = propDepartments.map((dept: any) => ({
+          id: dept.id || dept._id || dept.department_id || '',
+          name: dept.name || dept.department_name || '',
+          headName: dept.department_leader || 'N/A',
+          status: dept.status === 'Active' ? 'available' as const : 'busy' as const,
+          staffOnSite: dept.staffAvailable || dept.total_employees || dept.employees || 0,
+          waitingTime: dept.staffAvailable > 0 ? 'Staff available' : 'No staff on site',
+          lastUpdated: 'Just now',
+          queueCount: propVisitorCounts?.[dept.name || dept.department_name] || 0,
+        }));
+        setDepartmentsData(transformed);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Fetch from backend
+      try {
+        setIsLoading(true);
+        const [deptRes, allVisitorsRes] = await Promise.all([
+          departmentService.getAll(),
+          serviceDeliveryService.getAll(1, 1000)
+        ]);
+
+        if (deptRes.success || deptRes.status) {
+          const depts = Array.isArray(deptRes.data) ? deptRes.data : [];
+          
+          // Calculate visitor counts per department
+          const allVisitors = allVisitorsRes.data || [];
+          const counts: Record<string, number> = {};
+          allVisitors.forEach((v: any) => {
+            if (v.department) {
+              counts[v.department] = (counts[v.department] || 0) + 1;
+            }
+          });
+
+          const transformed = depts.map((dept: any) => ({
+            id: dept._id || dept.department_id || '',
+            name: dept.department_name || dept.name || '',
+            headName: dept.department_leader || 'N/A',
+            status: (dept.status === 'Active' ? 'available' : 'busy') as 'available' | 'busy' | 'at_capacity' | 'closed',
+            staffOnSite: dept.total_employees || dept.employees || 0,
+            waitingTime: (dept.total_employees || dept.employees || 0) > 0 ? 'Staff available' : 'No staff on site',
+            lastUpdated: 'Just now',
+            queueCount: counts[dept.department_name || dept.name] || 0,
+          }));
+          
+          setDepartmentsData(transformed);
+        }
+      } catch (error) {
+        console.error('Failed to fetch department data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [propDepartments, propVisitorCounts]);
 
   const handleViewQueue = (deptName: string) => {
     setSelectedDepartment(deptName);
@@ -129,7 +138,7 @@ const DepartmentAvailability: React.FC = () => {
   };
 
   // Filter departments based on search and status
-  const filteredDepartments = DEPARTMENTS_DATA.filter(dept => {
+  const filteredDepartments = departmentsData.filter(dept => {
     const matchesSearch = searchTerm === '' || 
       dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       dept.headName.toLowerCase().includes(searchTerm.toLowerCase());
@@ -140,11 +149,11 @@ const DepartmentAvailability: React.FC = () => {
   });
 
   // Calculate KPIs
-  const totalDepartments = DEPARTMENTS_DATA.length;
-  const availableCount = DEPARTMENTS_DATA.filter(d => d.status === 'available').length;
-  const busyCount = DEPARTMENTS_DATA.filter(d => d.status === 'busy').length;
-  const atCapacityCount = DEPARTMENTS_DATA.filter(d => d.status === 'at_capacity').length;
-  const closedCount = DEPARTMENTS_DATA.filter(d => d.status === 'closed').length;
+  const totalDepartments = departmentsData.length;
+  const availableCount = departmentsData.filter(d => d.status === 'available').length;
+  const busyCount = departmentsData.filter(d => d.status === 'busy').length;
+  const atCapacityCount = departmentsData.filter(d => d.status === 'at_capacity').length;
+  const closedCount = departmentsData.filter(d => d.status === 'closed').length;
 
   return (
     <div className="p-6">

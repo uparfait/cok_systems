@@ -93,6 +93,14 @@ export const employeeService = {
   // Get all employees
   getAll: () => get('/employee/crud'),
   
+  // Get employees by department (filters by is_active=true by default for only active employees)
+  getByDepartment: (departmentId: string, activeOnly: boolean = true) => {
+    const params = `department_id=${encodeURIComponent(departmentId)}`;
+    return activeOnly 
+      ? get(`/employee/crud/by-department?${params}&is_active=true`)
+      : get(`/employee/crud/by-department?${params}`);
+  },
+  
   // Search employees
   search: (query: string) => get(`/employee/crud/search?query=${encodeURIComponent(query)}`),
   
@@ -131,17 +139,17 @@ export const feedbackService = {
 // ==================== SERVICE DELIVERY APIs ====================
 
 export const serviceDeliveryService = {
-  // Get all visitors
-  getAll: () => get('/servicedelivery/visitor'),
+  // Get all visitors with pagination
+  getAll: (page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}`),
   
   // Get all visitors (alias)
-  getAllVisitors: () => get('/servicedelivery/visitor'),
+  getAllVisitors: (page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}`),
   
-  // Search visitors
-  search: (query: string) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}`),
+  // Search visitors with pagination
+  search: (query: string, page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`),
   
   // Search visitors (alias)
-  searchVisitors: (query: string) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}`),
+  searchVisitors: (query: string, page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`),
   
   // Get visitor by ID
   getById: (id: string) => get(`/servicedelivery/visitor/${id}`),
@@ -162,7 +170,29 @@ export const serviceDeliveryService = {
   toggleServiceStatus: (id: string, status: string) => post(`/servicedelivery/visitor/service/status`, { id, status }),
   
   // Assign to department
-  assignToDepartment: (id: string, departmentId: string) => post(`/servicedelivery/visitor/assign/${id}`, { department_id: departmentId }),
+  assignToDepartment: (visitorId: string, departmentId: string, departmentName: string, providerId?: string, providerName?: string) => 
+    post(`/servicedelivery/visitor/assign`, { 
+      visitor_id: visitorId, 
+      new_department_id: departmentId,
+      new_department_name: departmentName,
+      provider_id: providerId,
+      provider_name: providerName
+    }),
+  
+  // Get visitors by department (with pagination)
+  getVisitorsByDepartment: (departmentId: string, page?: number, limit?: number, is_still_inhouse?: boolean) => {
+    let url = `/servicedelivery/visitor/by-department?department_id=${encodeURIComponent(departmentId)}`;
+    if (page) url += `&page=${page}`;
+    if (limit) url += `&limit=${limit}`;
+    if (is_still_inhouse !== undefined) url += `&is_still_inhouse=${is_still_inhouse}`;
+    return get(url);
+  },
+  
+  // Get current visitors count by department
+  getCurrentVisitorsByDepartment: (departmentId: string) => get(`/servicedelivery/visitor/by-department-current/${encodeURIComponent(departmentId)}`),
+  
+  // Get current visitors count by provider (employee)
+  getCurrentVisitorsByProvider: (providerId: string) => get(`/servicedelivery/visitor/by-provider-current/${encodeURIComponent(providerId)}`),
   
   // Emergency leave return
   emergencyLeaveReturn: (id: string, data: any) => post(`/servicedelivery/visitor/emergency/leave-return/${id}`, data),
@@ -251,12 +281,38 @@ export const permissionService = {
     post(`/permissions/user/${userId}/remove`, { resource, actions }),
 };
 
+// ==================== STATISTICS APIs ====================
+
+export const statisticsService = {
+  // Get service delivery statistics
+  getServiceDeliveryStats: () => get('/statistics/service-delivery'),
+  
+  // Get hourly service delivery statistics
+  getHourlyServiceDeliveryStats: () => get('/statistics/hourly-service-delivery'),
+  
+  // Get hourly parking statistics
+  getHourlyParkingStats: () => get('/statistics/hourly-parking'),
+  
+  // Get departments with leaders
+  getDepartmentsWithLeaders: () => get('/statistics/departments-leaders'),
+  
+  // Get employee statistics
+  getEmployeeStats: () => get('/statistics/employees'),
+  
+  // Get feedback totals
+  getFeedbackTotals: () => get('/statistics/feedback-totals'),
+  
+  // Get feedback average by department
+  getFeedbackAverageByDepartment: () => get('/statistics/feedback-average'),
+};
+
 export default {
   departmentService,
   employeeService,
   feedbackService,
   serviceDeliveryService,
   parkingService,
+  statisticsService,
 };
 
 // ==================== USER ACCOUNT LOCK/UNLOCK APIs ====================

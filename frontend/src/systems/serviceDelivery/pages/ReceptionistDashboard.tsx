@@ -9,7 +9,7 @@ import {
 } from "react-icons/fi";
 
 // Import API Services
-import { serviceDeliveryService, departmentService } from "../../../core/services/adminService";
+import { serviceDeliveryService, departmentService, statisticsService, employeeService } from "../../../core/services/adminService";
 import { useAuth } from "../../../core/contexts/AuthContext";
 
 // Import components
@@ -37,6 +37,11 @@ interface Visitor {
   service?: string;
   purpose?: string;
   assignedStaff?: string;
+  departments_assigned?: Array<{
+    department_id: string;
+    department_name?: string;
+    status: string;
+  }>;
 }
 
 const ReceptionistDashboard: React.FC = () => {
@@ -51,24 +56,54 @@ const ReceptionistDashboard: React.FC = () => {
   );
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchLoading, setSearchLoading] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   
   // LIVE DATA STATES
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Hourly visitor data for graph
+  const [hourlyData, setHourlyData] = useState<{hour: number; visitors_checked_in: number}[]>([]);
+  const [hoveredHour, setHoveredHour] = useState<{hour: number; visitors: number} | null>(null);
+  
+  // Department visitor counts
+  const [departmentVisitorCounts, setDepartmentVisitorCounts] = useState<Record<string, number>>({});
+  
+  // Employee data for assignment
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [selectedDeptForAssignment, setSelectedDeptForAssignment] = useState<string>('');
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
 
   // Modal States
   const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [selectedDepartment, setSelectedDepartment] = useState('');
-  const [selectedService, setSelectedService] = useState('');
-  const [serviceDescription, setServiceDescription] = useState('');
+  // Handle employee selection with queue count
+  const handleSelectEmployee = async (employee: any) => {
+    setSelectedEmployee(employee);
+    setEmployeeQueueCount(0);
+    
+    if (employee && employee._id) {
+      try {
+        const res = await serviceDeliveryService.getCurrentVisitorsByProvider(employee._id);
+        if (res.success && res.data) {
+          const providerData = res.data.find((p: any) => p.provider_id === employee._id);
+          setEmployeeQueueCount(providerData?.count || 0);
+        }
+      } catch (error) {
+        console.error("Failed to fetch employee queue:", error);
+      }
+    }
+  };
+  const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+  const [employeeQueueCount, setEmployeeQueueCount] = useState(0);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Update tab when URL changes (Driven by MainLayout Sidebar)
   useEffect(() => {
@@ -87,38 +122,72 @@ const ReceptionistDashboard: React.FC = () => {
 
   // FETCH LIVE DATA
   const loadData = async () => {
+    const isSearch = searchTerm && searchTerm.trim();
     setIsLoading(true);
+    if (isSearch) {
+      setSearchLoading(true);
+    }
     try {
-      const [visitorRes, deptRes] = await Promise.all([
-        serviceDeliveryService.getAll(),
-        departmentService.getAll()
-      ]);
+      let visitorRes;
+      
+      // Use backend search if searchTerm exists, otherwise get all
+      if (searchTerm && searchTerm.trim()) {
+        visitorRes = await serviceDeliveryService.search(searchTerm, currentPage, 20);
+      } else {
+        visitorRes = await serviceDeliveryService.getAll(currentPage, 20);
+      }
 
       if (visitorRes.status || visitorRes.success) {
-        const visitorData = Array.isArray(visitorRes.data) ? visitorRes.data : [];
+        let allVisitors = Array.isArray(visitorRes.data) ? visitorRes.data : [];
+        
+        // Filter to show only unassigned visitors (departments_assigned is empty or undefined)
+        const visitorData = allVisitors.filter((v: any) => {
+          const deptAssigned = v.departments_assigned;
+          return !deptAssigned || !Array.isArray(deptAssigned) || deptAssigned.length === 0;
+        });
         setVisitors(visitorData);
+        setTotalCount(visitorRes.total || 0);
+        
+        // Calculate visitor counts per department
+        const counts: Record<string, number> = {};
+        visitorData.forEach((v: any) => {
+          if (v.department) {
+            counts[v.department] = (counts[v.department] || 0) + 1;
+          }
+        });
+        setDepartmentVisitorCounts(counts);
       }
-      if (deptRes.status || deptRes.success) {
-        const deptData = Array.isArray(deptRes.data) ? deptRes.data : [];
+      
+      // Load departments
+      const deptResponse = await departmentService.getAll();
+      if (deptResponse.status || deptResponse.success) {
+        const deptData = Array.isArray(deptResponse.data) ? deptResponse.data : [];
         setDepartments(deptData);
+      }
+      
+      // Load hourly stats
+      const hourlyResponse = await statisticsService.getHourlyServiceDeliveryStats();
+      if (hourlyResponse.success) {
+        setHourlyData(hourlyResponse.data?.hourly || hourlyResponse.data || []);
       }
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
     } finally {
       setIsLoading(false);
+      setSearchLoading(false);
     }
   };
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentPage]);
 
   // Format Departments for the Modal
   const formattedDepartments = departments.map(dept => ({
     id: dept._id || dept.department_id,
     name: dept.department_name || dept.name,
     staffAvailable: dept.total_employees || dept.employees || 0,
-    currentQueue: 0,
+    currentQueue: departmentVisitorCounts[dept.department_name || dept.name] || 0,
     isActive: dept.status === 'Active'
   }));
 
@@ -144,52 +213,61 @@ const ReceptionistDashboard: React.FC = () => {
   };
 
   // Filtering Visitors
-  const filteredVisitors = visitors.filter(visitor => {
-    const vName = getVisitorName(visitor);
-    const vId = getIdentification(visitor);
-    const vPhone = visitor.telephone || '';
-    const vStatus = visitor.status || 'pending';
+  // Use visitors directly from backend (already paginated)
+  const paginatedVisitors = visitors;
+  
+  // Backend handles search and pagination - no frontend filtering needed
+  // Pagination calculation using totalCount from backend
+  const itemsPerPage = 20;
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
 
-    const matchesSearch = !searchTerm ? true : 
-      vName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vId.includes(searchTerm) ||
-      vPhone.includes(searchTerm);
-    
-    const matchesStatus = statusFilter === 'all' ? true : 
-      vStatus.toLowerCase().replace('_', '') === statusFilter.toLowerCase().replace('_', '');
-    
-    return matchesSearch && matchesStatus;
-  });
-
-  // Pagination
-  const itemsPerPage = 5;
-  const totalPages = Math.ceil(filteredVisitors.length / itemsPerPage);
-  const paginatedVisitors = filteredVisitors.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  // Derived Stats
-  const totalVisitors = Array.isArray(visitors) ? visitors.length : 0;
+  // Derived Stats - use totalCount from backend
+  const totalVisitors = totalCount;
   const activeVisitors = Array.isArray(visitors) ? visitors.filter(v => v.status === 'In_progress' || v.status === 'Inside').length : 0;
   const assignedCount = Array.isArray(visitors) ? visitors.filter(v => v.department && v.department !== 'General').length : 0;
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+    loadData();
+  }, [currentPage, searchTerm]);
+
+  // Load employees when department is selected
+  const loadEmployeesByDepartment = async (departmentId: string) => {
+    try {
+      const res = await employeeService.getByDepartment(departmentId);
+      if (res.success) {
+        setEmployees(res.data || []);
+      }
+    } catch (error) {
+      console.error("Failed to load employees:", error);
+    }
+  };
 
   // Assignment Handlers
-  const handleAssignClick = (visitor: Visitor) => {
+  const handleAssignClick = async (visitor: Visitor) => {
     setSelectedVisitor(visitor);
     setShowAssignModal(true);
+    setEmployeesLoading(true);
+    
+    // Load all departments' employees when modal opens
+    try {
+      const res = await employeeService.getAll();
+      if (res.success) {
+        setEmployees(res.data || []);
+      }
+    } catch (error) {
+      console.error("Failed to load employees:", error);
+    } finally {
+      setEmployeesLoading(false);
+    }
   };
 
   const handleCloseModal = () => {
     setShowAssignModal(false);
     setSelectedVisitor(null);
     setSelectedDepartment('');
-    setSelectedService('');
-    setServiceDescription('');
+    setSelectedEmployee(null);
+    setEmployeeQueueCount(0);
+    setEmployeesLoading(false);
   };
 
   const handleConfirmAssignment = async () => {
@@ -197,10 +275,18 @@ const ReceptionistDashboard: React.FC = () => {
       setIsAssigning(true);
       try {
         const visitorId = selectedVisitor._id || selectedVisitor.id;
-        await serviceDeliveryService.assignToDepartment(visitorId as string, selectedDepartment);
-        
         const dept = formattedDepartments.find(d => d.id === selectedDepartment);
-        setSuccessMessage(`Assignment successful! Visitor assigned to ${dept?.name || 'department'}`);
+        const departmentName = dept?.name || '';
+        
+        await serviceDeliveryService.assignToDepartment(
+          visitorId as string, 
+          selectedDepartment,
+          departmentName,
+          selectedEmployee?._id,
+          selectedEmployee?.full_name
+        );
+        
+        setSuccessMessage(`Assignment successful! Visitor assigned to ${departmentName}${selectedEmployee ? ` with ${selectedEmployee.full_name}` : ''}`);
         setShowSuccessMessage(true);
         
         await loadData();
@@ -255,32 +341,273 @@ const ReceptionistDashboard: React.FC = () => {
             </div>
           </div>
 
+          {/* Chart Section - Now above the table */}
+          <div className="w-full bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 className="text-sm font-bold text-gray-800 mb-1">Daily Insights</h3>
+            <p className="text-xs text-gray-400 mb-4">Visitor traffic by hour</p>
+            {hourlyData.length > 0 ? (
+              <div className="relative w-full h-72">
+                <svg viewBox="0 0 800 280" className="w-full h-full" preserveAspectRatio="none">
+                  {/* Background gradient */}
+                  <defs>
+                    <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#06b6d4" />
+                      <stop offset="50%" stopColor="#3b82f6" />
+                      <stop offset="100%" stopColor="#8b5cf6" />
+                    </linearGradient>
+                    <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.25" />
+                      <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.02" />
+                    </linearGradient>
+                  </defs>
+                  
+                  {/* Grid lines - horizontal */}
+                  {/* Grid lines - horizontal with dynamic increment based on PEAK hour */}
+                  {(() => {
+                    const maxHourly = Math.max(...hourlyData.map(h => h.visitors_checked_in), 0);
+                    let increment = 1;
+                    if (maxHourly > 1000) increment = 1000;
+                    else if (maxHourly > 100) increment = 100;
+                    else if (maxHourly > 10) increment = 10;
+                    else increment = 1;
+                    
+                    const maxVal = Math.max(maxHourly, increment);
+                    const numTicks = Math.ceil(maxVal / increment) + 1;
+                    const yStep = 220 / (numTicks - 1);
+                    
+                    return Array.from({ length: numTicks }, (_, i) => (
+                      <line 
+                        key={`h-${i}`} 
+                        x1="45" y1={30 + i * yStep} x2="780" y2={30 + i * yStep} 
+                        stroke="#f3f4f6" strokeWidth="1" 
+                      />
+                    ));
+                  })()}
+                  
+                  {/* Grid lines - vertical - all 24 hours */}
+                  {Array.from({ length: 24 }, (_, hour) => (
+                    <line 
+                      key={`v-${hour}`} 
+                      x1={45 + (hour / 23) * 735} y1="30" x2={45 + (hour / 23) * 735} y2="250" 
+                      stroke="#f3f4f6" strokeWidth="1" 
+                    />
+                  ))}
+                  
+                  {/* Y-axis labels - dynamic increment based on PEAK hour */}
+                  {(() => {
+                    const maxHourly = Math.max(...hourlyData.map(h => h.visitors_checked_in), 0);
+                    let increment = 1;
+                    if (maxHourly > 1000) increment = 1000;
+                    else if (maxHourly > 100) increment = 100;
+                    else if (maxHourly > 10) increment = 10;
+                    else increment = 1;
+                    
+                    const maxVal = Math.max(maxHourly, increment);
+                    const numTicks = Math.ceil(maxVal / increment) + 1;
+                    return Array.from({ length: numTicks }, (_, i) => i * increment).map((val) => (
+                      <text key={`y-${val}`} x="40" y={274 - (val / maxVal) * 220} className="text-[9px] fill-gray-400" textAnchor="end" dominantBaseline="middle">
+                        {val}
+                      </text>
+                    ));
+                  })()}
+                  
+                  {/* X-axis labels - all 24 hours with AM/PM */}
+                  {Array.from({ length: 24 }, (_, hour) => (
+                    <text 
+                      key={`x-${hour}`} 
+                      x={45 + (hour / 23) * 735} y="268" 
+                      className="text-[8px] fill-gray-400" textAnchor="middle"
+                    >
+                      {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour-12}pm` : `${hour}am`}
+                    </text>
+                  ))}
+                  
+                  {/* Vertical line passing through data points */}
+                  {hourlyData.filter(h => h.visitors_checked_in > 0).map((h) => {
+                    const maxHourly = Math.max(...hourlyData.map(h => h.visitors_checked_in), 0);
+                    let increment = 1;
+                    if (maxHourly > 1000) increment = 1000;
+                    else if (maxHourly > 100) increment = 100;
+                    else if (maxHourly > 10) increment = 10;
+                    else increment = 1;
+                    const maxVal = Math.max(maxHourly, increment);
+                    const x = 45 + (h.hour / 23) * 735;
+                    return (
+                      <line 
+                        key={`vline-${h.hour}`}
+                        x1={x} y1="30" x2={x} y2="250" 
+                        stroke="#06b6d4" strokeWidth="1" strokeOpacity="0.2" strokeDasharray="3,3"
+                      />
+                    );
+                  })}
+                  
+                  {/* Area under the line */}
+                  <path 
+                    d={`M 45 250 ${hourlyData.map((h) => {
+                      const maxHourly = Math.max(...hourlyData.map(h => h.visitors_checked_in), 0);
+                      let increment = 1;
+                      if (maxHourly > 1000) increment = 1000;
+                      else if (maxHourly > 100) increment = 100;
+                      else if (maxHourly > 10) increment = 10;
+                      else increment = 1;
+                      const maxVal = Math.max(maxHourly, increment);
+                      const x = 45 + (h.hour / 23) * 735;
+                      const y = 250 - (h.visitors_checked_in / maxVal) * 220;
+                      return `L ${x} ${y}`;
+                    }).join(' ')} L 780 250 Z`}
+                    fill="url(#areaGradient)" 
+                  />
+                  
+                  {/* Smooth curved line */}
+                  <path 
+                    d={`M ${hourlyData.map((h, i) => {
+                      const maxHourly = Math.max(...hourlyData.map(h => h.visitors_checked_in), 0);
+                      let increment = 1;
+                      if (maxHourly > 1000) increment = 1000;
+                      else if (maxHourly > 100) increment = 100;
+                      else if (maxHourly > 10) increment = 10;
+                      else increment = 1;
+                      const maxVal = Math.max(maxHourly, increment);
+                      const x = 45 + (h.hour / 23) * 735;
+                      const y = 250 - (h.visitors_checked_in / maxVal) * 220;
+                      
+                      if (i === 0) return `M ${x} ${y}`;
+                      
+                      const prevMaxHourly = Math.max(...hourlyData.slice(0, i).map(h => h.visitors_checked_in), 0);
+                      let prevIncrement = 1;
+                      if (prevMaxHourly > 1000) prevIncrement = 1000;
+                      else if (prevMaxHourly > 100) prevIncrement = 100;
+                      else if (prevMaxHourly > 10) prevIncrement = 10;
+                      else prevIncrement = 1;
+                      const prevMaxVal = Math.max(prevMaxHourly, prevIncrement);
+                      const prevX = 45 + (hourlyData[i-1].hour / 23) * 735;
+                      const prevY = 250 - (hourlyData[i-1].visitors_checked_in / prevMaxVal) * 220;
+                      
+                      const cpX = (prevX + x) / 2;
+                      return `Q ${cpX} ${prevY} ${x} ${y}`;
+                    }).join(' ')}`}
+                    fill="none" 
+                    stroke="url(#lineGradient)" 
+                    strokeWidth="2.5" 
+                    strokeLinecap="round"
+                  />
+                  
+                  {/* Small data points with hover tooltip */}
+                  {hourlyData.filter(h => h.visitors_checked_in > 0).map((h) => {
+                    const maxHourly = Math.max(...hourlyData.map(h => h.visitors_checked_in), 0);
+                    let increment = 1;
+                    if (maxHourly > 1000) increment = 1000;
+                    else if (maxHourly > 100) increment = 100;
+                    else if (maxHourly > 10) increment = 10;
+                    else increment = 1;
+                    const maxVal = Math.max(maxHourly, increment);
+                    const x = 45 + (h.hour / 23) * 735;
+                    const y = 250 - (h.visitors_checked_in / maxVal) * 220;
+                    return (
+                      <g 
+                        key={h.hour}
+                        onMouseEnter={() => setHoveredHour({ hour: h.hour, visitors: h.visitors_checked_in })}
+                        onMouseLeave={() => setHoveredHour(null)}
+                        className="cursor-pointer"
+                      >
+                        <circle cx={x} cy={y} r="4" fill="#fff" stroke="url(#lineGradient)" strokeWidth="2" />
+                        <circle cx={x} cy={y} r="2" fill="#06b6d4" />
+                      </g>
+                    );
+                  })}
+                  
+                  {/* Tooltip */}
+                  {hoveredHour && (() => {
+                    const maxHourly = Math.max(...hourlyData.map(h => h.visitors_checked_in), 0);
+                    let increment = 1;
+                    if (maxHourly > 1000) increment = 1000;
+                    else if (maxHourly > 100) increment = 100;
+                    else if (maxHourly > 10) increment = 10;
+                    else increment = 1;
+                    const maxVal = Math.max(maxHourly, increment);
+                    const x = 45 + (hoveredHour.hour / 23) * 735;
+                    const y = 250 - (hoveredHour.visitors / maxVal) * 220;
+                    return (
+                      <g>
+                        <rect 
+                          x={x - 35} 
+                          y={y - 45} 
+                          width="70" 
+                          height="32" 
+                          rx="6" 
+                          fill="#1f2937" 
+                        />
+                        <text 
+                          x={x} 
+                          y={y - 30} 
+                          textAnchor="middle" 
+                          className="text-xs fill-white font-medium"
+                        >
+                          {hoveredHour.hour}:00
+                        </text>
+                        <text 
+                          x={x} 
+                          y={y - 14} 
+                          textAnchor="middle" 
+                          className="text-[10px] fill-cyan-400 font-bold"
+                        >
+                          {hoveredHour.visitors} visitors
+                        </text>
+                      </g>
+                    );
+                  })()}
+                </svg>
+              </div>
+            ) : (
+              <div className="h-56 flex items-center justify-center text-gray-400">
+                No hourly data available
+              </div>
+            )}
+            
+            {/* Stats below chart - well designed */}
+            {hourlyData.length > 0 && (
+              <div className="flex justify-center gap-8 mt-4 pt-4 border-t border-gray-100">
+                <div className="text-center">
+                  <p className="text-xs text-gray-500 mb-1">Peak Hour</p>
+                  <p className="text-lg font-bold bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text text-transparent">
+                    {hourlyData.find(h => h.visitors_checked_in === Math.max(...hourlyData.map(d => d.visitors_checked_in), 0))?.hour || 0}:00
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {Math.max(...hourlyData.map(h => h.visitors_checked_in), 0)} visitors
+                  </p>
+                </div>
+                <div className="w-px bg-gray-200"></div>
+                <div className="text-center">
+                  <p className="text-xs text-gray-500 mb-1">Total Today</p>
+                  <p className="text-lg font-bold text-gray-800">
+                    {hourlyData.reduce((sum, h) => sum + h.visitors_checked_in, 0)}
+                  </p>
+                  <p className="text-xs text-gray-400">visitors</p>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Table Card (Figma Styled) */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="px-6 py-5 border-b border-gray-100 flex flex-wrap items-center justify-between bg-white gap-4">
               <h2 className="text-sm font-bold text-blue-600 uppercase tracking-wide">SEARCH VISITORS AND ASSIGN</h2>
               <div className="flex flex-wrap gap-3 items-center">
                 <div className="relative">
-                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  {searchLoading ? (
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  ) : (
+                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  )}
                   <input
                     type="text"
-                    placeholder="Search by ID, Name, or Phone Number"
+                    placeholder="Search Badge, Name, or Phone"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9 pr-4 py-2 w-72 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                    className={`pl-9 pr-4 py-2 w-72 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 ${searchLoading ? 'opacity-50' : ''}`}
                   />
-                </div>
-                <div className="relative">
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="pl-3 pr-8 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white cursor-pointer"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="pending">Pending</option>
-                  </select>
-                  <FiChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 </div>
                 <button onClick={() => setShowExportMenu(!showExportMenu)} className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 transition-colors">
                   <FiDownload className="w-3 h-3" /> Export
@@ -346,7 +673,7 @@ const ReceptionistDashboard: React.FC = () => {
             {/* Pagination Footer */}
             <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
               <p className="text-xs text-gray-400">
-                Showing {paginatedVisitors.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filteredVisitors.length)} of {filteredVisitors.length} entries
+                Showing {paginatedVisitors.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} entries
               </p>
               <div className="flex gap-1">
                 <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="w-6 h-6 flex items-center justify-center text-gray-400 border border-gray-200 rounded text-xs hover:bg-gray-50 disabled:opacity-50"><FiChevronLeft/></button>
@@ -354,31 +681,6 @@ const ReceptionistDashboard: React.FC = () => {
                   <button key={i} onClick={() => setCurrentPage(i + 1)} className={`w-6 h-6 flex items-center justify-center rounded text-xs font-medium ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'text-gray-600 border border-gray-200'}`}>{i + 1}</button>
                 ))}
                 <button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="w-6 h-6 flex items-center justify-center text-gray-400 border border-gray-200 rounded text-xs hover:bg-gray-50 disabled:opacity-50"><FiChevronRight/></button>
-              </div>
-            </div>
-          </div>
-
-          {/* Chart Section (Figma Styled) */}
-          <div className="w-full md:w-1/2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-sm font-bold text-gray-800 mb-1">Daily Insights</h3>
-            <p className="text-xs text-gray-400 mb-6">Visitor traffic by hour</p>
-            <div className="relative w-full h-48">
-              <svg viewBox="0 0 500 200" className="w-full h-full">
-                <line x1="40" y1="160" x2="480" y2="160" stroke="#e5e7eb" strokeWidth="2" />
-                <text x="55" y="180" className="text-[10px] fill-gray-400 font-bold">8am</text>
-                <text x="125" y="180" className="text-[10px] fill-gray-400 font-bold">9am</text>
-                <text x="200" y="180" className="text-[10px] fill-gray-400 font-bold">10am</text>
-                <text x="275" y="180" className="text-[10px] fill-gray-400 font-bold">11am</text>
-                <text x="350" y="180" className="text-[10px] fill-gray-400 font-bold">12pm</text>
-                <text x="425" y="180" className="text-[10px] fill-gray-400 font-bold">1pm</text> 
-                <path d={`M 55 140 Q 90 60 125 40 Q 162 60 200 90 Q 237 100 275 80 Q 312 90 350 130 Q 387 140 425 90`} fill="none" stroke="#38bdf8" strokeWidth="3" />
-                {[55,125,200,275,350,425].map((x, i) => (
-                   <circle key={i} cx={x} cy={[140,40,90,80,130,90][i]} r="4" fill="#fff" stroke="#38bdf8" strokeWidth="2" />
-                ))}
-              </svg>
-              <div className="flex justify-between mt-2 px-8">
-                 <p className="text-xs font-bold text-gray-800">Peak: 9:00 AM</p>
-                 <p className="text-xs font-bold text-gray-800">Avg: 12/hr</p>
               </div>
             </div>
           </div>
@@ -405,7 +707,10 @@ const ReceptionistDashboard: React.FC = () => {
       {/* DEPARTMENT AVAILABILITY TAB CONTENT */}
       {activeTab === 'availability' && (
         <div className="max-w-7xl mx-auto">
-          <DepartmentAvailability />
+          <DepartmentAvailability 
+            departments={formattedDepartments}
+            visitorCounts={departmentVisitorCounts}
+          />
         </div>
       )}
 
@@ -415,15 +720,17 @@ const ReceptionistDashboard: React.FC = () => {
         onClose={handleCloseModal}
         visitor={selectedVisitor as any}
         departments={formattedDepartments}
+        employees={employees}
         selectedDepartment={selectedDepartment}
-        selectedService={selectedService}
-        serviceDescription={serviceDescription}
+        selectedEmployee={selectedEmployee}
+        employeeQueueCount={employeeQueueCount}
         onSelectDepartment={setSelectedDepartment}
-        onSelectService={setSelectedService}
-        onServiceDescriptionChange={setServiceDescription}
+        onSelectEmployee={handleSelectEmployee}
         onConfirm={handleConfirmAssignment}
         showSuccessMessage={showSuccessMessage}
         successMessage={successMessage}
+        isLoading={isAssigning}
+        employeesLoading={employeesLoading}
       />
     </div>
   );
