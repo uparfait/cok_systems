@@ -48,6 +48,26 @@ module.exports = async function update_department(req, res, next) {
 
             department.department_leader = leader_user._id 
         }
+
+        // check if department_name or department_id is being updated and if they are unique and not used by other department
+        if (department_name || department_id) {
+            const existing_dept = await department_model.findOne({
+                $or: [
+                    department_name ? { department_name: department_name } : null,
+                    department_id ? { department_id: department_id.toString().toUpperCase() } : null
+                ].filter(Boolean), // Remove null values
+                _id: { $ne: id } // Exclude the current department from the search
+            })
+
+            if (existing_dept) {
+                return res.status(409).json({
+                    success: false,
+                    type: "warning",
+                    message: `Department with this name or ID already exists.`
+                })
+            }
+        }
+
         department.department_response_time_in_minutes = department_response_time_in_minutes
         if(department_name) department.department_name = department_name
         if(department_id) department.department_id = department_id
