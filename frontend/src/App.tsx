@@ -24,7 +24,7 @@ import {
   RolesManagementPage
 } from './systems/admin';
 import { ParkingDashboard } from './systems/smartParking';
-import { ServiceDashboard, ReceptionistDashboard, DepartmentManagerDashboard } from './systems/serviceDelivery';
+import { ServiceDashboard, ReceptionistDashboard, DepartmentManagerDashboard, EmployeeDashboard } from './systems/serviceDelivery';
 
 function App() {
   return (
@@ -165,6 +165,16 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <DepartmentManagerDashboard />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Employee Dashboard Route */}
+              <Route
+                path="/service-delivery/employee"
+                element={
+                  <ProtectedRoute>
+                    <EmployeeDashboard />
                   </ProtectedRoute>
                 }
               />
