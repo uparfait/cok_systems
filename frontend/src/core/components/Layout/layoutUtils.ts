@@ -15,12 +15,18 @@ const buildPermissionSet = (permissions: Permission[] | undefined): Set<string> 
   }
   
   for (const perm of permissions) {
-    if (perm.resource && perm.actions) {
+    // Handle both 'resource' and 'resource_name' from backend
+    const resource = perm.resource || perm.resource_name;
+    if (resource && perm.actions) {
       for (const action of perm.actions) {
-        // Store as "resource:action" format
-        permSet.add(`${perm.resource.toLowerCase()}:${action.toLowerCase()}`);
-        // Also store just the resource for "has any access" checks
-        permSet.add(perm.resource.toLowerCase());
+        // Handle both action string and action object
+        const actionType = typeof action === 'string' ? action : action.action_type;
+        if (actionType) {
+          // Store as "resource:action" format
+          permSet.add(`${resource.toLowerCase()}:${actionType.toLowerCase()}`);
+          // Also store just the resource for "has any access" checks
+          permSet.add(resource.toLowerCase());
+        }
       }
     }
   }
@@ -112,13 +118,29 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   }
 
   // 👉 DEPT MANAGER INTERCEPTOR: Custom Sidebar
-  if (userRole.includes('department manager') || userRole.includes('manager')) {
+  if (userRole.includes('department manager') || 
+      userRole.includes('department head') ||
+      userRole.includes('head of department') ||
+      userRole.includes('manager') ||
+      userRole.includes('head') ||
+      userRole.includes('director')) {
     return [
       { id: 'dashboard', label: 'Dashboard', path: '/service-delivery/department-manager', icon: 'FiGrid' },
       { id: 'status', label: 'Service Status', path: '/service-delivery/department-manager?tab=status', icon: 'FiClock' },
       { id: 'employees', label: 'Employee Management', path: '/service-delivery/department-manager?tab=employees', icon: 'FiUsers' },
       { id: 'availability', label: 'Dept. Availability', path: '/service-delivery/department-manager?tab=availability', icon: 'FiCheckCircle' },
       { id: 'reports', label: 'Reports', path: '/service-delivery/department-manager?tab=reports', icon: 'FiFile' }
+    ];
+  }
+
+  // 👉 GATE AND VEHICLE REGISTRAR INTERCEPTOR: Smart Parking Sidebar
+  if (userRole.includes('gate') && userRole.includes('vehicle')) {
+    return [
+      { id: 'dashboard', label: 'Dashboard', path: '/smart-parking/dashboard', icon: 'FiHome' },
+      { id: 'parking-register', label: 'Register Visitor', path: '/smart-parking/register', icon: 'FiUsers' },
+      { id: 'parking-checkout', label: 'Checkout', path: '/smart-parking/checkout', icon: 'FiLogOut' },
+      { id: 'parking-monitor', label: 'Monitor', path: '/smart-parking/monitor', icon: 'FiGrid' },
+      { id: 'parking-reports', label: 'Reports', path: '/smart-parking/reports', icon: 'FiFile' }
     ];
   }
   
@@ -318,18 +340,33 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
   
   // If no role, go to under-development
   if (!role) {
+    console.log('[getDashboardRoute] No role provided, going to under-development');
     return '/under-development';
   }
   
   const normalizedRole = role.toLowerCase().trim();
+  console.log('[getDashboardRoute] Normalized role:', normalizedRole);
 
   // Receptionist role check - redirect to receptionist dashboard
   if (normalizedRole.includes('receptionist')) {
+    console.log('[getDashboardRoute] Matched receptionist');
     return '/service-delivery/receptionist';
+  }
+
+  // 👉 ADDED THIS MANAGER CHECK RIGHT HERE:
+  if (normalizedRole.includes('department manager') || 
+      normalizedRole.includes('department head') ||
+      normalizedRole.includes('head of department') ||
+      normalizedRole.includes('manager') ||
+      normalizedRole.includes('head') ||
+      normalizedRole.includes('director')) {
+    console.log('[getDashboardRoute] Matched department manager/head/director');
+    return '/service-delivery/department-manager';
   }
   
   // If admin/system role, go to admin dashboard
   if (normalizedRole.includes('admin') || normalizedRole.includes('system')) {
+    console.log('[getDashboardRoute] Matched admin/system');
     return '/admin/dashboard';
   }
   
@@ -338,22 +375,36 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
     const dept = departmentName.toLowerCase();
     
     if (dept.includes('it') || dept.includes('finance') || dept.includes('operations')) {
+      console.log('[getDashboardRoute] Matched IT/Finance/Ops department');
       return '/smart-parking/dashboard';
     }
     if (dept.includes('hr') || dept.includes('human') || dept.includes('legal')) {
+      console.log('[getDashboardRoute] Matched HR/Legal department');
       return '/service-delivery/dashboard';
     }
   }
   
   // Default - try to determine from role
+  // Check for Gate and Vehicle Registrar role (parking/security related)
+  if (normalizedRole.includes('gate') && normalizedRole.includes('vehicle')) {
+    console.log('[getDashboardRoute] Role matched gate+vehicle, routing to smart-parking');
+    return '/smart-parking/dashboard';
+  }
+  if (normalizedRole.includes('Gate and Vehicle Registrar')) {
+    console.log('[getDashboardRoute] Role matched Gate and Vehicle Registrar, routing to smart-parking');
+    return '/smart-parking/dashboard';
+  }
   if (normalizedRole.includes('parking') || normalizedRole.includes('it')) {
+    console.log('[getDashboardRoute] Matched parking/IT');
     return '/smart-parking/dashboard';
   }
   if (normalizedRole.includes('service') || normalizedRole.includes('hr')) {
+    console.log('[getDashboardRoute] Matched service/HR');
     return '/service-delivery/dashboard';
   }
   
   // Fallback to under-development
+  console.log('[getDashboardRoute] No match found, going to under-development');
   return '/under-development';
 };
 

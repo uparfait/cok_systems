@@ -61,6 +61,7 @@ const ReceptionistDashboard: React.FC = () => {
   
   // LIVE DATA STATES
   const [visitors, setVisitors] = useState<Visitor[]>([]);
+  const [unassignedVisitors, setUnassignedVisitors] = useState<Visitor[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -140,19 +141,25 @@ const ReceptionistDashboard: React.FC = () => {
       if (visitorRes.status || visitorRes.success) {
         let allVisitors = Array.isArray(visitorRes.data) ? visitorRes.data : [];
         
-        // Filter to show only unassigned visitors (departments_assigned is empty or undefined)
+        // Keep all visitors in state for both assigned and unassigned views
+        setVisitors(allVisitors);
+        setTotalCount(visitorRes.total || 0);
+        
+        // Filter unassigned visitors for dashboard display
         const visitorData = allVisitors.filter((v: any) => {
           const deptAssigned = v.departments_assigned;
           return !deptAssigned || !Array.isArray(deptAssigned) || deptAssigned.length === 0;
         });
-        setVisitors(visitorData);
-        setTotalCount(visitorRes.total || 0);
+        setUnassignedVisitors(visitorData);
         
-        // Calculate visitor counts per department
+        // Calculate visitor counts per department (for assigned visitors)
         const counts: Record<string, number> = {};
-        visitorData.forEach((v: any) => {
-          if (v.department) {
-            counts[v.department] = (counts[v.department] || 0) + 1;
+        allVisitors.forEach((v: any) => {
+          if (v.departments_assigned && Array.isArray(v.departments_assigned)) {
+            v.departments_assigned.forEach((dept: any) => {
+              const deptName = dept.department_name || dept.department || 'Unknown';
+              counts[deptName] = (counts[deptName] || 0) + 1;
+            });
           }
         });
         setDepartmentVisitorCounts(counts);
@@ -213,18 +220,18 @@ const ReceptionistDashboard: React.FC = () => {
   };
 
   // Filtering Visitors
-  // Use visitors directly from backend (already paginated)
-  const paginatedVisitors = visitors;
+  // Use unassigned visitors for dashboard display
+  const paginatedVisitors = unassignedVisitors;
   
   // Backend handles search and pagination - no frontend filtering needed
   // Pagination calculation using totalCount from backend
   const itemsPerPage = 20;
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
-  // Derived Stats - use totalCount from backend
-  const totalVisitors = totalCount;
+  // Derived Stats - use visitors array for consistency
+  const totalVisitors = Array.isArray(visitors) ? visitors.length : 0;
   const activeVisitors = Array.isArray(visitors) ? visitors.filter(v => v.status === 'In_progress' || v.status === 'Inside').length : 0;
-  const assignedCount = Array.isArray(visitors) ? visitors.filter(v => v.department && v.department !== 'General').length : 0;
+  const assignedCount = Array.isArray(visitors) ? visitors.filter(v => v.departments_assigned && v.departments_assigned.length > 0).length : 0;
 
   useEffect(() => {
     loadData();
@@ -580,7 +587,7 @@ const ReceptionistDashboard: React.FC = () => {
                 <div className="text-center">
                   <p className="text-xs text-gray-500 mb-1">Total Today</p>
                   <p className="text-lg font-bold text-gray-800">
-                    {hourlyData.reduce((sum, h) => sum + h.visitors_checked_in, 0)}
+                    {totalCount}
                   </p>
                   <p className="text-xs text-gray-400">visitors</p>
                 </div>
@@ -690,12 +697,12 @@ const ReceptionistDashboard: React.FC = () => {
       {/* ASSIGNED VISITORS TAB CONTENT */}
       {activeTab === 'visitors' && (
         <div className="max-w-7xl mx-auto">
-          <AssignedVisitorsList visitors={visitors.filter(v => v.department).map(v => ({
+          <AssignedVisitorsList visitors={visitors.filter(v => v.departments_assigned && v.departments_assigned.length > 0).map(v => ({
             id: String(v._id || v.id || ''),
             fullName: getVisitorName(v),
             nationalId: getIdentification(v),
             service: String(v.service || 'General Inquiry'),
-            department: String(v.department || v.departmentName || 'General'),
+            department: v.departments_assigned?.[0]?.department_name || v.department || 'General',
             assignmentTime: getCheckInTime(v),
             status: String(v.status || 'pending'),
             phone: String(v.telephone || ''),
