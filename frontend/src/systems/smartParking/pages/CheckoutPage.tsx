@@ -179,8 +179,8 @@ const CheckoutPage: React.FC = () => {
         // Use service delivery checkout
         response = await serviceDeliveryService.checkOut(selectedRecord._id || '');
       } else {
-        // Use smart parking checkout
-        response = await smartParkingService.checkOut(selectedRecord.plate_number);
+        // Use smart parking checkout by plate number
+        response = await smartParkingService.checkOutByPlate(selectedRecord.plate_number || '');
       }
       
       // Update local state - remove the record
