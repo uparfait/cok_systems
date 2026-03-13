@@ -565,6 +565,51 @@ paths:
         '404':
           description: No service record found
 
+  /feedback/by-phone/{telephone}:
+    get:
+      tags: [AMOS - Feedback]
+      summary: "Get feedback by phone number"
+      description: "Returns all feedback submitted by a specific phone number. Used for visitors to view their submitted feedback."
+      operationId: getFeedbackByPhone
+      parameters:
+        - name: telephone
+          in: path
+          required: true
+          description: Phone number to search feedback for
+          schema:
+            type: string
+            example: "+250788123456"
+      responses:
+        '200':
+          description: Feedback retrieved successfully
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Feedback retrieved successfully"
+                total: 2
+                data:
+                  - feedback_id: "abc123"
+                    department_name: "Finance"
+                    department_id: "DEPT-001"
+                    provider_name: "John Doe"
+                    rate: 8
+                    rate_out_of: 10
+                    textmessage: "Great service!"
+                    created_date: "2026-03-13T10:00:00.000Z"
+                  - feedback_id: "def456"
+                    department_name: "IT"
+                    department_id: "DEPT-002"
+                    provider_name: "Jane Smith"
+                    rate: 9
+                    rate_out_of: 10
+                    textmessage: "Very helpful"
+                    created_date: "2026-03-12T14:30:00.000Z"
+        '400':
+          description: Phone number required
+        '404':
+          description: No feedback found for this phone number
+
   /feedback/submit:
     post:
       tags: [AMOS - Feedback]
