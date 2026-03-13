@@ -1,32 +1,28 @@
 // EmployeeDashboardTab - Dashboard page for Employee
-// INTEGRATED WITH BACKEND API & STRICT TYPES FIXED
+// STRICT SCHEMA ALIGNMENT: 'Not started', 'Inprogress', 'Transfered', 'Completed'
 
-import React, { useState, useEffect } from 'react';
-import { 
-  FiSearch, FiFilter, FiClock, FiCheckCircle
-} from 'react-icons/fi';
+import React, { useState, useEffect, useCallback } from 'react';
+import { FiSearch, FiClock, FiCheckCircle, FiRefreshCw } from 'react-icons/fi';
 import { useAuth } from '../../../../../core/contexts/AuthContext';
 import { serviceDeliveryService } from '../../../../../core/services/adminService';
-
-// Import shared components
 import { Pagination } from '../../shared';
 
-// Service record interface
 interface ServiceRecord {
   id: string;
   visitorName: string;
-  serviceId: string;
-  status: 'pending' | 'completed' | 'transferred';
-  assignmentTime: string;
+  visitorId: string;
+  assignedTo: string;
+  waitTime: string;
+  status: 'not_started' | 'inprogress' | 'completed' | 'transfered';
   avatarColor: string;
   initials: string;
 }
 
-// Status styles for rendering
 const statusStyles = {
-  pending: { bg: 'bg-[#fff3e0]', text: 'text-[#f57c00]', label: 'Pending' },
+  not_started: { bg: 'bg-[#fff3e0]', text: 'text-[#f57c00]', label: 'Not Started' },
+  inprogress: { bg: 'bg-[#e3f2fd]', text: 'text-[#1a73e8]', label: 'In Progress' },
   completed: { bg: 'bg-[#e8f5e9]', text: 'text-[#2e7d32]', label: 'Completed' },
-  transferred: { bg: 'bg-[#e3f2fd]', text: 'text-[#1565c0]', label: 'Transferred' },
+  transfered: { bg: 'bg-[#f3e5f5]', text: 'text-[#7b1fa2]', label: 'Transferred' },
 };
 
 const EmployeeDashboardTab: React.FC = () => {
@@ -35,94 +31,79 @@ const EmployeeDashboardTab: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [serviceRecords, setServiceRecords] = useState<ServiceRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ pending: 0, transferred: 0, completed: 0 });
-  const [totalResults, setTotalResults] = useState(0);
-  
+  const [stats, setStats] = useState({ pending: 0, transfered: 0, completed: 0 });
   const resultsPerPage = 5;
 
-  // Fetch visitors assigned to this employee
-  const fetchAssignedVisitors = async () => {
-    // FIX: Using 'as any' safely bypasses TypeScript complaining about the exact ID field name
+  const fetchAssignedVisitors = useCallback(async () => {
     const currentUser = user as any;
     const myUserId = currentUser?._id || currentUser?.id || currentUser?.userId || currentUser?.employee_id;
+    const myName = (currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown').trim();
 
     if (!myUserId) {
-      console.log('[EmployeeDashboardTab] No valid userId, skipping fetch');
       setLoading(false);
       return;
     }
     
     try {
       setLoading(true);
-      console.log('[EmployeeDashboardTab] Fetching visitors for provider:', myUserId);
-      
-      // Get all visitors and filter on frontend since by-provider endpoint may have issues
       const response = await serviceDeliveryService.getAll() as any;
-      console.log('[EmployeeDashboardTab] Full API Response:', response);
       
-      // Handle the response - get all visitors and filter by provider_id
       if (response && (response.data || response.success || Array.isArray(response))) {
         const allVisitors = Array.isArray(response.data) ? response.data : 
                             Array.isArray(response) ? response : [];
         
-        console.log('[EmployeeDashboardTab] Total visitors:', allVisitors.length);
-        
-        // Filter visitors assigned to this employee via services_status.provider_id
         const myVisitors = allVisitors.filter((v: any) => {
           if (!v.services_status || !Array.isArray(v.services_status)) return false;
-          // Check if any service status has this provider's ID
           return v.services_status.some((status: any) => 
-            status.provider_id === myUserId || status.provider_id === String(myUserId)
+            status.provider_id === String(myUserId)
           );
         });
         
-        console.log('[EmployeeDashboardTab] Filtered visitors for this employee:', myVisitors.length);
-        
-        // Transform visitor data to service records
         const records: ServiceRecord[] = myVisitors.map((visitor: any) => {
+          const serviceStatus = visitor.services_status?.find((s: any) => s.provider_id === String(myUserId));
           
-          // Get status from services_status array
-          let status: 'pending' | 'completed' | 'transferred' = 'pending';
-          const serviceStatus = visitor.services_status?.find((s: any) => s.provider_id === myUserId);
+          // STRICT MAPPING
+          let status: 'not_started' | 'inprogress' | 'completed' | 'transfered' = 'not_started';
           const rawStatus = (serviceStatus?.s_type || '').toLowerCase();
           
-          if (rawStatus === 'completed') {
-            status = 'completed';
-          } else if (rawStatus === 'transfered') {
-            status = 'transferred';
-          } else {
-            status = 'pending'; 
-          }
+          if (rawStatus === 'completed') status = 'completed';
+          else if (rawStatus === 'inprogress') status = 'inprogress';
+          else if (rawStatus === 'transfered' || rawStatus === 'transferred') status = 'transfered';
           
-          const colors = ['bg-purple-500', 'bg-pink-500', 'bg-yellow-400', 'bg-teal-500', 'bg-lavender-400', 'bg-blue-500', 'bg-green-500'];
-          const visitorName = visitor.full_name || visitor.name || visitor.visitorName || 'Unknown';
+          const colors = ['bg-purple-500', 'bg-pink-500', 'bg-yellow-400', 'bg-teal-500', 'bg-blue-500'];
+          const visitorName = visitor.full_name || visitor.name || 'Unknown';
           const colorIndex = visitorName.charCodeAt(0) % colors.length;
-          
           const initials = visitorName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
           
-          const assignmentTime = serviceStatus?.assigned_time || 
-                                  visitor.departments_assigned?.find((d: any) => d.provider_id === myUserId)?.assigned_time ||
-                                  visitor.checkInTime || 
-                                  visitor.updatedAt || 
-                                  new Date().toISOString();
-          const formattedTime = new Date(assignmentTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+          let identification = 'N/A';
+          if (typeof visitor.identification === 'string') identification = visitor.identification;
+          else if (visitor.identification?.number) identification = visitor.identification.number;
+
+          const checkIn = serviceStatus?.assigned_time || visitor.entry_date || new Date().toISOString();
+          let waitTimeString = 'Just now';
+          if (checkIn) {
+            const diffMins = Math.floor((new Date().getTime() - new Date(checkIn).getTime()) / 60000);
+            if (diffMins > 0 && diffMins < 1440) waitTimeString = `${diffMins} mins`;
+          }
           
           return {
             id: visitor._id || visitor.id || Math.random().toString(),
             visitorName: visitorName,
-            serviceId: `#${(visitor._id || visitor.id || 'N/A').substring(0, 8)}`,
+            visitorId: identification,
+            assignedTo: myName,
             status,
-            assignmentTime: formattedTime,
+            waitTime: waitTimeString,
             avatarColor: colors[colorIndex],
             initials
           };
         });
         
+        records.reverse(); // Newest top
         setServiceRecords(records);
         
         setStats({
-          pending: records.filter(r => r.status === 'pending').length,
-          transferred: records.filter(r => r.status === 'transferred').length,
+          pending: records.filter(r => r.status === 'not_started' || r.status === 'inprogress').length,
+          transfered: records.filter(r => r.status === 'transfered').length,
           completed: records.filter(r => r.status === 'completed').length
         });
       }
@@ -131,18 +112,17 @@ const EmployeeDashboardTab: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchAssignedVisitors();
-  }, [user, currentPage]);
+  }, [fetchAssignedVisitors]);
 
-  // Filter records based on search
   const filteredRecords = serviceRecords.filter(record => {
     const searchLower = searchTerm.toLowerCase();
     return (
       record.visitorName.toLowerCase().includes(searchLower) ||
-      record.serviceId.toLowerCase().includes(searchLower)
+      record.visitorId.toLowerCase().includes(searchLower)
     );
   });
 
@@ -150,14 +130,6 @@ const EmployeeDashboardTab: React.FC = () => {
     (currentPage - 1) * resultsPerPage,
     currentPage * resultsPerPage
   );
-
-  if (loading) {
-    return (
-      <div className="p-7 flex items-center justify-center h-64">
-        <div className="text-[#888]">Loading assigned visitors...</div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-7">
@@ -168,42 +140,20 @@ const EmployeeDashboardTab: React.FC = () => {
 
       <div className="flex gap-5 mt-7">
         <div className="bg-white rounded-[14px] p-[22px_24px] shadow-[0_1px_4px_rgba(0,0,0,0.07)] h-[110px] w-[33%] relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-16 h-16 overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#ff9800] rounded-full opacity-20 -translate-x-8 -translate-y-8"></div>
-          </div>
-          <div className="flex justify-between items-start relative z-10">
-            <span className="text-[#888] text-[12px]">Pending Requests</span>
-            <FiClock className="text-[#ff9800] w-5 h-5" />
-          </div>
+          <div className="absolute top-0 right-0 w-16 h-16"><div className="absolute top-0 right-0 w-32 h-32 bg-[#ff9800] rounded-full opacity-20 -translate-x-8 -translate-y-8"></div></div>
+          <div className="flex justify-between items-start relative z-10"><span className="text-[#888] text-[12px]">Pending Requests</span><FiClock className="text-[#ff9800] w-5 h-5" /></div>
           <div className="text-[#1a2744] text-[36px] font-extrabold mt-2 relative z-10">{stats.pending}</div>
           <div className="w-10 h-1.5 bg-[#ffcc80] rounded-[3px] mt-1"></div>
         </div>
-
         <div className="bg-white rounded-[14px] p-[22px_24px] shadow-[0_1px_4px_rgba(0,0,0,0.07)] h-[110px] w-[33%] relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-16 h-16 overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#1a73e8] rounded-full opacity-20 -translate-x-8 -translate-y-8"></div>
-          </div>
-          <div className="flex justify-between items-start relative z-10">
-            <span className="text-[#888] text-[12px]">Transferred</span>
-            <div className="text-[#1a73e8]">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
-                <path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
-              </svg>
-            </div>
-          </div>
-          <div className="text-[#1a2744] text-[36px] font-extrabold mt-2 relative z-10">{stats.transferred}</div>
+          <div className="absolute top-0 right-0 w-16 h-16"><div className="absolute top-0 right-0 w-32 h-32 bg-[#1a73e8] rounded-full opacity-20 -translate-x-8 -translate-y-8"></div></div>
+          <div className="flex justify-between items-start relative z-10"><span className="text-[#888] text-[12px]">Transferred</span><FiRefreshCw className="text-[#1a73e8] w-4 h-4" /></div>
+          <div className="text-[#1a2744] text-[36px] font-extrabold mt-2 relative z-10">{stats.transfered}</div>
           <div className="w-10 h-1.5 bg-[#90caf9] rounded-[3px] mt-1"></div>
         </div>
-
         <div className="bg-white rounded-[14px] p-[22px_24px] shadow-[0_1px_4px_rgba(0,0,0,0.07)] h-[110px] w-[33%] relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-16 h-16 overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#34a853] rounded-full opacity-20 -translate-x-8 -translate-y-8"></div>
-          </div>
-          <div className="flex justify-between items-start relative z-10">
-            <span className="text-[#888] text-[12px]">Completed</span>
-            <FiCheckCircle className="text-[#34a853] w-5 h-5" />
-          </div>
+          <div className="absolute top-0 right-0 w-16 h-16"><div className="absolute top-0 right-0 w-32 h-32 bg-[#34a853] rounded-full opacity-20 -translate-x-8 -translate-y-8"></div></div>
+          <div className="flex justify-between items-start relative z-10"><span className="text-[#888] text-[12px]">Completed</span><FiCheckCircle className="text-[#34a853] w-5 h-5" /></div>
           <div className="text-[#1a2744] text-[36px] font-extrabold mt-2 relative z-10">{stats.completed}</div>
           <div className="w-10 h-1.5 bg-[#a8d5b5] rounded-[3px] mt-1"></div>
         </div>
@@ -215,19 +165,10 @@ const EmployeeDashboardTab: React.FC = () => {
           <div className="flex gap-3">
             <div className="relative">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search visitor or ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-[220px] h-9 border border-[#e0e0e0] rounded-[20px] pl-10 pr-4 text-[12px] focus:outline-none focus:ring-2 focus:ring-[#1a73e8] focus:border-transparent"
-              />
+              <input type="text" placeholder="Search visitor or ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-[220px] h-9 border border-[#e0e0e0] rounded-[20px] pl-10 pr-4 text-[12px] focus:ring-2 focus:ring-[#1a73e8]" />
             </div>
-            <button 
-              onClick={fetchAssignedVisitors}
-              className="flex items-center gap-2 h-9 px-4 border border-[#e0e0e0] rounded-[8px] bg-white text-[#333] text-[13px] hover:bg-gray-50"
-            >
-              Refresh
+            <button onClick={fetchAssignedVisitors} className="flex items-center gap-2 h-9 px-4 border border-[#e0e0e0] rounded-[8px] bg-white text-[#333] text-[13px] hover:bg-gray-50">
+              <FiRefreshCw className={loading ? 'animate-spin' : ''} /> Refresh
             </button>
           </div>
         </div>
@@ -235,54 +176,45 @@ const EmployeeDashboardTab: React.FC = () => {
         <table className="w-full">
           <thead>
             <tr className="border-b border-[#f0f0f0]">
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">Visitor Name ↕</th>
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">Service ID ↕</th>
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">Status ↕</th>
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">Assignment Time ↕</th>
+              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">VISITOR ↕</th>
+              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">ASSIGNED TO ↕</th>
+              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">WAIT TIME ↕</th>
+              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">STATUS ↕</th>
             </tr>
           </thead>
           <tbody>
-            {paginatedRecords.length > 0 ? paginatedRecords.map((record) => {
+            {loading && serviceRecords.length === 0 ? (
+              <tr><td colSpan={4} className="py-8 text-center text-gray-500">Loading your assignments...</td></tr>
+            ) : paginatedRecords.length > 0 ? paginatedRecords.map((record) => {
               const status = statusStyles[record.status];
               return (
                 <tr key={record.id} className="border-b border-[#f8f8f8] h-14">
                   <td className="py-3">
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full ${record.avatarColor} flex items-center justify-center text-white text-[12px] font-bold`}>
-                        {record.initials}
+                      <div className={`w-8 h-8 rounded-full ${record.avatarColor} flex items-center justify-center text-white text-[12px] font-bold`}>{record.initials}</div>
+                      <div>
+                        <div className="text-[#333] text-[13px] font-medium">{record.visitorName}</div>
+                        <div className="text-[#888] text-[11px]">{record.visitorId}</div>
                       </div>
-                      <span className="text-[#333] text-[13px] font-medium">{record.visitorName}</span>
                     </div>
                   </td>
-                  <td className="py-3 text-[#333] text-[13px]">{record.serviceId}</td>
+                  <td className="py-3 text-[#333] text-[13px] font-medium">{record.assignedTo}</td>
+                  <td className="py-3 text-[#666] text-[13px] font-medium">{record.waitTime}</td>
                   <td className="py-3">
                     <span className={`inline-flex items-center px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide ${status.bg} ${status.text}`}>
                       {status.label}
                     </span>
                   </td>
-                  <td className="py-3 text-[#666] text-[13px] font-medium">{record.assignmentTime}</td>
                 </tr>
               );
             }) : (
-              <tr>
-                <td colSpan={4} className="py-8 text-center text-[#888]">
-                  No visitors assigned to you yet
-                </td>
-              </tr>
+              <tr><td colSpan={4} className="py-8 text-center text-[#888]">No visitors assigned to you yet.</td></tr>
             )}
           </tbody>
         </table>
-
+        
         {filteredRecords.length > 0 && (
-          <Pagination
-            currentPage={currentPage}
-            totalPages={Math.ceil(filteredRecords.length / resultsPerPage)}
-            onPageChange={setCurrentPage}
-            style="arrows-with-numbers"
-            showPageInfo={true}
-            totalItems={filteredRecords.length}
-            itemsPerPage={resultsPerPage}
-          />
+          <Pagination currentPage={currentPage} totalPages={Math.ceil(filteredRecords.length / resultsPerPage)} onPageChange={setCurrentPage} style="arrows-with-numbers" showPageInfo={true} totalItems={filteredRecords.length} itemsPerPage={resultsPerPage} />
         )}
       </div>
     </div>
