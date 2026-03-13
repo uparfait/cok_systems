@@ -203,17 +203,23 @@ export const serviceDeliveryService = {
 // ==================== SMART PARKING APIs ====================
 
 export const parkingService = {
-  // Get all parking records
-  getAll: () => get('/smartparking/vehicle'),
+  // Get all parking records (including all statuses)
+  getAll: () => get('/smartparking/vehicle?status=all&limit=100'),
   
   // Get all vehicles (alias)
-  getAllVehicles: () => get('/smartparking/vehicle'),
+  getAllVehicles: () => get('/smartparking/vehicle?status=all&limit=100'),
+  
+  // Get parking stats
+  getStats: () => get('/smartparking/vehicle?status=all&limit=100'),
+  
+  // Get long duration vehicles
+  getLongDurationVehicles: () => get('/smartparking/vehicle?status=active&limit=100'),
   
   // Search parking records
-  search: (query: string) => get(`/smartparking/vehicle/search?query=${encodeURIComponent(query)}`),
+  search: (query: string) => get(`/smartparking/vehicle/search?query=${encodeURIComponent(query)}&status=all`),
   
   // Search vehicles (alias)
-  searchVehicles: (query: string) => get(`/smartparking/vehicle/search?query=${encodeURIComponent(query)}`),
+  searchVehicles: (query: string) => get(`/smartparking/vehicle/search?query=${encodeURIComponent(query)}&status=all`),
   
   // Get parking record by ID
   getById: (id: string) => get(`/smartparking/vehicle/${id}`),
@@ -227,6 +233,9 @@ export const parkingService = {
   // Check out vehicle
   checkOut: (id: string) => post(`/smartparking/vehicle/checkout`, { id }),
   
+  // Check out vehicle by plate number
+  checkOutByPlate: (plateNumber: string) => post(`/smartparking/vehicle/checkout`, { plate_number: plateNumber }),
+  
   // Verify vehicle
   verifyVehicle: (plateNumber: string) => get(`/smartparking/vehicle/verify?plateNumber=${encodeURIComponent(plateNumber)}`),
   
@@ -238,6 +247,9 @@ export const parkingService = {
   
   // Get flagged vehicles (alias)
   getFlaggedVehicles: () => get('/smartparking/vehicle/flagged'),
+  
+  // Flag a vehicle
+  flagVehicle: (plateNumber: string, reason: string) => post('/smartparking/vehicle/flag', { plate_number: plateNumber, reason }),
   
   // Register single vehicle
   registerSingle: (data: any) => post('/smartparking/register-single', data),
