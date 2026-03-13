@@ -1,6 +1,6 @@
 // App - Main application component
 // Entry point for the COK Systems frontend application
-// Updated to use the new systems-based structure with dynamic sidebar
+// Safely merged Smart Parking and Service Delivery Routes
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/auth/LoginPage';
@@ -23,8 +23,23 @@ import {
   UserManagementPage,
   RolesManagementPage
 } from './systems/admin';
-import { ParkingDashboard, RegisterVisitorPage, CheckoutPage, MonitorPage, ReportsPage } from './systems/smartParking';
-import { ServiceDashboard, ReceptionistDashboard, DepartmentManagerDashboard } from './systems/serviceDelivery';
+
+// 👉 COLLEGUE'S IMPORTS (Smart Parking)
+import { 
+  ParkingDashboard, 
+  RegisterVisitorPage, 
+  CheckoutPage, 
+  MonitorPage, 
+  ReportsPage 
+} from './systems/smartParking';
+
+// 👉 YOUR IMPORTS (Service Delivery)
+import { 
+  ServiceDashboard, 
+  ReceptionistDashboard, 
+  DepartmentManagerDashboard, 
+  EmployeeDashboard 
+} from './systems/serviceDelivery';
 
 function App() {
   return (
@@ -42,233 +57,41 @@ function App() {
               {/* Protected Routes - Using new systems with MainLayout */}
               
               {/* ==================== ADMIN SYSTEM ==================== */}
-              <Route
-                path="/admin/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+              <Route path="/admin/departments" element={<ProtectedRoute><DepartmentsPage /></ProtectedRoute>} />
+              <Route path="/admin/employees" element={<ProtectedRoute><EmployeesPage /></ProtectedRoute>} />
+              <Route path="/admin/user-management" element={<ProtectedRoute><UserManagementPage /></ProtectedRoute>} />
+              <Route path="/admin/roles-management" element={<ProtectedRoute><RolesManagementPage /></ProtectedRoute>} />
               
-              <Route
-                path="/admin/departments"
-                element={
-                  <ProtectedRoute>
-                    <DepartmentsPage />
-                  </ProtectedRoute>
-                }
-              />
+              {/* ==================== SMART PARKING SYSTEM (Colleague's Work) ==================== */}
+              <Route path="/smart-parking/dashboard" element={<ProtectedRoute><ParkingDashboard /></ProtectedRoute>} />
+              <Route path="/smart-parking/register" element={<ProtectedRoute><RegisterVisitorPage /></ProtectedRoute>} />
+              <Route path="/smart-parking/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
+              <Route path="/smart-parking/monitor" element={<ProtectedRoute><MonitorPage /></ProtectedRoute>} />
+              <Route path="/smart-parking/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
+              <Route path="/smart_parking/dashboard" element={<ProtectedRoute><ParkingDashboard /></ProtectedRoute>} />
               
-              <Route
-                path="/admin/employees"
-                element={
-                  <ProtectedRoute>
-                    <EmployeesPage />
-                  </ProtectedRoute>
-                }
-              />
+              {/* ==================== SERVICE DELIVERY SYSTEM (Your Work) ==================== */}
+              <Route path="/service-delivery/receptionist" element={<ProtectedRoute><ReceptionistDashboard /></ProtectedRoute>} />
+              <Route path="/service-delivery/department-manager" element={<ProtectedRoute><DepartmentManagerDashboard /></ProtectedRoute>} />
+              <Route path="/service-delivery/employee" element={<ProtectedRoute><EmployeeDashboard /></ProtectedRoute>} />
+              <Route path="/service-delivery/dashboard" element={<ProtectedRoute><ServiceDashboard /></ProtectedRoute>} />
               
-              <Route
-                path="/admin/user-management"
-                element={
-                  <ProtectedRoute>
-                    <UserManagementPage />
-                  </ProtectedRoute>
-                }
-              />
+              {/* Pending Service Delivery Sub-pages */}
+              <Route path="/service-delivery/visitors" element={<ProtectedRoute><UnderDevelopment /></ProtectedRoute>} />
+              <Route path="/service-delivery/check-in" element={<ProtectedRoute><UnderDevelopment /></ProtectedRoute>} />
+              <Route path="/service-delivery/check-out" element={<ProtectedRoute><UnderDevelopment /></ProtectedRoute>} />
+              <Route path="/service-delivery/department-flow" element={<ProtectedRoute><UnderDevelopment /></ProtectedRoute>} />
+              <Route path="/service_delivery/dashboard" element={<ProtectedRoute><ServiceDashboard /></ProtectedRoute>} />
               
-              <Route
-                path="/admin/roles-management"
-                element={
-                  <ProtectedRoute>
-                    <RolesManagementPage />
-                  </ProtectedRoute>
-                }
-              />
-              
-              {/* ==================== SMART PARKING SYSTEM ==================== */}
-              <Route
-                path="/smart-parking/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <ParkingDashboard />
-                  </ProtectedRoute>
-                }
-              />
-               
-              {/* Smart Parking - Register Visitor */}
-              <Route
-                path="/smart-parking/register"
-                element={
-                  <ProtectedRoute>
-                    <RegisterVisitorPage />
-                  </ProtectedRoute>
-                }
-              />
-              
-              {/* Smart Parking - Checkout */}
-              <Route
-                path="/smart-parking/checkout"
-                element={
-                  <ProtectedRoute>
-                    <CheckoutPage />
-                  </ProtectedRoute>
-                }
-              />
-              
-              {/* Smart Parking - Monitor */}
-              <Route
-                path="/smart-parking/monitor"
-                element={
-                  <ProtectedRoute>
-                    <MonitorPage />
-                  </ProtectedRoute>
-                }
-              />
-              
-              {/* Smart Parking - Reports */}
-              <Route
-                path="/smart-parking/reports"
-                element={
-                  <ProtectedRoute>
-                    <ReportsPage />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* Legacy route support */}
-              <Route
-                path="/smart_parking/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <ParkingDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              
-              {/* ==================== SERVICE DELIVERY SYSTEM ==================== */}
-
-              {/* Receptionist Route */}
-              <Route
-                path="/service-delivery/receptionist"
-                element={
-                  <ProtectedRoute>
-                    <ReceptionistDashboard />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* Department Manager Route */}
-              <Route
-                path="/service-delivery/department-manager"
-                element={
-                  <ProtectedRoute>
-                    <DepartmentManagerDashboard />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/service-delivery/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <ServiceDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              
-              {/* Service Delivery - Visitors */}
-              <Route
-                path="/service-delivery/visitors"
-                element={
-                  <ProtectedRoute>
-                    <UnderDevelopment />
-                  </ProtectedRoute>
-                }
-              />
-              
-              {/* Service Delivery - Check In */}
-              <Route
-                path="/service-delivery/check-in"
-                element={
-                  <ProtectedRoute>
-                    <UnderDevelopment />
-                  </ProtectedRoute>
-                }
-              />
-              
-              {/* Service Delivery - Check Out */}
-              <Route
-                path="/service-delivery/check-out"
-                element={
-                  <ProtectedRoute>
-                    <UnderDevelopment />
-                  </ProtectedRoute>
-                }
-              />
-              
-              {/* Service Delivery - Department Flow */}
-              <Route
-                path="/service-delivery/department-flow"
-                element={
-                  <ProtectedRoute>
-                    <UnderDevelopment />
-                  </ProtectedRoute>
-                }
-              />
-              
-              {/* Legacy route support */}
-              <Route
-                path="/service_delivery/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <ServiceDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              
-              {/* ==================== SYSTEM SELECTOR ==================== */}
-              <Route
-                path="/system-selector"
-                element={
-                  <ProtectedRoute>
-                    <SystemSelector />
-                  </ProtectedRoute>
-                }
-              />
-              
-              {/* ==================== PROFILE ==================== */}
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
-                    <ProfilePage />
-                  </ProtectedRoute>
-                }
-              />
-              
-              {/* ==================== UNDER DEVELOPMENT ==================== */}
-              <Route
-                path="/under-development"
-                element={
-                  <ProtectedRoute>
-                    <UnderDevelopment />
-                  </ProtectedRoute>
-                }
-              />
+              {/* ==================== SYSTEM SELECTOR & PROFILE ==================== */}
+              <Route path="/system-selector" element={<ProtectedRoute><SystemSelector /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+              <Route path="/under-development" element={<ProtectedRoute><UnderDevelopment /></ProtectedRoute>} />
               
               {/* ==================== LEGACY ROUTES SUPPORT ==================== */}
-              {/* These redirect to new system routes */}
-              <Route
-                path="/dashboard"
-                element={<Navigate to="/admin/dashboard" replace />}
-              />
-              
-              {/* Default redirect - Go to login */}
+              <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
               <Route path="/" element={<Navigate to="/login" replace />} />
-              
-              {/* 404 */}
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
           </Router>
