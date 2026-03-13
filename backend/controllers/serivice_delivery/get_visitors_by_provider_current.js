@@ -1,11 +1,11 @@
 const ServiceDelivery = require('../../models/service_delivery.js');
 
 /**
- * Get total visitors count by provider who are currently in house 
+ * Get total visitors count and details by provider who are currently in house 
  * and have status not completed
  * Filter: is_still_inhouse = true AND services_status.s_type != 'Completed'
- * Return: count by provider_id (from services_status.provider_id)
- * Param: provider_id from URL params
+ * Return: count and visitors array by provider_id
+ * Param: provider_id from URL params (optional)
  */
 module.exports = async function get_visitors_by_provider_current(req, res, next) {
     try {
@@ -38,12 +38,23 @@ module.exports = async function get_visitors_by_provider_current(req, res, next)
                     'services_status.provider_id': provider_id
                 }
             }] : []),
-            // Group by provider_id and count visitors
+            // Remove sensitive or unnecessary fields before grouping
+            {
+                $project: {
+                    'password': 0, // In case it accidentally exists in the document
+                    'auth': 0,     // In case it accidentally exists in the document
+                    '__v': 0
+                }
+            },
+            // Group by provider_id
             {
                 $group: {
                     _id: '$services_status.provider_id',
                     count: { $sum: 1 },
-                    provider_name: { $first: '$services_status.provider_name' }
+                    provider_name: { $first: '$services_status.provider_name' },
+                    // Push the entire matched document into a 'visitors' array
+                    // Using $$ROOT gives us the whole document
+                    visitors: { $push: '$$ROOT' } 
                 }
             },
             // Sort by count descending
@@ -56,22 +67,25 @@ module.exports = async function get_visitors_by_provider_current(req, res, next)
                     _id: 0,
                     provider_id: '$_id',
                     provider_name: 1,
-                    count: 1
+                    count: 1,
+                    // Re-format the visitors array to clean up the unwound structure if needed, 
+                    // but usually returning the root document is what you want.
+                    visitors: 1 
                 }
             }
         ];
 
-        const visitors = await ServiceDelivery.aggregate(pipeline);
-
-        // Calculate total
-        const total = visitors.reduce((sum, item) => sum + item.count, 0);
+        const providerData = await ServiceDelivery.aggregate(pipeline);
+        
+        // Calculate total visitors across all matched providers
+        const total = providerData.reduce((sum, item) => sum + item.count, 0);
 
         return res.status(200).json({
             success: true,
             type: 'success',
             message: 'Current visitors by provider retrieved successfully',
             total_visitors: total,
-            data: visitors
+            data: providerData
         });
 
     } catch (error) {
