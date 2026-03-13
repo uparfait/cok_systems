@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../core/contexts/AuthContext';
+import { useToast } from '../../core/contexts/ToastContext';
 import PasswordResetOTPModal from '../../core/components/Modals/PasswordResetOTPModal';
 
 interface ForgotPasswordPageProps {
@@ -9,17 +10,16 @@ interface ForgotPasswordPageProps {
 
 const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) => {
   const { requestPasswordReset } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
   const [userId, setUserId] = useState('');
   const [showOTPModal, setShowOTPModal] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setIsLoading(true);
     
     try {
@@ -33,16 +33,17 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
           sessionStorage.setItem('resetUserId', result.data.userId);
           sessionStorage.setItem('resetEmail', email);
         }
-        // Show OTP modal directly after successful email submission
+        // Show success message and OTP modal
+        showSuccess('Reset code sent successfully! Please check your email.');
         setShowOTPModal(true);
       } else {
         // Handle both cases: status false or status true with error message
         // Use backend message with priority
-        setError(result.message || result.error || 'Failed to send reset code');
+        showError(result.message || result.error || 'Failed to send reset code');
       }
     } catch (err: any) {
       // Use backend message with priority
-      setError(err?.message || err?.error || 'An error occurred');
+      showError(err?.message || err?.error || 'An error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -146,12 +147,6 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
 
               {/* Form */}
               <form onSubmit={handleSubmit} className="space-y-6">
-                {error && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-sm text-red-600 text-center">{error}</p>
-                  </div>
-                )}
-                
                 <div>
                   <label htmlFor="email" className="block text-xs lg:text-sm font-medium text-gray-700 mb-1">
                     Email Address

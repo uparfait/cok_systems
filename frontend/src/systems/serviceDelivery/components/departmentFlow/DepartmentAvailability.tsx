@@ -22,7 +22,20 @@ interface DepartmentData {
 
 interface DepartmentAvailabilityProps {
   // Can optionally receive data from parent if available
-  departments?: DepartmentData[];
+  // Accepts either DepartmentData format or formattedDepartments format from ReceptionistDashboard
+  departments?: {
+    id?: string;
+    _id?: string;
+    department_id?: string;
+    name?: string;
+    department_name?: string;
+    department_leader?: string;
+    staffAvailable?: number;
+    total_employees?: number;
+    employees?: number;
+    currentQueue?: number;
+    isActive?: boolean;
+  }[];
   visitorCounts?: Record<string, number>;
 }
 

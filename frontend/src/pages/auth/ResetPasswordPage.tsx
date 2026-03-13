@@ -63,13 +63,14 @@ const ResetPasswordPage = () => {
         const result = await resetPassword(userId, tempToken, newPassword, confirmPassword);
         if (result.status) { 
           setIsSuccess(true); 
+          showSuccess('Password reset successfully! Redirecting to login...');
           sessionStorage.removeItem('resetUserId');
           sessionStorage.removeItem('resetTempToken');
           
           // Always redirect to login after password reset (even without tokens)
           setTimeout(() => {
             navigate('/login');
-          }, 1500);
+          }, 2000);
         }
         else { showError(result.message || result.error || 'Failed to reset password'); }
       } catch (err: any) {
