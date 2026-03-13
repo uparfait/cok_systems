@@ -10,12 +10,20 @@ const searchByDepartmentController = require('../../controllers/feedback/search_
 const searchAllController = require('../../controllers/feedback/search_all');
 const getByIdController = require('../../controllers/feedback/get_by_id');
 const deleteFeedbackController = require('../../controllers/feedback/delete_feedback');
+const getByPhoneController = require('../../controllers/feedback/get_by_phone');
 
 /**
  * POST /feedback/verify-phone
  * Verify phone number and get assigned departments
  */
 Router.post('/verify-phone', verifyPhoneController);
+
+/**
+ * GET /feedback/by-phone/:telephone
+ * Get all feedback submitted by a specific phone number
+ * Used for visitors to view their submitted feedback
+ */
+Router.get('/by-phone/:telephone', getByPhoneController);
 
 /**
  * POST /feedback/submit
