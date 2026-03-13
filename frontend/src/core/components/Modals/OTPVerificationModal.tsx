@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { getDashboardRoute } from '../Layout/layoutUtils';
 
 interface OTPVerificationModalProps {
@@ -20,6 +21,7 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
   userId: initialUserId = '' 
 }) => {
   const { verifyOTP, resendOTP, checkAuth } = useAuth();
+  const { showSuccess, showError, showWarning } = useToast();
   const [email, setEmail] = useState(initialEmail);
   const [otp, setOtp] = useState(['', '', '', '', '']); // 5 digits
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
@@ -116,11 +118,13 @@ const logoImage = '/LOGO_COK.png';
     
     if (!uid) {
       setError('User ID is missing. Please try logging in again.');
+      showError('User ID is missing. Please try logging in again.');
       return;
     }
     
     if (otpString.length !== 5) {
       setError('Please enter all 5 digits');
+      showWarning('Please enter all 5 digits');
       return;
     }
 
@@ -141,6 +145,7 @@ const logoImage = '/LOGO_COK.png';
       
       if (isVerified) {
         setIsSuccess(true);
+        showSuccess('OTP verified successfully! Redirecting...');
         
         // Store the tokens directly if provided in the response
         if (hasAccessToken && result.data) {
@@ -187,11 +192,13 @@ const logoImage = '/LOGO_COK.png';
         navigate(redirectPath, { replace: true });
       } else {
         setError(result.error || 'Invalid OTP');
+        showError(result.error || 'Invalid OTP. Please try again.');
       }
     } catch (err: any) {
       console.error('[OTPVerificationModal] verifyOTP error:', err);
       // Use backend message with priority
       setError(err?.message || err?.error || 'Failed to verify OTP');
+      showError(err?.message || err?.error || 'Failed to verify OTP. Please try again.');
     
     } finally {
       setIsLoading(false);
@@ -203,6 +210,7 @@ const logoImage = '/LOGO_COK.png';
     
     if (!uid) {
       setError('User ID is missing. Please try again.');
+      showError('User ID is missing. Please try again.');
       return;
     }
     
@@ -212,12 +220,14 @@ const logoImage = '/LOGO_COK.png';
     try {
       await resendOTP(uid, email);
       setTimeLeft(300);
+      showSuccess('OTP resent successfully! Please check your email.');
     } catch (err: any) {
       setError(err?.error || 'Failed to resend OTP');
+      showError(err?.error || 'Failed to resend OTP. Please try again.');
     } finally {
       setIsResending(false);
     }
-  }, [resendOTP, email, currentUserId, initialUserId]);
+  }, [resendOTP, email, currentUserId, initialUserId, showSuccess, showError]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

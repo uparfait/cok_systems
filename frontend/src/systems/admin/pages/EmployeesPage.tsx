@@ -593,8 +593,9 @@ const EmployeesPage: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm text-gray-600">
-                        {employee.title || '-'}
+                      <span className="text-sm text-gray-900">
+                      {/* fetches the user role - format role_name nicely (replace underscores with spaces) */}
+                        {employee.roles?.role_name ? employee.roles.role_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-'}
                       </span>
                     </td>
                     <td className="px-6 py-4">

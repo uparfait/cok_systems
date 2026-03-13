@@ -10,6 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@hugeicons/core-free-icons": "^4.0.0",
+    "@hugeicons/hugeicons-pro": "^0.0.6",
+    "@hugeicons/react": "^1.1.6",
+    "@hugeicons/react-pro-demo": "^0.0.2",
     "axios": "^1.13.5",
     "jspdf": "^4.2.0",
     "react": "^19.2.0",
@@ -23,7 +27,7 @@
     "@eslint/js": "^9.39.1",
     "@tailwindcss/vite": "^4.2.0",
     "@types/node": "^24.10.1",
-    "@types/react": "^19.2.14",
+    "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
     "babel-plugin-react-compiler": "^1.0.0",
