@@ -41,6 +41,7 @@ const MonitorPage: React.FC = () => {
   const [records, setRecords] = useState<ParkingRecord[]>([]);
   const [filteredRecords, setFilteredRecords] = useState<ParkingRecord[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<ParkingRecord | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -111,6 +112,29 @@ const MonitorPage: React.FC = () => {
     
     setFilteredRecords(filtered);
     setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const handleCheckout = async (record: ParkingRecord) => {
+    if (!record.plate_number) {
+      showError('Plate number not found for this record');
+      return;
+    }
+    
+    setCheckoutLoading(true);
+    try {
+      const response = await smartParkingService.checkOutByPlate(record.plate_number);
+      if (response.success) {
+        showSuccess('Vehicle checked out successfully');
+        setSelectedRecord(null);
+        loadData();
+      } else {
+        showError(response.message || 'Failed to checkout vehicle');
+      }
+    } catch (err: any) {
+      showError(err?.message || 'Failed to checkout vehicle');
+    } finally {
+      setCheckoutLoading(false);
+    }
   };
 
   // Pagination calculations
@@ -584,7 +608,28 @@ const MonitorPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="mt-6 flex justify-end">
+              <div className="mt-6 flex items-center justify-between">
+                <div>
+                  {selectedRecord.status === 'active' && !selectedRecord.is_flagged && (
+                    <button
+                      onClick={() => handleCheckout(selectedRecord)}
+                      disabled={checkoutLoading}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {checkoutLoading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <FiLogOut className="w-4 h-4" />
+                          Check Out Vehicle
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
                 <button
                   onClick={() => setSelectedRecord(null)}
                   className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
