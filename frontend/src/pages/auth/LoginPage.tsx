@@ -27,7 +27,6 @@ const LoginPage = () => {
   const [passwordSetupUserId, setPasswordSetupUserId] = useState('');
   const [otpVerificationEmail, setOtpVerificationEmail] = useState('');
   const [otpVerificationUserId, setOtpVerificationUserId] = useState('');
-  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
@@ -56,7 +55,7 @@ const LoginPage = () => {
         const userId = result.data.userId || result.data.user_id || result.data.id;
         
         if (!userId) {
-          setError('Login succeeded but user ID was not returned. Please try again.');
+          showError('Login succeeded but user ID was not returned. Please try again.');
           return;
         }
         
@@ -78,15 +77,15 @@ const LoginPage = () => {
         setShowFirstTimeOTPModal(true);
         return;
       } else if (result.error?.includes('not found')) {
-        setError('User not found. Please check your email or contact administrator.');
+        showError('User not found. Please check your email or contact administrator.');
         return;
       } else {
         // Handle other errors including invalid credentials - use backend message with fallback
         const errorMsg = result.message || result.error || 'Login failed';
         if (result.data?.remainingAttempts !== undefined) {
-          setError(`${errorMsg}. Attempts remaining: ${result.data.remainingAttempts}`);
+          showError(`${errorMsg}. Attempts remaining: ${result.data.remainingAttempts}`);
         } else {
-          setError(errorMsg);
+          showError(errorMsg);
         }
         return;
       }
@@ -100,9 +99,9 @@ const LoginPage = () => {
       // Use backend message with priority, fallback to error field
       const errorMsg = err?.message || err?.error || 'An error occurred during login';
       if (err?.data?.remainingAttempts !== undefined) {
-        setError(`${errorMsg}. Attempts remaining: ${err.data.remainingAttempts}`);
+        showError(`${errorMsg}. Attempts remaining: ${err.data.remainingAttempts}`);
       } else {
-        setError(errorMsg);
+        showError(errorMsg);
       }
       return;
     } finally {
@@ -344,13 +343,6 @@ const LoginPage = () => {
                   Forgot Password?
                 </a>
               </div>
-
-              {/* Error message */}
-              {error && (
-                <div className="p-2 sm:p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-xs sm:text-sm text-red-600 text-center">{error}</p>
-                </div>
-              )}
 
               {/* Sign in button */}
               <button
