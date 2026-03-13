@@ -57,7 +57,8 @@ module.exports = async function car_check_out(req, res, next) {
         // ================================================================
         
         let allowed_duration_minutes = 120; // Default: 2 hours for visitors
-
+        let is_flagged = false;
+        let final_message = "Vehicle checked out successfully.";     
         // Determine if it's staff to override the allowed time
         if (!pending_visitor) {
             const staff_member = await StaffCar.findOne({ plate_number });
@@ -68,6 +69,7 @@ module.exports = async function car_check_out(req, res, next) {
 
         // Do the math: Did they overstay?
         if (parked_minutes > allowed_duration_minutes) {
+            is_flagged = true;
             const flagged_duration = parked_minutes - allowed_duration_minutes;
             const exact_flagged_time = new Date(check_in_time.getTime() + (allowed_duration_minutes * 60000));
 
@@ -101,6 +103,7 @@ module.exports = async function car_check_out(req, res, next) {
                 total_minutes: parked_minutes,
                 overstayed_minutes: flagged_duration
             };
+            final_message = `Vehical checked out. WARNING: Vehicle overstayed by ${flagged_duration} minutes.`;
         }
         // ================================================================
 

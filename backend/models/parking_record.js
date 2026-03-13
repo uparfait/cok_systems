@@ -16,6 +16,7 @@ const parking_record_schema = new mongoose.Schema({
     check_out: { type: Date,  },
     duration: { type: String, default: '0 mins'  },
     is_flagged: { type: Boolean, default: false, default: false  },
+    badge_number: { type: String },
     checked_in_by: { type: String, default: "Not Specified"  }
 },{
     versionKey: false, // removes __v automatically
