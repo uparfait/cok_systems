@@ -435,7 +435,7 @@ const DepartmentManagerDashboard: React.FC = () => {
 
       {/* DEPARTMENT AVAILABILITY & REPORTS */}
       {activeTab === 'availability' && <DepartmentAvailabilityTab />}
-      {activeTab === 'reports' && <ReportsTab />}
+      {activeTab === 'reports' && <ReportsTab departmentId={departmentId} departmentName={departmentName} />}
 
       {/* ASSIGN MODAL */}
       {showAssignModal && selectedVisitor && (

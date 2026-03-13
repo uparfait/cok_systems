@@ -193,6 +193,14 @@ export const serviceDeliveryService = {
   
   // Get current visitors count by provider (employee)
   getCurrentVisitorsByProvider: (providerId: string) => get(`/servicedelivery/visitor/by-provider-current/${encodeURIComponent(providerId)}`),
+
+  // Get visitors by provider (employee) - returns actual visitor records
+  getVisitorsByProvider: (providerId: string, page?: number, limit?: number) => {
+    let url = `/servicedelivery/visitor/by-provider?provider_id=${encodeURIComponent(providerId)}`;
+    if (page) url += `&page=${page}`;
+    if (limit) url += `&limit=${limit}`;
+    return get(url);
+  },
   
   // Emergency leave return
   emergencyLeaveReturn: (id: string, data: any) => post(`/servicedelivery/visitor/emergency/leave-return/${id}`, data),
