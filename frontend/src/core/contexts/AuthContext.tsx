@@ -36,8 +36,9 @@ export interface User {
 }
 
 export interface Permission {
-  resource: string;
-  actions: string[];
+  resource?: string;
+  resource_name?: string;
+  actions: (string | { action_type: string; description?: string; is_enabled?: string; _id?: string })[];
 }
 
 // Auth context type
@@ -139,10 +140,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const hasPermission = useCallback((resource: string, action: string): boolean => {
     if (!permissions || permissions.length === 0) return false;
     
-    return permissions.some(perm => 
-      perm.resource.toLowerCase() === resource.toLowerCase() &&
-      perm.actions.some(a => a.toUpperCase() === action.toUpperCase())
-    );
+    return permissions.some(perm => {
+      const res = perm.resource || perm.resource_name;
+      if (!res) return false;
+      
+      return res.toLowerCase() === resource.toLowerCase() &&
+        perm.actions.some(a => {
+          const actionStr = typeof a === 'string' ? a : a.action_type;
+          return actionStr?.toUpperCase() === action.toUpperCase();
+        });
+    });
   }, [permissions]);
 
   // Check if user has any of the specified permissions

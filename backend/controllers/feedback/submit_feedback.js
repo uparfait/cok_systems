@@ -5,6 +5,9 @@
 
 const Feedback = require('../../models/feedback_db');
 const ServiceDelivery = require('../../models/service_delivery');
+const Department = require('../../models/department');
+const User = require('../../models/user');
+const { sendNegativeFeedbackAlert } = require('../../utilities/email');
 
 async function submitFeedback(req, res) {
     try {
@@ -75,6 +78,38 @@ async function submitFeedback(req, res) {
         });
 
         await feedback.save();
+
+        // Send email notification to department head if rating is 5 or below (negative feedback)
+        if (rate <= 5) {
+            try {
+                // Find the department to get the department leader
+                const department = await Department.findOne({ department_id: department_id });
+                
+                if (department && department.department_leader) {
+                    // Get the department head's information
+                    const departmentHead = await User.findById(department.department_leader);
+                    
+                    if (departmentHead && departmentHead.email) {
+                        // Send negative feedback alert email
+                        await sendNegativeFeedbackAlert(
+                            departmentHead.email,
+                            departmentHead.full_name,
+                            {
+                                rating: rate,
+                                department_name: assignedDept.department_name,
+                                user_name: serviceRecord.full_name,
+                                textmessage: textmessage || '',
+                                created_date: feedback.created_date
+                            }
+                        );
+                        console.log(`Negative feedback alert sent to ${departmentHead.email} for department ${assignedDept.department_name}`);
+                    }
+                }
+            } catch (emailError) {
+                // Log email error but don't fail the feedback submission
+                console.error('Failed to send negative feedback alert email:', emailError);
+            }
+        }
 
         return res.status(201).json({
             success: true,
