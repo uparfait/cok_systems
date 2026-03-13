@@ -18,7 +18,10 @@ module.exports = async function deleteFeedback(req, res, next) {
                 message: "Invalid feedback ID format"
             });
         }
+        /*============================================================
         // validate that feedback exists before attempting to delete
+        ==============================================================
+        */
         if (!await Feedback.exists({ _id: id })) {
             return res.status(404).json({
                 success: false,
