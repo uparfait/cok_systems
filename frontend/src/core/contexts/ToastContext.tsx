@@ -100,7 +100,7 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       window.removeEventListener('cok:toast-error', handleErrorEvent as EventListener);
       window.removeEventListener('cok:toast-warning', handleWarningEvent as EventListener);
     };
-  }, [showToast]);
+  }, []);
 
   const showSuccess = useCallback((message: string, duration?: number) => {
     showToast('success', message, duration);
