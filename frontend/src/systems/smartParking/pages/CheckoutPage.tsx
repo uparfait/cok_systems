@@ -7,6 +7,7 @@ import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
 import { smartParkingService, serviceDeliveryService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
+import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import { 
   FiSearch, FiTruck, FiUser, FiCheckCircle, FiLogOut, FiChevronLeft, FiChevronRight, FiEdit3, FiArrowRight
 } from 'react-icons/fi';
@@ -179,8 +180,8 @@ const CheckoutPage: React.FC = () => {
         // Use service delivery checkout
         response = await serviceDeliveryService.checkOut(selectedRecord._id || '');
       } else {
-        // Use smart parking checkout
-        response = await smartParkingService.checkOut(selectedRecord.plate_number);
+        // Use smart parking checkout by plate number
+        response = await smartParkingService.checkOutByPlate(selectedRecord.plate_number || '');
       }
       
       // Update local state - remove the record
@@ -272,11 +273,8 @@ const CheckoutPage: React.FC = () => {
   if (authLoading || loading) {
     return (
       <MainLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading...</p>
-          </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <LoadingSpinner message="Loading checkout data..." />
         </div>
       </MainLayout>
     );
@@ -386,11 +384,8 @@ const CheckoutPage: React.FC = () => {
           {/* Table Content - with loading */}
           <div className="overflow-x-auto">
             {loading ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-gray-500">Loading...</p>
-                </div>
+              <div className="flex items-center justify-center min-h-[300px]">
+                <LoadingSpinner message="Loading records..." size="lg" />
               </div>
             ) : (
               <table className="w-full min-w-[600px]">
@@ -429,13 +424,13 @@ const CheckoutPage: React.FC = () => {
                         </td>
                         <td className="px-3 md:px-4 py-3">
                           <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                            record.driver_type === 'Staff' 
+                            record.driver_type === 'Staff' || record.driver_type?.toLowerCase() === 'staff'
                               ? 'bg-purple-100 text-purple-700'
-                              : record.driver_type === 'Visitor'
+                              : record.driver_type === 'Visitor' || record.driver_type?.toLowerCase() === 'visitor'
                               ? 'bg-blue-100 text-blue-700'
                               : 'bg-gray-100 text-gray-700'
                           }`}>
-                            {record.driver_type || 'Visitor'}
+                            {record.driver_type ? record.driver_type.charAt(0).toUpperCase() + record.driver_type.slice(1).toLowerCase() : 'Visitor'}
                           </span>
                         </td>
                         <td className="px-3 md:px-4 py-3 text-gray-500 text-sm">{formatDate(record.check_in)}</td>
@@ -554,11 +549,13 @@ const CheckoutPage: React.FC = () => {
                     
                     {/* Driver Type Badge */}
                     <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                      selectedRecord.driver_type === 'Staff' 
+                      selectedRecord.driver_type === 'Staff' || selectedRecord.driver_type?.toLowerCase() === 'staff'
                         ? 'bg-purple-100 text-purple-700'
-                        : 'bg-blue-100 text-blue-700'
+                        : selectedRecord.driver_type === 'Visitor' || selectedRecord.driver_type?.toLowerCase() === 'visitor'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-700'
                     }`}>
-                      {selectedRecord.driver_type || 'Visitor'}
+                      {selectedRecord.driver_type ? selectedRecord.driver_type.charAt(0).toUpperCase() + selectedRecord.driver_type.slice(1).toLowerCase() : 'Visitor'}
                     </span>
                   </div>
                 </div>

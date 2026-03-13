@@ -134,9 +134,11 @@ module.exports = async function car_check_in(req, res, next) {
 
         await ParkingRecord.updateMany({ plate_number, is_flagged: true }, { is_flagged: false })
 
-        // if driver_type is Regular save this one toa service deliver also
-
-        if (driver_type.toLowerCase() === 'regular' && driver_name) {
+        // Create ServiceDelivery record for all checked-in visitors (with or without vehicle)
+        // This allows Service Delivery receptionist to see and assign them to departments
+        
+        if (driver_name && (driver_type.toLowerCase() === 'regular' || driver_type.toLowerCase() === 'visitor')) {
+            const hasVehicle = plate_number && plate_number !== 'N/A' && plate_number.toUpperCase() !== 'NOT SPECIFIED';
             const service_delivery = new ServiceDelivery({
                 full_name: driver_name,
                 telephone: driver_telephone,
@@ -144,13 +146,15 @@ module.exports = async function car_check_in(req, res, next) {
                 email: driver_email,
                 identification: driver_identification,
                 vehicle_storage: {
-                    has_vehicle: true,
-                    vehicle_details: {
+                    has_vehicle: hasVehicle,
+                    vehicle_details: hasVehicle ? {
                         plate_number,
                         slot_number
-                    }
+                    } : null
                 },
-                badge_number
+                badge_number,
+                is_still_inhouse: true,
+                entry_date: check_in_date
             })
             await service_delivery.save()
         }

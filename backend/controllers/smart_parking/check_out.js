@@ -38,17 +38,22 @@ module.exports = async function car_check_out(req, res, next) {
 
 
         const pending_visitor = await ServiceDelivery.findOne({
-            "vehicle_storage.has_vehicle": true,
-            "vehicle_storage.vehicle_details.plate_number": plate_number
+            $or: [
+                { "vehicle_storage.has_vehicle": true, "vehicle_storage.vehicle_details.plate_number": plate_number },
+                { "vehicle_storage.has_vehicle": false, full_name: parking_session.driver_name, is_still_inhouse: true }
+            ]
         });
 
 
         if (pending_visitor) {
             pending_visitor.is_still_inhouse = false;
-            pending_visitor.vehicle_storage.vehicle_details.exited_time = current_time;
-            pending_visitor.vehicle_storage.vehicle_details.duration = `${parked_minutes} mins`;
-
-
+            
+            // Only update vehicle details if they have a vehicle
+            if (pending_visitor.vehicle_storage?.has_vehicle && pending_visitor.vehicle_storage?.vehicle_details) {
+                pending_visitor.vehicle_storage.vehicle_details.exited_time = current_time;
+                pending_visitor.vehicle_storage.vehicle_details.duration = `${parked_minutes} mins`;
+            }
+            
             await pending_visitor.save();
         }
 

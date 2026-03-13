@@ -149,6 +149,10 @@ export const EmployeeModalsWrapper: React.FC<EmployeeModalsWrapperProps> = ({
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
         employee={departmentEmployee}
+        onSave={(employee) => {
+          console.log('Save employee:', employee);
+          setShowEditModal(false);
+        }}
       />
 
       {/* Delete Modal */}
@@ -156,12 +160,20 @@ export const EmployeeModalsWrapper: React.FC<EmployeeModalsWrapperProps> = ({
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         employee={departmentEmployee}
+        onDelete={() => {
+          console.log('Delete employee');
+          setShowDeleteModal(false);
+        }}
       />
 
       {/* Add Modal */}
       <AddEmployeeModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
+        onAdd={(employee) => {
+          console.log('Add employee:', employee);
+          setShowAddModal(false);
+        }}
       />
     </>
   );
