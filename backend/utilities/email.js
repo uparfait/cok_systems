@@ -105,9 +105,41 @@ const sendAccountActivatedEmail = async (email, name) => {
     return await sendViaAPI(email, subject, htmlContent, "Your account has been activated.");
 };
 
+/**
+ * Send negative feedback alert email to department head
+ * @param {string} email - Recipient email address (department head)
+ * @param {string} leaderName - Department head's name
+ * @param {object} feedbackData - Feedback details { rating, department_name, user_name, textmessage, created_date }
+ * @returns {Promise<object>} - { success: boolean, error?: string }
+ */
+const sendNegativeFeedbackAlert = async (email, leaderName, feedbackData) => {
+    const subject = `⚠️ Negative Feedback Alert - ${feedbackData.department_name}`;
+    
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
+            <h2 style="color: #d9534f;">⚠️ Negative Feedback Alert</h2>
+            <p>Dear ${leaderName},</p>
+            <p>You have received negative feedback for <strong>${feedbackData.department_name}</strong>.</p>
+            <div style="background: #f5f5f5; padding: 15px; margin: 20px 0; border-left: 4px solid #d9534f;">
+                <p><strong>Rating:</strong> ${feedbackData.rating}/10</p>
+                <p><strong>Visitor:</strong> ${feedbackData.user_name || 'Anonymous'}</p>
+                <p><strong>Date:</strong> ${new Date(feedbackData.created_date).toLocaleString()}</p>
+                <p><strong>Message:</strong></p>
+                <p>${feedbackData.textmessage || 'No message provided'}</p>
+            </div>
+            <p style="color: #666;">Please take immediate action to address this concern.</p>
+        </div>
+    `;
+    
+    const textContent = `Negative Feedback Alert for ${feedbackData.department_name}. Rating: ${feedbackData.rating}/10. Visitor: ${feedbackData.user_name || 'Anonymous'}. Message: ${feedbackData.textmessage || 'No message'}. Please take action.`;
+    
+    return await sendViaAPI(email, subject, htmlContent, textContent);
+};
+
 module.exports = {
     sendOTPEmail,
     sendWelcomeEmail,
     sendPasswordChangedEmail,
-    sendAccountActivatedEmail
+    sendAccountActivatedEmail,
+    sendNegativeFeedbackAlert
 };
