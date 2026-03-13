@@ -1,18 +1,14 @@
 // ProvideServicesTab - Service Provision page with Serve Modal
-// INTEGRATED WITH BACKEND APIs & BULLETPROOF ASSIGNMENT MATCHING
+// STRICT SCHEMA ALIGNMENT: 'Not started', 'Inprogress', 'Transfered', 'Completed'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   FiSearch, FiFilter, FiClock, FiCheckCircle, FiRefreshCw
 } from 'react-icons/fi';
 
 // Import modal components
 import { ServeVisitorModal } from '../index';
-
-// Import shared components
 import { Pagination, ServiceStatusBadge } from '../../shared';
-
-// API Services
 import { useAuth } from '../../../../../core/contexts/AuthContext';
 import { serviceDeliveryService } from '../../../../../core/services/adminService';
 
@@ -30,12 +26,12 @@ interface ServiceRequest {
   id: string;
   visitorName: string;
   visitorId: string;
+  assignedTo: string;
   serviceType: string;
-  serviceColor: string;
   waitTime: string;
   avatarColor: string;
   initials: string;
-  status: string;
+  status: 'not_started' | 'inprogress' | 'completed' | 'transfered';
   telephone: string;
   checkInRaw: string;
 }
@@ -56,13 +52,16 @@ const ProvideServicesTab: React.FC = () => {
 
   const entriesPerPage = 5;
 
-  const fetchAssignedVisitors = async () => {
+  const fetchAssignedVisitors = useCallback(async () => {
     const currentUser = user as any;
-    
-    // Safely get all possible identifiers for the logged-in user
     const myId = currentUser?._id || currentUser?.id || currentUser?.userId || currentUser?.employee_id;
-    const myName = (currentUser?.full_name || currentUser?.fullName || currentUser?.name || '').toLowerCase().trim();
+    const myName = (currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown').trim();
 
+    if (!myId) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       const response = await serviceDeliveryService.getAll() as any;
@@ -71,31 +70,26 @@ const ProvideServicesTab: React.FC = () => {
         const allVisitors = Array.isArray(response.data) ? response.data : 
                             Array.isArray(response) ? response : [];
         
-        // 👉 BULLETPROOF FILTER: Match by ID *OR* Name
+        // Filter for visitors assigned to this employee
         const myVisitors = allVisitors.filter((v: any) => {
-          if (!v) return false;
-
-          const assignedObj = typeof v.assignedTo === 'object' ? v.assignedTo : null;
-          const assignedStr = typeof v.assignedTo === 'string' ? v.assignedTo : null;
-          
-          const assignedId = assignedObj?._id || assignedObj?.id || assignedObj?.employee_id || assignedStr;
-          const assignedName = (assignedObj?.full_name || assignedObj?.name || v.assignedStaff || assignedStr || '').toLowerCase().trim();
-          
-          const isIdMatch = myId && assignedId && String(myId) === String(assignedId);
-          const isNameMatch = myName && assignedName && assignedName.includes(myName);
-
-          return isIdMatch || isNameMatch;
+          if (!v.services_status || !Array.isArray(v.services_status)) return false;
+          return v.services_status.some((status: any) => 
+            status.provider_id === String(myId)
+          );
         });
         
         const formattedRequests: ServiceRequest[] = myVisitors.map((v: any) => {
+          const serviceStatus = v.services_status?.find((s: any) => s.provider_id === String(myId));
           
-          let status = 'waiting';
-          const rawStatus = (v.status || '').toLowerCase();
+          // MAP STRICT BACKEND STATUS TO FRONTEND
+          let status: 'not_started' | 'inprogress' | 'completed' | 'transfered' = 'not_started';
+          const rawStatus = (serviceStatus?.s_type || '').toLowerCase();
+          
           if (rawStatus === 'completed') status = 'completed';
-          else if (rawStatus === 'in_progress' || rawStatus === 'inside') status = 'in-progress';
-          else if (rawStatus === 'transferred') status = 'transferred';
+          else if (rawStatus === 'inprogress') status = 'inprogress';
+          else if (rawStatus === 'transfered' || rawStatus === 'transferred') status = 'transfered';
           
-          const colors = ['bg-purple-500', 'bg-pink-500', 'bg-yellow-400', 'bg-teal-500', 'bg-lavender-400', 'bg-blue-500', 'bg-green-500'];
+          const colors = ['bg-purple-500', 'bg-pink-500', 'bg-yellow-400', 'bg-teal-500', 'bg-lavender-400', 'bg-blue-500'];
           const visitorName = v.full_name || v.name || v.visitorName || 'Unknown';
           const colorIndex = visitorName.charCodeAt(0) % colors.length;
           const initials = visitorName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
@@ -104,14 +98,7 @@ const ProvideServicesTab: React.FC = () => {
           if (typeof v.identification === 'string') identification = v.identification;
           else if (v.identification?.number) identification = v.identification.number;
 
-          const serviceColors = [
-            'bg-[#f3e5f5] text-[#7b1fa2]', 'bg-[#e3f2fd] text-[#1565c0]', 
-            'bg-[#e8f5e9] text-[#2e7d32]', 'bg-[#fff8e1] text-[#f57f17]'
-          ];
-          const serviceName = v.service || 'General Service';
-          const sColor = serviceColors[serviceName.charCodeAt(0) % serviceColors.length];
-
-          const checkIn = v.checkInTime || v.check_in_time || v.createdAt || new Date().toISOString();
+          const checkIn = serviceStatus?.assigned_time || v.entry_date || new Date().toISOString();
           let waitTimeString = 'Just now';
           if (checkIn) {
             const diffMins = Math.floor((new Date().getTime() - new Date(checkIn).getTime()) / 60000);
@@ -119,11 +106,11 @@ const ProvideServicesTab: React.FC = () => {
           }
 
           return {
-            id: v._id || v.id || Math.random().toString(),
+            id: v._id || v.id,
             visitorName: visitorName,
             visitorId: identification,
-            serviceType: serviceName,
-            serviceColor: sColor,
+            assignedTo: myName,
+            serviceType: serviceStatus?.department_name || 'General Service',
             waitTime: waitTimeString,
             avatarColor: colors[colorIndex],
             initials: initials,
@@ -138,7 +125,7 @@ const ProvideServicesTab: React.FC = () => {
         setRequests(formattedRequests);
         
         const completedCount = formattedRequests.filter(r => r.status === 'completed').length;
-        const waitingCount = formattedRequests.filter(r => r.status === 'waiting' || r.status === 'in-progress').length;
+        const waitingCount = formattedRequests.filter(r => r.status === 'not_started' || r.status === 'inprogress').length;
         
         setStats({
           waitAvg: waitingCount > 0 ? '12m 30s' : '0m',
@@ -151,23 +138,25 @@ const ProvideServicesTab: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchAssignedVisitors();
-    const interval = setInterval(fetchAssignedVisitors, 30000);
+    const interval = setInterval(fetchAssignedVisitors, 15000); // Check every 15s
     return () => clearInterval(interval);
-  }, [user]);
+  }, [fetchAssignedVisitors]);
 
   const filteredRequests = requests.filter(request => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = !searchTerm || 
       request.visitorName.toLowerCase().includes(searchLower) ||
-      request.visitorId.toLowerCase().includes(searchLower) ||
-      request.serviceType.toLowerCase().includes(searchLower);
+      request.visitorId.toLowerCase().includes(searchLower);
     
-    const matchesStatus = statusFilter === 'all' || 
-      request.status.toLowerCase().replace('-', '').replace('_', '') === statusFilter.toLowerCase().replace('-', '').replace('_', '');
+    // Quick normalize for filter dropdown
+    let normalizedStatus = request.status.replace('_', '-'); 
+    if (normalizedStatus === 'transfered') normalizedStatus = 'transferred';
+
+    const matchesStatus = statusFilter === 'all' || normalizedStatus === statusFilter.toLowerCase();
     
     return matchesSearch && matchesStatus;
   });
@@ -175,11 +164,6 @@ const ProvideServicesTab: React.FC = () => {
   const totalFilteredPages = Math.ceil(filteredRequests.length / entriesPerPage);
   const startIndex = (currentPage - 1) * entriesPerPage;
   const paginatedRequests = filteredRequests.slice(startIndex, startIndex + entriesPerPage);
-
-  const handleStatusFilterChange = (value: string) => {
-    setStatusFilter(value);
-    setCurrentPage(1);
-  };
 
   const handleServeClick = (request: ServiceRequest) => {
     if (request.status === 'completed') return;
@@ -196,23 +180,47 @@ const ProvideServicesTab: React.FC = () => {
     setShowModal(true);
   };
 
-  // 👉 BACKEND COMPLETION/TRANSFER LOGIC
+  // 👉 TRIGGERED WHEN "START SERVICE" IS CLICKED IN MODAL
+  const handleServiceStart = async (startTime: string) => {
+    if (!selectedVisitor) return;
+    try {
+      const currentUser = user as any;
+      const myId = currentUser?._id || currentUser?.id || currentUser?.employee_id;
+
+      // Update backend strictly to 'Inprogress'
+      await serviceDeliveryService.update(selectedVisitor.id, {
+        services_status: [{
+            provider_id: myId,
+            s_type: 'Inprogress'
+        }]
+      });
+      
+      await fetchAssignedVisitors(); // Refresh UI in background
+    } catch (error) {
+      console.error("Failed to start service:", error);
+    }
+  };
+
+  // 👉 TRIGGERED WHEN "END SERVICE" IS CLICKED IN MODAL
   const handleServiceComplete = async (data: any) => {
     if (!selectedVisitor) return;
     setIsServing(true);
 
     try {
-      // Determine if this is a completion or a transfer based on modal data
-      const isTransfer = data.notes && data.notes.toLowerCase().includes('transfer');
-      
-      const updatePayload = {
-        status: isTransfer ? 'Transferred' : 'Completed',
-        serviceNotes: data.notes 
-      };
+      const currentUser = user as any;
+      const myId = currentUser?._id || currentUser?.id || currentUser?.employee_id;
 
-      await serviceDeliveryService.update(selectedVisitor.id, updatePayload);
+      const isTransfer = data.notes && data.notes.toLowerCase().includes('transfer');
+      // Update backend strictly to 'Transfered' or 'Completed'
+      const targetStatus = isTransfer ? 'Transfered' : 'Completed';
+
+      await serviceDeliveryService.update(selectedVisitor.id, {
+        services_status: [{
+            provider_id: myId,
+            s_type: targetStatus
+        }]
+      });
       
-      // Refresh the table instantly
       await fetchAssignedVisitors();
       setShowModal(false);
       setSelectedVisitor(null);
@@ -224,10 +232,6 @@ const ProvideServicesTab: React.FC = () => {
       setIsServing(false);
     }
   };
-
-  if (loading && requests.length === 0) {
-    return <div className="p-7 flex items-center justify-center h-64 text-[#888]">Loading active requests...</div>;
-  }
 
   return (
     <div className="p-7">
@@ -284,7 +288,7 @@ const ProvideServicesTab: React.FC = () => {
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
-              placeholder="Search by visitor name, ID, or service type..."
+              placeholder="Search by visitor name or ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full h-11 pl-10 pr-4 border border-[#e0e0e0] rounded-[8px] text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a73e8]"
@@ -292,12 +296,15 @@ const ProvideServicesTab: React.FC = () => {
           </div>
           <select
             value={statusFilter}
-            onChange={(e) => handleStatusFilterChange(e.target.value)}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className="h-11 px-4 border border-[#e0e0e0] rounded-[8px] text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a73e8] bg-white"
           >
             <option value="all">All Status</option>
-            <option value="waiting">Waiting</option>
-            <option value="in-progress">In Progress</option>
+            <option value="not-started">Not Started</option>
+            <option value="inprogress">In Progress</option>
             <option value="completed">Completed</option>
           </select>
         </div>
@@ -306,23 +313,22 @@ const ProvideServicesTab: React.FC = () => {
       <div className="bg-white rounded-[14px] p-6 mt-4 shadow-[0_1px_4px_rgba(0,0,0,0.07)]">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-[#1a2744] text-[16px] font-bold">Active Service Requests</h2>
-          <div className="text-[#888] text-[12px]">
-            Showing {filteredRequests.length > 0 ? startIndex + 1 : 0}-{Math.min(startIndex + entriesPerPage, filteredRequests.length)} of {filteredRequests.length} entries
-          </div>
         </div>
 
         <table className="w-full">
           <thead>
             <tr className="border-b border-[#f0f0f0]">
               <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">VISITOR</th>
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">SERVICE TYPE</th>
+              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">ASSIGNED TO</th>
               <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">WAIT TIME</th>
               <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">STATUS</th>
               <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">ACTION</th>
             </tr>
           </thead>
           <tbody>
-            {paginatedRequests.length > 0 ? paginatedRequests.map((request) => (
+            {loading && requests.length === 0 ? (
+              <tr><td colSpan={5} className="py-8 text-center text-gray-500">Loading requests...</td></tr>
+            ) : paginatedRequests.length > 0 ? paginatedRequests.map((request) => (
               <tr key={request.id} className="border-b border-[#f8f8f8] h-14">
                 <td className="py-3">
                   <div className="flex items-center gap-3">
@@ -335,36 +341,35 @@ const ProvideServicesTab: React.FC = () => {
                     </div>
                   </div>
                 </td>
-                <td className="py-3">
-                  <span className={`px-3 py-1 rounded-full text-[11px] font-medium ${request.serviceColor}`}>
-                    {request.serviceType}
-                  </span>
+                <td className="py-3 text-[#333] text-[13px] font-medium">
+                  {request.assignedTo}
                 </td>
                 <td className="py-3 text-[#666] text-[13px]">{request.waitTime}</td>
                 <td className="py-3">
-                  <ServiceStatusBadge status={request.status} variant="employee" />
+                  {/* Custom Badges mapping perfectly to schema */}
+                  {request.status === 'not_started' && <span className="inline-flex items-center px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide bg-[#fff3e0] text-[#f57c00]">Not Started</span>}
+                  {request.status === 'inprogress' && <span className="inline-flex items-center px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide bg-[#e3f2fd] text-[#1a73e8]">In Progress</span>}
+                  {request.status === 'completed' && <span className="inline-flex items-center px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide bg-[#e8f5e9] text-[#2e7d32]">Completed</span>}
+                  {request.status === 'transfered' && <span className="inline-flex items-center px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide bg-[#f3e5f5] text-[#7b1fa2]">Transferred</span>}
                 </td>
                 <td className="py-3">
                   {request.status === 'completed' ? (
-                    <span className="text-[#34a853] text-[12px] font-medium">
-                      ✓ Served
-                    </span>
-                  ) : request.status === 'transferred' ? (
-                    <span className="text-[#1a73e8] text-[12px] font-medium">
-                      ⇄ Transferred
-                    </span>
+                    <span className="text-[#34a853] text-[12px] font-medium">✓ Served</span>
+                  ) : request.status === 'transfered' ? (
+                    <span className="text-[#7b1fa2] text-[12px] font-medium">⇄ Transferred</span>
                   ) : (
                     <button
                       onClick={() => handleServeClick(request)}
-                      className="h-8 px-4 bg-[#1a73e8] text-white text-[12px] font-medium rounded-[6px] hover:bg-[#1558c0] transition-colors"
+                      disabled={isServing}
+                      className={`h-8 px-4 text-white text-[12px] font-medium rounded-[6px] transition-colors disabled:opacity-50 ${request.status === 'inprogress' ? 'bg-[#ff9800] hover:bg-[#f57c00]' : 'bg-[#1a73e8] hover:bg-[#1558c0]'}`}
                     >
-                      Serve
+                      {request.status === 'inprogress' ? 'Resume' : 'Serve'}
                     </button>
                   )}
                 </td>
               </tr>
             )) : (
-              <tr><td colSpan={5} className="py-8 text-center text-gray-500">No visitors currently waiting for you.</td></tr>
+              <tr><td colSpan={5} className="py-8 text-center text-gray-500">No active visitors assigned to you.</td></tr>
             )}
           </tbody>
         </table>
@@ -389,10 +394,8 @@ const ProvideServicesTab: React.FC = () => {
           setSelectedVisitor(null);
         }}
         visitor={selectedVisitor as any}
-        onServiceStart={(startTime) => {
-          console.log('Service started at:', startTime);
-        }}
-        onServiceEnd={handleServiceComplete}
+        onServiceStart={handleServiceStart} // Trigger status change to "Inprogress"
+        onServiceEnd={handleServiceComplete} // Trigger status change to "Completed"
       />
     </div>
   );
