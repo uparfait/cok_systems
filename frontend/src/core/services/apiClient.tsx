@@ -162,16 +162,9 @@ apiClient.interceptors.request.use(
 );
 
 // Response interceptor - Handle auth errors and token refresh
+// NOTE: Toast notifications are now handled manually in components to avoid duplicate toasts
 apiClient.interceptors.response.use(
   (response) => {
-    // Show success toast for successful POST, PUT, DELETE requests with success message
-    const method = response.config.method?.toUpperCase();
-    const isMutationRequest = method === 'POST' || method === 'PUT' || method === 'DELETE';
-    
-    if (isMutationRequest && response.data?.message) {
-      dispatchToast('success', response.data.message);
-    }
-    
     return response;
   },
   async (error: AxiosError) => {
@@ -259,10 +252,6 @@ apiClient.interceptors.response.use(
       errorField = error.message;
     }
 
-    // Show error toast for API errors (skip for 401 as it redirects to login)
-    if (statusCode && statusCode >= 400 && statusCode !== 401) {
-      dispatchToast('error', errorMessage);
-    }
     
     return Promise.reject({
       status: false,
@@ -308,8 +297,10 @@ export const apiRequest = async (
 
   try {
     const response = await apiClient(config);
+    console.log('API Response:', response.data);
     return response.data;
   } catch (error: any) {
+    console.log('API Error:', error.response?.data || error.message);
 
         // If error is already an object with message/error properties (from interceptor)
     if (error && typeof error === 'object' && (error.message || error.error) && 'status' in error) {

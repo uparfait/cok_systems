@@ -29,7 +29,7 @@ module.exports = async function verify_car(req, res, next) {
             "validity.to": { $gte: new Date() } // Ensure reservation hasn't expired
         });
 
-        // check if is flagged
+        // check if is flagged.
 
         const is_flagged = await ParkingRecord.findOne({ plate_number, is_flagged: true });
 
@@ -75,7 +75,7 @@ module.exports = async function verify_car(req, res, next) {
                 plate_number,
                 is_currently_parked: !!active_parking,
                 parking_details: active_parking || null,
-                vehicle_category: vehicle_type,
+                vehicle_category: ,
                 is_flagged: !!is_flagged,
                 is_reserved: is_reserved,
                 staff_details: staff_car || null,
