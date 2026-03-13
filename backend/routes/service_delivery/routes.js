@@ -15,10 +15,10 @@ const vistor_checkout =  require('../../controllers/serivice_delivery/vistor_che
 const toggle_service_status = require('../../controllers/serivice_delivery/toggle_service_status.js')
 const toggle_leave_out_side_and_return = require('../../controllers/serivice_delivery/toggle_leave_out_side_and_return.js')
 const update_vistor_data = require('../../controllers/serivice_delivery/update_vistor_data.js')
-const get_visitors_by_department = require('../../controllers/serivice_delivery/get_visitors_by_department.js')
+const get_visitors_by_department = require('../../controllers/serivice_delivery/get_visitors_by_department_current.js')
 const get_visitors_by_department_current = require('../../controllers/serivice_delivery/get_visitors_by_department_current.js')
 const get_visitors_by_provider_current = require('../../controllers/serivice_delivery/get_visitors_by_provider_current.js')
-const get_visitors_by_provider = require('../../controllers/serivice_delivery/get_visitors_by_provider.js')
+const get_visitors_by_provider = require('../../controllers/serivice_delivery/get_visitors_by_provider_current.js')
 const multer = require('multer')
 const upload = multer()
 
