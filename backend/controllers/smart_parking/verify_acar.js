@@ -32,7 +32,10 @@ module.exports = async function verify_car(req, res, next) {
 
         // check if is flagged.
 
-        const is_flagged = await ParkingRecord.findOne({ plate_number, is_flagged: true });
+        const is_flagged = await ParkingRecord.findOne({ plate_number, is_flagged: true, status: 'active' });
+        
+        // Check if vehicle was ever flagged in the past (even if checked out now)
+        const was_ever_flagged = await ParkingRecord.findOne({ plate_number, is_flagged: true });
 
         // also check if it was parked before and provide vistor info
 
@@ -91,6 +94,7 @@ module.exports = async function verify_car(req, res, next) {
                     parking_details: null,
                     vehicle_category: 'Unknown',
                     is_flagged: !!is_flagged,
+                    was_ever_flagged: !!was_ever_flagged,
                     is_reserved: false,
                     staff_details: null,
                     emergency_reservation_details: null,
@@ -116,6 +120,7 @@ module.exports = async function verify_car(req, res, next) {
                 parking_details: active_parking || null,
                 vehicle_category: vehicle_type || 'unknown',
                 is_flagged: !!is_flagged,
+                was_ever_flagged: !!was_ever_flagged,
                 is_reserved: is_reserved || false,
                 staff_details: staff_car || null,
                 emergency_reservation_details: emergency_reservation?.visitor_info || null,
@@ -142,6 +147,7 @@ module.exports = async function verify_car(req, res, next) {
                 vehicle_category: 'Unknown',
                 is_currently_parked: false,
                 is_flagged: false,
+                was_ever_flagged: false,
                 is_reserved: false,
                 driver_details: {
                     name: null,
