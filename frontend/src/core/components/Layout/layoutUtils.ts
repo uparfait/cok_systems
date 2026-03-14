@@ -117,12 +117,20 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     ];
   }
 
+  // 👉 EMPLOYEE INTERCEPTOR: Return Employee sidebar
+  if (userRole.includes('employee') || userRole.includes('staff')) {
+    return [
+      { id: 'dashboard', label: 'Dashboard', path: '/service-delivery/employee', icon: 'FiGrid' },
+      { id: 'services', label: 'My Services', path: '/service-delivery/employee?tab=services', icon: 'FiClock' },
+      { id: 'availability', label: 'Availability', path: '/service-delivery/employee?tab=availability', icon: 'FiCheckCircle' }
+    ];
+  }
+
   // 👉 DEPT MANAGER INTERCEPTOR: Custom Sidebar
+  // IMPORTANT: More specific checks must come BEFORE general ones to avoid "manager" matching "receptionist"
   if (userRole.includes('department manager') || 
       userRole.includes('department head') ||
       userRole.includes('head of department') ||
-      userRole.includes('manager') ||
-      userRole.includes('head') ||
       userRole.includes('director')) {
     return [
       { id: 'dashboard', label: 'Dashboard', path: '/service-delivery/department-manager', icon: 'FiGrid' },
@@ -141,6 +149,18 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       { id: 'parking-checkout', label: 'Checkout', path: '/smart-parking/checkout', icon: 'FiLogOut' },
       { id: 'parking-monitor', label: 'Monitor', path: '/smart-parking/monitor', icon: 'FiGrid' },
       { id: 'parking-reports', label: 'Reports', path: '/smart-parking/reports', icon: 'FiFile' }
+    ];
+  }
+  
+  // Generic "manager" or "head" checks should come AFTER receptionist check
+  // But we need to exclude receptionist from these generic checks
+  if ((userRole.includes('manager') || userRole.includes('head')) && !userRole.includes('receptionist')) {
+    return [
+      { id: 'dashboard', label: 'Dashboard', path: '/service-delivery/department-manager', icon: 'FiGrid' },
+      { id: 'status', label: 'Service Status', path: '/service-delivery/department-manager?tab=status', icon: 'FiClock' },
+      { id: 'employees', label: 'Employee Management', path: '/service-delivery/department-manager?tab=employees', icon: 'FiUsers' },
+      { id: 'availability', label: 'Dept. Availability', path: '/service-delivery/department-manager?tab=availability', icon: 'FiCheckCircle' },
+      { id: 'reports', label: 'Reports', path: '/service-delivery/department-manager?tab=reports', icon: 'FiFile' }
     ];
   }
   
@@ -353,14 +373,30 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
     return '/service-delivery/receptionist';
   }
 
+  // Employee role check - redirect to employee dashboard
+  // More flexible matching to catch various role formats
+  if (normalizedRole.includes('employee') || 
+      normalizedRole.includes('staff') ||
+      normalizedRole.includes('officer') ||
+      normalizedRole.includes('clerk')) {
+    console.log('[getDashboardRoute] Matched employee/staff/officer/clerk');
+    return '/service-delivery/employee';
+  }
+
   // 👉 ADDED THIS MANAGER CHECK RIGHT HERE:
+  // IMPORTANT: More specific checks must come BEFORE general ones to avoid "manager" matching "receptionist"
   if (normalizedRole.includes('department manager') || 
       normalizedRole.includes('department head') ||
       normalizedRole.includes('head of department') ||
-      normalizedRole.includes('manager') ||
-      normalizedRole.includes('head') ||
       normalizedRole.includes('director')) {
     console.log('[getDashboardRoute] Matched department manager/head/director');
+    return '/service-delivery/department-manager';
+  }
+  
+  // Generic "manager" or "head" checks should come AFTER receptionist check
+  // But we need to exclude receptionist from these generic checks
+  if ((normalizedRole.includes('manager') || normalizedRole.includes('head')) && !normalizedRole.includes('receptionist')) {
+    console.log('[getDashboardRoute] Matched manager/head (not receptionist)');
     return '/service-delivery/department-manager';
   }
   
@@ -398,8 +434,15 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
     console.log('[getDashboardRoute] Matched parking/IT');
     return '/smart-parking/dashboard';
   }
-  if (normalizedRole.includes('service') || normalizedRole.includes('hr')) {
-    console.log('[getDashboardRoute] Matched service/HR');
+  
+  // Service delivery staff (not manager/receptionist) should go to employee dashboard
+  if (normalizedRole.includes('service')) {
+    console.log('[getDashboardRoute] Matched service (going to employee dashboard)');
+    return '/service-delivery/employee';
+  }
+  
+  if (normalizedRole.includes('hr')) {
+    console.log('[getDashboardRoute] Matched HR');
     return '/service-delivery/dashboard';
   }
   

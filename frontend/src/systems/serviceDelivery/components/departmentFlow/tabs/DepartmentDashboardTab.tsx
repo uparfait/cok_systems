@@ -1,229 +1,283 @@
-// Department Dashboard Tab Component
+// EmployeeDashboardTab - Dashboard page for Employee
+// INTEGRATED WITH BACKEND API & BULLETPROOF ASSIGNMENT MATCHING
 
-import { useState } from "react";
-import { FiClock, FiRefreshCw, FiArrowRightCircle, FiArrowRight, FiCheckCircle, FiFilter, FiUserCheck, FiX } from "react-icons/fi";
+import React, { useState, useEffect } from 'react';
+import { 
+  FiSearch, FiFilter, FiClock, FiCheckCircle
+} from 'react-icons/fi';
+import { useAuth } from '../../../../../core/contexts/AuthContext';
+import { serviceDeliveryService } from '../../../../../core/services/adminService';
 
 // Import shared components
 import { Pagination } from '../../shared';
 
-// Types
-interface Visitor {
+// Service record interface
+interface ServiceRecord {
   id: string;
-  fullName: string;
-  nationalId: string;
-  service: string;
-  department: string;
-  arrivalTime: string;
-  status: string;
-  phone: string;
-  requestId?: string;
+  visitorName: string;
+  serviceId: string;
+  status: 'pending' | 'completed' | 'transferred';
+  assignmentTime: string;
+  avatarColor: string;
+  initials: string;
 }
 
-interface Employee {
-  id: string;
-  name: string;
-  role: string;
-  status: 'available' | 'busy' | 'off';
-  avatar?: string;
-}
-
-// Get initials from name
-const getInitials = (name: string) => {
-  const parts = name.split(' ');
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  return name.substring(0, 2).toUpperCase();
+// Status styles for rendering
+const statusStyles = {
+  pending: { bg: 'bg-[#fff3e0]', text: 'text-[#f57c00]', label: 'Pending' },
+  completed: { bg: 'bg-[#e8f5e9]', text: 'text-[#2e7d32]', label: 'Completed' },
+  transferred: { bg: 'bg-[#e3f2fd]', text: 'text-[#1565c0]', label: 'Transferred' },
 };
 
-// Get color from name
-const getColorFromName = (name: string) => {
-  const colors = [
-    'bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500',
-    'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500'
-  ];
-  const index = name.charCodeAt(0) % colors.length;
-  return colors[index];
-};
-
-interface DepartmentDashboardTabProps {
-  visitors: Visitor[];
-  setVisitors: React.Dispatch<React.SetStateAction<Visitor[]>>;
-  employees: Employee[];
-  mockEmployees: Employee[];
-  onAssignClick: (visitor: Visitor) => void;
-}
-
-const DepartmentDashboardTab: React.FC<DepartmentDashboardTabProps> = ({
-  visitors,
-  employees,
-  mockEmployees,
-  onAssignClick
-}) => {
+const EmployeeDashboardTab: React.FC = () => {
+  const { user } = useAuth();
+  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState("");
-  const itemsPerPage = 9;
+  const [serviceRecords, setServiceRecords] = useState<ServiceRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ pending: 0, transferred: 0, completed: 0 });
+  
+  const resultsPerPage = 5;
 
-  // Filter visitors (only pending)
-  const filteredVisitors = visitors.filter(visitor => {
-    const matchesSearch = !searchTerm ? true : 
-      visitor.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      visitor.nationalId.includes(searchTerm);
-    return matchesSearch;
+  // Fetch visitors assigned to this employee
+  const fetchAssignedVisitors = async () => {
+    const currentUser = user as any;
+    
+    // Safely get all possible identifiers for the logged-in user
+    const myId = currentUser?._id || currentUser?.id || currentUser?.userId || currentUser?.employee_id;
+    const myName = (currentUser?.full_name || currentUser?.fullName || currentUser?.name || '').toLowerCase().trim();
+
+    try {
+      setLoading(true);
+      const response = await serviceDeliveryService.getAll() as any;
+      
+      if (response && (response.data || response.success || Array.isArray(response))) {
+        const allVisitors = Array.isArray(response.data) ? response.data : 
+                            Array.isArray(response) ? response : [];
+        
+        // 👉 BULLETPROOF FILTER: Match by ID *OR* Name to catch any backend format
+        const myVisitors = allVisitors.filter((v: any) => {
+          if (!v) return false;
+
+          // Extract assigned data from backend object
+          const assignedObj = typeof v.assignedTo === 'object' ? v.assignedTo : null;
+          const assignedStr = typeof v.assignedTo === 'string' ? v.assignedTo : null;
+          
+          const assignedId = assignedObj?._id || assignedObj?.id || assignedObj?.employee_id || assignedStr;
+          const assignedName = (assignedObj?.full_name || assignedObj?.name || v.assignedStaff || assignedStr || '').toLowerCase().trim();
+          
+          // Check for a match
+          const isIdMatch = myId && assignedId && String(myId) === String(assignedId);
+          const isNameMatch = myName && assignedName && assignedName.includes(myName);
+
+          return isIdMatch || isNameMatch;
+        });
+        
+        // Transform visitor data to service records
+        const records: ServiceRecord[] = myVisitors.map((visitor: any) => {
+          
+          let status: 'pending' | 'completed' | 'transferred' = 'pending';
+          const rawStatus = (visitor.status || '').toLowerCase();
+          
+          if (rawStatus === 'completed') {
+            status = 'completed';
+          } else if (rawStatus === 'transferred') {
+            status = 'transferred';
+          } else {
+            status = 'pending'; 
+          }
+          
+          const colors = ['bg-purple-500', 'bg-pink-500', 'bg-yellow-400', 'bg-teal-500', 'bg-lavender-400', 'bg-blue-500', 'bg-green-500'];
+          const visitorName = visitor.full_name || visitor.name || visitor.visitorName || 'Unknown';
+          const colorIndex = visitorName.charCodeAt(0) % colors.length;
+          
+          const initials = visitorName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+          
+          const assignmentTime = visitor.checkInTime || visitor.check_in_time || visitor.updatedAt || new Date().toISOString();
+          const formattedTime = new Date(assignmentTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+          
+          return {
+            id: visitor._id || visitor.id || Math.random().toString(),
+            visitorName: visitorName,
+            serviceId: `#${(visitor._id || visitor.id || 'N/A').substring(0, 8)}`,
+            status,
+            assignmentTime: formattedTime,
+            avatarColor: colors[colorIndex],
+            initials
+          };
+        });
+        
+        // Sort newest first
+        records.reverse();
+        setServiceRecords(records);
+        
+        setStats({
+          pending: records.filter(r => r.status === 'pending').length,
+          transferred: records.filter(r => r.status === 'transferred').length,
+          completed: records.filter(r => r.status === 'completed').length
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching assigned visitors:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAssignedVisitors();
+  }, [user]);
+
+  // Filter records based on search
+  const filteredRecords = serviceRecords.filter(record => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      record.visitorName.toLowerCase().includes(searchLower) ||
+      record.serviceId.toLowerCase().includes(searchLower)
+    );
   });
 
-  // Pagination
-  const totalPages = Math.ceil(filteredVisitors.length / itemsPerPage);
-  const paginatedVisitors = filteredVisitors.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+  const paginatedRecords = filteredRecords.slice(
+    (currentPage - 1) * resultsPerPage,
+    currentPage * resultsPerPage
   );
 
-  // Stats
-  const pendingCount = visitors.filter(v => v.status === 'pending').length;
-  const inProgressCount = 8;
-  const transferredCount = 5;
-  const completedCount = 42;
+  if (loading) {
+    return (
+      <div className="p-7 flex items-center justify-center h-64">
+        <div className="text-[#888]">Loading your assignments...</div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      {/* STATISTICS CARDS */}
-      <div className="grid grid-cols-4 gap-5 mb-6">
-        {/* Pending Card */}
-        <div className="bg-white rounded-xl shadow-sm p-5">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-3xl font-bold text-gray-800">{pendingCount}</p>
-              <p className="text-sm text-green-600 mt-1">↑ 4% since yesterday</p>
-            </div>
-            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-              <FiClock className="w-6 h-6 text-orange-500" />
-            </div>
+    <div className="p-7">
+      <div>
+        <h1 className="text-[#1a2744] text-[28px] font-extrabold">Service Overview</h1>
+        <p className="text-[#888] text-[13px] mt-1.5">Manage and track visitor service requests assigned to you today.</p>
+      </div>
+
+      <div className="flex gap-5 mt-7">
+        <div className="bg-white rounded-[14px] p-[22px_24px] shadow-[0_1px_4px_rgba(0,0,0,0.07)] h-[110px] w-[33%] relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-16 h-16 overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#ff9800] rounded-full opacity-20 -translate-x-8 -translate-y-8"></div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">Pending</p>
+          <div className="flex justify-between items-start relative z-10">
+            <span className="text-[#888] text-[12px]">Pending Requests</span>
+            <FiClock className="text-[#ff9800] w-5 h-5" />
+          </div>
+          <div className="text-[#1a2744] text-[36px] font-extrabold mt-2 relative z-10">{stats.pending}</div>
+          <div className="w-10 h-1.5 bg-[#ffcc80] rounded-[3px] mt-1"></div>
         </div>
 
-        {/* In-Progress Card */}
-        <div className="bg-white rounded-xl shadow-sm p-5">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-3xl font-bold text-gray-800">{inProgressCount}</p>
-              <p className="text-sm text-gray-500 mt-1">Current active tasks</p>
-            </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <FiRefreshCw className="w-6 h-6 text-blue-500" />
+        <div className="bg-white rounded-[14px] p-[22px_24px] shadow-[0_1px_4px_rgba(0,0,0,0.07)] h-[110px] w-[33%] relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-16 h-16 overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#1a73e8] rounded-full opacity-20 -translate-x-8 -translate-y-8"></div>
+          </div>
+          <div className="flex justify-between items-start relative z-10">
+            <span className="text-[#888] text-[12px]">Transferred</span>
+            <div className="text-[#1a73e8]">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                <path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+              </svg>
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">In-Progress</p>
+          <div className="text-[#1a2744] text-[36px] font-extrabold mt-2 relative z-10">{stats.transferred}</div>
+          <div className="w-10 h-1.5 bg-[#90caf9] rounded-[3px] mt-1"></div>
         </div>
 
-        {/* Transferred Card */}
-        <div className="bg-white rounded-xl shadow-sm p-5">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-3xl font-bold text-gray-800">{transferredCount}</p>
-              <p className="text-sm text-gray-500 mt-1">To other departments</p>
-            </div>
-            <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-              <FiArrowRightCircle className="w-6 h-6 text-gray-600" />
-            </div>
+        <div className="bg-white rounded-[14px] p-[22px_24px] shadow-[0_1px_4px_rgba(0,0,0,0.07)] h-[110px] w-[33%] relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-16 h-16 overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#34a853] rounded-full opacity-20 -translate-x-8 -translate-y-8"></div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">Transferred</p>
-        </div>
-
-        {/* Completed Card */}
-        <div className="bg-white rounded-xl shadow-sm p-5">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-3xl font-bold text-gray-800">{completedCount}</p>
-              <p className="text-sm text-gray-500 mt-1">Successfully completed</p>
-            </div>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <FiCheckCircle className="w-6 h-6 text-green-500" />
-            </div>
+          <div className="flex justify-between items-start relative z-10">
+            <span className="text-[#888] text-[12px]">Completed</span>
+            <FiCheckCircle className="text-[#34a853] w-5 h-5" />
           </div>
-          <p className="text-sm text-gray-500 mt-2">Completed</p>
+          <div className="text-[#1a2744] text-[36px] font-extrabold mt-2 relative z-10">{stats.completed}</div>
+          <div className="w-10 h-1.5 bg-[#a8d5b5] rounded-[3px] mt-1"></div>
         </div>
       </div>
 
-      {/* CURRENT PENDING REQUESTS CARD */}
-      <div className="bg-white rounded-[14px] shadow-[0_2px_8px_rgba(0,0,0,0.05)] overflow-hidden">
-        {/* Card Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <h2 className="text-[18px] font-semibold text-[#0F172A]">Current Pending Requests</h2>
-          <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-[14px] py-2 border border-[#CBD5E1] rounded-[8px] text-[#475569] hover:bg-gray-50 transition-colors">
-              <FiFilter className="w-4 h-4" />
-              Filter
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-[#0284C7] rounded-[8px] text-white hover:bg-[#0369A1] transition-colors">
-              <FiRefreshCw className="w-4 h-4" />
-              Refresh Data
+      <div className="bg-white rounded-[14px] p-6 mt-6 shadow-[0_1px_4px_rgba(0,0,0,0.07)]">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-[#1a2744] text-[16px] font-bold">Service History</h2>
+          <div className="flex gap-3">
+            <div className="relative">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search visitor or ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-[220px] h-9 border border-[#e0e0e0] rounded-[20px] pl-10 pr-4 text-[12px] focus:outline-none focus:ring-2 focus:ring-[#1a73e8] focus:border-transparent"
+              />
+            </div>
+            <button 
+              onClick={fetchAssignedVisitors}
+              className="flex items-center gap-2 h-9 px-4 border border-[#e0e0e0] rounded-[8px] bg-white text-[#333] text-[13px] hover:bg-gray-50"
+            >
+              <FiClock className="w-4 h-4" /> Refresh
             </button>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto px-6">
-          <table className="w-full">
-            <thead className="bg-[#F1F5F9]">
-              <tr>
-                <th className="text-left text-[13px] font-semibold text-[#64748B] uppercase tracking-[0.5px] px-6 py-3">VISITOR NAME</th>
-                <th className="text-left text-[13px] font-semibold text-[#64748B] uppercase tracking-[0.5px] px-6 py-3">ID NUMBER</th>
-                <th className="text-left text-[13px] font-semibold text-[#64748B] uppercase tracking-[0.5px] px-6 py-3">SERVICE TYPE</th>
-                <th className="text-left text-[13px] font-semibold text-[#64748B] uppercase tracking-[0.5px] px-6 py-3">ARRIVAL TIME</th>
-                <th className="text-left text-[13px] font-semibold text-[#64748B] uppercase tracking-[0.5px] px-6 py-3">ACTION</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedVisitors.map((visitor) => (
-                <tr key={visitor.id} className="h-16 border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center">
-                      <div className="w-9 h-9 rounded-full bg-[#E0F2FE] flex items-center justify-center text-[#0284C7] font-semibold text-[13px] mr-3">
-                        {getInitials(visitor.fullName)}
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-[#f0f0f0]">
+              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">Visitor Name ↕</th>
+              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">Service ID ↕</th>
+              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">Status ↕</th>
+              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">Assignment Time ↕</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedRecords.length > 0 ? paginatedRecords.map((record) => {
+              const status = statusStyles[record.status];
+              return (
+                <tr key={record.id} className="border-b border-[#f8f8f8] h-14">
+                  <td className="py-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full ${record.avatarColor} flex items-center justify-center text-white text-[12px] font-bold`}>
+                        {record.initials}
                       </div>
-                      <p className="text-[14px] font-medium text-[#1E293B]">{visitor.fullName}</p>
+                      <span className="text-[#333] text-[13px] font-medium">{record.visitorName}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <p className="text-[13px] text-[#64748B] tracking-wide">{visitor.nationalId}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex px-[10px] py-1 bg-[#E2E8F0] rounded-full text-[12px] font-medium text-[#475569]">
-                      {visitor.service}
+                  <td className="py-3 text-[#333] text-[13px]">{record.serviceId}</td>
+                  <td className="py-3">
+                    <span className={`inline-flex items-center px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide ${status.bg} ${status.text}`}>
+                      {status.label}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    <p className="text-[13px] text-[#475569]">{visitor.arrivalTime}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <button 
-                      onClick={() => onAssignClick(visitor)}
-                      className="flex items-center text-[14px] font-medium text-[#0284C7] cursor-pointer hover:underline hover:text-[#0369A1] transition-colors"
-                    >
-                      Assign <FiArrowRight className="w-3 h-3 ml-1" />
-                    </button>
-                  </td>
+                  <td className="py-3 text-[#666] text-[13px] font-medium">{record.assignmentTime}</td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              );
+            }) : (
+              <tr>
+                <td colSpan={4} className="py-8 text-center text-[#888]">
+                  No visitors assigned to you yet. Pull from Reception.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
 
-        {/* Bottom Pagination */}
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          style="prev-next"
-          showPageInfo={true}
-          totalItems={filteredVisitors.length}
-          itemsPerPage={itemsPerPage}
-        />
+        {filteredRecords.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={Math.ceil(filteredRecords.length / resultsPerPage)}
+            onPageChange={setCurrentPage}
+            style="arrows-with-numbers"
+            showPageInfo={true}
+            totalItems={filteredRecords.length}
+            itemsPerPage={resultsPerPage}
+          />
+        )}
       </div>
-    </>
+    </div>
   );
 };
 
-export default DepartmentDashboardTab;
+export default EmployeeDashboardTab;
