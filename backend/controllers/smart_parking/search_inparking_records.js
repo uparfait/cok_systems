@@ -38,13 +38,40 @@ module.exports = async function search_parking_records(req, res, next) {
 
         const total_count = await ParkingRecord.countDocuments(search_criteria)
 
+        // Calculate current duration for active records
+        const recordsWithDuration = records.map(record => {
+            const recordObj = record.toObject();
+            if (record.status === 'active') {
+                const checkInTime = new Date(record.check_in);
+                const currentTime = new Date();
+                const durationMs = currentTime - checkInTime;
+                const hours = Math.floor(durationMs / (1000 * 60 * 60));
+                const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+                
+                if (hours > 0) {
+                    recordObj.current_duration = `${hours}h ${minutes}m`;
+                } else {
+                    recordObj.current_duration = `${minutes} mins`;
+                }
+                recordObj.current_duration_hours = hours + (minutes / 60);
+                
+                const hoursParked = hours + (minutes / 60);
+                recordObj.is_near_limit = hoursParked >= 7;
+                recordObj.is_over_limit = hoursParked >= 8;
+            } else {
+                recordObj.current_duration = record.duration;
+                recordObj.current_duration_hours = parseFloat(record.duration) / 60 || 0;
+            }
+            return recordObj;
+        });
+
         return res.status(200).json({
             success: true,
             type: "success",
             message: "Search results",
             total: total_count,
             page: parseInt(page),
-            data: records
+            data: recordsWithDuration
         })
 
     } catch (error) {
