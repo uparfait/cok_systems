@@ -197,6 +197,7 @@ const SmartParkingDashboard: React.FC = () => {
   };
 
   const handleVerify = async () => {
+    console.log('handleVerify called, plateNumber:', plateNumber);
     if (!plateNumber.trim()) {
       showWarning('Please enter license plate number');
       return;
@@ -207,6 +208,7 @@ const SmartParkingDashboard: React.FC = () => {
     setVerifiedData(null);
 
     try {
+      console.log('Calling verifyCar API with:', plateNumber.trim());
       const response = await smartParkingService.verifyCar(plateNumber.trim());
       console.log('Verify response:', response);
 
