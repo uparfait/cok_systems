@@ -20,6 +20,7 @@ interface VehicleData {
   is_currently_parked?: boolean;
   is_reserved?: boolean;
   is_flagged?: boolean;
+  was_ever_flagged?: boolean;
   badge_number?: string;
   driver_details?: {
     name?: string;
@@ -214,6 +215,7 @@ const SmartParkingDashboard: React.FC = () => {
 
       if (response.success && response.data) {
         const data = response.data;
+        console.log('Vehicle found - is_flagged:', data.is_flagged, 'was_ever_flagged:', data.was_ever_flagged, 'is_currently_parked:', data.is_currently_parked);
         setVerifiedData(data);
         
         // Vehicle is found in system - show Found Vehicle Modal
@@ -740,11 +742,13 @@ const SmartParkingDashboard: React.FC = () => {
       {showFoundModal && verifiedData && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full sm:max-w-sm md:max-w-md mx-2 sm:mx-auto overflow-hidden max-h-[90vh] overflow-y-auto">
-            <div className={`px-3 sm:px-6 py-4 flex items-center justify-between ${verifiedData.is_flagged ? 'bg-red-100' : verifiedData.is_currently_parked ? 'bg-orange-100' : 'bg-green-100'}`}>
+            <div className={`px-3 sm:px-6 py-4 flex items-center justify-between ${verifiedData.is_flagged && verifiedData.is_currently_parked ? 'bg-red-100' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'bg-orange-100' : verifiedData.is_currently_parked ? 'bg-orange-100' : 'bg-green-100'}`}>
               <div className="flex items-center gap-3">
-                <div className={`flex items-center justify-center w-12 h-12 rounded-full ${verifiedData.is_flagged ? 'bg-red-200' : verifiedData.is_currently_parked ? 'bg-orange-200' : 'bg-green-200'}`}>
-                  {verifiedData.is_flagged ? (
+                <div className={`flex items-center justify-center w-12 h-12 rounded-full ${verifiedData.is_flagged && verifiedData.is_currently_parked ? 'bg-red-200' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'bg-orange-200' : verifiedData.is_currently_parked ? 'bg-orange-200' : 'bg-green-200'}`}>
+                  {verifiedData.is_flagged && verifiedData.is_currently_parked ? (
                     <FiAlertTriangle className="w-6 h-6 text-red-600" />
+                  ) : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? (
+                    <FiAlertTriangle className="w-6 h-6 text-orange-600" />
                   ) : verifiedData.is_currently_parked ? (
                     <FiAlertCircle className="w-6 h-6 text-orange-600" />
                   ) : (
@@ -763,8 +767,8 @@ const SmartParkingDashboard: React.FC = () => {
                   <h3 className="text-xl font-bold text-gray-900">
                     Vehicle Verification
                   </h3>
-                  <p className={`text-sm ${verifiedData.is_flagged ? 'text-red-700' : verifiedData.is_currently_parked ? 'text-orange-700' : 'text-green-700'}`}>
-                    {verifiedData.is_flagged ? 'Vehicle is flagged' : verifiedData.is_currently_parked ? 'Already inside parking' : 'Auto-scan successful'}
+                  <p className={`text-sm ${verifiedData.is_flagged && verifiedData.is_currently_parked ? 'text-red-700' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'text-orange-700' : verifiedData.is_currently_parked ? 'text-orange-700' : 'text-green-700'}`}>
+                    {verifiedData.is_flagged && verifiedData.is_currently_parked ? 'Vehicle is flagged' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'Vehicle was flagged in the past' : verifiedData.is_currently_parked ? 'Already inside parking' : 'Auto-scan successful'}
                   </p>
                 </div>
               </div>
@@ -802,11 +806,19 @@ const SmartParkingDashboard: React.FC = () => {
                   </p>
                 </div>
                 
-                {/* Center: Flagged Indicator */}
-                {verifiedData.is_flagged && (
+                {/* Center: Flagged Indicator - Currently Flagged & Inside (Red) */}
+                {verifiedData.is_flagged && verifiedData.is_currently_parked && (
                   <div className="flex items-center px-3 py-1 bg-red-100 rounded-full">
                     <FiAlertTriangle className="w-4 h-4 text-red-600 mr-1" />
                     <span className="text-xs font-semibold text-red-600">FLAGGED</span>
+                  </div>
+                )}
+                
+                {/* Center: Was Ever Flagged Indicator - Previously Flagged (Orange) */}
+                {verifiedData.was_ever_flagged && !verifiedData.is_currently_parked && (
+                  <div className="flex items-center px-3 py-1 bg-orange-100 rounded-full">
+                    <FiAlertTriangle className="w-4 h-4 text-orange-600 mr-1" />
+                    <span className="text-xs font-semibold text-orange-600">WAS FLAGGED</span>
                   </div>
                 )}
                 
@@ -1123,11 +1135,19 @@ const SmartParkingDashboard: React.FC = () => {
                 )}
               </div>
 
-              {/* Flagged Warning */}
-              {verifiedData.is_flagged && (
+              {/* Flagged Warning - Currently Flagged (Red) */}
+              {verifiedData.is_flagged && verifiedData.is_currently_parked && (
                 <div className="flex items-center px-4 py-3 bg-red-100 rounded-xl mb-4">
                   <FiAlertTriangle className="w-5 h-5 text-red-600 mr-2" />
-                  <span className="text-sm font-medium text-red-600">This vehicle has been flagged</span>
+                  <span className="text-sm font-medium text-red-600">This vehicle has been flagged and is currently inside</span>
+                </div>
+              )}
+
+              {/* Was Ever Flagged Warning - Previously Flagged (Orange) */}
+              {verifiedData.was_ever_flagged && !verifiedData.is_currently_parked && (
+                <div className="flex items-center px-4 py-3 bg-orange-100 rounded-xl mb-4">
+                  <FiAlertTriangle className="w-5 h-5 text-orange-600 mr-2" />
+                  <span className="text-sm font-medium text-orange-600">Warning: This vehicle was flagged in the past</span>
                 </div>
               )}
 
