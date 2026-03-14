@@ -3,8 +3,9 @@ const EmergencyCar = require('../../models/emergency_car.js');
 const ParkingRecord = require('../../models/parking_record.js');
 
 module.exports = async function verify_car(req, res, next) {
+    let plate_number = null;
     try {
-        let { plate_number = null } = req.body || {};
+        ({ plate_number = null } = req.body || {});
 
         if (!plate_number) {
             return res.status(400).json({
@@ -113,7 +114,7 @@ module.exports = async function verify_car(req, res, next) {
                 plate_number,
                 is_currently_parked: !!active_parking,
                 parking_details: active_parking || null,
-                vehicle_category: vehicle_category || 'unknown',
+                vehicle_category: vehicle_type || 'unknown',
                 is_flagged: !!is_flagged,
                 is_reserved: is_reserved || false,
                 staff_details: staff_car || null,
