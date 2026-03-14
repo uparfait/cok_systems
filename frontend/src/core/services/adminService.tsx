@@ -139,8 +139,8 @@ export const feedbackService = {
 // ==================== SERVICE DELIVERY APIs ====================
 
 export const serviceDeliveryService = {
-  // Get all visitors with pagination
-  getAll: (page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}`),
+  // Get all visitors with pagination and filter
+  getAll: (page: number = 1, limit: number = 20, inHouse: boolean = true) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}&in_house=${inHouse}`),
   
   // Get all visitors (alias)
   getAllVisitors: (page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}`),
@@ -275,7 +275,17 @@ export const parkingService = {
         const now = new Date();
         const longDuration = records.filter((r: any) => {
           const entryTime = new Date(r.check_in || r.entry_date || r.createdAt);
-          const hoursDiff = (now.getTime() - entryTime.getTime()) / (1000 * 60 * 60);
+          
+          // For checked out vehicles, calculate duration from check_out time
+          // For active vehicles, calculate from now
+          let hoursDiff: number;
+          if (r.status === 'completed' && r.check_out) {
+            const checkOutTime = new Date(r.check_out);
+            hoursDiff = (checkOutTime.getTime() - entryTime.getTime()) / (1000 * 60 * 60);
+          } else {
+            hoursDiff = (now.getTime() - entryTime.getTime()) / (1000 * 60 * 60);
+          }
+          
           return hoursDiff > 8; // More than 8 hours
         }).map((r: any) => {
           const entryTime = new Date(r.check_in || r.entry_date || r.createdAt);
@@ -296,6 +306,7 @@ export const parkingService = {
           return {
             plate_no: r.plate_number || r.plate_no || 'N/A',
             entry_time: r.check_in || r.entry_date || r.createdAt,
+            check_out: r.check_out || null,
             duration: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`,
             duration_hours: hoursDiff,
             driver_name: r.driver_name || 'Unknown',

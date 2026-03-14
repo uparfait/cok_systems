@@ -59,6 +59,7 @@ interface UnknownVehicleForm {
 interface LongDurationVehicle {
   plate_no: string;
   entry_time: string;
+  check_out?: string | null;
   duration: string;
   duration_hours?: number;
   driver_name?: string;
@@ -213,27 +214,13 @@ const SmartParkingDashboard: React.FC = () => {
         const data = response.data;
         setVerifiedData(data);
         
-        // Show appropriate modal based on vehicle type
-        if (data.is_reserved || data.vehicle_category === 'Staff' || data.driver_details?.name) {
-          setShowFoundModal(true);
-        } else {
-          setUnknownForm(prev => ({ ...prev, plate_number: plateNumber.trim().toUpperCase() }));
-          setShowUnknownModal(true);
-        }
+        // Vehicle is found in system - show Found Vehicle Modal
+        setShowFoundModal(true);
       } else {
-        // Vehicle not found - set minimal data for display
-        setVerifiedData({
+        // Vehicle not found in system - use backend response directly
+        setVerifiedData(response.data || {
           plate_number: plateNumber.trim().toUpperCase(),
-          vehicle_category: 'Unknown',
-          driver_details: {
-            name: '',
-            telephone: '',
-            email: '',
-            type: 'Unknown'
-          },
-          is_currently_parked: false,
-          is_flagged: false,
-          is_reserved: false
+          vehicle_category: 'Unknown'
         });
         setUnknownForm(prev => ({ ...prev, plate_number: plateNumber.trim().toUpperCase() }));
         setShowUnknownModal(true);
@@ -242,19 +229,11 @@ const SmartParkingDashboard: React.FC = () => {
     } catch (err: any) {
       console.error('Verify error:', err);
       showError(err?.message || 'Failed to verify vehicle');
-      // Set minimal data for the unknown modal
-      setVerifiedData({
+      // Use backend error response directly if available
+      const errorData = err?.response?.data;
+      setVerifiedData(errorData?.data || { 
         plate_number: plateNumber.trim().toUpperCase(),
-        vehicle_category: 'Unknown',
-        driver_details: {
-          name: '',
-          telephone: '',
-          email: '',
-          type: 'Unknown'
-        },
-        is_currently_parked: false,
-        is_flagged: false,
-        is_reserved: false
+        vehicle_category: 'Unknown' 
       });
       setUnknownForm(prev => ({ ...prev, plate_number: plateNumber.trim().toUpperCase() }));
       setShowUnknownModal(true);
@@ -875,13 +854,13 @@ const SmartParkingDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Unknown Vehicle Modal */}
+      {/* Not Found Vehicle Modal - Vehicle not in system */}
       {showUnknownModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full sm:max-w-sm md:max-w-md mx-2 sm:mx-auto overflow-hidden max-h-[90vh] overflow-y-auto">
-            <div className="bg-orange-50 px-3 py-3">
+            <div className="bg-red-50 px-3 py-3">
               <div className="flex items-center gap-2">
-                <svg width="24" height="24" viewBox="0 0 24 24" color={'orange'} fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
+                <svg width="24" height="24" viewBox="0 0 24 24" color={'red'} fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
                   <path
                       d="M11.9998 8.99999V13M11.9998 17H12.0098M10.6151 3.89171L2.39019 18.0983C1.93398 18.8863 1.70588 19.2803 1.73959 19.6037C1.769 19.8857 1.91677 20.142 2.14613 20.3088C2.40908 20.5 2.86435 20.5 3.77487 20.5H20.2246C21.1352 20.5 21.5904 20.5 21.8534 20.3088C22.0827 20.142 22.2305 19.8857 22.2599 19.6037C22.2936 19.2803 22.0655 18.8863 21.6093 18.0983L13.3844 3.89171C12.9299 3.10654 12.7026 2.71396 12.4061 2.58211C12.1474 2.4671 11.8521 2.4671 11.5935 2.58211C11.2969 2.71396 11.0696 3.10655 10.6151 3.89171Z"
                       stroke="currentColor"
@@ -892,17 +871,17 @@ const SmartParkingDashboard: React.FC = () => {
                 </svg>
                 <div>
                   <h3 className="text-base font-bold text-gray-900">
-                    Unknown Vehicle
+                    Vehicle Not Found
                   </h3>
-                  <p className="text-gray-500 text-xs">Register and check in the vehicle</p>
+                  <p className="text-gray-500 text-xs">This vehicle is not registered in the system</p>
                 </div>
               </div>
             </div>
             
-            {/* Orange Info Message */}
-            <div className="bg-orange-100 px-3 py-2">
-              <p className="text-orange-800 text-xs text-center">
-                Please register visitor details to grant one-time access.
+            {/* Red Info Message - Vehicle Not Found */}
+            <div className="bg-red-100 px-3 py-2">
+              <p className="text-red-800 text-xs text-center">
+                This vehicle is not registered. Please register visitor details to grant one-time access.
               </p>
             </div>
             
