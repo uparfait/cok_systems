@@ -2,7 +2,7 @@ const ParkingRecord = require('../../models/parking_record.js')
 
 module.exports = async function list_parking_records(req, res, next) {
     try {
-        let { status = 'active', limit = 10, page = 1 } = req.query || {}
+        let { status = 'active', limit = 10, page = 1, date = null } = req.query || {}
 
         const limit_val = Math.min(parseInt(limit), 50)
         const skip_val = (parseInt(page) - 1) * limit_val
@@ -10,6 +10,19 @@ module.exports = async function list_parking_records(req, res, next) {
         let filter = {}
         if (status === 'active' || status === 'completed') {
             filter.status = status
+        }
+
+        // Filter by date if provided (format: YYYY-MM-DD)
+        if (date) {
+            const startOfDay = new Date(date);
+            startOfDay.setHours(0, 0, 0, 0);
+            const endOfDay = new Date(date);
+            endOfDay.setHours(23, 59, 59, 999);
+            
+            filter.check_in = {
+                $gte: startOfDay,
+                $lte: endOfDay
+            };
         }
 
         const records = await ParkingRecord.find(filter)

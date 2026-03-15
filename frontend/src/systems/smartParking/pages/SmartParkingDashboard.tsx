@@ -115,6 +115,11 @@ const SmartParkingDashboard: React.FC = () => {
   const [longDurationVehicles, setLongDurationVehicles] = useState<LongDurationVehicle[]>([]);
   const [flaggedVehicles, setFlaggedVehicles] = useState<LongDurationVehicle[]>([]);
 
+  // Date filter for long duration vehicles
+  const [selectedDate, setSelectedDate] = useState<string>(
+    new Date().toISOString().split('T')[0] // Default to today
+  );
+
   // Calculate progress percentage for available slots
   const availablePercentage = stats.totalSlots > 0 
     ? ((stats.totalSlots - stats.availableSlots) / stats.totalSlots) * 100 
@@ -137,7 +142,7 @@ const SmartParkingDashboard: React.FC = () => {
       }
 
       // Fetch long duration vehicles
-      const longDurationResponse = await smartParkingService.getLongDurationVehicles();
+      const longDurationResponse = await smartParkingService.getLongDurationVehicles(selectedDate);
       if (longDurationResponse.success && longDurationResponse.data) {
         setLongDurationVehicles(longDurationResponse.data);
       }
@@ -152,7 +157,7 @@ const SmartParkingDashboard: React.FC = () => {
     } finally {
       setStatsLoading(false);
     }
-  }, []);
+  }, [selectedDate]);
 
   // Handle real-time updates
   const handleParkingUpdate = useCallback((data: any) => {
@@ -508,6 +513,24 @@ const SmartParkingDashboard: React.FC = () => {
                   View All
                 </button>
               </div>
+              
+              {/* Date Filter */}
+              <div className="mb-2 flex items-center gap-2">
+                <label className="text-xs text-gray-500">Date:</label>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <button
+                  onClick={() => fetchDashboardData()}
+                  className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+                >
+                  Filter
+                </button>
+              </div>
+              
               <table className="w-full text-[10px]">
                 <thead className="text-left text-gray-500" style={{ backgroundColor: 'rgba(100, 116, 139, 0.07)', fontFamily: 'Cambria, sans-serif' }}>
                   <tr>
@@ -518,7 +541,7 @@ const SmartParkingDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {longDurationVehicles.slice(0, 5).map((vehicle, index) => (
+                  {longDurationVehicles.slice(0, 4).map((vehicle, index) => (
                     <tr key={index} className="border-t border-gray-100">
                       <td className="py-1.5 font-bold text-slate-800">{vehicle.plate_no}</td>
                       <td className="text-slate-500">
@@ -1225,6 +1248,23 @@ const SmartParkingDashboard: React.FC = () => {
             </div>
             
             <div className="p-4">
+              {/* Date Filter in Modal */}
+              <div className="mb-3 flex items-center gap-2">
+                <label className="text-xs text-gray-500">Filter by Date:</label>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <button
+                  onClick={() => fetchDashboardData()}
+                  className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+                >
+                  Filter
+                </button>
+              </div>
+
               <table className="w-full text-xs">
                 <thead className="text-left text-gray-500" style={{ backgroundColor: 'rgba(100, 116, 139, 0.07)' }}>
                   <tr>
