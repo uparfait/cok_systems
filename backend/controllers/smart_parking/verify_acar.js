@@ -4,6 +4,10 @@ const ParkingRecord = require('../../models/parking_record.js');
 
 module.exports = async function verify_car(req, res, next) {
     let plate_number = null;
+    let vehicle_type = 'Unknown';
+    let is_reserved = false;
+    let is_found_in_system = false;
+    
     try {
         ({ plate_number = null } = req.body || {});
 
@@ -17,8 +21,8 @@ module.exports = async function verify_car(req, res, next) {
 
         plate_number = plate_number.toString().toUpperCase().replace(/\s+/g, '');
 
-        //  Check if it's currently parked
-        const active_parking = await ParkingRecord.findOne({ plate_number, status: 'active' });
+        // Check if it's currently parked - get the MOST RECENT active record
+        const active_parking = await ParkingRecord.findOne({ plate_number, status: 'active' }).sort({ check_in: -1 });
 
         //  Check if it's a registered Staff Car
         const staff_car = await StaffCar.findOne({ plate_number, is_active: true });
@@ -65,9 +69,9 @@ module.exports = async function verify_car(req, res, next) {
         }
 
         // Determine vehicle type and if vehicle is found in system
-        let vehicle_type = 'Unknown';
-        let is_reserved = false;
-        let is_found_in_system = false;
+        vehicle_type = 'Unknown';
+        is_reserved = false;
+        is_found_in_system = false;
 
         if (staff_car) {
             vehicle_type = 'Staff';
