@@ -14,8 +14,8 @@ module.exports = async function car_check_out(req, res, next) {
 
         plate_number = plate_number.toString().toUpperCase().replace(/\s+/g, '');
 
-        // Find the active parking session
-        const parking_session = await ParkingRecord.findOne({ plate_number, status: 'active' });
+        // Find the active parking session - get the most recent one
+        const parking_session = await ParkingRecord.findOne({ plate_number, status: 'active' }).sort({ check_in: -1 });
 
         if (!parking_session) {
             return res.status(404).json({
