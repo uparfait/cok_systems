@@ -249,39 +249,27 @@ const MonitorPage: React.FC = () => {
   const totalHours = Math.round(totalDuration / (1000 * 60 * 60));
 
   const getStatusBadge = (record: ParkingRecord) => {
-    const { status, is_flagged, current_duration, is_over_limit, is_near_limit } = record;
+    const { status, is_flagged, is_over_limit, is_near_limit } = record;
     
     if (is_flagged) {
       return (
-        <div className="flex flex-col gap-1">
-          <span className="inline-flex px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700">
-            Flagged
-          </span>
-          {current_duration && (
-            <span className="text-xs text-red-600">{current_duration}</span>
-          )}
-        </div>
+        <span className="inline-flex px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700">
+          Flagged
+        </span>
       );
     }
     
     if (status === 'active') {
       return (
-        <div className="flex flex-col gap-1">
-          <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
-            is_over_limit 
-              ? 'bg-red-100 text-red-700' 
-              : is_near_limit 
-              ? 'bg-orange-100 text-orange-700'
-              : 'bg-green-100 text-green-700'
-          }`}>
-            {is_over_limit ? 'Over Time' : is_near_limit ? 'Near Limit' : 'Active'}
-          </span>
-          {current_duration && (
-            <span className={`text-xs font-medium ${is_over_limit ? 'text-red-600' : is_near_limit ? 'text-orange-600' : 'text-green-600'}`}>
-              {current_duration}
-            </span>
-          )}
-        </div>
+        <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
+          is_over_limit 
+            ? 'bg-red-100 text-red-700' 
+            : is_near_limit 
+            ? 'bg-orange-100 text-orange-700'
+            : 'bg-green-100 text-green-700'
+        }`}>
+          {is_over_limit ? 'Over Time' : is_near_limit ? 'Near Limit' : 'Active'}
+        </span>
       );
     }
     

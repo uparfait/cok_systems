@@ -14,16 +14,35 @@ module.exports = async function car_check_out(req, res, next) {
 
         plate_number = plate_number.toString().toUpperCase().replace(/\s+/g, '');
 
-        // Find the active parking session - get the most recent one
-        const parking_session = await ParkingRecord.findOne({ plate_number, status: 'active' }).sort({ check_in: -1 });
-
-        if (!parking_session) {
+        // Find ALL active parking sessions for this plate
+        const active_sessions = await ParkingRecord.find({ plate_number, status: 'active' }).sort({ check_in: -1 });
+        
+        if (!active_sessions || active_sessions.length === 0) {
             return res.status(404).json({
                 success: false,
                 type: 'warning',
                 message: "No active parking record found for this plate number."
             });
         }
+
+        // If multiple active records exist, complete all but the most recent one
+        if (active_sessions.length > 1) {
+            console.log(`[WARNING] Found ${active_sessions.length} active records for plate ${plate_number}. Completing all duplicates.`);
+            const duplicateCompletionTime = new Date();
+            
+            // Complete all but the first (most recent) record
+            for (let i = 1; i < active_sessions.length; i++) {
+                const duplicate = active_sessions[i];
+                const parked_minutes = Math.round((duplicateCompletionTime - new Date(duplicate.check_in)) / 60000);
+                duplicate.status = 'completed';
+                duplicate.check_out = duplicateCompletionTime;
+                duplicate.duration = `${parked_minutes} mins`;
+                await duplicate.save();
+            }
+        }
+
+        // Use the most recent active parking session
+        const parking_session = active_sessions[0];
 
         const current_time = new Date();
         const check_in_time = new Date(parking_session.check_in); // added this line for checkin time
