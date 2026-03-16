@@ -102,30 +102,62 @@ const RegisterVisitorPage: React.FC = () => {
         allRecords = [...(parkingResponse.data || [])];
       }
       
-      // Add service delivery visitors as parking records
+      // Add service delivery visitors as parking records (with proper handling)
       if (serviceDeliveryResponse.success && serviceDeliveryResponse.data) {
         console.log('Service Delivery Raw Data:', JSON.stringify(serviceDeliveryResponse.data, null, 2));
         
-        const sdVisitors = serviceDeliveryResponse.data.map((v: any) => ({
-          _id: v._id,
-          plate_number: v.vehicle_storage?.has_vehicle ? v.vehicle_storage?.vehicle_details?.plate_number || 'N/A' : 'N/A',
-          driver_identification: v.identification,
-          driver_name: v.full_name,
-          driver_telephone: v.telephone,
-          status: v.is_still_inhouse ? 'active' : 'completed',
-          driver_type: v.vehicle_storage?.has_vehicle ? 'Visitor' : 'Without Vehicle',
-          driver_gender: v.gender,
-          slot_number: 'N/A',
-          badge_number: v.badge_number,
-          check_in: v.entry_date || v.createdAt,
-          check_out: v.check_out_time || null,
-          duration: 'N/A',
-          is_flagged: false,
-          checked_in_by: v.registered_by || 'N/A'
-        }));
+        // Separate visitors with and without vehicles
+        const sdVisitorsWithoutVehicle = serviceDeliveryResponse.data
+          .filter((v: any) => !v.vehicle_storage?.has_vehicle)
+          .map((v: any) => ({
+            _id: v._id,
+            plate_number: 'N/A',
+            driver_identification: v.identification,
+            driver_name: v.full_name,
+            driver_telephone: v.telephone,
+            status: v.is_still_inhouse ? 'active' : 'completed',
+            driver_type: 'Without Vehicle',
+            driver_gender: v.gender,
+            slot_number: 'N/A',
+            badge_number: v.badge_number,
+            check_in: v.entry_date || v.createdAt,
+            check_out: v.exist_date || null,
+            duration: 'N/A',
+            is_flagged: false,
+            checked_in_by: v.registered_by || 'N/A',
+            is_still_inhouse: v.is_still_inhouse
+          }));
         
-        console.log('Mapped SD Visitors:', JSON.stringify(sdVisitors, null, 2));
-        allRecords = [...allRecords, ...sdVisitors];
+        // For visitors with vehicles, deduplicate with Parking records
+        const sdVisitorsWithVehicle = serviceDeliveryResponse.data
+          .filter((v: any) => v.vehicle_storage?.has_vehicle)
+          .map((v: any) => ({
+            _id: v._id,
+            plate_number: v.vehicle_storage?.vehicle_details?.plate_number || 'N/A',
+            driver_identification: v.identification,
+            driver_name: v.full_name,
+            driver_telephone: v.telephone,
+            status: v.is_still_inhouse ? 'active' : 'completed',
+            driver_type: 'Visitor',
+            driver_gender: v.gender,
+            slot_number: 'N/A',
+            badge_number: v.badge_number,
+            check_in: v.entry_date || v.createdAt,
+            check_out: v.exist_date || null,
+            duration: 'N/A',
+            is_flagged: false,
+            checked_in_by: v.registered_by || 'N/A',
+            is_still_inhouse: v.is_still_inhouse
+          }));
+        
+        // Deduplicate visitors with vehicles: remove SD records that have same plate as Parking records
+        const parkingPlates = new Set(allRecords.map(r => r.plate_number?.toLowerCase()));
+        const uniqueSdVisitorsWithVehicle = sdVisitorsWithVehicle.filter((v: any) => !parkingPlates.has(v.plate_number?.toLowerCase()));
+        
+        // Combine: visitors without vehicle (always added) + unique visitors with vehicle
+        allRecords = [...allRecords, ...sdVisitorsWithoutVehicle, ...uniqueSdVisitorsWithVehicle];
+        
+        console.log('Mapped SD Visitors:', JSON.stringify({withoutVehicle: sdVisitorsWithoutVehicle.length, withVehicle: uniqueSdVisitorsWithVehicle.length}, null, 2));
       }
       
       console.log('All records count:', allRecords.length);
