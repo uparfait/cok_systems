@@ -10,7 +10,7 @@ import { smartParkingService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
   FiTruck, FiSearch, FiAward, FiShield, FiCheckCircle, FiCheck, FiAlertTriangle, FiUser, FiUserPlus,
-  FiPhone, FiPlus, FiFileText, FiX, FiFlag, FiSlash, FiCrosshair, FiClock, FiAlertOctagon, FiSettings, FiAlertCircle
+  FiPhone, FiPlus, FiFileText, FiX, FiFlag, FiSlash, FiCrosshair, FiClock, FiAlertOctagon, FiSettings, FiAlertCircle, FiEdit
 } from 'react-icons/fi';
 import { BsShieldCheck } from 'react-icons/bs';
 
@@ -88,7 +88,13 @@ const SmartParkingDashboard: React.FC = () => {
   const [showAlreadyParkedModal, setShowAlreadyParkedModal] = useState(false);
   const [showLongDurationModal, setShowLongDurationModal] = useState(false);
   const [showFlaggedModal, setShowFlaggedModal] = useState(false);
-  
+  const [isEditingDriver, setIsEditingDriver] = useState(false);
+  const [driverInfo, setDriverInfo] = useState({
+    name: '',
+    telephone: '',
+    badge_number: ''
+  });
+
   // Data states
   const [verifiedData, setVerifiedData] = useState<VehicleData | null>(null);
   const [unknownForm, setUnknownForm] = useState<UnknownVehicleForm>({
@@ -223,6 +229,13 @@ const SmartParkingDashboard: React.FC = () => {
         console.log('Vehicle found - is_flagged:', data.is_flagged, 'was_ever_flagged:', data.was_ever_flagged, 'is_currently_parked:', data.is_currently_parked);
         setVerifiedData(data);
         
+        // Initialize driver info from verified data
+        setDriverInfo({
+          name: data.driver_details?.name || data.driver_name || '',
+          telephone: data.driver_details?.telephone || data.driver_telephone || '',
+          badge_number: (data as any).badge_number || ''
+        });
+        
         // Vehicle is found in system - show Found Vehicle Modal
         setShowFoundModal(true);
       } else {
@@ -259,16 +272,21 @@ const SmartParkingDashboard: React.FC = () => {
       showWarning('This vehicle is already checked in');
       return;
     }
+
+    // Badge number is required for every check-in
+    if (!driverInfo.badge_number?.trim()) {
+      showWarning('Badge number is required');
+      return;
+    }
     
     setLoading(true);
     try {
       const response = await smartParkingService.checkIn({
         plate_number: verifiedData.plate_number,
-        driver_name: verifiedData.driver_details?.name || '',
-        driver_telephone: verifiedData.driver_details?.telephone || '',
-        driver_email: verifiedData.driver_details?.email || null,
+        driver_name: driverInfo.name || verifiedData.driver_details?.name || verifiedData.driver_name || '',
+        driver_telephone: driverInfo.telephone || verifiedData.driver_details?.telephone || verifiedData.driver_telephone || '',
         driver_type: verifiedData.vehicle_category || '',
-        badge_number: (verifiedData as any).badge_number || null,
+        badge_number: driverInfo.badge_number?.trim() || null,
       });
 
       if (response.success) {
@@ -303,6 +321,12 @@ const SmartParkingDashboard: React.FC = () => {
     
     if (!unknownForm.driver_telephone.trim()) {
       showWarning('Phone number is required');
+      return;
+    }
+
+    // Badge number is required
+    if (!unknownForm.badge_number?.trim()) {
+      showWarning('Badge number is required');
       return;
     }
 
@@ -372,6 +396,8 @@ const SmartParkingDashboard: React.FC = () => {
     setShowAlreadyParkedModal(false);
     setShowLongDurationModal(false);
     setShowFlaggedModal(false);
+    setIsEditingDriver(false);
+    setDriverInfo({ name: '', telephone: '', badge_number: '' });
     setPlateNumber('');
     setVerifiedData(null);
     setUnknownForm({ plate_number: '', driver_name: '', driver_telephone: '', driver_email: '', driver_gender: '', national_id: '', badge_number: '', driver_type: '' });
@@ -385,8 +411,25 @@ const SmartParkingDashboard: React.FC = () => {
     }));
   };
 
-  // Handle deny entry
+  // Handle driver info change in Found modal
+  const handleDriverInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setDriverInfo(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Handle deny entry / cancel verification
   const handleDenyEntry = () => {
+    // If verification is in progress, cancel it
+    if (verifying) {
+      setVerifying(false);
+      setPlateNumber('');
+      showInfo('Verification cancelled');
+      return;
+    }
+    
     if (!verifiedData) {
       showWarning('No vehicle verified to deny');
       return;
@@ -737,6 +780,18 @@ const SmartParkingDashboard: React.FC = () => {
                 )}
               </button>
 
+              {/* Cancel button during verification */}
+              {verifying && (
+                <button
+                  type="button"
+                  onClick={handleDenyEntry}
+                  className="w-full mt-2 border border-red-300 text-red-600 hover:bg-red-50 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                  <FiX className="w-4 h-4" />
+                  Cancel Verification
+                </button>
+              )}
+
               <div className="flex gap-2 mt-8">
                 <button 
                   type="button"
@@ -815,6 +870,83 @@ const SmartParkingDashboard: React.FC = () => {
                     <span className="text-xs font-medium text-gray-600">
                       {verifiedData.staff_details?.department_name}
                     </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Driver Info Section - View/Edit Mode */}
+              <div className="mb-4 bg-gray-50 p-3 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-gray-700">Driver Information</h4>
+                  {!verifiedData.is_currently_parked && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingDriver(!isEditingDriver)}
+                      className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                    >
+                      <FiEdit className="w-3 h-3" />
+                      {isEditingDriver ? 'Cancel' : 'Edit'}
+                    </button>
+                  )}
+                </div>
+
+                {isEditingDriver ? (
+                  <div className="space-y-2">
+                    <div>
+                      <label className="text-xs text-gray-500">Name</label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={driverInfo.name}
+                        onChange={handleDriverInfoChange}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter driver name"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Phone</label>
+                      <input
+                        type="tel"
+                        name="telephone"
+                        value={driverInfo.telephone}
+                        onChange={handleDriverInfoChange}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter phone number"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Badge Number <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        name="badge_number"
+                        value={driverInfo.badge_number}
+                        onChange={handleDriverInfoChange}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter badge number"
+                        required
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <FiUser className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-700">
+                        {driverInfo.name || 'Not specified'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <FiPhone className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-700">
+                        {driverInfo.telephone || 'Not specified'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <FiAward className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-700 font-medium">
+                        Badge: {driverInfo.badge_number || 'Not specified'}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>

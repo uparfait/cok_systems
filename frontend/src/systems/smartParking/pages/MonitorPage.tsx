@@ -31,6 +31,7 @@ interface ParkingRecord {
   is_over_limit?: boolean;
   checked_in_by?: string;
   badge_number?: string;
+  is_still_inhouse?: boolean;
 }
 
 type TabType = 'all' | 'active' | 'completed' | 'flagged' | 'visitors';
@@ -47,6 +48,8 @@ const MonitorPage: React.FC = () => {
   const [filteredRecords, setFilteredRecords] = useState<ParkingRecord[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<ParkingRecord | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [exitNotes, setExitNotes] = useState('');
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -68,7 +71,7 @@ const MonitorPage: React.FC = () => {
         const parkingResponse = await smartParkingService.getAll();
         
         // Fetch service delivery visitors
-        const serviceDeliveryResponse = await serviceDeliveryService.getAll(1, 100, false);
+        const serviceDeliveryResponse = await serviceDeliveryService.getAll(1, 100);
         
         let allRecords: ParkingRecord[] = [];
         
@@ -76,25 +79,56 @@ const MonitorPage: React.FC = () => {
           allRecords = [...(parkingResponse.data || [])];
         }
         
+        // Create a map of Service Delivery visitors by plate number for quick lookup
+        const sdMapByPlate: Map<string, any> = new Map();
         if (serviceDeliveryResponse.success && serviceDeliveryResponse.data) {
-          const sdVisitors = serviceDeliveryResponse.data.map((v: any) => ({
-            _id: v._id,
-            plate_number: v.vehicle_storage?.has_vehicle ? v.vehicle_storage?.vehicle_details?.plate_number || 'N/A' : 'N/A',
-            driver_name: v.full_name,
-            driver_telephone: v.telephone,
-            status: v.is_still_inhouse ? 'active' : 'completed',
-            driver_type: v.vehicle_storage?.has_vehicle ? 'Visitor' : 'Without Vehicle',
-            slot_number: 'N/A',
-            badge_number: v.badge_number,
-            check_in: v.entry_date || v.createdAt,
-            check_out: v.check_out_time || undefined,
-            is_flagged: v.is_over_limit || false,
-            current_duration: v.current_duration,
-            is_over_limit: v.is_over_limit || false,
-            is_near_limit: v.is_near_limit || false,
-            current_duration_hours: v.current_duration_hours || 0
-          }));
-          allRecords = [...allRecords, ...sdVisitors];
+          serviceDeliveryResponse.data
+            .filter((v: any) => v.vehicle_storage?.has_vehicle && v.vehicle_storage?.vehicle_details?.plate_number)
+            .forEach((v: any) => {
+              const plate = v.vehicle_storage.vehicle_details.plate_number.toLowerCase();
+              sdMapByPlate.set(plate, v);
+            });
+        }
+        
+        // Enrich Parking records with Service Delivery status for visitors with vehicles
+        allRecords = allRecords.map(r => {
+          const plate = r.plate_number?.toLowerCase() || '';
+          const sdRecord = sdMapByPlate.get(plate);
+          if (sdRecord) {
+            return {
+              ...r,
+              is_still_inhouse: sdRecord.is_still_inhouse,
+              driver_type: 'Visitor' // Ensure it's marked as Visitor
+            };
+          }
+          return r;
+        });
+        
+        // Add Service Delivery visitors WITHOUT vehicles (these don't exist in Parking)
+        if (serviceDeliveryResponse.success && serviceDeliveryResponse.data) {
+          const sdVisitorsWithoutVehicle = serviceDeliveryResponse.data
+            .filter((v: any) => !v.vehicle_storage?.has_vehicle)
+            .map((v: any) => ({
+              _id: v._id,
+              plate_number: '',
+              driver_name: v.full_name,
+              driver_telephone: v.telephone,
+              status: v.is_still_inhouse ? 'active' : 'completed',
+              driver_type: 'Without Vehicle',
+              slot_number: '',
+              badge_number: v.badge_number,
+              check_in: v.entry_date || v.createdAt,
+              check_out: v.exist_date || undefined,
+              is_flagged: v.is_over_limit || false,
+              current_duration: v.current_duration,
+              is_over_limit: v.is_over_limit || false,
+              is_near_limit: v.is_near_limit || false,
+              current_duration_hours: v.current_duration_hours || 0,
+              is_still_inhouse: v.is_still_inhouse,
+              checked_in_by: v.registered_by_role || 'Unknown'
+            }));
+          
+          allRecords = [...allRecords, ...sdVisitorsWithoutVehicle];
         }
         
         setRecords(allRecords);
@@ -113,37 +147,99 @@ const MonitorPage: React.FC = () => {
   const loadData = async (showLoading = true) => {
     if (showLoading) setLoading(true);
     try {
-      // Fetch parking records
+      // Fetch parking records (only for "with vehicle" tabs)
       const parkingResponse = await smartParkingService.getAll();
       
-      // Fetch service delivery visitors (both in-house and checked out)
-      const serviceDeliveryResponse = await serviceDeliveryService.getAll(1, 100, false);
+      // Fetch service delivery visitors - only get in-house ones for status display
+      const serviceDeliveryResponse = await serviceDeliveryService.getAll(1, 100);
       
       let allRecords: ParkingRecord[] = [];
       
+      // Get Parking records first
       if (parkingResponse.success && parkingResponse.data) {
         allRecords = [...(parkingResponse.data || [])];
       }
       
+      // Create a map of Service Delivery visitors by plate number for quick lookup
+      const sdMapByPlate: Map<string, any> = new Map();
       if (serviceDeliveryResponse.success && serviceDeliveryResponse.data) {
-        const sdVisitors = serviceDeliveryResponse.data.map((v: any) => ({
-          _id: v._id,
-          plate_number: v.vehicle_storage?.has_vehicle ? v.vehicle_storage?.vehicle_details?.plate_number || 'N/A' : 'N/A',
-          driver_name: v.full_name,
-          driver_telephone: v.telephone,
-          status: v.is_still_inhouse ? 'active' : 'completed',
-          driver_type: v.vehicle_storage?.has_vehicle ? 'Visitor' : 'Without Vehicle',
-          slot_number: 'N/A',
-          badge_number: v.badge_number,
-          check_in: v.entry_date || v.createdAt,
-          check_out: v.check_out_time || undefined,
-          is_flagged: v.is_over_limit || false,
-          current_duration: v.current_duration,
-          is_over_limit: v.is_over_limit || false,
-          is_near_limit: v.is_near_limit || false,
-          current_duration_hours: v.current_duration_hours || 0
-        }));
-        allRecords = [...allRecords, ...sdVisitors];
+        serviceDeliveryResponse.data
+          .filter((v: any) => v.vehicle_storage?.has_vehicle && v.vehicle_storage?.vehicle_details?.plate_number)
+          .forEach((v: any) => {
+            const plate = v.vehicle_storage.vehicle_details.plate_number.toLowerCase();
+            sdMapByPlate.set(plate, v);
+          });
+      }
+      
+      // Enrich Parking records with Service Delivery status for visitors with vehicles
+      allRecords = allRecords.map(r => {
+        const plate = r.plate_number?.toLowerCase() || '';
+        const sdRecord = sdMapByPlate.get(plate);
+        if (sdRecord) {
+          return {
+            ...r,
+            is_still_inhouse: sdRecord.is_still_inhouse,
+            driver_type: 'Visitor' // Ensure it's marked as Visitor
+          };
+        }
+        return r;
+      });
+      
+      // Add Service Delivery visitors WITHOUT vehicles (always add - they don't exist in Parking)
+      if (serviceDeliveryResponse.success && serviceDeliveryResponse.data) {
+        const sdVisitorsWithoutVehicle = serviceDeliveryResponse.data
+          .filter((v: any) => !v.vehicle_storage?.has_vehicle)
+          .map((v: any) => ({
+            _id: v._id,
+            plate_number: '',
+            driver_name: v.full_name,
+            driver_telephone: v.telephone,
+            status: v.is_still_inhouse ? 'active' : 'completed',
+            driver_type: 'Without Vehicle',
+            slot_number: '',
+            badge_number: v.badge_number,
+            check_in: v.entry_date || v.createdAt,
+            check_out: v.exist_date || undefined,
+            is_flagged: v.is_over_limit || false,
+            current_duration: v.current_duration,
+            is_over_limit: v.is_over_limit || false,
+            is_near_limit: v.is_near_limit || false,
+            current_duration_hours: v.current_duration_hours || 0,
+            is_still_inhouse: v.is_still_inhouse,
+            checked_in_by: v.registered_by_role || 'Unknown'
+          }));
+        
+        allRecords = [...allRecords, ...sdVisitorsWithoutVehicle];
+      }
+      
+      // For "visitors" tab - add visitors WITH vehicles that don't exist in Parking
+      if (activeTab === 'visitors' && serviceDeliveryResponse.success && serviceDeliveryResponse.data) {
+        const parkingPlates = new Set(parkingResponse.success && parkingResponse.data 
+          ? parkingResponse.data.map((r: any) => r.plate_number?.toLowerCase()) 
+          : []);
+        const sdVisitorsWithVehicle = serviceDeliveryResponse.data
+          .filter((v: any) => v.vehicle_storage?.has_vehicle && v.vehicle_storage?.vehicle_details?.plate_number)
+          .filter((v: any) => !parkingPlates.has(v.vehicle_storage.vehicle_details.plate_number?.toLowerCase()))
+          .map((v: any) => ({
+            _id: v._id,
+            plate_number: v.vehicle_storage.vehicle_details.plate_number,
+            driver_name: v.full_name,
+            driver_telephone: v.telephone,
+            status: v.is_still_inhouse ? 'active' : 'completed',
+            driver_type: 'Visitor',
+            slot_number: 'N/A',
+            badge_number: v.badge_number,
+            check_in: v.entry_date || v.createdAt,
+            check_out: v.exist_date || undefined,
+            is_flagged: v.is_over_limit || false,
+            current_duration: v.current_duration,
+            is_over_limit: v.is_over_limit || false,
+            is_near_limit: v.is_near_limit || false,
+            current_duration_hours: v.current_duration_hours || 0,
+            is_still_inhouse: v.is_still_inhouse
+          }));
+        
+        allRecords = [...allRecords, ...sdVisitorsWithVehicle];
       }
       
       setRecords(allRecords);
@@ -189,18 +285,23 @@ const MonitorPage: React.FC = () => {
     setCurrentPage(1); // Reset to first page when filters change
   };
 
-  const handleCheckout = async (record: ParkingRecord) => {
-    if (!record.plate_number) {
-      showError('Plate number not found for this record');
-      return;
-    }
+  const handleCheckoutClick = (record: ParkingRecord) => {
+    setSelectedRecord(record);
+    setExitNotes('');
+    setShowCheckoutModal(true);
+  };
+
+  const handleConfirmCheckout = async () => {
+    if (!selectedRecord) return;
     
     setCheckoutLoading(true);
     try {
-      const response = await smartParkingService.checkOutByPlate(record.plate_number);
+      const response = await smartParkingService.checkOutByPlate(selectedRecord.plate_number || '');
       if (response.success) {
         showSuccess('Vehicle checked out successfully');
+        setShowCheckoutModal(false);
         setSelectedRecord(null);
+        setExitNotes('');
         loadData();
       } else {
         showError(response.message || 'Failed to checkout vehicle');
@@ -210,6 +311,12 @@ const MonitorPage: React.FC = () => {
     } finally {
       setCheckoutLoading(false);
     }
+  };
+
+  const handleCancelCheckout = () => {
+    setShowCheckoutModal(false);
+    setSelectedRecord(null);
+    setExitNotes('');
   };
 
   // Pagination calculations
@@ -232,7 +339,7 @@ const MonitorPage: React.FC = () => {
   };
 
   // Calculate stats
-  const totalVehicles = records.length;
+  const totalVehicles = records.filter(r => r.plate_number && r.plate_number !== '' && r.plate_number !== '-').length;
   const activeCount = records.filter(r => r.status === 'active').length;
   const completedCount = records.filter(r => r.status === 'completed').length;
   const flaggedCount = records.filter(r => r.is_flagged).length;
@@ -274,8 +381,78 @@ const MonitorPage: React.FC = () => {
     }
     
     return (
-      <span className="inline-flex px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">
+      <span className="inline-flex px-2.5 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700">
         Completed
+      </span>
+    );
+  };
+
+  // Parking Status - shows if vehicle is inside or outside parking
+  const getParkingStatusBadge = (record: ParkingRecord) => {
+    const isInside = !record.check_out && record.status === 'active';
+    
+    if (record.is_flagged) {
+      return (
+        <span className="inline-flex px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700 whitespace-nowrap">
+          Flagged
+        </span>
+      );
+    }
+    
+    if (isInside) {
+      return (
+        <span className="inline-flex px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700 whitespace-nowrap">
+          Inside
+        </span>
+      );
+    }
+    
+    return (
+      <span className="inline-flex px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">
+        Outside
+      </span>
+    );
+  };
+
+  // Service Status - shows if service in Service Delivery is pending/in progress/completed
+  const getServiceStatusBadge = (record: ParkingRecord) => {
+    // For visitors without vehicle (Service Delivery)
+    if (record.driver_type === 'Without Vehicle') {
+      if (record.is_still_inhouse === true) {
+        return (
+          <span className="inline-flex px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-700 whitespace-nowrap">
+            In Progress
+          </span>
+        );
+      }
+      return (
+        <span className="inline-flex px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700 whitespace-nowrap">
+          Completed
+        </span>
+      );
+    }
+    
+    // For visitors with vehicle - check if service delivery is linked
+    if (record.is_still_inhouse === true) {
+      return (
+        <span className="inline-flex px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-700 whitespace-nowrap">
+          In Progress
+        </span>
+      );
+    }
+    
+    if (record.is_still_inhouse === false) {
+      return (
+        <span className="inline-flex px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700 whitespace-nowrap">
+          Completed
+        </span>
+      );
+    }
+    
+    // No service delivery record
+    return (
+      <span className="inline-flex px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-500 whitespace-nowrap">
+        N/A
       </span>
     );
   };
@@ -463,14 +640,15 @@ const MonitorPage: React.FC = () => {
                     </div>
                   </th>
                   )}
-                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-2 sm:px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Parking Status</th>
+                  <th className="px-2 sm:px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Service Status</th>
                   <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={activeTab === 'visitors' ? 6 : 8} className="px-4 py-16 text-center">
+                    <td colSpan={activeTab === 'visitors' ? 7 : 9} className="px-4 py-16 text-center">
                       <div className="flex flex-col items-center">
                         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
                         <p className="text-gray-500 font-medium">Loading records...</p>
@@ -481,7 +659,7 @@ const MonitorPage: React.FC = () => {
                   <>
                     {currentRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={activeTab === 'visitors' ? 6 : 8} className="px-4 py-16 text-center">
+                        <td colSpan={activeTab === 'visitors' ? 7 : 9} className="px-4 py-16 text-center">
                           <div className="flex flex-col items-center">
                             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                               <FiTruck className="w-8 h-8 text-gray-400" />
@@ -502,7 +680,7 @@ const MonitorPage: React.FC = () => {
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-gray-900">
-                              {record.plate_number || 'N/A'}
+                              {record.plate_number ? record.plate_number : '-'}
                             </span>
                             {record.is_flagged && (
                               <FiAlertTriangle className="w-4 h-4 text-red-500" title="Flagged Vehicle" />
@@ -565,16 +743,30 @@ const MonitorPage: React.FC = () => {
                       </td>
                     )}
                     <td className="px-4 py-4">
-                      {getStatusBadge(record)}
+                      {getParkingStatusBadge(record)}
                     </td>
                     <td className="px-4 py-4">
-                      <button
-                        onClick={() => setSelectedRecord(record)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors duration-200"
-                      >
-                        <FiCalendar className="w-3.5 h-3.5" />
-                        View
-                      </button>
+                      {getServiceStatusBadge(record)}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setSelectedRecord(record)}
+                          className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors duration-200"
+                        >
+                          <FiCalendar className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">View</span>
+                        </button>
+                        {record.status === 'active' && (
+                          <button
+                            onClick={() => handleCheckoutClick(record)}
+                            className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors duration-200"
+                          >
+                            <FiLogOut className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Checkout</span>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )))}
@@ -652,7 +844,7 @@ const MonitorPage: React.FC = () => {
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-white">Parking Record Details</h2>
-                    <p className="text-blue-100 text-sm">{selectedRecord.plate_number}</p>
+                    <p className="text-blue-100 text-sm">{selectedRecord.plate_number || '-'}</p>
                   </div>
                 </div>
                 <button
@@ -668,7 +860,7 @@ const MonitorPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-100">
                   <p className="text-sm text-gray-500">License Plate</p>
-                  <p className="font-bold text-gray-900 text-lg">{selectedRecord.plate_number || 'N/A'}</p>
+                  <p className="font-bold text-gray-900 text-lg">{selectedRecord.plate_number ? selectedRecord.plate_number : '-'}</p>
                 </div>
                 <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-100">
                   <p className="text-sm text-gray-500">Driver Type</p>
@@ -742,7 +934,7 @@ const MonitorPage: React.FC = () => {
                 <div>
                   {selectedRecord.status === 'active' && !selectedRecord.is_flagged && (
                     <button
-                      onClick={() => handleCheckout(selectedRecord)}
+                      onClick={() => handleConfirmCheckout()}
                       disabled={checkoutLoading}
                       className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -765,6 +957,69 @@ const MonitorPage: React.FC = () => {
                   className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Checkout Confirmation Modal */}
+      {showCheckoutModal && selectedRecord && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="bg-gradient-to-r from-red-500 to-red-600 p-4 sm:p-6 text-white">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <FiAlertTriangle className="w-6 sm:w-8 h-6 sm:h-8" />
+                <h2 className="text-lg sm:text-xl font-bold">Confirm Checkout</h2>
+              </div>
+            </div>
+            
+            <div className="p-4 sm:p-6">
+              {/* Warning if service not complete */}
+              {selectedRecord.driver_type === 'Without Vehicle' && selectedRecord.is_still_inhouse === true && (
+                <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                  <div className="flex items-start gap-3">
+                    <FiAlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-amber-800">Service Not Complete</p>
+                      <p className="text-sm text-amber-700 mt-1">
+                        This visitor is still receiving service in Service Delivery. 
+                        Are you sure you want to check them out anyway?
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-gray-50 rounded-xl p-4 mb-6">
+                <p className="text-sm text-gray-500 mb-2">You are about to check out:</p>
+                <p className="text-lg font-bold text-gray-900">
+                  {selectedRecord.plate_number ? selectedRecord.plate_number : '-'}
+                </p>
+                <p className="text-gray-600">{selectedRecord.driver_name || 'Unknown Driver'}</p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={handleCancelCheckout}
+                  className="flex-1 px-4 sm:px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmCheckout}
+                  disabled={checkoutLoading}
+                  className="flex-1 px-4 sm:px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all font-medium shadow-md disabled:opacity-50"
+                >
+                  {checkoutLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    'Confirm Checkout'
+                  )}
                 </button>
               </div>
             </div>

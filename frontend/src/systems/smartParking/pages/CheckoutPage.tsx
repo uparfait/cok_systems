@@ -33,6 +33,7 @@ interface ParkingRecord {
   is_over_limit?: boolean;
   is_near_limit?: boolean;
   current_duration_hours?: number;
+  is_still_inhouse?: boolean;
 }
 
 const CheckoutPage: React.FC = () => {
@@ -47,6 +48,7 @@ const CheckoutPage: React.FC = () => {
   const [tableType, setTableType] = useState<'with_vehicle' | 'without_vehicle'>('with_vehicle');
   const [allRecords, setAllRecords] = useState<ParkingRecord[]>([]);
   const [filteredRecords, setFilteredRecords] = useState<ParkingRecord[]>([]);
+  const [pendingExits, setPendingExits] = useState(0);
   
   // Modal state
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
@@ -94,8 +96,8 @@ const CheckoutPage: React.FC = () => {
       // Fetch parking records
       const parkingResponse = await smartParkingService.getAll();
       
-      // Fetch service delivery visitors (both in-house and checked out)
-      const serviceDeliveryResponse = await serviceDeliveryService.getAll(1, 100, false);
+      // Fetch service delivery visitors (all - both in-house and checked out)
+      const serviceDeliveryResponse = await serviceDeliveryService.getAll(1, 100);
       
       let records: ParkingRecord[] = [];
       
@@ -103,26 +105,60 @@ const CheckoutPage: React.FC = () => {
         records = [...(parkingResponse.data || [])];
       }
       
+      // Add service delivery visitors - handle with and without vehicles separately
       if (serviceDeliveryResponse.success && serviceDeliveryResponse.data) {
-        const sdVisitors = serviceDeliveryResponse.data.map((v: any) => ({
-          _id: v._id,
-          plate_number: v.vehicle_storage?.has_vehicle ? v.vehicle_storage?.vehicle_details?.plate_number || 'N/A' : 'N/A',
-          driver_identification: v.identification,
-          driver_name: v.full_name,
-          driver_telephone: v.telephone,
-          status: v.is_still_inhouse ? 'active' : 'completed',
-          driver_type: v.vehicle_storage?.has_vehicle ? 'Visitor' : 'Without Vehicle',
-          slot_number: 'N/A',
-          badge_number: v.badge_number,
-          check_in: v.entry_date || v.createdAt,
-          check_out: v.check_out_time || null,
-          is_flagged: v.is_over_limit || false,
-          current_duration: v.current_duration,
-          is_over_limit: v.is_over_limit || false,
-          is_near_limit: v.is_near_limit || false,
-          current_duration_hours: v.current_duration_hours || 0
-        }));
-        records = [...records, ...sdVisitors];
+        // Visitors WITHOUT vehicles - always add (no duplicates possible)
+        const sdVisitorsWithoutVehicle = serviceDeliveryResponse.data
+          .filter((v: any) => !v.vehicle_storage?.has_vehicle)
+          .map((v: any) => ({
+            _id: v._id,
+            plate_number: 'N/A',
+            driver_identification: v.identification,
+            driver_name: v.full_name,
+            driver_telephone: v.telephone,
+            status: v.is_still_inhouse ? 'active' : 'completed',
+            driver_type: 'Without Vehicle',
+            slot_number: 'N/A',
+            badge_number: v.badge_number,
+            check_in: v.entry_date || v.createdAt,
+            check_out: v.exist_date || null,
+            is_flagged: v.is_over_limit || false,
+            current_duration: v.current_duration,
+            is_over_limit: v.is_over_limit || false,
+            is_near_limit: v.is_near_limit || false,
+            current_duration_hours: v.current_duration_hours || 0,
+            is_still_inhouse: v.is_still_inhouse
+          }));
+        
+        // Visitors WITH vehicles - deduplicate with Parking records
+        const sdVisitorsWithVehicle = serviceDeliveryResponse.data
+          .filter((v: any) => v.vehicle_storage?.has_vehicle)
+          .map((v: any) => ({
+            _id: v._id,
+            plate_number: v.vehicle_storage?.vehicle_details?.plate_number || 'N/A',
+            driver_identification: v.identification,
+            driver_name: v.full_name,
+            driver_telephone: v.telephone,
+            status: v.is_still_inhouse ? 'active' : 'completed',
+            driver_type: 'Visitor',
+            slot_number: 'N/A',
+            badge_number: v.badge_number,
+            check_in: v.entry_date || v.createdAt,
+            check_out: v.exist_date || null,
+            is_flagged: v.is_over_limit || false,
+            current_duration: v.current_duration,
+            is_over_limit: v.is_over_limit || false,
+            is_near_limit: v.is_near_limit || false,
+            current_duration_hours: v.current_duration_hours || 0,
+            is_still_inhouse: v.is_still_inhouse
+          }));
+        
+        // Deduplicate visitors with vehicles
+        const parkingPlates = new Set(records.map(r => r.plate_number?.toLowerCase()));
+        const uniqueSdVisitorsWithVehicle = sdVisitorsWithVehicle.filter((v: any) => !parkingPlates.has(v.plate_number?.toLowerCase()));
+        
+        // Combine: Parking + Visitors without vehicle + Unique visitors with vehicle
+        records = [...records, ...sdVisitorsWithoutVehicle, ...uniqueSdVisitorsWithVehicle];
       }
       
       setAllRecords(records);
@@ -136,15 +172,22 @@ const CheckoutPage: React.FC = () => {
   const filterRecords = () => {
     let filtered = [...allRecords];
     
-    // Only show active records for checkout
-    filtered = filtered.filter(r => r.status === 'active');
-    
     // Filter by table type
     if (tableType === 'with_vehicle') {
       filtered = filtered.filter(r => r.driver_type !== 'Without Vehicle');
     } else {
       filtered = filtered.filter(r => r.driver_type === 'Without Vehicle');
     }
+    
+    // For pending exits, only count those still in Service Delivery based on table type
+    let pendingFiltered = [...allRecords];
+    if (tableType === 'with_vehicle') {
+      pendingFiltered = pendingFiltered.filter(r => r.driver_type !== 'Without Vehicle');
+    } else {
+      pendingFiltered = pendingFiltered.filter(r => r.driver_type === 'Without Vehicle');
+    }
+    const pending = pendingFiltered.filter(r => r.is_still_inhouse === true);
+    setPendingExits(pending.length);
     
     // Filter by search
     if (searchQuery.trim()) {
@@ -282,9 +325,6 @@ const CheckoutPage: React.FC = () => {
   const startIndex = (currentPage - 1) * recordsPerPage + 1;
   const endIndex = Math.min(currentPage * recordsPerPage, totalRecords);
   const paginatedRecords = filteredRecords.slice(startIndex - 1, endIndex);
-
-  // Stats
-  const pendingExits = filteredRecords.length;
 
   if (authLoading || loading) {
     return (
@@ -469,10 +509,24 @@ const CheckoutPage: React.FC = () => {
                         <td className="px-3 md:px-4 py-3">
                           <button
                             onClick={() => handleCheckoutClick(record)}
-                            className="flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
+                            disabled={record.status === 'completed'}
+                            className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 text-sm font-medium rounded-lg ${
+                              record.status === 'completed' 
+                                ? 'bg-green-100 text-green-700 cursor-not-allowed'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                            }`}
                           >
-                            <FiEdit3 className="w-4 h-4" />
-                            <span className="hidden sm:inline">Checkout</span>
+                            {record.status === 'completed' ? (
+                              <>
+                                <FiCheckCircle className="w-4 h-4" />
+                                <span className="hidden sm:inline">Completed</span>
+                              </>
+                            ) : (
+                              <>
+                                <FiEdit3 className="w-4 h-4" />
+                                <span className="hidden sm:inline">Checkout</span>
+                              </>
+                            )}
                           </button>
                         </td>
                       </tr>
