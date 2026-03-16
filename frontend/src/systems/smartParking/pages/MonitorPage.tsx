@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
-import { smartParkingService } from '../../../core/services/adminService';
+import { smartParkingService, serviceDeliveryService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
   FiTruck, FiAlertTriangle, FiClock, FiSearch, FiRefreshCw,
@@ -25,10 +25,15 @@ interface ParkingRecord {
   slot_number?: string;
   is_flagged?: boolean;
   duration?: string;
+  current_duration?: string;
+  current_duration_hours?: number;
+  is_near_limit?: boolean;
+  is_over_limit?: boolean;
   checked_in_by?: string;
+  badge_number?: string;
 }
 
-type TabType = 'all' | 'active' | 'completed' | 'flagged';
+type TabType = 'all' | 'active' | 'completed' | 'flagged' | 'visitors';
 
 const MonitorPage: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -41,6 +46,7 @@ const MonitorPage: React.FC = () => {
   const [records, setRecords] = useState<ParkingRecord[]>([]);
   const [filteredRecords, setFilteredRecords] = useState<ParkingRecord[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<ParkingRecord | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -54,10 +60,48 @@ const MonitorPage: React.FC = () => {
     }
   }, [isAuthenticated, authLoading, navigate]);
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 30 seconds (silent - no loading indicator, no error toasts)
   useEffect(() => {
-    const interval = setInterval(() => {
-      loadData(false);
+    const interval = setInterval(async () => {
+      try {
+        // Fetch parking records
+        const parkingResponse = await smartParkingService.getAll();
+        
+        // Fetch service delivery visitors
+        const serviceDeliveryResponse = await serviceDeliveryService.getAll(1, 100, false);
+        
+        let allRecords: ParkingRecord[] = [];
+        
+        if (parkingResponse.success && parkingResponse.data) {
+          allRecords = [...(parkingResponse.data || [])];
+        }
+        
+        if (serviceDeliveryResponse.success && serviceDeliveryResponse.data) {
+          const sdVisitors = serviceDeliveryResponse.data.map((v: any) => ({
+            _id: v._id,
+            plate_number: v.vehicle_storage?.has_vehicle ? v.vehicle_storage?.vehicle_details?.plate_number || 'N/A' : 'N/A',
+            driver_name: v.full_name,
+            driver_telephone: v.telephone,
+            status: v.is_still_inhouse ? 'active' : 'completed',
+            driver_type: v.vehicle_storage?.has_vehicle ? 'Visitor' : 'Without Vehicle',
+            slot_number: 'N/A',
+            badge_number: v.badge_number,
+            check_in: v.entry_date || v.createdAt,
+            check_out: v.check_out_time || undefined,
+            is_flagged: v.is_over_limit || false,
+            current_duration: v.current_duration,
+            is_over_limit: v.is_over_limit || false,
+            is_near_limit: v.is_near_limit || false,
+            current_duration_hours: v.current_duration_hours || 0
+          }));
+          allRecords = [...allRecords, ...sdVisitors];
+        }
+        
+        setRecords(allRecords);
+      } catch (err) {
+        // Silent fail for auto-refresh - don't show error toasts
+        console.warn('Auto-refresh failed:', err);
+      }
     }, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -69,12 +113,40 @@ const MonitorPage: React.FC = () => {
   const loadData = async (showLoading = true) => {
     if (showLoading) setLoading(true);
     try {
-      const response = await smartParkingService.getAll();
-      if (response.success) {
-        setRecords(response.data || []);
-      } else {
-        showError(response.message || 'Failed to load data');
+      // Fetch parking records
+      const parkingResponse = await smartParkingService.getAll();
+      
+      // Fetch service delivery visitors (both in-house and checked out)
+      const serviceDeliveryResponse = await serviceDeliveryService.getAll(1, 100, false);
+      
+      let allRecords: ParkingRecord[] = [];
+      
+      if (parkingResponse.success && parkingResponse.data) {
+        allRecords = [...(parkingResponse.data || [])];
       }
+      
+      if (serviceDeliveryResponse.success && serviceDeliveryResponse.data) {
+        const sdVisitors = serviceDeliveryResponse.data.map((v: any) => ({
+          _id: v._id,
+          plate_number: v.vehicle_storage?.has_vehicle ? v.vehicle_storage?.vehicle_details?.plate_number || 'N/A' : 'N/A',
+          driver_name: v.full_name,
+          driver_telephone: v.telephone,
+          status: v.is_still_inhouse ? 'active' : 'completed',
+          driver_type: v.vehicle_storage?.has_vehicle ? 'Visitor' : 'Without Vehicle',
+          slot_number: 'N/A',
+          badge_number: v.badge_number,
+          check_in: v.entry_date || v.createdAt,
+          check_out: v.check_out_time || undefined,
+          is_flagged: v.is_over_limit || false,
+          current_duration: v.current_duration,
+          is_over_limit: v.is_over_limit || false,
+          is_near_limit: v.is_near_limit || false,
+          current_duration_hours: v.current_duration_hours || 0
+        }));
+        allRecords = [...allRecords, ...sdVisitors];
+      }
+      
+      setRecords(allRecords);
     } catch (err: any) {
       showError(err?.message || 'Failed to load data');
     } finally {
@@ -96,6 +168,9 @@ const MonitorPage: React.FC = () => {
       case 'flagged':
         filtered = filtered.filter(r => r.is_flagged);
         break;
+      case 'visitors':
+        filtered = filtered.filter(r => r.driver_type === 'Without Vehicle');
+        break;
     }
     
     // Apply search filter
@@ -105,12 +180,36 @@ const MonitorPage: React.FC = () => {
         r.plate_number?.toLowerCase().includes(query) ||
         r.driver_name?.toLowerCase().includes(query) ||
         r.driver_telephone?.toLowerCase().includes(query) ||
-        r.slot_number?.toLowerCase().includes(query)
+        r.slot_number?.toLowerCase().includes(query) ||
+        r.badge_number?.toLowerCase().includes(query)
       );
     }
     
     setFilteredRecords(filtered);
     setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const handleCheckout = async (record: ParkingRecord) => {
+    if (!record.plate_number) {
+      showError('Plate number not found for this record');
+      return;
+    }
+    
+    setCheckoutLoading(true);
+    try {
+      const response = await smartParkingService.checkOutByPlate(record.plate_number);
+      if (response.success) {
+        showSuccess('Vehicle checked out successfully');
+        setSelectedRecord(null);
+        loadData();
+      } else {
+        showError(response.message || 'Failed to checkout vehicle');
+      }
+    } catch (err: any) {
+      showError(err?.message || 'Failed to checkout vehicle');
+    } finally {
+      setCheckoutLoading(false);
+    }
   };
 
   // Pagination calculations
@@ -124,9 +223,12 @@ const MonitorPage: React.FC = () => {
     return new Date(dateString).toLocaleString();
   };
 
-  const formatDuration = (duration?: string) => {
-    if (!duration) return 'N/A';
-    return duration;
+  const formatDuration = (record: ParkingRecord) => {
+    // Use current_duration for active records, duration for completed
+    if (record.status === 'active' && record.current_duration) {
+      return record.current_duration;
+    }
+    return record.duration || 'N/A';
   };
 
   // Calculate stats
@@ -134,6 +236,7 @@ const MonitorPage: React.FC = () => {
   const activeCount = records.filter(r => r.status === 'active').length;
   const completedCount = records.filter(r => r.status === 'completed').length;
   const flaggedCount = records.filter(r => r.is_flagged).length;
+  const visitorCount = records.filter(r => r.driver_type === 'Without Vehicle').length;
 
   // Calculate total duration
   const totalDuration = records.reduce((acc, r) => {
@@ -145,21 +248,34 @@ const MonitorPage: React.FC = () => {
   }, 0);
   const totalHours = Math.round(totalDuration / (1000 * 60 * 60));
 
-  const getStatusBadge = (status?: string, isFlagged?: boolean) => {
-    if (isFlagged) {
+  const getStatusBadge = (record: ParkingRecord) => {
+    const { status, is_flagged, is_over_limit, is_near_limit } = record;
+    
+    if (is_flagged) {
       return (
         <span className="inline-flex px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700">
           Flagged
         </span>
       );
     }
+    
+    if (status === 'active') {
+      return (
+        <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
+          is_over_limit 
+            ? 'bg-red-100 text-red-700' 
+            : is_near_limit 
+            ? 'bg-orange-100 text-orange-700'
+            : 'bg-green-100 text-green-700'
+        }`}>
+          {is_over_limit ? 'Over Time' : is_near_limit ? 'Near Limit' : 'Active'}
+        </span>
+      );
+    }
+    
     return (
-      <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
-        status === 'active' 
-          ? 'bg-green-100 text-green-700' 
-          : 'bg-gray-100 text-gray-600'
-      }`}>
-        {status === 'active' ? 'Active' : 'Completed'}
+      <span className="inline-flex px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">
+        Completed
       </span>
     );
   };
@@ -175,17 +291,6 @@ const MonitorPage: React.FC = () => {
       </div>
     );
   };
-
-  if (authLoading || loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <MainLayout>
@@ -257,6 +362,18 @@ const MonitorPage: React.FC = () => {
               </div>
             </div>
           </div>
+          <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-5 text-white shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-amber-100 text-sm font-medium">Visitors without vehicle</p>
+                <p className="text-3xl font-bold mt-1">{visitorCount}</p>
+                <p className="text-amber-200 text-xs mt-1">Visitors without vehicle</p>
+              </div>
+              <div className="bg-white/20 p-3 rounded-xl">
+                <FiUser className="w-7 h-7 text-white" />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Tabs and Search */}
@@ -265,7 +382,7 @@ const MonitorPage: React.FC = () => {
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               {/* Tabs */}
               <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-                {(['all', 'active', 'completed', 'flagged'] as TabType[]).map((tab) => (
+                {(['all', 'active', 'completed', 'flagged', 'visitors'] as TabType[]).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -275,7 +392,7 @@ const MonitorPage: React.FC = () => {
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
                     }`}
                   >
-                    {tab}
+                    {tab === 'visitors' ? 'Visitors without vehicle' : tab}
                     {tab === 'active' && activeCount > 0 && (
                       <span className="ml-2 px-1.5 py-0.5 text-xs bg-green-100 text-green-700 rounded-full">
                         {activeCount}
@@ -299,7 +416,7 @@ const MonitorPage: React.FC = () => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by plate, name, phone, slot..."
+                  placeholder="Search by plate, name, phone, slot, badge..."
                   className="block w-full lg:w-80 pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
                 />
               </div>
@@ -320,14 +437,11 @@ const MonitorPage: React.FC = () => {
                   <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
                       <FiUser className="w-4 h-4" />
-                      Driver
+                      {activeTab === 'visitors' ? 'Visitor' : 'Driver'}
                     </div>
                   </th>
                   <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <FiMapPin className="w-4 h-4" />
-                      Slot
-                    </div>
+                    Badge
                   </th>
                   <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
@@ -341,19 +455,45 @@ const MonitorPage: React.FC = () => {
                       Check Out
                     </div>
                   </th>
+                  {activeTab !== 'visitors' && (
                   <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
                       <FiClock className="w-4 h-4" />
                       Duration
                     </div>
                   </th>
+                  )}
                   <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {currentRecords.map((record, index) => (
-                  <tr key={index} className="hover:bg-blue-50/50 transition-colors duration-150 group">
+                {loading ? (
+                  <tr>
+                    <td colSpan={activeTab === 'visitors' ? 6 : 8} className="px-4 py-16 text-center">
+                      <div className="flex flex-col items-center">
+                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+                        <p className="text-gray-500 font-medium">Loading records...</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <>
+                    {currentRecords.length === 0 ? (
+                      <tr>
+                        <td colSpan={activeTab === 'visitors' ? 6 : 8} className="px-4 py-16 text-center">
+                          <div className="flex flex-col items-center">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                              <FiTruck className="w-8 h-8 text-gray-400" />
+                            </div>
+                            <p className="text-gray-500 font-medium">No records found</p>
+                            <p className="text-gray-400 text-sm mt-1">Try adjusting your search or filter</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      currentRecords.map((record, index) => (
+                        <tr key={index} className="hover:bg-blue-50/50 transition-colors duration-150 group">
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
                         <div className={`p-2 rounded-lg ${record.is_flagged ? 'bg-red-100' : 'bg-blue-100'}`}>
@@ -361,7 +501,9 @@ const MonitorPage: React.FC = () => {
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-gray-900">{record.plate_number || 'N/A'}</span>
+                            <span className="font-semibold text-gray-900">
+                              {record.plate_number || 'N/A'}
+                            </span>
                             {record.is_flagged && (
                               <FiAlertTriangle className="w-4 h-4 text-red-500" title="Flagged Vehicle" />
                             )}
@@ -371,14 +513,23 @@ const MonitorPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="text-gray-900 font-medium">{record.driver_name || 'N/A'}</div>
+                      <div className="text-gray-900 font-medium">
+                        {record.driver_name || 'N/A'}
+                      </div>
                       <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                         <FiPhone className="w-3 h-3" />
                         {record.driver_telephone || 'N/A'}
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      {getSlotDisplay(record.slot_number)}
+                      {record.badge_number ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-orange-100 rounded-lg text-sm font-medium text-orange-700">
+                          <FiUser className="w-3.5 h-3.5" />
+                          {record.badge_number}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-sm">-</span>
+                      )}
                     </td>
                     <td className="px-4 py-4">
                       <div className="text-gray-700 text-sm">{formatDate(record.check_in)}</div>
@@ -393,18 +544,28 @@ const MonitorPage: React.FC = () => {
                       ) : (
                         <div className="flex items-center gap-1.5 text-amber-600 text-sm">
                           <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
-                          Still parked
+                          {record.driver_type === 'Without Vehicle' ? 'Still inside' : 'Still parked'}
                         </div>
                       )}
                     </td>
+                    {activeTab !== 'visitors' && (
+                      <td className="px-4 py-4">
+                        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm ${
+                          record.is_over_limit 
+                            ? 'bg-red-100 text-red-700' 
+                            : record.is_near_limit 
+                            ? 'bg-orange-100 text-orange-700'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          <FiClock className="w-3.5 h-3.5" />
+                          {formatDuration(record)}
+                          {record.is_over_limit && <span className="ml-1 text-xs font-medium">OVER</span>}
+                          {record.is_near_limit && !record.is_over_limit && <span className="ml-1 text-xs font-medium">NEAR</span>}
+                        </div>
+                      </td>
+                    )}
                     <td className="px-4 py-4">
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 rounded-lg text-sm text-gray-600">
-                        <FiClock className="w-3.5 h-3.5" />
-                        {formatDuration(record.duration)}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      {getStatusBadge(record.status, record.is_flagged)}
+                      {getStatusBadge(record)}
                     </td>
                     <td className="px-4 py-4">
                       <button
@@ -416,19 +577,8 @@ const MonitorPage: React.FC = () => {
                       </button>
                     </td>
                   </tr>
-                ))}
-                {currentRecords.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-16 text-center">
-                      <div className="flex flex-col items-center">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                          <FiTruck className="w-8 h-8 text-gray-400" />
-                        </div>
-                        <p className="text-gray-500 font-medium">No records found</p>
-                        <p className="text-gray-400 text-sm mt-1">Try adjusting your search or filter</p>
-                      </div>
-                    </td>
-                  </tr>
+                )))}
+                </>
                 )}
               </tbody>
             </table>
@@ -536,9 +686,13 @@ const MonitorPage: React.FC = () => {
                   <p className="text-sm text-gray-500">Slot Number</p>
                   <div className="mt-1">{getSlotDisplay(selectedRecord.slot_number)}</div>
                 </div>
+                <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 border border-orange-100">
+                  <p className="text-sm text-orange-700">Badge Number</p>
+                  <p className="font-bold text-orange-900 text-lg">{selectedRecord.badge_number || 'N/A'}</p>
+                </div>
                 <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-100">
                   <p className="text-sm text-gray-500">Status</p>
-                  <div className="mt-1">{getStatusBadge(selectedRecord.status, selectedRecord.is_flagged)}</div>
+                  <div className="mt-1">{getStatusBadge(selectedRecord)}</div>
                 </div>
                 <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-100">
                   <div className="flex items-center gap-2 mb-1">
@@ -559,7 +713,7 @@ const MonitorPage: React.FC = () => {
                     <FiClock className="w-4 h-4 text-amber-600" />
                     <p className="text-sm text-amber-700">Duration</p>
                   </div>
-                  <p className="font-bold text-amber-900">{formatDuration(selectedRecord.duration)}</p>
+                  <p className="font-bold text-amber-900">{formatDuration(selectedRecord)}</p>
                 </div>
                 <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-100">
                   <div className="flex items-center gap-2 mb-1">
@@ -584,7 +738,28 @@ const MonitorPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="mt-6 flex justify-end">
+              <div className="mt-6 flex items-center justify-between">
+                <div>
+                  {selectedRecord.status === 'active' && !selectedRecord.is_flagged && (
+                    <button
+                      onClick={() => handleCheckout(selectedRecord)}
+                      disabled={checkoutLoading}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {checkoutLoading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <FiLogOut className="w-4 h-4" />
+                          Check Out Vehicle
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
                 <button
                   onClick={() => setSelectedRecord(null)}
                   className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"

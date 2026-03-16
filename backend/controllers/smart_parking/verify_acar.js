@@ -3,8 +3,13 @@ const EmergencyCar = require('../../models/emergency_car.js');
 const ParkingRecord = require('../../models/parking_record.js');
 
 module.exports = async function verify_car(req, res, next) {
+    let plate_number = null;
+    let vehicle_type = 'Unknown';
+    let is_reserved = false;
+    let is_found_in_system = false;
+    
     try {
-        let { plate_number = null } = req.body || {};
+        ({ plate_number = null } = req.body || {});
 
         if (!plate_number) {
             return res.status(400).json({
@@ -16,8 +21,8 @@ module.exports = async function verify_car(req, res, next) {
 
         plate_number = plate_number.toString().toUpperCase().replace(/\s+/g, '');
 
-        //  Check if it's currently parked
-        const active_parking = await ParkingRecord.findOne({ plate_number, status: 'active' });
+        // Check if it's currently parked - get the MOST RECENT active record
+        const active_parking = await ParkingRecord.findOne({ plate_number, status: 'active' }).sort({ check_in: -1 });
 
         //  Check if it's a registered Staff Car
         const staff_car = await StaffCar.findOne({ plate_number, is_active: true });
@@ -31,7 +36,10 @@ module.exports = async function verify_car(req, res, next) {
 
         // check if is flagged.
 
-        const is_flagged = await ParkingRecord.findOne({ plate_number, is_flagged: true });
+        const is_flagged = await ParkingRecord.findOne({ plate_number, is_flagged: true, status: 'active' });
+        
+        // Check if vehicle was ever flagged in the past (even if checked out now)
+        const was_ever_flagged = await ParkingRecord.findOne({ plate_number, is_flagged: true });
 
         // also check if it was parked before and provide vistor info
 
@@ -43,28 +51,67 @@ module.exports = async function verify_car(req, res, next) {
         let driver_type = null
         let driver_email = null
 
-        const past_parking = await ParkingRecord.findOne({ plate_number }).sort({ check_in: -1 });
-
-        if (past_parking) {
-            driver_name = past_parking.driver_name || null
-            driver_telephone = past_parking.driver_telephone || null
-            driver_gender = past_parking.driver_gender || null
-            driver_identification = past_parking.driver_identification || null
-            driver_type = past_parking.driver_type || null
-            driver_email = past_parking.driver_email || null
+        // also check if it was parked before and provide visitor info
+        let past_parking = null;
+        try {
+            past_parking = await ParkingRecord.findOne({ plate_number }).sort({ check_in: -1 });
+        } catch (err) {
+            console.error('Error finding past parking:', err);
         }
 
-        let vehicle_type = 'Unknown';
-        let is_reserved = false;
+        if (past_parking) {
+            driver_name = past_parking.driver_name || null;
+            driver_telephone = past_parking.driver_telephone || null;
+            driver_gender = past_parking.driver_gender || null;
+            driver_identification = past_parking.driver_identification || null;
+            driver_type = past_parking.driver_type || null;
+            driver_email = past_parking.driver_email || null;
+        }
+
+        // Determine vehicle type and if vehicle is found in system
+        vehicle_type = 'Unknown';
+        is_reserved = false;
+        is_found_in_system = false;
 
         if (staff_car) {
             vehicle_type = 'Staff';
             is_reserved = true;
+            is_found_in_system = true;
         } else if (emergency_reservation) {
-            vehicle_type = 'Visitor';
+            vehicle_type = driver_type || 'Visitor';
             is_reserved = true;
-        } else if(driver_telephone) {
-            vehicle_type = 'Regular';
+            is_found_in_system = true;
+        } else if (driver_telephone) {
+            vehicle_type = driver_type || 'Visitor';
+            is_found_in_system = true;
+        }
+
+        // If vehicle is not found in system at all, return success: false
+        if (!is_found_in_system) {
+            return res.status(200).json({
+                success: false,
+                type: "warning",
+                message: "Vehicle not found in system",
+                data: {
+                    plate_number,
+                    is_currently_parked: false,
+                    parking_details: null,
+                    vehicle_category: 'Unknown',
+                    is_flagged: !!is_flagged,
+                    was_ever_flagged: !!was_ever_flagged,
+                    is_reserved: false,
+                    staff_details: null,
+                    emergency_reservation_details: null,
+                    driver_details: {
+                        name: null,
+                        telephone: null,
+                        gender: null,
+                        identification: null,
+                        type: null,
+                        email: null
+                    }
+                }
+            });
         }
 
         return res.status(200).json({
@@ -77,16 +124,17 @@ module.exports = async function verify_car(req, res, next) {
                 parking_details: active_parking || null,
                 vehicle_category: driver_type,
                 is_flagged: !!is_flagged,
-                is_reserved: is_reserved,
+                was_ever_flagged: !!was_ever_flagged,
+                is_reserved: is_reserved || false,
                 staff_details: staff_car || null,
                 emergency_reservation_details: emergency_reservation?.visitor_info || null,
                 driver_details: {
-                    name: driver_name,
-                    telephone: driver_telephone,
-                    gender: driver_gender,
-                    identification: driver_identification,
-                    type: driver_type,
-                    email: driver_email
+                    name: driver_name || null,
+                    telephone: driver_telephone || null,
+                    gender: driver_gender || null,
+                    identification: driver_identification || null,
+                    type: driver_type || null,
+                    email: driver_email || null
                 }
             }
         });
@@ -97,7 +145,23 @@ module.exports = async function verify_car(req, res, next) {
             success: false,
             type: "error",
             message: "Something went wrong while verifying the car",
-            error: error?.message
+            error: error?.message,
+            data: {
+                plate_number: plate_number || null,
+                vehicle_category: 'Unknown',
+                is_currently_parked: false,
+                is_flagged: false,
+                was_ever_flagged: false,
+                is_reserved: false,
+                driver_details: {
+                    name: null,
+                    telephone: null,
+                    gender: null,
+                    identification: null,
+                    type: null,
+                    email: null
+                }
+            }
         });
     }
 };
