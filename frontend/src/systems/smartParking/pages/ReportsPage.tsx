@@ -9,7 +9,7 @@ import { smartParkingService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
   FiTruck, FiAlertTriangle, FiClock, FiMapPin, FiDownload,
-  FiCalendar, FiFilter, FiRefreshCw, FiFileText, FiUser
+  FiCalendar, FiFilter, FiRefreshCw, FiFileText, FiUser, FiChevronLeft, FiChevronRight
 } from 'react-icons/fi';
 
 interface ParkingRecord {
@@ -38,6 +38,10 @@ const ReportsPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('today');
   const [selectedRecord, setSelectedRecord] = useState<ParkingRecord | null>(null);
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -106,6 +110,7 @@ const ReportsPage: React.FC = () => {
     }
 
     setFilteredRecords(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
   };
 
   // Calculate stats
@@ -113,6 +118,12 @@ const ReportsPage: React.FC = () => {
   const completedRecords = filteredRecords.filter(r => r.status === 'completed').length;
   const activeRecords = filteredRecords.filter(r => r.status === 'active').length;
   const flaggedRecords = filteredRecords.filter(r => r.is_flagged).length;
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentRecords = filteredRecords.slice(startIndex, endIndex);
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
@@ -291,7 +302,7 @@ const ReportsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredRecords.slice(0, 50).map((record, index) => (
+                {currentRecords.map((record, index) => (
                   <tr key={index} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -307,10 +318,16 @@ const ReportsPage: React.FC = () => {
                       <div className="text-gray-900">{record.driver_name || 'N/A'}</div>
                       <div className="text-xs text-gray-500">{record.driver_telephone || 'N/A'}</div>
                     </td>
-                    <td className="px-6 py-4 text-gray-600">{record.slot_number || 'N/A'}</td>
+                    <td className="px-6 py-4 text-gray-600">
+                      {record.slot_number && record.slot_number !== 'Not Specified' ? (
+                        <span className="font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{record.slot_number}</span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4">
                       <div className="text-gray-500 text-sm">{formatDate(record.check_in)}</div>
-                      <div className="text-xs text-gray-400">{record.checked_in_by || 'System'}</div>
+                      <div className="text-xs text-gray-400">{record.checked_in_by && record.checked_in_by !== 'Not specified' ? record.checked_in_by : 'Unknown'}</div>
                     </td>
                     <td className="px-6 py-4 text-gray-500 text-sm">
                       {record.check_out ? formatDate(record.check_out) : '-'}
@@ -353,6 +370,60 @@ const ReportsPage: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {filteredRecords.length > itemsPerPage && (
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+            <div className="text-sm text-gray-500">
+              Showing {startIndex + 1} to {Math.min(endIndex, filteredRecords.length)} of {filteredRecords.length} entries
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FiChevronLeft className="w-4 h-4" />
+                Previous
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded-lg text-sm font-medium ${
+                        currentPage === pageNum
+                          ? 'bg-blue-600 text-white'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+                <FiChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Detail Modal */}
@@ -422,7 +493,7 @@ const RecordDetailModal: React.FC<{ record: ParkingRecord; onClose: () => void }
             </div>
             <div className="bg-gray-50 rounded-xl p-4">
               <p className="text-sm text-gray-500">Checked In By</p>
-              <p className="font-semibold text-gray-900">{record.checked_in_by || 'System'}</p>
+              <p className="font-semibold text-gray-900">{record.checked_in_by && record.checked_in_by !== 'Not specified' ? record.checked_in_by : 'Unknown'}</p>
             </div>
           </div>
 

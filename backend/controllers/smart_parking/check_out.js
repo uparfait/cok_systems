@@ -14,16 +14,35 @@ module.exports = async function car_check_out(req, res, next) {
 
         plate_number = plate_number.toString().toUpperCase().replace(/\s+/g, '');
 
-        // Find the active parking session
-        const parking_session = await ParkingRecord.findOne({ plate_number, status: 'active' });
-
-        if (!parking_session) {
+        // Find ALL active parking sessions for this plate
+        const active_sessions = await ParkingRecord.find({ plate_number, status: 'active' }).sort({ check_in: -1 });
+        
+        if (!active_sessions || active_sessions.length === 0) {
             return res.status(404).json({
                 success: false,
                 type: 'warning',
                 message: "No active parking record found for this plate number."
             });
         }
+
+        // If multiple active records exist, complete all but the most recent one
+        if (active_sessions.length > 1) {
+            console.log(`[WARNING] Found ${active_sessions.length} active records for plate ${plate_number}. Completing all duplicates.`);
+            const duplicateCompletionTime = new Date();
+            
+            // Complete all but the first (most recent) record
+            for (let i = 1; i < active_sessions.length; i++) {
+                const duplicate = active_sessions[i];
+                const parked_minutes = Math.round((duplicateCompletionTime - new Date(duplicate.check_in)) / 60000);
+                duplicate.status = 'completed';
+                duplicate.check_out = duplicateCompletionTime;
+                duplicate.duration = `${parked_minutes} mins`;
+                await duplicate.save();
+            }
+        }
+
+        // Use the most recent active parking session
+        const parking_session = active_sessions[0];
 
         const current_time = new Date();
         const check_in_time = new Date(parking_session.check_in); // added this line for checkin time
@@ -38,32 +57,37 @@ module.exports = async function car_check_out(req, res, next) {
 
 
         const pending_visitor = await ServiceDelivery.findOne({
-            "vehicle_storage.has_vehicle": true,
-            "vehicle_storage.vehicle_details.plate_number": plate_number
+            $or: [
+                { "vehicle_storage.has_vehicle": true, "vehicle_storage.vehicle_details.plate_number": plate_number },
+                { "vehicle_storage.has_vehicle": false, full_name: parking_session.driver_name, is_still_inhouse: true }
+            ]
         });
 
 
         if (pending_visitor) {
             pending_visitor.is_still_inhouse = false;
-            pending_visitor.vehicle_storage.vehicle_details.exited_time = current_time;
-            pending_visitor.vehicle_storage.vehicle_details.duration = `${parked_minutes} mins`;
-
-
+            
+            // Only update vehicle details if they have a vehicle
+            if (pending_visitor.vehicle_storage?.has_vehicle && pending_visitor.vehicle_storage?.vehicle_details) {
+                pending_visitor.vehicle_storage.vehicle_details.exited_time = current_time;
+                pending_visitor.vehicle_storage.vehicle_details.duration = `${parked_minutes} mins`;
+            }
+            
             await pending_visitor.save();
         }
 
         // ================================================================
-        // 👉 NEW AUTOMATED FLAGGING LOGIC 
+        // 👉 AUTOMATED FLAGGING LOGIC 
         // ================================================================
         
-        let allowed_duration_minutes = 120; // Default: 2 hours for visitors
+        let allowed_duration_minutes = 480; // 8 hours for visitors
         let is_flagged = false;
         let final_message = "Vehicle checked out successfully.";     
         // Determine if it's staff to override the allowed time
         if (!pending_visitor) {
             const staff_member = await StaffCar.findOne({ plate_number });
             if (staff_member) {
-                allowed_duration_minutes = 720; // Default: 12 hours for staff
+                allowed_duration_minutes = 720; // 12 hours for staff
             }
         }
 
@@ -101,8 +125,10 @@ module.exports = async function car_check_out(req, res, next) {
             violation_details = {
                 allowed_minutes: allowed_duration_minutes,
                 total_minutes: parked_minutes,
-                overstayed_minutes: flagged_duration
+                overstayed_minutes: flagged_duration,
+                Violation_details: null
             };
+            
             final_message = `Vehical checked out. WARNING: Vehicle overstayed by ${flagged_duration} minutes.`;
         }
         // ================================================================

@@ -7,8 +7,9 @@ import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
 import { smartParkingService, serviceDeliveryService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
+import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import { 
-  FiSearch, FiTruck, FiUser, FiCheckCircle, FiLogOut, FiChevronLeft, FiChevronRight, FiEdit3, FiArrowRight
+  FiSearch, FiTruck, FiUser, FiCheckCircle, FiLogOut, FiChevronLeft, FiChevronRight, FiEdit3, FiArrowRight, FiClock
 } from 'react-icons/fi';
 
 interface ParkingRecord {
@@ -28,6 +29,10 @@ interface ParkingRecord {
   check_in: string;
   check_out: string | null;
   is_flagged: boolean;
+  current_duration?: string;
+  is_over_limit?: boolean;
+  is_near_limit?: boolean;
+  current_duration_hours?: number;
 }
 
 const CheckoutPage: React.FC = () => {
@@ -89,8 +94,8 @@ const CheckoutPage: React.FC = () => {
       // Fetch parking records
       const parkingResponse = await smartParkingService.getAll();
       
-      // Fetch service delivery visitors
-      const serviceDeliveryResponse = await serviceDeliveryService.getAll();
+      // Fetch service delivery visitors (both in-house and checked out)
+      const serviceDeliveryResponse = await serviceDeliveryService.getAll(1, 100, false);
       
       let records: ParkingRecord[] = [];
       
@@ -111,7 +116,11 @@ const CheckoutPage: React.FC = () => {
           badge_number: v.badge_number,
           check_in: v.entry_date || v.createdAt,
           check_out: v.check_out_time || null,
-          is_flagged: false
+          is_flagged: v.is_over_limit || false,
+          current_duration: v.current_duration,
+          is_over_limit: v.is_over_limit || false,
+          is_near_limit: v.is_near_limit || false,
+          current_duration_hours: v.current_duration_hours || 0
         }));
         records = [...records, ...sdVisitors];
       }
@@ -158,6 +167,14 @@ const CheckoutPage: React.FC = () => {
     setCurrentPage(1);
   };
 
+  const formatDuration = (record: ParkingRecord) => {
+    // Use current_duration for active records
+    if (record.status === 'active' && record.current_duration) {
+      return record.current_duration;
+    }
+    return record.current_duration || 'N/A';
+  };
+
   const handleCheckoutClick = (record: ParkingRecord) => {
     setSelectedRecord(record);
     setExitNotes('');
@@ -179,8 +196,8 @@ const CheckoutPage: React.FC = () => {
         // Use service delivery checkout
         response = await serviceDeliveryService.checkOut(selectedRecord._id || '');
       } else {
-        // Use smart parking checkout
-        response = await smartParkingService.checkOut(selectedRecord.plate_number);
+        // Use smart parking checkout by plate number
+        response = await smartParkingService.checkOutByPlate(selectedRecord.plate_number || '');
       }
       
       // Update local state - remove the record
@@ -272,11 +289,8 @@ const CheckoutPage: React.FC = () => {
   if (authLoading || loading) {
     return (
       <MainLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading...</p>
-          </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <LoadingSpinner message="Loading checkout data..." />
         </div>
       </MainLayout>
     );
@@ -386,11 +400,8 @@ const CheckoutPage: React.FC = () => {
           {/* Table Content - with loading */}
           <div className="overflow-x-auto">
             {loading ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-gray-500">Loading...</p>
-                </div>
+              <div className="flex items-center justify-center min-h-[300px]">
+                <LoadingSpinner message="Loading records..." size="lg" />
               </div>
             ) : (
               <table className="w-full min-w-[600px]">
@@ -404,6 +415,7 @@ const CheckoutPage: React.FC = () => {
                     </th>
                     <th className="px-3 md:px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Type</th>
                     <th className="px-3 md:px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Check-in Time</th>
+                    <th className="px-3 md:px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Duration</th>
                     <th className="px-3 md:px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Badge Number</th>
                     <th className="px-3 md:px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Actions</th>
                   </tr>
@@ -429,16 +441,30 @@ const CheckoutPage: React.FC = () => {
                         </td>
                         <td className="px-3 md:px-4 py-3">
                           <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                            record.driver_type === 'Staff' 
+                            record.driver_type === 'Staff' || record.driver_type?.toLowerCase() === 'staff'
                               ? 'bg-purple-100 text-purple-700'
-                              : record.driver_type === 'Visitor'
+                              : record.driver_type === 'Visitor' || record.driver_type?.toLowerCase() === 'visitor'
                               ? 'bg-blue-100 text-blue-700'
                               : 'bg-gray-100 text-gray-700'
                           }`}>
-                            {record.driver_type || 'Visitor'}
+                            {record.driver_type ? record.driver_type.charAt(0).toUpperCase() + record.driver_type.slice(1).toLowerCase() : 'Visitor'}
                           </span>
                         </td>
                         <td className="px-3 md:px-4 py-3 text-gray-500 text-sm">{formatDate(record.check_in)}</td>
+                        <td className="px-3 md:px-4 py-3">
+                          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm ${
+                            record.is_over_limit 
+                              ? 'bg-red-100 text-red-700' 
+                              : record.is_near_limit 
+                              ? 'bg-orange-100 text-orange-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            <FiClock className="w-3.5 h-3.5" />
+                            {formatDuration(record)}
+                            {record.is_over_limit && <span className="ml-1 text-xs font-medium">OVER</span>}
+                            {record.is_near_limit && !record.is_over_limit && <span className="ml-1 text-xs font-medium">NEAR</span>}
+                          </div>
+                        </td>
                         <td className="px-3 md:px-4 py-3 text-gray-600 text-sm">{record.badge_number || '-'}</td>
                         <td className="px-3 md:px-4 py-3">
                           <button
@@ -453,7 +479,7 @@ const CheckoutPage: React.FC = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
+                      <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
                         {searchQuery ? 'No records found matching your search' : 'No active vehicles/visitors in parking'}
                       </td>
                     </tr>
@@ -554,11 +580,13 @@ const CheckoutPage: React.FC = () => {
                     
                     {/* Driver Type Badge */}
                     <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                      selectedRecord.driver_type === 'Staff' 
+                      selectedRecord.driver_type === 'Staff' || selectedRecord.driver_type?.toLowerCase() === 'staff'
                         ? 'bg-purple-100 text-purple-700'
-                        : 'bg-blue-100 text-blue-700'
+                        : selectedRecord.driver_type === 'Visitor' || selectedRecord.driver_type?.toLowerCase() === 'visitor'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-700'
                     }`}>
-                      {selectedRecord.driver_type || 'Visitor'}
+                      {selectedRecord.driver_type ? selectedRecord.driver_type.charAt(0).toUpperCase() + selectedRecord.driver_type.slice(1).toLowerCase() : 'Visitor'}
                     </span>
                   </div>
                 </div>
