@@ -36,10 +36,11 @@ const EmployeeDashboardTab: React.FC = () => {
 
   const fetchAssignedVisitors = useCallback(async () => {
     const currentUser = user as any;
-    const myUserId = String(currentUser?._id || currentUser?.id || currentUser?.userId || currentUser?.employee_id);
+    // Fix: Use userId which is the correct field name in User interface
+    const myUserId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
     const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown').trim();
 
-    if (!myUserId || myUserId === 'undefined') {
+    if (!myUserId || myUserId === 'undefined' || myUserId === '') {
       setLoading(false);
       return;
     }
