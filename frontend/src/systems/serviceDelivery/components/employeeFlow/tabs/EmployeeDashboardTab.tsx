@@ -1,5 +1,5 @@
 // EmployeeDashboardTab - Dashboard page for Employee
-// STRICT SCHEMA ALIGNMENT: 'Not started', 'Inprogress', 'Transfered', 'Completed'
+// INTEGRATED WITH BACKEND SCHEMA: FETCHES DURATIONS PROPERLY
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { FiSearch, FiClock, FiCheckCircle, FiRefreshCw } from 'react-icons/fi';
@@ -36,10 +36,11 @@ const EmployeeDashboardTab: React.FC = () => {
 
   const fetchAssignedVisitors = useCallback(async () => {
     const currentUser = user as any;
-    const myUserId = currentUser?._id || currentUser?.id || currentUser?.userId || currentUser?.employee_id;
-    const myName = (currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown').trim();
+    // Fix: Use userId which is the correct field name in User interface
+    const myUserId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
+    const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown').trim();
 
-    if (!myUserId) {
+    if (!myUserId || myUserId === 'undefined' || myUserId === '') {
       setLoading(false);
       return;
     }
@@ -49,22 +50,18 @@ const EmployeeDashboardTab: React.FC = () => {
       const response = await serviceDeliveryService.getAll() as any;
       
       if (response && (response.data || response.success || Array.isArray(response))) {
-        const allVisitors = Array.isArray(response.data) ? response.data : 
-                            Array.isArray(response) ? response : [];
+        const allVisitors = Array.isArray(response.data) ? response.data : Array.isArray(response) ? response : [];
         
         const myVisitors = allVisitors.filter((v: any) => {
           if (!v.services_status || !Array.isArray(v.services_status)) return false;
-          return v.services_status.some((status: any) => 
-            status.provider_id === String(myUserId)
-          );
+          return v.services_status.some((status: any) => String(status.provider_id) === myUserId);
         });
         
         const records: ServiceRecord[] = myVisitors.map((visitor: any) => {
-          const serviceStatus = visitor.services_status?.find((s: any) => s.provider_id === String(myUserId));
+          const serviceStatus = visitor.services_status?.find((s: any) => String(s.provider_id) === myUserId);
           
-          // STRICT MAPPING
           let status: 'not_started' | 'inprogress' | 'completed' | 'transfered' = 'not_started';
-          const rawStatus = (serviceStatus?.s_type || '').toLowerCase();
+          const rawStatus = (serviceStatus?.s_type || visitor.status || '').toLowerCase();
           
           if (rawStatus === 'completed') status = 'completed';
           else if (rawStatus === 'inprogress') status = 'inprogress';
@@ -79,11 +76,25 @@ const EmployeeDashboardTab: React.FC = () => {
           if (typeof visitor.identification === 'string') identification = visitor.identification;
           else if (visitor.identification?.number) identification = visitor.identification.number;
 
-          const checkIn = serviceStatus?.assigned_time || visitor.entry_date || new Date().toISOString();
+          // 👉 FIX: Legally pull the start time from the durations array!
+          const serviceDuration = visitor.durations?.services_durations?.find((d: any) => String(d.provider_id) === myUserId);
+          const serviceStartTime = serviceDuration?.started_at || '';
+
+          const deptAssigned = visitor.departments_assigned?.find((d: any) => String(d.provider_id) === myUserId);
+          const checkIn = deptAssigned?.assigned_time || visitor.entry_date || new Date().toISOString();
+          
+          const waitTimeEndStamp = (status === 'inprogress' || status === 'completed' || status === 'transfered') && serviceStartTime
+            ? new Date(serviceStartTime).getTime() 
+            : new Date().getTime();
+          
           let waitTimeString = 'Just now';
           if (checkIn) {
-            const diffMins = Math.floor((new Date().getTime() - new Date(checkIn).getTime()) / 60000);
-            if (diffMins > 0 && diffMins < 1440) waitTimeString = `${diffMins} mins`;
+            const diffMins = Math.floor((waitTimeEndStamp - new Date(checkIn).getTime()) / 60000);
+            if (diffMins > 0) {
+              const hours = Math.floor(diffMins / 60);
+              const mins = diffMins % 60;
+              waitTimeString = hours > 0 ? `${hours}h ${mins}m` : `${mins} mins`;
+            }
           }
           
           return {
