@@ -21,7 +21,8 @@ const get_visitors_by_provider_current = require('../../controllers/serivice_del
 const get_visitors_by_provider = require('../../controllers/serivice_delivery/get_visitors_by_provider_current.js')
 const multer = require('multer')
 const upload = multer()
-
+// 👉 FIXED PATH: Matches colleague's exact folder spelling
+const update_service_status = require('../../controllers/serivice_delivery/update_service_status.js');
 
 Router.use(upload.any())
 
@@ -101,5 +102,7 @@ Router.post('/visitor/assign', assign_vistor_to_department)
 Router.post('/visitor/checkout', vistor_checkout)
 Router.post('/visitor/service/status', toggle_service_status)
 Router.post('/visitor/emergency/leave-return', toggle_leave_out_side_and_return)
+// Add your new dedicated route
+Router.put('/visitor/:id/status', update_service_status)
 
 module.exports = Router

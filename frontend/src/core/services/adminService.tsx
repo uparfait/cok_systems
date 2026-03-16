@@ -206,6 +206,8 @@ export const serviceDeliveryService = {
   emergencyLeaveReturn: (id: string, data: any) => post(`/servicedelivery/visitor/emergency/leave-return/${id}`, data),
   // 👉 ADD THIS NEW UPDATE FUNCTION:
   update: (id: string, data: any) => put(`/servicedelivery/visitor/${id}`, data),
+  // Update service status - uses dedicated endpoint for service status and durations
+  updateServiceStatus: (id: string, data: any) => put(`/servicedelivery/visitor/${id}/status`, data),
 };
 
 // ==================== SMART PARKING APIs ====================
