@@ -75,7 +75,7 @@ module.exports = async function verify_car(req, res, next) {
                 plate_number,
                 is_currently_parked: !!active_parking,
                 parking_details: active_parking || null,
-                vehicle_category: ,
+                vehicle_category: driver_type,
                 is_flagged: !!is_flagged,
                 is_reserved: is_reserved,
                 staff_details: staff_car || null,
