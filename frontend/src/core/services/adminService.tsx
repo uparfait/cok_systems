@@ -139,8 +139,8 @@ export const feedbackService = {
 // ==================== SERVICE DELIVERY APIs ====================
 
 export const serviceDeliveryService = {
-  // Get all visitors with pagination
-  getAll: (page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}`),
+  // Get all visitors with pagination and filter
+  getAll: (page: number = 1, limit: number = 20, inHouse: boolean = true) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}&in_house=${inHouse}`),
   
   // Get all visitors (alias)
   getAllVisitors: (page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}`),
@@ -264,12 +264,18 @@ export const parkingService = {
       return { success: false, data: {} };
     }
   },
-  
+
   // Get long duration vehicles - calculates from parking records (both active and recently checked out)
-  getLongDurationVehicles: async () => {
+  getLongDurationVehicles: async (date: string | null = null) => {
     try {
+      // Build query params
+      let queryParams = 'status=all&limit=100';
+      if (date) {
+        queryParams += `&date=${date}`;
+      }
+
       // Fetch all records (both active and completed)
-      const response = await get('/smartparking/vehicle?status=all&limit=100');
+      const response = await get(`/smartparking/vehicle?${queryParams}`);
       if (response.success && response.data) {
         const records = response.data;
         
@@ -277,7 +283,17 @@ export const parkingService = {
         const now = new Date();
         const longDuration = records.filter((r: any) => {
           const entryTime = new Date(r.check_in || r.entry_date || r.createdAt);
-          const hoursDiff = (now.getTime() - entryTime.getTime()) / (1000 * 60 * 60);
+          
+          // For checked out vehicles, calculate duration from check_out time
+          // For active vehicles, calculate from now
+          let hoursDiff: number;
+          if (r.status === 'completed' && r.check_out) {
+            const checkOutTime = new Date(r.check_out);
+            hoursDiff = (checkOutTime.getTime() - entryTime.getTime()) / (1000 * 60 * 60);
+          } else {
+            hoursDiff = (now.getTime() - entryTime.getTime()) / (1000 * 60 * 60);
+          }
+          
           return hoursDiff > 8; // More than 8 hours
         }).map((r: any) => {
           const entryTime = new Date(r.check_in || r.entry_date || r.createdAt);
@@ -298,6 +314,7 @@ export const parkingService = {
           return {
             plate_no: r.plate_number || r.plate_no || 'N/A',
             entry_time: r.check_in || r.entry_date || r.createdAt,
+            check_out: r.check_out || null,
             duration: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`,
             duration_hours: hoursDiff,
             driver_name: r.driver_name || 'Unknown',
@@ -323,26 +340,19 @@ export const parkingService = {
     }
   },
 
-  // Get flagged active vehicles (including historical flagged records)
+  // Get flagged active vehicles - only vehicles that are flagged AND currently inside (active status)
   getFlaggedActiveVehicles: async () => {
     try {
-      // Fetch all records (both active and completed)
-      const response = await get('/smartparking/vehicle?status=all&limit=100');
+      // Fetch only active records with is_flagged=true
+      const response = await get('/smartparking/vehicle?status=active&limit=100');
       if (response.success && response.data) {
         const records = response.data;
         
-        // Filter for flagged vehicles (both active and recently checked out but were flagged)
+        // Filter for flagged vehicles that are currently inside (active status only)
         const now = new Date();
         const flaggedActive = records.filter((r: any) => {
-          // Include if currently flagged
-          if (r.is_flagged === true) return true;
-          // Include if was flagged and checked out within last 24 hours
-          if (r.is_flagged === true && r.status === 'completed') {
-            const checkOutTime = new Date(r.check_out || r.exit_date || r.updatedAt);
-            const hoursSinceCheckout = (now.getTime() - checkOutTime.getTime()) / (1000 * 60 * 60);
-            return hoursSinceCheckout < 24;
-          }
-          return false;
+          // Only include if currently flagged AND active (inside)
+          return r.is_flagged === true && r.status === 'active';
         }).map((r: any) => {
           const entryTime = new Date(r.check_in || r.entry_date || r.createdAt);
           const hoursDiff = (now.getTime() - entryTime.getTime()) / (1000 * 60 * 60);
@@ -356,7 +366,7 @@ export const parkingService = {
             driver_name: r.driver_name || 'Unknown',
             driver_type: r.driver_type || 'Unknown',
             is_flagged: true,
-            status: r.status || 'active',
+            status: 'active',
             _id: r._id
           };
         });
