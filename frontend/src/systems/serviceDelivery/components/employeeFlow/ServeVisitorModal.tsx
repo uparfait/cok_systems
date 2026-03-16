@@ -42,33 +42,7 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
 
   const formatTime = (num: number) => num.toString().padStart(2, '0');
 
-  // Reset state when modal opens with new visitor
-  useEffect(() => {
-    if (isOpen && visitor) {
-      setServiceStarted(false);
-      setServiceEnded(false);
-      setSessionNotes('');
-      setTimer({ hours: 0, minutes: 0, seconds: 0 });
-      setServiceStartTime('');
-      setServiceEndTime('');
-      
-      // Clear any existing timer
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    }
-  }, [isOpen, visitor]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, []);
-
+  // Function to start the service timer
   const handleStartService = () => {
     setServiceStarted(true);
     const now = new Date();
@@ -93,6 +67,38 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
       });
     }, 1000);
   };
+
+  // Reset state when modal opens with new visitor
+  useEffect(() => {
+    if (isOpen && visitor) {
+      setServiceStarted(false);
+      setServiceEnded(false);
+      setSessionNotes('');
+      setTimer({ hours: 0, minutes: 0, seconds: 0 });
+      setServiceStartTime('');
+      setServiceEndTime('');
+      
+      // Clear any existing timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      
+      // Auto-start the timer immediately when modal opens
+      // This also notifies the parent to update the backend status to "Inprogress"
+      // The parent component will check if service is already in progress
+      handleStartService();
+    }
+  }, [isOpen, visitor]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
 
   const handleEndService = () => {
     // Stop the timer
