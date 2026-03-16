@@ -9,7 +9,7 @@ import { smartParkingService, serviceDeliveryService } from '../../../core/servi
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import { 
-  FiSearch, FiTruck, FiUser, FiCheckCircle, FiLogOut, FiChevronLeft, FiChevronRight, FiEdit3, FiArrowRight
+  FiSearch, FiTruck, FiUser, FiCheckCircle, FiLogOut, FiChevronLeft, FiChevronRight, FiEdit3, FiArrowRight, FiClock
 } from 'react-icons/fi';
 
 interface ParkingRecord {
@@ -29,6 +29,10 @@ interface ParkingRecord {
   check_in: string;
   check_out: string | null;
   is_flagged: boolean;
+  current_duration?: string;
+  is_over_limit?: boolean;
+  is_near_limit?: boolean;
+  current_duration_hours?: number;
 }
 
 const CheckoutPage: React.FC = () => {
@@ -90,8 +94,8 @@ const CheckoutPage: React.FC = () => {
       // Fetch parking records
       const parkingResponse = await smartParkingService.getAll();
       
-      // Fetch service delivery visitors
-      const serviceDeliveryResponse = await serviceDeliveryService.getAll();
+      // Fetch service delivery visitors (both in-house and checked out)
+      const serviceDeliveryResponse = await serviceDeliveryService.getAll(1, 100, false);
       
       let records: ParkingRecord[] = [];
       
@@ -112,7 +116,11 @@ const CheckoutPage: React.FC = () => {
           badge_number: v.badge_number,
           check_in: v.entry_date || v.createdAt,
           check_out: v.check_out_time || null,
-          is_flagged: false
+          is_flagged: v.is_over_limit || false,
+          current_duration: v.current_duration,
+          is_over_limit: v.is_over_limit || false,
+          is_near_limit: v.is_near_limit || false,
+          current_duration_hours: v.current_duration_hours || 0
         }));
         records = [...records, ...sdVisitors];
       }
@@ -157,6 +165,14 @@ const CheckoutPage: React.FC = () => {
     
     setFilteredRecords(filtered);
     setCurrentPage(1);
+  };
+
+  const formatDuration = (record: ParkingRecord) => {
+    // Use current_duration for active records
+    if (record.status === 'active' && record.current_duration) {
+      return record.current_duration;
+    }
+    return record.current_duration || 'N/A';
   };
 
   const handleCheckoutClick = (record: ParkingRecord) => {
@@ -399,6 +415,7 @@ const CheckoutPage: React.FC = () => {
                     </th>
                     <th className="px-3 md:px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Type</th>
                     <th className="px-3 md:px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Check-in Time</th>
+                    <th className="px-3 md:px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Duration</th>
                     <th className="px-3 md:px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Badge Number</th>
                     <th className="px-3 md:px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Actions</th>
                   </tr>
@@ -434,6 +451,20 @@ const CheckoutPage: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-3 md:px-4 py-3 text-gray-500 text-sm">{formatDate(record.check_in)}</td>
+                        <td className="px-3 md:px-4 py-3">
+                          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm ${
+                            record.is_over_limit 
+                              ? 'bg-red-100 text-red-700' 
+                              : record.is_near_limit 
+                              ? 'bg-orange-100 text-orange-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            <FiClock className="w-3.5 h-3.5" />
+                            {formatDuration(record)}
+                            {record.is_over_limit && <span className="ml-1 text-xs font-medium">OVER</span>}
+                            {record.is_near_limit && !record.is_over_limit && <span className="ml-1 text-xs font-medium">NEAR</span>}
+                          </div>
+                        </td>
                         <td className="px-3 md:px-4 py-3 text-gray-600 text-sm">{record.badge_number || '-'}</td>
                         <td className="px-3 md:px-4 py-3">
                           <button
@@ -448,7 +479,7 @@ const CheckoutPage: React.FC = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
+                      <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
                         {searchQuery ? 'No records found matching your search' : 'No active vehicles/visitors in parking'}
                       </td>
                     </tr>

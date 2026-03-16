@@ -25,6 +25,10 @@ interface ParkingRecord {
   slot_number?: string;
   is_flagged?: boolean;
   duration?: string;
+  current_duration?: string;
+  current_duration_hours?: number;
+  is_near_limit?: boolean;
+  is_over_limit?: boolean;
   checked_in_by?: string;
   badge_number?: string;
 }
@@ -56,10 +60,48 @@ const MonitorPage: React.FC = () => {
     }
   }, [isAuthenticated, authLoading, navigate]);
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 30 seconds (silent - no loading indicator, no error toasts)
   useEffect(() => {
-    const interval = setInterval(() => {
-      loadData(false);
+    const interval = setInterval(async () => {
+      try {
+        // Fetch parking records
+        const parkingResponse = await smartParkingService.getAll();
+        
+        // Fetch service delivery visitors
+        const serviceDeliveryResponse = await serviceDeliveryService.getAll(1, 100, false);
+        
+        let allRecords: ParkingRecord[] = [];
+        
+        if (parkingResponse.success && parkingResponse.data) {
+          allRecords = [...(parkingResponse.data || [])];
+        }
+        
+        if (serviceDeliveryResponse.success && serviceDeliveryResponse.data) {
+          const sdVisitors = serviceDeliveryResponse.data.map((v: any) => ({
+            _id: v._id,
+            plate_number: v.vehicle_storage?.has_vehicle ? v.vehicle_storage?.vehicle_details?.plate_number || 'N/A' : 'N/A',
+            driver_name: v.full_name,
+            driver_telephone: v.telephone,
+            status: v.is_still_inhouse ? 'active' : 'completed',
+            driver_type: v.vehicle_storage?.has_vehicle ? 'Visitor' : 'Without Vehicle',
+            slot_number: 'N/A',
+            badge_number: v.badge_number,
+            check_in: v.entry_date || v.createdAt,
+            check_out: v.check_out_time || undefined,
+            is_flagged: v.is_over_limit || false,
+            current_duration: v.current_duration,
+            is_over_limit: v.is_over_limit || false,
+            is_near_limit: v.is_near_limit || false,
+            current_duration_hours: v.current_duration_hours || 0
+          }));
+          allRecords = [...allRecords, ...sdVisitors];
+        }
+        
+        setRecords(allRecords);
+      } catch (err) {
+        // Silent fail for auto-refresh - don't show error toasts
+        console.warn('Auto-refresh failed:', err);
+      }
     }, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -74,8 +116,8 @@ const MonitorPage: React.FC = () => {
       // Fetch parking records
       const parkingResponse = await smartParkingService.getAll();
       
-      // Fetch service delivery visitors (without vehicle)
-      const serviceDeliveryResponse = await serviceDeliveryService.getAll();
+      // Fetch service delivery visitors (both in-house and checked out)
+      const serviceDeliveryResponse = await serviceDeliveryService.getAll(1, 100, false);
       
       let allRecords: ParkingRecord[] = [];
       
@@ -95,7 +137,11 @@ const MonitorPage: React.FC = () => {
           badge_number: v.badge_number,
           check_in: v.entry_date || v.createdAt,
           check_out: v.check_out_time || undefined,
-          is_flagged: false
+          is_flagged: v.is_over_limit || false,
+          current_duration: v.current_duration,
+          is_over_limit: v.is_over_limit || false,
+          is_near_limit: v.is_near_limit || false,
+          current_duration_hours: v.current_duration_hours || 0
         }));
         allRecords = [...allRecords, ...sdVisitors];
       }
@@ -177,9 +223,12 @@ const MonitorPage: React.FC = () => {
     return new Date(dateString).toLocaleString();
   };
 
-  const formatDuration = (duration?: string) => {
-    if (!duration) return 'N/A';
-    return duration;
+  const formatDuration = (record: ParkingRecord) => {
+    // Use current_duration for active records, duration for completed
+    if (record.status === 'active' && record.current_duration) {
+      return record.current_duration;
+    }
+    return record.duration || 'N/A';
   };
 
   // Calculate stats
@@ -199,21 +248,34 @@ const MonitorPage: React.FC = () => {
   }, 0);
   const totalHours = Math.round(totalDuration / (1000 * 60 * 60));
 
-  const getStatusBadge = (status?: string, isFlagged?: boolean) => {
-    if (isFlagged) {
+  const getStatusBadge = (record: ParkingRecord) => {
+    const { status, is_flagged, is_over_limit, is_near_limit } = record;
+    
+    if (is_flagged) {
       return (
         <span className="inline-flex px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700">
           Flagged
         </span>
       );
     }
+    
+    if (status === 'active') {
+      return (
+        <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
+          is_over_limit 
+            ? 'bg-red-100 text-red-700' 
+            : is_near_limit 
+            ? 'bg-orange-100 text-orange-700'
+            : 'bg-green-100 text-green-700'
+        }`}>
+          {is_over_limit ? 'Over Time' : is_near_limit ? 'Near Limit' : 'Active'}
+        </span>
+      );
+    }
+    
     return (
-      <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
-        status === 'active' 
-          ? 'bg-green-100 text-green-700' 
-          : 'bg-gray-100 text-gray-600'
-      }`}>
-        {status === 'active' ? 'Active' : 'Completed'}
+      <span className="inline-flex px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">
+        Completed
       </span>
     );
   };
@@ -229,17 +291,6 @@ const MonitorPage: React.FC = () => {
       </div>
     );
   };
-
-  if (authLoading || loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <MainLayout>
@@ -314,7 +365,7 @@ const MonitorPage: React.FC = () => {
           <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-5 text-white shadow-lg hover:shadow-xl transition-shadow duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-amber-100 text-sm font-medium">No Vehicle</p>
+                <p className="text-amber-100 text-sm font-medium">Visitors without vehicle</p>
                 <p className="text-3xl font-bold mt-1">{visitorCount}</p>
                 <p className="text-amber-200 text-xs mt-1">Visitors without vehicle</p>
               </div>
@@ -341,7 +392,7 @@ const MonitorPage: React.FC = () => {
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
                     }`}
                   >
-                    {tab === 'visitors' ? 'No Vehicle' : tab}
+                    {tab === 'visitors' ? 'Visitors without vehicle' : tab}
                     {tab === 'active' && activeCount > 0 && (
                       <span className="ml-2 px-1.5 py-0.5 text-xs bg-green-100 text-green-700 rounded-full">
                         {activeCount}
@@ -417,8 +468,32 @@ const MonitorPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {currentRecords.map((record, index) => (
-                  <tr key={index} className="hover:bg-blue-50/50 transition-colors duration-150 group">
+                {loading ? (
+                  <tr>
+                    <td colSpan={activeTab === 'visitors' ? 6 : 8} className="px-4 py-16 text-center">
+                      <div className="flex flex-col items-center">
+                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+                        <p className="text-gray-500 font-medium">Loading records...</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <>
+                    {currentRecords.length === 0 ? (
+                      <tr>
+                        <td colSpan={activeTab === 'visitors' ? 6 : 8} className="px-4 py-16 text-center">
+                          <div className="flex flex-col items-center">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                              <FiTruck className="w-8 h-8 text-gray-400" />
+                            </div>
+                            <p className="text-gray-500 font-medium">No records found</p>
+                            <p className="text-gray-400 text-sm mt-1">Try adjusting your search or filter</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      currentRecords.map((record, index) => (
+                        <tr key={index} className="hover:bg-blue-50/50 transition-colors duration-150 group">
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
                         <div className={`p-2 rounded-lg ${record.is_flagged ? 'bg-red-100' : 'bg-blue-100'}`}>
@@ -475,14 +550,22 @@ const MonitorPage: React.FC = () => {
                     </td>
                     {activeTab !== 'visitors' && (
                       <td className="px-4 py-4">
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 rounded-lg text-sm text-gray-600">
+                        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm ${
+                          record.is_over_limit 
+                            ? 'bg-red-100 text-red-700' 
+                            : record.is_near_limit 
+                            ? 'bg-orange-100 text-orange-700'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
                           <FiClock className="w-3.5 h-3.5" />
-                          {formatDuration(record.duration)}
+                          {formatDuration(record)}
+                          {record.is_over_limit && <span className="ml-1 text-xs font-medium">OVER</span>}
+                          {record.is_near_limit && !record.is_over_limit && <span className="ml-1 text-xs font-medium">NEAR</span>}
                         </div>
                       </td>
                     )}
                     <td className="px-4 py-4">
-                      {getStatusBadge(record.status, record.is_flagged)}
+                      {getStatusBadge(record)}
                     </td>
                     <td className="px-4 py-4">
                       <button
@@ -494,19 +577,8 @@ const MonitorPage: React.FC = () => {
                       </button>
                     </td>
                   </tr>
-                ))}
-                {currentRecords.length === 0 && (
-                  <tr>
-                    <td colSpan={activeTab === 'visitors' ? 6 : 8} className="px-4 py-16 text-center">
-                      <div className="flex flex-col items-center">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                          <FiTruck className="w-8 h-8 text-gray-400" />
-                        </div>
-                        <p className="text-gray-500 font-medium">No records found</p>
-                        <p className="text-gray-400 text-sm mt-1">Try adjusting your search or filter</p>
-                      </div>
-                    </td>
-                  </tr>
+                )))}
+                </>
                 )}
               </tbody>
             </table>
@@ -620,7 +692,7 @@ const MonitorPage: React.FC = () => {
                 </div>
                 <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-100">
                   <p className="text-sm text-gray-500">Status</p>
-                  <div className="mt-1">{getStatusBadge(selectedRecord.status, selectedRecord.is_flagged)}</div>
+                  <div className="mt-1">{getStatusBadge(selectedRecord)}</div>
                 </div>
                 <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-100">
                   <div className="flex items-center gap-2 mb-1">
@@ -641,7 +713,7 @@ const MonitorPage: React.FC = () => {
                     <FiClock className="w-4 h-4 text-amber-600" />
                     <p className="text-sm text-amber-700">Duration</p>
                   </div>
-                  <p className="font-bold text-amber-900">{formatDuration(selectedRecord.duration)}</p>
+                  <p className="font-bold text-amber-900">{formatDuration(selectedRecord)}</p>
                 </div>
                 <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-100">
                   <div className="flex items-center gap-2 mb-1">

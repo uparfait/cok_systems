@@ -44,23 +44,49 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       },
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
+      reconnectionAttempts: 3, // Limit retries to prevent endless retrying
+      reconnectionDelay: 2000, // Wait 2 seconds between retries
+      timeout: 10000, // Connection timeout
     });
+
+    // Track reconnection attempts
+    let reconnectAttempts = 0;
 
     // Connection events
     newSocket.on('connect', () => {
       console.log('Socket connected:', newSocket.id);
       setIsConnected(true);
+      reconnectAttempts = 0; // Reset on successful connection
     });
 
     newSocket.on('disconnect', (reason) => {
       console.log('Socket disconnected:', reason);
       setIsConnected(false);
+      
+      // If server disconnected us, don't auto-reconnect
+      if (reason === 'io server disconnect') {
+        newSocket.connect();
+      }
     });
 
     newSocket.on('connect_error', (error) => {
       console.error('Socket connection error:', error.message);
+      reconnectAttempts++;
+      setIsConnected(false);
+      
+      // Stop trying after max attempts
+      if (reconnectAttempts >= 3) {
+        console.log('Max reconnection attempts reached, stopping retry');
+        newSocket.disconnect();
+      }
+    });
+
+    newSocket.on('reconnect_attempt', (attempt) => {
+      console.log('Reconnection attempt:', attempt);
+    });
+
+    newSocket.on('reconnect_failed', () => {
+      console.log('Reconnection failed after all attempts');
       setIsConnected(false);
     });
 
