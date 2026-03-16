@@ -18,55 +18,102 @@ export interface ServeVisitorModalProps {
   onClose: () => void;
   visitor: SelectedVisitor | null;
   onServiceEnd?: (data: { duration: string; startTime: string; endTime: string; notes: string; }) => void;
+  onServiceStart?: (startTime: string) => void; // Added missing prop for your logic
 }
 
 const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
-  isOpen, onClose, visitor, onServiceEnd,
+  isOpen, onClose, visitor, onServiceEnd, onServiceStart
 }) => {
   const [sessionNotes, setSessionNotes] = useState('');
   const [timer, setTimer] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Added missing state variables from your code
+  const [serviceStarted, setServiceStarted] = useState(false);
+  const [serviceEnded, setServiceEnded] = useState(false);
+  const [serviceStartTime, setServiceStartTime] = useState('');
+  const [serviceEndTime, setServiceEndTime] = useState('');
+
   const formatTime = (num: number) => num.toString().padStart(2, '0');
 
-  // Synchronize modal state exactly with the table's live running clock
+  // YOUR LOGIC: Function to start the service timer manually
+  const handleStartService = () => {
+    setServiceStarted(true);
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    setServiceStartTime(timeString);
+    onServiceStart?.(timeString);
+    
+    // Start manual timer
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setTimer(prev => {
+        let { hours, minutes, seconds } = prev;
+        seconds++;
+        if (seconds >= 60) {
+          seconds = 0;
+          minutes++;
+        }
+        if (minutes >= 60) {
+          minutes = 0;
+          hours++;
+        }
+        return { hours, minutes, seconds };
+      });
+    }, 1000);
+  };
+
+  // COMBINED LOGIC: Handles your auto-start AND colleague's sync smoothly
   useEffect(() => {
-    // Clear any existing timer when dependencies change
+    // Clear any existing timer first
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-    
-    if (isOpen && visitor && visitor.serviceStartTime) {
+
+    if (isOpen && visitor) {
+      // 1. Reset states (Your logic)
+      setServiceStarted(false);
+      setServiceEnded(false);
       setSessionNotes('');
-      const start = new Date(visitor.serviceStartTime).getTime();
-      
-      // Check if start time is valid
-      if (isNaN(start)) {
-        return;
+      setTimer({ hours: 0, minutes: 0, seconds: 0 });
+      setServiceStartTime('');
+      setServiceEndTime('');
+
+      // 2. Decide which timer logic to use
+      if (visitor.serviceStartTime) {
+        // COLLEAGUE'S LOGIC: Visitor already has a start time, sync it accurately
+        setServiceStarted(true);
+        const start = new Date(visitor.serviceStartTime).getTime();
+        
+        if (!isNaN(start)) {
+          const syncTimer = () => {
+            const now = new Date().getTime();
+            const elapsed = Math.max(0, Math.floor((now - start) / 1000));
+            setTimer({
+              hours: Math.floor(elapsed / 3600),
+              minutes: Math.floor((elapsed % 3600) / 60),
+              seconds: elapsed % 60
+            });
+          };
+          
+          syncTimer(); // Initial sync
+          timerRef.current = setInterval(syncTimer, 1000); // Live sync
+        }
+      } else {
+        // YOUR LOGIC: No start time yet, auto-start and notify parent
+        handleStartService();
       }
-      
-      const syncTimer = () => {
-        const now = new Date().getTime();
-        const elapsed = Math.max(0, Math.floor((now - start) / 1000));
-        setTimer({
-          hours: Math.floor(elapsed / 3600),
-          minutes: Math.floor((elapsed % 3600) / 60),
-          seconds: elapsed % 60
-        });
-      };
-      
-      syncTimer(); // Initial sync
-      timerRef.current = setInterval(syncTimer, 1000); // Live sync
     }
 
+    // Cleanup on unmount
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
     };
-  }, [isOpen, visitor?.serviceStartTime]);
+  }, [isOpen, visitor]); 
 
   const handleEndService = () => {
     if (timerRef.current) {
@@ -80,7 +127,7 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
     
     onServiceEnd?.({
       duration, 
-      startTime: visitor?.serviceStartTime || '', 
+      startTime: visitor?.serviceStartTime || serviceStartTime || '', // Fallback added
       endTime: endTimeString, 
       notes: sessionNotes
     });
