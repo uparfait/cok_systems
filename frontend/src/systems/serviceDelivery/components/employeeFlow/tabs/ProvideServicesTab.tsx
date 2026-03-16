@@ -80,8 +80,11 @@ const ProvideServicesTab: React.FC = () => {
 
   const fetchAssignedVisitors = useCallback(async () => {
     const currentUser = user as any;
-    const myId = String(currentUser?._id || currentUser?.id || currentUser?.userId || currentUser?.employee_id);
+    // Fix: Use userId which is the correct field name in User interface
+    const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
     const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown').trim();
+
+    console.log('[fetchAssignedVisitors] My ID:', myId, 'My Name:', myName);
 
     if (!myId || myId === 'undefined') {
       setLoading(false);
@@ -196,8 +199,11 @@ const ProvideServicesTab: React.FC = () => {
   // 👉 PROPER SCHEMA PAYLOAD UPDATER
   const updateBackendStatus = async (targetStatus: string, visitorId: string, rawVisitor: any, isStart: boolean = false, durationStr: string = "") => {
     const currentUser = user as any;
-    const myId = String(currentUser?._id || currentUser?.id || currentUser?.employee_id);
+    // Fix: Use userId which is the correct field name in User interface
+    const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
     const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown');
+
+    console.log('[updateBackendStatus] Current user ID:', myId, 'Name:', myName);
 
     // 1. Update basic status
     const updatedServicesStatus = (rawVisitor.services_status || []).map((s: any) => {
