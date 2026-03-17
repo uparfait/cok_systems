@@ -84,6 +84,7 @@ const service_delivery_schema = new mongoose.Schema({
         }
     ],
     is_still_inhouse: { type: Boolean, default: true },
+    marked_as_out: { type: Boolean, default: false },
     notes: [{
         writter_name: String,
         message: String,

@@ -20,6 +20,12 @@ module.exports = async function toggle_temporary_leave(req, res, next) {
             return res.status(404).json({ success: false, type: 'warning', message: "Active visitor not found" });
         }
 
+        // check if a vistor has a vehicle if not respond with this action require a visitor who have a vehicle
+
+        if (!visitor.vehicle_storage?.has_vehicle) {
+            return res.status(400).json({ success: false, type: 'warning', message: "This action requires a visitor with a vehicle." });
+        }
+
         const current_time = new Date();
 
         if (action.toLowerCase() === 'leave') {
@@ -47,7 +53,7 @@ module.exports = async function toggle_temporary_leave(req, res, next) {
                 message: message || 'Visitor stepped outside temporarily.',
                 timestamp: current_time
             });
-            visitor.is_still_inhouse = false;
+            visitor.marked_as_out = true;
 
         } else if (action.toLowerCase() === 'return') {
             // Find the open 'Leave outside' record
@@ -69,12 +75,19 @@ module.exports = async function toggle_temporary_leave(req, res, next) {
                 message: message || `Visitor returned inside after ${duration_minutes} minutes.`,
                 timestamp: current_time
             });
-            visitor.is_still_inhouse = true;
+            visitor.marked_as_out = false;
         } else {
             return res.status(400).json({ success: false, type: 'warning', message: "Invalid action. Use 'leave' or 'return'." });
         }
 
         const updated_visitor = await visitor.save();
+
+
+                global.WebsocketIO?.emit('leave_return', { 
+                    show_notif: true,
+                    type: 'info',
+                    message: "Visitor " + visitor.full_name + " With plate number " + visitor.vehicle_storage?.vehicle_details?.plate_number + " has " + (action.toLowerCase() === 'leave' ? "stepped outside temporarily." : "returned inside.")
+                 })
 
         return res.status(200).json({
             success: true,
