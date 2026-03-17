@@ -7,6 +7,7 @@ const FlaggedVehicle = require('../../models/flagged_vehicle.js'); // 👉 new m
 module.exports = async function car_check_out(req, res, next) {
     try {
         let { plate_number = null } = req.body || {};
+        let falleged_when_out = false;
 
         if (!plate_number) {
             return res.status(400).json({ success: false, type: 'warning', message: "Plate number required" });
@@ -93,7 +94,8 @@ module.exports = async function car_check_out(req, res, next) {
 
         // Do the math: Did they overstay?
         if (parked_minutes > allowed_duration_minutes) {
-            is_flagged = true;
+          
+            fllaged_when
             const flagged_duration = parked_minutes - allowed_duration_minutes;
             const exact_flagged_time = new Date(check_in_time.getTime() + (allowed_duration_minutes * 60000));
 
@@ -133,9 +135,15 @@ module.exports = async function car_check_out(req, res, next) {
         }
         // ================================================================
 
+        global.WebsocketIO?.emit('car_checkedout', { 
+            show_notif: is_flagged,
+            type: is_flagged ? 'warning' : 'info',
+            message: is_flagged ? `Vehicle ${plate_number} flagged for overstaying!` : `Vehicle ${plate_number} checked out.`
+         })
+
         return res.status(200).json({
             success: true,
-            type: is_flagged ? "info" : "success", 
+            type: is_flagged ? "warning" : "success", 
             message: final_message,
             data: {
                 plate_number: plate_number,
