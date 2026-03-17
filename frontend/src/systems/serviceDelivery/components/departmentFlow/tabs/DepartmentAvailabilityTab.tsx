@@ -8,7 +8,11 @@ import EmployeeStatusOverviewTab from "./EmployeeStatusOverviewTab";
 
 type DepartmentStatus = 'available' | 'busy' | 'at-capacity' | 'closed';
 
-const DepartmentAvailabilityTab = () => {
+interface DepartmentAvailabilityTabProps {
+  departmentId?: string;
+}
+
+const DepartmentAvailabilityTab: React.FC<DepartmentAvailabilityTabProps> = ({ departmentId }) => {
   const [activeSubTab, setActiveSubTab] = useState<'availability' | 'employee-status'>('availability');
   const [selectedStatus, setSelectedStatus] = useState<DepartmentStatus | null>(null);
 
@@ -93,7 +97,7 @@ const DepartmentAvailabilityTab = () => {
         )}
 
         {activeSubTab === 'employee-status' && (
-          <EmployeeStatusOverviewTab />
+          <EmployeeStatusOverviewTab departmentId={departmentId} />
         )}
       </div>
 
