@@ -28,9 +28,11 @@ import {
 import { 
   ParkingDashboard, 
   RegisterVisitorPage, 
-  CheckoutPage, 
-  MonitorPage, 
-  ReportsPage 
+  CheckoutPage,
+  CheckInVehiclePage,
+  CheckInPersonPage,
+  CheckOutVehiclePage,
+  CheckOutPersonPage
 } from './systems/smartParking';
 
 // 👉 YOUR IMPORTS (Service Delivery)
@@ -67,8 +69,10 @@ function App() {
               <Route path="/smart-parking/dashboard" element={<ProtectedRoute><ParkingDashboard /></ProtectedRoute>} />
               <Route path="/smart-parking/register" element={<ProtectedRoute><RegisterVisitorPage /></ProtectedRoute>} />
               <Route path="/smart-parking/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
-              <Route path="/smart-parking/monitor" element={<ProtectedRoute><MonitorPage /></ProtectedRoute>} />
-              <Route path="/smart-parking/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
+              <Route path="/smart-parking/checkin-vehicle" element={<ProtectedRoute><CheckInVehiclePage /></ProtectedRoute>} />
+              <Route path="/smart-parking/checkin-person" element={<ProtectedRoute><CheckInPersonPage /></ProtectedRoute>} />
+              <Route path="/smart-parking/checkout-vehicle" element={<ProtectedRoute><CheckOutVehiclePage /></ProtectedRoute>} />
+              <Route path="/smart-parking/checkout-person" element={<ProtectedRoute><CheckOutPersonPage /></ProtectedRoute>} />
               <Route path="/smart_parking/dashboard" element={<ProtectedRoute><ParkingDashboard /></ProtectedRoute>} />
               
               {/* ==================== SERVICE DELIVERY SYSTEM (Your Work) ==================== */}
