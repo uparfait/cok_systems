@@ -144,11 +144,27 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   // 👉 GATE AND VEHICLE REGISTRAR INTERCEPTOR: Smart Parking Sidebar
   if (userRole.includes('gate') && userRole.includes('vehicle')) {
     return [
-      { id: 'dashboard', label: 'Dashboard', path: '/smart-parking/dashboard', icon: 'FiHome' },
-      { id: 'parking-register', label: 'Register Visitor', path: '/smart-parking/register', icon: 'FiUsers' },
-      { id: 'parking-checkout', label: 'Checkout', path: '/smart-parking/checkout', icon: 'FiLogOut' },
-      { id: 'parking-monitor', label: 'Monitor', path: '/smart-parking/monitor', icon: 'FiGrid' },
-      { id: 'parking-reports', label: 'Reports', path: '/smart-parking/reports', icon: 'FiFile' }
+      { id: 'overview', label: 'Overview', path: '/smart-parking/dashboard', icon: 'FiHome' },
+      {
+        id: 'checkin',
+        label: 'Check-in',
+        path: '/smart-parking/checkin-vehicle',
+        icon: 'FiLogIn',
+        children: [
+          { id: 'checkin-vehicle', label: 'Vehicle', path: '/smart-parking/checkin-vehicle', icon: 'FiTruck' },
+          { id: 'checkin-person', label: 'Person', path: '/smart-parking/checkin-person', icon: 'FiUser' }
+        ]
+      },
+      {
+        id: 'checkout',
+        label: 'Check-out',
+        path: '/smart-parking/checkout-vehicle',
+        icon: 'FiLogOut',
+        children: [
+          { id: 'checkout-vehicle', label: 'Vehicle', path: '/smart-parking/checkout-vehicle', icon: 'FiTruck' },
+          { id: 'checkout-person', label: 'Person', path: '/smart-parking/checkout-person', icon: 'FiUser' }
+        ]
+      }
     ];
   }
   

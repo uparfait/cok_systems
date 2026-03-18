@@ -146,10 +146,10 @@ export const serviceDeliveryService = {
   getAllVisitors: (page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}`),
   
   // Search visitors with pagination
-  search: (query: string, page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`),
+  search: (query: string, page: number = 1, limit: number = 20, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),
   
   // Search visitors (alias)
-  searchVisitors: (query: string, page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`),
+  searchVisitors: (query: string, page: number = 1, limit: number = 20, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),
   
   // Get visitor by ID
   getById: (id: string) => get(`/servicedelivery/visitor/${id}`),
@@ -161,7 +161,7 @@ export const serviceDeliveryService = {
   checkIn: (data: any) => post('/servicedelivery/visitor/checkin', data),
   
   // Check out visitor
-  checkOut: (id: string) => post(`/servicedelivery/visitor/checkout`, { id }),
+  checkOut: (id: string) => post(`/servicedelivery/visitor/checkout`, { visitor_id: id }),
   
   // Toggle service status
   toggleStatus: (id: string, status: string) => post(`/servicedelivery/visitor/service/status`, { id, status }),
@@ -203,7 +203,7 @@ export const serviceDeliveryService = {
   },
   
   // Emergency leave return
-  emergencyLeaveReturn: (id: string, data: any) => post(`/servicedelivery/visitor/emergency/leave-return/${id}`, data),
+  emergencyLeaveReturn: (id: string, data: any) => post(`/servicedelivery/visitor/emergency/leave-return`, { visitor_id: id, ...data }),
   // 👉 ADD THIS NEW UPDATE FUNCTION:
   update: (id: string, data: any) => put(`/servicedelivery/visitor/${id}`, data),
   // Update service status - uses dedicated endpoint for service status and durations
