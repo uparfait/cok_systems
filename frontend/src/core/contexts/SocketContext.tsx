@@ -12,7 +12,7 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://cok-bc.onrender.c
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
-  emit: (event: string, data: any) => void;
+  emit: (event: string, data: any, callback?: (response: any) => void) => void;
   on: (event: string, callback: (data: any) => void) => void;
   off: (event: string, callback?: (data: any) => void) => void;
 }

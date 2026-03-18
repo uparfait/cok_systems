@@ -139,6 +139,54 @@ function GetAllUsers() {
 }
 
 /**
+ * Mark a single inbox message as read
+ * @param {string} messageId - Message ID
+ * @param {string} userId - User ID who is reading the message
+ * @returns {object} - Result object
+ */
+async function MarkMessageAsRead(messageId, userId) {
+    try {
+        const message = InBoxMessages.find(msg => msg.messageId === messageId);
+        
+        if (!message) {
+            return { success: false, error: 'Message not found' };
+        }
+        
+        // Initialize readBy array if it doesn't exist
+        if (!message.readBy) {
+            message.readBy = [];
+        }
+        
+        // Add user to readBy if not already there
+        if (!message.readBy.includes(userId)) {
+            message.readBy.push(userId);
+            message.readAt = new Date().toISOString();
+        }
+        
+        return { success: true, messageId, readBy: message.readBy };
+    } catch (e) {
+        console.log('Error marking message as read:', e);
+        return { success: false, error: e.message };
+    }
+}
+
+/**
+ * Get unread message count for a user from a specific sender
+ * @param {string} userId - User ID (receiver)
+ * @param {string} fromUserId - Sender user ID
+ * @returns {number} - Unread message count
+ */
+function GetUnreadCount(userId, fromUserId) {
+    const messages = InBoxMessages.filter(msg => 
+        !msg.isDeleted &&
+        msg.sender.userId === fromUserId &&
+        msg.receiver.userId === userId
+    );
+    
+    return messages.filter(msg => !msg.readBy || !msg.readBy.includes(userId)).length;
+}
+
+/**
  * Create a new global message
  * @param {string} message - Message content
  * @param {object} sender - Sender info {email, full_name, telephone, userId}
@@ -480,6 +528,8 @@ module.exports = {
     
     // Read tracking
     MarkMessagesAsRead,
+    MarkMessageAsRead,
+    GetUnreadCount,
     
     // Utilities
     generateMessageId,
