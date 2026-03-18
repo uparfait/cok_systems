@@ -56,6 +56,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [globalUnreadCount, setGlobalUnreadCount] = useState(0);
   const [unreadCountsPerUser, setUnreadCountsPerUser] = useState<{ [key: string]: number }>({});
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editMessageText, setEditMessageText] = useState('');
@@ -99,11 +100,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
           console.log('[ChatWidget] Current user from auth:', user);
           console.log('[ChatWidget] Current user userId:', user?.userId);
           // Filter out current user
-          const otherUsers = (response.users || []).filter((u: User) => {
+          let otherUsers = (response.users || []).filter((u: User) => {
             const isCurrentUser = u.userId === user?.userId;
             console.log('[ChatWidget] Comparing user:', u.userId, '===', user?.userId, '=', isCurrentUser);
             return !isCurrentUser;
           });
+          
           console.log('[ChatWidget] Filtered users:', otherUsers.length);
           setUsers(otherUsers);
           setConnectedUsers(response.connectedUsers || []);
@@ -145,6 +147,16 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     const handleGlobalMessages = (data: Message[]) => {
       if (activeTab === 'global') {
         setMessages(data);
+        // If widget is not open or not on global tab, track as unread
+        if (!isOpen || activeTab !== 'global') {
+          const newUnread = data.length;
+          if (newUnread > 0) {
+            setGlobalUnreadCount(prev => prev + 1);
+          }
+        }
+      } else if (!isOpen) {
+        // Track global unread when widget is closed
+        setGlobalUnreadCount(prev => prev + 1);
       }
     };
 
@@ -274,7 +286,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
       off('user_typing_inbox', handleUserTypingInbox);
       off('messages_marked_read', handleMessagesMarkedRead);
     };
-  }, [socket, isConnected, isAuthenticated, activeTab, selectedUser, on, off, user]);
+  }, [socket, isConnected, isAuthenticated, activeTab, selectedUser, on, off, user, isOpen]);
 
   // Fetch data when tab changes or chat opens
   useEffect(() => {
@@ -283,17 +295,40 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     }
   }, [isOpen, isAuthenticated, activeTab, fetchInitialData]);
 
-  // Scroll to bottom when messages change
+  // Reset global unread count when switching to global tab
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  // Reset unread count when opening inbox
-  useEffect(() => {
-    if (isOpen && activeTab === 'inbox') {
-      setUnreadCount(0);
+    if (isOpen && activeTab === 'global') {
+      setGlobalUnreadCount(0);
     }
   }, [isOpen, activeTab]);
+
+  // Sort users by unread count when unreadCountsPerUser changes
+  useEffect(() => {
+    if (users.length > 0) {
+      const sortedUsers = [...users].sort((a, b) => {
+        const aUnread = unreadCountsPerUser[a.userId] || 0;
+        const bUnread = unreadCountsPerUser[b.userId] || 0;
+        return bUnread - aUnread; // Descending order - higher unread first
+      });
+      setUsers(sortedUsers);
+    }
+  }, [unreadCountsPerUser]);
+
+  // Reset unread count and mark messages as read when opening inbox
+  useEffect(() => {
+    if (isOpen && activeTab === 'inbox') {
+      // Mark all messages as read when opening inbox
+      if (socket && isConnected) {
+        emit('mark_all_inbox_read', {}, (response: any) => {
+          if (response?.success) {
+            console.log('[ChatWidget] All inbox messages marked as read');
+          }
+        });
+      }
+      setUnreadCount(0);
+      setUnreadCountsPerUser({});
+    }
+  }, [isOpen, activeTab, socket, isConnected, emit]);
 
   // Handle sending message
   const handleSendMessage = async () => {
@@ -440,9 +475,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
           ) : (
             <>
               <FiMessageSquare className="w-6 h-6 text-white" />
-              {unreadCount > 0 && (
+              {(unreadCount + globalUnreadCount) > 0 && (
                 <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {unreadCount > 9 ? '9+' : unreadCount}
+                  {(unreadCount + globalUnreadCount) > 9 ? '9+' : (unreadCount + globalUnreadCount)}
                 </span>
               )}
             </>
@@ -627,7 +662,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
                               </div>
                             ) : (
                               <>
-                                <p className="text-sm">{msg.message}</p>
+                                <p className="text-sm break-words">{msg.message}</p>
                                 <div className={`flex items-center gap-1 mt-1 text-xs ${msg.sender.userId === user?.userId ? 'text-blue-200' : 'text-gray-400'}`}>
                                   <span>{msg.time}</span>
                                   {msg.isEdited && <span className="italic">(edited)</span>}
@@ -671,13 +706,27 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
 
               {/* Input */}
               <div className="p-3 border-t border-gray-200 bg-white">
-                <div className="flex gap-2">
-                  <input
-                    ref={inputRef}
-                    type="text"
+                <div className="flex gap-2 items-end">
+                  <textarea
+                    ref={inputRef as any}
                     value={inputMessage}
-                    onChange={(e) => { setInputMessage(e.target.value); handleTyping(); }}
-                    onKeyPress={handleKeyPress}
+                    onChange={(e) => { 
+                      setInputMessage(e.target.value); 
+                      // Auto-resize textarea
+                      e.target.style.height = 'auto';
+                      e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                      handleTyping(); 
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (editingMessageId) {
+                          handleEditMessage(editingMessageId);
+                        } else {
+                          handleSendMessage();
+                        }
+                      }
+                    }}
                     placeholder={activeTab === 'global' 
                       ? 'Type a message...' 
                       : selectedUser 
@@ -685,12 +734,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
                         : 'Select a user to chat...'
                     }
                     disabled={isSending || (activeTab === 'inbox' && !selectedUser)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    rows={1}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-2xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed resize-none overflow-hidden"
+                    style={{ minHeight: '40px', maxHeight: '120px' }}
                   />
                   <button
                     onClick={handleSendMessage}
                     disabled={!inputMessage.trim() || isSending || (activeTab === 'inbox' && !selectedUser)}
-                    className="w-10 h-10 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-full flex items-center justify-center transition-colors"
+                    className="w-10 h-10 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-full flex items-center justify-center transition-colors flex-shrink-0"
                   >
                     {isSending ? (
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
