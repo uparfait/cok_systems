@@ -501,9 +501,6 @@ function GetConnectedUsers() {
  * @returns {Array} - Array of messages between the two users
  */
 function GetMessagesBetweenUsers(userId1, userId2) {
-    console.log('GetMessagesBetweenUsers called:', userId1, userId2);
-    console.log('Total InBoxMessages:', InBoxMessages.length);
-    console.log(InBoxMessages)
     
     // Convert userIds to strings for comparison (handle both MongoDB ObjectId and plain strings)
     const id1 = String(userId1);
@@ -517,7 +514,6 @@ function GetMessagesBetweenUsers(userId1, userId2) {
          (senderId === id2 && receiverId === id1));
     }).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
     
-    console.log('Found messages:', messages.length);
     return messages;
 }
 
