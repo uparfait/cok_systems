@@ -6,7 +6,9 @@ import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
 // Socket server URL
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://cok-bc.onrender.com';
+// Use localhost:2026 for local development, remote for production
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 
+  (window.location.hostname === 'localhost' ? 'http://localhost:2026' : 'https://cok-bc.onrender.com');
 
 // Context type
 interface SocketContextType {

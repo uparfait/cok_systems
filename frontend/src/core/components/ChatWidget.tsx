@@ -11,6 +11,8 @@ interface User {
   userId: string;
   email: string;
   full_name: string;
+  telephone?: string;
+  title?: string;
   is_active?: boolean;
 }
 
@@ -54,6 +56,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadCountsPerUser, setUnreadCountsPerUser] = useState<{ [key: string]: number }>({});
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editMessageText, setEditMessageText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -68,34 +71,61 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
 
   // Fetch initial data
   const fetchInitialData = useCallback(async () => {
-    if (!socket || !isConnected || !isAuthenticated) return;
+    if (!socket || !isConnected || !isAuthenticated) {
+      console.log('[ChatWidget] Cannot fetch - socket not ready:', { socket: !!socket, isConnected, isAuthenticated });
+      return;
+    }
     
     setIsLoading(true);
     setError(null);
     
+    console.log('[ChatWidget] Fetching initial data...');
+    
     try {
       // Fetch global messages
       emit('get_global_messages', {}, (response: any) => {
+        console.log('[ChatWidget] Global messages response:', response);
         if (response?.success) {
           setMessages(response.messages || []);
+        } else {
+          console.error('[ChatWidget] Failed to get global messages:', response?.message);
         }
       });
 
       // Fetch all users
       emit('get_all_users', {}, (response: any) => {
+        console.log('[ChatWidget] Users response:', response);
         if (response?.success) {
+          console.log('[ChatWidget] Current user from auth:', user);
+          console.log('[ChatWidget] Current user userId:', user?.userId);
           // Filter out current user
-          const otherUsers = (response.users || []).filter((u: User) => u.userId !== user?.userId);
+          const otherUsers = (response.users || []).filter((u: User) => {
+            const isCurrentUser = u.userId === user?.userId;
+            console.log('[ChatWidget] Comparing user:', u.userId, '===', user?.userId, '=', isCurrentUser);
+            return !isCurrentUser;
+          });
+          console.log('[ChatWidget] Filtered users:', otherUsers.length);
           setUsers(otherUsers);
           setConnectedUsers(response.connectedUsers || []);
+        } else {
+          console.error('[ChatWidget] Failed to get users:', response?.message);
         }
       });
 
       // Fetch inbox messages if on inbox tab
       if (activeTab === 'inbox') {
         emit('get_inbox_messages', {}, (response: any) => {
+          console.log('[ChatWidget] Inbox messages response:', response);
           if (response?.success) {
             setMessages(response.messages || []);
+            // Store unread counts per user
+            if (response.unreadCounts) {
+              const counts = response.unreadCounts as { [key: string]: number };
+              setUnreadCountsPerUser(counts);
+              // Calculate total unread
+              const totalUnread = Object.values(counts).reduce((a, b) => a + b, 0);
+              setUnreadCount(totalUnread);
+            }
           }
         });
       }
@@ -132,16 +162,27 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
 
     // Inbox messages handlers
     const handleNewInboxMessage = (data: Message) => {
-      if (activeTab === 'inbox') {
-        setMessages(prev => [...prev, data]);
-        // Increment unread if not the sender
-        if (data.sender.userId !== user?.userId) {
-          setUnreadCount(prev => prev + 1);
+      if (activeTab === 'inbox' && selectedUser) {
+        // Only add message if it's for the current conversation
+        if (data.sender.userId === selectedUser.userId || data.receiver?.userId === selectedUser.userId) {
+          setMessages(prev => [...prev, data]);
         }
       } else {
-        // Increment unread for inbox messages
-        if (data.receiver?.userId === user?.userId) {
-          setUnreadCount(prev => prev + 1);
+        // Add to messages list
+        setMessages(prev => [...prev, data]);
+      }
+      
+      // Increment unread count per user if message is for current user
+      if (data.receiver?.userId === user?.userId) {
+        // Only count as unread if not from current user and not viewing that conversation
+        if (data.sender.userId !== user?.userId) {
+          if (activeTab !== 'inbox' || !selectedUser || data.sender.userId !== selectedUser.userId) {
+            setUnreadCountsPerUser(prev => ({
+              ...prev,
+              [data.sender.userId]: (prev[data.sender.userId] || 0) + 1
+            }));
+            setUnreadCount(prev => prev + 1);
+          }
         }
       }
     };
@@ -192,6 +233,20 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
       }
     };
 
+    // Messages marked as read handler
+    const handleMessagesMarkedRead = (data: { byUserId: string; byUserName: string; count: number }) => {
+      // Update unread counts when other user reads our messages
+      if (selectedUser && data.byUserId === selectedUser.userId) {
+        setUnreadCountsPerUser(prev => {
+          const newCounts = { ...prev };
+          delete newCounts[data.byUserId];
+          return newCounts;
+        });
+        // Recalculate total
+        setUnreadCount(prev => Math.max(0, prev - data.count));
+      }
+    };
+
     // Register event listeners
     on('global_messages', handleGlobalMessages);
     on('global_message_edited', handleGlobalMessageEdited);
@@ -203,6 +258,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     on('user_offline', handleUserOffline);
     on('user_typing_global', handleUserTypingGlobal);
     on('user_typing_inbox', handleUserTypingInbox);
+    on('messages_marked_read', handleMessagesMarkedRead);
 
     // Cleanup
     return () => {
@@ -216,6 +272,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
       off('user_offline', handleUserOffline);
       off('user_typing_global', handleUserTypingGlobal);
       off('user_typing_inbox', handleUserTypingInbox);
+      off('messages_marked_read', handleMessagesMarkedRead);
     };
   }, [socket, isConnected, isAuthenticated, activeTab, selectedUser, on, off, user]);
 
@@ -365,83 +422,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     return msg.sender.userId === user?.userId;
   };
 
-  // Render message bubble
-  const renderMessage = (msg: Message) => {
-    const isOwn = msg.sender.userId === user?.userId;
-    
-    return (
-      <div 
-        key={msg.messageId} 
-        className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-3`}
-      >
-        <div className={`max-w-[75%] ${isOwn ? 'order-2' : 'order-1'}`}>
-          {!isOwn && (
-            <div className="text-xs text-gray-500 mb-1 ml-1">
-              {msg.sender.full_name}
-            </div>
-          )}
-          <div className={`rounded-lg px-4 py-2 ${
-            isOwn 
-              ? 'bg-blue-600 text-white rounded-br-none' 
-              : 'bg-gray-100 text-gray-800 rounded-bl-none'
-          }`}>
-            {editingMessageId === msg.messageId ? (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={editMessageText}
-                  onChange={(e) => setEditMessageText(e.target.value)}
-                  className="flex-1 px-2 py-1 text-sm border rounded focus:outline-none focus:border-blue-500"
-                  autoFocus
-                />
-                <button 
-                  onClick={() => handleEditMessage(msg.messageId)}
-                  disabled={isSending}
-                  className="text-green-500 hover:text-green-700"
-                >
-                  <FiCheck />
-                </button>
-                <button 
-                  onClick={() => { setEditingMessageId(null); setEditMessageText(''); }}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <FiX />
-                </button>
-              </div>
-            ) : (
-              <>
-                <p className="text-sm">{msg.message}</p>
-                <div className={`flex items-center gap-1 mt-1 text-xs ${isOwn ? 'text-blue-200' : 'text-gray-400'}`}>
-                  <span>{msg.time}</span>
-                  {msg.isEdited && <span className="italic">(edited)</span>}
-                </div>
-              </>
-            )}
-          </div>
-          {editingMessageId !== msg.messageId && canModifyMessage(msg) && (
-            <div className={`flex gap-2 mt-1 ${isOwn ? 'justify-end' : 'justify-start'} opacity-0 group-hover:opacity-100 transition-opacity`}>
-              <button 
-                onClick={() => { setEditingMessageId(msg.messageId); setEditMessageText(msg.message); }}
-                className="text-gray-400 hover:text-blue-500 p-1"
-                title="Edit"
-              >
-                <FiEdit2 size={12} />
-              </button>
-              <button 
-                onClick={() => handleDeleteMessage(msg.messageId)}
-                disabled={isSending}
-                className="text-gray-400 hover:text-red-500 p-1"
-                title="Delete"
-              >
-                <FiTrash2 size={12} />
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   // Don't render if not authenticated
   if (!isAuthenticated) {
     return null;
@@ -516,11 +496,28 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
           {/* Inbox User Selection */}
           {activeTab === 'inbox' && !selectedUser && (
             <div className="flex-1 overflow-y-auto p-2">
-              <h4 className="text-sm font-medium text-gray-600 px-2 py-1">Select a user to chat</h4>
               {users.map(u => (
                 <div
                   key={u.userId}
-                  onClick={() => setSelectedUser(u)}
+                  onClick={() => {
+                    setSelectedUser(u);
+                    // Mark messages from this user as read
+                    if (socket && isConnected && u.userId) {
+                      emit('mark_messages_read', { fromUserId: u.userId }, (response: any) => {
+                        if (response?.success) {
+                          // Clear unread count for this user
+                          setUnreadCountsPerUser(prev => {
+                            const newCounts = { ...prev };
+                            delete newCounts[u.userId];
+                            return newCounts;
+                          });
+                          // Recalculate total
+                          const currentCount = unreadCountsPerUser[u.userId] || 0;
+                          setUnreadCount(prev => Math.max(0, prev - currentCount));
+                        }
+                      });
+                    }
+                  }}
                   className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
                 >
                   <div className="relative">
@@ -534,9 +531,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{u.full_name}</p>
-                    <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">{u.full_name || u.title || 'Unknown User'}</p>
+                    <p className="text-xs text-gray-500 truncate">{u.email || u.telephone || ''}</p>
                   </div>
+                  {unreadCountsPerUser[u.userId] > 0 && (
+                    <span className="w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                      {unreadCountsPerUser[u.userId]}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
@@ -584,7 +586,77 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
                   </div>
                 ) : (
                   <>
-                    {getDisplayMessages().map(renderMessage)}
+                    {getDisplayMessages().map((msg) => (
+                      <div 
+                        key={msg.messageId} 
+                        className={`flex ${msg.sender.userId === user?.userId ? 'justify-end' : 'justify-start'} mb-3`}
+                      >
+                        <div className={`max-w-[75%] ${msg.sender.userId === user?.userId ? 'order-2' : 'order-1'}`}>
+                          {msg.sender.userId !== user?.userId && (
+                            <div className="text-xs text-gray-500 mb-1 ml-1">
+                              {msg.sender.full_name}
+                            </div>
+                          )}
+                          <div className={`rounded-lg px-4 py-2 ${
+                            msg.sender.userId === user?.userId 
+                              ? 'bg-blue-600 text-white rounded-br-none' 
+                              : 'bg-gray-100 text-gray-800 rounded-bl-none'
+                          }`}>
+                            {editingMessageId === msg.messageId ? (
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={editMessageText}
+                                  onChange={(e) => setEditMessageText(e.target.value)}
+                                  className="flex-1 px-2 py-1 text-sm border rounded focus:outline-none focus:border-blue-500"
+                                  autoFocus
+                                />
+                                <button 
+                                  onClick={() => handleEditMessage(msg.messageId)}
+                                  disabled={isSending}
+                                  className="text-green-500 hover:text-green-700"
+                                >
+                                  <FiCheck />
+                                </button>
+                                <button 
+                                  onClick={() => { setEditingMessageId(null); setEditMessageText(''); }}
+                                  className="text-gray-500 hover:text-gray-700"
+                                >
+                                  <FiX />
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <p className="text-sm">{msg.message}</p>
+                                <div className={`flex items-center gap-1 mt-1 text-xs ${msg.sender.userId === user?.userId ? 'text-blue-200' : 'text-gray-400'}`}>
+                                  <span>{msg.time}</span>
+                                  {msg.isEdited && <span className="italic">(edited)</span>}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                          {editingMessageId !== msg.messageId && canModifyMessage(msg) && (
+                            <div className={`flex gap-2 mt-1 ${msg.sender.userId === user?.userId ? 'justify-end' : 'justify-start'} opacity-0 group-hover:opacity-100 transition-opacity`}>
+                              <button 
+                                onClick={() => { setEditingMessageId(msg.messageId); setEditMessageText(msg.message); }}
+                                className="text-gray-400 hover:text-blue-500 p-1"
+                                title="Edit"
+                              >
+                                <FiEdit2 size={12} />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteMessage(msg.messageId)}
+                                disabled={isSending}
+                                className="text-gray-400 hover:text-red-500 p-1"
+                                title="Delete"
+                              >
+                                <FiTrash2 size={12} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                     <div ref={messagesEndRef} />
                   </>
                 )}
