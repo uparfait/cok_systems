@@ -312,10 +312,61 @@ async function InitChatting(socket) {
 
         try {
             const messages = await chat.GetInboxMessages(auth.user.userId);
-            return callback({ success: true, messages });
+            
+            // Calculate unread count for each user
+            const unreadCounts = {};
+            messages.forEach(msg => {
+                if (msg.sender.userId !== auth.user.userId) {
+                    const senderId = msg.sender.userId;
+                    if (!msg.readBy || !msg.readBy.includes(auth.user.userId)) {
+                        unreadCounts[senderId] = (unreadCounts[senderId] || 0) + 1;
+                    }
+                }
+            });
+            
+            return callback({ success: true, messages, unreadCounts });
         } catch (error) {
             console.error('Error getting inbox messages:', error);
             return callback({ success: false, message: "Error getting messages" });
+        }
+    });
+
+    // Mark messages as read
+    socket.on('mark_messages_read', async (data, callback) => {
+        const auth = checkAuth(socket);
+        if (!auth.isAuthenticated) {
+            return callback({ success: false, message: "Authentication required" });
+        }
+
+        try {
+            const { fromUserId } = data;
+            if (!fromUserId) {
+                return callback({ success: false, message: "User ID required" });
+            }
+
+            // Get all messages from this user and mark as read
+            const allMessages = await chat.GetInboxMessages(auth.user.userId);
+            const messagesToMark = allMessages.filter(msg => 
+                msg.sender.userId === fromUserId && 
+                msg.receiver?.userId === auth.user.userId
+            );
+
+            // Mark each message as read
+            for (const msg of messagesToMark) {
+                await chat.MarkMessageAsRead(msg.messageId, auth.user.userId);
+            }
+
+            // Notify sender that messages were read
+            global.WebsocketIO.to(chat.Private_Room(fromUserId)).emit('messages_marked_read', {
+                byUserId: auth.user.userId,
+                byUserName: auth.user.fullName,
+                count: messagesToMark.length
+            });
+
+            return callback({ success: true, count: messagesToMark.length });
+        } catch (error) {
+            console.error('Error marking messages as read:', error);
+            return callback({ success: false, message: "Error marking messages as read" });
         }
     });
 
@@ -356,9 +407,15 @@ async function InitChatting(socket) {
             const users = chat.GetAllUsers();
             const connectedUsers = chat.GetConnectedUsers();
             
+            // Get user active status from database
+            const usersWithStatus = users.map(u => ({
+                ...u,
+                is_active: connectedUsers.includes(u.userId) ? true : u.is_active || false
+            }));
+            
             return callback({ 
                 success: true, 
-                users: users,
+                users: usersWithStatus,
                 connectedUsers: connectedUsers
             });
         } catch (error) {
