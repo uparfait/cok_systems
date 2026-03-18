@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSocket } from '../contexts/SocketContext';
 import { useAuth } from '../contexts/AuthContext';
-import { FiMessageSquare, FiX, FiSend, FiUsers, FiGlobe, FiEdit2, FiTrash2, FiCheck, FiChevronDown } from 'react-icons/fi';
+import { FiMessageSquare, FiX, FiSend, FiUsers, FiGlobe, FiEdit2, FiCheck, FiChevronDown } from 'react-icons/fi';
 
 interface User {
   userId: string;
@@ -85,6 +85,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     return colors[Math.abs(hash) % colors.length];
   };
 
+  // Get initials from name
+  const getInitials = (name: string) => {
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+    }
+    return name.charAt(0).toUpperCase();
+  };
+
   // Reset input height
   const resetInputHeight = useCallback(() => {
     if (inputRef.current) {
@@ -111,9 +120,11 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
           setMessages(response.messages || []);
         }
         setIsLoading(false);
+        setIsInitialLoad(false);
       });
     } else {
       setIsLoading(false);
+      setIsInitialLoad(false);
     }
   }, [socket, isConnected, isAuthenticated, activeTab, emit]);
 
@@ -157,10 +168,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
       ));
     };
 
-    const handleGlobalMessageDeleted = (data: { messageId: string }) => {
-      setMessages(prev => prev.filter(msg => msg.messageId !== data.messageId));
-    };
-
     const handleNewInboxMessage = (data: Message) => {
       const messageTime = new Date(data.createdAt).getTime();
       const otherUserId = data.sender.userId === user?.userId ? data.receiver?.userId : data.sender.userId;
@@ -193,10 +200,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
           ? { ...msg, message: data.newMessage, isEdited: true }
           : msg
       ));
-    };
-
-    const handleInboxMessageDeleted = (data: { messageId: string }) => {
-      setMessages(prev => prev.filter(msg => msg.messageId !== data.messageId));
     };
 
     const handleUserOnline = (data: { userId: string; fullName: string }) => {
@@ -256,10 +259,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
 
     on('global_messages', handleGlobalMessages);
     on('global_message_edited', handleGlobalMessageEdited);
-    on('global_message_deleted', handleGlobalMessageDeleted);
     on('new_inbox_message', handleNewInboxMessage);
     on('inbox_message_edited', handleInboxMessageEdited);
-    on('inbox_message_deleted', handleInboxMessageDeleted);
     on('user_online', handleUserOnline);
     on('user_offline', handleUserOffline);
     on('user_typing_global', handleUserTypingGlobal);
@@ -269,10 +270,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     return () => {
       off('global_messages', handleGlobalMessages);
       off('global_message_edited', handleGlobalMessageEdited);
-      off('global_message_deleted', handleGlobalMessageDeleted);
       off('new_inbox_message', handleNewInboxMessage);
       off('inbox_message_edited', handleInboxMessageEdited);
-      off('inbox_message_deleted', handleInboxMessageDeleted);
       off('user_online', handleUserOnline);
       off('user_offline', handleUserOffline);
       off('user_typing_global', handleUserTypingGlobal);
@@ -388,22 +387,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     });
   };
 
-  const handleDeleteMessage = async (messageId: string) => {
-    if (!socket || !isConnected) return;
-    
-    setIsSending(true);
-    setError(null);
-
-    const eventName = activeTab === 'global' ? 'delete_global_message' : 'delete_inbox_message';
-    
-    emit(eventName, { messageId }, (response: any) => {
-      if (!response?.success) {
-        setError(response?.message || 'Failed to delete message');
-      }
-      setIsSending(false);
-    });
-  };
-
   const handleTyping = () => {
     if (!socket || !isConnected || isTyping) return;
     
@@ -434,11 +417,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
   };
 
   const scrollToBottom = () => {
-    const container = messagesContainerRef.current;
-    if (container) {
-      container.scrollTop = container.scrollHeight;
-      setShowScrollButton(false);
-      setIsAtBottom(true);
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
   };
 
@@ -567,8 +547,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
                   >
                     <div className="relative">
                       <div className={`w-10 h-10 ${getAvatarColor(u.full_name)} rounded-full flex items-center justify-center text-white font-medium shadow-sm`}>
-                        {u.full_name?.charAt(0).toUpperCase()}
-                        {u.full_name?.split(' ')[1]?.charAt(0).toUpperCase()}
+                        {getInitials(u.full_name)}
                       </div>
                       {connectedUsers.includes(u.userId) && (
                         <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
@@ -604,7 +583,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
               <span className="text-gray-400">|</span>
               <div className="flex items-center gap-2">
                 <div className={`w-6 h-6 ${getAvatarColor(selectedUser.full_name)} rounded-full flex items-center justify-center text-white text-xs font-medium`}>
-                  {selectedUser.full_name?.charAt(0).toUpperCase()}
+                  {getInitials(selectedUser.full_name)}
                 </div>
                 <span className="text-sm text-gray-600">
                   {selectedUser.full_name}
@@ -644,10 +623,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
                       return (
                         <div key={msg.messageId} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4 group`}>
                           {!isOwn && (
-                            <div className="flex-shrink-0 mr-2">
+                            <div className="flex-shrink-0 mr-2 mt-1">
                               <div className={`w-8 h-8 ${getAvatarColor(msg.sender.full_name)} rounded-full flex items-center justify-center text-white text-xs font-medium shadow-sm`}>
-                                {msg.sender.full_name?.charAt(0).toUpperCase()}
-                                {msg.sender.full_name?.split(' ')[1]?.charAt(0).toUpperCase()}
+                                {getInitials(msg.sender.full_name)}
                               </div>
                             </div>
                           )}
@@ -688,7 +666,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
                               ) : (
                                 <>
                                   <p className="text-sm break-words">{msg.message}</p>
-                                  <div className={`flex items-center justify-end gap-1 mt-1 text-xs ${
+                                  <div className={`flex items-center gap-1 mt-1 text-xs ${
                                     isOwn ? 'text-blue-200' : 'text-gray-400'
                                   }`}>
                                     <span>{formatTime(msg.createdAt)}</span>
@@ -713,14 +691,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
                                 >
                                   <FiEdit2 size={12} />
                                 </button>
-                                <button 
-                                  onClick={() => handleDeleteMessage(msg.messageId)}
-                                  disabled={isSending}
-                                  className="text-gray-400 hover:text-red-500 p-1"
-                                  title="Delete"
-                                >
-                                  <FiTrash2 size={12} />
-                                </button>
                               </div>
                             )}
                           </div>
@@ -742,18 +712,18 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
                     {Object.values(typingUsers)[0]}
                   </div>
                 )}
-
-                {/* Scroll to Bottom Button */}
-                {showScrollButton && (
-                  <button
-                    onClick={scrollToBottom}
-                    className="absolute bottom-4 right-4 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 shadow-lg transition-all transform hover:scale-105 flex items-center justify-center"
-                    title="Scroll to bottom"
-                  >
-                    <FiChevronDown size={20} />
-                  </button>
-                )}
               </div>
+
+              {/* Scroll to Bottom Button - Positioned absolutely relative to messages container */}
+              {showScrollButton && (
+                <button
+                  onClick={scrollToBottom}
+                  className="absolute bottom-20 right-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 shadow-lg transition-all transform hover:scale-105 flex items-center justify-center z-10"
+                  title="Scroll to bottom"
+                >
+                  <FiChevronDown size={20} />
+                </button>
+              )}
 
               {/* Input */}
               <div className="p-3 border-t border-gray-200 bg-white">
