@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSocket } from '../contexts/SocketContext';
 import { useAuth } from '../contexts/AuthContext';
-import { FiMessageSquare, FiX, FiSend, FiUsers, FiGlobe, FiMoreVertical, FiEdit2, FiTrash2, FiCheck, FiCheckCircle, FiChevronDown } from 'react-icons/fi';
+import { FiMessageSquare, FiX, FiSend, FiUsers, FiGlobe, FiEdit2, FiTrash2, FiCheck, FiChevronDown } from 'react-icons/fi';
 
-// Types
 interface User {
   userId: string;
   email: string;
@@ -42,7 +41,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
   const { socket, isConnected, emit, on, off } = useSocket();
   const { user, token } = useAuth();
   
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<'global' | 'inbox'>('global');
   const [messages, setMessages] = useState<Message[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -50,6 +49,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -62,102 +62,90 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
   const [typingUsers, setTypingUsers] = useState<{ [key: string]: string }>({});
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Check if user is authenticated
   const isAuthenticated = !!token && !!user;
 
-  // Fetch initial data
-  const fetchInitialData = useCallback(async () => {
-    if (!socket || !isConnected || !isAuthenticated) {
-      console.log('[ChatWidget] Cannot fetch - socket not ready:', { socket: !!socket, isConnected, isAuthenticated });
-      return;
+  // Generate avatar color based on username
+  const getAvatarColor = (name: string) => {
+    const colors = [
+      'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 
+      'bg-pink-500', 'bg-indigo-500', 'bg-red-500', 'bg-teal-500'
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = ((hash << 5) - hash) + name.charCodeAt(i);
+      hash = hash & hash;
     }
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  // Reset input height
+  const resetInputHeight = useCallback(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = '40px';
+    }
+  }, []);
+
+  // Focus input
+  const focusInput = useCallback(() => {
+    if (inputRef.current && (activeTab === 'global' || selectedUser)) {
+      inputRef.current.focus();
+    }
+  }, [activeTab, selectedUser]);
+
+  const fetchInitialData = useCallback(async () => {
+    if (!socket || !isConnected || !isAuthenticated) return;
     
     setIsLoading(true);
     setError(null);
     
-    console.log('[ChatWidget] Fetching initial data...');
-    
-    try {
-      // Fetch global messages
+    if (activeTab === 'global') {
       emit('get_global_messages', {}, (response: any) => {
-        console.log('[ChatWidget] Global messages response:', response);
         if (response?.success) {
           setMessages(response.messages || []);
-        } else {
-          console.error('[ChatWidget] Failed to get global messages:', response?.message);
         }
+        setIsLoading(false);
       });
-
-      // Fetch all users
-      emit('get_all_users', {}, (response: any) => {
-        console.log('[ChatWidget] Users response:', response);
-        if (response?.success) {
-          console.log('[ChatWidget] Current user from auth:', user);
-          console.log('[ChatWidget] Current user userId:', user?.userId);
-          // Filter out current user
-          let otherUsers = (response.users || []).filter((u: User) => {
-            const isCurrentUser = u.userId === user?.userId;
-            console.log('[ChatWidget] Comparing user:', u.userId, '===', user?.userId, '=', isCurrentUser);
-            return !isCurrentUser;
-          });
-          
-          console.log('[ChatWidget] Filtered users:', otherUsers.length);
-          setUsers(otherUsers);
-          setConnectedUsers(response.connectedUsers || []);
-        } else {
-          console.error('[ChatWidget] Failed to get users:', response?.message);
-        }
-      });
-
-      // Fetch inbox messages if on inbox tab
-      if (activeTab === 'inbox') {
-        emit('get_inbox_messages', {}, (response: any) => {
-          console.log('[ChatWidget] Inbox messages response:', response);
-          if (response?.success) {
-            setMessages(response.messages || []);
-            // Store unread counts per user
-            if (response.unreadCounts) {
-              const counts = response.unreadCounts as { [key: string]: number };
-              setUnreadCountsPerUser(counts);
-              // Calculate total unread
-              const totalUnread = Object.values(counts).reduce((a, b) => a + b, 0);
-              setUnreadCount(totalUnread);
-            }
-          }
-        });
-      }
-    } catch (err) {
-      setError('Failed to load chat data');
-      console.error('Chat fetch error:', err);
-    } finally {
+    } else {
       setIsLoading(false);
     }
-  }, [socket, isConnected, isAuthenticated, activeTab, emit, user]);
+  }, [socket, isConnected, isAuthenticated, activeTab, emit]);
+
+  const fetchUsers = useCallback(async () => {
+    if (!socket || !isConnected || !isAuthenticated) return;
+    
+    setIsLoadingUsers(true);
+    
+    emit('get_all_users', {}, (response: any) => {
+      if (response?.success) {
+        const otherUsers = (response.users || []).filter((u: User) => u.userId !== user?.userId);
+        const onlineUsers = otherUsers.filter((u: User) => response.connectedUsers?.includes(u.userId));
+        setConnectedUsers(response.connectedUsers || []);
+        setUsers(onlineUsers);
+      }
+      setIsLoadingUsers(false);
+    });
+  }, [socket, isConnected, isAuthenticated, emit, user]);
 
   // Set up socket event listeners
   useEffect(() => {
     if (!socket || !isConnected || !isAuthenticated) return;
 
-    // Global messages handlers
     const handleGlobalMessages = (data: Message[]) => {
       if (activeTab === 'global') {
         setMessages(data);
-        // If widget is not open or not on global tab, track as unread
+        setIsInitialLoad(false);
         if (!isOpen || activeTab !== 'global') {
-          const newUnread = data.length;
-          if (newUnread > 0) {
-            setGlobalUnreadCount(prev => prev + 1);
-          }
+          setGlobalUnreadCount(prev => prev + (data.length - messages.length));
         }
       } else if (!isOpen) {
-        // Track global unread when widget is closed
-        setGlobalUnreadCount(prev => prev + 1);
+        setGlobalUnreadCount(prev => prev + (data.length - messages.length));
       }
     };
 
@@ -173,39 +161,28 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
       setMessages(prev => prev.filter(msg => msg.messageId !== data.messageId));
     };
 
-    // Inbox messages handlers
     const handleNewInboxMessage = (data: Message) => {
-      // Update last message time for this user
       const messageTime = new Date(data.createdAt).getTime();
       const otherUserId = data.sender.userId === user?.userId ? data.receiver?.userId : data.sender.userId;
       if (otherUserId) {
-        setLastMessageTimes(prev => ({
-          ...prev,
-          [otherUserId]: messageTime
-        }));
+        setLastMessageTimes(prev => ({ ...prev, [otherUserId]: messageTime }));
       }
       
       if (activeTab === 'inbox' && selectedUser) {
-        // Only add message if it's for the current conversation
         if (data.sender.userId === selectedUser.userId || data.receiver?.userId === selectedUser.userId) {
           setMessages(prev => [...prev, data]);
         }
       } else {
-        // Add to messages list
         setMessages(prev => [...prev, data]);
       }
       
-      // Increment unread count per user if message is for current user
-      if (data.receiver?.userId === user?.userId) {
-        // Only count as unread if not from current user and not viewing that conversation
-        if (data.sender.userId !== user?.userId) {
-          if (activeTab !== 'inbox' || !selectedUser || data.sender.userId !== selectedUser.userId) {
-            setUnreadCountsPerUser(prev => ({
-              ...prev,
-              [data.sender.userId]: (prev[data.sender.userId] || 0) + 1
-            }));
-            setUnreadCount(prev => prev + 1);
-          }
+      if (data.receiver?.userId === user?.userId && data.sender.userId !== user?.userId) {
+        if (activeTab !== 'inbox' || !selectedUser || data.sender.userId !== selectedUser.userId) {
+          setUnreadCountsPerUser(prev => ({
+            ...prev,
+            [data.sender.userId]: (prev[data.sender.userId] || 0) + 1
+          }));
+          setUnreadCount(prev => prev + 1);
         }
       }
     };
@@ -222,16 +199,26 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
       setMessages(prev => prev.filter(msg => msg.messageId !== data.messageId));
     };
 
-    // User status handlers
     const handleUserOnline = (data: { userId: string; fullName: string }) => {
       setConnectedUsers(prev => [...prev, data.userId]);
+      if (activeTab === 'inbox') {
+        setUsers(prev => {
+          const user = prev.find(u => u.userId === data.userId);
+          if (!user) {
+            fetchUsers();
+          }
+          return prev;
+        });
+      }
     };
 
     const handleUserOffline = (data: { userId: string }) => {
       setConnectedUsers(prev => prev.filter(id => id !== data.userId));
+      if (activeTab === 'inbox') {
+        setUsers(prev => prev.filter(u => u.userId !== data.userId));
+      }
     };
 
-    // Typing indicators
     const handleUserTypingGlobal = (data: { userId: string; fullName: string }) => {
       setTypingUsers(prev => ({ ...prev, [data.userId]: `${data.fullName} is typing...` }));
       setTimeout(() => {
@@ -256,21 +243,17 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
       }
     };
 
-    // Messages marked as read handler
     const handleMessagesMarkedRead = (data: { byUserId: string; byUserName: string; count: number }) => {
-      // Update unread counts when other user reads our messages
       if (selectedUser && data.byUserId === selectedUser.userId) {
         setUnreadCountsPerUser(prev => {
           const newCounts = { ...prev };
           delete newCounts[data.byUserId];
           return newCounts;
         });
-        // Recalculate total
         setUnreadCount(prev => Math.max(0, prev - data.count));
       }
     };
 
-    // Register event listeners
     on('global_messages', handleGlobalMessages);
     on('global_message_edited', handleGlobalMessageEdited);
     on('global_message_deleted', handleGlobalMessageDeleted);
@@ -283,7 +266,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     on('user_typing_inbox', handleUserTypingInbox);
     on('messages_marked_read', handleMessagesMarkedRead);
 
-    // Cleanup
     return () => {
       off('global_messages', handleGlobalMessages);
       off('global_message_edited', handleGlobalMessageEdited);
@@ -297,60 +279,54 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
       off('user_typing_inbox', handleUserTypingInbox);
       off('messages_marked_read', handleMessagesMarkedRead);
     };
-  }, [socket, isConnected, isAuthenticated, activeTab, selectedUser, on, off, user, isOpen]);
+  }, [socket, isConnected, isAuthenticated, activeTab, selectedUser, on, off, user, isOpen, messages.length, fetchUsers]);
 
-  // Fetch data when tab changes or chat opens
   useEffect(() => {
     if (isOpen && isAuthenticated) {
-      fetchInitialData();
+      if (activeTab === 'global') {
+        fetchInitialData();
+      } else if (activeTab === 'inbox') {
+        setMessages([]);
+        fetchUsers();
+      }
+      focusInput();
     }
-  }, [isOpen, isAuthenticated, activeTab, fetchInitialData]);
+  }, [isOpen, isAuthenticated, activeTab, fetchInitialData, fetchUsers, focusInput]);
 
-  // Reset global unread count when switching to global tab
   useEffect(() => {
     if (isOpen && activeTab === 'global') {
       setGlobalUnreadCount(0);
     }
   }, [isOpen, activeTab]);
 
-  // Auto-scroll to bottom when new messages arrive (if user is at bottom)
   useEffect(() => {
     if (messages.length > 0 && isAtBottom) {
-      // Small delay to ensure DOM is updated
-      const timeout = setTimeout(() => {
-        scrollToBottom();
-      }, 100);
-      return () => clearTimeout(timeout);
+      setTimeout(() => scrollToBottom(), 100);
     }
   }, [messages, isAtBottom]);
 
-  // Sort users: online first, then unread messages, then by time
   useEffect(() => {
-    if (users.length > 0) {
-      const sortedUsers = [...users].sort((a, b) => {
-        // First: online users at top
-        const aOnline = connectedUsers.includes(a.userId);
-        const bOnline = connectedUsers.includes(b.userId);
-        if (aOnline && !bOnline) return -1;
-        if (!aOnline && bOnline) return 1;
-        
-        // Second: users with unread messages at top
-        const aUnread = unreadCountsPerUser[a.userId] || 0;
-        const bUnread = unreadCountsPerUser[b.userId] || 0;
-        if (aUnread > 0 && bUnread === 0) return -1;
-        if (aUnread === 0 && bUnread > 0) return 1;
-        
-        // Third: by most recent message time (descending)
-        const aLastMsg = lastMessageTimes[a.userId] || 0;
-        const bLastMsg = lastMessageTimes[b.userId] || 0;
-        return bLastMsg - aLastMsg;
+    if (selectedUser && socket && isConnected) {
+      emit('get_conversation', { userId: selectedUser.userId }, (response: any) => {
+        if (response?.success) {
+          setMessages(response.messages || []);
+          setIsInitialLoad(false);
+        }
       });
-      setUsers(sortedUsers);
+      
+      emit('mark_messages_read', { fromUserId: selectedUser.userId }, (response: any) => {
+        if (response?.success) {
+          setUnreadCountsPerUser(prev => {
+            const newCounts = { ...prev };
+            delete newCounts[selectedUser.userId];
+            return newCounts;
+          });
+          setUnreadCount(prev => Math.max(0, prev - (unreadCountsPerUser[selectedUser.userId] || 0)));
+        }
+      });
     }
-  }, [connectedUsers, unreadCountsPerUser, lastMessageTimes]);
+  }, [selectedUser, socket, isConnected, emit]);
 
-
-  // Handle sending message
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || !socket || !isConnected) return;
     
@@ -362,6 +338,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
         emit('send_global_message', { message: inputMessage.trim() }, (response: any) => {
           if (response?.success) {
             setInputMessage('');
+            resetInputHeight();
+            focusInput();
           } else {
             setError(response?.message || 'Failed to send message');
           }
@@ -376,13 +354,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
         }, (response: any) => {
           if (response?.success) {
             setInputMessage('');
+            resetInputHeight();
+            focusInput();
           } else {
             setError(response?.message || 'Failed to send message');
           }
           setIsSending(false);
         });
-      } else {
-        setIsSending(false);
       }
     } catch (err) {
       setError('Failed to send message');
@@ -390,7 +368,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     }
   };
 
-  // Handle editing message
   const handleEditMessage = async (messageId: string) => {
     if (!editMessageText.trim() || !socket || !isConnected) return;
     
@@ -403,6 +380,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
       if (response?.success) {
         setEditingMessageId(null);
         setEditMessageText('');
+        focusInput();
       } else {
         setError(response?.message || 'Failed to edit message');
       }
@@ -410,7 +388,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     });
   };
 
-  // Handle deleting message
   const handleDeleteMessage = async (messageId: string) => {
     if (!socket || !isConnected) return;
     
@@ -427,7 +404,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     });
   };
 
-  // Handle typing
   const handleTyping = () => {
     if (!socket || !isConnected || isTyping) return;
     
@@ -447,18 +423,16 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     }, 2000);
   };
 
-  // Handle scroll to detect if user is at bottom
   const handleScroll = () => {
     const container = messagesContainerRef.current;
     if (!container) return;
     
     const { scrollTop, scrollHeight, clientHeight } = container;
-    const atBottom = scrollHeight - scrollTop - clientHeight < 50; // 50px threshold
+    const atBottom = scrollHeight - scrollTop - clientHeight < 50;
     setIsAtBottom(atBottom);
     setShowScrollButton(!atBottom);
   };
 
-  // Scroll to bottom function
   const scrollToBottom = () => {
     const container = messagesContainerRef.current;
     if (container) {
@@ -468,7 +442,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     }
   };
 
-  // Handle key press
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -480,7 +453,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     }
   };
 
-  // Get messages for current view
   const getDisplayMessages = () => {
     if (activeTab === 'global') {
       return messages;
@@ -493,15 +465,20 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     return [];
   };
 
-  // Check if user can edit/delete message
   const canModifyMessage = (msg: Message) => {
     return msg.sender.userId === user?.userId;
   };
 
-  // Don't render if not authenticated
+  const formatTime = (time: string) => {
+    const date = new Date(time);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   if (!isAuthenticated) {
     return null;
   }
+
+  const displayMessages = getDisplayMessages();
 
   return (
     <>
@@ -526,15 +503,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
         </button>
       </div>
 
-      {/* Chat Panel */}
+      {/* Chat Panel with Animation */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-96 h-[500px] bg-white rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden border border-gray-200">
+        <div className={`fixed bottom-24 right-6 w-96 h-[500px] bg-white rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden border border-gray-200 transition-all duration-300 transform ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}>
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
             <h3 className="text-white font-semibold">Chat</h3>
             <button 
               onClick={() => setIsOpen(false)}
-              className="text-white hover:bg-blue-800 rounded-lg p-1"
+              className="text-white hover:bg-blue-800 rounded-lg p-1 transition-colors"
             >
               <FiX className="w-5 h-5" />
             </button>
@@ -572,57 +549,43 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
           {/* Inbox User Selection */}
           {activeTab === 'inbox' && !selectedUser && (
             <div className="flex-1 overflow-y-auto p-2">
-              {users.map(u => (
-                <div
-                  key={u.userId}
-                  onClick={() => {
-                    setSelectedUser(u);
-                    // Fetch conversation messages with this user
-                    if (socket && isConnected && u.userId) {
-                      emit('get_conversation', { userId: u.userId }, (response: any) => {
-                        if (response?.success) {
-                          setMessages(response.messages || []);
-                        }
-                      });
-                      // Mark messages from this user as read
-                      emit('mark_messages_read', { fromUserId: u.userId }, (response: any) => {
-                        if (response?.success) {
-                          // Clear unread count for this user
-                          setUnreadCountsPerUser(prev => {
-                            const newCounts = { ...prev };
-                            delete newCounts[u.userId];
-                            return newCounts;
-                          });
-                          // Recalculate total
-                          const currentCount = unreadCountsPerUser[u.userId] || 0;
-                          setUnreadCount(prev => Math.max(0, prev - currentCount));
-                        }
-                      });
-                    }
-                  }}
-                  className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
-                >
-                  <div className="relative">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 font-medium">
+              {isLoadingUsers ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : users.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <FiUsers className="w-12 h-12 mb-2" />
+                  <p className="text-sm">No users online</p>
+                </div>
+              ) : (
+                users.map(u => (
+                  <div
+                    key={u.userId}
+                    onClick={() => setSelectedUser(u)}
+                    className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors group"
+                  >
+                    <div className="relative">
+                      <div className={`w-10 h-10 ${getAvatarColor(u.full_name)} rounded-full flex items-center justify-center text-white font-medium shadow-sm`}>
                         {u.full_name?.charAt(0).toUpperCase()}
-                      </span>
+                        {u.full_name?.split(' ')[1]?.charAt(0).toUpperCase()}
+                      </div>
+                      {connectedUsers.includes(u.userId) && (
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                      )}
                     </div>
-                    {connectedUsers.includes(u.userId) && (
-                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{u.full_name}</p>
+                      <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                    </div>
+                    {unreadCountsPerUser[u.userId] > 0 && (
+                      <span className="w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                        {unreadCountsPerUser[u.userId]}
+                      </span>
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{u.full_name || u.title || 'Unknown User'}</p>
-                    <p className="text-xs text-gray-500 truncate">{u.email || u.telephone || ''}</p>
-                  </div>
-                  {unreadCountsPerUser[u.userId] > 0 && (
-                    <span className="w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                      {unreadCountsPerUser[u.userId]}
-                    </span>
-                  )}
-                </div>
-              ))}
+                ))
+              )}
             </div>
           )}
 
@@ -630,18 +593,26 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
           {activeTab === 'inbox' && selectedUser && (
             <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
               <button 
-                onClick={() => setSelectedUser(null)}
-                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                onClick={() => {
+                  setSelectedUser(null);
+                  setMessages([]);
+                }}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
               >
                 ← Back
               </button>
               <span className="text-gray-400">|</span>
-              <span className="text-sm text-gray-600">
-                {selectedUser.full_name}
-                {connectedUsers.includes(selectedUser.userId) && (
-                  <span className="ml-2 text-xs text-green-600">● Online</span>
-                )}
-              </span>
+              <div className="flex items-center gap-2">
+                <div className={`w-6 h-6 ${getAvatarColor(selectedUser.full_name)} rounded-full flex items-center justify-center text-white text-xs font-medium`}>
+                  {selectedUser.full_name?.charAt(0).toUpperCase()}
+                </div>
+                <span className="text-sm text-gray-600">
+                  {selectedUser.full_name}
+                  {connectedUsers.includes(selectedUser.userId) && (
+                    <span className="ml-2 text-xs text-green-600">● Online</span>
+                  )}
+                </span>
+              </div>
             </div>
           )}
 
@@ -656,11 +627,11 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
           {(activeTab === 'global' || (activeTab === 'inbox' && selectedUser)) && (
             <>
               <div className="flex-1 overflow-y-auto p-4 bg-gray-50 relative" ref={messagesContainerRef} onScroll={handleScroll}>
-                {isLoading ? (
+                {isLoading && isInitialLoad ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                   </div>
-                ) : getDisplayMessages().length === 0 ? (
+                ) : displayMessages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-gray-400">
                     <FiMessageSquare className="w-12 h-12 mb-2" />
                     <p className="text-sm">No messages yet</p>
@@ -668,84 +639,106 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
                   </div>
                 ) : (
                   <>
-                    {getDisplayMessages().map((msg) => (
-                      <div 
-                        key={msg.messageId} 
-                        className={`flex ${msg.sender.userId === user?.userId ? 'justify-end' : 'justify-start'} mb-3`}
-                      >
-                        <div className={`max-w-[75%] ${msg.sender.userId === user?.userId ? 'order-2' : 'order-1'}`}>
-                          {msg.sender.userId !== user?.userId && (
-                            <div className="text-xs text-gray-500 mb-1 ml-1">
-                              {msg.sender.full_name}
+                    {displayMessages.map((msg) => {
+                      const isOwn = msg.sender.userId === user?.userId;
+                      return (
+                        <div key={msg.messageId} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4 group`}>
+                          {!isOwn && (
+                            <div className="flex-shrink-0 mr-2">
+                              <div className={`w-8 h-8 ${getAvatarColor(msg.sender.full_name)} rounded-full flex items-center justify-center text-white text-xs font-medium shadow-sm`}>
+                                {msg.sender.full_name?.charAt(0).toUpperCase()}
+                                {msg.sender.full_name?.split(' ')[1]?.charAt(0).toUpperCase()}
+                              </div>
                             </div>
                           )}
-                          <div className={`rounded-lg px-4 py-2 ${
-                            msg.sender.userId === user?.userId 
-                              ? 'bg-blue-600 text-white rounded-br-none' 
-                              : 'bg-gray-100 text-gray-800 rounded-bl-none'
-                          }`}>
-                            {editingMessageId === msg.messageId ? (
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={editMessageText}
-                                  onChange={(e) => setEditMessageText(e.target.value)}
-                                  className="flex-1 px-2 py-1 text-sm border rounded focus:outline-none focus:border-blue-500"
-                                  autoFocus
-                                />
+                          <div className={`max-w-[70%] ${isOwn ? 'order-2' : 'order-1'}`}>
+                            {!isOwn && (
+                              <div className="text-xs text-gray-500 mb-1 ml-1">
+                                {msg.sender.full_name}
+                              </div>
+                            )}
+                            <div className={`rounded-2xl px-4 py-2 ${
+                              isOwn 
+                                ? 'bg-blue-600 text-white rounded-br-none' 
+                                : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm'
+                            }`}>
+                              {editingMessageId === msg.messageId ? (
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={editMessageText}
+                                    onChange={(e) => setEditMessageText(e.target.value)}
+                                    className="flex-1 px-2 py-1 text-sm border rounded focus:outline-none focus:border-blue-500"
+                                    autoFocus
+                                  />
+                                  <button 
+                                    onClick={() => handleEditMessage(msg.messageId)}
+                                    disabled={isSending}
+                                    className="text-green-500 hover:text-green-700"
+                                  >
+                                    <FiCheck size={16} />
+                                  </button>
+                                  <button 
+                                    onClick={() => { setEditingMessageId(null); setEditMessageText(''); }}
+                                    className="text-gray-500 hover:text-gray-700"
+                                  >
+                                    <FiX size={16} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <p className="text-sm break-words">{msg.message}</p>
+                                  <div className={`flex items-center justify-end gap-1 mt-1 text-xs ${
+                                    isOwn ? 'text-blue-200' : 'text-gray-400'
+                                  }`}>
+                                    <span>{formatTime(msg.createdAt)}</span>
+                                    {isOwn && (
+                                      <span className="ml-1">
+                                        {msg.isEdited ? '(edited)' : '✓'}
+                                      </span>
+                                    )}
+                                    {!isOwn && msg.isEdited && (
+                                      <span className="ml-1">(edited)</span>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            {editingMessageId !== msg.messageId && canModifyMessage(msg) && (
+                              <div className={`flex gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'} opacity-0 group-hover:opacity-100 transition-opacity`}>
                                 <button 
-                                  onClick={() => handleEditMessage(msg.messageId)}
-                                  disabled={isSending}
-                                  className="text-green-500 hover:text-green-700"
+                                  onClick={() => { setEditingMessageId(msg.messageId); setEditMessageText(msg.message); }}
+                                  className="text-gray-400 hover:text-blue-500 p-1"
+                                  title="Edit"
                                 >
-                                  <FiCheck />
+                                  <FiEdit2 size={12} />
                                 </button>
                                 <button 
-                                  onClick={() => { setEditingMessageId(null); setEditMessageText(''); }}
-                                  className="text-gray-500 hover:text-gray-700"
+                                  onClick={() => handleDeleteMessage(msg.messageId)}
+                                  disabled={isSending}
+                                  className="text-gray-400 hover:text-red-500 p-1"
+                                  title="Delete"
                                 >
-                                  <FiX />
+                                  <FiTrash2 size={12} />
                                 </button>
                               </div>
-                            ) : (
-                              <>
-                                <p className="text-sm break-words">{msg.message}</p>
-                                <div className={`flex items-center gap-1 mt-1 text-xs ${msg.sender.userId === user?.userId ? 'text-blue-200' : 'text-gray-400'}`}>
-                                  <span>{msg.time}</span>
-                                  {msg.isEdited && <span className="italic">(edited)</span>}
-                                </div>
-                              </>
                             )}
                           </div>
-                          {editingMessageId !== msg.messageId && canModifyMessage(msg) && (
-                            <div className={`flex gap-2 mt-1 ${msg.sender.userId === user?.userId ? 'justify-end' : 'justify-start'} opacity-0 group-hover:opacity-100 transition-opacity`}>
-                              <button 
-                                onClick={() => { setEditingMessageId(msg.messageId); setEditMessageText(msg.message); }}
-                                className="text-gray-400 hover:text-blue-500 p-1"
-                                title="Edit"
-                              >
-                                <FiEdit2 size={12} />
-                              </button>
-                              <button 
-                                onClick={() => handleDeleteMessage(msg.messageId)}
-                                disabled={isSending}
-                                className="text-gray-400 hover:text-red-500 p-1"
-                                title="Delete"
-                              >
-                                <FiTrash2 size={12} />
-                              </button>
-                            </div>
-                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     <div ref={messagesEndRef} />
                   </>
                 )}
                 
                 {/* Typing Indicator */}
                 {Object.keys(typingUsers).length > 0 && (
-                  <div className="text-sm text-gray-400 italic mt-2">
+                  <div className="flex items-center gap-2 text-sm text-gray-400 italic mt-2">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                    </div>
                     {Object.values(typingUsers)[0]}
                   </div>
                 )}
@@ -754,7 +747,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
                 {showScrollButton && (
                   <button
                     onClick={scrollToBottom}
-                    className="absolute bottom-20 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 shadow-lg transition-colors flex items-center justify-center"
+                    className="absolute bottom-4 right-4 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 shadow-lg transition-all transform hover:scale-105 flex items-center justify-center"
                     title="Scroll to bottom"
                   >
                     <FiChevronDown size={20} />
@@ -766,25 +759,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
               <div className="p-3 border-t border-gray-200 bg-white">
                 <div className="flex gap-2 items-end">
                   <textarea
-                    ref={inputRef as any}
+                    ref={inputRef}
                     value={inputMessage}
                     onChange={(e) => { 
-                      setInputMessage(e.target.value); 
-                      // Auto-resize textarea
+                      setInputMessage(e.target.value);
                       e.target.style.height = 'auto';
                       e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-                      handleTyping(); 
+                      handleTyping();
                     }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        if (editingMessageId) {
-                          handleEditMessage(editingMessageId);
-                        } else {
-                          handleSendMessage();
-                        }
-                      }
-                    }}
+                    onKeyDown={handleKeyPress}
                     placeholder={activeTab === 'global' 
                       ? 'Type a message...' 
                       : selectedUser 
@@ -818,4 +801,3 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
 };
 
 export default ChatWidget;
-
