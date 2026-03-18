@@ -8,6 +8,7 @@ module.exports = async function car_check_out(req, res, next) {
     try {
         let { plate_number = null } = req.body || {};
         let falleged_when_out = false;
+        let violation_details = null;
 
         if (!plate_number) {
             return res.status(400).json({ success: false, type: 'warning', message: "Plate number required" });
