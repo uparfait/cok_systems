@@ -255,9 +255,58 @@ const SmartParkingDashboard: React.FC = () => {
   // Helper function to get background color based on duration
   const getDurationBgColor = (duration: string) => {
     const hours = parseFloat(duration.replace(/[^0-9.]/g, ''));
-    if (hours >= 9) return 'bg-gradient-to-r from-red-500/20 to-red-600/20 text-red-600 border border-red-200';
-    if (hours < 9 ) return 'bg-gradient-to-r from-orange-500/20 to-amber-500/20 text-orange-600 border border-orange-200';
-    return 'bg-gradient-to-r from-slate-500/20 to-gray-500/20 text-slate-600 border border-slate-200';
+    if (hours >= 9) return 'bg-red-500/20 text-red-600 border border-red-200';
+    if (hours < 9 ) return 'bg-orange-500/20 text-orange-600 border border-orange-200';
+    return 'bg-gray-500/20 text-gray-600 border border-gray-200';
+  };
+
+  // Helper function to get color based on value and thresholds
+  const getStatusColor = (value: number, threshold: number, type: 'low' | 'high' | 'full') => {
+    if (type === 'low') {
+      if (value <= threshold * 0.2) return 'text-red-600';
+      if (value <= threshold * 0.5) return 'text-orange-500';
+      return 'text-emerald-600';
+    } else if (type === 'high') {
+      if (value >= threshold * 0.8) return 'text-emerald-600';
+      if (value >= threshold * 0.5) return 'text-blue-600';
+      return 'text-gray-500';
+    } else {
+      if (value >= threshold) return 'text-red-600';
+      if (value >= threshold * 0.8) return 'text-orange-500';
+      return 'text-emerald-600';
+    }
+  };
+
+  const getIconBgColor = (value: number, threshold: number, type: 'low' | 'high' | 'full') => {
+    if (type === 'low') {
+      if (value <= threshold * 0.2) return 'from-red-500/20 to-red-600/20';
+      if (value <= threshold * 0.5) return 'from-orange-500/20 to-amber-500/20';
+      return 'from-emerald-500/20 to-teal-500/20';
+    } else if (type === 'high') {
+      if (value >= threshold * 0.8) return 'from-emerald-500/20 to-teal-500/20';
+      if (value >= threshold * 0.5) return 'from-blue-500/20 to-indigo-500/20';
+      return 'from-gray-400/20 to-gray-500/20';
+    } else {
+      if (value >= threshold) return 'from-red-500/20 to-red-600/20';
+      if (value >= threshold * 0.8) return 'from-orange-500/20 to-amber-500/20';
+      return 'from-emerald-500/20 to-teal-500/20';
+    }
+  };
+
+  const getIconColor = (value: number, threshold: number, type: 'low' | 'high' | 'full') => {
+    if (type === 'low') {
+      if (value <= threshold * 0.2) return 'text-red-600';
+      if (value <= threshold * 0.5) return 'text-orange-600';
+      return 'text-emerald-600';
+    } else if (type === 'high') {
+      if (value >= threshold * 0.8) return 'text-emerald-600';
+      if (value >= threshold * 0.5) return 'text-blue-600';
+      return 'text-gray-500';
+    } else {
+      if (value >= threshold) return 'text-red-600';
+      if (value >= threshold * 0.8) return 'text-orange-600';
+      return 'text-emerald-600';
+    }
   };
 
   const handleVerify = async () => {
@@ -528,66 +577,43 @@ const SmartParkingDashboard: React.FC = () => {
   return (
     <MainLayout>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30 p-2 sm:p-3 md:p-4 lg:p-6">
-        {/* Header Section with Glassmorphism */}
-        <div className="mb-6 backdrop-blur-xl bg-white/70 rounded-2xl shadow-lg border border-white/20 p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Parking Operations Dashboard
-              </h1>
-              <p className="text-sm text-gray-600 mt-1 flex items-center gap-2">
-                <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                Real-time monitoring • Gate officer panel
-              </p>
-            </div>
-            
-            {/* Quick Stats Pills */}
-            <div className="flex flex-wrap gap-2">
-              <div className="px-4 py-2 bg-gradient-to-r from-emerald-500/10 to-green-500/10 backdrop-blur-sm rounded-full border border-emerald-200/50">
-                <span className="text-sm font-medium text-emerald-700 flex items-center gap-2">
-                  <FiActivity className="w-4 h-4" />
-                  Live: {stats.totalInside} inside
-                </span>
-              </div>
-              <div className="px-4 py-2 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 backdrop-blur-sm rounded-full border border-blue-200/50">
-                <span className="text-sm font-medium text-blue-700 flex items-center gap-2">
-                  <FiClock className="w-4 h-4" />
-                  {new Date().toLocaleTimeString()}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
+        
         {/* Main Stats Grid - Glassmorphism Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
           {/* Total Inside */}
-          <div className="group backdrop-blur-xl bg-gradient-to-br from-emerald-500/90 to-teal-600/90 rounded-2xl p-5 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
+          <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-emerald-100 text-sm font-medium mb-1">Total Inside</p>
-                <h3 className="text-3xl font-bold text-white">{stats.totalInside}</h3>
-                <p className="text-emerald-200 text-xs mt-2 flex items-center gap-1">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                <p className="text-emerald-700 text-sm font-medium mb-1">Total Inside</p>
+                <h3 className="text-3xl font-bold text-emerald-700">{stats.totalInside}</h3>
+                <p className="text-gray-600 text-xs mt-2 flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                   Currently parked
                 </p>
               </div>
-              <div className="p-3 bg-white/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
-                <FiTruck className="w-6 h-6 text-white" />\n              </div>\n            </div>\n            <div className="mt-3 w-full bg-white/20 h-1.5 rounded-full overflow-hidden">\n              <div className="bg-white h-full rounded-full" style={{ width: '70%' }}></div>\n            </div>\n          </div>
+              <div className="p-3 bg-gradient-to-br from-gray-100 to-gray-200/50 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
+                <FiTruck className="w-6 h-6 text-emerald-700" />
+               </div>
+                 </div>
+                    <div className="mt-3 w-full bg-white/20 h-1.5 rounded-full overflow-hidden"> 
+                     <div className="bg-white h-full rounded-full" style={{ width: '70%' }}>
+                      </div>
+                        </div>
+                           </div>
 
           {/* Available Slots */}
-          <div className="group backdrop-blur-xl bg-gradient-to-br from-blue-500/90 to-indigo-600/90 rounded-2xl p-5 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
+          <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-blue-100 text-sm font-medium mb-1">Available Slots</p>
-                <h3 className="text-3xl font-bold text-white">{stats.availableSlots}</h3>
-                <p className="text-blue-200 text-xs mt-2 flex items-center gap-1">
+                <p className="text-blue-700 text-sm font-medium mb-1">Available Slots</p>
+                <h3 className="text-3xl font-bold text-blue-700">{stats.availableSlots}</h3>
+                <p className="text-gray-600 text-xs mt-2 flex items-center gap-1">
                   <FiMapPin className="w-3 h-3" />
                   Out of {stats.totalSlots} total
                 </p>
               </div>
               <div className="p-3 bg-white/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
-                <MdOutlineLocalParking className="w-6 h-6 text-white" />
+                <MdOutlineLocalParking className="w-6 h-6 text-blue-700" />
               </div>
             </div>
             <div className="mt-3 w-full bg-white/20 h-1.5 rounded-full overflow-hidden">
@@ -599,18 +625,18 @@ const SmartParkingDashboard: React.FC = () => {
           </div>
 
           {/* Staff Reserved */}
-          <div className="group backdrop-blur-xl bg-gradient-to-br from-purple-500/90 to-pink-600/90 rounded-2xl p-5 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
+          <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-purple-100 text-sm font-medium mb-1">Staff Reserved</p>
-                <h3 className="text-3xl font-bold text-white">{stats.staffReserved}</h3>
-                <p className="text-purple-200 text-xs mt-2 flex items-center gap-1">
+                <p className="text-purple-700 text-sm font-medium mb-1">Staff Reserved</p>
+                <h3 className="text-3xl font-bold text-purple-700">{stats.staffReserved}</h3>
+                <p className="text-gray-700 text-xs mt-2 flex items-center gap-1">
                   <FiUsers className="w-3 h-3" />
                   /100 allocated
                 </p>
               </div>
               <div className="p-3 bg-white/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
-                <FiShield className="w-6 h-6 text-white" />
+                <FiShield className="w-6 h-6 text-purple-700" />
               </div>
             </div>
             <div className="mt-3 w-full bg-white/20 h-1.5 rounded-full overflow-hidden">
@@ -622,18 +648,18 @@ const SmartParkingDashboard: React.FC = () => {
           </div>
 
           {/* Visitor Reserved */}
-          <div className="group backdrop-blur-xl bg-gradient-to-br from-amber-500/90 to-orange-600/90 rounded-2xl p-5 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
+          <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-amber-100 text-sm font-medium mb-1">Visitor Reserved</p>
-                <h3 className="text-3xl font-bold text-white">{stats.visitorReserved}</h3>
-                <p className="text-amber-200 text-xs mt-2 flex items-center gap-1">
+                <p className="text-amber-700 text-sm font-medium mb-1">Visitor Reserved</p>
+                <h3 className="text-3xl font-bold text-amber-700">{stats.visitorReserved}</h3>
+                <p className="text-gray-700 text-xs mt-2 flex items-center gap-1">
                   <FiTrendingUp className="w-3 h-3" />
                   /50 allocated
                 </p>
               </div>
               <div className="p-3 bg-white/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
-                <FiUserPlus className="w-6 h-6 text-white" />
+                <FiUserPlus className="w-6 h-6 text-amber-700" />
               </div>
             </div>
             <div className="mt-3 w-full bg-white/20 h-1.5 rounded-full overflow-hidden">
@@ -669,21 +695,33 @@ const SmartParkingDashboard: React.FC = () => {
             </div>
           ) : hourlyParkingData.length > 0 ? (
             <div className="overflow-x-auto">
-              {/* Recharts Bar Chart */}
+              {/* Recharts Area Chart - Wave Style */}
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
+                  <AreaChart
                     data={hourlyParkingData}
                     margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <defs>
+                      <linearGradient id="colorCheckIn" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#00aaff" stopOpacity={0.25}/>
+                        <stop offset="95%" stopColor="#00aaff" stopOpacity={0.02}/>
+                      </linearGradient>
+                      <linearGradient id="colorCheckOut" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.25}/>
+                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                     <XAxis 
                       dataKey="hour" 
                       tickFormatter={(value) => `${value.toString().padStart(2, '0')}:00`}
-                      stroke="#6b7280"
+                      stroke="#9ca3af"
                       fontSize={12}
+                      axisLine={false}
+                      tickLine={false}
                     />
-                    <YAxis stroke="#6b7280" fontSize={12} />
+                    <YAxis stroke="#9ca3af" fontSize={12} axisLine={false} tickLine={false} />
                     <Tooltip 
                       contentStyle={{ 
                         backgroundColor: 'rgba(255, 255, 255, 0.95)', 
@@ -698,31 +736,31 @@ const SmartParkingDashboard: React.FC = () => {
                       labelFormatter={(label) => `${label}:00`}
                     />
                     <Legend />
-                    <Bar 
+                    <Area 
+                      type="basis" 
                       dataKey="check_in" 
                       name="Check-ins" 
+                      stroke="#00aaff" 
+                      strokeWidth={2}
+                      fillOpacity={1} 
                       fill="url(#colorCheckIn)" 
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={30}
+                      animationDuration={1500}
+                      dot={{ r: 4, fill: '#fff', stroke: '#00aaff', strokeWidth: 2 }}
+                      activeDot={{ r: 6, fill: '#00aaff', stroke: '#fff', strokeWidth: 2 }}
                     />
-                    <Bar 
+                    <Area 
+                      type="basis" 
                       dataKey="check_out" 
                       name="Check-outs" 
+                      stroke="#ef4444" 
+                      strokeWidth={2}
+                      fillOpacity={1} 
                       fill="url(#colorCheckOut)" 
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={30}
+                      animationDuration={1500}
+                      dot={{ r: 4, fill: '#fff', stroke: '#ef4444', strokeWidth: 2 }}
+                      activeDot={{ r: 6, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
                     />
-                    <defs>
-                      <linearGradient id="colorCheckIn" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                      </linearGradient>
-                      <linearGradient id="colorCheckOut" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f97316" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#f97316" stopOpacity={0.3}/>
-                      </linearGradient>
-                    </defs>
-                  </BarChart>
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
               
@@ -736,7 +774,7 @@ const SmartParkingDashboard: React.FC = () => {
                 </div>
                 <div className="text-center">
                   <p className="text-sm text-gray-500">Total Check-outs Today</p>
-                  <p className="text-2xl font-bold text-orange-600">
+                  <p className="text-2xl font-bold text-red-600">
                     {hourlyParkingData.reduce((sum, d) => sum + d.check_out, 0)}
                   </p>
                 </div>
@@ -756,171 +794,64 @@ const SmartParkingDashboard: React.FC = () => {
           )}
         </div>
 
-        {/* Second Row - Flagged & Stats */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 mb-6">
-          {/* Flagged Vehicles Card */}
-          <div className="lg:col-span-2 backdrop-blur-xl bg-white/80 rounded-2xl shadow-xl border border-white/30 p-4 sm:p-5 hover:shadow-2xl transition-all">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-xl">
-                  <BsExclamationTriangle className="w-5 h-5 text-red-600" />
-                </div>
-                <h2 className="text-lg font-semibold text-gray-800">Flagged Vehicles</h2>
-              </div>
-              <button 
-                onClick={() => setShowFlaggedModal(true)}
-                className="text-sm px-3 py-1.5 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 hover:from-blue-500/20 hover:to-indigo-500/20 rounded-full text-blue-600 font-medium transition-all"
-              >
-                View All ({flaggedVehicles.length})
-              </button>
-            </div>
-
-            {flaggedVehicles.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                <BsShieldCheck className="w-12 h-12 mb-2 opacity-50" />
-                <p className="text-sm">No flagged vehicles at the moment</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {flaggedVehicles.slice(0, 4).map((vehicle, index) => (
-                  <div key={index} className="group relative bg-gradient-to-br from-red-500/5 to-orange-500/5 backdrop-blur-sm rounded-xl p-3 border border-red-200/50 hover:border-red-300 transition-all">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono font-bold text-red-600">{vehicle.plate_no}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            vehicle.status === 'active' 
-                              ? 'bg-green-100 text-green-600' 
-                              : 'bg-gray-100 text-gray-600'
-                          }`}>
-                            {vehicle.status === 'active' ? 'Inside' : 'Out'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-600">{vehicle.driver_name}</p>
-                        {vehicle.driver_type && (
-                          <p className="text-xs text-gray-500 mt-1">{vehicle.driver_type}</p>
-                        )}
-                      </div>
-                      {vehicle.status === 'active' && (
-                        <button
-                          onClick={() => handleCheckoutClick(vehicle)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 bg-red-100 hover:bg-red-200 rounded-lg text-red-600"
-                        >
-                          <FiLogOut className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Quick Stats Card */}
-          <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-xl border border-white/30 p-4 sm:p-5">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <FiActivity className="w-5 h-5 text-blue-500" />
-              Quick Overview
-            </h2>
-            
-            <div className="space-y-3">
-              <div className="flex justify-between items-center p-2 bg-gradient-to-r from-gray-500/5 to-gray-500/10 rounded-lg">
-                <span className="text-sm text-gray-600">Total Outside</span>
-                <span className="font-bold text-gray-800">{stats.totalOutside}</span>
-              </div>
-              <div className="flex justify-between items-center p-2 bg-gradient-to-r from-gray-500/5 to-gray-500/10 rounded-lg">
-                <span className="text-sm text-gray-600">New Visitors Today</span>
-                <span className="font-bold text-blue-600">{stats.newVisitors}</span>
-              </div>
-              <div className="flex justify-between items-center p-2 bg-gradient-to-r from-gray-500/5 to-gray-500/10 rounded-lg">
-                <span className="text-sm text-gray-600">Flagged Inside</span>
-                <span className="font-bold text-red-600">{stats.flaggedButInside}</span>
-              </div>
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <FiInfo className="w-4 h-4 text-blue-500" />
-                  <span>Last updated: {new Date().toLocaleTimeString()}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Long Duration Vehicles Section */}
+        {/* Flagged Vehicles Section */}
         <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-xl border border-white/30 p-4 sm:p-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-gradient-to-br from-orange-500/20 to-amber-500/20 rounded-xl">
-                <BsClockHistory className="w-5 h-5 text-orange-600" />
+              <div className="p-2 bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-xl">
+                <BsExclamationTriangle className="w-5 h-5 text-red-600" />
               </div>
-              <h2 className="text-lg font-semibold text-gray-800">Long Duration Vehicles ({" > "}8h)</h2>
+              <h2 className="text-lg font-semibold text-gray-800">Flagged Vehicles</h2>
             </div>
-            
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="text-sm px-3 py-1.5 bg-white/50 backdrop-blur border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                onClick={() => setShowLongDurationModal(true)}
-                className="text-sm px-4 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg hover:shadow-lg transition-all"
-              >
-                View All
-              </button>
-            </div>
+            <button 
+              onClick={() => setShowFlaggedModal(true)}
+              className="text-sm px-3 py-1.5 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 hover:from-blue-500/20 hover:to-indigo-500/20 rounded-full text-blue-600 font-medium transition-all"
+            >
+              View All ({flaggedVehicles.length})
+            </button>
           </div>
 
-          {longDurationVehicles.length === 0 ? (
+          {flaggedVehicles.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-              <BsClockHistory className="w-12 h-12 mb-2 opacity-50" />
-              <p className="text-sm">No long duration vehicles found</p>
+              <BsShieldCheck className="w-12 h-12 mb-2 opacity-50" />
+              <p className="text-sm">No flagged vehicles at the moment</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-2 px-2 text-gray-600 font-medium">Plate No.</th>
-                    <th className="text-left py-2 px-2 text-gray-600 font-medium">Driver</th>
-                    <th className="text-left py-2 px-2 text-gray-600 font-medium">Entry Time</th>
-                    <th className="text-left py-2 px-2 text-gray-600 font-medium">Duration</th>
-                    <th className="text-left py-2 px-2 text-gray-600 font-medium">Status</th>
-                    <th className="text-right py-2 px-2 text-gray-600 font-medium">Action</th>
+                <thead className="bg-gradient-to-r from-red-600/10 to-red-500/10">
+                  <tr>
+                    <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Plate No.</th>
+                    <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Driver</th>
+                    <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Type</th>
+                    <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Status</th>
+                    <th className="text-right py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Action</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {longDurationVehicles.slice(0, 5).map((vehicle, index) => (
-                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-                      <td className="py-2 px-2 font-mono font-medium text-gray-800">{vehicle.plate_no}</td>
-                      <td className="py-2 px-2 text-gray-600">{vehicle.driver_name || '-'}</td>
-                      <td className="py-2 px-2 text-gray-600">
-                        {new Date(vehicle.entry_time).toLocaleString('en-US', { 
-                          hour: '2-digit', 
-                          minute: '2-digit',
-                          hour12: true 
-                        })}
-                      </td>
-                      <td className="py-2 px-2">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDurationBgColor(vehicle.duration)}`}>
-                          {vehicle.duration}
+                <tbody className="divide-y divide-red-100">
+                  {flaggedVehicles.slice(0, 1).map((vehicle, index) => (
+                    <tr key={index} className="hover:bg-red-50 transition-colors">
+                      <td className="py-3 px-4 font-mono font-bold text-red-600 text-sm">{vehicle.plate_no}</td>
+                      <td className="py-3 px-4 text-gray-700 text-sm">{vehicle.driver_name || '-'}</td>
+                      <td className="py-3 px-4">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                          {vehicle.driver_type || '-'}
                         </span>
                       </td>
-                      <td className="py-2 px-2">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      <td className="py-3 px-4">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                           vehicle.status === 'active' 
-                            ? 'bg-green-100 text-green-600' 
-                            : 'bg-gray-100 text-gray-600'
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-gray-100 text-gray-500'
                         }`}>
                           {vehicle.status === 'active' ? 'Inside' : 'Out'}
                         </span>
                       </td>
-                      <td className="py-2 px-2 text-right">
+                      <td className="py-3 px-4 text-right">
                         {vehicle.status === 'active' ? (
                           <button
                             onClick={() => handleCheckoutClick(vehicle)}
-                            className="px-3 py-1 text-xs bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:shadow-md transition-all"
+                            className="px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all shadow-sm"
                           >
                             Checkout
                           </button>
