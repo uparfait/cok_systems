@@ -331,6 +331,28 @@ async function InitChatting(socket) {
         }
     });
 
+    // Get messages with a specific user
+    socket.on('get_conversation', async (data, callback) => {
+        const auth = checkAuth(socket);
+        if (!auth.isAuthenticated) {
+            return callback({ success: false, message: "Authentication required" });
+        }
+
+        try {
+            const { userId } = data;
+            if (!userId) {
+                return callback({ success: false, message: "User ID required" });
+            }
+
+            const messages = chat.GetMessagesBetweenUsers(auth.user.userId, userId);
+            console.log('Conversation messages between', auth.user.userId, 'and', userId, ':', messages);
+            return callback({ success: true, messages });
+        } catch (error) {
+            console.error('Error getting conversation:', error);
+            return callback({ success: false, message: "Error getting messages" });
+        }
+    });
+
     // Mark messages as read
     socket.on('mark_messages_read', async (data, callback) => {
         const auth = checkAuth(socket);
