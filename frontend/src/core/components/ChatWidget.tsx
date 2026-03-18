@@ -1,10 +1,7 @@
-// ChatWidget - Floating chat widget for global and private messaging
-// Provides real-time chat functionality with professional UI
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSocket } from '../contexts/SocketContext';
 import { useAuth } from '../contexts/AuthContext';
-import { FiMessageSquare, FiX, FiSend, FiUsers, FiGlobe, FiMoreVertical, FiEdit2, FiTrash2, FiCheck, FiCheckCircle } from 'react-icons/fi';
+import { FiMessageSquare, FiX, FiSend, FiUsers, FiGlobe, FiMoreVertical, FiEdit2, FiTrash2, FiCheck, FiCheckCircle, FiChevronDown } from 'react-icons/fi';
 
 // Types
 interface User {
@@ -58,10 +55,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [globalUnreadCount, setGlobalUnreadCount] = useState(0);
   const [unreadCountsPerUser, setUnreadCountsPerUser] = useState<{ [key: string]: number }>({});
+  const [lastMessageTimes, setLastMessageTimes] = useState<{ [key: string]: number }>({});
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editMessageText, setEditMessageText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [typingUsers, setTypingUsers] = useState<{ [key: string]: string }>({});
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -174,6 +175,16 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
 
     // Inbox messages handlers
     const handleNewInboxMessage = (data: Message) => {
+      // Update last message time for this user
+      const messageTime = new Date(data.createdAt).getTime();
+      const otherUserId = data.sender.userId === user?.userId ? data.receiver?.userId : data.sender.userId;
+      if (otherUserId) {
+        setLastMessageTimes(prev => ({
+          ...prev,
+          [otherUserId]: messageTime
+        }));
+      }
+      
       if (activeTab === 'inbox' && selectedUser) {
         // Only add message if it's for the current conversation
         if (data.sender.userId === selectedUser.userId || data.receiver?.userId === selectedUser.userId) {
@@ -302,33 +313,42 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     }
   }, [isOpen, activeTab]);
 
-  // Sort users by unread count when unreadCountsPerUser changes
+  // Auto-scroll to bottom when new messages arrive (if user is at bottom)
+  useEffect(() => {
+    if (messages.length > 0 && isAtBottom) {
+      // Small delay to ensure DOM is updated
+      const timeout = setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+      return () => clearTimeout(timeout);
+    }
+  }, [messages, isAtBottom]);
+
+  // Sort users: online first, then unread messages, then by time
   useEffect(() => {
     if (users.length > 0) {
       const sortedUsers = [...users].sort((a, b) => {
+        // First: online users at top
+        const aOnline = connectedUsers.includes(a.userId);
+        const bOnline = connectedUsers.includes(b.userId);
+        if (aOnline && !bOnline) return -1;
+        if (!aOnline && bOnline) return 1;
+        
+        // Second: users with unread messages at top
         const aUnread = unreadCountsPerUser[a.userId] || 0;
         const bUnread = unreadCountsPerUser[b.userId] || 0;
-        return bUnread - aUnread; // Descending order - higher unread first
+        if (aUnread > 0 && bUnread === 0) return -1;
+        if (aUnread === 0 && bUnread > 0) return 1;
+        
+        // Third: by most recent message time (descending)
+        const aLastMsg = lastMessageTimes[a.userId] || 0;
+        const bLastMsg = lastMessageTimes[b.userId] || 0;
+        return bLastMsg - aLastMsg;
       });
       setUsers(sortedUsers);
     }
-  }, [unreadCountsPerUser]);
+  }, [connectedUsers, unreadCountsPerUser, lastMessageTimes]);
 
-  // Reset unread count and mark messages as read when opening inbox
-  useEffect(() => {
-    if (isOpen && activeTab === 'inbox') {
-      // Mark all messages as read when opening inbox
-      if (socket && isConnected) {
-        emit('mark_all_inbox_read', {}, (response: any) => {
-          if (response?.success) {
-            console.log('[ChatWidget] All inbox messages marked as read');
-          }
-        });
-      }
-      setUnreadCount(0);
-      setUnreadCountsPerUser({});
-    }
-  }, [isOpen, activeTab, socket, isConnected, emit]);
 
   // Handle sending message
   const handleSendMessage = async () => {
@@ -425,6 +445,27 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
       emit('stop_typing', { roomType: activeTab, receiverId: selectedUser?.userId }, () => {});
       setIsTyping(false);
     }, 2000);
+  };
+
+  // Handle scroll to detect if user is at bottom
+  const handleScroll = () => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const atBottom = scrollHeight - scrollTop - clientHeight < 50; // 50px threshold
+    setIsAtBottom(atBottom);
+    setShowScrollButton(!atBottom);
+  };
+
+  // Scroll to bottom function
+  const scrollToBottom = () => {
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+      setShowScrollButton(false);
+      setIsAtBottom(true);
+    }
   };
 
   // Handle key press
@@ -536,8 +577,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
                   key={u.userId}
                   onClick={() => {
                     setSelectedUser(u);
-                    // Mark messages from this user as read
+                    // Fetch conversation messages with this user
                     if (socket && isConnected && u.userId) {
+                      emit('get_conversation', { userId: u.userId }, (response: any) => {
+                        if (response?.success) {
+                          setMessages(response.messages || []);
+                        }
+                      });
+                      // Mark messages from this user as read
                       emit('mark_messages_read', { fromUserId: u.userId }, (response: any) => {
                         if (response?.success) {
                           // Clear unread count for this user
@@ -608,7 +655,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
           {/* Messages */}
           {(activeTab === 'global' || (activeTab === 'inbox' && selectedUser)) && (
             <>
-              <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+              <div className="flex-1 overflow-y-auto p-4 bg-gray-50 relative" ref={messagesContainerRef} onScroll={handleScroll}>
                 {isLoading ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -702,6 +749,17 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
                     {Object.values(typingUsers)[0]}
                   </div>
                 )}
+
+                {/* Scroll to Bottom Button */}
+                {showScrollButton && (
+                  <button
+                    onClick={scrollToBottom}
+                    className="absolute bottom-20 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 shadow-lg transition-colors flex items-center justify-center"
+                    title="Scroll to bottom"
+                  >
+                    <FiChevronDown size={20} />
+                  </button>
+                )}
               </div>
 
               {/* Input */}
@@ -760,3 +818,4 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
 };
 
 export default ChatWidget;
+

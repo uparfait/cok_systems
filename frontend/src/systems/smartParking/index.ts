@@ -9,6 +9,7 @@ export { default as CheckInVehiclePage } from './pages/CheckInVehiclePage';
 export { default as CheckInPersonPage } from './pages/CheckInPersonPage';
 export { default as CheckOutVehiclePage } from './pages/CheckOutVehiclePage';
 export { default as CheckOutPersonPage } from './pages/CheckOutPersonPage';
+export { default as CheckoutPage } from './pages/CheckOutVehiclePage'; // Alias for backward compatibility
 
 
 // Components
