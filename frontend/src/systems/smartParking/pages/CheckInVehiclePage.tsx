@@ -67,7 +67,6 @@ const CheckInVehiclePage: React.FC = () => {
   // Modal states
   const [showFoundModal, setShowFoundModal] = useState(false);
   const [showUnknownModal, setShowUnknownModal] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showAlreadyParkedModal, setShowAlreadyParkedModal] = useState(false);
   const [showFlaggedModal, setShowFlaggedModal] = useState(false);
   const [isEditingDriver, setIsEditingDriver] = useState(false);
@@ -116,63 +115,49 @@ const CheckInVehiclePage: React.FC = () => {
     }
 
     setVerifying(true);
-    setLoading(true);
+    // Reset verified data before new verification
+    setVerifiedData(null);
 
     try {
       const response = await smartParkingService.verifyCar(searchPlate);
       
       if (response.success && response.data) {
         const data = response.data;
+        setVerifiedData(data);
         
+        // Initialize driver info from verified data
         setDriverInfo({
           name: data.driver_details?.name || data.driver_name || '',
           telephone: data.driver_details?.telephone || data.driver_telephone || '',
-          badge_number: data.badge_number || ''
+          badge_number: (data as any).badge_number || ''
         });
         
-        if (data.is_currently_parked) {
-          setVerifiedData(data);
-          setShowAlreadyParkedModal(true);
-          return;
-        }
-        
-        if (data.is_flagged || data.was_ever_flagged) {
-          setVerifiedData(data);
-          setShowFlaggedModal(true);
-          return;
-        }
-        
-        if (data.staff_details || data.is_reserved) {
-          setVerifiedData(data);
-          setShowFoundModal(true);
-          return;
-        }
-        
-        setVerifiedData(data);
-        setUnknownForm({
-          ...unknownForm,
-          plate_number: searchPlate,
-          driver_type: data.driver_type || 'Visitor',
-          driver_name: data.driver_details?.name || '',
-          driver_telephone: data.driver_details?.telephone || '',
-          driver_email: data.driver_details?.email || '',
-          badge_number: data.badge_number || ''
-        });
-        setShowUnknownModal(true);
+        // Vehicle is found in system - ALWAYS show Found Vehicle Modal
+        // (Handles all cases: parked, flagged, normal - the modal shows different UI based on status)
+        setShowFoundModal(true);
       } else {
-        setUnknownForm({
-          ...unknownForm,
-          plate_number: searchPlate,
-          driver_type: 'Visitor'
+        // Vehicle not found in system - show Unknown Modal
+        setVerifiedData(response.data || {
+          plate_number: searchPlate.toUpperCase(),
+          vehicle_category: 'Unknown'
         });
+        setUnknownForm(prev => ({ ...prev, plate_number: searchPlate.toUpperCase() }));
         setShowUnknownModal(true);
+        showInfo('Vehicle not found in system');
       }
     } catch (error: any) {
       console.error('Verification error:', error);
       showError(error.message || 'Failed to verify vehicle');
+      // Show unknown modal on error as well
+      const errorData = error?.response?.data;
+      setVerifiedData(errorData?.data || { 
+        plate_number: searchPlate.toUpperCase(),
+        vehicle_category: 'Unknown' 
+      });
+      setUnknownForm(prev => ({ ...prev, plate_number: searchPlate.toUpperCase() }));
+      setShowUnknownModal(true);
     } finally {
       setVerifying(false);
-      setLoading(false);
     }
   };
 
@@ -215,7 +200,6 @@ const CheckInVehiclePage: React.FC = () => {
 
       if (response.success) {
         setShowFoundModal(false);
-        setShowSuccessModal(true);
         setPlateNumber('');
         setVerifiedData(null);
         showSuccess('Vehicle checked in successfully');
@@ -250,7 +234,6 @@ const CheckInVehiclePage: React.FC = () => {
       
       if (response.success) {
         setShowUnknownModal(false);
-        setShowSuccessModal(true);
         setPlateNumber('');
         setUnknownForm({
           plate_number: '',
@@ -314,7 +297,6 @@ const CheckInVehiclePage: React.FC = () => {
   const closeAllModals = () => {
     setShowFoundModal(false);
     setShowUnknownModal(false);
-    setShowSuccessModal(false);
     setShowAlreadyParkedModal(false);
     setShowFlaggedModal(false);
     setVerifiedData(null);
@@ -633,20 +615,7 @@ const CheckInVehiclePage: React.FC = () => {
           </div>
         )}
 
-        {/* Success Modal */}
-        {showSuccessModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 text-center">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FiCheckCircle className="w-10 h-10 text-green-600" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Entry Approved</h3>
-              <p className="text-gray-600 mb-2">Vehicle has been checked in successfully</p>
-              <p className="text-sm text-gray-500 mb-6">Gate opening...</p>
-              <button onClick={() => setShowSuccessModal(false)} className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">Done</button>
-            </div>
-          </div>
-        )}
+   
 
         {/* Already Parked Modal */}
         {showAlreadyParkedModal && verifiedData && (
