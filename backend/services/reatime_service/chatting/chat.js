@@ -407,11 +407,17 @@ async function InitChatting(socket) {
             const users = chat.GetAllUsers();
             const connectedUsers = chat.GetConnectedUsers();
             
-            // Get user active status from database
-            const usersWithStatus = users.map(u => ({
-                ...u,
-                is_active: connectedUsers.includes(u.userId) ? true : u.is_active || false
-            }));
+            // Convert Mongoose documents to plain objects and map userId
+            const usersWithStatus = users.map(u => {
+                const plainUser = u.toObject ? u.toObject() : u;
+                return {
+                    userId: plainUser._id || plainUser.userId,
+                    email: plainUser.email,
+                    full_name: plainUser.full_name,
+                    telephone: plainUser.telephone,
+                    is_active: connectedUsers.includes(plainUser._id) ? true : plainUser.is_active || false
+                };
+            });
             
             return callback({ 
                 success: true, 
