@@ -14,6 +14,7 @@ import { AuthProvider } from './core/contexts/AuthContext';
 import { SocketProvider } from './core/contexts/SocketContext';
 import { NotificationProvider } from './core/contexts/NotificationContext';
 import { ToastProvider } from './core/contexts/ToastContext';
+import ChatWidget from './core/components/ChatWidget';
 
 // Import from new systems folder (wrappers with MainLayout built-in)
 import { 
@@ -50,6 +51,7 @@ function App() {
         <NotificationProvider>
           <ToastProvider>
             <Router>
+              <ChatWidget />
             <Routes>
               {/* Public Routes - No layout needed */}
               <Route path="/login" element={<LoginPage />} />
