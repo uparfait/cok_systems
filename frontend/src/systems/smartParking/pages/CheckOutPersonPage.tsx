@@ -322,38 +322,38 @@ const CheckOutPersonPage: React.FC = () => {
     <MainLayout>
       <div className="p-2">
         {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 mb-2">
-          <div className="flex flex-col md:flex-row gap-2 items-center">
+        <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-lg border border-white/30 p-3 mb-3">
+          <div className="flex flex-col md:flex-row gap-3 items-center">
             {/* Search Input */}
             <div className="flex-1 flex gap-2 w-full">
               <div className="relative flex-1">
-                <FiSearch className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   placeholder="Search..."
-                  className="w-full pl-8 pr-3 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200/50 rounded-lg bg-white/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
                 />
               </div>
               <button
                 onClick={handleSearch}
-                className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 font-medium flex items-center gap-1"
+                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2 shadow-md transition-all"
               >
-                <FiSearch className="w-3 h-3" />
+                <FiSearch className="w-4 h-4" />
                 Search
               </button>
             </div>
             
             {/* Filter Buttons */}
-            <div className="flex gap-1 flex-wrap">
+            <div className="flex gap-2 flex-wrap">
               <button
                 onClick={() => handleFilterChange('all')}
-                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   typeFilter === 'all' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-blue-600 text-white shadow-md' 
+                    : 'bg-white/50 text-gray-700 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50'
                 }`}
               >
                 All
@@ -363,57 +363,45 @@ const CheckOutPersonPage: React.FC = () => {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 140px)' }}>
-          {/* Table Header */}
-          <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-md">
-                <FiUser className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-gray-900">Person Checkout</h2>
-                <p className="text-xs text-gray-500">{totalCount} visitors in house</p>
-              </div>
-            </div>
-          </div>
-          
+        <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-lg border border-white/30 overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 140px)' }}>
+
           <div className="overflow-auto flex-1">
             <table className="w-full">
-              <thead className="bg-gray-50 sticky top-0 z-10">
+              <thead className="bg-gradient-to-r from-gray-500/10 to-gray-500/5 sticky top-0 z-10">
                 <tr>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Visitor Name
                   </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Email
                   </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Badge
                   </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Telephone
                   </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     ID Number
                   </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Car Plate
                   </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Check-in
                   </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Duration
                   </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-100/50">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-8 text-center text-gray-500 text-sm">
+                    <td colSpan={9} className="px-4 py-8 text-center text-gray-500 text-sm">
                       <div className="flex items-center justify-center gap-2">
                         <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                         Loading...
@@ -422,7 +410,7 @@ const CheckOutPersonPage: React.FC = () => {
                   </tr>
                 ) : filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-8 text-center text-gray-500 text-sm">
+                    <td colSpan={9} className="px-4 py-8 text-center text-gray-500 text-sm">
                       <div className="flex flex-col items-center gap-1">
                         <FiSearch className="w-6 h-6 text-gray-400" />
                         <span>No records found</span>
@@ -431,7 +419,7 @@ const CheckOutPersonPage: React.FC = () => {
                   </tr>
                 ) : (
                   filteredRecords.map((record, index) => (
-                    <tr key={record._id || index} className="hover:bg-blue-50/50 transition-colors">
+                    <tr key={record._id || index} className="hover:bg-blue-50/50 transition-colors duration-200">
                       <td className="px-3 py-2.5 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">

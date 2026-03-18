@@ -1,4 +1,3 @@
-// CheckOutVehiclePage - Smart Parking Vehicle Checkout
 // Page for checking out vehicles from the parking lot
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -235,40 +234,40 @@ const CheckOutVehiclePage: React.FC = () => {
     <MainLayout>
       <div className="p-2">
         {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 mb-2">
-          <div className="flex flex-col md:flex-row gap-2 items-center">
+        <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-lg border border-white/30 p-3 mb-3">
+          <div className="flex flex-col md:flex-row gap-3 items-center">
             {/* Search Input */}
             <div className="flex-1 flex gap-2 w-full">
               <div className="relative flex-1">
-                <FiSearch className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   placeholder="Search by plate, name, or badge..."
-                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200/50 rounded-lg bg-white/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all backdrop-blur-sm"
                 />
               </div>
               <button
                 onClick={handleSearch}
-                className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 font-medium flex items-center gap-1"
+                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2 shadow-md transition-all"
               >
-                <FiSearch className="w-3 h-3" />
+                <FiSearch className="w-4 h-4" />
                 Search
               </button>
             </div>
             
             {/* Filter Buttons */}
-            <div className="flex gap-1 flex-wrap">
+            <div className="flex gap-2 flex-wrap">
               {(['all', 'staff', 'visitors', 'regular'] as const).map((filter) => (
                 <button
                   key={filter}
                   onClick={() => handleFilterChange(filter)}
-                  className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     typeFilter === filter
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-white/50 text-gray-700 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50'
                   }`}
                 >
                   {filter.charAt(0).toUpperCase() + filter.slice(1)}
@@ -279,85 +278,85 @@ const CheckOutVehiclePage: React.FC = () => {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 140px)' }}>
+        <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-lg border border-white/30 overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 140px)' }}>
           <div className="overflow-auto flex-1">
             <table className="w-full min-w-[1100px]">
-              <thead className="bg-gray-50 sticky top-0 z-10">
+              <thead className="bg-gradient-to-r from-gray-500/10 to-gray-500/5 sticky top-0 z-10">
                 <tr>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     Plate Number
                   </th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     Driver Name
                   </th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     Badge
                   </th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     Telephone
                   </th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     ID Number
                   </th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     Type
                   </th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     Check-in
                   </th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     Duration
                   </th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-100/50">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="px-2 py-4 text-center text-gray-500 text-sm">
+                    <td colSpan={9} className="px-3 py-8 text-center text-gray-500 text-sm">
                       Loading...
                     </td>
                   </tr>
                 ) : filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-2 py-4 text-center text-gray-500 text-sm">
+                    <td colSpan={9} className="px-3 py-8 text-center text-gray-500 text-sm">
                       No records found
                     </td>
                   </tr>
                 ) : (
                   filteredRecords.map((record, index) => (
-                    <tr key={record._id || index} className="hover:bg-gray-50">
-                      <td className="px-2 py-2 whitespace-nowrap">
+                    <tr key={record._id || index} className="hover:bg-blue-50/50 transition-colors duration-200">
+                      <td className="px-3 py-3 whitespace-nowrap">
                         <span className={`font-medium text-sm ${record.is_flagged ? 'text-red-600' : 'text-blue-600'}`}>
                           {record.plate_number || '-'}
                         </span>
                       </td>
-                      <td className="px-2 py-2 whitespace-nowrap">
-                        <span className="text-gray-900 text-sm">
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        <span className="text-gray-800 text-sm">
                           {record.driver_name || '-'}
                         </span>
                       </td>
-                      <td className="px-2 py-2 whitespace-nowrap">
+                      <td className="px-3 py-3 whitespace-nowrap">
                         <span className="text-gray-600 text-sm">
                           {record.badge_number || '_____'}
                         </span>
                       </td>
-                      <td className="px-2 py-2 whitespace-nowrap">
+                      <td className="px-3 py-3 whitespace-nowrap">
                         <span className="text-gray-600 text-sm">
                           {record.driver_telephone || '-'}
                         </span>
                       </td>
-                      <td className="px-2 py-2 whitespace-nowrap">
+                      <td className="px-3 py-3 whitespace-nowrap">
                         <span className="text-gray-600 text-sm">
                           {typeof record.driver_identification === 'object' 
                             ? record.driver_identification?.number || '_____' 
                             : record.driver_identification || '_____'}
                         </span>
                       </td>
-                      <td className="px-2 py-2 whitespace-nowrap">
-                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
                           record.driver_type === 'Staff' 
                             ? 'bg-blue-100 text-blue-800' 
                             : record.driver_type === 'Regular'
@@ -367,10 +366,10 @@ const CheckOutVehiclePage: React.FC = () => {
                           {record.driver_type || 'Visitor'}
                         </span>
                       </td>
-                      <td className="px-2 py-2 whitespace-nowrap text-gray-600 text-sm">
+                      <td className="px-3 py-3 whitespace-nowrap text-gray-600 text-sm">
                         {formatDate(record.check_in)}
                       </td>
-                      <td className="px-2 py-2 whitespace-nowrap">
+                      <td className="px-3 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-1">
                           <span className={`text-xs ${
                             record.is_over_limit ? 'text-red-600 font-medium' : 'text-gray-600'
@@ -382,7 +381,7 @@ const CheckOutVehiclePage: React.FC = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-2 py-2 whitespace-nowrap">
+                      <td className="px-3 py-3 whitespace-nowrap">
                         {getActionButton(record)}
                       </td>
                     </tr>

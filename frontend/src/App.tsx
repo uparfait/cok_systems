@@ -7,7 +7,6 @@ import LoginPage from './pages/auth/LoginPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import ProfilePage from './pages/profile/ProfilePage';
-import SystemSelector from './pages/dashboard/SystemSelector';
 import UnderDevelopment from './pages/dashboard/UnderDevelopment';
 import ProtectedRoute from './core/components/ProtectedRoute';
 import { AuthProvider } from './core/contexts/AuthContext';
@@ -27,9 +26,7 @@ import {
 
 // 👉 COLLEGUE'S IMPORTS (Smart Parking)
 import { 
-  ParkingDashboard, 
-  RegisterVisitorPage, 
-  CheckoutPage,
+  SmartParkingDashboard,
   CheckInVehiclePage,
   CheckInPersonPage,
   CheckOutVehiclePage,
@@ -68,14 +65,12 @@ function App() {
               <Route path="/admin/roles-management" element={<ProtectedRoute><RolesManagementPage /></ProtectedRoute>} />
               
               {/* ==================== SMART PARKING SYSTEM (Colleague's Work) ==================== */}
-              <Route path="/smart-parking/dashboard" element={<ProtectedRoute><ParkingDashboard /></ProtectedRoute>} />
-              <Route path="/smart-parking/register" element={<ProtectedRoute><RegisterVisitorPage /></ProtectedRoute>} />
-              <Route path="/smart-parking/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
+              <Route path="/smart-parking/dashboard" element={<ProtectedRoute><SmartParkingDashboard /></ProtectedRoute>} />
               <Route path="/smart-parking/checkin-vehicle" element={<ProtectedRoute><CheckInVehiclePage /></ProtectedRoute>} />
               <Route path="/smart-parking/checkin-person" element={<ProtectedRoute><CheckInPersonPage /></ProtectedRoute>} />
               <Route path="/smart-parking/checkout-vehicle" element={<ProtectedRoute><CheckOutVehiclePage /></ProtectedRoute>} />
               <Route path="/smart-parking/checkout-person" element={<ProtectedRoute><CheckOutPersonPage /></ProtectedRoute>} />
-              <Route path="/smart_parking/dashboard" element={<ProtectedRoute><ParkingDashboard /></ProtectedRoute>} />
+              <Route path="/smart_parking/dashboard" element={<ProtectedRoute><SmartParkingDashboard /></ProtectedRoute>} />
               
               {/* ==================== SERVICE DELIVERY SYSTEM (Your Work) ==================== */}
               <Route path="/service-delivery/receptionist" element={<ProtectedRoute><ReceptionistDashboard /></ProtectedRoute>} />
@@ -91,7 +86,7 @@ function App() {
               <Route path="/service_delivery/dashboard" element={<ProtectedRoute><ServiceDashboard /></ProtectedRoute>} />
               
               {/* ==================== SYSTEM SELECTOR & PROFILE ==================== */}
-              <Route path="/system-selector" element={<ProtectedRoute><SystemSelector /></ProtectedRoute>} />
+        
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path="/under-development" element={<ProtectedRoute><UnderDevelopment /></ProtectedRoute>} />
               
