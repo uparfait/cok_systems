@@ -34,23 +34,49 @@ async function verifySocketToken(token) {
     try {
         if (!token) return null;
         
-        // Extract token from "Bearer <token>" format
-        const extractedToken = jwt.extractToken(`Bearer ${token}`);
-        if (!extractedToken) return null;
+        // Extract token - handle both "Bearer <token>" and raw token formats
+        let extractedToken = token;
+        if (token.startsWith('Bearer ')) {
+            // Remove "Bearer " prefix and try to extract
+            const rawToken = token.substring(7); // Remove "Bearer " prefix
+            const extracted = jwt.extractToken(token);
+            if (extracted) {
+                extractedToken = extracted;
+            } else {
+                // If extraction fails, use raw token
+                extractedToken = rawToken;
+            }
+        }
+        
+        console.log('Verifying token, extracted:', extractedToken ? 'present' : 'null');
         
         // Verify the token
         const verification = jwt.verifyAccessToken(extractedToken);
-        if (!verification.valid) return null;
+        if (!verification.valid) {
+            console.log('Token verification failed:', verification.error);
+            return null;
+        }
+        
+        console.log('Token verified, userId:', verification.decoded.userId);
         
         // Get user from database
         const user = await User.findById(verification.decoded.userId);
-        if (!user) return null;
+        if (!user) {
+            console.log('User not found for userId:', verification.decoded.userId);
+            return null;
+        }
         
         // Check if account is activated
-        if (!user.is_account_activated) return null;
+        if (!user.is_account_activated) {
+            console.log('User account not activated:', user.email);
+            return null;
+        }
         
         // Check if account is locked
-        if (user.access_control?.is_locked) return null;
+        if (user.access_control?.is_locked) {
+            console.log('User account is locked:', user.email);
+            return null;
+        }
         
         return {
             userId: user._id,
@@ -81,6 +107,10 @@ module.exports = async function InitialiseAllRealtimeServices() {
                           socket.handshake.headers.authorization?.replace('Bearer ', '') ||
                           socket.handshake.query.token;
             
+            console.log('Socket handshake - Auth token:', token ? 'present' : 'missing');
+            console.log('Socket handshake - Headers:', JSON.stringify(socket.handshake.headers));
+            console.log('Socket handshake - Auth:', JSON.stringify(socket.handshake.auth));
+            
             // If no token provided, allow connection but mark as unauthenticated
             if (!token) {
                 console.log('Socket connection without authentication');
@@ -93,7 +123,7 @@ module.exports = async function InitialiseAllRealtimeServices() {
             
             if (user) {
                 socket.user = user;
-                console.log(`Socket authenticated: ${user.id})`);
+                console.log(`Socket authenticated: ${user.email} (${user.role}) - UserId: ${user.userId}`);
             } else {
                 console.log('Socket authentication failed - invalid token');
                 // Allow connection but mark as unauthenticated
