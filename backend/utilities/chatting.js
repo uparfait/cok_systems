@@ -494,6 +494,33 @@ function GetConnectedUsers() {
     return Object.keys(UserSockets);
 }
 
+/**
+ * Get messages between two specific users
+ * @param {string} userId1 - First user ID
+ * @param {string} userId2 - Second user ID
+ * @returns {Array} - Array of messages between the two users
+ */
+function GetMessagesBetweenUsers(userId1, userId2) {
+    console.log('GetMessagesBetweenUsers called:', userId1, userId2);
+    console.log('Total InBoxMessages:', InBoxMessages.length);
+    console.log(InBoxMessages)
+    
+    // Convert userIds to strings for comparison (handle both MongoDB ObjectId and plain strings)
+    const id1 = String(userId1);
+    const id2 = String(userId2);
+    
+    const messages = InBoxMessages.filter(msg => {
+        const senderId = String(msg.sender.userId);
+        const receiverId = String(msg.receiver.userId);
+        return !msg.isDeleted &&
+        ((senderId === id1 && receiverId === id2) ||
+         (senderId === id2 && receiverId === id1));
+    }).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    
+    console.log('Found messages:', messages.length);
+    return messages;
+}
+
 // Export all functions
 module.exports = {
     // Room functions
@@ -536,5 +563,8 @@ module.exports = {
     getCurrentTime,
     DeleteMessageFromGlobal,
     RemainLast1000GlobalMessages,
-    SendAllUsersToClient
+    SendAllUsersToClient,
+    
+    // Get messages between users
+    GetMessagesBetweenUsers
 };
