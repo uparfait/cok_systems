@@ -199,20 +199,33 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   // Check if a link is active - check both direct match and if current path belongs to children
   const isActive = (path: string, children?: SidebarLink[]): boolean => {
-    // Direct match
+    // Get pathname and remove query params for comparison
+    const pathnameOnly = location.pathname;
+    const pathOnly = path.split('?')[0];
+    
+    // Direct match (both without query params)
+    if (pathnameOnly === pathOnly) return true;
+    // Direct match including query params (for tabs)
     if (currentPath === path) return true;
+    // Check if path with query params matches (e.g., /page?q=1)
+    if (currentPath.startsWith(pathOnly)) return true;
     // Starts with path + '/' (for sub-routes)
-    if (location.pathname.startsWith(path + '/')) return true;
+    if (pathnameOnly.startsWith(pathOnly + '/')) return true;
     // Check if current path is any of the children paths
     if (children && children.length > 0) {
       for (const child of children) {
-        if (currentPath === child.path || location.pathname.startsWith(child.path + '/')) {
+        const childPathOnly = child.path.split('?')[0];
+        if (pathnameOnly === childPathOnly || currentPath === child.path || pathnameOnly.startsWith(child.path + '/')) {
           return true;
         }
         // Also check parent path segments (e.g., /smart-parking/checkin-vehicle for /smart-parking/checkin-person)
         const childPathParts = child.path.split('/').slice(0, 3).join('/');
-        const currentPathParts = currentPath.split('/').slice(0, 3).join('/');
+        const currentPathParts = pathnameOnly.split('/').slice(0, 3).join('/');
         if (childPathParts === currentPathParts) {
+          return true;
+        }
+        // Check with query params
+        if (currentPath.startsWith(childPathOnly)) {
           return true;
         }
       }
@@ -283,7 +296,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     }}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
                       linkIsActive 
-                        ? 'bg-blue-600 text-white shadow-md' 
+                        ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700 hover:shadow-lg' 
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                     }`}
                   >
@@ -308,7 +321,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   onClick={() => handleNavigation(link.path)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
                     linkIsActive 
-                      ? 'bg-blue-600 text-white shadow-md' 
+                      ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700 hover:shadow-lg' 
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
