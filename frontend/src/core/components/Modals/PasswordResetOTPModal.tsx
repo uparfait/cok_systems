@@ -23,7 +23,7 @@ const PasswordResetOTPModal: React.FC<PasswordResetOTPModalProps> = ({ isOpen, o
   const [isSuccess, setIsSuccess] = useState(false);
   const [userId, setUserId] = useState('');
 
-  const { showError, showWarning } = useToast();
+  const { showError, showWarning, showSuccess } = useToast();
 
   
   
@@ -122,6 +122,7 @@ const handleVerify = async () => {
       
       if (result.status && result.data?.signature) {
         setIsSuccess(true);
+        showSuccess('OTP verified successfully! Proceeding to reset password...');
         
         // Store signature in sessionStorage for use in reset password page
         sessionStorage.setItem('resetTempToken', result.data.signature);
@@ -136,7 +137,7 @@ const handleVerify = async () => {
           }, 1500);
         }
       } else {
-        showError(result.error);
+        showError(result.message || result.error || 'Invalid OTP. Please try again.');
       }
     } catch (err: any) {
       // Error toast is already shown by apiClient interceptor, no need to show again

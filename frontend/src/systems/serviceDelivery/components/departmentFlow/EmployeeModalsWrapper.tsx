@@ -160,7 +160,7 @@ export const EmployeeModalsWrapper: React.FC<EmployeeModalsWrapperProps> = ({
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         employee={departmentEmployee}
-        onDelete={() => {
+        onDelete={async () => {
           console.log('Delete employee');
           setShowDeleteModal(false);
         }}

@@ -75,6 +75,7 @@ export interface Employee {
     id_type?: string;
     number?: string;
   };
+  badge_number?: string; // Employee badge/ID number
   gender?: string;
   title?: string;
   department?: string | {
@@ -138,6 +139,85 @@ export const feedbackService = {
 
 // ==================== SERVICE DELIVERY APIs ====================
 
+export interface VisitorIdentification {
+  id_type?: string;
+  number?: string;
+}
+
+export interface VisitorVehicleDetails {
+  plate_number?: string;
+  entered_time?: string;
+  duration?: string;
+}
+
+export interface VisitorVehicleStorage {
+  has_vehicle?: boolean;
+  vehicle_details?: VisitorVehicleDetails;
+}
+
+export interface ServiceStatus {
+  department_id: string;
+  department_name: string;
+  provider_name?: string;
+  provider_id?: string;
+  s_type: string; // 'Not started', 'Inprogress', 'Completed', 'Transfered'
+}
+
+export interface DepartmentAssigned {
+  department_id: string;
+  department_name: string;
+  assigned_time: string;
+  provider_name?: string;
+  provider_id?: string;
+  reached_in?: boolean;
+}
+
+export interface Visitor {
+  _id?: string;
+  full_name?: string;
+  telephone?: string;
+  email?: string;
+  identification?: VisitorIdentification;
+  gender?: string;
+  badge_number?: string;
+  vehicle_storage?: VisitorVehicleStorage;
+  items_entered_with?: string[];
+  items_exited_with?: string[];
+  departments_assigned?: DepartmentAssigned[];
+  services_status?: ServiceStatus[];
+  is_still_inhouse?: boolean;
+  entry_date?: string;
+  exist_date?: string;
+  registered_by?: string;
+  marked_as_out?: boolean;
+  notes?: Array<{
+    writter_name?: string;
+    message?: string;
+    timestamp?: string;
+  }>;
+  durations?: {
+    entry_and_leave_duration?: string;
+    services_durations?: Array<{
+      department_id: string;
+      department_name: string;
+      duration: string;
+      started_at: string;
+      ended_at: string;
+      provider_name?: string;
+      provider_id?: string;
+    }>;
+    emergency_durations?: Array<{
+      type_of_emergency?: string;
+      started_at?: string;
+      ended_at?: string;
+      duration?: string;
+      provider_name?: string;
+      provider_id?: string;
+    }>;
+  };
+  current_duration?: string;
+}
+
 export const serviceDeliveryService = {
   // Get all visitors with pagination and filter
   getAll: (page: number = 1, limit: number = 20, inHouse: boolean = true) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}&in_house=${inHouse}`),
@@ -146,10 +226,10 @@ export const serviceDeliveryService = {
   getAllVisitors: (page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}`),
   
   // Search visitors with pagination
-  search: (query: string, page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`),
+  search: (query: string, page: number = 1, limit: number = 20, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),
   
   // Search visitors (alias)
-  searchVisitors: (query: string, page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`),
+  searchVisitors: (query: string, page: number = 1, limit: number = 20, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),
   
   // Get visitor by ID
   getById: (id: string) => get(`/servicedelivery/visitor/${id}`),
@@ -161,22 +241,41 @@ export const serviceDeliveryService = {
   checkIn: (data: any) => post('/servicedelivery/visitor/checkin', data),
   
   // Check out visitor
-  checkOut: (id: string) => post(`/servicedelivery/visitor/checkout`, { id }),
+  checkOut: (id: string) => post(`/servicedelivery/visitor/checkout`, { visitor_id: id }),
   
   // Toggle service status
-  toggleStatus: (id: string, status: string) => post(`/servicedelivery/visitor/service/status`, { id, status }),
+  toggleStatus: (visitorId: string, departmentId: string, status: string, providerId?: string, providerName?: string) => post(`/servicedelivery/visitor/service/status`, { visitor_id: visitorId, department_id: departmentId, status, provider_id: providerId, provider_name: providerName }),
   
   // Toggle service status (alias)
-  toggleServiceStatus: (id: string, status: string) => post(`/servicedelivery/visitor/service/status`, { id, status }),
+  toggleServiceStatus: (visitorId: string, departmentId: string, status: string, providerId?: string, providerName?: string) => post(`/servicedelivery/visitor/service/status`, { visitor_id: visitorId, department_id: departmentId, status, provider_id: providerId, provider_name: providerName }),
   
-  // Assign to department
-  assignToDepartment: (visitorId: string, departmentId: string, departmentName: string, providerId?: string, providerName?: string) => 
+  // Transfer visitor to a different department
+  // This closes the previous department service and assigns to new department
+  transferToDepartment: (
+    visitorId: string, 
+    newDepartmentId: string, 
+    newDepartmentName: string, 
+    previousDepartmentId?: string,
+    providerId?: string,
+    providerName?: string
+  ) => post(`/servicedelivery/visitor/assign`, { 
+    visitor_id: visitorId, 
+    new_department_id: newDepartmentId,
+    new_department_name: newDepartmentName,
+    previous_department_id: previousDepartmentId,
+    provider_id: providerId,
+    provider_name: providerName || 'Not specified'
+  }),
+  
+  // Assign to department (alias for transfer)
+  assignToDepartment: (visitorId: string, departmentId: string, departmentName: string, providerId?: string, providerName?: string, previousDepartmentId?: string) => 
     post(`/servicedelivery/visitor/assign`, { 
       visitor_id: visitorId, 
       new_department_id: departmentId,
       new_department_name: departmentName,
       provider_id: providerId,
-      provider_name: providerName
+      provider_name: providerName,
+      previous_department_id: previousDepartmentId
     }),
   
   // Get visitors by department (with pagination)
@@ -203,7 +302,7 @@ export const serviceDeliveryService = {
   },
   
   // Emergency leave return
-  emergencyLeaveReturn: (id: string, data: any) => post(`/servicedelivery/visitor/emergency/leave-return/${id}`, data),
+  emergencyLeaveReturn: (id: string, data: any) => post(`/servicedelivery/visitor/emergency/leave-return`, { visitor_id: id, ...data }),
   // 👉 ADD THIS NEW UPDATE FUNCTION:
   update: (id: string, data: any) => put(`/servicedelivery/visitor/${id}`, data),
   // Update service status - uses dedicated endpoint for service status and durations

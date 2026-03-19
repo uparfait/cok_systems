@@ -7,13 +7,13 @@ import LoginPage from './pages/auth/LoginPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import ProfilePage from './pages/profile/ProfilePage';
-import SystemSelector from './pages/dashboard/SystemSelector';
 import UnderDevelopment from './pages/dashboard/UnderDevelopment';
 import ProtectedRoute from './core/components/ProtectedRoute';
 import { AuthProvider } from './core/contexts/AuthContext';
 import { SocketProvider } from './core/contexts/SocketContext';
 import { NotificationProvider } from './core/contexts/NotificationContext';
 import { ToastProvider } from './core/contexts/ToastContext';
+import ChatWidget from './core/components/ChatWidget';
 
 // Import from new systems folder (wrappers with MainLayout built-in)
 import { 
@@ -24,13 +24,13 @@ import {
   RolesManagementPage
 } from './systems/admin';
 
-// 👉 COLLEGUE'S IMPORTS (Smart Parking)
+// 👉 COLLEAGUE'S IMPORTS (Smart Parking) - Cleaned to match new index.ts!
 import { 
   SmartParkingDashboard, 
-  RegisterVisitorPage, 
-  CheckoutPage, 
-  MonitorPage, 
-  ReportsPage 
+  CheckInVehiclePage,
+  CheckInPersonPage,
+  CheckOutVehiclePage,
+  CheckOutPersonPage
 } from './systems/smartParking';
 
 // 👉 YOUR IMPORTS (Service Delivery)
@@ -48,6 +48,7 @@ function App() {
         <NotificationProvider>
           <ToastProvider>
             <Router>
+             {/* <ChatWidget /> */}
             <Routes>
               {/* Public Routes - No layout needed */}
               <Route path="/login" element={<LoginPage />} />
@@ -65,10 +66,13 @@ function App() {
               
               {/* ==================== SMART PARKING SYSTEM (Colleague's Work) ==================== */}
               <Route path="/smart-parking/dashboard" element={<ProtectedRoute><SmartParkingDashboard /></ProtectedRoute>} />
-              <Route path="/smart-parking/register" element={<ProtectedRoute><RegisterVisitorPage /></ProtectedRoute>} />
-              <Route path="/smart-parking/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
-              <Route path="/smart-parking/monitor" element={<ProtectedRoute><MonitorPage /></ProtectedRoute>} />
-              <Route path="/smart-parking/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
+              
+              {/* Colleague's New Routes */}
+              <Route path="/smart-parking/checkin-vehicle" element={<ProtectedRoute><CheckInVehiclePage /></ProtectedRoute>} />
+              <Route path="/smart-parking/checkin-person" element={<ProtectedRoute><CheckInPersonPage /></ProtectedRoute>} />
+              <Route path="/smart-parking/checkout-vehicle" element={<ProtectedRoute><CheckOutVehiclePage /></ProtectedRoute>} />
+              <Route path="/smart-parking/checkout-person" element={<ProtectedRoute><CheckOutPersonPage /></ProtectedRoute>} />
+              
               <Route path="/smart_parking/dashboard" element={<ProtectedRoute><SmartParkingDashboard /></ProtectedRoute>} />
               
               {/* ==================== SERVICE DELIVERY SYSTEM (Your Work) ==================== */}
@@ -85,7 +89,6 @@ function App() {
               <Route path="/service_delivery/dashboard" element={<ProtectedRoute><ServiceDashboard /></ProtectedRoute>} />
               
               {/* ==================== SYSTEM SELECTOR & PROFILE ==================== */}
-              <Route path="/system-selector" element={<ProtectedRoute><SystemSelector /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path="/under-development" element={<ProtectedRoute><UnderDevelopment /></ProtectedRoute>} />
               

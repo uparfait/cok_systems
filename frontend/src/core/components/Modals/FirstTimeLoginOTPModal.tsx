@@ -13,7 +13,7 @@ interface FirstTimeLoginOTPModalProps {
 
 const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const { checkEmailForFirstLogin, sendFirstLoginOTP, resendFirstLoginOTP, verifyFirstLoginOTP } = useAuth();
-  const { showError, showWarning } = useToast();
+  const { showError, showWarning, showSuccess } = useToast();
   
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '']); // 5 digits
@@ -77,30 +77,36 @@ const logoImage = '/LOGO_COK.png';
       // First check if email exists and account can be activated
       const checkResult = await checkEmailForFirstLogin(email);
       
-      if (!checkResult.status) {
-        showError(checkResult.error || 'Failed to verify email');
-        setIsLoading(false);
-        return;
-      }
-      
-      // Check if account is already activated
+      // Check if account is already activated FIRST (before checking status)
       if (checkResult.data?.alreadyActivated) {
-        showWarning('This account is already active. Please use regular login.');
+        showWarning(checkResult.message || 'This account is already active. Please use regular login.');
         setIsLoading(false);
         return;
       }
       
+      if (!checkResult.status) {
+        showError(checkResult.message || checkResult.error || 'Failed to verify email');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Show success for email verification
+      showSuccess(checkResult.message || 'Email verified. Sending OTP...');
+
       // Now send OTP
       const otpResult = await sendFirstLoginOTP(email);
       
       if (otpResult.status && otpResult.data?.userId) {
         setCurrentUserId(otpResult.data.userId);
         setStep('otp');
+        showSuccess(otpResult.message || 'OTP sent successfully! Please check your email.');
       } else {
-        showError(otpResult.error || 'Failed to send OTP');
+        showError(otpResult.message || otpResult.error || 'Failed to send OTP');
       }
     } catch (err: any) {
-      // Error toast is already shown by apiClient interceptor
+      // Show error toast for send OTP
+      const errorMessage = err?.message || err?.error || 'Failed to send OTP. Please try again.';
+      showError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -155,15 +161,18 @@ const logoImage = '/LOGO_COK.png';
       const result = await verifyFirstLoginOTP(currentUserId, otpString);
       
       if (result.status && result.data?.signature) {
+        showSuccess('OTP verified successfully! Setting up your account...');
         // Pass the signature to the next step for password setup
         if (onSuccess) {
           onSuccess(email, currentUserId, result.data.signature);
         }
       } else {
-        showError(result.error || 'Invalid OTP. Please try again.');
+        showError(result.message || result.error || 'Invalid OTP. Please try again.');
       }
     } catch (err: any) {
-      // Error toast is already shown by apiClient interceptor
+      // Show error toast for verify OTP
+      const errorMessage = err?.message || err?.error || 'Failed to verify OTP. Please try again.';
+      showError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -181,8 +190,11 @@ const logoImage = '/LOGO_COK.png';
     try {
       await resendFirstLoginOTP(email);
       setTimeLeft(300); // Reset to 5 minutes
+      showSuccess('OTP resent successfully! Please check your email.');
     } catch (err: any) {
-      // Error toast is already shown by apiClient interceptor
+      // Show error toast for resend OTP
+      const errorMessage = err?.message || err?.error || 'Failed to resend OTP. Please try again.';
+      showError(errorMessage);
     } finally {
       setIsResending(false);
     }
