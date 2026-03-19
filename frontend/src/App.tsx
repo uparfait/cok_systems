@@ -26,7 +26,7 @@ import {
 
 // 👉 COLLEGUE'S IMPORTS (Smart Parking)
 import { 
-  ParkingDashboard, 
+  SmartParkingDashboard, 
   RegisterVisitorPage, 
   CheckoutPage, 
   MonitorPage, 
@@ -64,12 +64,12 @@ function App() {
               <Route path="/admin/roles-management" element={<ProtectedRoute><RolesManagementPage /></ProtectedRoute>} />
               
               {/* ==================== SMART PARKING SYSTEM (Colleague's Work) ==================== */}
-              <Route path="/smart-parking/dashboard" element={<ProtectedRoute><ParkingDashboard /></ProtectedRoute>} />
+              <Route path="/smart-parking/dashboard" element={<ProtectedRoute><SmartParkingDashboard /></ProtectedRoute>} />
               <Route path="/smart-parking/register" element={<ProtectedRoute><RegisterVisitorPage /></ProtectedRoute>} />
               <Route path="/smart-parking/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
               <Route path="/smart-parking/monitor" element={<ProtectedRoute><MonitorPage /></ProtectedRoute>} />
               <Route path="/smart-parking/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
-              <Route path="/smart_parking/dashboard" element={<ProtectedRoute><ParkingDashboard /></ProtectedRoute>} />
+              <Route path="/smart_parking/dashboard" element={<ProtectedRoute><SmartParkingDashboard /></ProtectedRoute>} />
               
               {/* ==================== SERVICE DELIVERY SYSTEM (Your Work) ==================== */}
               <Route path="/service-delivery/receptionist" element={<ProtectedRoute><ReceptionistDashboard /></ProtectedRoute>} />

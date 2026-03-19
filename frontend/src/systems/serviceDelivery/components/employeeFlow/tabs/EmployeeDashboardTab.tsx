@@ -11,6 +11,7 @@ interface ServiceRecord {
   id: string;
   visitorName: string;
   visitorId: string;
+  badgeNumber: string;
   assignedTo: string;
   waitTime: string;
   status: 'not_started' | 'inprogress' | 'completed' | 'transfered';
@@ -53,11 +54,21 @@ const EmployeeDashboardTab: React.FC = () => {
         const allVisitors = Array.isArray(response.data) ? response.data : Array.isArray(response) ? response : [];
         
         const myVisitors = allVisitors.filter((v: any) => {
-          if (!v.services_status || !Array.isArray(v.services_status)) return false;
-          return v.services_status.some((status: any) => String(status.provider_id) === myUserId);
+          // Check if visitor is assigned to this employee in services_status
+          if (v.services_status && Array.isArray(v.services_status)) {
+            const hasServiceStatus = v.services_status.some((status: any) => String(status.provider_id) === myUserId);
+            if (hasServiceStatus) return true;
+          }
+          // Also check departments_assigned for visitors assigned to this employee's department
+          if (v.departments_assigned && Array.isArray(v.departments_assigned)) {
+            const isAssigned = v.departments_assigned.some((dept: any) => String(dept.provider_id) === myUserId);
+            if (isAssigned) return true;
+          }
+          return false;
         });
         
         const records: ServiceRecord[] = myVisitors.map((visitor: any) => {
+          // First check services_status for this employee
           const serviceStatus = visitor.services_status?.find((s: any) => String(s.provider_id) === myUserId);
           
           let status: 'not_started' | 'inprogress' | 'completed' | 'transfered' = 'not_started';
@@ -66,6 +77,10 @@ const EmployeeDashboardTab: React.FC = () => {
           if (rawStatus === 'completed') status = 'completed';
           else if (rawStatus === 'inprogress') status = 'inprogress';
           else if (rawStatus === 'transfered' || rawStatus === 'transferred') status = 'transfered';
+          // If no services_status found but visitor is in departments_assigned, still show as not_started
+          else if (!serviceStatus && visitor.departments_assigned?.some((d: any) => String(d.provider_id) === myUserId)) {
+            status = 'not_started';
+          }
           
           const colors = ['bg-purple-500', 'bg-pink-500', 'bg-yellow-400', 'bg-teal-500', 'bg-blue-500'];
           const visitorName = visitor.full_name || visitor.name || 'Unknown';
@@ -75,6 +90,10 @@ const EmployeeDashboardTab: React.FC = () => {
           let identification = 'N/A';
           if (typeof visitor.identification === 'string') identification = visitor.identification;
           else if (visitor.identification?.number) identification = visitor.identification.number;
+
+          // Extract badge number from backend
+          let badgeNumber = '';
+          if (visitor.badge_number) badgeNumber = visitor.badge_number;
 
           // 👉 FIX: Legally pull the start time from the durations array!
           const serviceDuration = visitor.durations?.services_durations?.find((d: any) => String(d.provider_id) === myUserId);
@@ -101,6 +120,7 @@ const EmployeeDashboardTab: React.FC = () => {
             id: visitor._id || visitor.id || Math.random().toString(),
             visitorName: visitorName,
             visitorId: identification,
+            badgeNumber: badgeNumber,
             assignedTo: myName,
             status,
             waitTime: waitTimeString,
@@ -133,7 +153,8 @@ const EmployeeDashboardTab: React.FC = () => {
     const searchLower = searchTerm.toLowerCase();
     return (
       record.visitorName.toLowerCase().includes(searchLower) ||
-      record.visitorId.toLowerCase().includes(searchLower)
+      record.visitorId.toLowerCase().includes(searchLower) ||
+      record.badgeNumber.toLowerCase().includes(searchLower)
     );
   });
 
@@ -152,7 +173,7 @@ const EmployeeDashboardTab: React.FC = () => {
       <div className="flex gap-5 mt-7">
         <div className="bg-white rounded-[14px] p-[22px_24px] shadow-[0_1px_4px_rgba(0,0,0,0.07)] h-[110px] w-[33%] relative overflow-hidden">
           <div className="absolute top-0 right-0 w-16 h-16"><div className="absolute top-0 right-0 w-32 h-32 bg-[#ff9800] rounded-full opacity-20 -translate-x-8 -translate-y-8"></div></div>
-          <div className="flex justify-between items-start relative z-10"><span className="text-[#888] text-[12px]">Pending Requests</span><FiClock className="text-[#ff9800] w-5 h-5" /></div>
+          <div className="flex justify-between items-start relative z-10"><span className="text-[#888] text-[12px]">Visitors being Served</span><FiClock className="text-[#ff9800] w-5 h-5" /></div>
           <div className="text-[#1a2744] text-[36px] font-extrabold mt-2 relative z-10">{stats.pending}</div>
           <div className="w-10 h-1.5 bg-[#ffcc80] rounded-[3px] mt-1"></div>
         </div>
@@ -188,6 +209,8 @@ const EmployeeDashboardTab: React.FC = () => {
           <thead>
             <tr className="border-b border-[#f0f0f0]">
               <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">VISITOR ↕</th>
+              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">ID</th>
+              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">BADGE</th>
               <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">ASSIGNED TO ↕</th>
               <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">WAIT TIME ↕</th>
               <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">STATUS ↕</th>
@@ -195,7 +218,7 @@ const EmployeeDashboardTab: React.FC = () => {
           </thead>
           <tbody>
             {loading && serviceRecords.length === 0 ? (
-              <tr><td colSpan={4} className="py-8 text-center text-gray-500">Loading your assignments...</td></tr>
+              <tr><td colSpan={6} className="py-8 text-center text-gray-500">Loading your assignments...</td></tr>
             ) : paginatedRecords.length > 0 ? paginatedRecords.map((record) => {
               const status = statusStyles[record.status];
               return (
@@ -205,10 +228,11 @@ const EmployeeDashboardTab: React.FC = () => {
                       <div className={`w-8 h-8 rounded-full ${record.avatarColor} flex items-center justify-center text-white text-[12px] font-bold`}>{record.initials}</div>
                       <div>
                         <div className="text-[#333] text-[13px] font-medium">{record.visitorName}</div>
-                        <div className="text-[#888] text-[11px]">{record.visitorId}</div>
                       </div>
                     </div>
                   </td>
+                  <td className="py-3 text-[#333] text-[13px]">{record.visitorId}</td>
+                  <td className="py-3 text-[#333] text-[13px]">{record.badgeNumber || '-'}</td>
                   <td className="py-3 text-[#333] text-[13px] font-medium">{record.assignedTo}</td>
                   <td className="py-3 text-[#666] text-[13px] font-medium">{record.waitTime}</td>
                   <td className="py-3">
@@ -219,7 +243,7 @@ const EmployeeDashboardTab: React.FC = () => {
                 </tr>
               );
             }) : (
-              <tr><td colSpan={4} className="py-8 text-center text-[#888]">No visitors assigned to you yet.</td></tr>
+              <tr><td colSpan={6} className="py-8 text-center text-[#888]">No visitors assigned to you yet.</td></tr>
             )}
           </tbody>
         </table>
