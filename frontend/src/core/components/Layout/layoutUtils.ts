@@ -134,10 +134,10 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       userRole.includes('director')) {
     return [
       { id: 'dashboard', label: 'Dashboard', path: '/service-delivery/department-manager', icon: 'FiGrid' },
-      { id: 'status', label: 'Service Status', path: '/service-delivery/department-manager?tab=status', icon: 'FiClock' },
+      //{ id: 'status', label: 'Service Status', path: '/service-delivery/department-manager?tab=status', icon: 'FiClock' },
       { id: 'employees', label: 'Employee Management', path: '/service-delivery/department-manager?tab=employees', icon: 'FiUsers' },
       { id: 'availability', label: 'Dept. Availability', path: '/service-delivery/department-manager?tab=availability', icon: 'FiCheckCircle' },
-      { id: 'reports', label: 'Reports', path: '/service-delivery/department-manager?tab=reports', icon: 'FiFile' }
+      //{ id: 'reports', label: 'Reports', path: '/service-delivery/department-manager?tab=reports', icon: 'FiFile' }
     ];
   }
 
