@@ -192,7 +192,7 @@ const logoImage = '/LOGO_COK.png';
         navigate(redirectPath, { replace: true });
       } else {
         setError(result.error || 'Invalid OTP');
-        showError(result.error || 'Invalid OTP. Please try again.');
+        showError(result.message || result.error || 'Invalid OTP. Please try again.');
       }
     } catch (err: any) {
       console.error('[OTPVerificationModal] verifyOTP error:', err);

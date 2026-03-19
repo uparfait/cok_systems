@@ -63,6 +63,12 @@ const CheckInPersonPage: React.FC = () => {
         badge_number: formData.badge_number || null
       };
 
+      console.log('🔍 [CheckInPerson] ID Number being sent:', {
+        id_type: formData.id_type,
+        id_number: formData.id_number,
+        identification: visitorData.identification
+      });
+
       const response = await serviceDeliveryService.checkIn(visitorData);
       
       if (response.success) {

@@ -164,10 +164,10 @@ export const serviceDeliveryService = {
   checkOut: (id: string) => post(`/servicedelivery/visitor/checkout`, { visitor_id: id }),
   
   // Toggle service status
-  toggleStatus: (id: string, status: string) => post(`/servicedelivery/visitor/service/status`, { id, status }),
+  toggleStatus: (visitorId: string, departmentId: string, status: string, providerId?: string, providerName?: string) => post(`/servicedelivery/visitor/service/status`, { visitor_id: visitorId, department_id: departmentId, status, provider_id: providerId, provider_name: providerName }),
   
   // Toggle service status (alias)
-  toggleServiceStatus: (id: string, status: string) => post(`/servicedelivery/visitor/service/status`, { id, status }),
+  toggleServiceStatus: (visitorId: string, departmentId: string, status: string, providerId?: string, providerName?: string) => post(`/servicedelivery/visitor/service/status`, { visitor_id: visitorId, department_id: departmentId, status, provider_id: providerId, provider_name: providerName }),
   
   // Assign to department
   assignToDepartment: (visitorId: string, departmentId: string, departmentName: string, providerId?: string, providerName?: string) => 

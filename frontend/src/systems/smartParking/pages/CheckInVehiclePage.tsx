@@ -190,13 +190,17 @@ const CheckInVehiclePage: React.FC = () => {
     
     setLoading(true);
     try {
-      const response = await smartParkingService.checkIn({
+      const checkInData = {
         plate_number: verifiedData.plate_number,
         driver_name: driverInfo.name || verifiedData.driver_details?.name || verifiedData.driver_name || '',
         driver_telephone: driverInfo.telephone || verifiedData.driver_details?.telephone || verifiedData.driver_telephone || '',
         driver_type: verifiedData.vehicle_category || '',
         badge_number: driverInfo.badge_number?.trim() || null,
-      });
+      };
+
+      console.log('🔍 [CheckInVehicle - Known] ID Number being sent:', checkInData);
+
+      const response = await smartParkingService.checkIn(checkInData);
 
       if (response.success) {
         setShowFoundModal(false);
@@ -221,7 +225,7 @@ const CheckInVehiclePage: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await smartParkingService.checkIn({
+      const checkInData = {
         plate_number: unknownForm.plate_number,
         driver_name: unknownForm.driver_name,
         driver_telephone: unknownForm.driver_telephone,
@@ -229,8 +233,15 @@ const CheckInVehiclePage: React.FC = () => {
         driver_gender: unknownForm.driver_gender,
         driver_type: unknownForm.driver_type,
         badge_number: unknownForm.badge_number,
-        national_id: unknownForm.national_id
-      });
+        driver_identification: unknownForm.national_id ? {
+          id_type: 'National ID',
+          number: unknownForm.national_id
+        } : {}
+      };
+
+      console.log('🔍 [CheckInVehicle - Unknown] ID Number being sent:', checkInData);
+
+      const response = await smartParkingService.checkIn(checkInData);
       
       if (response.success) {
         setShowUnknownModal(false);
