@@ -5,18 +5,39 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { 
   FiSearch, FiFilter, FiArrowRight, FiUser, FiCheckCircle, FiX, 
-  FiClock, FiRefreshCw, FiPlus, FiEye, FiEdit, FiTrash2, FiArrowRightCircle, FiPlay
+  FiClock, FiRefreshCw, FiPlus, FiEye, FiEdit, FiTrash2, FiArrowRightCircle, FiPlay, FiSquare
 } from "react-icons/fi";
 
 // Import API Services
 import { serviceDeliveryService, employeeService, departmentService } from "../../../core/services/adminService";
 import { useAuth } from "../../../core/contexts/AuthContext";
 
-// Tab Components (Assuming you have these built)
+// Custom Live Timer Component
+const LiveTimer: React.FC<{ startTime: string }> = ({ startTime }) => {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!startTime) return;
+    const start = new Date(startTime).getTime();
+    
+    const updateTime = () => setElapsed(Math.max(0, Math.floor((new Date().getTime() - start) / 1000)));
+    
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, [startTime]);
+
+  const h = Math.floor(elapsed / 3600).toString().padStart(2, '0');
+  const m = Math.floor((elapsed % 3600) / 60).toString().padStart(2, '0');
+  const s = (elapsed % 60).toString().padStart(2, '0');
+
+  return <span className="font-mono tracking-widest">{h}:{m}:{s}</span>;
+};
+
+// Tab Components
 import DepartmentAvailabilityTab from "../components/departmentFlow/tabs/DepartmentAvailabilityTab";
 import ReportsTab from "../components/departmentFlow/tabs/ReportsTab";
-import ServiceDetailsModal from "../components/departmentFlow/ServiceDetailsModal";
-import { ViewEmployeeModal, EditEmployeeModal, DeleteEmployeeModal, AddEmployeeModal } from "../components/departmentFlow/EmployeeModals";
+import { ViewEmployeeModal, EditEmployeeModal, DeleteEmployeeModal } from "../components/departmentFlow/EmployeeModals";
 import ServeVisitorModal from "../components/employeeFlow/ServeVisitorModal";
 
 // Types matching Backend Structure
@@ -52,9 +73,16 @@ interface Visitor {
   check_in_time?: string;
   entry_date?: string | Date;
   assignedTo?: any;
+  assigned_to?: any;
+  provider_name?: string;
+  provider_id?: string;
   is_still_inhouse?: boolean;
   services_status?: ServiceStatus[];
   departments_assigned?: DepartmentAssigned[];
+  durations?: {
+    services_durations?: any[];
+    emergency_durations?: any[];
+  };
 }
 
 interface Employee {
@@ -67,9 +95,11 @@ interface Employee {
   title?: string;
   gender?: string;
   status?: string;
+  department_id?: string | { _id?: string };
+  department_name?: string;
 }
 
-// Wrapper component for Add Employee Modal with backend API integration
+// Wrapper component for Add Employee Modal
 interface AddEmployeeModalContentProps {
   isOpen: boolean;
   onClose: () => void;
@@ -211,7 +241,7 @@ const AddEmployeeModalContent: React.FC<AddEmployeeModalContentProps> = ({ isOpe
   );
 };
 
-// Wrapper component for Edit Employee Modal with backend API integration
+// Wrapper component for Edit Employee Modal
 interface EditEmployeeModalContentProps {
   isOpen: boolean;
   onClose: () => void;
@@ -370,12 +400,14 @@ const DepartmentManagerDashboard: React.FC = () => {
   const departmentId = user?.departmentId || user?.department_id;
   const departmentName = user?.departmentName || user?.department_name;
   
-  // Tab State (Driven by URL)
+  // Tab State
   const tabParam = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(tabParam || 'dashboard');
 
   // LIVE DATA STATES
   const [visitors, setVisitors] = useState<Visitor[]>([]);
+  const [allDepartmentVisitors, setAllDepartmentVisitors] = useState<Visitor[]>([]);
+  const [pendingServiceStartTime, setPendingServiceStartTime] = useState<string>('');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -386,13 +418,7 @@ const DepartmentManagerDashboard: React.FC = () => {
   const [serviceStatusSearch, setServiceStatusSearch] = useState("");
   const [serviceStatusFilter, setServiceStatusFilter] = useState("all");
   const [employeeSearch, setEmployeeSearch] = useState("");
-
-  // Modal States
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [isAssigning, setIsAssigning] = useState(false);
+  const [dashboardStatusFilter, setDashboardStatusFilter] = useState('all');
 
   // Employee Modals
   const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
@@ -406,46 +432,114 @@ const DepartmentManagerDashboard: React.FC = () => {
   const [servingVisitor, setServingVisitor] = useState<Visitor | null>(null);
   const [servingEmployee, setServingEmployee] = useState<Employee | null>(null);
   const [employeeServiceCount, setEmployeeServiceCount] = useState<Record<string, number>>({});
+  
+  // Transfer Modal State
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferVisitor, setTransferVisitor] = useState<Visitor | null>(null);
+  const [transferDepartment, setTransferDepartment] = useState<string>('');
+  const [transferEmployee, setTransferEmployee] = useState<Employee | null>(null);
+  const [transferring, setTransferring] = useState(false);
 
   // Visitors by Department/Provider State
   const [visitorsByDepartment, setVisitorsByDepartment] = useState<any[]>([]);
   const [visitorsByProvider, setVisitorsByProvider] = useState<any[]>([]);
   const [loadingByFilters, setLoadingByFilters] = useState(false);
 
-  // Sync tabs with URL
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab) setActiveTab(tab);
     else setActiveTab('dashboard');
   }, [searchParams]);
 
-  // Auth Check
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       navigate('/login');
     }
   }, [isAuthenticated, authLoading, navigate]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, dashboardStatusFilter]);
+
+  // ULTRA ROBUST ASSIGNED EMPLOYEE FINDER
+  const getAssignedEmployee = (v: any): { name: string; id: string } | null => {
+    if (!v) return null;
+
+    const checkEmpListForId = (id: string) => {
+      const emp = employees.find(e => String(e._id) === String(id) || String(e.employee_id) === String(id));
+      return emp ? emp.full_name : null;
+    };
+
+    // 1. Check Root Provider fields
+    if (v.provider_name && v.provider_name !== 'Unknown') {
+      return { name: v.provider_name, id: v.provider_id || '' };
+    }
+
+    // 2. Check Root 'assignedTo' or 'assigned_to'
+    const rootAssigned = v.assignedTo || v.assigned_to;
+    if (rootAssigned) {
+      if (typeof rootAssigned === 'object') {
+        const name = rootAssigned.full_name || rootAssigned.name || rootAssigned.provider_name;
+        if (name) return { name, id: rootAssigned._id || rootAssigned.id || '' };
+      } else if (typeof rootAssigned === 'string' && rootAssigned !== 'unassigned') {
+        const name = checkEmpListForId(rootAssigned);
+        if (name) return { name, id: rootAssigned };
+      }
+    }
+
+    // 3. Check departments_assigned
+    if (v.departments_assigned && Array.isArray(v.departments_assigned) && v.departments_assigned.length > 0) {
+      const assignments = [...v.departments_assigned].reverse(); 
+      for (const assign of assignments) {
+        const name = assign.provider_name || assign.employee_name || assign.assigned_name;
+        const id = assign.provider_id || assign.employee_id || assign.assigned_to;
+        
+        if (name && name !== 'Unknown') return { name, id: id || '' };
+        if (id) {
+          const empName = checkEmpListForId(id);
+          if (empName) return { name: empName, id };
+        }
+      }
+    }
+
+    // 4. Check services_status
+    if (v.services_status) {
+      const statuses = Array.isArray(v.services_status) ? v.services_status : [v.services_status];
+      const statusList = [...statuses].reverse();
+      for (const s of statusList) {
+        const name = s.provider_name || s.employee_name;
+        const id = s.provider_id || s.employee_id;
+        
+        if (name && name !== 'Unknown') return { name, id: id || '' };
+        if (id) {
+          const empName = checkEmpListForId(id);
+          if (empName) return { name: empName, id };
+        }
+      }
+    }
+
+    return null;
+  };
+
   // FETCH LIVE DATA
   const loadData = async () => {
     setIsLoading(true);
     try {
       let visitorRes;
+      let allVisitorsRes;
       let empRes;
       let deptRes;
 
-      // If user has a department, fetch department-specific data
       if (departmentId) {
-        // Use getCurrentVisitorsByDepartment to get all visitors assigned to this department
         visitorRes = await serviceDeliveryService.getCurrentVisitorsByDepartment(departmentId);
+        allVisitorsRes = await serviceDeliveryService.getAll();
         empRes = await employeeService.getByDepartment(departmentId, false);
       } else {
-        // Fallback to all data if no department assigned
         visitorRes = await serviceDeliveryService.getAll();
+        allVisitorsRes = visitorRes;
         empRes = await employeeService.getAll();
       }
 
-      // Fetch all departments for transfer functionality
       try {
         deptRes = await departmentService.getAll();
         if (deptRes.status || deptRes.success) {
@@ -456,27 +550,48 @@ const DepartmentManagerDashboard: React.FC = () => {
       }
 
       if (visitorRes.status || visitorRes.success) {
-        // Handle both response formats - flat array or nested with department grouping
         const rawData = visitorRes.data;
         let visitorsArray: any[] = [];
         
         if (Array.isArray(rawData)) {
-          // Check if it's grouped by department (has visitors array inside)
           if (rawData.length > 0 && rawData[0].visitors) {
-            // Extract visitors from all departments
             rawData.forEach((dept: any) => {
               if (dept.visitors && Array.isArray(dept.visitors)) {
                 visitorsArray = [...visitorsArray, ...dept.visitors];
               }
             });
           } else {
-            // It's a flat array
             visitorsArray = rawData;
           }
         }
         
         setVisitors(visitorsArray);
       }
+      
+      if (allVisitorsRes && (allVisitorsRes.status || allVisitorsRes.success)) {
+        const allRawData = allVisitorsRes.data;
+        let allVisitorsArray: any[] = [];
+        
+        if (Array.isArray(allRawData)) {
+          if (allRawData.length > 0 && allRawData[0].visitors) {
+            allRawData.forEach((dept: any) => {
+              if (dept.visitors && Array.isArray(dept.visitors)) {
+                allVisitorsArray = [...allVisitorsArray, ...dept.visitors];
+              }
+            });
+          } else {
+            allVisitorsArray = allRawData;
+          }
+        }
+        
+        const deptVisitors = allVisitorsArray.filter((v: any) => {
+          return (v.services_status || []).some((s: any) => 
+            String(s.department_id) === String(departmentId)
+          );
+        });
+        setAllDepartmentVisitors(deptVisitors);
+      }
+      
       if (empRes.status || empRes.success) {
         setEmployees(Array.isArray(empRes.data) ? empRes.data : []);
       }
@@ -487,7 +602,6 @@ const DepartmentManagerDashboard: React.FC = () => {
     }
   };
 
-  // Fetch visitors by department
   const fetchVisitorsByDepartment = async () => {
     if (!departmentId) return;
     setLoadingByFilters(true);
@@ -503,39 +617,51 @@ const DepartmentManagerDashboard: React.FC = () => {
     }
   };
 
-  // Fetch visitors by provider (employee)
   const fetchVisitorsByProvider = async () => {
     setLoadingByFilters(true);
     try {
       const response = await serviceDeliveryService.getAll();
       if (response.success && response.data) {
-        // Group visitors by provider_id within this department
         const allVisitors = response.data as any[];
         const providerMap: Record<string, any> = {};
         
         allVisitors.forEach(v => {
-          // Handle both array and unwound object
-          if (v.services_status) {
-            const statuses = Array.isArray(v.services_status) 
-              ? v.services_status 
-              : [v.services_status];
+          // Check if this visitor has any business in this department
+          const isForThisDept = !departmentId || 
+            (v.services_status || []).some((s:any) => String(s.department_id) === String(departmentId)) ||
+            (v.departments_assigned || []).some((d:any) => String(d.department_id) === String(departmentId));
+          
+          if (isForThisDept) {
+            const assigned = getAssignedEmployee(v);
+            const status = getVisitorStatus(v);
             
-            statuses.forEach((s: any) => {
-              if (s.department_id === departmentId && s.provider_id) {
-                if (!providerMap[s.provider_id]) {
-                  providerMap[s.provider_id] = {
-                    provider_id: s.provider_id,
-                    provider_name: s.provider_name || 'Unknown',
-                    visitors: [],
-                    count: 0
-                  };
-                }
-                if (s.s_type !== 'Completed') {
-                  providerMap[s.provider_id].visitors.push(v);
-                  providerMap[s.provider_id].count++;
-                }
+            if (assigned) {
+              if (!providerMap[assigned.id]) {
+                providerMap[assigned.id] = {
+                  provider_id: assigned.id,
+                  provider_name: assigned.name,
+                  visitors: [],
+                  count: 0
+                };
               }
-            });
+              if (status !== 'Completed') {
+                providerMap[assigned.id].visitors.push(v);
+                providerMap[assigned.id].count++;
+              }
+            } else {
+              if (!providerMap['unassigned']) {
+                providerMap['unassigned'] = {
+                  provider_id: 'unassigned',
+                  provider_name: 'Unassigned Visitors',
+                  visitors: [],
+                  count: 0
+                };
+              }
+              if (status !== 'Completed') {
+                providerMap['unassigned'].visitors.push(v);
+                providerMap['unassigned'].count++;
+              }
+            }
           }
         });
         
@@ -565,47 +691,46 @@ const DepartmentManagerDashboard: React.FC = () => {
     return parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : name.substring(0, 2).toUpperCase();
   };
 
-  // Get visitor status from backend services_status array (handles both array and unwound object)
   const getVisitorStatus = (v: Visitor): string => {
     if (!v.services_status || !departmentId) return 'Not started';
     
-    // Check if services_status is an array or a single object (from unwind)
+    const statusByProvider = (v.services_status || []).find((s: any) => 
+      s.department_id === departmentId && s.provider_id
+    );
+    if (statusByProvider && statusByProvider.s_type) return statusByProvider.s_type;
+    
     const statusObj = Array.isArray(v.services_status) 
       ? v.services_status.find((s: any) => s.department_id === departmentId)
       : v.services_status;
     
-    if (statusObj && statusObj.s_type) {
-      return statusObj.s_type;
-    }
+    if (statusObj && statusObj.s_type) return statusObj.s_type;
     return 'Not started';
   };
 
-  // Check if visitor is assigned to an employee in this department (handles both array and unwound object)
-  const isAssignedToEmployee = (v: Visitor): boolean => {
-    if (!v.services_status || !departmentId) return false;
+  const getServiceStartTime = (v: Visitor): string => {
+    if (!v.durations?.services_durations || !departmentId) return '';
+    const serviceDuration = v.durations.services_durations.find((d: any) => {
+      const deptId = typeof d.department_id === 'object' ? d.department_id?._id : d.department_id;
+      return String(deptId) === String(departmentId) && d.provider_id;
+    });
+    if (serviceDuration?.started_at) return serviceDuration.started_at;
     
-    const statusObj = Array.isArray(v.services_status) 
-      ? v.services_status.find((s: any) => s.department_id === departmentId)
-      : v.services_status;
-    
-    return !!(statusObj && statusObj.provider_name);
+    const fallbackDuration = v.durations.services_durations.find((d: any) => {
+      const deptId = typeof d.department_id === 'object' ? d.department_id?._id : d.department_id;
+      return String(deptId) === String(departmentId);
+    });
+    return fallbackDuration?.started_at || '';
   };
 
-  // Get assigned employee for this department (handles both array and unwound object)
-  const getAssignedEmployee = (v: Visitor): { name: string; id: string } | null => {
-    if (!v.services_status || !departmentId) return null;
-    
-    const statusObj = Array.isArray(v.services_status) 
-      ? v.services_status.find((s: any) => s.department_id === departmentId)
-      : v.services_status;
-    
-    if (statusObj && statusObj.provider_name) {
-      return { name: statusObj.provider_name, id: statusObj.provider_id || '' };
-    }
-    return null;
+  const getDepartmentName = (v: Visitor): string => {
+    if (!v.departments_assigned || !departmentId) return '';
+    const dept = v.departments_assigned.find((d: any) => {
+      const deptId = typeof d.department_id === 'object' ? d.department_id?._id : d.department_id;
+      return String(deptId) === String(departmentId);
+    });
+    return dept?.department_name || departmentName || '';
   };
 
-  // Calculate employee service counts from visitors (handles both array and unwound object)
   const calculateEmployeeServiceCounts = () => {
     const counts: Record<string, number> = {};
     visitors.forEach(v => {
@@ -622,29 +747,50 @@ const DepartmentManagerDashboard: React.FC = () => {
     setEmployeeServiceCount(counts);
   };
 
-  // Calculate service counts when visitors change
   useEffect(() => {
     calculateEmployeeServiceCounts();
   }, [visitors, departmentId]);
 
-  // Handle starting a service
   const handleServiceStart = async (startTime: string) => {
     if (!servingVisitor || !servingEmployee || !departmentId) return;
-    
     try {
       const visitorId = servingVisitor._id || servingVisitor.id;
       const empId = servingEmployee._id || servingEmployee.employee_id;
       const empName = servingEmployee.full_name;
       
-      // Use update API like ProvideServicesTab - update services_status directly
-      await serviceDeliveryService.update(visitorId as string, {
-        services_status: [{
+      const rawVisitor = servingVisitor;
+      const currentDurations = rawVisitor.durations || { services_durations: [], emergency_durations: [] };
+      const existingServiceDurations = currentDurations.services_durations || [];
+      
+      const existingRecordIndex = existingServiceDurations.findIndex((d: any) => String(d.provider_id) === String(empId));
+      
+      let updatedServiceDurations = [...existingServiceDurations];
+      const deptInfo = rawVisitor.departments_assigned?.find((d: any) => String(d.provider_id) === String(empId)) || 
+                       rawVisitor.services_status?.find((s: any) => String(s.provider_id) === String(empId));
+      
+      if (existingRecordIndex === -1) {
+        updatedServiceDurations.push({
           department_id: departmentId,
-          department_name: departmentName,
-          provider_id: empId,
+          department_name: departmentName || deptInfo?.department_name || 'General',
           provider_name: empName,
-          s_type: 'Inprogress'
-        }]
+          provider_id: empId,
+          started_at: new Date().toISOString()
+        });
+      } else {
+        updatedServiceDurations[existingRecordIndex] = {
+          ...updatedServiceDurations[existingRecordIndex],
+          started_at: new Date().toISOString()
+        };
+      }
+      
+      const updatedServicesStatus = (rawVisitor.services_status || []).map((s: any) => {
+        if (String(s.provider_id) === String(empId)) return { ...s, s_type: 'Inprogress' };
+        return s;
+      });
+      
+      await serviceDeliveryService.updateServiceStatus(visitorId as string, {
+        services_status: updatedServicesStatus,
+        durations: { ...currentDurations, services_durations: updatedServiceDurations }
       });
       
       await loadData();
@@ -653,31 +799,40 @@ const DepartmentManagerDashboard: React.FC = () => {
     }
   };
 
-  // Handle ending a service
   const handleServiceEnd = async (data: { duration: string; startTime: string; endTime: string; notes: string }) => {
     if (!servingVisitor || !servingEmployee || !departmentId) return;
-    
     try {
       const visitorId = servingVisitor._id || servingVisitor.id;
       const empId = servingEmployee._id || servingEmployee.employee_id;
-      const empName = servingEmployee.full_name;
       
-      // Check if this is a transfer (like ProvideServicesTab)
       const isTransfer = data.notes && data.notes.toLowerCase().includes('transfer');
       const targetStatus = isTransfer ? 'Transfered' : 'Completed';
       
-      // Use update API like ProvideServicesTab - update services_status directly
-      await serviceDeliveryService.update(visitorId as string, {
-        services_status: [{
-          department_id: departmentId,
-          department_name: departmentName,
-          provider_id: empId,
-          provider_name: empName,
-          s_type: targetStatus
-        }]
+      const rawVisitor = servingVisitor;
+      const currentDurations = rawVisitor.durations || { services_durations: [], emergency_durations: [] };
+      const existingServiceDurations = currentDurations.services_durations || [];
+      
+      const existingRecordIndex = existingServiceDurations.findIndex((d: any) => String(d.provider_id) === String(empId));
+      let updatedServiceDurations = [...existingServiceDurations];
+      
+      if (existingRecordIndex !== -1) {
+        updatedServiceDurations[existingRecordIndex] = {
+          ...updatedServiceDurations[existingRecordIndex],
+          ended_at: new Date().toISOString(),
+          duration: data.duration
+        };
+      }
+      
+      const updatedServicesStatus = (rawVisitor.services_status || []).map((s: any) => {
+        if (String(s.provider_id) === String(empId)) return { ...s, s_type: targetStatus };
+        return s;
       });
       
-      // Update the local service count for this employee
+      await serviceDeliveryService.updateServiceStatus(visitorId as string, {
+        services_status: updatedServicesStatus,
+        durations: { ...currentDurations, services_durations: updatedServiceDurations }
+      });
+      
       if (!isTransfer && empId) {
         setEmployeeServiceCount(prev => ({
           ...prev,
@@ -688,32 +843,75 @@ const DepartmentManagerDashboard: React.FC = () => {
       setShowServeModal(false);
       setServingVisitor(null);
       setServingEmployee(null);
+      setPendingServiceStartTime('');
       await loadData();
     } catch (error) {
       console.error('Failed to complete service:', error);
     }
   };
+  
+  const handleTransferFromModal = async (departmentId: string, departmentName: string, employeeId: string, employeeName: string) => {
+    if (!servingVisitor || !departmentId || !employeeId) return;
+    try {
+      const visitorId = servingVisitor._id || servingVisitor.id;
+      await serviceDeliveryService.assignToDepartment(
+        visitorId as string,
+        departmentId,
+        departmentName,
+        employeeId,
+        employeeName
+      );
+      setShowServeModal(false);
+      setServingVisitor(null);
+      setServingEmployee(null);
+      setPendingServiceStartTime('');
+      await loadData();
+    } catch (error) {
+      console.error('Failed to transfer visitor:', error);
+      alert('Failed to transfer visitor. Please try again.');
+    }
+  };
+  
+  const handleTransferVisitor = async () => {
+    if (!transferVisitor || !transferDepartment || !transferEmployee || !departmentId) return;
+    setTransferring(true);
+    try {
+      const visitorId = transferVisitor._id || transferVisitor.id;
+      const newDept = departments.find(d => d._id === transferDepartment);
+      const newDeptName = newDept?.department_name || newDept?.name || 'Unknown';
+      
+      await serviceDeliveryService.assignToDepartment(
+        visitorId as string,
+        transferDepartment,
+        newDeptName,
+        transferEmployee._id || transferEmployee.employee_id,
+        transferEmployee.full_name
+      );
+      
+      setShowTransferModal(false);
+      setTransferVisitor(null);
+      setTransferDepartment('');
+      setTransferEmployee(null);
+      await loadData();
+    } catch (error) {
+      console.error('Failed to transfer visitor:', error);
+      alert('Failed to transfer visitor. Please try again.');
+    } finally {
+      setTransferring(false);
+    }
+  };
 
-  // Stats - using backend services_status data
   const pendingVisitors = visitors.filter(v => getVisitorStatus(v) === 'Not started');
   const inProgressVisitors = visitors.filter(v => getVisitorStatus(v) === 'Inprogress');
   const completedVisitors = visitors.filter(v => getVisitorStatus(v) === 'Completed');
   const transferredVisitors = visitors.filter(v => getVisitorStatus(v) === 'Transfered');
 
-  // Dashboard filter state
-  const [dashboardStatusFilter, setDashboardStatusFilter] = useState('all');
-
-  // Dashboard Filters - show all visitors with optional status filter
   const filteredDashboardVisitors = visitors.filter(v => {
-    // First filter by search term
     const matchesSearch = getVisitorName(v).toLowerCase().includes(searchTerm.toLowerCase()) ||
       getIdentification(v).includes(searchTerm);
-    
-    // Then filter by status if not 'all'
     const matchesStatus = dashboardStatusFilter === 'all' 
       ? true 
       : getVisitorStatus(v).toLowerCase() === dashboardStatusFilter.toLowerCase();
-    
     return matchesSearch && matchesStatus;
   });
 
@@ -721,7 +919,6 @@ const DepartmentManagerDashboard: React.FC = () => {
   const paginatedDashboard = filteredDashboardVisitors.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const totalDashboardPages = Math.ceil(filteredDashboardVisitors.length / itemsPerPage);
 
-  // Service Status Filters - using backend services_status data
   const filteredServiceVisitors = visitors.filter(v => {
     const matchesSearch = getVisitorName(v).toLowerCase().includes(serviceStatusSearch.toLowerCase()) || 
                           (v.telephone || '').includes(serviceStatusSearch);
@@ -729,50 +926,13 @@ const DepartmentManagerDashboard: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Employee Filters
   const filteredEmployees = employees.filter(e => 
     (e.full_name || '').toLowerCase().includes(employeeSearch.toLowerCase()) ||
     (e.email || '').toLowerCase().includes(employeeSearch.toLowerCase())
   );
 
-  // Assignment Handler
-  const handleConfirmAssignment = async () => {
-    if (selectedVisitor && selectedEmployee) {
-      setIsAssigning(true);
-      try {
-        const visitorId = selectedVisitor._id || selectedVisitor.id;
-        const empId = selectedEmployee._id || selectedEmployee.employee_id;
-        
-        // Use your service delivery update endpoint
-        await serviceDeliveryService.update(visitorId as string, {
-          assignedTo: empId,
-          status: 'In_progress'
-        });
-        
-        setShowSuccessMessage(true);
-        await loadData(); // Refresh table
-        
-        setTimeout(() => {
-          setShowAssignModal(false);
-          setShowSuccessMessage(false);
-          setSelectedVisitor(null);
-          setSelectedEmployee(null);
-        }, 1500);
-      } catch (error) {
-        console.error("Assignment failed:", error);
-        alert("Failed to assign employee.");
-      } finally {
-        setIsAssigning(false);
-      }
-    }
-  };
-
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
-      {/* NOTE: Horizontal Tabs & Sidebar have been removed.
-        Navigation is completely handled by layoutUtils.ts and ?tab= URL parameters
-      */}
-
       {/* DASHBOARD TAB */}
       {activeTab === 'dashboard' && (
         <div className="space-y-6">
@@ -828,7 +988,7 @@ const DepartmentManagerDashboard: React.FC = () => {
           </div>
 
           {/* PENDING REQUESTS TABLE */}
-          <div className="bg-white rounded-[14px] shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-[14px] shadow-sm border border-gray-100 overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-white">
               <h2 className="text-[16px] font-bold text-blue-600 uppercase">Current Pending Requests</h2>
               <div className="flex items-center gap-3">
@@ -930,41 +1090,77 @@ const DepartmentManagerDashboard: React.FC = () => {
                         </p></td>
                         <td className="px-6 py-4">
                           {(() => {
+                            const status = getVisitorStatus(visitor);
                             const assigned = getAssignedEmployee(visitor);
-                            if (assigned) {
-                              // Visitor is already assigned - show Assigned status
+                            const serviceStartTime = getServiceStartTime(visitor);
+                            
+                            // If service is in progress, show timer and Stop button
+                            if (status === 'Inprogress') {
                               return (
                                 <div className="flex items-center gap-2">
-                                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                                    Assigned
+                                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-[20px] text-xs font-bold uppercase bg-[#e3f2fd] text-[#1a73e8]">
+                                    <FiClock className="w-3 h-3 animate-pulse" />
+                                    <LiveTimer startTime={serviceStartTime} />
                                   </span>
                                   <button 
                                     onClick={() => {
-                                      const emp = employees.find(e => e.full_name === assigned.name);
+                                      const emp = employees.find(e => e.full_name === assigned?.name);
                                       setServingVisitor(visitor);
                                       setServingEmployee(emp || null);
                                       setShowServeModal(true);
                                     }}
-                                    className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                                    className="flex items-center gap-1.5 h-8 px-4 bg-[#e53935] text-white text-xs font-bold rounded-[6px] hover:bg-[#c62828] transition-colors"
                                   >
-                                    View
+                                    <FiSquare className="w-3 h-3 fill-current" /> Stop
                                   </button>
                                 </div>
                               );
                             }
-                            // Not assigned - show Serve button with blue background
-                            return (
-                              <button 
-                                onClick={() => {
-                                  setServingVisitor(visitor);
-                                  setServingEmployee(employees[0] || null);
-                                  setShowServeModal(true);
-                                }}
-                                className="flex items-center px-4 py-2 bg-[#0284C7] text-white text-sm font-bold rounded-lg hover:bg-[#0369A1] transition-colors"
-                              >
-                                Serve <FiPlay className="w-4 h-4 ml-1" />
-                              </button>
-                            );
+                            
+                            // If completed, show completed
+                            if (status === 'Completed') {
+                              return (
+                                <span className="text-[#34a853] text-xs font-medium">✓ Completed</span>
+                              );
+                            }
+                            
+                            // If transferred, show transferred
+                            if (status === 'Transfered') {
+                              return (
+                                <span className="text-[#7b1fa2] text-xs font-medium">⇄ Transferred</span>
+                              );
+                            }
+                            
+                            // Not started - logic for Assigned vs Serve
+                            if (status === 'Not started') {
+                              if (assigned) {
+                                return (
+                                  <span className="text-blue-600 font-bold text-xs uppercase px-3 py-1 bg-blue-50 border border-blue-200 rounded shadow-sm">
+                                    Assigned
+                                  </span>
+                                );
+                              } else {
+                                return (
+                                  <button 
+                                    onClick={async () => {
+                                      const emp = employees.find(e => e.email === user?.email) || employees[0];
+                                      if (emp) {
+                                        const now = new Date().toISOString();
+                                        setServingVisitor(visitor);
+                                        setServingEmployee(emp);
+                                        setPendingServiceStartTime(now);
+                                        setShowServeModal(true);
+                                        await handleServiceStart(now);
+                                        await loadData();
+                                      }
+                                    }}
+                                    className="flex items-center px-4 py-2 bg-[#0284C7] text-white text-sm font-bold rounded-lg hover:bg-[#0369A1] transition-colors shadow-sm"
+                                  >
+                                    Serve <FiPlay className="w-4 h-4 ml-1" />
+                                  </button>
+                                );
+                              }
+                            }
                           })()}
                         </td>
                       </tr>
@@ -973,6 +1169,44 @@ const DepartmentManagerDashboard: React.FC = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalDashboardPages > 1 && (
+              <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-white mt-auto">
+                <span className="text-sm text-gray-500">
+                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredDashboardVisitors.length)} of {filteredDashboardVisitors.length} entries
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 border border-gray-200 rounded text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-transparent transition-colors font-medium"
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: totalDashboardPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-8 h-8 flex items-center justify-center rounded text-sm font-medium transition-colors ${
+                        currentPage === page 
+                          ? 'bg-[#0284C7] text-white' 
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalDashboardPages, p + 1))}
+                    disabled={currentPage === totalDashboardPages}
+                    className="px-3 py-1.5 border border-gray-200 rounded text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-transparent transition-colors font-medium"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1009,6 +1243,7 @@ const DepartmentManagerDashboard: React.FC = () => {
                 <tr>
                   <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">VISITOR NAME</th>
                   <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">SERVICE</th>
+                  <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">ASSIGNED TO</th>
                   <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">STATUS</th>
                   <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">PHONE</th>
                 </tr>
@@ -1018,6 +1253,22 @@ const DepartmentManagerDashboard: React.FC = () => {
                   <tr key={visitor._id || visitor.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 font-semibold text-gray-800">{getVisitorName(visitor)}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{visitor.service || 'N/A'}</td>
+                    <td className="px-6 py-4">
+                      {(() => {
+                        const assigned = getAssignedEmployee(visitor);
+                        if (assigned) {
+                          return (
+                            <div className="flex items-center">
+                              <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-xs mr-2">
+                                {getInitials(assigned.name)}
+                              </div>
+                              <span className="text-sm font-medium text-gray-700">{assigned.name}</span>
+                            </div>
+                          );
+                        }
+                        return <span className="text-sm text-gray-400 italic">Unassigned</span>;
+                      })()}
+                    </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${getVisitorStatus(visitor) === 'Inprogress' ? 'bg-blue-100 text-blue-700' : getVisitorStatus(visitor) === 'Not started' ? 'bg-orange-100 text-orange-600' : getVisitorStatus(visitor) === 'Transfered' ? 'bg-purple-100 text-purple-600' : getVisitorStatus(visitor) === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                         {getVisitorStatus(visitor) === 'Inprogress' ? 'In Progress' : getVisitorStatus(visitor) === 'Not started' ? 'Not Started' : getVisitorStatus(visitor) === 'Transfered' ? 'Transferred' : getVisitorStatus(visitor) === 'Completed' ? 'Completed' : 'Pending'}
@@ -1154,7 +1405,16 @@ const DepartmentManagerDashboard: React.FC = () => {
                             <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
                               {getInitials(v.full_name || v.name || 'U')}
                             </div>
-                            <span className="text-sm text-gray-700">{v.full_name || v.name || 'Unknown'}</span>
+                            <div className="flex flex-col">
+                              <span className="text-sm text-gray-700">{v.full_name || v.name || 'Unknown'}</span>
+                              {(() => {
+                                const assigned = getAssignedEmployee(v);
+                                if (assigned) {
+                                  return <span className="text-xs text-gray-500">Assigned to: {assigned.name}</span>;
+                                }
+                                return <span className="text-xs text-gray-400 italic">Unassigned</span>;
+                              })()}
+                            </div>
                           </div>
                           {(() => {
                             const statusObj = Array.isArray(v.services_status) 
@@ -1202,9 +1462,15 @@ const DepartmentManagerDashboard: React.FC = () => {
                   <div key={provider.provider_id} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex justify-between items-center mb-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
-                          {getInitials(provider.provider_name || 'U')}
-                        </div>
+                        {provider.provider_id === 'unassigned' ? (
+                          <div className="w-10 h-10 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">
+                            <FiUser className="w-5 h-5" />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
+                            {getInitials(provider.provider_name || 'U')}
+                          </div>
+                        )}
                         <div>
                           <h3 className="font-bold text-gray-800">{provider.provider_name || 'Unknown'}</h3>
                           <p className="text-xs text-gray-500">{provider.visitors?.length || 0} active visitors</p>
@@ -1220,8 +1486,8 @@ const DepartmentManagerDashboard: React.FC = () => {
                           <div className="flex items-center gap-2">
                             <span className="text-sm text-gray-700">{v.full_name || v.name || 'Unknown'}</span>
                           </div>
-                          <span className={`px-2 py-1 rounded text-xs font-bold ${(v.services_status || []).find((s: any) => s.provider_id === provider.provider_id)?.s_type === 'Inprogress' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
-                            {(v.services_status || []).find((s: any) => s.provider_id === provider.provider_id)?.s_type || 'Not started'}
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${(v.services_status || []).find((s: any) => String(s.department_id) === String(departmentId))?.s_type === 'Inprogress' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                            {(v.services_status || []).find((s: any) => String(s.department_id) === String(departmentId))?.s_type || 'Not started'}
                           </span>
                         </div>
                       ))}
@@ -1239,61 +1505,6 @@ const DepartmentManagerDashboard: React.FC = () => {
       {/* DEPARTMENT AVAILABILITY & REPORTS */}
       {activeTab === 'availability' && <DepartmentAvailabilityTab departmentId={departmentId} />}
       {activeTab === 'reports' && <ReportsTab departmentId={departmentId} departmentName={departmentName} />}
-
-      {/* ASSIGN MODAL */}
-      {showAssignModal && selectedVisitor && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
-              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                <FiUser className="text-blue-600" /> Assign Visitor
-              </h3>
-              <button onClick={() => setShowAssignModal(false)} className="text-gray-400 hover:text-gray-600"><FiX className="w-5 h-5" /></button>
-            </div>
-            
-            <div className="p-6">
-              <div className="mb-6">
-                <p className="text-xs text-gray-500 mb-1">Assigning Visitor:</p>
-                <p className="text-sm font-bold text-gray-800">{getVisitorName(selectedVisitor)}</p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Select Employee</label>
-                <select
-                  value={selectedEmployee?._id || ''}
-                  onChange={(e) => {
-                    const emp = employees.find(em => em._id === e.target.value);
-                    setSelectedEmployee(emp || null);
-                  }}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                >
-                  <option value="">Select an employee...</option>
-                  {employees.map(emp => (
-                    <option key={emp._id} value={emp._id}>{emp.full_name} - {emp.title || emp.role}</option>
-                  ))}
-                </select>
-              </div>
-
-              {showSuccessMessage && (
-                <div className="mt-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg flex items-center gap-2 text-sm font-medium">
-                  <FiCheckCircle className="w-4 h-4" /> Assignment Successful!
-                </div>
-              )}
-            </div>
-
-            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
-              <button onClick={() => setShowAssignModal(false)} className="px-5 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-200 rounded-lg">Cancel</button>
-              <button 
-                onClick={handleConfirmAssignment}
-                disabled={!selectedEmployee || isAssigning}
-                className="px-5 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-              >
-                {isAssigning ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : 'Confirm Assignment'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* EMPLOYEE MODALS */}
       
@@ -1326,7 +1537,8 @@ const DepartmentManagerDashboard: React.FC = () => {
             email: selectedDeptEmployee.email || '',
             title: selectedDeptEmployee.title || selectedDeptEmployee.role || '',
             status: selectedDeptEmployee.status === 'Active' ? 'Active' : 'Away',
-            initials: getInitials(selectedDeptEmployee.full_name || '')
+            initials: getInitials(selectedDeptEmployee.full_name || ''),
+            department: selectedDeptEmployee.department_name || 'N/A'
           }}
         />
       )}
@@ -1367,13 +1579,23 @@ const DepartmentManagerDashboard: React.FC = () => {
           }}
           onDelete={async () => {
             try {
-              await employeeService.delete(selectedDeptEmployee._id || selectedDeptEmployee.employee_id || '');
-              setShowDeleteEmployeeModal(false);
-              setSelectedDeptEmployee(null);
-              loadData();
-            } catch (error) {
-              console.error('Failed to delete employee:', error);
-              alert('Failed to delete employee');
+              const empId = selectedDeptEmployee._id || selectedDeptEmployee.employee_id;
+              if (!empId) {
+                throw new Error('Employee ID not found');
+              }
+              const response: any = await employeeService.delete(empId);
+              if (response && response.success === true) {
+                setShowDeleteEmployeeModal(false);
+                setSelectedDeptEmployee(null);
+                loadData();
+              } else {
+                const errorMsg = response?.message || 'Failed to delete employee';
+                throw new Error(errorMsg);
+              }
+            } catch (error: any) {
+              console.error('Delete error:', error);
+              const errorMessage = error?.message || error?.response?.data?.message || 'Failed to delete employee';
+              throw new Error(errorMessage);
             }
           }}
         />
@@ -1387,6 +1609,7 @@ const DepartmentManagerDashboard: React.FC = () => {
             setShowServeModal(false);
             setServingVisitor(null);
             setServingEmployee(null);
+            setPendingServiceStartTime('');
           }}
           visitor={{
             name: getVisitorName(servingVisitor),
@@ -1401,10 +1624,17 @@ const DepartmentManagerDashboard: React.FC = () => {
                   minute: '2-digit' 
                 })
               : 'Just now',
-            gate: 'Main Gate'
+            gate: 'Main Gate',
+            status: getVisitorStatus(servingVisitor),
+            serviceStartTime: pendingServiceStartTime || getServiceStartTime(servingVisitor),
+            departmentName: getDepartmentName(servingVisitor)
           }}
           onServiceStart={handleServiceStart}
           onServiceEnd={handleServiceEnd}
+          departments={departments}
+          employees={employees}
+          currentDepartmentId={departmentId}
+          onTransfer={handleTransferFromModal}
         />
       )}
     </div>

@@ -1,6 +1,7 @@
 // ServeVisitorModal - Modal for serving visitors (Timer starts automatically!)
 import React, { useState, useEffect, useRef } from 'react';
-import { FiX, FiSquare, FiRefreshCw, FiInfo } from 'react-icons/fi';
+import { FiX, FiSquare, FiRefreshCw, FiInfo, FiArrowRightCircle } from 'react-icons/fi';
+import { employeeService } from '../../../../core/services/adminService';
 
 export interface SelectedVisitor {
   name: string;
@@ -11,6 +12,21 @@ export interface SelectedVisitor {
   gate: string;
   status?: string;
   serviceStartTime?: string;
+  departmentName?: string;
+}
+
+export interface Department {
+  _id: string;
+  department_name?: string;
+  name?: string;
+}
+
+export interface Employee {
+  _id?: string;
+  employee_id?: string;
+  full_name?: string;
+  title?: string;
+  department_id?: string | Department | { _id?: string } | any;
 }
 
 export interface ServeVisitorModalProps {
@@ -18,11 +34,17 @@ export interface ServeVisitorModalProps {
   onClose: () => void;
   visitor: SelectedVisitor | null;
   onServiceEnd?: (data: { duration: string; startTime: string; endTime: string; notes: string; }) => void;
-  onServiceStart?: (startTime: string) => void; // Added missing prop for your logic
+  onServiceStart?: (startTime: string) => void;
+  // Transfer props
+  departments?: Department[];
+  employees?: Employee[];
+  currentDepartmentId?: string;
+  onTransfer?: (departmentId: string, departmentName: string, employeeId: string, employeeName: string) => void;
 }
 
 const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
-  isOpen, onClose, visitor, onServiceEnd, onServiceStart
+  isOpen, onClose, visitor, onServiceEnd, onServiceStart,
+  departments = [], employees = [], currentDepartmentId = '', onTransfer
 }) => {
   const [sessionNotes, setSessionNotes] = useState('');
   const [timer, setTimer] = useState({ hours: 0, minutes: 0, seconds: 0 });
@@ -33,6 +55,14 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
   const [serviceEnded, setServiceEnded] = useState(false);
   const [serviceStartTime, setServiceStartTime] = useState('');
   const [serviceEndTime, setServiceEndTime] = useState('');
+  
+  // Transfer state
+  const [showTransferSection, setShowTransferSection] = useState(false);
+  const [transferDepartment, setTransferDepartment] = useState('');
+  const [transferEmployee, setTransferEmployee] = useState('');
+  const [isTransferring, setIsTransferring] = useState(false);
+  const [departmentEmployees, setDepartmentEmployees] = useState<Employee[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
 
   const formatTime = (num: number) => num.toString().padStart(2, '0');
 
@@ -63,6 +93,29 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
     }, 1000);
   };
 
+  // Fetch employees when transfer department is selected
+  useEffect(() => {
+    if (transferDepartment && onTransfer) {
+      setLoadingEmployees(true);
+      setDepartmentEmployees([]);
+      
+      employeeService.getByDepartment(transferDepartment, false)
+        .then((res: any) => {
+          if (res.success && res.data) {
+            setDepartmentEmployees(res.data);
+          }
+        })
+        .catch(err => {
+          console.error('Failed to fetch employees:', err);
+        })
+        .finally(() => {
+          setLoadingEmployees(false);
+        });
+    } else {
+      setDepartmentEmployees([]);
+    }
+  }, [transferDepartment, onTransfer]);
+
   // COMBINED LOGIC: Handles your auto-start AND colleague's sync smoothly
   useEffect(() => {
     // Clear any existing timer first
@@ -79,6 +132,9 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
       setTimer({ hours: 0, minutes: 0, seconds: 0 });
       setServiceStartTime('');
       setServiceEndTime('');
+      setShowTransferSection(false);
+      setTransferDepartment('');
+      setTransferEmployee('');
 
       // 2. Decide which timer logic to use
       if (visitor.serviceStartTime) {
@@ -114,6 +170,23 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
       }
     };
   }, [isOpen, visitor]); 
+
+  const handleTransfer = () => {
+    if (!transferDepartment || !transferEmployee || !onTransfer) return;
+    
+    const dept = departments.find(d => d._id === transferDepartment);
+    const emp = employees.find(e => (e._id || e.employee_id) === transferEmployee);
+    
+    if (dept && emp) {
+      setIsTransferring(true);
+      onTransfer(
+        transferDepartment,
+        dept.department_name || dept.name || 'Unknown',
+        emp._id || emp.employee_id || '',
+        emp.full_name || 'Unknown'
+      );
+    }
+  }; 
 
   const handleEndService = () => {
     if (timerRef.current) {
@@ -167,6 +240,7 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
 
             <div className="mb-6"><label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">VISITOR ID</label><span className="text-[#2C3E50] text-[13px]">{visitor.id}</span></div>
             <div className="mb-6"><label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">EMAIL ADDRESS</label><span className="text-[#2C3E50] text-[13px]">{visitor.email}</span></div>
+            <div className="mb-6"><label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">DEPARTMENT</label><span className="inline-block bg-[#E3F2FD] text-[#1E88C8] text-[12px] px-2 py-1 rounded-[6px]">{visitor.departmentName || visitor.service}</span></div>
             <div className="mb-6"><label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">REQUESTED SERVICE</label><span className="inline-block bg-[#E3F2FD] text-[#1E88C8] text-[12px] px-2 py-1 rounded-[6px]">{visitor.service}</span></div>
             
             <div className="mt-auto">
@@ -202,8 +276,85 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
 
             <div className="mb-8">
               <label className="block text-[12px] text-[#8A94A6] uppercase tracking-[1px] mb-2">Session Notes (Optional)</label>
-              <textarea value={sessionNotes} onChange={(e) => setSessionNotes(e.target.value)} placeholder="Type 'transfer' anywhere here to record this as a Transferred service..." className="w-full h-[100px] border border-[#D9E1EA] rounded-[12px] p-3 text-[13px] resize-none focus:ring-2 focus:ring-[#1E88C8]" />
+              <textarea value={sessionNotes} onChange={(e) => setSessionNotes(e.target.value)} placeholder="Type notes about the service..." className="w-full h-[100px] border border-[#D9E1EA] rounded-[12px] p-3 text-[13px] resize-none focus:ring-2 focus:ring-[#1E88C8]" />
             </div>
+
+            {/* Transfer Section */}
+            {onTransfer && departments.length > 0 && (
+              <div className="mb-6 p-4 bg-[#ecfdf5] rounded-[12px] border border-[#059669]">
+                {!showTransferSection ? (
+                  <button
+                    onClick={() => setShowTransferSection(true)}
+                    className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-[#059669] text-white rounded-[8px] font-medium hover:bg-[#047857] transition-colors"
+                  >
+                    <FiArrowRightCircle className="w-4 h-4" /> Transfer to Another Department
+                  </button>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[#2C3E50] text-[14px] font-semibold">Transfer Visitor</span>
+                      <button 
+                        onClick={() => setShowTransferSection(false)}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <FiX className="w-4 h-4" />
+                      </button>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">Select Department</label>
+                      <select
+                        value={transferDepartment}
+                        onChange={(e) => {
+                          setTransferDepartment(e.target.value);
+                          setTransferEmployee('');
+                        }}
+                        className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#059669]"
+                      >
+                        <option value="">Choose department...</option>
+                        {departments
+                          .filter(d => d._id !== currentDepartmentId)
+                          .map(dept => (
+                            <option key={dept._id} value={dept._id}>
+                              {dept.department_name || dept.name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    
+                    {transferDepartment && (
+                      <div>
+                        <label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">Select Employee</label>
+                        <select
+                          value={transferEmployee}
+                          onChange={(e) => setTransferEmployee(e.target.value)}
+                          className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#059669]"
+                        >
+                          <option value="">{loadingEmployees ? 'Loading employees...' : 'Choose employee...'}</option>
+                          {departmentEmployees
+                            .map((emp) => (
+                              <option key={emp._id || emp.employee_id} value={emp._id || emp.employee_id}>
+                                {emp.full_name} {emp.title ? `(${emp.title})` : ''}
+                              </option>
+                            ))}
+                        </select>
+                        {!loadingEmployees && departmentEmployees.length === 0 && transferDepartment && (
+                          <p className="text-red-500 text-xs mt-2">No employees found in this department</p>
+                        )}
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={handleTransfer}
+                      disabled={!transferDepartment || !transferEmployee || isTransferring}
+                      className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-[#059669] text-white rounded-[8px] font-bold hover:bg-[#047857] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isTransferring ? 'Transferring...' : 'Confirm Transfer'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex justify-end items-center pt-4 border-t border-[#E8EAED]">
               <button onClick={handleEndService} className="inline-flex items-center gap-2 bg-[#e53935] text-white px-8 py-3 rounded-[14px] text-[14px] font-bold hover:bg-[#c62828] transition-colors shadow-sm">
