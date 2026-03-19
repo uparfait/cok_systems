@@ -1,5 +1,5 @@
 // ProvideServicesTab - Service Provision page with Serve Modal
-// INTEGRATED WITH BACKEND SCHEMA: SAVES TIMESTAMPS PROPERLY
+// NOW REUSABLE: Can be embedded in the Dashboard or viewed standalone
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
@@ -37,6 +37,7 @@ interface SelectedVisitor {
   id: string;
   name: string;
   visitorId: string;
+  badgeNumber: string;
   email: string;
   service: string;
   checkInTime: string;
@@ -50,6 +51,7 @@ interface ServiceRequest {
   id: string;
   visitorName: string;
   visitorId: string;
+  badgeNumber: string;
   assignedTo: string;
   serviceType: string;
   waitTime: string;
@@ -62,7 +64,12 @@ interface ServiceRequest {
   rawVisitor: any;
 }
 
-const ProvideServicesTab: React.FC = () => {
+// Allow the component to know if it's being rendered inside the Dashboard
+export interface ProvideServicesTabProps {
+  isDashboardView?: boolean;
+}
+
+const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView = false }) => {
   const { user } = useAuth();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -80,11 +87,8 @@ const ProvideServicesTab: React.FC = () => {
 
   const fetchAssignedVisitors = useCallback(async () => {
     const currentUser = user as any;
-    // Fix: Use userId which is the correct field name in User interface
     const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
     const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown').trim();
-
-    console.log('[fetchAssignedVisitors] My ID:', myId, 'My Name:', myName);
 
     if (!myId || myId === 'undefined') {
       setLoading(false);
@@ -122,10 +126,13 @@ const ProvideServicesTab: React.FC = () => {
           if (typeof v.identification === 'string') identification = v.identification;
           else if (v.identification?.number) identification = v.identification.number;
 
+          // Extract badge number from backend
+          let badgeNumber = '';
+          if (v.badge_number) badgeNumber = v.badge_number;
+
           const deptAssigned = v.departments_assigned?.find((d: any) => String(d.provider_id) === myId);
           const checkIn = deptAssigned?.assigned_time || v.entry_date || new Date().toISOString();
           
-          // 👉 FIX: Legally pull the start time from the durations array in the DB schema!
           const serviceDuration = v.durations?.services_durations?.find((d: any) => String(d.provider_id) === myId);
           const serviceStartTime = serviceDuration?.started_at || '';
           
@@ -147,6 +154,7 @@ const ProvideServicesTab: React.FC = () => {
             id: v._id || v.id,
             visitorName: visitorName,
             visitorId: identification,
+            badgeNumber: badgeNumber,
             assignedTo: myName,
             serviceType: serviceStatus?.department_name || 'General Service',
             waitTime: waitTimeString,
@@ -183,7 +191,11 @@ const ProvideServicesTab: React.FC = () => {
 
   const filteredRequests = requests.filter(request => {
     const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = !searchTerm || request.visitorName.toLowerCase().includes(searchLower) || request.visitorId.toLowerCase().includes(searchLower);
+    const matchesSearch = !searchTerm || 
+      request.visitorName.toLowerCase().includes(searchLower) || 
+      request.visitorId.toLowerCase().includes(searchLower) ||
+      request.badgeNumber.toLowerCase().includes(searchLower) ||
+      request.telephone?.toLowerCase().includes(searchLower);
     
     let normalizedStatus = request.status.replace('_', '-'); 
     if (normalizedStatus === 'transfered') normalizedStatus = 'transferred';
@@ -196,22 +208,16 @@ const ProvideServicesTab: React.FC = () => {
   const startIndex = (currentPage - 1) * entriesPerPage;
   const paginatedRequests = filteredRequests.slice(startIndex, startIndex + entriesPerPage);
 
-  // 👉 PROPER SCHEMA PAYLOAD UPDATER
   const updateBackendStatus = async (targetStatus: string, visitorId: string, rawVisitor: any, isStart: boolean = false, durationStr: string = "") => {
     const currentUser = user as any;
-    // Fix: Use userId which is the correct field name in User interface
     const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
     const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown');
 
-    console.log('[updateBackendStatus] Current user ID:', myId, 'Name:', myName);
-
-    // 1. Update basic status
     const updatedServicesStatus = (rawVisitor.services_status || []).map((s: any) => {
       if (String(s.provider_id) === myId) return { ...s, s_type: targetStatus };
       return s;
     });
 
-    // 2. Properly update the durations array so Mongoose saves the timestamp!
     const currentDurations = rawVisitor.durations || { services_durations: [], emergency_durations: [] };
     const existingServiceDurations = currentDurations.services_durations || [];
     
@@ -244,7 +250,6 @@ const ProvideServicesTab: React.FC = () => {
       };
     }
 
-    // Send perfectly formatted payload to Backend using the dedicated service status endpoint
     await serviceDeliveryService.updateServiceStatus(visitorId, { 
       services_status: updatedServicesStatus,
       durations: { ...currentDurations, services_durations: updatedServiceDurations }
@@ -257,17 +262,13 @@ const ProvideServicesTab: React.FC = () => {
     let currentStatus = request.status;
     let startTime = request.serviceStartTime;
 
-    // AUTO-START THE SERVICE IF IT IS NEW
     if (request.status === 'not_started') {
       currentStatus = 'inprogress';
       startTime = new Date().toISOString();
       
       setRequests(prev => prev.map(r => r.id === request.id ? { ...r, status: 'inprogress', serviceStartTime: startTime } : r));
       
-      // Save start time securely to database
       await updateBackendStatus('Inprogress', request.id, request.rawVisitor, true);
-      
-      // Refresh data to get the confirmed start time from backend
       await fetchAssignedVisitors();
     }
 
@@ -275,6 +276,7 @@ const ProvideServicesTab: React.FC = () => {
       id: request.id,
       name: request.visitorName,
       visitorId: request.visitorId,
+      badgeNumber: request.badgeNumber,
       email: request.telephone,
       service: request.serviceType,
       checkInTime: request.checkInRaw ? new Date(request.checkInRaw).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A',
@@ -309,58 +311,80 @@ const ProvideServicesTab: React.FC = () => {
   };
 
   return (
-    <div className="p-7">
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-[#1a2744] text-[32px] font-extrabold">Service Provision</h1>
-          <p className="text-[#888] text-[13px] mt-1.5">Manage active visitor requests, track wait times, and provision services efficiently.</p>
-        </div>
-        <button onClick={fetchAssignedVisitors} className="flex items-center gap-2 h-9 px-4 border border-[#e0e0e0] rounded-[8px] bg-white text-[#333] text-[13px] hover:bg-gray-50 transition-colors">
-          <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh Data
-        </button>
-      </div>
+    <div className={isDashboardView ? "" : "p-7"}>
+      
+      {!isDashboardView && (
+        <>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-[#1a2744] text-[32px] font-extrabold">Service Provision</h1>
+              <p className="text-[#888] text-[13px] mt-1.5">Manage active visitor requests, track wait times, and provision services efficiently.</p>
+            </div>
+            <button onClick={fetchAssignedVisitors} className="flex items-center gap-2 h-9 px-4 border border-[#e0e0e0] rounded-[8px] bg-white text-[#333] text-[13px] hover:bg-gray-50 transition-colors">
+              <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh Data
+            </button>
+          </div>
 
-      <div className="flex gap-5 mt-7">
-        <div className="bg-white rounded-[14px] p-6 shadow-[0_1px_4px_rgba(0,0,0,0.07)] flex-1"><div className="flex justify-between items-start"><span className="text-[#999] text-[11px] uppercase tracking-wider">AVG. SERVICE TIME</span><FiClock className="text-[#90a4ae] w-7 h-7" /></div><div className="text-[#1a2744] text-[28px] font-bold mt-3">{stats.waitAvg}</div></div>
-        <div className="bg-white rounded-[14px] p-6 shadow-[0_1px_4px_rgba(0,0,0,0.07)] flex-1"><div className="flex justify-between items-start"><span className="text-[#999] text-[11px] uppercase tracking-wider">WAITING VISITORS</span><div className="text-[#90a4ae]"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg></div></div><div className="text-[#1a2744] text-[28px] font-bold mt-3">{stats.waiting}</div></div>
-        <div className="bg-white rounded-[14px] p-6 shadow-[0_1px_4px_rgba(0,0,0,0.07)] flex-1"><div className="flex justify-between items-start"><span className="text-[#999] text-[11px] uppercase tracking-wider">COMPLETED TODAY</span><FiCheckCircle className="text-[#34a853] w-7 h-7" /></div><div className="text-[#1a2744] text-[28px] font-bold mt-3">{stats.completed}</div></div>
-      </div>
+          <div className="flex gap-5 mt-7">
+            <div className="bg-white rounded-[14px] p-6 shadow-[0_1px_4px_rgba(0,0,0,0.07)] flex-1"><div className="flex justify-between items-start"><span className="text-[#999] text-[11px] uppercase tracking-wider">AVG. SERVICE TIME</span><FiClock className="text-[#90a4ae] w-7 h-7" /></div><div className="text-[#1a2744] text-[28px] font-bold mt-3">{stats.waitAvg}</div></div>
+            <div className="bg-white rounded-[14px] p-6 shadow-[0_1px_4px_rgba(0,0,0,0.07)] flex-1"><div className="flex justify-between items-start"><span className="text-[#999] text-[11px] uppercase tracking-wider">WAITING VISITORS</span><div className="text-[#90a4ae]"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg></div></div><div className="text-[#1a2744] text-[28px] font-bold mt-3">{stats.waiting}</div></div>
+            <div className="bg-white rounded-[14px] p-6 shadow-[0_1px_4px_rgba(0,0,0,0.07)] flex-1"><div className="flex justify-between items-start"><span className="text-[#999] text-[11px] uppercase tracking-wider">COMPLETED TODAY</span><FiCheckCircle className="text-[#34a853] w-7 h-7" /></div><div className="text-[#1a2744] text-[28px] font-bold mt-3">{stats.completed}</div></div>
+          </div>
+        </>
+      )}
 
-      <div className="bg-white rounded-[14px] p-4 mt-6 shadow-[0_1px_4px_rgba(0,0,0,0.07)]">
+      {/* The Search, Filter, and Table always render */}
+      <div className={`bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(0,0,0,0.07)] ${!isDashboardView ? 'mt-6' : ''}`}>
         <div className="flex items-center gap-3">
-          <div className="flex-1 relative"><FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><input type="text" placeholder="Search by visitor name or ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full h-11 pl-10 pr-4 border border-[#e0e0e0] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#1a73e8]" /></div>
+          <div className="flex-1 relative"><FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><input type="text" placeholder="Search by visitor name, ID, or badge..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full h-11 pl-10 pr-4 border border-[#e0e0e0] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#1a73e8]" /></div>
           <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }} className="h-11 px-4 border border-[#e0e0e0] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#1a73e8] bg-white"><option value="all">All Status</option><option value="not-started">Not Started</option><option value="inprogress">In Progress</option><option value="completed">Completed</option></select>
+          {isDashboardView && (
+            <button onClick={fetchAssignedVisitors} className="flex items-center gap-2 h-11 px-4 border border-[#e0e0e0] rounded-[8px] bg-white text-[#333] text-[13px] hover:bg-gray-50">
+              <FiRefreshCw className={loading ? 'animate-spin' : ''} /> Refresh
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="bg-white rounded-[14px] p-6 mt-4 shadow-[0_1px_4px_rgba(0,0,0,0.07)]">
-        <table className="w-full">
+      <div className="bg-white rounded-[14px] p-6 mt-4 shadow-[0_1px_4px_rgba(0,0,0,0.07)] overflow-x-auto">
+        <table className="w-full min-w-[800px]">
           <thead>
             <tr className="border-b border-[#f0f0f0]">
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">VISITOR</th>
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">ASSIGNED TO</th>
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">WAIT TIME</th>
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">STATUS</th>
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">ACTION</th>
+              <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[25%]">VISITOR</th>
+              {/* 👉 NEW BADGE & ID COLUMN */}
+              <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[20%]">BADGE & ID</th>
+              <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[15%]">ASSIGNED TO</th>
+              <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[15%]">WAIT TIME</th>
+              <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[15%]">STATUS</th>
+              <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[10%]">ACTION</th>
             </tr>
           </thead>
           <tbody>
             {loading && requests.length === 0 ? (
-              <tr><td colSpan={5} className="py-8 text-center text-gray-500">Loading requests...</td></tr>
+              <tr><td colSpan={6} className="py-8 text-center text-gray-500">Loading requests...</td></tr>
             ) : paginatedRequests.length > 0 ? paginatedRequests.map((request) => (
               <tr key={request.id} className="border-b border-[#f8f8f8] h-14">
-                <td className="py-3">
+                
+                {/* 👉 VISITOR COLUMN (Name + Phone) */}
+                <td className="py-3 px-2">
                   <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-full ${request.avatarColor} flex items-center justify-center text-white text-[12px] font-bold`}>{request.initials}</div>
-                    <div>
-                      <div className="text-[#333] text-[13px] font-medium">{request.visitorName}</div>
-                      <div className="text-[#888] text-[11px]">{request.visitorId}</div>
+                    <div className={`w-9 h-9 rounded-full ${request.avatarColor} flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0`}>{request.initials}</div>
+                    <div className="min-w-0">
+                      <div className="text-[#333] text-[13px] font-medium truncate">{request.visitorName}</div>
+                      <div className="text-[#888] text-[11px] truncate">{request.telephone !== 'N/A' ? request.telephone : 'No phone'}</div>
                     </div>
                   </div>
                 </td>
-                <td className="py-3 text-[#333] text-[13px] font-medium">{request.assignedTo}</td>
-                <td className="py-3 text-[#666] text-[13px] font-medium">{request.waitTime}</td>
-                <td className="py-3">
+
+                {/* 👉 NEW BADGE & ID COLUMN */}
+                <td className="py-3 px-2">
+                  <div className="text-[#333] text-[13px] font-medium">{request.badgeNumber ? `Badge: ${request.badgeNumber}` : 'No Badge'}</div>
+                  <div className="text-[#888] text-[11px]">ID: {request.visitorId}</div>
+                </td>
+
+                <td className="py-3 px-2 text-[#333] text-[13px] font-medium">{request.assignedTo}</td>
+                <td className="py-3 px-2 text-[#666] text-[13px] font-medium">{request.waitTime}</td>
+                <td className="py-3 px-2">
                   {request.status === 'not_started' && <span className="inline-flex items-center px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide bg-[#fff3e0] text-[#f57c00]">Not Started</span>}
                   {request.status === 'inprogress' && (
                     <span className="inline-flex items-center gap-2 px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide bg-[#e3f2fd] text-[#1a73e8]">
@@ -371,24 +395,24 @@ const ProvideServicesTab: React.FC = () => {
                   {request.status === 'completed' && <span className="inline-flex items-center px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide bg-[#e8f5e9] text-[#2e7d32]">Completed</span>}
                   {request.status === 'transfered' && <span className="inline-flex items-center px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide bg-[#f3e5f5] text-[#7b1fa2]">Transferred</span>}
                 </td>
-                <td className="py-3">
+                <td className="py-3 px-2">
                   {request.status === 'completed' ? (
                     <span className="text-[#34a853] text-[12px] font-medium">✓ Served</span>
                   ) : request.status === 'transfered' ? (
                     <span className="text-[#7b1fa2] text-[12px] font-medium">⇄ Transferred</span>
                   ) : request.status === 'inprogress' ? (
-                    <button onClick={() => handleServeClick(request)} disabled={isServing} className="flex items-center gap-1.5 h-8 px-4 bg-[#e53935] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#c62828] transition-colors disabled:opacity-50">
+                    <button onClick={() => handleServeClick(request)} disabled={isServing} className="flex items-center justify-center gap-1.5 h-8 w-20 bg-[#e53935] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#c62828] transition-colors disabled:opacity-50">
                       <FiSquare className="w-3 h-3 fill-current" /> Stop
                     </button>
                   ) : (
-                    <button onClick={() => handleServeClick(request)} disabled={isServing} className="h-8 px-4 bg-[#1a73e8] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#1558c0] transition-colors disabled:opacity-50">
+                    <button onClick={() => handleServeClick(request)} disabled={isServing} className="h-8 w-20 bg-[#1a73e8] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#1558c0] transition-colors disabled:opacity-50">
                       Serve
                     </button>
                   )}
                 </td>
               </tr>
             )) : (
-              <tr><td colSpan={5} className="py-8 text-center text-gray-500">No active visitors assigned to you.</td></tr>
+              <tr><td colSpan={6} className="py-8 text-center text-gray-500">No active visitors assigned to you.</td></tr>
             )}
           </tbody>
         </table>
