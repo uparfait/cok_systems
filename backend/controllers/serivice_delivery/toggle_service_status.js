@@ -7,8 +7,17 @@ module.exports = async function toggle_service_status(req, res, next) {
         let {
             visitor_id = null,
             department_id = null,
-            status = null // 'Inprogress' or 'Completed'
+            status = null, // 'Inprogress' or 'Completed'
+            provider_id = null,
+            provider_name = null
         } = req.body || {};
+
+        // Get current user from request (set by auth middleware)
+        const currentUser = req.user;
+        
+        // Use provided provider info or fall back to current user
+        const officerId = provider_id || currentUser?._id || currentUser?.id || currentUser?.employee_id;
+        const officerName = provider_name || currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown Officer';
 
         if (!visitor_id || !department_id || !status) {
             return res.status(400).json({
@@ -44,13 +53,21 @@ module.exports = async function toggle_service_status(req, res, next) {
         const active_service = visitor.services_status[service_index];
         const current_time = new Date();
 
-        // 2. Logic for marking as 'Inprogress'
+        // 2. Logic for marking as 'Inprogress' (Officer Accepted)
         if (status === 'Inprogress') {
             active_service.s_type = 'Inprogress';
             
-            // Mark reached_in as true in departments_assigned
+            // Set the provider/officer info who accepted/started the service
+            active_service.provider_id = officerId;
+            active_service.provider_name = officerName;
+            
+            // Also update departments_assigned if exists
             const dept_assign = visitor.departments_assigned.find(d => d.department_id === department_id);
-            if (dept_assign) dept_assign.reached_in = true;
+            if (dept_assign) {
+                dept_assign.reached_in = true;
+                dept_assign.provider_id = officerId;
+                dept_assign.provider_name = officerName;
+            }
         }
 
         // 3. Logic for marking as 'Completed'
@@ -79,9 +96,13 @@ module.exports = async function toggle_service_status(req, res, next) {
                 duration: duration_str,
                 started_at: start_time,
                 ended_at: current_time,
-                provider_name: active_service.provider_name,
-                provider_id: active_service.provider_id
+                provider_name: officerName,
+                provider_id: officerId
             });
+            
+            // C. Also update the services_status with final provider info
+            active_service.provider_id = officerId;
+            active_service.provider_name = officerName;
 
             active_service.s_type = 'Completed';
         }
