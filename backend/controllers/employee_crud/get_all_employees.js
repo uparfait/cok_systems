@@ -22,7 +22,8 @@ module.exports = async function get_employees(req, res, next) {
             message: "Employees",
             total: total_count,
             page: parseInt(page),
-            data: employees
+            data: employees,
+            tols: employees.length
         })
 
     } catch (error) {

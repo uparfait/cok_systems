@@ -6,13 +6,15 @@ import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
 // Socket server URL
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://cok-bc.onrender.com';
+// Use localhost:2026 for local development, remote for production
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 
+  (window.location.hostname === 'localhost' ? 'http://localhost:2026' : 'https://cok-bc.onrender.com');
 
 // Context type
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
-  emit: (event: string, data: any) => void;
+  emit: (event: string, data: any, callback?: (response: any) => void) => void;
   on: (event: string, callback: (data: any) => void) => void;
   off: (event: string, callback?: (data: any) => void) => void;
 }
@@ -27,6 +29,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const { token } = useAuth();
 
   useEffect(() => {
+    console.log('[SocketContext] Token changed:', token ? 'present' : 'null');
+    
     if (!token) {
       // Don't connect if no token
       if (socket) {
@@ -40,14 +44,23 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // Create socket connection
     const newSocket = io(SOCKET_URL, {
       auth: {
-        token
+        token: token || undefined
       },
       transports: ['websocket', 'polling'],
+      transportOptions: {
+        polling: {
+          extraHeaders: {
+            Authorization: token ? `Bearer ${token}` : ''
+          }
+        }
+      },
       reconnection: true,
-      reconnectionAttempts: 3, // Limit retries to prevent endless retrying
+      reconnectionAttempts: 10, // Limit retries to prevent endless retrying
       reconnectionDelay: 2000, // Wait 2 seconds between retries
       timeout: 10000, // Connection timeout
     });
+    
+    console.log('[SocketContext] Creating socket with token:', token ? 'yes' : 'no');
 
     // Track reconnection attempts
     let reconnectAttempts = 0;
@@ -57,6 +70,15 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.log('Socket connected:', newSocket.id);
       setIsConnected(true);
       reconnectAttempts = 0; // Reset on successful connection
+      
+      // Verify authentication status with server
+      newSocket.emit('get_user_info', {}, (response: any) => {
+        if (response && response.authenticated) {
+          console.log('Socket authenticated as:', response.user?.email, 'Role:', response.user?.role);
+        } else {
+          console.log('Socket not authenticated:', response?.message || 'Unknown reason');
+        }
+      });
     });
 
     newSocket.on('disconnect', (reason) => {
@@ -98,12 +120,19 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, [token]);
 
-  // Emit event to server
-  const emit = useCallback((event: string, data: any) => {
+  // Emit event to server with optional callback
+  const emit = useCallback((event: string, data: any, callback?: (response: any) => void) => {
     if (socket && isConnected) {
-      socket.emit(event, data);
+      if (callback) {
+        socket.emit(event, data, callback);
+      } else {
+        socket.emit(event, data);
+      }
     } else {
       console.warn('Socket not connected, cannot emit event:', event);
+      if (callback) {
+        callback({ success: false, message: 'Socket not connected' });
+      }
     }
   }, [socket, isConnected]);
 

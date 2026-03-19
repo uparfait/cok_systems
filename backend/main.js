@@ -1,6 +1,6 @@
 /**
  * To prevent app crash according to missed module we are overwritting require function
- * to don't crash an application but we do this with caution
+ * to don't crash an application but we do this with caution.
  */
 
 
