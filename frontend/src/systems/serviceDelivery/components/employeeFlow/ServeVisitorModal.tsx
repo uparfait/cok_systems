@@ -13,6 +13,7 @@ export interface SelectedVisitor {
   gate: string;
   status?: string;
   serviceStartTime?: string;
+  departmentName?: string;
 }
 
 export interface ServeVisitorModalProps {
@@ -65,7 +66,7 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
     }, 1000);
   };
 
-  // COMBINED LOGIC: Handles your auto-start AND colleague's sync smoothly
+  // COMBINED LOGIC: Sync timer from backend start time
   useEffect(() => {
     // Clear any existing timer first
     if (timerRef.current) {
@@ -74,7 +75,7 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
     }
 
     if (isOpen && visitor) {
-      // 1. Reset states (Your logic)
+      // 1. Reset states
       setServiceStarted(false);
       setServiceEnded(false);
       setSessionNotes('');
@@ -82,11 +83,11 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
       setServiceStartTime('');
       setServiceEndTime('');
 
-      // 2. Decide which timer logic to use
+      // 2. If visitor has a serviceStartTime from backend, sync to it
       if (visitor.serviceStartTime) {
-        // COLLEAGUE'S LOGIC: Visitor already has a start time, sync it accurately
         setServiceStarted(true);
         const start = new Date(visitor.serviceStartTime).getTime();
+        setServiceStartTime(visitor.serviceStartTime);
         
         if (!isNaN(start)) {
           const syncTimer = () => {
@@ -103,7 +104,7 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
           timerRef.current = setInterval(syncTimer, 1000); // Live sync
         }
       } else {
-        // YOUR LOGIC: No start time yet, auto-start and notify parent
+        // No start time - auto-start (rare case)
         handleStartService();
       }
     }

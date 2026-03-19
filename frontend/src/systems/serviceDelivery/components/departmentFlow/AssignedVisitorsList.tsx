@@ -1,3 +1,5 @@
+
+// export default AssignedVisitorsList;
 // AssignedVisitorsList Component - Exact Figma Design Implementation
 
 import { useState, useEffect, useMemo } from "react";
@@ -13,18 +15,26 @@ interface AssignedVisitor {
   id: string;
   fullName: string;
   nationalId: string;
+  identity?: string;
+  badgeNumber?: string;
   service: string;
   department: string;
   assignmentTime: string;
   status: string;
   phone: string;
   checkInTime: string;
-  roomNumber?: string;
   queuePosition?: number;
   checkedInTime?: string;
   checkedInGate?: string;
   receptionistName?: string;
   officerName?: string;
+  // Provider/Officer info from services_status
+  providerName?: string;
+  providerId?: string;
+  // Service type from backend: 'Not started', 'Inprogress', 'Transfered', 'Completed'
+  serviceType?: string;
+  // Track which department's status we're showing
+  currentDepartmentId?: string;
 }
 
 interface AssignedVisitorsListProps {
@@ -38,10 +48,42 @@ const statusConfig = {
   transferred: { bg: "bg-gray-100", text: "text-gray-700", dot: "bg-gray-500", label: "TRANSFERRED" },
   inprogress: { bg: "bg-blue-100", text: "text-blue-700", dot: "bg-blue-500", label: "IN PROGRESS" },
   waiting: { bg: "bg-purple-100", text: "text-purple-700", dot: "bg-purple-500", label: "WAITING" },
+  'not started': { bg: "bg-purple-100", text: "text-purple-700", dot: "bg-purple-500", label: "NOT STARTED" },
+};
+
+// Helper to determine the display status based on service type
+const getDisplayStatus = (visitor: AssignedVisitor): string => {
+  const serviceType = visitor.serviceType?.toLowerCase();
+  if (serviceType === 'completed') return 'completed';
+  if (serviceType === 'inprogress') return 'inprogress';
+  if (serviceType === 'transfered') return 'transferred';
+  // If visitor is assigned to department but not started yet
+  if (visitor.status === 'transferred' || visitor.department) return 'waiting';
+  return visitor.status?.toLowerCase() || 'waiting';
+};
+
+// Get the officer/employee name for display
+const getOfficerName = (visitor: AssignedVisitor): string => {
+  // Priority: providerName (from services_status) > officerName > 'Pending'
+  if (visitor.providerName) return visitor.providerName;
+  if (visitor.officerName) return visitor.officerName;
+  return 'Pending';
+};
+
+// Check if service is in progress (Officer Accepted phase)
+const isOfficerAccepted = (visitor: AssignedVisitor): boolean => {
+  const serviceType = visitor.serviceType?.toLowerCase();
+  return serviceType === 'inprogress' || serviceType === 'accepted';
+};
+
+// Check if service is completed
+const isServiceCompleted = (visitor: AssignedVisitor): boolean => {
+  return visitor.serviceType?.toLowerCase() === 'completed';
 };
 
 // Get initials from name
 const getInitials = (name: string) => {
+  if (!name) return "??";
   const parts = name.split(' ');
   if (parts.length >= 2) {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
@@ -51,6 +93,7 @@ const getInitials = (name: string) => {
 
 // Get color from name
 const getColorFromName = (name: string) => {
+  if (!name) return 'bg-gray-500';
   const colors = [
     'bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500',
     'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500'
@@ -90,6 +133,7 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
     setShowServicePanel(false);
     setActiveVisitorId(null);
     setSelectedVisitor(null);
+    setEditingVisitor(null);
   };
   
 
@@ -111,11 +155,12 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
   const filteredVisitors = useMemo(() => {
     return visitors.filter(visitor => {
       const matchesSearch = !searchTerm ? true : 
-        visitor.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        visitor.nationalId.includes(searchTerm) ||
-        visitor.phone.includes(searchTerm);
+        (visitor.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        visitor.nationalId?.includes(searchTerm) ||
+        visitor.phone?.includes(searchTerm));
        
-      const matchesStatus = statusFilter === 'all' ? true : visitor.status === statusFilter;
+      // Use serviceType for status filtering
+      const matchesStatus = statusFilter === 'all' ? true : getDisplayStatus(visitor) === statusFilter;
        
       return matchesSearch && matchesStatus;
     });
@@ -127,6 +172,11 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
 
   // Export functions
   const handleExportPDF = () => {
@@ -161,12 +211,12 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
               ${filteredVisitors.map((v, i) => `
                 <tr>
                   <td>${i + 1}</td>
-                  <td>${v.fullName}</td>
-                  <td>${v.nationalId}</td>
-                  <td>${v.service}</td>
-                  <td>${v.department}</td>
-                  <td>${v.assignmentTime}</td>
-                  <td>${statusConfig[v.status as keyof typeof statusConfig]?.label || v.status}</td>
+                  <td>${v.fullName || ''}</td>
+                  <td>${v.nationalId || ''}</td>
+                  <td>${v.service || ''}</td>
+                  <td>${v.department || ''}</td>
+                  <td>${v.assignmentTime || ''}</td>
+                  <td>${statusConfig[v.status as keyof typeof statusConfig]?.label || v.status || ''}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -191,12 +241,12 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
     const headers = ['#', 'Visitor Name', 'National ID', 'Service', 'Department', 'Assignment Time', 'Status'];
     const rows = filteredVisitors.map((v, i) => [
       i + 1,
-      v.fullName,
-      v.nationalId,
-      v.service,
-      v.department,
-      v.assignmentTime,
-      statusConfig[v.status as keyof typeof statusConfig]?.label || v.status
+      v.fullName || '',
+      v.nationalId || '',
+      v.service || '',
+      v.department || '',
+      v.assignmentTime || '',
+      statusConfig[v.status as keyof typeof statusConfig]?.label || v.status || ''
     ]);
     
     const tsv = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
@@ -209,15 +259,38 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
     URL.revokeObjectURL(url);
   };
 
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    
+    if (currentPage <= 3) {
+      return [1, 2, 3, 4, 5];
+    }
+    
+    if (currentPage >= totalPages - 2) {
+      return Array.from({ length: 5 }, (_, i) => totalPages - 4 + i);
+    }
+    
+    return [
+      currentPage - 2,
+      currentPage - 1,
+      currentPage,
+      currentPage + 1,
+      currentPage + 2
+    ];
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-800">Assigned Visitors Tracking</h1>
         <p className="text-sm text-gray-500 mt-1">Manage real-time visitor flow and service assignments across all government departments.</p>
       </div>
 
-      {/* Export Buttons */}
+      {/* Export Buttons
       <div className="flex gap-3">
         <button 
           onClick={handleExportPDF}
@@ -228,17 +301,17 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
         </button>
         <button 
           onClick={handleExportExcel}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-white text-black rounded-lg transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-black rounded-lg transition-colors"
         >
           <FiFileText className="w-4 h-4" />
           Export Excel
         </button>
-      </div>
+      </div> */}
 
       {/* Search and Table Container - Grid layout with panel */}
       <div className="relative min-h-[calc(100vh-200px)]">
         {/* Left side: Search and Table */}
-        <div className={`${selectedVisitor ? 'w-[calc(100%-350px)]' : 'w-full'} space-y-4 pr-4`}>
+        <div className={`${showServicePanel && selectedVisitor ? 'w-[calc(100%-320px)]' : 'w-full'} space-y-4 pr-4 transition-all duration-300`}>
           {/* Search and Filter Card */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <div className="flex items-center gap-4">
@@ -247,7 +320,7 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
                 <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="search by visitor name,id or badge....."
+                  placeholder="Search by visitor name, ID or badge..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -281,71 +354,85 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-4 py-3">VISITOR NAME</th>
-                    <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-4 py-3">SERVICE REQUESTED</th>
+                    <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-4 py-3">IDENTITY</th>
+                    <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-4 py-3">BADGE NUMBER</th>
                     <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-4 py-3">DEPARTMENT</th>
                     <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-4 py-3">ASSIGNMENT TIME</th>
                     <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-4 py-3">STATUS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {paginatedVisitors.map((visitor, index) => {
-                    const status = statusConfig[visitor.status as keyof typeof statusConfig] || statusConfig.waiting;
-                    const isActive = activeVisitorId === visitor.id;
-                    return (
-                      <tr 
-                        key={visitor.id} 
-                        onClick={() => handleRowClick(visitor)}
-                        className={`cursor-pointer transition-colors ${isActive ? 'bg-[#E7F1FA] border-l-4 border-l-[#1E88C8] shadow-sm' : 'hover:bg-gray-50 border-l-4 border-l-transparent'}`}
-                      >
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full ${getColorFromName(visitor.fullName)} flex items-center justify-center text-white font-medium`}>
-                              {getInitials(visitor.fullName)}
+                  {paginatedVisitors.length > 0 ? (
+                    paginatedVisitors.map((visitor) => {
+                      // Use serviceType from services_status for accurate status display
+                      const displayStatus = getDisplayStatus(visitor);
+                      const status = statusConfig[displayStatus as keyof typeof statusConfig] || statusConfig.waiting;
+                      const isActive = activeVisitorId === visitor.id;
+                      return (
+                        <tr 
+                          key={visitor.id} 
+                          onClick={() => handleRowClick(visitor)}
+                          className={`cursor-pointer transition-colors ${isActive ? 'bg-[#E7F1FA] border-l-4 border-l-[#1E88C8] shadow-sm' : 'hover:bg-gray-50 border-l-4 border-l-transparent'}`}
+                        >
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-full ${getColorFromName(visitor.fullName)} flex items-center justify-center text-white font-medium`}>
+                                {getInitials(visitor.fullName)}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-800">{visitor.fullName}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-800">{visitor.fullName}</p>
-                              <p className="text-xs text-gray-500">ID : {visitor.nationalId}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="text-sm text-gray-600">{visitor.service}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="text-sm text-gray-600">{visitor.department}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="text-sm text-gray-600">{visitor.assignmentTime}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${status.bg} ${status.text}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`}></span>
-                            {status.label}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="text-sm text-gray-800 font-medium">{visitor.identity || '___'}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                              {visitor.badgeNumber || '___'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="text-sm text-gray-600">{visitor.department}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="text-sm text-gray-600">{visitor.assignmentTime}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${status.bg} ${status.text}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`}></span>
+                              {status.label}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                        No visitors found
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
 
             {/* Bottom of Table */}
-            <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-              <p className="text-sm text-gray-500">
-                Showing {paginatedVisitors.length} of {filteredVisitors.length} assigned visitors
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FiArrowRight className="w-4 h-4 rotate-180" />
-                </button>
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const page = i + 1;
-                  return (
+            {filteredVisitors.length > 0 && (
+              <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+                <p className="text-sm text-gray-500">
+                  Showing {paginatedVisitors.length} of {filteredVisitors.length} assigned visitors
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <FiArrowRight className="w-4 h-4 rotate-180" />
+                  </button>
+                  {getPageNumbers().map((page) => (
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
@@ -357,134 +444,153 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
                     >
                       {page}
                     </button>
-                  );
-                })}
-                <button
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                  className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FiArrowRight className="w-4 h-4" />
-                </button>
+                  ))}
+                  <button
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages || totalPages === 0}
+                    className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <FiArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
-        {/* Right Panel - Service Tracking Card */}
+        {/* Right Panel - Service Tracking Card - Glassmorphism Design */}
         {showServicePanel && selectedVisitor && (
           <div 
-            className="fixed right-0 top-16 h-[calc(100%-4rem)] bg-[#F7F9FC] border-l border-[#E3E8EF] overflow-hidden z-40"
-            style={{ width: '350px' }}
+            className="fixed right-0 top-0 h-full z-40 shadow-2xl overflow-hidden"
+            style={{ width: '320px' }}
           >
-            {/* Panel Header */}
-            <div className="px-6 py-5 border-b border-[#E3E8EF] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FiTrendingUp className="w-5 h-5 text-[#1E88C8]" />
-                <span className="text-base font-semibold text-[#2C3E50]">Service Tracking</span>
-              </div>
-              <button 
-                onClick={() => handleClosePanel()}
-                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <FiX className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
+            {/* Glassmorphism Background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/80 to-blue-50/60 backdrop-blur-xl"></div>
             
-            {/* Selected Visitor Card */}
-            <div className="bg-white rounded-xl p-4 shadow-[0px_2px_8px_rgba(0,0,0,0.05)]">
-                <div className="flex items-center gap-3">
-                  {/* Avatar Circle */}
-                  <div className="w-10 h-10 rounded-full bg-[#E8D9FF] flex items-center justify-center">
-                    <span className="text-base font-semibold text-[#7B3FE4]">{getInitials(selectedVisitor?.fullName || '')}</span>
+            {/* Content */}
+            <div className="relative h-full flex flex-col">
+              {/* Panel Header */}
+              <div className="px-5 py-4 border-b border-white/30 flex items-center justify-between bg-white/20">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shadow-md">
+                    <FiTrendingUp className="w-4 h-4 text-white" />
                   </div>
-                  {/* Visitor Details */}
-                  <div>
-                    <p className="text-sm font-semibold text-[#2C3E50]">{selectedVisitor?.fullName?.toUpperCase()}</p>
-                    <p className="text-[11px] text-[#8A94A6] tracking-wide">{selectedVisitor?.department?.toUpperCase()} • {selectedVisitor?.roomNumber?.toUpperCase() || 'ROOM PENDING'}</p>
+                  <span className="text-sm font-bold text-gray-800">Service Tracking</span>
+                </div>
+                <button 
+                  onClick={handleClosePanel}
+                  className="p-1.5 hover:bg-white/50 rounded-lg transition-colors"
+                >
+                  <FiX className="w-4 h-4 text-gray-600" />
+                </button>
+              </div>
+              
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {/* Visitor Card - Glassmorphism */}
+                <div className="bg-white/40 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-white/50">
+                  <div className="flex items-center gap-3">
+                    {/* Avatar Circle */}
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-md">
+                      <span className="text-sm font-bold text-white">{getInitials(selectedVisitor?.fullName || '')}</span>
+                    </div>
+                    {/* Visitor Details */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-800 truncate">{selectedVisitor?.fullName}</p>
+                      <p className="text-xs text-gray-500 truncate">{selectedVisitor?.department}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Status */}
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200/50">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${isServiceCompleted(selectedVisitor!) ? 'bg-green-500' : isOfficerAccepted(selectedVisitor!) ? 'bg-blue-500 animate-pulse' : 'bg-yellow-500 animate-pulse'}`}></div>
+                      <span className="text-xs font-medium text-gray-600">
+                        {isServiceCompleted(selectedVisitor!) ? 'Completed' : isOfficerAccepted(selectedVisitor!) ? 'In Progress' : 'Waiting'}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] text-gray-400">Checked In</p>
+                      <p className="text-sm font-semibold text-gray-600">{selectedVisitor?.checkedInTime || '---'}</p>
+                    </div>
                   </div>
                 </div>
                 
-                {/* Queue Information */}
-                <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
-                  <div>
-                    <p className="text-[11px] text-[#8A94A6]">WAITING</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[11px] text-[#8A94A6]">Queue Position</p>
-                    <p className="text-xl font-semibold text-[#1E88C8]">#{selectedVisitor?.queuePosition || '-'}</p>
-                  </div>
-                </div>
-            </div>
-            
-            {/* Service Timeline / Progress Tracker */}
-            <div className="px-6 py-5">
-              <div className="relative">
-                {/* Vertical line */}
-                <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-[#D8E1EC]"></div>
-                
-                {/* Timeline Steps */}
-                <div className="space-y-5">
-                  {/* Completed Step - Checked In */}
-                  <div className="flex items-start gap-3 relative">
-                    <div className="w-8 h-8 rounded-full bg-[#1E88C8] flex items-center justify-center z-10">
-                      <FiCheck className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="pt-1">
-                      <p className="text-sm font-medium text-[#2C3E50]">Checked In</p>
-                      <p className="text-xs text-[#8A94A6]">{selectedVisitor?.checkedInTime || '10:55 AM'} • {selectedVisitor?.checkedInGate || 'Gate'}</p>
-                    </div>
-                  </div>
+                {/* Service Timeline - Compact Glassmorphism */}
+                <div className="bg-white/30 backdrop-blur-sm rounded-2xl p-4 shadow-lg border border-white/40">
+                  <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">Progress</p>
                   
-                  {/* Current Step - Transferred */}
-                  <div className="flex items-start gap-3 relative">
-                    <div className="w-8 h-8 rounded-full bg-white border-2 border-[#1E88C8] flex items-center justify-center z-10">
-                      <FiArrowRightCircle className="w-4 h-4 text-[#1E88C8]" />
-                    </div>
-                    <div className="pt-1">
-                      <p className="text-sm font-medium text-[#1E88C8]">Transferred</p>
-                      <p className="text-xs text-[#1E88C8]">11:15 AM • To {selectedVisitor?.roomNumber || 'Room 402'}</p>
-                    </div>
-                  </div>
-                  
-                  {/* Pending Step - Officer Accepted */}
-                  <div className="flex items-start gap-3 relative">
-                    <div className="w-8 h-8 rounded-full bg-[#EEF2F7] flex items-center justify-center z-10">
-                      <FiUserCheck className="w-4 h-4 text-[#A0AEC0]" />
-                    </div>
-                    <div className="pt-1">
-                      <p className="text-sm font-medium text-[#A0AEC0]">Officer Accepted</p>
-                      <p className="text-xs text-[#A0AEC0]">Pending Officer</p>
-                    </div>
-                  </div>
-                  
-                  {/* Pending Step - Completed */}
-                  <div className="flex items-start gap-3 relative">
-                    <div className="w-8 h-8 rounded-full bg-[#EEF2F7] flex items-center justify-center z-10">
-                      <FiCheckSquare className="w-4 h-4 text-[#A0AEC0]" />
-                    </div>
-                    <div className="pt-1">
-                      <p className="text-sm font-medium text-[#A0AEC0]">Completed</p>
-                      <p className="text-xs text-[#A0AEC0]">Service end</p>
+                  {/* Vertical Timeline - Compact */}
+                  <div className="relative">
+                    {/* Vertical line */}
+                    <div className="absolute left-3.5 top-2 bottom-2 w-0.5 bg-gradient-to-b from-blue-400 via-blue-400 to-gray-300"></div>
+                    
+                    {/* Timeline Steps - Compact */}
+                    <div className="space-y-3">
+                      {/* Step - Checked In */}
+                      <div className="flex items-center gap-3 relative">
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center z-10 shadow-md">
+                          <FiCheck className="w-3.5 h-3.5 text-white" />
+                        </div>
+                        <div className="flex-1 bg-white/50 rounded-lg p-2 shadow-sm">
+                          <p className="text-xs font-semibold text-gray-700">Checked In</p>
+                          <p className="text-[10px] text-gray-400">{selectedVisitor?.checkedInTime || '---'} • {selectedVisitor?.checkedInGate || 'Gate'}</p>
+                        </div>
+                      </div>
+                      
+                      {/* Step - Transferred */}
+                      <div className="flex items-center gap-3 relative">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center z-10 shadow-md ${isServiceCompleted(selectedVisitor!) || isOfficerAccepted(selectedVisitor!) ? 'bg-gradient-to-br from-blue-400 to-blue-600' : 'bg-white border-2 border-blue-400'}`}>
+                          {isServiceCompleted(selectedVisitor!) || isOfficerAccepted(selectedVisitor!) ? (
+                            <FiCheck className="w-3.5 h-3.5 text-white" />
+                          ) : (
+                            <FiArrowRightCircle className="w-4 h-4 text-blue-500" />
+                          )}
+                        </div>
+                        <div className={`flex-1 rounded-lg p-2 shadow-sm ${isServiceCompleted(selectedVisitor!) || isOfficerAccepted(selectedVisitor!) ? 'bg-blue-50/80' : 'bg-white/50'}`}>
+                          <p className={`text-xs font-semibold ${isServiceCompleted(selectedVisitor!) || isOfficerAccepted(selectedVisitor!) ? 'text-blue-700' : 'text-blue-500'}`}>Transferred</p>
+                          <p className={`text-[10px] ${isServiceCompleted(selectedVisitor!) || isOfficerAccepted(selectedVisitor!) ? 'text-gray-500' : 'text-blue-400'}`}>{selectedVisitor?.assignmentTime || '---'} • To {selectedVisitor?.department?.split(' ')[0] || 'Dept'}</p>
+                        </div>
+                      </div>
+                      
+                      {/* Step - Officer Accepted */}
+                      <div className="flex items-center gap-3 relative">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center z-10 shadow-md ${isServiceCompleted(selectedVisitor!) ? 'bg-gradient-to-br from-green-400 to-green-600' : isOfficerAccepted(selectedVisitor!) ? 'bg-white border-2 border-blue-400' : 'bg-gray-100'}`}>
+                          {isServiceCompleted(selectedVisitor!) ? (
+                            <FiCheck className="w-3.5 h-3.5 text-white" />
+                          ) : (
+                            <FiUserCheck className={`w-4 h-4 ${isOfficerAccepted(selectedVisitor!) ? 'text-blue-500' : 'text-gray-400'}`} />
+                          )}
+                        </div>
+                        <div className={`flex-1 rounded-lg p-2 shadow-sm ${isServiceCompleted(selectedVisitor!) ? 'bg-green-50/80' : isOfficerAccepted(selectedVisitor!) ? 'bg-blue-50/80' : 'bg-gray-50/50'}`}>
+                          <p className={`text-xs font-semibold ${isServiceCompleted(selectedVisitor!) ? 'text-green-700' : isOfficerAccepted(selectedVisitor!) ? 'text-blue-700' : 'text-gray-400'}`}>Officer Accepted</p>
+                          <p className={`text-[10px] ${isServiceCompleted(selectedVisitor!) ? 'text-green-500' : isOfficerAccepted(selectedVisitor!) ? 'text-blue-500' : 'text-gray-400'}`}>
+                            {getOfficerName(selectedVisitor!)}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Step - Completed */}
+                      <div className="flex items-center gap-3 relative">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center z-10 shadow-md ${isServiceCompleted(selectedVisitor!) ? 'bg-gradient-to-br from-green-400 to-green-600' : 'bg-gray-100'}`}>
+                          <FiCheckSquare className={`w-4 h-4 ${isServiceCompleted(selectedVisitor!) ? 'text-white' : 'text-gray-300'}`} />
+                        </div>
+                        <div className={`flex-1 rounded-lg p-2 shadow-sm ${isServiceCompleted(selectedVisitor!) ? 'bg-green-50/80' : 'bg-gray-50/50'}`}>
+                          <p className={`text-xs font-semibold ${isServiceCompleted(selectedVisitor!) ? 'text-green-700' : 'text-gray-400'}`}>Completed</p>
+                          <p className={`text-[10px] ${isServiceCompleted(selectedVisitor!) ? 'text-green-500' : 'text-gray-400'}`}>
+                            {isServiceCompleted(selectedVisitor!) ? '✓ Service done' : 'Pending'}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-            
-            {/* Bottom Action Button */}
-            <div className="absolute bottom-0 left-0 right-0 px-6 py-4 bg-white border-t border-[#E3E8EF]">
-              <button 
-                onClick={() => handleEditClick(selectedVisitor)}
-                className="flex items-center justify-center gap-2 w-full h-11 rounded-xl border border-[#D8E1EC] bg-white text-[#2C3E50] hover:bg-[#F4F7FB] transition-colors"
-              >
-                <FiEdit className="w-4 h-4" />
-                Edit Details
-              </button>
             </div>
           </div>
         )}
       </div>
+
     </div>
   );
 };

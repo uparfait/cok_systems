@@ -1,7 +1,7 @@
 // Sidebar Component - Navigation sidebar with dynamic collapsible dropdowns
 // Provides navigation links with expandable menus for each system
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
@@ -88,14 +88,34 @@ const Sidebar: React.FC<SidebarProps> = ({
   const location = useLocation();
   const { user, logout } = useAuth();
   
-  // Track which dropdowns are expanded
+  // Track which dropdowns are expanded - auto-expand based on URL
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(() => {
-    // Auto-expand the current system
     const initial = new Set<string>();
-    const currentLink = links.find(l => currentPath.startsWith(l.path.split('/').slice(0, 2).join('/')));
-    if (currentLink) {
-      initial.add(currentLink.id);
-    }
+    // Find which parent should be expanded based on current path
+    links.forEach(link => {
+      const children = link.children || [];
+      const linkPath = link.path;
+      // Check if this link or any child should be active
+      let isLinkActive = currentPath === linkPath || location.pathname.startsWith(linkPath + '/');
+      if (!isLinkActive && children.length > 0) {
+        for (const child of children) {
+          if (currentPath === child.path || location.pathname.startsWith(child.path + '/')) {
+            isLinkActive = true;
+            break;
+          }
+          // Check path segments
+          const childPathParts = child.path.split('/').slice(0, 3).join('/');
+          const currentPathParts = currentPath.split('/').slice(0, 3).join('/');
+          if (childPathParts === currentPathParts) {
+            isLinkActive = true;
+            break;
+          }
+        }
+      }
+      if (isLinkActive && link.id) {
+        initial.add(link.id);
+      }
+    });
     return initial;
   });
 
@@ -111,6 +131,43 @@ const Sidebar: React.FC<SidebarProps> = ({
       return next;
     });
   };
+
+  // Keep dropdown expanded when navigating between child pages - URL based
+  useEffect(() => {
+    // Find which parent should be expanded based on current path
+    links.forEach(link => {
+      const children = link.children || [];
+      const linkPath = link.path;
+      // Check if this link or any child should be active
+      let isLinkActive = currentPath === linkPath || location.pathname.startsWith(linkPath + '/');
+      if (!isLinkActive && children.length > 0) {
+        for (const child of children) {
+          if (currentPath === child.path || location.pathname.startsWith(child.path + '/')) {
+            isLinkActive = true;
+            break;
+          }
+          // Check path segments
+          const childPathParts = child.path.split('/').slice(0, 3).join('/');
+          const currentPathParts = currentPath.split('/').slice(0, 3).join('/');
+          if (childPathParts === currentPathParts) {
+            isLinkActive = true;
+            break;
+          }
+        }
+      }
+      
+      if (isLinkActive && link.id) {
+        setExpandedMenus(prev => {
+          if (!prev.has(link.id)) {
+            const next = new Set(prev);
+            next.add(link.id);
+            return next;
+          }
+          return prev;
+        });
+      }
+    });
+  }, [location.pathname, currentPath, links]);
 
   // Handle navigation
   const handleNavigation = (path: string) => {
@@ -140,9 +197,40 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  // Check if a link is active
-  const isActive = (path: string): boolean => {
-    return currentPath === path || location.pathname.startsWith(path + '/');
+  // Check if a link is active - check both direct match and if current path belongs to children
+  const isActive = (path: string, children?: SidebarLink[]): boolean => {
+    // Get pathname and remove query params for comparison
+    const pathnameOnly = location.pathname;
+    const pathOnly = path.split('?')[0];
+    
+    // Direct match (both without query params)
+    if (pathnameOnly === pathOnly) return true;
+    // Direct match including query params (for tabs)
+    if (currentPath === path) return true;
+    // Check if path with query params matches (e.g., /page?q=1)
+    if (currentPath.startsWith(pathOnly)) return true;
+    // Starts with path + '/' (for sub-routes)
+    if (pathnameOnly.startsWith(pathOnly + '/')) return true;
+    // Check if current path is any of the children paths
+    if (children && children.length > 0) {
+      for (const child of children) {
+        const childPathOnly = child.path.split('?')[0];
+        if (pathnameOnly === childPathOnly || currentPath === child.path || pathnameOnly.startsWith(child.path + '/')) {
+          return true;
+        }
+        // Also check parent path segments (e.g., /smart-parking/checkin-vehicle for /smart-parking/checkin-person)
+        const childPathParts = child.path.split('/').slice(0, 3).join('/');
+        const currentPathParts = pathnameOnly.split('/').slice(0, 3).join('/');
+        if (childPathParts === currentPathParts) {
+          return true;
+        }
+        // Check with query params
+        if (currentPath.startsWith(childPathOnly)) {
+          return true;
+        }
+      }
+    }
+    return false;
   };
 
   // Get children directly from parent link
@@ -189,34 +277,51 @@ const Sidebar: React.FC<SidebarProps> = ({
           const children = getChildren(link);
           const hasChildren = children.length > 0;
           const isExpanded = expandedMenus.has(link.id);
-          const linkIsActive = isActive(link.path);
+          
+          // Check if this link or any of its children is active - use URL-based detection
+          const linkIsActive = isActive(link.path, children);
           
           return (
             <div key={link.id}>
               {/* Parent Link - Clickable or Expandable */}
               {hasChildren ? (
-                // Dropdown header - click to expand/collapse
-                <button
-                  onClick={() => toggleMenu(link.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
-                    linkIsActive 
-                      ? 'bg-blue-600 text-white shadow-md' 
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
-                >
-                  <Icon className={`w-5 h-5 flex-shrink-0 ${linkIsActive ? 'text-white' : ''}`} />
-                  <span className="font-medium text-sm truncate flex-1 text-left">{link.name}</span>
-                  {hasChildren && (
-                    <FiChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''} ${linkIsActive ? 'text-white' : 'text-gray-400'}`} />
-                  )}
-                </button>
+                // Dropdown header - chevron toggles, parent click expands but doesn't collapse
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      // If not expanded, expand it
+                      if (!isExpanded) {
+                        toggleMenu(link.id);
+                      }
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                      linkIsActive 
+                        ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700 hover:shadow-lg' 
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    <Icon className={`w-5 h-5 flex-shrink-0 ${linkIsActive ? 'text-white' : ''}`} />
+                    <span className="font-medium text-sm truncate flex-1 text-left">{link.name}</span>
+                    {hasChildren && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleMenu(link.id);
+                        }}
+                        className="p-1 hover:bg-gray-200 rounded"
+                      >
+                        <FiChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''} ${linkIsActive ? 'text-white' : 'text-gray-400'}`} />
+                      </button>
+                    )}
+                  </button>
+                </div>
               ) : (
                 // Single link - no dropdown
                 <button
                   onClick={() => handleNavigation(link.path)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
                     linkIsActive 
-                      ? 'bg-blue-600 text-white shadow-md' 
+                      ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700 hover:shadow-lg' 
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
