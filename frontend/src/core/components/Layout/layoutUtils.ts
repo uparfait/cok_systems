@@ -115,8 +115,6 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   if (userRole.includes('employee') || userRole.includes('staff')) {
     return [
       { id: 'dashboard', label: 'Dashboard', path: '/service-delivery/employee', icon: 'FiGrid' },
-      { id: 'services', label: 'My Services', path: '/service-delivery/employee?tab=services', icon: 'FiClock' },
-      { id: 'availability', label: 'Availability', path: '/service-delivery/employee?tab=availability', icon: 'FiCheckCircle' }
     ];
   }
 
