@@ -243,22 +243,11 @@ export const serviceDeliveryService = {
   // Check out visitor
   checkOut: (id: string) => post(`/servicedelivery/visitor/checkout`, { visitor_id: id }),
   
-  // Toggle service status - Start/Stop serving a visitor (Inprogress/Completed)
-  // This is the main serve timer function
-  toggleStatus: (visitorId: string, departmentId: string, status: 'Inprogress' | 'Completed') => 
-    post(`/servicedelivery/visitor/service/status`, { 
-      visitor_id: visitorId, 
-      department_id: departmentId,
-      status: status 
-    }),
+  // Toggle service status
+  toggleStatus: (visitorId: string, departmentId: string, status: string, providerId?: string, providerName?: string) => post(`/servicedelivery/visitor/service/status`, { visitor_id: visitorId, department_id: departmentId, status, provider_id: providerId, provider_name: providerName }),
   
   // Toggle service status (alias)
-  toggleServiceStatus: (visitorId: string, departmentId: string, status: 'Inprogress' | 'Completed') => 
-    post(`/servicedelivery/visitor/service/status`, { 
-      visitor_id: visitorId, 
-      department_id: departmentId,
-      status: status 
-    }),
+  toggleServiceStatus: (visitorId: string, departmentId: string, status: string, providerId?: string, providerName?: string) => post(`/servicedelivery/visitor/service/status`, { visitor_id: visitorId, department_id: departmentId, status, provider_id: providerId, provider_name: providerName }),
   
   // Transfer visitor to a different department
   // This closes the previous department service and assigns to new department

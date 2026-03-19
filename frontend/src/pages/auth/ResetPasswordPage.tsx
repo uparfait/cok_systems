@@ -49,8 +49,9 @@ const ResetPasswordPage = () => {
         if (result.status && result.data?.signature) { 
           setTempToken(result.data.signature); 
           setStep('reset');
+          showSuccess('OTP verified! Please enter your new password.');
         }
-        else { showError(result.message || result.error || 'Invalid OTP'); }
+        else { showError(result.message || 'Invalid OTP. Please try again.'); }
       } catch (err: any) {
         // Error toast is already shown by apiClient interceptor
       } finally { setIsLoading(false); }

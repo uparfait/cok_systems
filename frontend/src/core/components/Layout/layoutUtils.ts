@@ -107,12 +107,6 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
         label: 'Assigned Visitors',
         path: '/service-delivery/receptionist?tab=visitors',
         icon: 'FiUsers',
-      },
-      {
-        id: 'dept-availability',
-        label: 'Dept. Availability',
-        path: '/service-delivery/receptionist?tab=availability',
-        icon: 'FiGrid', 
       }
     ];
   }
