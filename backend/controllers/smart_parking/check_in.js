@@ -159,6 +159,12 @@ module.exports = async function car_check_in(req, res, next) {
             await service_delivery.save()
         }
 
+        global.WebsocketIO?.emit('car_checkedin', { 
+            show_notif: false,
+            type: 'info',
+            message: 'New car checked in: ' + plate_number
+         })
+
         return res.status(201).json({
             success: true,
             type: "success",

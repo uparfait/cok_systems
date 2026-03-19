@@ -1,16 +1,33 @@
 const user_model = require('../../../models/user.js')
 const mongoose = require('mongoose')
 
+/**
+ * Middleware to check if socket is authenticated
+ * @param {object} socket - Socket instance
+ * @returns {object} - { isAuthenticated: boolean, user: object|null }
+ */
+function checkAuth(socket) {
+    if (!socket.user) {
+        return { isAuthenticated: false, user: null };
+    }
+    return { isAuthenticated: true, user: socket.user };
+}
+
 async function HandleReatime(socket) {
     socket.on('service_delivery_test', (data) => {
         socket.emit('service_delivery_test', { message: 'Data received successfully!' })
     })
 
     socket.on('im_not_active', async (data, callback) => {
+        // Check authentication first
+        const auth = checkAuth(socket);
+        if (!auth.isAuthenticated) {
+            return callback({ success: false, message: "Authentication required. Please login first." });
+        }
 
         try {
-            const user_name = data.user.name
-            const user_id = data.user.id
+            const user_name = data.user?.name || auth.user.fullName;
+            const user_id = data.user?.id || auth.user.userId;
 
             if (!user_name || !user_id) {
                 return callback({ message: 'Username and id are required' })
@@ -43,11 +60,16 @@ async function HandleReatime(socket) {
     })
 
     socket.on('im_active', async (data, callback) => {
+        // Check authentication first
+        const auth = checkAuth(socket);
+        if (!auth.isAuthenticated) {
+            return callback({ success: false, message: "Authentication required. Please login first." });
+        }
 
 
         try {
-            const user_name = data.user.name
-            const user_id = data.user.id
+            const user_name = data.user?.name || auth.user.fullName;
+            const user_id = data.user?.id || auth.user.userId;
 
             if (!user_name || !user_id) {
                 return callback({ message: 'Username and id are required' })
@@ -82,12 +104,24 @@ async function HandleReatime(socket) {
 
 
     socket.on('global_notification', (data, callback) => {
+        // Check authentication first
+        const auth = checkAuth(socket);
+        if (!auth.isAuthenticated) {
+            return callback({ success: false, message: "Authentication required. Please login first." });
+        }
+        
         try {
             const message = data.message
             const user = data?.user?.message
 
             if(user && message) {
-                global.WebsocketIO.emit('global_notification', { title: 'Notification',sender: user, message: message })
+                global.WebsocketIO.emit('global_notification', { 
+                    title: 'Notification',
+                    sender: user, 
+                    message: message,
+                    sentBy: auth.user.fullName,
+                    sentAt: new Date().toISOString()
+                })
                 return callback({status: true, message: "Sent"})
             } else {
                 return callback({status: false, message: "Missing user or message data"})
@@ -99,7 +133,14 @@ async function HandleReatime(socket) {
         }
     })
 
-    global.WebsocketIO.emit('service_delivery_test', { message: 'This is a real-time update from the server!' })
+    // Send test message only to authenticated users
+    if (socket.user) {
+        global.WebsocketIO.emit('service_delivery_test', { 
+            message: 'This is a real-time update from the server!',
+            authenticated: true,
+            user: socket.user.email
+        })
+    }
 
 }
 
