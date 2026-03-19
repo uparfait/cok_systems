@@ -11,6 +11,8 @@ interface DepartmentEmployee {
   title: string;
   status: 'Active' | 'Away';
   initials: string;
+  department?: string;
+  department_name?: string;
 }
 
 // View Employee Modal
@@ -71,7 +73,7 @@ export const ViewEmployeeModal: React.FC<ViewEmployeeModalProps> = ({ isOpen, on
               </div>
               <div>
                 <p className="text-xs text-[#64748B] uppercase mb-1">Department</p>
-                <p className="text-sm font-semibold text-[#0F172A]">Land Management</p>
+                <p className="text-sm font-semibold text-[#0F172A]">{employee.department || 'N/A'}</p>
               </div>
             </div>
           </div>
@@ -466,11 +468,27 @@ interface DeleteEmployeeModalProps {
   isOpen: boolean;
   onClose: () => void;
   employee: DepartmentEmployee | null;
-  onDelete: () => void;
+  onDelete: () => Promise<void>;
 }
 
 export const DeleteEmployeeModal: React.FC<DeleteEmployeeModalProps> = ({ isOpen, onClose, employee, onDelete }) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState('');
+  
   if (!isOpen || !employee) return null;
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    setError('');
+    try {
+      await onDelete();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete employee');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto" onClick={onClose}>
@@ -542,6 +560,20 @@ export const DeleteEmployeeModal: React.FC<DeleteEmployeeModalProps> = ({ isOpen
             }}>
               Are you sure you want to permanently delete the record for <span style={{ fontWeight: 700, color: '#333333' }}>{employee.name}</span>? This action cannot be undone.
             </p>
+            
+            {/* Error Message */}
+            {error && (
+              <div style={{
+                padding: '12px',
+                background: '#fee2e2',
+                color: '#dc2626',
+                borderRadius: '8px',
+                marginBottom: '16px',
+                fontSize: '14px'
+              }}>
+                {error}
+              </div>
+            )}
 
             {/* Buttons */}
             <div style={{
@@ -567,32 +599,42 @@ export const DeleteEmployeeModal: React.FC<DeleteEmployeeModalProps> = ({ isOpen
                 Cancel
               </button>
               <button 
-                onClick={() => {
-                  onDelete();
-                  onClose();
-                }}
+                onClick={handleDelete}
+                disabled={isDeleting}
                 style={{
                   width: '190px',
                   height: '48px',
-                  background: '#e53935',
+                  background: isDeleting ? '#9ca3af' : '#e53935',
                   border: 'none',
                   borderRadius: '10px',
                   fontSize: '15px',
                   fontWeight: 600,
                   color: '#ffffff',
-                  cursor: 'pointer',
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow: '0 2px 10px rgba(229,57,53,0.4)'
+                  boxShadow: isDeleting ? 'none' : '0 2px 10px rgba(229,57,53,0.4)'
                 }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-                Delete Employee
+                {isDeleting ? (
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" className="animate-spin">
+                      <circle cx="12" cy="12" r="10" stroke="#ffffff" strokeWidth="3" fill="none" opacity="0.3"/>
+                      <path d="M12 2a10 10 0 0 1 10 10" stroke="#ffffff" strokeWidth="3" fill="none"/>
+                    </svg>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    Delete Employee
+                  </>
+                )}
               </button>
             </div>
           </div>
