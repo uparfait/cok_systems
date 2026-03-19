@@ -795,13 +795,6 @@ const DepartmentManagerDashboard: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    
-    // Auto-refresh every 10 seconds to keep timer updates and data fresh
-    const refreshInterval = setInterval(() => {
-      loadData(currentPage, searchTerm);
-    }, 10000);
-    
-    return () => clearInterval(refreshInterval);
   }, []);
 
   // Helpers
@@ -979,14 +972,17 @@ const DepartmentManagerDashboard: React.FC = () => {
     calculateEmployeeServiceCounts();
   }, [visitors, departmentId]);
 
-  const handleServiceStart = async (startTime: string) => {
-    if (!servingVisitor || !servingEmployee || !departmentId) return;
+  const handleServiceStart = async (startTime: string, visitor?: Visitor, employee?: Employee) => {
+    const targetVisitor = visitor || servingVisitor;
+    const targetEmployee = employee || servingEmployee;
+    
+    if (!targetVisitor || !targetEmployee || !departmentId) return;
     try {
-      const visitorId = servingVisitor._id || servingVisitor.id;
-      const empId = servingEmployee._id || servingEmployee.employee_id;
-      const empName = servingEmployee.full_name;
+      const visitorId = targetVisitor._id || targetVisitor.id;
+      const empId = targetEmployee._id || targetEmployee.employee_id;
+      const empName = targetEmployee.full_name;
       
-      const rawVisitor = servingVisitor;
+      const rawVisitor = targetVisitor;
       const currentDurations = rawVisitor.durations || { services_durations: [], emergency_durations: [] };
       const existingServiceDurations = currentDurations.services_durations || [];
       
@@ -996,32 +992,50 @@ const DepartmentManagerDashboard: React.FC = () => {
       const deptInfo = rawVisitor.departments_assigned?.find((d: any) => String(d.provider_id) === String(empId)) || 
                        rawVisitor.services_status?.find((s: any) => String(s.provider_id) === String(empId));
       
+      const now = new Date().toISOString();
+      
       if (existingRecordIndex === -1) {
         updatedServiceDurations.push({
           department_id: departmentId,
           department_name: departmentName || deptInfo?.department_name || 'General',
           provider_name: empName,
           provider_id: empId,
-          started_at: new Date().toISOString()
+          started_at: now
         });
       } else {
         updatedServiceDurations[existingRecordIndex] = {
           ...updatedServiceDurations[existingRecordIndex],
-          started_at: new Date().toISOString()
+          started_at: now
         };
       }
       
-      const updatedServicesStatus = (rawVisitor.services_status || []).map((s: any) => {
-        if (String(s.provider_id) === String(empId)) return { ...s, s_type: 'Inprogress' };
-        return s;
-      });
+      // Check if services_status has an entry for this provider, if not add one
+      let updatedServicesStatus = rawVisitor.services_status ? [...rawVisitor.services_status] : [];
+      const existingStatusIndex = updatedServicesStatus.findIndex((s: any) => String(s.provider_id) === String(empId));
+      
+      if (existingStatusIndex === -1) {
+        // Add new status entry
+        updatedServicesStatus.push({
+          department_id: departmentId,
+          department_name: departmentName || deptInfo?.department_name || 'General',
+          provider_name: empName,
+          provider_id: empId,
+          s_type: 'Inprogress'
+        });
+      } else {
+        // Update existing status
+        updatedServicesStatus[existingStatusIndex] = {
+          ...updatedServicesStatus[existingStatusIndex],
+          s_type: 'Inprogress'
+        };
+      }
       
       await serviceDeliveryService.updateServiceStatus(visitorId as string, {
         services_status: updatedServicesStatus,
         durations: { ...currentDurations, services_durations: updatedServiceDurations }
       });
       
-      await loadData(currentPage);
+      // Data will be refreshed when modal closes or manually
     } catch (error) {
       console.error('Failed to start service:', error);
     }
@@ -1034,38 +1048,44 @@ const DepartmentManagerDashboard: React.FC = () => {
       const empId = servingEmployee._id || servingEmployee.employee_id;
       
       const isTransfer = data.notes && data.notes.toLowerCase().includes('transfer');
-      const targetStatus = isTransfer ? 'Transfered' : 'Completed';
       
-      const rawVisitor = servingVisitor;
-      const currentDurations = rawVisitor.durations || { services_durations: [], emergency_durations: [] };
-      const existingServiceDurations = currentDurations.services_durations || [];
-      
-      const existingRecordIndex = existingServiceDurations.findIndex((d: any) => String(d.provider_id) === String(empId));
-      let updatedServiceDurations = [...existingServiceDurations];
-      
-      if (existingRecordIndex !== -1) {
-        updatedServiceDurations[existingRecordIndex] = {
-          ...updatedServiceDurations[existingRecordIndex],
-          ended_at: new Date().toISOString(),
-          duration: data.duration
-        };
-      }
-      
-      const updatedServicesStatus = (rawVisitor.services_status || []).map((s: any) => {
-        if (String(s.provider_id) === String(empId)) return { ...s, s_type: targetStatus };
-        return s;
-      });
-      
-      await serviceDeliveryService.updateServiceStatus(visitorId as string, {
-        services_status: updatedServicesStatus,
-        durations: { ...currentDurations, services_durations: updatedServiceDurations }
-      });
-      
-      if (!isTransfer && empId) {
-        setEmployeeServiceCount(prev => ({
-          ...prev,
-          [empId]: (prev[empId] || 0) + 1
-        }));
+      if (isTransfer) {
+        // For transfer, use the old updateServiceStatus method
+        const rawVisitor = servingVisitor;
+        const currentDurations = rawVisitor.durations || { services_durations: [], emergency_durations: [] };
+        const existingServiceDurations = currentDurations.services_durations || [];
+        
+        const existingRecordIndex = existingServiceDurations.findIndex((d: any) => String(d.provider_id) === String(empId));
+        let updatedServiceDurations = [...existingServiceDurations];
+        
+        if (existingRecordIndex !== -1) {
+          updatedServiceDurations[existingRecordIndex] = {
+            ...updatedServiceDurations[existingRecordIndex],
+            ended_at: new Date().toISOString(),
+            duration: data.duration
+          };
+        }
+        
+        const updatedServicesStatus = (rawVisitor.services_status || []).map((s: any) => {
+          if (String(s.provider_id) === String(empId)) return { ...s, s_type: 'Transfered' };
+          return s;
+        });
+        
+        await serviceDeliveryService.updateServiceStatus(visitorId as string, {
+          services_status: updatedServicesStatus,
+          durations: { ...currentDurations, services_durations: updatedServiceDurations }
+        });
+      } else {
+        // Use toggleServiceStatus for completing the service
+        await serviceDeliveryService.toggleServiceStatus(visitorId as string, departmentId, 'Completed');
+        
+        // Increment service count
+        if (empId) {
+          setEmployeeServiceCount(prev => ({
+            ...prev,
+            [empId]: (prev[empId] || 0) + 1
+          }));
+        }
       }
       
       setShowServeModal(false);
@@ -1404,10 +1424,15 @@ const DepartmentManagerDashboard: React.FC = () => {
                               return (
                                 <div className="flex items-center gap-1">
                                   <button 
-                                    onClick={() => {
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
                                       const emp = employees.find(e => e.full_name === assigned?.name);
                                       setServingVisitor(visitor);
                                       setServingEmployee(emp || null);
+                                      // Use existing start time from database, not empty
+                                      setPendingServiceStartTime(serviceStartTime || '');
                                       setShowServeModal(true);
                                     }}
                                     className="flex items-center gap-1 h-7 px-2 bg-[#e53935] text-white text-xs font-bold rounded-[4px] hover:bg-[#c62828] transition-colors"
@@ -1415,7 +1440,10 @@ const DepartmentManagerDashboard: React.FC = () => {
                                     <FiSquare className="w-3 h-3 fill-current" /> Stop
                                   </button>
                                   <button 
-                                    onClick={() => {
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
                                       setTransferVisitor(visitor);
                                       setShowTransferModal(true);
                                     }}
@@ -1450,7 +1478,10 @@ const DepartmentManagerDashboard: React.FC = () => {
                                       Assigned
                                     </span>
                                     <button 
-                                      onClick={() => {
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
                                         setTransferVisitor(visitor);
                                         setShowTransferModal(true);
                                       }}
@@ -1464,23 +1495,30 @@ const DepartmentManagerDashboard: React.FC = () => {
                                 return (
                                   <div className="flex items-center gap-1">
                                     <button 
-                                      onClick={async () => {
+                                      type="button"
+                                      onClick={async (e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
                                         // Find the current user in employees list or use first available
                                         const emp = employees.find(e => e.email === user?.email) || employees[0];
                                         if (emp) {
                                           const now = new Date().toISOString();
                                           
-                                          // IMMEDIATELY send request to backend to start service
-                                          await handleServiceStart(now);
+                                          // 1. IMMEDIATELY update local state (like ProvideServicesTab does)
+                                          setVisitors(prev => prev.map(v => 
+                                            (v._id || v.id) === (visitor._id || visitor.id) 
+                                              ? { ...v, services_status: [...(v.services_status || []), { provider_id: emp._id || emp.employee_id, provider_name: emp.full_name, s_type: 'Inprogress' }] }
+                                              : v
+                                          ));
                                           
-                                          // Then set serving visitor and open modal
+                                          // 2. Send request to backend to start service
+                                          await handleServiceStart(now, visitor, emp);
+                                          
+                                          // 3. Set serving visitor and open modal
                                           setServingVisitor(visitor);
                                           setServingEmployee(emp);
                                           setPendingServiceStartTime(now);
                                           setShowServeModal(true);
-                                          
-                                          // Refresh data to get the confirmed start time from backend
-                                          await loadData(currentPage);
                                         } else {
                                           alert('No employee found. Please ensure you are logged in as an employee.');
                                         }
@@ -1490,7 +1528,10 @@ const DepartmentManagerDashboard: React.FC = () => {
                                       Serve <FiPlay className="w-3 h-3 ml-1" />
                                     </button>
                                     <button 
-                                      onClick={() => {
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
                                         setTransferVisitor(visitor);
                                         setShowTransferModal(true);
                                       }}
@@ -2008,6 +2049,8 @@ const DepartmentManagerDashboard: React.FC = () => {
             setServingVisitor(null);
             setServingEmployee(null);
             setPendingServiceStartTime('');
+            // Refresh data to show updated timer in table
+            loadData(currentPage);
           }}
           visitor={{
             name: getVisitorName(servingVisitor),
@@ -2024,7 +2067,8 @@ const DepartmentManagerDashboard: React.FC = () => {
               : 'Just now',
             gate: 'Main Gate',
             status: getVisitorStatus(servingVisitor),
-            serviceStartTime: getServiceStartTime(servingVisitor) || pendingServiceStartTime,
+            // Use pending start time first (from clicking serve), then fallback to database
+            serviceStartTime: pendingServiceStartTime || getServiceStartTime(servingVisitor),
             departmentName: getDepartmentName(servingVisitor)
           }}
           onServiceStart={handleServiceStart}
