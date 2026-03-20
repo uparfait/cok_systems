@@ -74,12 +74,56 @@ module.exports = async function car_check_out(req, res, next) {
                 pending_visitor.vehicle_storage.vehicle_details.exited_time = current_time;
                 pending_visitor.vehicle_storage.vehicle_details.duration = `${parked_minutes} mins`;
             }
+
+
+
+
+         // check if there is any working service and desable it as below codes doese
+
+        // cancled all active services and store into service tracking if ignored use as above code
+
+        let active_services = pending_visitor.services_status.filter(s => s.s_type === 'Inprogress');
+        for (let active_service of active_services) {
+            const current_time = new Date();
+            const assigned_dept = pending_visitor.departments_assigned.find(d => d.department_id === active_service.department_id);
+            const start_time = assigned_dept ? assigned_dept.assigned_time : pending_visitor.entry_date;
+            const duration_minutes = Math.round((current_time - new Date(start_time)) / 60000);
+            const duration_str = `${duration_minutes} mins`;
+
+            //  Save to ServiceTracking Model
+            await ServiceTracking.create({
+                department_id: active_service.department_id,
+                department_name: active_service.department_name,
+                duration: duration_str,
+                started_at: start_time,
+                ended_at: current_time,
+                provider_name: active_service.provider_name || 'Not specified',
+                provider_id: active_service.provider_id || 'Not specified'
+            });
+
+            // check if provider id exists and announce to him/her that forgot too stop service but stopped
+
+            if (active_service.provider_id) {
+
+                global.WebsocketIO?.emit('you_forgot_to_stop_service', {
+                    show_notif: true,
+                    type: 'warning',
+                    to: active_service.provider_id,
+                    visitor_id: pending_visitor._id,
+                    message: `You forgot to stop the service for visitor ${pending_visitor.full_name} in department ${active_service.department_name}. We stopped it for you but please be careful next time.`
+                })
+
+            }
+
+            // Update the service status to 'Completed'
+            active_service.s_type = 'Completed';
+        }
             
             await pending_visitor.save();
         }
 
         // ================================================================
-        // 👉 AUTOMATED FLAGGING LOGIC 
+        //  AUTOMATED FLAGGING LOGIC 
         // ================================================================
         
         let allowed_duration_minutes = 480; // 8 hours for visitors
