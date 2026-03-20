@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSocket } from '../contexts/SocketContext';
 import { useAuth } from '../contexts/AuthContext';
-import { FiMessageSquare, FiX, FiSend, FiUsers, FiGlobe, FiEdit2, FiCheck, FiChevronDown, FiUser, FiMessageCircle } from 'react-icons/fi';
+import { FiMessageSquare, FiX, FiSend, FiUsers, FiGlobe, FiEdit2, FiCheck, FiChevronDown, FiMessageCircle } from 'react-icons/fi';
 
 interface User {
   userId: string;
@@ -35,6 +35,11 @@ interface Message {
 
 interface ChatWidgetProps {
   className?: string;
+}
+
+interface MessageCache {
+  global: Message[];
+  inbox: { [key: string]: Message[] };
 }
 
 // Bouncing Loader Component
@@ -76,7 +81,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isLoadingSilent, setIsLoadingSilent] = useState(false);
-  const [messageCache, setMessageCache] = useState<{ [key: string]: Message[] }>({
+  const [messageCache, setMessageCache] = useState<MessageCache>({
     global: [],
     inbox: {}
   });
@@ -100,7 +105,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
   }, [selectedUser]);
 
   // Generate avatar color based on username with gradient
-  const getAvatarColor = (name: string) => {
+  const getAvatarColor = (name: string): string => {
     const gradients = [
       'from-blue-500 to-blue-600',
       'from-green-500 to-green-600',
@@ -120,7 +125,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
   };
 
   // Get initials from name
-  const getInitials = (name: string) => {
+  const getInitials = (name: string): string => {
     const parts = name.split(' ');
     if (parts.length >= 2) {
       return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
@@ -143,7 +148,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
   }, [activeTab, selectedUser]);
 
   // Silent load messages (without showing spinner)
-  const loadMessagesSilently = useCallback(async (type: 'global' | 'inbox', userId?: string) => {
+  const loadMessagesSilently = useCallback((type: 'global' | 'inbox', userId?: string) => {
     if (!socket || !isConnected || !isAuthenticated) return;
     
     setIsLoadingSilent(true);
@@ -171,7 +176,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
   }, [socket, isConnected, isAuthenticated, emit]);
 
   // Load messages with loader (initial load)
-  const loadMessagesWithLoader = useCallback(async (type: 'global' | 'inbox', userId?: string) => {
+  const loadMessagesWithLoader = useCallback((type: 'global' | 'inbox', userId?: string) => {
     if (!socket || !isConnected || !isAuthenticated) return;
     
     setIsLoading(true);
@@ -200,7 +205,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     }
   }, [socket, isConnected, isAuthenticated, emit]);
 
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(() => {
     if (!socket || !isConnected || !isAuthenticated) return;
     
     setIsLoadingUsers(true);
@@ -265,13 +270,16 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
       
       // Update cache
       if (otherUserId) {
-        setMessageCache(prev => ({
-          ...prev,
-          inbox: {
-            ...prev.inbox,
-            [otherUserId]: [...(prev.inbox[otherUserId] || []), data]
-          }
-        }));
+        setMessageCache(prev => {
+          const currentConversation = prev.inbox[otherUserId] || [];
+          return {
+            ...prev,
+            inbox: {
+              ...prev.inbox,
+              [otherUserId]: [...currentConversation, data]
+            }
+          };
+        });
       }
       
       // Handle unread counts
@@ -296,17 +304,21 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
       
       // Update cache
       if (selectedUserRef.current) {
-        setMessageCache(prev => ({
-          ...prev,
-          inbox: {
-            ...prev.inbox,
-            [selectedUserRef.current!.userId]: prev.inbox[selectedUserRef.current!.userId]?.map(msg =>
-              msg.messageId === data.messageId
-                ? { ...msg, message: data.newMessage, isEdited: true, editedAt: new Date().toISOString() }
-                : msg
-            ) || []
-          }
-        }));
+        setMessageCache(prev => {
+          const userId = selectedUserRef.current!.userId;
+          const updatedMessages = (prev.inbox[userId] || []).map(msg =>
+            msg.messageId === data.messageId
+              ? { ...msg, message: data.newMessage, isEdited: true, editedAt: new Date().toISOString() }
+              : msg
+          );
+          return {
+            ...prev,
+            inbox: {
+              ...prev.inbox,
+              [userId]: updatedMessages
+            }
+          };
+        });
       }
     };
 
@@ -381,13 +393,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
       off('user_typing_inbox', handleUserTypingInbox);
       off('messages_marked_read', handleMessagesMarkedRead);
     };
-  }, [socket, isConnected, isAuthenticated, on, off, user, isOpen, fetchUsers]);
+  }, [socket, isConnected, isAuthenticated, on, off, user, isOpen, fetchUsers, messageCache.global]);
 
   // Handle tab switching
   useEffect(() => {
     if (!isOpen || !isAuthenticated) return;
     
-    const switchToGlobal = async () => {
+    if (activeTab === 'global') {
       // Check cache first
       if (messageCache.global && messageCache.global.length > 0) {
         setMessages(messageCache.global);
@@ -399,18 +411,10 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
         loadMessagesWithLoader('global');
       }
       focusInput();
-    };
-    
-    const switchToInbox = async () => {
+    } else if (activeTab === 'inbox') {
       setMessages([]);
       fetchUsers();
       focusInput();
-    };
-    
-    if (activeTab === 'global') {
-      switchToGlobal();
-    } else if (activeTab === 'inbox') {
-      switchToInbox();
     }
     
     // Reset unread counts for active tab
@@ -423,76 +427,67 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
   useEffect(() => {
     if (!selectedUser || !socket || !isConnected || activeTab !== 'inbox') return;
     
-    const loadConversation = async () => {
-      // Check cache first
-      if (messageCache.inbox[selectedUser.userId] && messageCache.inbox[selectedUser.userId].length > 0) {
-        setMessages(messageCache.inbox[selectedUser.userId]);
-        setIsInitialLoad(false);
-        // Silently refresh in background
-        loadMessagesSilently('inbox', selectedUser.userId);
-      } else {
-        // First time load with loader
-        loadMessagesWithLoader('inbox', selectedUser.userId);
-      }
-      
-      // Mark messages as read
-      emit('mark_messages_read', { fromUserId: selectedUser.userId }, (response: any) => {
-        if (response?.success) {
-          setUnreadCountsPerUser(prev => {
-            const newCounts = { ...prev };
-            delete newCounts[selectedUser.userId];
-            return newCounts;
-          });
-          setUnreadCount(prev => Math.max(0, prev - (unreadCountsPerUser[selectedUser.userId] || 0)));
-        }
-      });
-    };
+    // Check cache first
+    if (messageCache.inbox[selectedUser.userId] && messageCache.inbox[selectedUser.userId].length > 0) {
+      setMessages(messageCache.inbox[selectedUser.userId]);
+      setIsInitialLoad(false);
+      // Silently refresh in background
+      loadMessagesSilently('inbox', selectedUser.userId);
+    } else {
+      // First time load with loader
+      loadMessagesWithLoader('inbox', selectedUser.userId);
+    }
     
-    loadConversation();
+    // Mark messages as read
+    emit('mark_messages_read', { fromUserId: selectedUser.userId }, (response: any) => {
+      if (response?.success) {
+        setUnreadCountsPerUser(prev => {
+          const newCounts = { ...prev };
+          delete newCounts[selectedUser.userId];
+          return newCounts;
+        });
+        setUnreadCount(prev => Math.max(0, prev - (unreadCountsPerUser[selectedUser.userId] || 0)));
+      }
+    });
   }, [selectedUser, socket, isConnected, activeTab, messageCache.inbox, loadMessagesSilently, loadMessagesWithLoader, emit, unreadCountsPerUser]);
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = () => {
     if (!inputMessage.trim() || !socket || !isConnected || isSending) return;
     
     setIsSending(true);
     setError(null);
 
-    try {
-      if (activeTab === 'global') {
-        emit('send_global_message', { message: inputMessage.trim() }, (response: any) => {
-          if (response?.success) {
-            setInputMessage('');
-            resetInputHeight();
-            focusInput();
-          } else {
-            setError(response?.message || 'Failed to send message');
-          }
-          setIsSending(false);
-        });
-      } else if (activeTab === 'inbox' && selectedUser) {
-        emit('send_inbox_message', { 
-          message: inputMessage.trim(),
-          receiverId: selectedUser.userId,
-          receiverName: selectedUser.full_name,
-          receiverEmail: selectedUser.email
-        }, (response: any) => {
-          if (response?.success) {
-            setInputMessage('');
-            resetInputHeight();
-            focusInput();
-          } else {
-            setError(response?.message || 'Failed to send message');
-          }
-          setIsSending(false);
-        });
-      }
-    } catch (err) {
-      setError('Failed to send message');
-      setIsSending(false);
+    if (activeTab === 'global') {
+      emit('send_global_message', { message: inputMessage.trim() }, (response: any) => {
+        if (response?.success) {
+          setInputMessage('');
+          resetInputHeight();
+          focusInput();
+        } else {
+          setError(response?.message || 'Failed to send message');
+        }
+        setIsSending(false);
+      });
+    } else if (activeTab === 'inbox' && selectedUser) {
+      emit('send_inbox_message', { 
+        message: inputMessage.trim(),
+        receiverId: selectedUser.userId,
+        receiverName: selectedUser.full_name,
+        receiverEmail: selectedUser.email
+      }, (response: any) => {
+        if (response?.success) {
+          setInputMessage('');
+          resetInputHeight();
+          focusInput();
+        } else {
+          setError(response?.message || 'Failed to send message');
+        }
+        setIsSending(false);
+      });
     }
   };
 
-  const handleEditMessage = async (messageId: string) => {
+  const handleEditMessage = (messageId: string) => {
     if (!editMessageText.trim() || !socket || !isConnected || isSending) return;
     
     setIsSending(true);
@@ -558,7 +553,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     }
   };
 
-  const getDisplayMessages = () => {
+  const getDisplayMessages = (): Message[] => {
     if (activeTab === 'global') {
       return messages;
     } else if (activeTab === 'inbox' && selectedUser) {
@@ -567,16 +562,16 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     return [];
   };
 
-  const canModifyMessage = (msg: Message) => {
+  const canModifyMessage = (msg: Message): boolean => {
     return msg.sender.userId === user?.userId;
   };
 
-  const formatTime = (time: string) => {
+  const formatTime = (time: string): string => {
     const date = new Date(time);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const formatDate = (time: string) => {
+  const formatDate = (time: string): string => {
     const date = new Date(time);
     const today = new Date();
     const yesterday = new Date(today);
@@ -592,7 +587,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
   };
 
   // Group messages by date
-  const groupMessagesByDate = (messages: Message[]) => {
+  const groupMessagesByDate = (messages: Message[]): { [key: string]: Message[] } => {
     const groups: { [key: string]: Message[] } = {};
     messages.forEach(msg => {
       const date = formatDate(msg.createdAt);
