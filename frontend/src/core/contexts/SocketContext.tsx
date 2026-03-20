@@ -8,7 +8,7 @@ import { useAuth } from './AuthContext';
 // Socket server URL
 // Use localhost:2026 for local development, remote for production
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 
-  (window.location.hostname === 'localhost' ? 'http://localhost:2026' : 'https://cok-bc.onrender.com');
+  (window.location.hostname === 'localhost' ? 'https://cok-bc.onrender.com' : 'https://cok-bc.onrender.com');
 
 // Context type
 interface SocketContextType {
