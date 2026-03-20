@@ -48,9 +48,9 @@ function App() {
         <NotificationProvider>
           <ToastProvider>
             <Router>
-              <ProtectedRoute>
+              {/* <ProtectedRoute>
               <ChatWidget />
-                </ProtectedRoute>
+                </ProtectedRoute> */}
             <Routes>
               {/* Public Routes - No layout needed */}
               <Route path="/login" element={<LoginPage />} />
