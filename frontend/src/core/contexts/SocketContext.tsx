@@ -46,7 +46,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       auth: {
         token: token || undefined
       },
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'], // Try polling first for better reliability
       transportOptions: {
         polling: {
           extraHeaders: {
@@ -55,9 +55,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       },
       reconnection: true,
-      reconnectionAttempts: 10, // Limit retries to prevent endless retrying
-      reconnectionDelay: 2000, // Wait 2 seconds between retries
-      timeout: 10000, // Connection timeout
+      reconnectionAttempts: 3, // Reduced from 10 - fewer retries to prevent console spam
+      reconnectionDelay: 3000, // Wait 3 seconds between retries
+      reconnectionDelayMax: 10000, // Max delay between retries
+      timeout: 15000, // Connection timeout
+      autoConnect: true,
     });
     
     console.log('[SocketContext] Creating socket with token:', token ? 'yes' : 'no');
@@ -92,19 +94,26 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
 
     newSocket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error.message);
+      // Only log first few errors to avoid console spam
+      if (reconnectAttempts < 2) {
+        console.warn('[SocketContext] Connection error (attempt ' + (reconnectAttempts + 1) + '):', error.message);
+      }
       reconnectAttempts++;
       setIsConnected(false);
       
-      // Stop trying after max attempts
+      // Stop trying after max attempts - silently stop
       if (reconnectAttempts >= 3) {
-        console.log('Max reconnection attempts reached, stopping retry');
+        console.log('[SocketContext] Max reconnection attempts reached, stopping retry');
         newSocket.disconnect();
+        // Don't throw error - just let the app work without real-time updates
       }
     });
 
     newSocket.on('reconnect_attempt', (attempt) => {
-      console.log('Reconnection attempt:', attempt);
+      // Silent - only log in development if needed
+      if (attempt <= 2) {
+        console.log('[SocketContext] Reconnection attempt:', attempt);
+      }
     });
 
     newSocket.on('reconnect_failed', () => {
