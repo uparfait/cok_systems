@@ -875,4 +875,138 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
                         })}
                       </div>
                     ))}
-                    <div ref={messagesEndRef
+                    <div ref={messagesEndRef} />
+                  </>
+                )}
+                
+                {/* Silent Loading Indicator */}
+                {showSilentLoader && (
+                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2">
+                    <div className="px-3 py-1 bg-gray-800 text-white text-xs rounded-full shadow-lg flex items-center gap-2">
+                      <div className="flex gap-1">
+                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce"></div>
+                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      </div>
+                      <span>Updating...</span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Typing Indicator */}
+                {Object.keys(typingUsers).length > 0 && (
+                  <div className="flex items-center gap-2 text-sm text-gray-500 italic mt-2">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    </div>
+                    {Object.values(typingUsers)[0]}
+                  </div>
+                )}
+              </div>
+
+              {/* Scroll to Bottom Button */}
+              {showScrollButton && (
+                <button
+                  onClick={scrollToBottom}
+                  className="absolute bottom-20 right-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-full p-2 shadow-lg transition-all transform hover:scale-105 flex items-center justify-center z-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  title="Scroll to bottom"
+                >
+                  <FiChevronDown size={20} />
+                </button>
+              )}
+
+              {/* Input Area */}
+              <div className="p-3 border-t border-gray-200 bg-white">
+                <div className="flex gap-2 items-end">
+                  <textarea
+                    ref={inputRef}
+                    value={inputMessage}
+                    onChange={(e) => { 
+                      setInputMessage(e.target.value);
+                      e.target.style.height = 'auto';
+                      e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                      handleTyping();
+                    }}
+                    onKeyDown={handleKeyPress}
+                    placeholder={activeTab === 'global' 
+                      ? 'Type a message...' 
+                      : selectedUser 
+                        ? `Message ${selectedUser.full_name}...`
+                        : 'Select a user to chat...'
+                    }
+                    disabled={isSending || (activeTab === 'inbox' && !selectedUser)}
+                    rows={1}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-2xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed resize-none overflow-hidden transition-all duration-200"
+                    style={{ minHeight: '40px', maxHeight: '120px' }}
+                  />
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={!inputMessage.trim() || isSending || (activeTab === 'inbox' && !selectedUser)}
+                    className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed rounded-full flex items-center justify-center transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-shrink-0"
+                  >
+                    {isSending ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <FiSend className="w-5 h-5 text-white" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Add animation styles */}
+      <style>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          75% { transform: translateX(5px); }
+        }
+        
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
+        }
+        
+        .animate-shake {
+          animation: shake 0.3s ease-in-out;
+        }
+        
+        /* Custom scrollbar */
+        .overflow-y-auto::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        .overflow-y-auto::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 3px;
+        }
+        
+        .overflow-y-auto::-webkit-scrollbar-thumb {
+          background: #c1c1c1;
+          border-radius: 3px;
+        }
+        
+        .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+          background: #a8a8a8;
+        }
+      `}</style>
+    </>
+  );
+};
+
+export default ChatWidget;
