@@ -24,7 +24,19 @@ async function verifyLogin(req, res, next) {
         // Use userId from body
         const userId =  userIdFromBody;
 
-        if (!userId || /*!inputOTP*/) {
+        // if (!userId || !inputOTP) {
+        //     return res.status(400).json({
+        //         success: false,
+        //         type: "warning",
+        //         message: "User ID and OTP are required",
+        //         error: "Please provide userId and OTP"
+        //     });
+        // }
+
+        // REPLACE THIS ABOVE
+
+        
+        if (!userId) {
             return res.status(400).json({
                 success: false,
                 type: "warning",
