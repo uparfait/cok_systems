@@ -315,6 +315,12 @@ export const parkingService = {
   // Get all parking records (including all statuses)
   getAll: () => get('/smartparking/vehicle?status=all&limit=100'),
   
+  // Get parking records with pagination
+  getAllPaginated: (page: number = 1, limit: number = 20) => get(`/smartparking/vehicle?status=all&page=${page}&limit=${limit}`),
+  
+  // Update parking record
+  update: (id: string, data: any) => put(`/smartparking/vehicle/${id}`, data),
+  
   // Get all vehicles (alias)
   getAllVehicles: () => get('/smartparking/vehicle?status=all&limit=100'),
   
@@ -583,6 +589,15 @@ export const statisticsService = {
   
   // Get feedback average by department
   getFeedbackAverageByDepartment: () => get('/statistics/feedback-average'),
+  
+  // Get currently parked statistics
+  getCurrentlyParkedStats: () => get('/statistics/currently-parked'),
+  
+  // Get flagged vehicles statistics
+  getFlaggedVehiclesStats: () => get('/statistics/flagged-vehicles'),
+  
+  // Get emergency cars statistics
+  getEmergencyCarsStats: () => get('/statistics/emergency-cars'),
 };
 
 export default {

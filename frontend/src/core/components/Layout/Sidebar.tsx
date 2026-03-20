@@ -8,7 +8,7 @@ import {
   FiHome, FiGrid, FiTruck, FiUsers, FiSettings, 
   FiMessageSquare, FiBarChart2, FiMapPin, FiLogOut, FiUser,
   FiClipboard, FiUserCheck, FiLogIn, FiLogOut as FiExit, FiList, FiArrowRight,
-  FiChevronRight, FiShield, FiFile
+  FiChevronRight, FiShield, FiFile, FiStar
 } from 'react-icons/fi';
 import { HiOutlineOfficeBuilding } from 'react-icons/hi';
 import { IoExitOutline } from 'react-icons/io5';
@@ -58,6 +58,7 @@ const getIcon = (iconName: string): React.ComponentType<any> => {
     FiSettings,
     FiMessageSquare,
     FiBarChart: FiBarChart2,
+    FiBarChart2,
     FiMapPin,
     FiLogOut,
     FiUser,
@@ -68,6 +69,7 @@ const getIcon = (iconName: string): React.ComponentType<any> => {
     FiList,
     FiArrowRight,
     FiShield,
+    FiStar,
     HiOutlineOfficeBuilding,
     FiDoorExit: IoExitOutline,
     FiParkingIcon,
@@ -303,15 +305,24 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <Icon className={`w-5 h-5 flex-shrink-0 ${linkIsActive ? 'text-white' : ''}`} />
                     <span className="font-medium text-sm truncate flex-1 text-left">{link.name}</span>
                     {hasChildren && (
-                      <button
+                      <span
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleMenu(link.id);
                         }}
-                        className="p-1 hover:bg-gray-200 rounded"
+                        className="p-1 hover:bg-gray-200 rounded cursor-pointer"
+                        role="button"
+                        aria-label={isExpanded ? 'Collapse menu' : 'Expand menu'}
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.stopPropagation();
+                            toggleMenu(link.id);
+                          }
+                        }}
                       >
                         <FiChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''} ${linkIsActive ? 'text-white' : 'text-gray-400'}`} />
-                      </button>
+                      </span>
                     )}
                   </button>
                 </div>

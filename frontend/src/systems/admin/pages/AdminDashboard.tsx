@@ -12,7 +12,7 @@ import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
   FiUsers, FiGrid, FiTruck, FiSettings, FiRefreshCw, FiTrendingUp, FiTrendingDown,
   FiAlertTriangle, FiCheckCircle, FiClock, FiActivity, FiArrowRight, FiEye,
-  FiCalendar, FiMapPin, FiTarget, FiZap, FiAward, FiLayers, FiPieChart, FiBarChart, FiWifiOff
+  FiCalendar, FiMapPin, FiTarget, FiZap, FiAward, FiLayers, FiPieChart, FiBarChart, FiWifiOff, FiX
 } from 'react-icons/fi';
 import { HiOutlineOfficeBuilding, HiOutlineChartBar, HiOutlineShieldCheck } from 'react-icons/hi';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -57,8 +57,12 @@ interface ParkingRecord {
   _id: string;
   vehicle?: string;
   plateNumber?: string;
+  plate_number?: string; // Backend field
+  driver_name?: string;   // Backend field
   status?: string;
   checkInTime?: string;
+  check_in?: string;     // Backend field
+  check_out?: string;   // Backend field
   is_flagged?: boolean;
   flagged?: boolean;
 }
@@ -67,10 +71,17 @@ interface VisitorRecord {
   _id: string;
   name?: string;
   visitorName?: string;
+  visitor_name?: string; // Backend field
+  full_name?: string;    // Backend field - main name field
+  badge_number?: string; // Backend field - for visitors without car
   status?: string;
   department?: string;
   departmentName?: string;
+  department_assigned?: string; // Backend field
+  departments_assigned?: Array<{ department_name?: string; department_id?: string }>; // Backend field
   checkInTime?: string;
+  check_in?: string;     // Backend field
+  entry_date?: string;   // Backend field - check-in time
   is_still_inhouse?: boolean;
 }
 
@@ -182,15 +193,13 @@ ActivityItemComponent.displayName = 'ActivityItemComponent';
 
 const AdminDashboard: React.FC = () => {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  const { socket, isConnected: isSocketConnected } = useSocket();
+  const { socket, isConnected } = useSocket();
   const navigate = useNavigate();
   
   // Refs for managing timers and abort controllers
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const notificationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const loadingRef = useRef(false);
-  const analyticsLoadingRef = useRef(false);
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -217,6 +226,13 @@ const AdminDashboard: React.FC = () => {
   // Hourly analytics data
   const [hourlyParkingData, setHourlyParkingData] = useState<HourlyParkingData[]>([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  
+  // Modal states for viewing all records
+  const [showParkingModal, setShowParkingModal] = useState(false);
+  const [showVisitorsModal, setShowVisitorsModal] = useState(false);
+  const [allParkingRecords, setAllParkingRecords] = useState<ParkingRecord[]>([]);
+  const [allVisitorRecords, setAllVisitorRecords] = useState<VisitorRecord[]>([]);
+  const [modalLoading, setModalLoading] = useState(false);
   
   // Individual loading states for better UX
   const [loadingStates, setLoadingStates] = useState({
@@ -260,25 +276,21 @@ const AdminDashboard: React.FC = () => {
     }
   }, []);
 
-  // Load all data function with AbortController support
+  // Load all data function
   const loadData = useCallback(async () => {
-    // Prevent multiple simultaneous requests
-    if (loadingRef.current) {
-      return;
-    }
-    loadingRef.current = true;
-    
-    // Cancel any in-progress requests
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    
-    // Create new abort controller
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
-    
     setLoading(true);
     setError('');
+    
+    // Fallback timeout to ensure loading state is reset
+    const loadingTimeout = setTimeout(() => {
+      setLoading(false);
+      setLoadingStates({
+        stats: false,
+        parking: false,
+        visitors: false,
+        departments: false
+      });
+    }, 15000); // 15 second timeout as fallback
     
     try {
       // Set individual loading states
@@ -296,9 +308,6 @@ const AdminDashboard: React.FC = () => {
         smartParkingService.getAllVehicles(),
         serviceDeliveryService.getAllVisitors(),
       ]);
-      
-      // Check if aborted
-      if (signal.aborted) return;
       
       // Process department data
       let departmentsCount = 0;
@@ -377,10 +386,9 @@ const AdminDashboard: React.FC = () => {
       }
       console.error('Error loading dashboard data:', err);
     } finally {
-      if (!signal.aborted) {
-        setLoading(false);
-        loadingRef.current = false;
-      }
+      // Clear the fallback timeout
+      clearTimeout(loadingTimeout);
+      setLoading(false);
       setLoadingStates({
         stats: false,
         parking: false,
@@ -392,22 +400,46 @@ const AdminDashboard: React.FC = () => {
 
   // Fetch hourly analytics data
   const fetchHourlyAnalytics = useCallback(async () => {
-    // Prevent multiple simultaneous requests
-    if (analyticsLoadingRef?.current) {
-      return;
-    }
-    analyticsLoadingRef.current = true;
     setAnalyticsLoading(true);
     try {
       const response = await statisticsService.getHourlyParkingStats();
-      if (response.data?.success && response.data.data?.hourly) {
-        setHourlyParkingData(response.data.data.hourly);
+      console.log('Hourly parking stats response:', JSON.stringify(response, null, 2));
+      
+      // Handle different response structures 
+      // API returns { success: true, data: { hourly: [...] } }
+      // But axios unwraps, so we get { success: true, data: { hourly: [...] } }
+      let hourlyData: any[] = [];
+      
+      // Try multiple possible response structures
+      if (response?.hourly) {
+        hourlyData = response.hourly;
+        console.log('Found hourly data at response.hourly');
+      } else if (response?.data?.hourly) {
+        hourlyData = response.data.hourly;
+        console.log('Found hourly data at response.data.hourly');
+      } else if (response?.data?.data?.hourly) {
+        hourlyData = response.data.data.hourly;
+        console.log('Found hourly data at response.data.data.hourly');
+      } else {
+        console.log('Could not find hourly data in response');
+        console.log('Response structure:', { 
+          hasData: !!response?.data, 
+          dataKeys: response?.data ? Object.keys(response.data) : 'no data',
+          topKeys: response ? Object.keys(response) : 'no response'
+        });
       }
-    } catch (error) {
+      
+      console.log('Hourly data received:', hourlyData);
+      
+      // Set data - even if empty, it will show appropriate message
+      if (Array.isArray(hourlyData)) {
+        setHourlyParkingData(hourlyData);
+      }
+    } catch (error: any) {
       console.error('Error fetching hourly analytics:', error);
+      console.error('Error details:', error?.message, error?.response?.status);
     } finally {
       setAnalyticsLoading(false);
-      analyticsLoadingRef.current = false;
     }
   }, []);
 
@@ -419,7 +451,7 @@ const AdminDashboard: React.FC = () => {
     debounceTimerRef.current = setTimeout(() => {
       loadData();
     }, RELOAD_DEBOUNCE_DELAY);
-  }, []);
+  }, [loadData]);
 
   // Show temporary notification
   const showNotification = useCallback((message: string) => {
@@ -448,7 +480,7 @@ const AdminDashboard: React.FC = () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [loadData]);
 
   // Authentication and initial data load
   useEffect(() => {
@@ -467,14 +499,13 @@ const AdminDashboard: React.FC = () => {
         abortControllerRef.current.abort();
       }
     };
-  }, [isAuthenticated, authLoading, navigate]);
+  }, [isAuthenticated, authLoading, navigate, loadData, fetchHourlyAnalytics]);
 
   // Socket connection and real-time event listeners
   useEffect(() => {
-    setSocketConnected(isSocketConnected);
+    setSocketConnected(isConnected);
     
-    // Note: We set up listeners even when not connected - they'll be ready when connection is restored
-    if (socket) {
+    if (socket && isConnected) {
       // Listen for parking check-in events
       socket.on('parking_checkin', (data: any) => {
         console.log('Real-time parking check-in:', data);
@@ -526,7 +557,7 @@ const AdminDashboard: React.FC = () => {
         socket.off('notifications');
       }
     };
-  }, [socket, isSocketConnected, showNotification, scheduleReload]);
+  }, [socket, isConnected, showNotification, scheduleReload]);
 
   // Generate activity feed from data (memoized)
   const activityFeed = useMemo((): ActivityItem[] => {
@@ -535,11 +566,14 @@ const AdminDashboard: React.FC = () => {
     
     // Add recent parking activities
     recentParking.slice(0, 3).forEach((p: ParkingRecord) => {
-      const time = p.checkInTime ? new Date(p.checkInTime) : now;
+      const checkInTime = p.checkInTime || p.check_in;
+      const time = checkInTime ? new Date(checkInTime) : now;
+      const plateNumber = p.vehicle || p.plateNumber || p.plate_number || p.driver_name || 'Unknown';
+      const statusText = p.status === 'active' || p.status === 'Parked' ? 'checked in' : 'checked out';
       activities.push({
         id: `parking-${p._id}`,
         type: 'parking',
-        message: `Vehicle ${p.vehicle || p.plateNumber || 'Unknown'} ${p.status === 'Parked' ? 'checked in' : 'checked out'}`,
+        message: `Vehicle ${plateNumber} ${statusText}`,
         time: getRelativeTime(time),
         icon: FiTruck,
         color: 'blue'
@@ -548,11 +582,19 @@ const AdminDashboard: React.FC = () => {
     
     // Add recent visitor activities
     recentVisitors.slice(0, 3).forEach((v: VisitorRecord) => {
-      const time = v.checkInTime ? new Date(v.checkInTime) : now;
+      const checkInTime = v.checkInTime || v.check_in;
+      const time = checkInTime ? new Date(checkInTime) : now;
+      const visitorName = v.full_name || v.name || v.visitorName || v.visitor_name;
+      const badgeNumber = v.badge_number;
+      // Show name if available, otherwise show badge number
+      const displayText = visitorName 
+        ? `Visitor ${visitorName}` 
+        : (badgeNumber ? `Visitor with badge ${badgeNumber}` : 'Visitor');
+      const statusText = v.is_still_inhouse === true || v.status === 'Inside' ? 'checked in' : 'checked out';
       activities.push({
         id: `visitor-${v._id}`,
         type: 'visitor',
-        message: `Visitor ${v.name || v.visitorName || 'Unknown'} ${v.status === 'Inside' ? 'checked in' : 'checked out'}`,
+        message: `${displayText} ${statusText}`,
         time: getRelativeTime(time),
         icon: FiUsers,
         color: 'green'
@@ -561,10 +603,11 @@ const AdminDashboard: React.FC = () => {
     
     // Add department activities
     departments.slice(0, 2).forEach((d: Department) => {
+      const deptName = d.name || d.department_name || 'Unknown';
       activities.push({
         id: `dept-${d._id}`,
         type: 'system',
-        message: `Department "${d.name || d.department_name || 'Unknown'}" is active`,
+        message: `Department "${deptName}" is active`,
         time: d.created_date ? getRelativeTime(new Date(d.created_date)) : 'Recently',
         icon: HiOutlineOfficeBuilding,
         color: 'purple'
@@ -728,19 +771,64 @@ const AdminDashboard: React.FC = () => {
   const handleRefresh = useCallback(() => {
     loadData();
     fetchHourlyAnalytics();
-  }, []);
+  }, [loadData, fetchHourlyAnalytics]);
   
   const handleViewReports = useCallback(() => {
     navigate('/admin/reports');
   }, [navigate]);
+  
+  // Open parking modal and fetch all records
+  const handleOpenParkingModal = useCallback(async () => {
+    setShowParkingModal(true);
+    setModalLoading(true);
+    try {
+      const response = await smartParkingService.getAll();
+      const records = response?.data || response || [];
+      setAllParkingRecords(Array.isArray(records) ? records : []);
+    } catch (error) {
+      console.error('Error fetching all parking records:', error);
+      setAllParkingRecords([]);
+    } finally {
+      setModalLoading(false);
+    }
+  }, []);
+  
+  // Open visitors modal and fetch all records
+  const handleOpenVisitorsModal = useCallback(async () => {
+    setShowVisitorsModal(true);
+    setModalLoading(true);
+    try {
+      // Get all in-house visitors (no pagination limit)
+      const response = await serviceDeliveryService.getAll(1, 100, true);
+      // Handle paginated response - data might be in response.data or response.data.data
+      const records = response?.data?.data || response?.data || response || [];
+      setAllVisitorRecords(Array.isArray(records) ? records : []);
+    } catch (error) {
+      console.error('Error fetching all visitor records:', error);
+      setAllVisitorRecords([]);
+    } finally {
+      setModalLoading(false);
+    }
+  }, []);
+  
+  // Close modals
+  const handleCloseParkingModal = useCallback(() => {
+    setShowParkingModal(false);
+    setAllParkingRecords([]);
+  }, []);
+  
+  const handleCloseVisitorsModal = useCallback(() => {
+    setShowVisitorsModal(false);
+    setAllVisitorRecords([]);
+  }, []);
 
-  if (authLoading || loading) {
+  // Only show full page loading for auth, not for data loading
+  // Data will load silently in the background with individual card loading states
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[600px]">
         <LoadingSpinner 
-          message="Loading admin dashboard..."
-          longLoadingMessage="Fetching real-time data and insights..."
-          longLoadingDelay={LONG_LOADING_DELAY}
+          message="Loading..."
         />
       </div>
     );
@@ -880,7 +968,7 @@ const AdminDashboard: React.FC = () => {
                     <h2 className="font-semibold text-gray-900">Recent Parking</h2>
                   </div>
                   <button 
-                    onClick={() => handleQuickAction('/smart_parking/dashboard')}
+                    onClick={handleOpenParkingModal}
                     className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
                     aria-label="View all parking records"
                   >
@@ -918,21 +1006,21 @@ const AdminDashboard: React.FC = () => {
                                   <FiTruck className="w-4 h-4 text-purple-600" aria-hidden="true" />
                                 </div>
                                 <span className="text-sm font-medium text-gray-900">
-                                  {record.vehicle || record.plateNumber || 'N/A'}
+                                  {record.vehicle || record.plateNumber || record.plate_number || record.driver_name || '___'}
                                 </span>
                               </div>
                             </td>
                             <td className="px-4 py-3">
                               <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
-                                record.status === 'Parked' 
+                                record.status === 'active' || record.status === 'Parked'
                                   ? 'bg-green-100 text-green-700' 
                                   : 'bg-gray-100 text-gray-600'
                               }`}>
-                                {record.status || 'Unknown'}
+                                {record.status === 'active' ? 'Parked' : record.status === 'completed' ? 'Completed' : record.status || 'Unknown'}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-500">
-                              {record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString() : 'N/A'}
+                              {(record.checkInTime || record.check_in) ? new Date(record.checkInTime || record.check_in as string).toLocaleTimeString() : '___'}
                             </td>
                           </tr>
                         ))
@@ -957,7 +1045,7 @@ const AdminDashboard: React.FC = () => {
                     <h2 className="font-semibold text-gray-900">Recent Visitors</h2>
                   </div>
                   <button 
-                    onClick={() => handleQuickAction('/service_delivery/dashboard')}
+                    onClick={handleOpenVisitorsModal}
                     className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
                     aria-label="View all visitors"
                   >
@@ -995,21 +1083,21 @@ const AdminDashboard: React.FC = () => {
                                   <FiUsers className="w-4 h-4 text-green-600" aria-hidden="true" />
                                 </div>
                                 <span className="text-sm font-medium text-gray-900">
-                                  {visitor.name || visitor.visitorName || 'N/A'}
+                                  {visitor.full_name || visitor.name || visitor.visitorName || visitor.visitor_name || 'N/A'}
                                 </span>
                               </div>
                             </td>
                             <td className="px-4 py-3">
                               <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
-                                visitor.status === 'Inside' 
+                                visitor.is_still_inhouse === true || visitor.status === 'Inside'
                                   ? 'bg-blue-100 text-blue-700' 
                                   : 'bg-gray-100 text-gray-600'
                               }`}>
-                                {visitor.status || 'Unknown'}
+                                {visitor.is_still_inhouse === true ? 'Inside' : visitor.status === 'Inside' ? 'Inside' : 'Outside'}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-500">
-                              {visitor.department || visitor.departmentName || 'N/A'}
+                              {visitor.department || visitor.departmentName || visitor.department_assigned || (visitor.departments_assigned && visitor.departments_assigned[0]?.department_name) || 'Not yet assigned'}
                             </td>
                           </tr>
                         ))
@@ -1097,7 +1185,7 @@ const AdminDashboard: React.FC = () => {
                         />
                         <Legend />
                         <Area 
-                          type="basis" 
+                          type="monotone" 
                           dataKey="check_in" 
                           name="Check-ins" 
                           stroke="#00aaff" 
@@ -1105,11 +1193,11 @@ const AdminDashboard: React.FC = () => {
                           fillOpacity={1} 
                           fill="url(#colorCheckInAdmin)" 
                           animationDuration={1500}
-                          dot={{ r: 4, fill: '#fff', stroke: '#00aaff', strokeWidth: 2 }}
+                          dot={false}
                           activeDot={{ r: 6, fill: '#00aaff', stroke: '#fff', strokeWidth: 2 }}
                         />
                         <Area 
-                          type="basis" 
+                          type="monotone" 
                           dataKey="check_out" 
                           name="Check-outs" 
                           stroke="#ef4444" 
@@ -1117,7 +1205,7 @@ const AdminDashboard: React.FC = () => {
                           fillOpacity={1} 
                           fill="url(#colorCheckOutAdmin)" 
                           animationDuration={1500}
-                          dot={{ r: 4, fill: '#fff', stroke: '#ef4444', strokeWidth: 2 }}
+                          dot={false}
                           activeDot={{ r: 6, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
                         />
                       </AreaChart>
@@ -1267,6 +1355,160 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Parking Records Modal */}
+      {showParkingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleCloseParkingModal}></div>
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-purple-50 to-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                  <FiTruck className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">All Parking Records</h2>
+                  <p className="text-sm text-gray-500">{allParkingRecords.length} records found</p>
+                </div>
+              </div>
+              <button 
+                onClick={handleCloseParkingModal}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <FiX className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="overflow-auto max-h-[calc(80vh-80px)]">
+              {modalLoading ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-purple-500 border-t-transparent"></div>
+                </div>
+              ) : allParkingRecords.length > 0 ? (
+                <table className="w-full">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Vehicle</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Driver</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Check-in</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Check-out</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {allParkingRecords.map((record) => (
+                      <tr key={record._id} className="hover:bg-purple-50/30 transition-colors">
+                        <td className="px-4 py-3">
+                          <span className="font-medium text-gray-900">
+                            {record.plate_number || record.plateNumber || record.vehicle || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {record.driver_name || 'N/A'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
+                            record.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {record.status === 'active' ? 'Parked' : record.status === 'completed' ? 'Completed' : record.status || 'Unknown'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {record.check_in ? new Date(record.check_in as string).toLocaleString() : 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {record.check_out ? new Date(record.check_out as string).toLocaleString() : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                  <FiTruck className="w-12 h-12 mb-2 opacity-50" />
+                  <p>No parking records found</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Visitors Modal */}
+      {showVisitorsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleCloseVisitorsModal}></div>
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-green-50 to-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                  <FiUsers className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">All Visitor Records</h2>
+                  <p className="text-sm text-gray-500">{allVisitorRecords.length} records found</p>
+                </div>
+              </div>
+              <button 
+                onClick={handleCloseVisitorsModal}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <FiX className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="overflow-auto max-h-[calc(80vh-80px)]">
+              {modalLoading ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-green-500 border-t-transparent"></div>
+                </div>
+              ) : allVisitorRecords.length > 0 ? (
+                <table className="w-full">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Badge</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Department</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Check-in</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {allVisitorRecords.map((visitor) => (
+                      <tr key={visitor._id} className="hover:bg-green-50/30 transition-colors">
+                        <td className="px-4 py-3">
+                          <span className="font-medium text-gray-900">
+                            {visitor.full_name || visitor.name || visitor.visitorName || visitor.visitor_name || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {visitor.badge_number || 'N/A'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
+                            visitor.is_still_inhouse === true ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {visitor.is_still_inhouse === true ? 'Inside' : 'Outside'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {visitor.departments_assigned?.[0]?.department_name || visitor.department || visitor.departmentName || 'Not assigned'}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {visitor.entry_date ? new Date(visitor.entry_date as string).toLocaleString() : 'N/A'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                  <FiUsers className="w-12 h-12 mb-2 opacity-50" />
+                  <p>No visitor records found</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </MainLayout>
   );
 };

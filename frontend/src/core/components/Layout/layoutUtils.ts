@@ -211,7 +211,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     } 
     if ((hasPermission(user, 'admin') || isAdmin) && (hasPermission(user, 'user_management') || isAdmin)) {
       adminChildren.push({ id: 'user-mgmt', label: 'User Management', path: '/admin/user-management', icon: 'FiUser', resource: 'user_management', requiredAction: 'read:user_management' });
-    } 
+    }
     
     if (adminChildren.length > 0) {
       navigation.push({
@@ -229,21 +229,22 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   if (hasParkingAccess || isAdmin) {
     const parkingChildren: NavItem[] = [];
     
+    // Dashboard points to admin smart parking dashboard
     if (hasPermission(user, 'smart parking', 'read') || isAdmin) {
-      parkingChildren.push({ id: 'parking-dashboard', label: 'Dashboard', path: '/smart-parking/dashboard', icon: 'FiHome', resource: 'smart parking', requiredAction: 'read:smart parking' });
+      parkingChildren.push({ id: 'parking-dashboard', label: 'Dashboard', path: '/admin/smart-parking', icon: 'FiHome', resource: 'smart parking', requiredAction: 'read:smart parking' });
     }
-    if (hasPermission(user, 'smart parking', 'create') || isAdmin) {
-      parkingChildren.push({ id: 'parking-checkin', label: 'Check In', path: '/smart-parking/check-in', icon: 'FiLogIn', resource: 'smart parking', requiredAction: 'create:smart parking' });
+    // Add Reservation menu item
+    if (hasPermission(user, 'smart parking', 'read') || isAdmin) {
+      parkingChildren.push({ id: 'parking-reservation', label: 'Reservation', path: '/smart-parking/reservation', icon: 'FiCalendar', resource: 'smart parking', requiredAction: 'read:smart parking' });
     }
-    if (hasPermission(user, 'smart parking', 'update') || isAdmin) {
-      parkingChildren.push({ id: 'parking-checkout', label: 'Check Out', path: '/smart-parking/check-out', icon: 'FiLogOut', resource: 'smart parking', requiredAction: 'update:smart parking' });
-    }
+    // Removed Check In and Check Out from Smart Parking menu as requested
+    // Reservation and Analytics will be added later
     
     if (parkingChildren.length > 0) {
       navigation.push({
         id: 'smartParking',
         label: 'Smart Parking',
-        path: '/smart-parking/dashboard',
+        path: '/admin/smart-parking',
         icon: 'FiTruck',
         children: parkingChildren,
       });
@@ -256,21 +257,28 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   if (hasServiceAccess || isAdmin) {
     const serviceChildren: NavItem[] = [];
     
+    // Admin Service Delivery Dashboard
     if (hasPermission(user, 'service delivery', 'read') || isAdmin) {
-      serviceChildren.push({ id: 'service-dashboard', label: 'Dashboard', path: '/service-delivery/dashboard', icon: 'FiHome', resource: 'service delivery', requiredAction: 'read:service delivery' });
+      serviceChildren.push({ id: 'service-dashboard', label: 'Dashboard', path: '/admin/service-delivery/dashboard', icon: 'FiHome', resource: 'service delivery', requiredAction: 'read:service delivery' });
     }
+    // Admin Check-In/Check-Out
     if (hasPermission(user, 'service delivery', 'create') || isAdmin) {
-      serviceChildren.push({ id: 'service-checkin', label: 'Check In', path: '/service-delivery/check-in', icon: 'FiLogIn', resource: 'service delivery', requiredAction: 'create:service delivery' });
+      serviceChildren.push({ id: 'service-checkin-checkout', label: 'Check-In/Check-Out', path: '/admin/service-delivery/checkin-checkout', icon: 'FiLogIn', resource: 'service delivery', requiredAction: 'create:service delivery' });
     }
-    if (hasPermission(user, 'service delivery', 'update') || isAdmin) {
-      serviceChildren.push({ id: 'service-checkout', label: 'Check Out', path: '/service-delivery/check-out', icon: 'FiLogOut', resource: 'service delivery', requiredAction: 'update:service delivery' });
+    // Analytics
+    if (hasPermission(user, 'service delivery', 'read') || isAdmin) {
+      serviceChildren.push({ id: 'service-analytics', label: 'Analytics', path: '/admin/analytics', icon: 'FiBarChart2', resource: 'service delivery', requiredAction: 'read:service delivery' });
+    }
+    // Feedback
+    if (hasPermission(user, 'service delivery', 'read') || isAdmin) {
+      serviceChildren.push({ id: 'service-feedback', label: 'Feedback', path: '/admin/feedback', icon: 'FiMessageSquare', resource: 'service delivery', requiredAction: 'read:service delivery' });
     }
     
     if (serviceChildren.length > 0) {
       navigation.push({
         id: 'serviceDelivery',
         label: 'Service Delivery',
-        path: '/service-delivery/dashboard',
+        path: '/admin/service-delivery/dashboard',
         icon: 'FiClipboard',
         children: serviceChildren,
       });
