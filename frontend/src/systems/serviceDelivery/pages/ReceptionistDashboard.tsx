@@ -1,3 +1,4 @@
+
 // ReceptionistDashboard Page - MainLayout Compatible + Figma UI Content
 // INTEGRATED WITH BACKEND APIs
 
@@ -5,8 +6,9 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { 
   FiSearch, FiUsers, FiClock, FiCheckCircle, FiMoreVertical, FiChevronDown,
-  FiDownload, FiChevronLeft, FiChevronRight
+  FiDownload, FiChevronLeft, FiChevronRight, FiGrid
 } from "react-icons/fi";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 // Import API Services
 import { serviceDeliveryService, departmentService, statisticsService, employeeService } from "../../../core/services/adminService";
@@ -24,6 +26,8 @@ interface Visitor {
   name?: string;
   full_name?: string;
   visitorName?: string;
+  badge_number?: string;
+  badge?: string;
   identification?: string | { number?: string };
   telephone?: string;
   email?: string;
@@ -37,10 +41,29 @@ interface Visitor {
   service?: string;
   purpose?: string;
   assignedStaff?: string;
+  room_number?: string;
+  roomNumber?: string;
+  queue_position?: number;
+  queuePosition?: number;
+  check_in_gate?: string;
+  checkedInGate?: string;
+  receptionist_name?: string;
+  receptionistName?: string;
+  officer_name?: string;
+  officerName?: string;
   departments_assigned?: Array<{
     department_id: string;
     department_name?: string;
     status: string;
+    provider_name?: string;
+    provider_id?: string;
+  }>;
+  services_status?: Array<{
+    department_id: string;
+    department_name?: string;
+    s_type?: string;
+    provider_name?: string;
+    provider_id?: string;
   }>;
 }
 
@@ -51,8 +74,8 @@ const ReceptionistDashboard: React.FC = () => {
   
   // State
   const tabParam = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'visitors' | 'availability'>(
-    tabParam === 'visitors' ? 'visitors' : tabParam === 'availability' ? 'availability' : 'dashboard'
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'visitors'>(
+    tabParam === 'visitors' ? 'visitors' : 'dashboard'
   );
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -110,7 +133,6 @@ const ReceptionistDashboard: React.FC = () => {
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab === 'visitors') setActiveTab('visitors');
-    else if (tab === 'availability') setActiveTab('availability');
     else setActiveTab('dashboard');
   }, [searchParams]);
 
@@ -187,7 +209,7 @@ const ReceptionistDashboard: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [currentPage]);
+  }, [currentPage, searchTerm]);
 
   // Format Departments for the Modal
   const formattedDepartments = departments.map(dept => ({
@@ -200,12 +222,12 @@ const ReceptionistDashboard: React.FC = () => {
 
   // Helper functions
   const getIdentification = (visitor: Visitor): string => {
-    if (!visitor.identification) return 'N/A';
+    if (!visitor.identification) return '---';
     if (typeof visitor.identification === 'string') return visitor.identification;
     if (typeof visitor.identification === 'object' && visitor.identification.number) {
       return visitor.identification.number;
     }
-    return 'N/A';
+    return '---';
   };
 
   const getVisitorName = (visitor: Visitor): string => {
@@ -232,10 +254,7 @@ const ReceptionistDashboard: React.FC = () => {
   const totalVisitors = Array.isArray(visitors) ? visitors.length : 0;
   const activeVisitors = Array.isArray(visitors) ? visitors.filter(v => v.status === 'In_progress' || v.status === 'Inside').length : 0;
   const assignedCount = Array.isArray(visitors) ? visitors.filter(v => v.departments_assigned && v.departments_assigned.length > 0).length : 0;
-
-  useEffect(() => {
-    loadData();
-  }, [currentPage, searchTerm]);
+  const totalDepartments = Array.isArray(departments) ? departments.length : 0;
 
   // Load employees when department is selected
   const loadEmployeesByDepartment = async (departmentId: string) => {
@@ -321,249 +340,103 @@ const ReceptionistDashboard: React.FC = () => {
       {activeTab === 'dashboard' && (
         <div className="max-w-7xl mx-auto space-y-6">
           
-          {/* KPI Cards (Figma Styled) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mb-4">
-                <FiUsers className="w-5 h-5 text-blue-500" />
+          {/* KPI Cards (Glassmorphism Styled) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-blue-700 text-sm font-medium mb-1">Today's Total Visitors</p>
+                  <h3 className="text-3xl font-bold text-blue-700">{totalVisitors}</h3>
+                </div>
+                <div className="p-3 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
+                  <FiUsers className="w-6 h-6 text-blue-600" />
+                </div>
               </div>
-              <p className="text-xs text-gray-500 font-medium mb-1">Today's Total Visitors</p>
-              <p className="text-4xl font-bold text-gray-800">{totalVisitors}</p>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="w-10 h-10 rounded-lg bg-yellow-50 flex items-center justify-center mb-4">
-                <FiClock className="w-5 h-5 text-yellow-500" />
+            <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-emerald-700 text-sm font-medium mb-1">Total Departments</p>
+                  <h3 className="text-3xl font-bold text-emerald-700">{totalDepartments}</h3>
+                </div>
+                <div className="p-3 bg-gradient-to-br from-emerald-500/20 to-green-500/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
+                  <FiGrid className="w-6 h-6 text-emerald-600" />
+                </div>
               </div>
-              <p className="text-xs text-gray-500 font-medium mb-1">Active Now (Inside)</p>
-              <p className="text-4xl font-bold text-gray-800">{activeVisitors}</p>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center mb-4">
-                <FiCheckCircle className="w-5 h-5 text-teal-500" />
+            <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-teal-700 text-sm font-medium mb-1">Total Assigned</p>
+                  <h3 className="text-3xl font-bold text-teal-700">{assignedCount}</h3>
+                </div>
+                <div className="p-3 bg-gradient-to-br from-teal-500/20 to-cyan-500/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
+                  <FiCheckCircle className="w-6 h-6 text-teal-600" />
+                </div>
               </div>
-              <p className="text-xs text-gray-500 font-medium mb-1">Total Assigned</p>
-              <p className="text-4xl font-bold text-gray-800">{assignedCount}</p>
             </div>
           </div>
 
-          {/* Chart Section - Now above the table */}
-          <div className="w-full bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-sm font-bold text-gray-800 mb-1">Daily Insights</h3>
-            <p className="text-xs text-gray-400 mb-4">Visitor traffic by hour</p>
+          {/* Chart Section - Glassmorphism Style */}
+          <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-lg border border-white/30 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-2 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-xl">
+                <FiClock className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">Daily Insights</h3>
+                <p className="text-xs text-gray-500">Visitor traffic by hour</p>
+              </div>
+            </div>
             {hourlyData.length > 0 ? (
-              <div className="relative w-full h-72">
-                <svg viewBox="0 0 800 280" className="w-full h-full" preserveAspectRatio="none">
-                  {/* Background gradient */}
-                  <defs>
-                    <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="#06b6d4" />
-                      <stop offset="50%" stopColor="#3b82f6" />
-                      <stop offset="100%" stopColor="#8b5cf6" />
-                    </linearGradient>
-                    <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.25" />
-                      <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.02" />
-                    </linearGradient>
-                  </defs>
-                  
-                  {/* Grid lines - horizontal */}
-                  {/* Grid lines - horizontal with dynamic increment based on PEAK hour */}
-                  {(() => {
-                    const maxHourly = Math.max(...hourlyData.map(h => h.visitors_checked_in), 0);
-                    let increment = 1;
-                    if (maxHourly > 1000) increment = 1000;
-                    else if (maxHourly > 100) increment = 100;
-                    else if (maxHourly > 10) increment = 10;
-                    else increment = 1;
-                    
-                    const maxVal = Math.max(maxHourly, increment);
-                    const numTicks = Math.ceil(maxVal / increment) + 1;
-                    const yStep = 220 / (numTicks - 1);
-                    
-                    return Array.from({ length: numTicks }, (_, i) => (
-                      <line 
-                        key={`h-${i}`} 
-                        x1="45" y1={30 + i * yStep} x2="780" y2={30 + i * yStep} 
-                        stroke="#f3f4f6" strokeWidth="1" 
-                      />
-                    ));
-                  })()}
-                  
-                  {/* Grid lines - vertical - all 24 hours */}
-                  {Array.from({ length: 24 }, (_, hour) => (
-                    <line 
-                      key={`v-${hour}`} 
-                      x1={45 + (hour / 23) * 735} y1="30" x2={45 + (hour / 23) * 735} y2="250" 
-                      stroke="#f3f4f6" strokeWidth="1" 
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={hourlyData}
+                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                  >
+                    <defs>
+                      <linearGradient id="colorVisitors" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#00aaff" stopOpacity={0.25}/>
+                        <stop offset="95%" stopColor="#00aaff" stopOpacity={0.02}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                    <XAxis 
+                      dataKey="hour" 
+                      tickFormatter={(value) => `${value.toString().padStart(2, '0')}:00`}
+                      stroke="#9ca3af"
+                      fontSize={12}
+                      axisLine={false}
+                      tickLine={false}
                     />
-                  ))}
-                  
-                  {/* Y-axis labels - dynamic increment based on PEAK hour */}
-                  {(() => {
-                    const maxHourly = Math.max(...hourlyData.map(h => h.visitors_checked_in), 0);
-                    let increment = 1;
-                    if (maxHourly > 1000) increment = 1000;
-                    else if (maxHourly > 100) increment = 100;
-                    else if (maxHourly > 10) increment = 10;
-                    else increment = 1;
-                    
-                    const maxVal = Math.max(maxHourly, increment);
-                    const numTicks = Math.ceil(maxVal / increment) + 1;
-                    return Array.from({ length: numTicks }, (_, i) => i * increment).map((val) => (
-                      <text key={`y-${val}`} x="40" y={274 - (val / maxVal) * 220} className="text-[9px] fill-gray-400" textAnchor="end" dominantBaseline="middle">
-                        {val}
-                      </text>
-                    ));
-                  })()}
-                  
-                  {/* X-axis labels - all 24 hours with AM/PM */}
-                  {Array.from({ length: 24 }, (_, hour) => (
-                    <text 
-                      key={`x-${hour}`} 
-                      x={45 + (hour / 23) * 735} y="268" 
-                      className="text-[8px] fill-gray-400" textAnchor="middle"
-                    >
-                      {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour-12}pm` : `${hour}am`}
-                    </text>
-                  ))}
-                  
-                  {/* Vertical line passing through data points */}
-                  {hourlyData.filter(h => h.visitors_checked_in > 0).map((h) => {
-                    const maxHourly = Math.max(...hourlyData.map(h => h.visitors_checked_in), 0);
-                    let increment = 1;
-                    if (maxHourly > 1000) increment = 1000;
-                    else if (maxHourly > 100) increment = 100;
-                    else if (maxHourly > 10) increment = 10;
-                    else increment = 1;
-                    const maxVal = Math.max(maxHourly, increment);
-                    const x = 45 + (h.hour / 23) * 735;
-                    return (
-                      <line 
-                        key={`vline-${h.hour}`}
-                        x1={x} y1="30" x2={x} y2="250" 
-                        stroke="#06b6d4" strokeWidth="1" strokeOpacity="0.2" strokeDasharray="3,3"
-                      />
-                    );
-                  })}
-                  
-                  {/* Area under the line */}
-                  <path 
-                    d={`M 45 250 ${hourlyData.map((h) => {
-                      const maxHourly = Math.max(...hourlyData.map(h => h.visitors_checked_in), 0);
-                      let increment = 1;
-                      if (maxHourly > 1000) increment = 1000;
-                      else if (maxHourly > 100) increment = 100;
-                      else if (maxHourly > 10) increment = 10;
-                      else increment = 1;
-                      const maxVal = Math.max(maxHourly, increment);
-                      const x = 45 + (h.hour / 23) * 735;
-                      const y = 250 - (h.visitors_checked_in / maxVal) * 220;
-                      return `L ${x} ${y}`;
-                    }).join(' ')} L 780 250 Z`}
-                    fill="url(#areaGradient)" 
-                  />
-                  
-                  {/* Smooth curved line */}
-                  <path 
-                    d={`M ${hourlyData.map((h, i) => {
-                      const maxHourly = Math.max(...hourlyData.map(h => h.visitors_checked_in), 0);
-                      let increment = 1;
-                      if (maxHourly > 1000) increment = 1000;
-                      else if (maxHourly > 100) increment = 100;
-                      else if (maxHourly > 10) increment = 10;
-                      else increment = 1;
-                      const maxVal = Math.max(maxHourly, increment);
-                      const x = 45 + (h.hour / 23) * 735;
-                      const y = 250 - (h.visitors_checked_in / maxVal) * 220;
-                      
-                      if (i === 0) return `M ${x} ${y}`;
-                      
-                      const prevMaxHourly = Math.max(...hourlyData.slice(0, i).map(h => h.visitors_checked_in), 0);
-                      let prevIncrement = 1;
-                      if (prevMaxHourly > 1000) prevIncrement = 1000;
-                      else if (prevMaxHourly > 100) prevIncrement = 100;
-                      else if (prevMaxHourly > 10) prevIncrement = 10;
-                      else prevIncrement = 1;
-                      const prevMaxVal = Math.max(prevMaxHourly, prevIncrement);
-                      const prevX = 45 + (hourlyData[i-1].hour / 23) * 735;
-                      const prevY = 250 - (hourlyData[i-1].visitors_checked_in / prevMaxVal) * 220;
-                      
-                      const cpX = (prevX + x) / 2;
-                      return `Q ${cpX} ${prevY} ${x} ${y}`;
-                    }).join(' ')}`}
-                    fill="none" 
-                    stroke="url(#lineGradient)" 
-                    strokeWidth="2.5" 
-                    strokeLinecap="round"
-                  />
-                  
-                  {/* Small data points with hover tooltip */}
-                  {hourlyData.filter(h => h.visitors_checked_in > 0).map((h) => {
-                    const maxHourly = Math.max(...hourlyData.map(h => h.visitors_checked_in), 0);
-                    let increment = 1;
-                    if (maxHourly > 1000) increment = 1000;
-                    else if (maxHourly > 100) increment = 100;
-                    else if (maxHourly > 10) increment = 10;
-                    else increment = 1;
-                    const maxVal = Math.max(maxHourly, increment);
-                    const x = 45 + (h.hour / 23) * 735;
-                    const y = 250 - (h.visitors_checked_in / maxVal) * 220;
-                    return (
-                      <g 
-                        key={h.hour}
-                        onMouseEnter={() => setHoveredHour({ hour: h.hour, visitors: h.visitors_checked_in })}
-                        onMouseLeave={() => setHoveredHour(null)}
-                        className="cursor-pointer"
-                      >
-                        <circle cx={x} cy={y} r="4" fill="#fff" stroke="url(#lineGradient)" strokeWidth="2" />
-                        <circle cx={x} cy={y} r="2" fill="#06b6d4" />
-                      </g>
-                    );
-                  })}
-                  
-                  {/* Tooltip */}
-                  {hoveredHour && (() => {
-                    const maxHourly = Math.max(...hourlyData.map(h => h.visitors_checked_in), 0);
-                    let increment = 1;
-                    if (maxHourly > 1000) increment = 1000;
-                    else if (maxHourly > 100) increment = 100;
-                    else if (maxHourly > 10) increment = 10;
-                    else increment = 1;
-                    const maxVal = Math.max(maxHourly, increment);
-                    const x = 45 + (hoveredHour.hour / 23) * 735;
-                    const y = 250 - (hoveredHour.visitors / maxVal) * 220;
-                    return (
-                      <g>
-                        <rect 
-                          x={x - 35} 
-                          y={y - 45} 
-                          width="70" 
-                          height="32" 
-                          rx="6" 
-                          fill="#1f2937" 
-                        />
-                        <text 
-                          x={x} 
-                          y={y - 30} 
-                          textAnchor="middle" 
-                          className="text-xs fill-white font-medium"
-                        >
-                          {hoveredHour.hour}:00
-                        </text>
-                        <text 
-                          x={x} 
-                          y={y - 14} 
-                          textAnchor="middle" 
-                          className="text-[10px] fill-cyan-400 font-bold"
-                        >
-                          {hoveredHour.visitors} visitors
-                        </text>
-                      </g>
-                    );
-                  })()}
-                </svg>
+                    <YAxis stroke="#9ca3af" fontSize={12} axisLine={false} tickLine={false} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                      }}
+                      formatter={(value) => [value, 'Visitors']}
+                      labelFormatter={(label) => `${label}:00`}
+                    />
+                    <Area 
+                      type="basis" 
+                      dataKey="visitors_checked_in" 
+                      name="Visitors" 
+                      stroke="#00aaff" 
+                      strokeWidth={2}
+                      fillOpacity={1} 
+                      fill="url(#colorVisitors)" 
+                      animationDuration={1500}
+                      dot={{ r: 4, fill: '#fff', stroke: '#00aaff', strokeWidth: 2 }}
+                      activeDot={{ r: 6, fill: '#00aaff', stroke: '#fff', strokeWidth: 2 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
             ) : (
               <div className="h-56 flex items-center justify-center text-gray-400">
@@ -616,9 +489,9 @@ const ReceptionistDashboard: React.FC = () => {
                     className={`pl-9 pr-4 py-2 w-72 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 ${searchLoading ? 'opacity-50' : ''}`}
                   />
                 </div>
-                <button onClick={() => setShowExportMenu(!showExportMenu)} className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 transition-colors">
+                {/* <button onClick={() => setShowExportMenu(!showExportMenu)} className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 transition-colors">
                   <FiDownload className="w-3 h-3" /> Export
-                </button>
+                </button> */}
               </div>
             </div>
 
@@ -626,6 +499,7 @@ const ReceptionistDashboard: React.FC = () => {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-100">
+                    <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider px-6 py-4">BADGE NUMBER</th>
                     <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider px-6 py-4">VISITOR NAME</th>
                     <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider px-6 py-4">ID NUMBER</th>
                     <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider px-6 py-4">STATUS</th>
@@ -636,12 +510,17 @@ const ReceptionistDashboard: React.FC = () => {
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr><td colSpan={6} className="text-center py-8 text-sm text-gray-500">Loading live data...</td></tr>
+                    <tr><td colSpan={7} className="text-center py-8 text-sm text-gray-500">Loading live data...</td></tr>
                   ) : paginatedVisitors.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center py-8 text-sm text-gray-500">No visitors found.</td></tr>
+                    <tr><td colSpan={7} className="text-center py-8 text-sm text-gray-500">No visitors found.</td></tr>
                   ) : (
                     paginatedVisitors.map((visitor) => (
                       <tr key={visitor._id || visitor.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                            {visitor.badge_number || visitor.badge || '---'}
+                          </span>
+                        </td>
                         <td className="px-6 py-4 flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
                             {getVisitorName(visitor).substring(0,2).toUpperCase()}
@@ -655,7 +534,7 @@ const ReceptionistDashboard: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4"><p className="text-xs font-semibold text-gray-800">{getCheckInTime(visitor)}</p></td>
-                        <td className="px-6 py-4"><p className="text-xs text-gray-600">{visitor.telephone || 'N/A'}</p></td>
+                        <td className="px-6 py-4"><p className="text-xs text-gray-600">{visitor.telephone || '---'}</p></td>
                         <td className="px-6 py-4">
                           {(visitor.status === 'In_progress' || visitor.status === 'Inside') ? (
                             <button className="p-2 text-gray-400 hover:text-blue-600 cursor-not-allowed">
@@ -697,27 +576,36 @@ const ReceptionistDashboard: React.FC = () => {
       {/* ASSIGNED VISITORS TAB CONTENT */}
       {activeTab === 'visitors' && (
         <div className="max-w-7xl mx-auto">
-          <AssignedVisitorsList visitors={visitors.filter(v => v.departments_assigned && v.departments_assigned.length > 0).map(v => ({
-            id: String(v._id || v.id || ''),
-            fullName: getVisitorName(v),
-            nationalId: getIdentification(v),
-            service: String(v.service || 'General Inquiry'),
-            department: v.departments_assigned?.[0]?.department_name || v.department || 'General',
-            assignmentTime: getCheckInTime(v),
-            status: String(v.status || 'pending'),
-            phone: String(v.telephone || ''),
-            checkInTime: getCheckInTime(v),
-          }))} />
-        </div>
-      )}
-
-      {/* DEPARTMENT AVAILABILITY TAB CONTENT */}
-      {activeTab === 'availability' && (
-        <div className="max-w-7xl mx-auto">
-          <DepartmentAvailability 
-            departments={formattedDepartments}
-            visitorCounts={departmentVisitorCounts}
-          />
+          <AssignedVisitorsList visitors={visitors.filter(v => v.departments_assigned && v.departments_assigned.length > 0).map(v => {
+            // Extract service status info for the first assigned department
+            const deptId = v.departments_assigned?.[0]?.department_id;
+            const serviceStatus = v.services_status?.find((s: any) => s.department_id === deptId);
+            
+            return {
+              id: String(v._id || v.id || ''),
+              fullName: getVisitorName(v),
+              nationalId: getIdentification(v),
+              identity: getIdentification(v),
+              badgeNumber: v.badge_number || v.badge || '---',
+              service: String(v.service || 'General Inquiry'),
+              department: v.departments_assigned?.[0]?.department_name || v.department || 'General',
+              assignmentTime: getCheckInTime(v),
+              status: String(v.status || 'pending'),
+              phone: String(v.telephone || ''),
+              checkInTime: getCheckInTime(v),
+              roomNumber: v.room_number || v.roomNumber || 'Pending',
+              queuePosition: v.queue_position || v.queuePosition || 0,
+              checkedInTime: v.check_in_time ? new Date(v.check_in_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : getCheckInTime(v),
+              checkedInGate: v.check_in_gate || v.checkedInGate || 'Main Gate',
+              receptionistName: v.receptionist_name || v.receptionistName || '',
+              officerName: v.officer_name || v.officerName || 'Pending',
+              // Service status info - provider and service type
+              providerName: serviceStatus?.provider_name || v.departments_assigned?.[0]?.provider_name || '',
+              providerId: serviceStatus?.provider_id || v.departments_assigned?.[0]?.provider_id || '',
+              serviceType: serviceStatus?.s_type || v.services_status?.[0]?.s_type || 'Not started',
+              currentDepartmentId: deptId,
+            };
+          })} />
         </div>
       )}
 

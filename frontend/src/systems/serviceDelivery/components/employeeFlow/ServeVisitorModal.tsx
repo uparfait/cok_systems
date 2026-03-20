@@ -5,12 +5,15 @@ import { FiX, FiSquare, FiRefreshCw, FiInfo } from 'react-icons/fi';
 export interface SelectedVisitor {
   name: string;
   id: string;
+  visitorId?: string;
+  badgeNumber?: string;
   email: string;
   service: string;
   checkInTime: string;
   gate: string;
   status?: string;
   serviceStartTime?: string;
+  departmentName?: string;
 }
 
 export interface ServeVisitorModalProps {
@@ -63,7 +66,7 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
     }, 1000);
   };
 
-  // COMBINED LOGIC: Handles your auto-start AND colleague's sync smoothly
+  // COMBINED LOGIC: Sync timer from backend start time
   useEffect(() => {
     // Clear any existing timer first
     if (timerRef.current) {
@@ -72,7 +75,7 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
     }
 
     if (isOpen && visitor) {
-      // 1. Reset states (Your logic)
+      // 1. Reset states
       setServiceStarted(false);
       setServiceEnded(false);
       setSessionNotes('');
@@ -80,11 +83,11 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
       setServiceStartTime('');
       setServiceEndTime('');
 
-      // 2. Decide which timer logic to use
+      // 2. If visitor has a serviceStartTime from backend, sync to it
       if (visitor.serviceStartTime) {
-        // COLLEAGUE'S LOGIC: Visitor already has a start time, sync it accurately
         setServiceStarted(true);
         const start = new Date(visitor.serviceStartTime).getTime();
+        setServiceStartTime(visitor.serviceStartTime);
         
         if (!isNaN(start)) {
           const syncTimer = () => {
@@ -101,7 +104,7 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
           timerRef.current = setInterval(syncTimer, 1000); // Live sync
         }
       } else {
-        // YOUR LOGIC: No start time yet, auto-start and notify parent
+        // No start time - auto-start (rare case)
         handleStartService();
       }
     }
@@ -165,8 +168,11 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
               </div>
             </div>
 
-            <div className="mb-6"><label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">VISITOR ID</label><span className="text-[#2C3E50] text-[13px]">{visitor.id}</span></div>
-            <div className="mb-6"><label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">EMAIL ADDRESS</label><span className="text-[#2C3E50] text-[13px]">{visitor.email}</span></div>
+            
+            {visitor.badgeNumber && (
+              <div className="mb-6"><label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">BADGE NUMBER</label><span className="text-[#2C3E50] text-[13px]">{visitor.badgeNumber}</span></div>
+            )}
+            <div className="mb-6"><label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">PHONE NUMBER</label><span className="text-[#2C3E50] text-[13px]">{visitor.email}</span></div>
             <div className="mb-6"><label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">REQUESTED SERVICE</label><span className="inline-block bg-[#E3F2FD] text-[#1E88C8] text-[12px] px-2 py-1 rounded-[6px]">{visitor.service}</span></div>
             
             <div className="mt-auto">
@@ -202,7 +208,7 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
 
             <div className="mb-8">
               <label className="block text-[12px] text-[#8A94A6] uppercase tracking-[1px] mb-2">Session Notes (Optional)</label>
-              <textarea value={sessionNotes} onChange={(e) => setSessionNotes(e.target.value)} placeholder="Type 'transfer' anywhere here to record this as a Transferred service..." className="w-full h-[100px] border border-[#D9E1EA] rounded-[12px] p-3 text-[13px] resize-none focus:ring-2 focus:ring-[#1E88C8]" />
+              <textarea value={sessionNotes} onChange={(e) => setSessionNotes(e.target.value)} placeholder="Add service description..." className="w-full h-[100px] border border-[#D9E1EA] rounded-[12px] p-3 text-[13px] resize-none focus:ring-2 focus:ring-[#1E88C8]" />
             </div>
 
             <div className="flex justify-end items-center pt-4 border-t border-[#E8EAED]">

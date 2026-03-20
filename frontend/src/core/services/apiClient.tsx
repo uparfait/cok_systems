@@ -313,6 +313,7 @@ export const apiRequest = async (
 
     // Get the status code from the response
     const statusCode = error.response?.status;
+    const responseData = error.response?.data;
     const isLoginEndpoint = endpoint.includes('/auth/login');
     
     // Check if this is a network error (no response) or a retriable status code
@@ -321,6 +322,10 @@ export const apiRequest = async (
     const isLoginRequest = isLoginEndpoint;
     const isRetriableStatus = statusCode && !NON_RETRYABLE_STATUS_CODES.includes(statusCode);
     const shouldRetry = !isLoginRequest && (isNetworkError || isRetriableStatus) && retryCount < maxRetries;
+    
+    // Extract message from response data
+    const errorMessage = responseData?.message || responseData?.error || error.message || 'An error occurred';
+    const errorStatus = responseData?.status ?? false;
     
     if (shouldRetry) {
       // Wait before retrying (exponential backoff: 1s, 2s, 3s, 4s, 5s)
@@ -333,15 +338,19 @@ export const apiRequest = async (
     
     // Re-throw with standardized error format
     // The interceptor throws error.response?.data which is already the parsed error object
-    if (error?.status === false) {
-      throw error; // Already formatted error from interceptor
+    if (errorStatus === false) {
+      throw {
+        status: false,
+        error: errorMessage,
+        message: errorMessage,
+      };
     }
 
     // Fallback for unknown error formats
     throw {
       status: false,
-      error: error.message || 'Unknown error',
-      message: error.message || 'An error occurred',
+      error: errorMessage,
+      message: errorMessage,
     };
   }
 };

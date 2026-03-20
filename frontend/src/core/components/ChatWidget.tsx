@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSocket } from '../contexts/SocketContext';
 import { useAuth } from '../contexts/AuthContext';
-import { FiMessageSquare, FiX, FiSend, FiUsers, FiGlobe, FiEdit2, FiCheck, FiChevronDown } from 'react-icons/fi';
+import { FiMessageSquare, FiX, FiSend, FiUsers, FiGlobe, FiEdit2, FiCheck, FiChevronDown, FiMessageCircle } from 'react-icons/fi';
 
 interface User {
   userId: string;
@@ -37,6 +37,23 @@ interface ChatWidgetProps {
   className?: string;
 }
 
+interface MessageCache {
+  global: Message[];
+  inbox: { [key: string]: Message[] };
+}
+
+// Bouncing Loader Component
+const BouncingLoader: React.FC<{ message?: string }> = ({ message = 'Loading messages...' }) => (
+  <div className="flex flex-col items-center justify-center h-full gap-3">
+    <div className="flex gap-2">
+      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+    </div>
+    <p className="text-sm text-gray-500">{message}</p>
+  </div>
+);
+
 const ChatWidget: React.FC<ChatWidgetProps> = () => {
   const { socket, isConnected, emit, on, off } = useSocket();
   const { user, token } = useAuth();
@@ -63,30 +80,52 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isLoadingSilent, setIsLoadingSilent] = useState(false);
+  const [messageCache, setMessageCache] = useState<MessageCache>({
+    global: [],
+    inbox: {}
+  });
   
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const activeTabRef = useRef(activeTab);
+  const selectedUserRef = useRef(selectedUser);
 
   const isAuthenticated = !!token && !!user;
 
-  // Generate avatar color based on username
-  const getAvatarColor = (name: string) => {
-    const colors = [
-      'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 
-      'bg-pink-500', 'bg-indigo-500', 'bg-red-500', 'bg-teal-500'
+  // Update refs
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  useEffect(() => {
+    selectedUserRef.current = selectedUser;
+  }, [selectedUser]);
+
+  // Generate avatar color based on username with gradient
+  const getAvatarColor = (name: string): string => {
+    const gradients = [
+      'from-blue-500 to-blue-600',
+      'from-green-500 to-green-600',
+      'from-purple-500 to-purple-600',
+      'from-pink-500 to-pink-600',
+      'from-indigo-500 to-indigo-600',
+      'from-red-500 to-red-600',
+      'from-teal-500 to-teal-600',
+      'from-orange-500 to-orange-600'
     ];
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
       hash = ((hash << 5) - hash) + name.charCodeAt(i);
       hash = hash & hash;
     }
-    return colors[Math.abs(hash) % colors.length];
+    return gradients[Math.abs(hash) % gradients.length];
   };
 
   // Get initials from name
-  const getInitials = (name: string) => {
+  const getInitials = (name: string): string => {
     const parts = name.split(' ');
     if (parts.length >= 2) {
       return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
@@ -104,87 +143,149 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
   // Focus input
   const focusInput = useCallback(() => {
     if (inputRef.current && (activeTab === 'global' || selectedUser)) {
-      inputRef.current.focus();
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [activeTab, selectedUser]);
 
-  const fetchInitialData = useCallback(async () => {
+  // Silent load messages (without showing spinner)
+  const loadMessagesSilently = useCallback((type: 'global' | 'inbox', userId?: string) => {
+    if (!socket || !isConnected || !isAuthenticated) return;
+    
+    setIsLoadingSilent(true);
+    
+    if (type === 'global') {
+      emit('get_global_messages', {}, (response: any) => {
+        if (response?.success && activeTabRef.current === 'global') {
+          setMessages(response.messages || []);
+          setMessageCache(prev => ({ ...prev, global: response.messages || [] }));
+        }
+        setIsLoadingSilent(false);
+      });
+    } else if (type === 'inbox' && userId) {
+      emit('get_conversation', { userId }, (response: any) => {
+        if (response?.success && activeTabRef.current === 'inbox' && selectedUserRef.current?.userId === userId) {
+          setMessages(response.messages || []);
+          setMessageCache(prev => ({
+            ...prev,
+            inbox: { ...prev.inbox, [userId]: response.messages || [] }
+          }));
+        }
+        setIsLoadingSilent(false);
+      });
+    }
+  }, [socket, isConnected, isAuthenticated, emit]);
+
+  // Load messages with loader (initial load)
+  const loadMessagesWithLoader = useCallback((type: 'global' | 'inbox', userId?: string) => {
     if (!socket || !isConnected || !isAuthenticated) return;
     
     setIsLoading(true);
-    setError(null);
     
-    if (activeTab === 'global') {
+    if (type === 'global') {
       emit('get_global_messages', {}, (response: any) => {
         if (response?.success) {
           setMessages(response.messages || []);
+          setMessageCache(prev => ({ ...prev, global: response.messages || [] }));
         }
         setIsLoading(false);
         setIsInitialLoad(false);
       });
-    } else {
-      setIsLoading(false);
-      setIsInitialLoad(false);
+    } else if (type === 'inbox' && userId) {
+      emit('get_conversation', { userId }, (response: any) => {
+        if (response?.success) {
+          setMessages(response.messages || []);
+          setMessageCache(prev => ({
+            ...prev,
+            inbox: { ...prev.inbox, [userId]: response.messages || [] }
+          }));
+        }
+        setIsLoading(false);
+        setIsInitialLoad(false);
+      });
     }
-  }, [socket, isConnected, isAuthenticated, activeTab, emit]);
+  }, [socket, isConnected, isAuthenticated, emit]);
 
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(() => {
     if (!socket || !isConnected || !isAuthenticated) return;
     
     setIsLoadingUsers(true);
     
     emit('get_all_users', {}, (response: any) => {
       if (response?.success) {
-        const otherUsers = (response.users || []).filter((u: User) => u.userId !== user?.userId);
-        const onlineUsers = otherUsers.filter((u: User) => response.connectedUsers?.includes(u.userId));
+        const allUsers = response.users || [];
+        const otherUsers = allUsers.filter((u: User) => u.userId !== user?.userId);
         setConnectedUsers(response.connectedUsers || []);
-        setUsers(onlineUsers);
+        setUsers(otherUsers);
       }
       setIsLoadingUsers(false);
     });
   }, [socket, isConnected, isAuthenticated, emit, user]);
 
-  // Set up socket event listeners
+  // Set up socket event listeners with proper error handling
   useEffect(() => {
     if (!socket || !isConnected || !isAuthenticated) return;
 
     const handleGlobalMessages = (data: Message[]) => {
-      if (activeTab === 'global') {
+      if (activeTabRef.current === 'global') {
         setMessages(data);
-        setIsInitialLoad(false);
-        if (!isOpen || activeTab !== 'global') {
-          setGlobalUnreadCount(prev => prev + (data.length - messages.length));
-        }
+        setMessageCache(prev => ({ ...prev, global: data }));
       } else if (!isOpen) {
-        setGlobalUnreadCount(prev => prev + (data.length - messages.length));
+        setGlobalUnreadCount(prev => prev + (data.length - (messageCache.global?.length || 0)));
+      } else {
+        setMessageCache(prev => ({ ...prev, global: data }));
       }
     };
 
     const handleGlobalMessageEdited = (data: { messageId: string; newMessage: string }) => {
       setMessages(prev => prev.map(msg => 
         msg.messageId === data.messageId 
-          ? { ...msg, message: data.newMessage, isEdited: true }
+          ? { ...msg, message: data.newMessage, isEdited: true, editedAt: new Date().toISOString() }
           : msg
       ));
+      setMessageCache(prev => ({
+        ...prev,
+        global: prev.global.map(msg =>
+          msg.messageId === data.messageId
+            ? { ...msg, message: data.newMessage, isEdited: true, editedAt: new Date().toISOString() }
+            : msg
+        )
+      }));
     };
 
     const handleNewInboxMessage = (data: Message) => {
       const messageTime = new Date(data.createdAt).getTime();
       const otherUserId = data.sender.userId === user?.userId ? data.receiver?.userId : data.sender.userId;
+      
       if (otherUserId) {
         setLastMessageTimes(prev => ({ ...prev, [otherUserId]: messageTime }));
       }
       
-      if (activeTab === 'inbox' && selectedUser) {
-        if (data.sender.userId === selectedUser.userId || data.receiver?.userId === selectedUser.userId) {
+      // Update messages if in correct conversation
+      if (activeTabRef.current === 'inbox' && selectedUserRef.current) {
+        if (data.sender.userId === selectedUserRef.current.userId || 
+            data.receiver?.userId === selectedUserRef.current.userId) {
           setMessages(prev => [...prev, data]);
         }
-      } else {
-        setMessages(prev => [...prev, data]);
       }
       
+      // Update cache
+      if (otherUserId) {
+        setMessageCache(prev => {
+          const currentConversation = prev.inbox[otherUserId] || [];
+          return {
+            ...prev,
+            inbox: {
+              ...prev.inbox,
+              [otherUserId]: [...currentConversation, data]
+            }
+          };
+        });
+      }
+      
+      // Handle unread counts
       if (data.receiver?.userId === user?.userId && data.sender.userId !== user?.userId) {
-        if (activeTab !== 'inbox' || !selectedUser || data.sender.userId !== selectedUser.userId) {
+        if (activeTabRef.current !== 'inbox' || !selectedUserRef.current || 
+            data.sender.userId !== selectedUserRef.current.userId) {
           setUnreadCountsPerUser(prev => ({
             ...prev,
             [data.sender.userId]: (prev[data.sender.userId] || 0) + 1
@@ -197,28 +298,41 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     const handleInboxMessageEdited = (data: { messageId: string; newMessage: string }) => {
       setMessages(prev => prev.map(msg => 
         msg.messageId === data.messageId 
-          ? { ...msg, message: data.newMessage, isEdited: true }
+          ? { ...msg, message: data.newMessage, isEdited: true, editedAt: new Date().toISOString() }
           : msg
       ));
+      
+      // Update cache
+      if (selectedUserRef.current) {
+        setMessageCache(prev => {
+          const userId = selectedUserRef.current!.userId;
+          const updatedMessages = (prev.inbox[userId] || []).map(msg =>
+            msg.messageId === data.messageId
+              ? { ...msg, message: data.newMessage, isEdited: true, editedAt: new Date().toISOString() }
+              : msg
+          );
+          return {
+            ...prev,
+            inbox: {
+              ...prev.inbox,
+              [userId]: updatedMessages
+            }
+          };
+        });
+      }
     };
 
     const handleUserOnline = (data: { userId: string; fullName: string }) => {
       setConnectedUsers(prev => [...prev, data.userId]);
-      if (activeTab === 'inbox') {
-        setUsers(prev => {
-          const user = prev.find(u => u.userId === data.userId);
-          if (!user) {
-            fetchUsers();
-          }
-          return prev;
-        });
+      if (activeTabRef.current === 'inbox') {
+        fetchUsers();
       }
     };
 
     const handleUserOffline = (data: { userId: string }) => {
       setConnectedUsers(prev => prev.filter(id => id !== data.userId));
-      if (activeTab === 'inbox') {
-        setUsers(prev => prev.filter(u => u.userId !== data.userId));
+      if (activeTabRef.current === 'inbox') {
+        fetchUsers();
       }
     };
 
@@ -234,7 +348,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     };
 
     const handleUserTypingInbox = (data: { senderId: string; senderName: string }) => {
-      if (selectedUser && data.senderId === selectedUser.userId) {
+      if (selectedUserRef.current && data.senderId === selectedUserRef.current.userId) {
         setTypingUsers(prev => ({ ...prev, [data.senderId]: `${data.senderName} is typing...` }));
         setTimeout(() => {
           setTypingUsers(prev => {
@@ -247,7 +361,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     };
 
     const handleMessagesMarkedRead = (data: { byUserId: string; byUserName: string; count: number }) => {
-      if (selectedUser && data.byUserId === selectedUser.userId) {
+      if (selectedUserRef.current && data.byUserId === selectedUserRef.current.userId) {
         setUnreadCountsPerUser(prev => {
           const newCounts = { ...prev };
           delete newCounts[data.byUserId];
@@ -257,6 +371,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
       }
     };
 
+    // Register event listeners
     on('global_messages', handleGlobalMessages);
     on('global_message_edited', handleGlobalMessageEdited);
     on('new_inbox_message', handleNewInboxMessage);
@@ -278,97 +393,102 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
       off('user_typing_inbox', handleUserTypingInbox);
       off('messages_marked_read', handleMessagesMarkedRead);
     };
-  }, [socket, isConnected, isAuthenticated, activeTab, selectedUser, on, off, user, isOpen, messages.length, fetchUsers]);
+  }, [socket, isConnected, isAuthenticated, on, off, user, isOpen, fetchUsers, messageCache.global]);
 
+  // Handle tab switching
   useEffect(() => {
-    if (isOpen && isAuthenticated) {
-      if (activeTab === 'global') {
-        fetchInitialData();
-      } else if (activeTab === 'inbox') {
-        setMessages([]);
-        fetchUsers();
+    if (!isOpen || !isAuthenticated) return;
+    
+    if (activeTab === 'global') {
+      // Check cache first
+      if (messageCache.global && messageCache.global.length > 0) {
+        setMessages(messageCache.global);
+        setIsInitialLoad(false);
+        // Silently refresh in background
+        loadMessagesSilently('global');
+      } else {
+        // First time load with loader
+        loadMessagesWithLoader('global');
       }
       focusInput();
+    } else if (activeTab === 'inbox') {
+      setMessages([]);
+      fetchUsers();
+      focusInput();
     }
-  }, [isOpen, isAuthenticated, activeTab, fetchInitialData, fetchUsers, focusInput]);
-
-  useEffect(() => {
-    if (isOpen && activeTab === 'global') {
+    
+    // Reset unread counts for active tab
+    if (activeTab === 'global') {
       setGlobalUnreadCount(0);
     }
-  }, [isOpen, activeTab]);
+  }, [activeTab, isOpen, isAuthenticated, messageCache.global, loadMessagesSilently, loadMessagesWithLoader, fetchUsers, focusInput]);
 
+  // Handle user selection in inbox
   useEffect(() => {
-    if (messages.length > 0 && isAtBottom) {
-      setTimeout(() => scrollToBottom(), 100);
+    if (!selectedUser || !socket || !isConnected || activeTab !== 'inbox') return;
+    
+    // Check cache first
+    if (messageCache.inbox[selectedUser.userId] && messageCache.inbox[selectedUser.userId].length > 0) {
+      setMessages(messageCache.inbox[selectedUser.userId]);
+      setIsInitialLoad(false);
+      // Silently refresh in background
+      loadMessagesSilently('inbox', selectedUser.userId);
+    } else {
+      // First time load with loader
+      loadMessagesWithLoader('inbox', selectedUser.userId);
     }
-  }, [messages, isAtBottom]);
+    
+    // Mark messages as read
+    emit('mark_messages_read', { fromUserId: selectedUser.userId }, (response: any) => {
+      if (response?.success) {
+        setUnreadCountsPerUser(prev => {
+          const newCounts = { ...prev };
+          delete newCounts[selectedUser.userId];
+          return newCounts;
+        });
+        setUnreadCount(prev => Math.max(0, prev - (unreadCountsPerUser[selectedUser.userId] || 0)));
+      }
+    });
+  }, [selectedUser, socket, isConnected, activeTab, messageCache.inbox, loadMessagesSilently, loadMessagesWithLoader, emit, unreadCountsPerUser]);
 
-  useEffect(() => {
-    if (selectedUser && socket && isConnected) {
-      emit('get_conversation', { userId: selectedUser.userId }, (response: any) => {
-        if (response?.success) {
-          setMessages(response.messages || []);
-          setIsInitialLoad(false);
-        }
-      });
-      
-      emit('mark_messages_read', { fromUserId: selectedUser.userId }, (response: any) => {
-        if (response?.success) {
-          setUnreadCountsPerUser(prev => {
-            const newCounts = { ...prev };
-            delete newCounts[selectedUser.userId];
-            return newCounts;
-          });
-          setUnreadCount(prev => Math.max(0, prev - (unreadCountsPerUser[selectedUser.userId] || 0)));
-        }
-      });
-    }
-  }, [selectedUser, socket, isConnected, emit]);
-
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim() || !socket || !isConnected) return;
+  const handleSendMessage = () => {
+    if (!inputMessage.trim() || !socket || !isConnected || isSending) return;
     
     setIsSending(true);
     setError(null);
 
-    try {
-      if (activeTab === 'global') {
-        emit('send_global_message', { message: inputMessage.trim() }, (response: any) => {
-          if (response?.success) {
-            setInputMessage('');
-            resetInputHeight();
-            focusInput();
-          } else {
-            setError(response?.message || 'Failed to send message');
-          }
-          setIsSending(false);
-        });
-      } else if (activeTab === 'inbox' && selectedUser) {
-        emit('send_inbox_message', { 
-          message: inputMessage.trim(),
-          receiverId: selectedUser.userId,
-          receiverName: selectedUser.full_name,
-          receiverEmail: selectedUser.email
-        }, (response: any) => {
-          if (response?.success) {
-            setInputMessage('');
-            resetInputHeight();
-            focusInput();
-          } else {
-            setError(response?.message || 'Failed to send message');
-          }
-          setIsSending(false);
-        });
-      }
-    } catch (err) {
-      setError('Failed to send message');
-      setIsSending(false);
+    if (activeTab === 'global') {
+      emit('send_global_message', { message: inputMessage.trim() }, (response: any) => {
+        if (response?.success) {
+          setInputMessage('');
+          resetInputHeight();
+          focusInput();
+        } else {
+          setError(response?.message || 'Failed to send message');
+        }
+        setIsSending(false);
+      });
+    } else if (activeTab === 'inbox' && selectedUser) {
+      emit('send_inbox_message', { 
+        message: inputMessage.trim(),
+        receiverId: selectedUser.userId,
+        receiverName: selectedUser.full_name,
+        receiverEmail: selectedUser.email
+      }, (response: any) => {
+        if (response?.success) {
+          setInputMessage('');
+          resetInputHeight();
+          focusInput();
+        } else {
+          setError(response?.message || 'Failed to send message');
+        }
+        setIsSending(false);
+      });
     }
   };
 
-  const handleEditMessage = async (messageId: string) => {
-    if (!editMessageText.trim() || !socket || !isConnected) return;
+  const handleEditMessage = (messageId: string) => {
+    if (!editMessageText.trim() || !socket || !isConnected || isSending) return;
     
     setIsSending(true);
     setError(null);
@@ -433,25 +553,50 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
     }
   };
 
-  const getDisplayMessages = () => {
+  const getDisplayMessages = (): Message[] => {
     if (activeTab === 'global') {
       return messages;
     } else if (activeTab === 'inbox' && selectedUser) {
-      return messages.filter(msg => 
-        (msg.sender.userId === user?.userId && msg.receiver?.userId === selectedUser.userId) ||
-        (msg.sender.userId === selectedUser.userId && msg.receiver?.userId === user?.userId)
-      );
+      return messages;
     }
     return [];
   };
 
-  const canModifyMessage = (msg: Message) => {
+  const canModifyMessage = (msg: Message): boolean => {
     return msg.sender.userId === user?.userId;
   };
 
-  const formatTime = (time: string) => {
+  const formatTime = (time: string): string => {
     const date = new Date(time);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatDate = (time: string): string => {
+    const date = new Date(time);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday';
+    } else {
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+  };
+
+  // Group messages by date
+  const groupMessagesByDate = (messages: Message[]): { [key: string]: Message[] } => {
+    const groups: { [key: string]: Message[] } = {};
+    messages.forEach(msg => {
+      const date = formatDate(msg.createdAt);
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      groups[date].push(msg);
+    });
+    return groups;
   };
 
   if (!isAuthenticated) {
@@ -459,6 +604,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
   }
 
   const displayMessages = getDisplayMessages();
+  const groupedMessages = groupMessagesByDate(displayMessages);
+  const showLoader = isLoading && isInitialLoad;
+  const showSilentLoader = isLoadingSilent && !isInitialLoad;
 
   return (
     <>
@@ -466,7 +614,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
       <div className="fixed bottom-6 right-6 z-50">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="relative w-14 h-14 bg-blue-600 hover:bg-blue-700 rounded-full shadow-lg flex items-center justify-center transition-all transform hover:scale-105"
+          className="relative w-14 h-14 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-full shadow-lg flex items-center justify-center transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
           {isOpen ? (
             <FiX className="w-6 h-6 text-white" />
@@ -474,7 +622,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
             <>
               <FiMessageSquare className="w-6 h-6 text-white" />
               {(unreadCount + globalUnreadCount) > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 min-w-[20px] h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center px-1 animate-pulse">
                   {(unreadCount + globalUnreadCount) > 9 ? '9+' : (unreadCount + globalUnreadCount)}
                 </span>
               )}
@@ -483,25 +631,25 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
         </button>
       </div>
 
-      {/* Chat Panel with Animation */}
+      {/* Chat Panel */}
       {isOpen && (
-        <div className={`fixed bottom-24 right-6 w-96 h-[500px] bg-white rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden border border-gray-200 transition-all duration-300 transform ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}>
+        <div className="fixed bottom-24 right-6 w-96 h-[600px] bg-white rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden border border-gray-200 transition-all duration-300 transform scale-100 opacity-100">
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
-            <h3 className="text-white font-semibold">Chat</h3>
+            <h3 className="text-white font-semibold text-lg">Chat</h3>
             <button 
               onClick={() => setIsOpen(false)}
-              className="text-white hover:bg-blue-800 rounded-lg p-1 transition-colors"
+              className="text-white hover:bg-blue-800 rounded-lg p-1 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
             >
               <FiX className="w-5 h-5" />
             </button>
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b border-gray-200">
+          <div className="flex border-b border-gray-200 bg-white">
             <button
               onClick={() => setActiveTab('global')}
-              className={`flex-1 py-3 px-4 flex items-center justify-center gap-2 text-sm font-medium transition-colors ${
+              className={`flex-1 py-3 px-4 flex items-center justify-center gap-2 text-sm font-medium transition-all duration-200 ${
                 activeTab === 'global' 
                   ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50' 
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
@@ -509,10 +657,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
             >
               <FiGlobe className="w-4 h-4" />
               Global
+              {globalUnreadCount > 0 && activeTab !== 'global' && (
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+              )}
             </button>
             <button
               onClick={() => setActiveTab('inbox')}
-              className={`flex-1 py-3 px-4 flex items-center justify-center gap-2 text-sm font-medium transition-colors ${
+              className={`flex-1 py-3 px-4 flex items-center justify-center gap-2 text-sm font-medium transition-all duration-200 ${
                 activeTab === 'inbox' 
                   ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50' 
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
@@ -521,49 +672,57 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
               <FiUsers className="w-4 h-4" />
               Inbox
               {unreadCount > 0 && activeTab !== 'inbox' && (
-                <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
               )}
             </button>
           </div>
 
           {/* Inbox User Selection */}
           {activeTab === 'inbox' && !selectedUser && (
-            <div className="flex-1 overflow-y-auto p-2">
+            <div className="flex-1 overflow-y-auto bg-gray-50">
               {isLoadingUsers ? (
                 <div className="flex items-center justify-center h-full">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <BouncingLoader message="Loading users..." />
                 </div>
               ) : users.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                  <FiUsers className="w-12 h-12 mb-2" />
-                  <p className="text-sm">No users online</p>
+                  <FiUsers className="w-12 h-12 mb-2 opacity-50" />
+                  <p className="text-sm">No users available</p>
+                  <p className="text-xs">Check back later</p>
                 </div>
               ) : (
-                users.map(u => (
-                  <div
-                    key={u.userId}
-                    onClick={() => setSelectedUser(u)}
-                    className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors group"
-                  >
-                    <div className="relative">
-                      <div className={`w-10 h-10 ${getAvatarColor(u.full_name)} rounded-full flex items-center justify-center text-white font-medium shadow-sm`}>
-                        {getInitials(u.full_name)}
+                <div className="divide-y divide-gray-100">
+                  {users.map(u => (
+                    <div
+                      key={u.userId}
+                      onClick={() => setSelectedUser(u)}
+                      className="flex items-center gap-3 p-3 hover:bg-white cursor-pointer transition-all duration-200 group"
+                    >
+                      <div className="relative">
+                        <div className={`w-10 h-10 bg-gradient-to-r ${getAvatarColor(u.full_name)} rounded-full flex items-center justify-center text-white font-medium shadow-sm`}>
+                          {getInitials(u.full_name)}
+                        </div>
+                        {connectedUsers.includes(u.userId) && (
+                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full animate-pulse"></div>
+                        )}
                       </div>
-                      {connectedUsers.includes(u.userId) && (
-                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{u.full_name}</p>
+                        <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                        {lastMessageTimes[u.userId] && (
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            Last message: {formatTime(new Date(lastMessageTimes[u.userId]).toISOString())}
+                          </p>
+                        )}
+                      </div>
+                      {unreadCountsPerUser[u.userId] > 0 && (
+                        <span className="min-w-[20px] h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center px-1 animate-pulse">
+                          {unreadCountsPerUser[u.userId] > 9 ? '9+' : unreadCountsPerUser[u.userId]}
+                        </span>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{u.full_name}</p>
-                      <p className="text-xs text-gray-500 truncate">{u.email}</p>
-                    </div>
-                    {unreadCountsPerUser[u.userId] > 0 && (
-                      <span className="w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                        {unreadCountsPerUser[u.userId]}
-                      </span>
-                    )}
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           )}
@@ -575,157 +734,185 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
                 onClick={() => {
                   setSelectedUser(null);
                   setMessages([]);
+                  setIsInitialLoad(true);
                 }}
-                className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors flex items-center gap-1"
               >
-                ← Back
+                ← Back to users
               </button>
-              <span className="text-gray-400">|</span>
-              <div className="flex items-center gap-2">
-                <div className={`w-6 h-6 ${getAvatarColor(selectedUser.full_name)} rounded-full flex items-center justify-center text-white text-xs font-medium`}>
+              <span className="text-gray-300">|</span>
+              <div className="flex items-center gap-2 flex-1">
+                <div className={`w-8 h-8 bg-gradient-to-r ${getAvatarColor(selectedUser.full_name)} rounded-full flex items-center justify-center text-white text-xs font-medium shadow-sm`}>
                   {getInitials(selectedUser.full_name)}
                 </div>
-                <span className="text-sm text-gray-600">
-                  {selectedUser.full_name}
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium text-gray-700">
+                    {selectedUser.full_name}
+                  </span>
                   {connectedUsers.includes(selectedUser.userId) && (
                     <span className="ml-2 text-xs text-green-600">● Online</span>
                   )}
-                </span>
+                </div>
               </div>
             </div>
           )}
 
           {/* Error Message */}
           {error && (
-            <div className="mx-3 mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
+            <div className="mx-3 mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg animate-shake">
               <p className="text-xs text-red-600">{error}</p>
             </div>
           )}
 
-          {/* Messages */}
+          {/* Messages Area */}
           {(activeTab === 'global' || (activeTab === 'inbox' && selectedUser)) && (
             <>
-              <div className="flex-1 overflow-y-auto p-4 bg-gray-50 relative" ref={messagesContainerRef} onScroll={handleScroll}>
-                {isLoading && isInitialLoad ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  </div>
-                ) : displayMessages.length === 0 ? (
+              <div 
+                className="flex-1 overflow-y-auto p-4 bg-gradient-to-b from-gray-50 to-white relative" 
+                ref={messagesContainerRef} 
+                onScroll={handleScroll}
+              >
+                {showLoader ? (
+                  <BouncingLoader message="Loading messages..." />
+                ) : Object.keys(groupedMessages).length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                    <FiMessageSquare className="w-12 h-12 mb-2" />
+                    <FiMessageCircle className="w-12 h-12 mb-2 opacity-50" />
                     <p className="text-sm">No messages yet</p>
-                    <p className="text-xs">Start the conversation!</p>
+                    <p className="text-xs">Be the first to send a message!</p>
                   </div>
                 ) : (
                   <>
-                    {displayMessages.map((msg) => {
-                      const isOwn = msg.sender.userId === user?.userId;
-                      return (
-                        <div key={msg.messageId} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4 group`}>
-                          {!isOwn && (
-                            <div className="flex-shrink-0 mr-2 mt-1">
-                              <div className={`w-8 h-8 ${getAvatarColor(msg.sender.full_name)} rounded-full flex items-center justify-center text-white text-xs font-medium shadow-sm`}>
-                                {getInitials(msg.sender.full_name)}
-                              </div>
-                            </div>
-                          )}
-                          <div className={`max-w-[70%] ${isOwn ? 'order-2' : 'order-1'}`}>
-                            {!isOwn && (
-                              <div className="text-xs text-gray-500 mb-1 ml-1">
-                                {msg.sender.full_name}
-                              </div>
-                            )}
-                            <div className={`rounded-2xl px-4 py-2 ${
-                              isOwn 
-                                ? 'bg-blue-600 text-white rounded-br-none' 
-                                : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm'
-                            }`}>
-                              {editingMessageId === msg.messageId ? (
-                                <div className="flex gap-2">
-                                  <input
-                                    type="text"
-                                    value={editMessageText}
-                                    onChange={(e) => setEditMessageText(e.target.value)}
-                                    className="flex-1 px-2 py-1 text-sm border rounded focus:outline-none focus:border-blue-500"
-                                    autoFocus
-                                  />
-                                  <button 
-                                    onClick={() => handleEditMessage(msg.messageId)}
-                                    disabled={isSending}
-                                    className="text-green-500 hover:text-green-700"
-                                  >
-                                    <FiCheck size={16} />
-                                  </button>
-                                  <button 
-                                    onClick={() => { setEditingMessageId(null); setEditMessageText(''); }}
-                                    className="text-gray-500 hover:text-gray-700"
-                                  >
-                                    <FiX size={16} />
-                                  </button>
-                                </div>
-                              ) : (
-                                <>
-                                  <p className="text-sm break-words">{msg.message}</p>
-                                  <div className={`flex items-center gap-1 mt-1 text-xs ${
-                                    isOwn ? 'text-blue-200' : 'text-gray-400'
-                                  }`}>
-                                    <span>{formatTime(msg.createdAt)}</span>
-                                    {isOwn && (
-                                      <span className="ml-1">
-                                        {msg.isEdited ? '(edited)' : '✓'}
-                                      </span>
-                                    )}
-                                    {!isOwn && msg.isEdited && (
-                                      <span className="ml-1">(edited)</span>
-                                    )}
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                            {editingMessageId !== msg.messageId && canModifyMessage(msg) && (
-                              <div className={`flex gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'} opacity-0 group-hover:opacity-100 transition-opacity`}>
-                                <button 
-                                  onClick={() => { setEditingMessageId(msg.messageId); setEditMessageText(msg.message); }}
-                                  className="text-gray-400 hover:text-blue-500 p-1"
-                                  title="Edit"
-                                >
-                                  <FiEdit2 size={12} />
-                                </button>
-                              </div>
-                            )}
+                    {Object.entries(groupedMessages).map(([date, msgs]) => (
+                      <div key={date}>
+                        <div className="flex justify-center my-4">
+                          <div className="px-3 py-1 bg-gray-200 rounded-full text-xs text-gray-600 font-medium shadow-sm">
+                            {date}
                           </div>
                         </div>
-                      );
-                    })}
+                        {msgs.map((msg) => {
+                          const isOwn = msg.sender.userId === user?.userId;
+                          return (
+                            <div key={msg.messageId} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4 group animate-fadeIn`}>
+                              {!isOwn && (
+                                <div className="flex-shrink-0 mr-2 mt-1">
+                                  <div className={`w-8 h-8 bg-gradient-to-r ${getAvatarColor(msg.sender.full_name)} rounded-full flex items-center justify-center text-white text-xs font-medium shadow-sm`}>
+                                    {getInitials(msg.sender.full_name)}
+                                  </div>
+                                </div>
+                              )}
+                              <div className={`max-w-[70%] ${isOwn ? 'order-2' : 'order-1'}`}>
+                                {!isOwn && (
+                                  <div className="text-xs font-medium text-gray-600 mb-1 ml-1">
+                                    {msg.sender.full_name}
+                                  </div>
+                                )}
+                                <div className={`rounded-2xl px-4 py-2 shadow-sm transition-all duration-200 ${
+                                  isOwn 
+                                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-br-none hover:shadow-md' 
+                                    : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none hover:shadow-md'
+                                }`}>
+                                  {editingMessageId === msg.messageId ? (
+                                    <div className="flex gap-2">
+                                      <input
+                                        type="text"
+                                        value={editMessageText}
+                                        onChange={(e) => setEditMessageText(e.target.value)}
+                                        className="flex-1 px-2 py-1 text-sm border rounded focus:outline-none focus:border-blue-500 text-gray-900"
+                                        autoFocus
+                                      />
+                                      <button 
+                                        onClick={() => handleEditMessage(msg.messageId)}
+                                        disabled={isSending}
+                                        className="text-green-500 hover:text-green-700 transition-colors"
+                                      >
+                                        <FiCheck size={16} />
+                                      </button>
+                                      <button 
+                                        onClick={() => { setEditingMessageId(null); setEditMessageText(''); }}
+                                        className="text-gray-500 hover:text-gray-700 transition-colors"
+                                      >
+                                        <FiX size={16} />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <p className="text-sm break-words leading-relaxed">{msg.message}</p>
+                                      <div className={`flex items-center gap-1 mt-1 text-xs ${
+                                        isOwn ? 'text-blue-200' : 'text-gray-400'
+                                      }`}>
+                                        <span>{formatTime(msg.createdAt)}</span>
+                                        {isOwn && (
+                                          <span className="ml-1">
+                                            {msg.isEdited ? '(edited)' : '✓'}
+                                          </span>
+                                        )}
+                                        {!isOwn && msg.isEdited && (
+                                          <span className="ml-1">(edited)</span>
+                                        )}
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                                {editingMessageId !== msg.messageId && canModifyMessage(msg) && (
+                                  <div className={`flex gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'} opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
+                                    <button 
+                                      onClick={() => { setEditingMessageId(msg.messageId); setEditMessageText(msg.message); }}
+                                      className="text-gray-400 hover:text-blue-500 p-1 transition-colors"
+                                      title="Edit message"
+                                    >
+                                      <FiEdit2 size={12} />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
                     <div ref={messagesEndRef} />
                   </>
                 )}
                 
+                {/* Silent Loading Indicator */}
+                {showSilentLoader && (
+                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2">
+                    <div className="px-3 py-1 bg-gray-800 text-white text-xs rounded-full shadow-lg flex items-center gap-2">
+                      <div className="flex gap-1">
+                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce"></div>
+                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      </div>
+                      <span>Updating...</span>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Typing Indicator */}
                 {Object.keys(typingUsers).length > 0 && (
-                  <div className="flex items-center gap-2 text-sm text-gray-400 italic mt-2">
+                  <div className="flex items-center gap-2 text-sm text-gray-500 italic mt-2">
                     <div className="flex gap-1">
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                     </div>
                     {Object.values(typingUsers)[0]}
                   </div>
                 )}
               </div>
 
-              {/* Scroll to Bottom Button - Positioned absolutely relative to messages container */}
+              {/* Scroll to Bottom Button */}
               {showScrollButton && (
                 <button
                   onClick={scrollToBottom}
-                  className="absolute bottom-20 right-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 shadow-lg transition-all transform hover:scale-105 flex items-center justify-center z-10"
+                  className="absolute bottom-20 right-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-full p-2 shadow-lg transition-all transform hover:scale-105 flex items-center justify-center z-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   title="Scroll to bottom"
                 >
                   <FiChevronDown size={20} />
                 </button>
               )}
 
-              {/* Input */}
+              {/* Input Area */}
               <div className="p-3 border-t border-gray-200 bg-white">
                 <div className="flex gap-2 items-end">
                   <textarea
@@ -746,13 +933,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
                     }
                     disabled={isSending || (activeTab === 'inbox' && !selectedUser)}
                     rows={1}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-2xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed resize-none overflow-hidden"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-2xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed resize-none overflow-hidden transition-all duration-200"
                     style={{ minHeight: '40px', maxHeight: '120px' }}
                   />
                   <button
                     onClick={handleSendMessage}
                     disabled={!inputMessage.trim() || isSending || (activeTab === 'inbox' && !selectedUser)}
-                    className="w-10 h-10 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-full flex items-center justify-center transition-colors flex-shrink-0"
+                    className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed rounded-full flex items-center justify-center transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-shrink-0"
                   >
                     {isSending ? (
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -766,6 +953,53 @@ const ChatWidget: React.FC<ChatWidgetProps> = () => {
           )}
         </div>
       )}
+
+      {/* Add animation styles */}
+      <style>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          75% { transform: translateX(5px); }
+        }
+        
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
+        }
+        
+        .animate-shake {
+          animation: shake 0.3s ease-in-out;
+        }
+        
+        /* Custom scrollbar */
+        .overflow-y-auto::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        .overflow-y-auto::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 3px;
+        }
+        
+        .overflow-y-auto::-webkit-scrollbar-thumb {
+          background: #c1c1c1;
+          border-radius: 3px;
+        }
+        
+        .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+          background: #a8a8a8;
+        }
+      `}</style>
     </>
   );
 };

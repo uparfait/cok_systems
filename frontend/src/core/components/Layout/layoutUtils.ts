@@ -107,12 +107,6 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
         label: 'Assigned Visitors',
         path: '/service-delivery/receptionist?tab=visitors',
         icon: 'FiUsers',
-      },
-      {
-        id: 'dept-availability',
-        label: 'Dept. Availability',
-        path: '/service-delivery/receptionist?tab=availability',
-        icon: 'FiGrid', 
       }
     ];
   }
@@ -121,8 +115,6 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   if (userRole.includes('employee') || userRole.includes('staff')) {
     return [
       { id: 'dashboard', label: 'Dashboard', path: '/service-delivery/employee', icon: 'FiGrid' },
-      { id: 'services', label: 'My Services', path: '/service-delivery/employee?tab=services', icon: 'FiClock' },
-      { id: 'availability', label: 'Availability', path: '/service-delivery/employee?tab=availability', icon: 'FiCheckCircle' }
     ];
   }
 
@@ -134,10 +126,10 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       userRole.includes('director')) {
     return [
       { id: 'dashboard', label: 'Dashboard', path: '/service-delivery/department-manager', icon: 'FiGrid' },
-      { id: 'status', label: 'Service Status', path: '/service-delivery/department-manager?tab=status', icon: 'FiClock' },
+      //{ id: 'status', label: 'Service Status', path: '/service-delivery/department-manager?tab=status', icon: 'FiClock' },
       { id: 'employees', label: 'Employee Management', path: '/service-delivery/department-manager?tab=employees', icon: 'FiUsers' },
       { id: 'availability', label: 'Dept. Availability', path: '/service-delivery/department-manager?tab=availability', icon: 'FiCheckCircle' },
-      { id: 'reports', label: 'Reports', path: '/service-delivery/department-manager?tab=reports', icon: 'FiFile' }
+      //{ id: 'reports', label: 'Reports', path: '/service-delivery/department-manager?tab=reports', icon: 'FiFile' }
     ];
   }
 

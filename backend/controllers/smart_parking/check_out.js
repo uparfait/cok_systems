@@ -1,8 +1,8 @@
 const ParkingRecord = require('../../models/parking_record.js');
 const ServiceDelivery = require('../../models/service_delivery.js');
 
-const StaffCar = require('../../models/staff_car.js'); // 👉 Added this path
-const FlaggedVehicle = require('../../models/flagged_vehicle.js'); // 👉 new model
+const StaffCar = require('../../models/staff_car.js'); 
+const FlaggedVehicle = require('../../models/flagged_vehicle.js');
 
 module.exports = async function car_check_out(req, res, next) {
     try {
@@ -96,11 +96,10 @@ module.exports = async function car_check_out(req, res, next) {
         // Do the math: Did they overstay?
         if (parked_minutes > allowed_duration_minutes) {
           
-            fllaged_when
             const flagged_duration = parked_minutes - allowed_duration_minutes;
             const exact_flagged_time = new Date(check_in_time.getTime() + (allowed_duration_minutes * 60000));
 
-            // 👉 Save the permanent receipt, copying rich data from parking_session!
+            // Save the permanent receipt, copying rich data from parking_session!
             const violation = new FlaggedVehicle({
                 plate_number: plate_number,
                 
