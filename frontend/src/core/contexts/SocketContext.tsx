@@ -1,12 +1,11 @@
 // SocketContext - WebSocket connection management
 // Provides real-time communication with the backend using Socket.IO
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
 // Socket server URL
-// Use localhost:2026 for local development, remote for production
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 
   (window.location.hostname === 'localhost' ? 'http://localhost:2026' : 'https://cok-bc.onrender.com');
 
@@ -28,50 +27,59 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isConnected, setIsConnected] = useState(false);
   const { token } = useAuth();
 
+  // Refs to track connection state and prevent multiple connections
+  const socketRef = useRef<Socket | null>(null);
+  const isConnectingRef = useRef(false);
+  const hasConnectedRef = useRef(false);
+
   useEffect(() => {
-    console.log('[SocketContext] Token changed:', token ? 'present' : 'null');
-    
+    // Don't connect if no token
     if (!token) {
-      // Don't connect if no token
-      if (socket) {
-        socket.disconnect();
-        setSocket(null);
-        setIsConnected(false);
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
       }
+      setSocket(null);
+      setIsConnected(false);
+      hasConnectedRef.current = false;
+      isConnectingRef.current = false;
       return;
     }
+
+    // Already have a valid connection
+    if (socketRef.current && hasConnectedRef.current) {
+      return;
+    }
+
+    // Prevent multiple connection attempts
+    if (isConnectingRef.current) {
+      return;
+    }
+
+    isConnectingRef.current = true;
 
     // Create socket connection
     const newSocket = io(SOCKET_URL, {
       auth: {
         token: token || undefined
       },
-      transports: ['polling', 'websocket'], // Try polling first for better reliability
-      transportOptions: {
-        polling: {
-          extraHeaders: {
-            Authorization: token ? `Bearer ${token}` : ''
-          }
-        }
-      },
+      transports: ['polling', 'websocket'],
       reconnection: true,
-      reconnectionAttempts: 3, // Reduced from 10 - fewer retries to prevent console spam
-      reconnectionDelay: 3000, // Wait 3 seconds between retries
-      reconnectionDelayMax: 10000, // Max delay between retries
-      timeout: 15000, // Connection timeout
+      reconnectionAttempts: 3,
+      reconnectionDelay: 3000,
+      reconnectionDelayMax: 10000,
+      timeout: 15000,
       autoConnect: true,
     });
-    
-    console.log('[SocketContext] Creating socket with token:', token ? 'yes' : 'no');
 
-    // Track reconnection attempts
-    let reconnectAttempts = 0;
+    socketRef.current = newSocket;
+    hasConnectedRef.current = true;
 
     // Connection events
     newSocket.on('connect', () => {
       console.log('Socket connected:', newSocket.id);
       setIsConnected(true);
-      reconnectAttempts = 0; // Reset on successful connection
+      isConnectingRef.current = false;
       
       // Verify authentication status with server
       newSocket.emit('get_user_info', {}, (response: any) => {
@@ -87,38 +95,27 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.log('Socket disconnected:', reason);
       setIsConnected(false);
       
-      // If server disconnected us, don't auto-reconnect
       if (reason === 'io server disconnect') {
         newSocket.connect();
       }
     });
 
     newSocket.on('connect_error', (error) => {
-      // Only log first few errors to avoid console spam
-      if (reconnectAttempts < 2) {
-        console.warn('[SocketContext] Connection error (attempt ' + (reconnectAttempts + 1) + '):', error.message);
-      }
-      reconnectAttempts++;
+      console.warn('Socket connection error:', error.message);
+      isConnectingRef.current = false;
       setIsConnected(false);
-      
-      // Stop trying after max attempts - silently stop
-      if (reconnectAttempts >= 3) {
-        console.log('[SocketContext] Max reconnection attempts reached, stopping retry');
-        newSocket.disconnect();
-        // Don't throw error - just let the app work without real-time updates
-      }
     });
 
     newSocket.on('reconnect_attempt', (attempt) => {
-      // Silent - only log in development if needed
       if (attempt <= 2) {
-        console.log('[SocketContext] Reconnection attempt:', attempt);
+        console.log('Reconnection attempt:', attempt);
       }
     });
 
     newSocket.on('reconnect_failed', () => {
       console.log('Reconnection failed after all attempts');
       setIsConnected(false);
+      isConnectingRef.current = false;
     });
 
     setSocket(newSocket);
@@ -126,6 +123,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // Cleanup on unmount
     return () => {
       newSocket.disconnect();
+      socketRef.current = null;
+      isConnectingRef.current = false;
     };
   }, [token]);
 

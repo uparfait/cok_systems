@@ -21,16 +21,23 @@ import {
   DepartmentsPage, 
   EmployeesPage, 
   UserManagementPage,
-  RolesManagementPage
+  RolesManagementPage,
+  AdminSmartParkingDashboard,
+  ReservationsPage,
+  AdminServiceDeliveryDashboard,
+  AdminCheckInCheckOut,
+  Analytics,
+  FeedbackPage,
 } from './systems/admin';
 
 // 👉 COLLEAGUE'S IMPORTS (Smart Parking) - Cleaned to match new index.ts!
 import { 
-  SmartParkingDashboard, 
+  SmartParkingDashboard,
   CheckInVehiclePage,
   CheckInPersonPage,
   CheckOutVehiclePage,
   CheckOutPersonPage
+
 } from './systems/smartParking';
 
 // 👉 YOUR IMPORTS (Service Delivery)
@@ -65,6 +72,14 @@ function App() {
               <Route path="/admin/employees" element={<ProtectedRoute><EmployeesPage /></ProtectedRoute>} />
               <Route path="/admin/user-management" element={<ProtectedRoute><UserManagementPage /></ProtectedRoute>} />
               <Route path="/admin/roles-management" element={<ProtectedRoute><RolesManagementPage /></ProtectedRoute>} />
+              <Route path="/admin/smart-parking" element={<ProtectedRoute><AdminSmartParkingDashboard /></ProtectedRoute>} />
+              <Route path="/smart-parking/reservation" element={<ProtectedRoute><ReservationsPage /></ProtectedRoute>} />
+              
+              {/* ==================== SERVICE DELIVERY ADMIN PAGES ==================== */}
+              <Route path="/admin/service-delivery/dashboard" element={<ProtectedRoute><AdminServiceDeliveryDashboard /></ProtectedRoute>} />
+              <Route path="/admin/service-delivery/checkin-checkout" element={<ProtectedRoute><AdminCheckInCheckOut /></ProtectedRoute>} />
+              <Route path="/admin/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+              <Route path="/admin/feedback" element={<ProtectedRoute><FeedbackPage /></ProtectedRoute>} />
               
               {/* ==================== SMART PARKING SYSTEM (Colleague's Work) ==================== */}
               <Route path="/smart-parking/dashboard" element={<ProtectedRoute><SmartParkingDashboard /></ProtectedRoute>} />
