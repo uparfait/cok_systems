@@ -222,12 +222,15 @@ async function login(req, res, next) {
     }
 
     // Send OTP via email (user sees just the OTP, not the JWT)
-    const sent = await email.sendOTPEmail(userEmail, otpCode || 1234, "login");
+    //const sent = await email.sendOTPEmail(userEmail,  otpCode || 20261, "login");
+
+    const sent = await email.sendOTPEmail(userEmail,  "Due to development mode otp verification disabled on backend-side for fatser testing enter any numbers you want and it will works", "login");
 
     return res.status(200).json({
       status: true,
       error: null,
-      message: "OTP sent to your email. Please verify to complete login.",
+      //message: "OTP sent to your email. Please verify to complete login.",
+      message: "OTP VERIFICATION DISSABLED FOR FATSER TESTING ENTER ANY NUMBERS",
       data: {
         requiresOTP: true,
         userId: user._id,

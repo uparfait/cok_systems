@@ -37,7 +37,6 @@ const getNavItems = (role: DashboardRole): NavItem[] => {
       return [
         { id: 'dashboard', label: 'Dashboard', icon: FiHome },
         { id: 'visitors', label: 'Assigned Visitor', icon: FiUsers },
-        { id: 'availability', label: 'Dept. Availability', icon: FiGrid },
       ];
     case 'department_manager':
       return [
