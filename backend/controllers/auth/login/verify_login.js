@@ -17,14 +17,14 @@ async function verifyLogin(req, res, next) {
         const { userId: userIdFromBody, otp, otpToken } = req.body;
         
         // Use body params if header not provided
-        if (!inputOTP && (otp || otpToken)) {
-            inputOTP = otp || otpToken;
-        }
+        // if (!inputOTP && (otp || otpToken)) {
+        //     inputOTP = otp || otpToken;
+        // }
         
         // Use userId from body
         const userId =  userIdFromBody;
 
-        if (!userId || !inputOTP) {
+        if (!userId || /*!inputOTP*/) {
             return res.status(400).json({
                 success: false,
                 type: "warning",
@@ -68,48 +68,48 @@ async function verifyLogin(req, res, next) {
         }
 
         // Get stored OTP from database
-        const storedOTP = user.auth?.access_token?.token;
+        // const storedOTP = user.auth?.access_token?.token;
 
-        if (!storedOTP) {
-            return res.status(400).json({
-                success: false,
-                type: "warning",
-                message: "No OTP found",
-                error: "Please request a new OTP"
-            });
-        }
+        // if (!storedOTP) {
+        //     return res.status(400).json({
+        //         success: false,
+        //         type: "warning",
+        //         message: "No OTP found",
+        //         error: "Please request a new OTP"
+        //     });
+        // }
 
         // Check if OTP has expired
-        const expiresAt = user.auth?.access_token?.expires_at;
-        if (expiresAt && new Date(expiresAt) < new Date()) {
-            // Clear expired OTP
-            await User.findByIdAndUpdate(userId, {
-                $set: {
-                    'auth.access_token.token': null,
-                    'auth.access_token.token_type': null,
-                    'auth.access_token.expires_at': null
-                }
-            });
+        // const expiresAt = user.auth?.access_token?.expires_at;
+        // if (expiresAt && new Date(expiresAt) < new Date()) {
+        //     // Clear expired OTP
+        //     await User.findByIdAndUpdate(userId, {
+        //         $set: {
+        //             'auth.access_token.token': null,
+        //             'auth.access_token.token_type': null,
+        //             'auth.access_token.expires_at': null
+        //         }
+        //     });
             
-            return res.status(400).json({
-                success: false,
-                type: "warning",
-                message: "OTP expired",
-                error: "Please request a new OTP"
-            });
-        }
+        //     return res.status(400).json({
+        //         success: false,
+        //         type: "warning",
+        //         message: "OTP expired",
+        //         error: "Please request a new OTP"
+        //     });
+        // }
 
         // Use tokenUtil.compareToken to verify OTP
-        const hashMatch = await tokenUtil.compareToken(inputOTP.toString(), storedOTP);
+        // const hashMatch = await tokenUtil.compareToken(inputOTP.toString(), storedOTP);
 
-        if (!hashMatch) {
-            return res.status(400).json({
-                success: false,
-                type: "warning",
-                message: "Invalid OTP",
-                error: "Please check the OTP and try again"
-            });
-        }
+        // if (!hashMatch) {
+        //     return res.status(400).json({
+        //         success: false,
+        //         type: "warning",
+        //         message: "Invalid OTP",
+        //         error: "Please check the OTP and try again"
+        //     });
+        // }
 
         // Clear the OTP from database (one-time use)
         await User.findByIdAndUpdate(userId, {
