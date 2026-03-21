@@ -579,6 +579,9 @@ export const reservationService = {
   
   // Cancel reservation
   cancelReservation: (id: string) => put(`/smartparking/reservations/${id}/cancel`, {}),
+  
+  // Reactivate reservation
+  reactivateReservation: (id: string) => put(`/smartparking/reservations/${id}/reactivate`, {}),
 };
 
 // Alias for getAllVisitors (used by DashboardPage)
