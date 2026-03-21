@@ -71,7 +71,7 @@ module.exports = async function car_check_in(req, res, next) {
 
         // 1. StaffCar - reuse the already fetched staff_car
         if((!driver_telephone && !driver_name && staff_car) || staff_car) {
-            driver_name = staff_car.driver_name
+            driver_name = staff_car.owner_name
             driver_telephone = staff_car.telephone
             driver_type = "Staff"
             driver_gender = staff_car.gender
