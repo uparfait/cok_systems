@@ -86,9 +86,9 @@ module.exports = async function verify_car(req, res, next) {
             is_reserved = isStaffActive; // Only reserve if active
             is_found_in_system = true;
             
-            // Extract driver details from staff_car
-            if (staff_car.driver_name) {
-                driver_name = staff_car.driver_name;
+            // Extract driver details from staff_car (owner_name is the driver name)
+            if (staff_car.owner_name) {
+                driver_name = staff_car.owner_name;
             }
             if (staff_car.telephone) {
                 driver_telephone = staff_car.telephone;
