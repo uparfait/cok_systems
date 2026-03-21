@@ -26,10 +26,23 @@ module.exports = async function car_check_in(req, res, next) {
             })
         }
 
+        // Check if this is a reserved vehicle (staff or emergency reservation)
+        const staff_car = await StaffCar.findOne({ plate_number, is_active: true });
+        const emergency_reservation = await EmergencyCar.findOne({
+            "visitor_info.plate_number": plate_number,
+            "validity.to": { $gte: new Date() },
+            is_active: true
+        });
+        
+        const is_reserved = (staff_car?.is_active) || !!emergency_reservation;
+
+        // Skip badge requirement for reserved vehicles
+        const requires_badge = !is_reserved;
+
         driver_type = driver_type.toLowerCase()
         
 
-        const allowed_driver_type = ['regular', 'visitor', 'staff']
+        const allowed_driver_type = ['regular', 'visitor', 'staff', 'Staff Vehicle']  //  Staff Vehicle fot the Reserved Vehicle 
 
         if(!allowed_driver_type.includes(driver_type.toLowerCase())) {
             return res.status(400).json({
@@ -56,10 +69,7 @@ module.exports = async function car_check_in(req, res, next) {
 
         let slot_number = null
 
-        // 1. StaffCar
-        const staff_car = await StaffCar.findOne({ plate_number, is_active: true })
-        
-        
+        // 1. StaffCar - reuse the already fetched staff_car
         if((!driver_telephone && !driver_name && staff_car) || staff_car) {
             driver_name = staff_car.driver_name
             driver_telephone = staff_car.telephone
@@ -74,22 +84,17 @@ module.exports = async function car_check_in(req, res, next) {
             slot_number =   "#S"
         }
 
-        // 2. EmergencyCar (check visitor_info array)
-        if (!driver_name) {
-            const emergency_car = await EmergencyCar.findOne({
-                "visitor_info.plate_number": plate_number
-            })
-            if (emergency_car) {
-                const visitor = emergency_car.visitor_info.find(v => v.plate_number === plate_number)
-                if (visitor) {
-                    driver_name = visitor.driver_name
-                    driver_type =  "Visitor"
-                    driver_telephone = visitor.telephone_number
-                    slot_number = visitor.slot_number || 'Not Specified'
-                    driver_email = visitor.email || null
-                    driver_identification = visitor.identification || null
-                    driver_gender = visitor.gender || null
-                }
+        // 2. EmergencyCar (check visitor_info array) - reuse the already fetched emergency_reservation
+        if (!driver_name && emergency_reservation) {
+            const visitor = emergency_reservation.visitor_info.find(v => v.plate_number === plate_number)
+            if (visitor) {
+                driver_name = visitor.driver_name
+                driver_type =  "Visitor"
+                driver_telephone = visitor.telephone_number
+                slot_number = visitor.slot_number || 'Not Specified'
+                driver_email = visitor.email || null
+                driver_identification = visitor.identification || null
+                driver_gender = visitor.gender || null
             }
         }
 
