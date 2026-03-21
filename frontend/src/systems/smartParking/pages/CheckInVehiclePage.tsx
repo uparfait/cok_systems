@@ -183,18 +183,30 @@ const CheckInVehiclePage: React.FC = () => {
       showWarning('This vehicle is already checked in');
       return;
     }
-    if (!driverInfo.badge_number?.trim()) {
+    // Allow reserved vehicles to bypass badge requirement
+    if (!verifiedData.is_reserved && !driverInfo.badge_number?.trim()) {
       showWarning('Badge number is required');
       return;
     }
     
     setLoading(true);
     try {
+      // Get driver type - use staff for reserved staff vehicles, visitor for reserved emergency vehicles
+      let driverType = verifiedData.vehicle_category || '';
+      // Convert to lowercase for backend API
+      if (driverType.toLowerCase() === 'staff vehicle') {
+        driverType = 'Staff';
+      } else if (driverType.toLowerCase() === 'visitor') {
+        driverType = 'Visitor';
+      } else if (driverType.toLowerCase() === 'regular') {
+        driverType = 'Regular';
+      }
+      
       const checkInData = {
         plate_number: verifiedData.plate_number,
         driver_name: driverInfo.name || verifiedData.driver_details?.name || verifiedData.driver_name || '',
         driver_telephone: driverInfo.telephone || verifiedData.driver_details?.telephone || verifiedData.driver_telephone || '',
-        driver_type: verifiedData.vehicle_category || '',
+        driver_type: driverType,
         badge_number: driverInfo.badge_number?.trim() || null,
       };
 
@@ -353,7 +365,7 @@ const CheckInVehiclePage: React.FC = () => {
               {verifiedData ? (
                 <div className="bg-gray-50 rounded-lg p-3 mb-4">
                   <div className="font-semibold text-gray-800 text-sm">{verifiedData.driver_details?.name || verifiedData.driver_name || 'Unknown'}</div>
-                  <div className="text-xs text-gray-400">{verifiedData.driver_type || 'N/A'}</div>
+                  <div className="text-xs text-gray-400">{verifiedData.driver_type || '___'}</div>
                   <div className="text-green-600 font-medium text-xs mt-1">ALLOWED</div>
                 </div>
               ) : (
@@ -430,10 +442,12 @@ const CheckInVehiclePage: React.FC = () => {
         {showFoundModal && verifiedData && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden max-h-[90vh] overflow-y-auto">
-              <div className={`px-6 py-4 flex items-center justify-between ${verifiedData.is_flagged && verifiedData.is_currently_parked ? 'bg-red-100' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'bg-orange-100' : verifiedData.is_currently_parked ? 'bg-orange-100' : 'bg-green-100'}`}>
+              <div className={`px-6 py-4 flex items-center justify-between ${verifiedData.is_reserved ? 'bg-blue-100' : (verifiedData.is_flagged && verifiedData.is_currently_parked) ? 'bg-red-100' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'bg-orange-100' : verifiedData.is_currently_parked ? 'bg-orange-100' : 'bg-green-100'}`}>
                 <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${verifiedData.is_flagged && verifiedData.is_currently_parked ? 'bg-red-200' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'bg-orange-200' : verifiedData.is_currently_parked ? 'bg-orange-200' : 'bg-green-200'}`}>
-                    {verifiedData.is_flagged && verifiedData.is_currently_parked ? (
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${verifiedData.is_reserved ? 'bg-blue-200' : (verifiedData.is_flagged && verifiedData.is_currently_parked) ? 'bg-red-200' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'bg-orange-200' : verifiedData.is_currently_parked ? 'bg-orange-200' : 'bg-green-200'}`}>
+                    {verifiedData.is_reserved ? (
+                      <FiAward className="w-6 h-6 text-blue-600" />
+                    ) : verifiedData.is_flagged && verifiedData.is_currently_parked ? (
                       <FiAlertTriangle className="w-6 h-6 text-red-600" />
                     ) : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? (
                       <FiAlertTriangle className="w-6 h-6 text-orange-600" />
@@ -445,8 +459,8 @@ const CheckInVehiclePage: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-gray-900">Vehicle Verification</h3>
-                    <p className={`text-sm ${verifiedData.is_flagged && verifiedData.is_currently_parked ? 'text-red-700' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'text-orange-700' : verifiedData.is_currently_parked ? 'text-orange-700' : 'text-green-700'}`}>
-                      {verifiedData.is_flagged && verifiedData.is_currently_parked ? 'Vehicle is flagged' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'Vehicle was flagged in the past' : verifiedData.is_currently_parked ? 'Already inside parking' : 'Auto-scan successful'}
+                    <p className={`text-sm ${verifiedData.is_reserved ? 'text-blue-700' : (verifiedData.is_flagged && verifiedData.is_currently_parked) ? 'text-red-700' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'text-orange-700' : verifiedData.is_currently_parked ? 'text-orange-700' : 'text-green-700'}`}>
+                      {verifiedData.is_reserved ? 'Reserved Vehicle' : verifiedData.is_flagged && verifiedData.is_currently_parked ? 'Vehicle is flagged' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'Vehicle was flagged in the past' : verifiedData.is_currently_parked ? 'Already inside parking' : 'Auto-scan successful'}
                     </p>
                   </div>
                 </div>
@@ -470,8 +484,16 @@ const CheckInVehiclePage: React.FC = () => {
                 {/* Driver Info */}
                 <div className="mb-4 bg-gray-50 p-3 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-sm font-semibold text-gray-700">Driver Information</h4>
-                    {!verifiedData.is_currently_parked && (
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-semibold text-gray-700">Driver Information</h4>
+                      {verifiedData.is_reserved && (
+                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+                          Reserved
+                        </span>
+                      )}
+                    </div>
+                    {/* Only show edit button if vehicle is not currently parked AND not reserved */}
+                    {!verifiedData.is_currently_parked && !verifiedData.is_reserved && (
                       <button type="button" onClick={() => setIsEditingDriver(!isEditingDriver)} className="text-xs flex items-center gap-1 text-blue-600">
                         <FiEdit className="w-3 h-3" />
                         {isEditingDriver ? 'Cancel' : 'Edit'}
@@ -490,8 +512,17 @@ const CheckInVehiclePage: React.FC = () => {
                         <input type="tel" name="telephone" value={driverInfo.telephone} onChange={handleDriverInfoChange} className="w-full px-2 py-1 text-sm border rounded" />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500">Badge Number *</label>
-                        <input type="text" name="badge_number" value={driverInfo.badge_number} onChange={handleDriverInfoChange} className="w-full px-2 py-1 text-sm border rounded" required />
+                        <label className="text-xs text-gray-500">
+                          Badge Number {verifiedData.is_reserved ? '(Optional for reserved)' : '*'}
+                        </label>
+                        <input 
+                          type="text" 
+                          name="badge_number" 
+                          value={driverInfo.badge_number} 
+                          onChange={handleDriverInfoChange} 
+                          className="w-full px-2 py-1 text-sm border rounded" 
+                          required={!verifiedData.is_reserved} 
+                        />
                       </div>
                     </div>
                   ) : (
@@ -506,7 +537,7 @@ const CheckInVehiclePage: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-700 font-medium">
                         <FiAward className="w-4 h-4 text-gray-400" />
-                        Badge: {driverInfo.badge_number || 'Not specified'}
+                        Badge: {driverInfo.badge_number || (verifiedData.is_reserved ? '___ (Reserved)' : 'Not specified')}
                       </div>
                     </div>
                   )}
@@ -528,10 +559,10 @@ const CheckInVehiclePage: React.FC = () => {
                   type="button"
                   onClick={handleConfirmEntry}
                   disabled={verifiedData.is_currently_parked}
-                  className={`w-full py-3 text-white rounded-lg font-semibold flex items-center justify-center gap-2 ${verifiedData.is_currently_parked ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                  className={`w-full py-3 text-white rounded-lg font-semibold flex items-center justify-center gap-2 ${verifiedData.is_currently_parked ? 'bg-gray-400 cursor-not-allowed' : verifiedData.is_reserved ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                 >
                   <FiCheckCircle className="w-5 h-5" />
-                  {verifiedData.is_currently_parked ? 'Already Checked In' : 'Confirm Entry & Open Gate'}
+                  {verifiedData.is_currently_parked ? 'Already Checked In' : verifiedData.is_reserved ? 'Confirm Entry (Reserved Vehicle)' : 'Confirm Entry & Open Gate'}
                 </button>
 
                 <button type="button" onClick={closeAllModals} className="w-full mt-2 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium flex items-center justify-center gap-2">
@@ -650,11 +681,11 @@ const CheckInVehiclePage: React.FC = () => {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <span className="text-gray-500">Driver:</span>
-                    <p className="font-medium">{verifiedData.driver_details?.name || verifiedData.driver_name || 'N/A'}</p>
+                    <p className="font-medium">{verifiedData.driver_details?.name || verifiedData.driver_name || '___'}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">Type:</span>
-                    <p className="font-medium">{verifiedData.driver_type || 'N/A'}</p>
+                    <p className="font-medium">{verifiedData.driver_type || '___'}</p>
                   </div>
                 </div>
               </div>
