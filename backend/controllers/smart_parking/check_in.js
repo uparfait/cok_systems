@@ -149,7 +149,7 @@ module.exports = async function car_check_in(req, res, next) {
                 telephone: driver_telephone,
                 gender: driver_gender,
                 email: driver_email,
-                identification: driver_identification,
+                driver_identification: driver_identification,
                 vehicle_storage: {
                     has_vehicle: hasVehicle,
                     vehicle_details: hasVehicle ? {
