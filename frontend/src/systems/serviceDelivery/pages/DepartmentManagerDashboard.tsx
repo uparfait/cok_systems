@@ -1,5 +1,5 @@
 // Department Manager Dashboard - MainLayout Compatible + Backend APIs
-// Exact Figma Design Implementation
+// Exact Figma Design Implementation.
 
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
