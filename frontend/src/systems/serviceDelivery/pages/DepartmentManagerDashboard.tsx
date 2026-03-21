@@ -1979,7 +1979,7 @@ const DepartmentManagerDashboard: React.FC = () => {
             name: selectedDeptEmployee.full_name || '',
             email: selectedDeptEmployee.email || '',
             title: selectedDeptEmployee.title || selectedDeptEmployee.role || '',
-            status: selectedDeptEmployee.status === 'Active' ? 'Active' : 'Away',
+            status: selectedDeptEmployee.is_active ? 'Active' : 'Away',
             initials: getInitials(selectedDeptEmployee.full_name || ''),
             department: selectedDeptEmployee.department_name || 'N/A'
           }}
@@ -2017,7 +2017,7 @@ const DepartmentManagerDashboard: React.FC = () => {
             name: selectedDeptEmployee.full_name || '',
             email: selectedDeptEmployee.email || '',
             title: selectedDeptEmployee.title || selectedDeptEmployee.role || '',
-            status: selectedDeptEmployee.status === 'Active' ? 'Active' : 'Away',
+            status: selectedDeptEmployee.is_active ? 'Active' : 'Away',
             initials: getInitials(selectedDeptEmployee.full_name || '')
           }}
           onDelete={async () => {
