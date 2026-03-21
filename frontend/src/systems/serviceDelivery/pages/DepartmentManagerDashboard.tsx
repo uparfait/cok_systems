@@ -824,20 +824,23 @@ const DepartmentManagerDashboard: React.FC = () => {
     const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
     
     // First try to find by provider_id (current employee's own status)
+    // Only return active statuses, not transferred status from other employees
     if (myId) {
       const statusByProvider = (v.services_status || []).find((s: any) => 
         String(s.provider_id) === myId
       );
       if (statusByProvider && statusByProvider.s_type) {
         const s = statusByProvider.s_type.toLowerCase();
+        // Only return non-transfer statuses for current user
         if (s === 'inprogress') return 'Inprogress';
         if (s === 'completed') return 'Completed';
-        if (s === 'transfered' || s === 'transferred') return 'Transfered';
-        return statusByProvider.s_type;
+        if (s === 'not started') return 'Not started';
+        // Don't return 'transfered' here - we'll check department level status instead
       }
     }
     
     // Then try to find by department_id (for department-level status)
+    // This handles the case where visitor was transferred out but is now in this department
     if (departmentId) {
       const statusByDept = (v.services_status || []).find((s: any) => {
         const deptId = typeof s.department_id === 'object' ? s.department_id?._id : s.department_id;
@@ -849,6 +852,7 @@ const DepartmentManagerDashboard: React.FC = () => {
         if (s === 'inprogress') return 'Inprogress';
         if (s === 'completed') return 'Completed';
         if (s === 'transfered' || s === 'transferred') return 'Transfered';
+        if (s === 'not started') return 'Not started';
         return statusByDept.s_type;
       }
     }
