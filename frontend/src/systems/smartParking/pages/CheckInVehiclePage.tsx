@@ -191,11 +191,22 @@ const CheckInVehiclePage: React.FC = () => {
     
     setLoading(true);
     try {
+      // Get driver type - use staff for reserved staff vehicles, visitor for reserved emergency vehicles
+      let driverType = verifiedData.vehicle_category || '';
+      // Convert to lowercase for backend API
+      if (driverType.toLowerCase() === 'staff vehicle') {
+        driverType = 'Staff';
+      } else if (driverType.toLowerCase() === 'visitor') {
+        driverType = 'Visitor';
+      } else if (driverType.toLowerCase() === 'regular') {
+        driverType = 'Regular';
+      }
+      
       const checkInData = {
         plate_number: verifiedData.plate_number,
         driver_name: driverInfo.name || verifiedData.driver_details?.name || verifiedData.driver_name || '',
         driver_telephone: driverInfo.telephone || verifiedData.driver_details?.telephone || verifiedData.driver_telephone || '',
-        driver_type: verifiedData.vehicle_category || '',
+        driver_type: driverType,
         badge_number: driverInfo.badge_number?.trim() || null,
       };
 
