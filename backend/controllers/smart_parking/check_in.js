@@ -42,7 +42,7 @@ module.exports = async function car_check_in(req, res, next) {
         driver_type = driver_type.toLowerCase()
         
 
-        const allowed_driver_type = ['regular', 'visitor', 'staff']
+        const allowed_driver_type = ['regular', 'visitor', 'staff', 'Staff Vehicle']  //  Staff Vehicle fot the Reserved Vehicle 
 
         if(!allowed_driver_type.includes(driver_type.toLowerCase())) {
             return res.status(400).json({
