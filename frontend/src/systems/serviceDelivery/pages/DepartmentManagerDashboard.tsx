@@ -1333,14 +1333,14 @@ const DepartmentManagerDashboard: React.FC = () => {
                         <td className="px-4 py-3">
                           <div className="flex items-center">
                             <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs mr-3">
-                              {getInitials(getVisitorName(visitor))}
+                              {getInitials(getVisitorName(visitor)) || '@'}
                             </div>
                             <p className="text-sm font-semibold text-gray-800">{getVisitorName(visitor)}</p>
                           </div>
                         </td>
                         <td className="px-4 py-3">
                           <p className="text-sm text-gray-600">{visitor.telephone || '_____'}</p>
-                          <p className="text-xs text-gray-400">{visitor.email || ''}</p>
+                          <p className="text-xs text-gray-400">{visitor.email || '___'}</p>
                         </td>
                         <td className="px-4 py-3"><p className="text-sm text-gray-600">{getIdentification(visitor) || visitor.badge_number || '_____'}</p></td>
                         <td className="px-4 py-3">
