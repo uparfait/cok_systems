@@ -510,7 +510,7 @@ const CheckInVehiclePage: React.FC = () => {
                 </div>
 
                 {isEditingDriver ? (
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs text-gray-500">Name</label>
                       <input type="text" name="name" value={driverInfo.name} onChange={handleDriverInfoChange} className="w-full px-2 py-1 text-sm border rounded" />
@@ -519,7 +519,7 @@ const CheckInVehiclePage: React.FC = () => {
                       <label className="text-xs text-gray-500">Phone</label>
                       <input type="tel" name="telephone" value={driverInfo.telephone} onChange={handleDriverInfoChange} className="w-full px-2 py-1 text-sm border rounded" />
                     </div>
-                    <div>
+                    <div className="col-span-2">
                       <label className="text-xs text-gray-500">
                         Badge Number {verifiedData.is_reserved ? '(Optional for reserved)' : '*'}
                       </label>
@@ -585,7 +585,7 @@ const CheckInVehiclePage: React.FC = () => {
       {/* Unknown Vehicle Modal */}
       {showUnknownModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden max-h-[90vh] overflow-y-auto">
             <div className="bg-red-50 px-6 py-4">
               <div className="flex items-center gap-2">
                 <FiAlertCircle className="w-6 h-6 text-red-600" />
@@ -600,60 +600,62 @@ const CheckInVehiclePage: React.FC = () => {
               <p className="text-red-800 text-xs text-center">This vehicle is not registered. Please register visitor details to grant one-time access.</p>
             </div>
             
-            <div className="p-6 space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Plate Number</label>
-                <input type="text" name="plate_number" value={unknownForm.plate_number} onChange={handleInputChange} placeholder="Enter plate number" className="w-full px-3 py-2 border rounded-lg" />
-              </div>
+            <div className="p-6">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Plate Number</label>
+                  <input type="text" name="plate_number" value={unknownForm.plate_number} onChange={handleInputChange} placeholder="Enter plate number" className="w-full px-3 py-2 border rounded-lg" />
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">National ID / Passport</label>
-                <input type="text" name="national_id" value={unknownForm.national_id || ''} onChange={handleInputChange} placeholder="Enter national ID" className="w-full px-3 py-2 border rounded-lg" />
-              </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">National ID / Passport</label>
+                  <input type="text" name="national_id" value={unknownForm.national_id || ''} onChange={handleInputChange} placeholder="Enter national ID" className="w-full px-3 py-2 border rounded-lg" />
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Full Names</label>
-                <input type="text" name="driver_name" value={unknownForm.driver_name} onChange={handleInputChange} placeholder="Enter full names" className="w-full px-3 py-2 border rounded-lg" />
-              </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Full Names</label>
+                  <input type="text" name="driver_name" value={unknownForm.driver_name} onChange={handleInputChange} placeholder="Enter full names" className="w-full px-3 py-2 border rounded-lg" />
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Phone Number</label>
-                <input type="tel" name="driver_telephone" value={unknownForm.driver_telephone} onChange={handleInputChange} placeholder="Enter phone number" className="w-full px-3 py-2 border rounded-lg" />
-              </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Phone Number</label>
+                  <input type="tel" name="driver_telephone" value={unknownForm.driver_telephone} onChange={handleInputChange} placeholder="Enter phone number" className="w-full px-3 py-2 border rounded-lg" />
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email Address</label>
-                <input type="email" name="driver_email" value={unknownForm.driver_email || ''} onChange={handleInputChange} placeholder="Enter email (optional)" className="w-full px-3 py-2 border rounded-lg" />
-              </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email Address</label>
+                  <input type="email" name="driver_email" value={unknownForm.driver_email || ''} onChange={handleInputChange} placeholder="Enter email (optional)" className="w-full px-3 py-2 border rounded-lg" />
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Badge Number</label>
-                <input type="text" name="badge_number" value={unknownForm.badge_number || ''} onChange={handleInputChange} placeholder="Enter badge number" className="w-full px-3 py-2 border rounded-lg" />
-              </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Badge Number</label>
+                  <input type="text" name="badge_number" value={unknownForm.badge_number || ''} onChange={handleInputChange} placeholder="Enter badge number" className="w-full px-3 py-2 border rounded-lg" />
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Gender</label>
-                <div className="flex gap-2">
-                  {['Male', 'Female'].map((gender) => (
-                    <button key={gender} type="button" onClick={() => handleInputChange({ target: { name: 'driver_gender', value: gender } } as any)} className={`flex-1 py-2 rounded-lg text-sm font-medium ${unknownForm.driver_gender === gender ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>
-                      {gender}
-                    </button>
-                  ))}
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Gender</label>
+                  <div className="flex gap-2">
+                    {['Male', 'Female'].map((gender) => (
+                      <button key={gender} type="button" onClick={() => handleInputChange({ target: { name: 'driver_gender', value: gender } } as any)} className={`flex-1 py-2 rounded-lg text-sm font-medium ${unknownForm.driver_gender === gender ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>
+                        {gender}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Visitor Type</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {['Visitor', 'Regular', 'Staff'].map((type) => (
+                      <button key={type} type="button" onClick={() => handleInputChange({ target: { name: 'driver_type', value: type } } as any)} className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium ${unknownForm.driver_type === type ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>
+                        {type}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Visitor Type</label>
-                <div className="flex gap-2 flex-wrap">
-                  {['Visitor', 'Regular', 'Staff'].map((type) => (
-                    <button key={type} type="button" onClick={() => handleInputChange({ target: { name: 'driver_type', value: type } } as any)} className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium ${unknownForm.driver_type === type ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>
-                      {type}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2 pt-4 mt-2">
                 <button type="button" onClick={closeAllModals} className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-medium text-sm">Cancel</button>
                 <button type="button" onClick={handleRegisterUnknown} disabled={loading || !unknownForm.driver_name || !unknownForm.driver_telephone} className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-50">
                   {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiPlus className="w-4 h-4" />}
