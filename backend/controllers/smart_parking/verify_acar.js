@@ -31,11 +31,16 @@ module.exports = async function verify_car(req, res, next) {
         //  Check if it's a reserved Emergency/Visitor Car
         // We look inside the visitor_info array of the EmergencyCar model
         // Also check is_active on the main document
+        console.log('Searching for plate:', plate_number);
+        console.log('Current time:', new Date());
+        
         const emergency_reservation = await EmergencyCar.findOne({
             "visitor_info.plate_number": plate_number,
             "validity.to": { $gte: new Date() }, // Ensure reservation hasn't expired
             is_active: true // Check if the emergency car record is active
         });
+        
+        console.log('Emergency reservation found:', emergency_reservation);
 
         // check if is flagged.
 
@@ -84,6 +89,16 @@ module.exports = async function verify_car(req, res, next) {
             vehicle_type = driver_type || 'Visitor';
             is_reserved = true;
             is_found_in_system = true;
+            
+            // Extract driver details from emergency_reservation visitor_info
+            const visitorInfo = emergency_reservation.visitor_info?.find(v => v.plate_number === plate_number);
+            if (visitorInfo) {
+                driver_name = visitorInfo.driver_name || driver_name;
+                driver_telephone = visitorInfo.telephone_number || driver_telephone;
+                driver_gender = visitorInfo.driver_gender || driver_gender;
+                driver_identification = visitorInfo.driver_identification || driver_identification;
+                driver_type = visitorInfo.driver_type || driver_type;
+            }
         } else if (driver_telephone) {
             vehicle_type = driver_type || 'Visitor';
             is_found_in_system = true;
