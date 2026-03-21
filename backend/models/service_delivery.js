@@ -5,6 +5,10 @@ const service_delivery_schema = new mongoose.Schema({
         id_type: String,
         number: String
     },
+    driver_identification: {
+        id_type: String,
+        number: String
+    },
     vehicle_storage: {
         has_vehicle: { type: Boolean, default: false },
         vehicle_details: {
