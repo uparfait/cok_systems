@@ -85,6 +85,7 @@ module.exports = async function verify_car(req, res, next) {
             vehicle_type = 'Staff';
             is_reserved = isStaffActive; // Only reserve if active
             is_found_in_system = true;
+            driver_type = 'Staff'; // Set driver_type for staff cars
             
             // Extract driver details from staff_car (owner_name is the driver name)
             if (staff_car.owner_name) {
@@ -109,6 +110,7 @@ module.exports = async function verify_car(req, res, next) {
             vehicle_type = driver_type || 'Visitor';
             is_reserved = true;
             is_found_in_system = true;
+            driver_type = 'Visitor'; // Set driver_type for visitor reservations
             
             // Extract driver details from emergency_reservation visitor_info
             const visitorInfo = emergency_reservation.visitor_info?.find(v => v.plate_number === plate_number);
@@ -118,7 +120,6 @@ module.exports = async function verify_car(req, res, next) {
                 driver_telephone = visitorInfo.telephone_number || driver_telephone;
                 driver_gender = visitorInfo.driver_gender || driver_gender;
                 driver_identification = visitorInfo.driver_identification || driver_identification;
-                driver_type = visitorInfo.driver_type || driver_type;
             }
             console.log('Driver name after extraction:', driver_name);
             console.log('Driver telephone after extraction:', driver_telephone);

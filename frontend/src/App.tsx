@@ -73,7 +73,7 @@ function App() {
               <Route path="/admin/user-management" element={<ProtectedRoute><UserManagementPage /></ProtectedRoute>} />
               <Route path="/admin/roles-management" element={<ProtectedRoute><RolesManagementPage /></ProtectedRoute>} />
               <Route path="/admin/smart-parking" element={<ProtectedRoute><AdminSmartParkingDashboard /></ProtectedRoute>} />
-              <Route path="/smart-parking/reservation" element={<ProtectedRoute><ReservationsPage /></ProtectedRoute>} />
+              <Route path="/admin/smart-parking/reservation" element={<ProtectedRoute><ReservationsPage /></ProtectedRoute>} />
               
               {/* ==================== SERVICE DELIVERY ADMIN PAGES ==================== */}
               <Route path="/admin/service-delivery/dashboard" element={<ProtectedRoute><AdminServiceDeliveryDashboard /></ProtectedRoute>} />
