@@ -6,6 +6,8 @@ import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
+import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
+import { reservationService } from '../../../core/services/adminService';
 import { 
   FiCalendar, FiUpload, FiUser, FiTruck, FiPhone, FiFileText, 
   FiCheck, FiAlertCircle, FiSearch, FiEdit2, FiTrash2,
@@ -28,6 +30,10 @@ interface StaffBookingData {
   phone: string;
   plate_number: string;
   shift_start: string;
+  department_name?: string;
+  owner_title?: string;
+  id_type?: string;
+  identification?: string;
 }
 
 interface Reservation {
@@ -37,7 +43,7 @@ interface Reservation {
   telephone: string;
   expected_arrival: string;
   type: 'visitor' | 'staff';
-  status: 'active' | 'cancelled';
+  status: 'active' | 'expired' | 'cancelled';
 }
 
 const ReservationsPage: React.FC = () => {
@@ -65,13 +71,21 @@ const ReservationsPage: React.FC = () => {
     staff_name: '',
     phone: '',
     plate_number: '',
-    shift_start: ''
+    shift_start: '',
+    department_name: '',
+    owner_title: '',
+    id_type: 'NID',
+    identification: ''
   });
   
   // Bulk upload states
   const [visitorBulkFile, setVisitorBulkFile] = useState<File | null>(null);
   const [staffBulkFile, setStaffBulkFile] = useState<File | null>(null);
   const [activeUploadType, setActiveUploadType] = useState<'visitor' | 'staff'>('visitor');
+
+  // Cancel confirmation modal state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
 
   // Fetch reservations on mount
   useEffect(() => {
@@ -80,10 +94,9 @@ const ReservationsPage: React.FC = () => {
 
   const fetchReservations = async () => {
     try {
-      const response = await fetch('/cok/api/smartparking/reservations');
-      const data = await response.json();
-      if (data.success) {
-        setReservations(data.reservations || []);
+      const response = await reservationService.getAll();
+      if (response.success) {
+        setReservations(response.reservations || []);
       }
     } catch (error) {
       console.error('Error fetching reservations:', error);
@@ -105,16 +118,10 @@ const ReservationsPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/cok/api/smartparking/register-single', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(visitorFormData)
-      });
+      const response = await reservationService.createVisitorReservation(visitorFormData);
 
-      const data = await response.json();
-
-      if (data.success) {
-        showSuccess(data.message || 'Visitor reservation created successfully!');
+      if (response.success) {
+        showSuccess(response.message || 'Visitor reservation created successfully!');
         setVisitorFormData({
           plate_number: '',
           driver_name: '',
@@ -126,7 +133,7 @@ const ReservationsPage: React.FC = () => {
         });
         fetchReservations();
       } else {
-        showError(data.message || 'Failed to create reservation');
+        showError(response.message || 'Failed to create reservation');
       }
     } catch (error) {
       showError('Network error. Please try again.');
@@ -140,25 +147,23 @@ const ReservationsPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/cok/api/smartparking/staff-booking', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(staffFormData)
-      });
+      const response = await reservationService.createStaffBooking(staffFormData);
 
-      const data = await response.json();
-
-      if (data.success) {
-        showSuccess(data.message || 'Staff slot allocated successfully!');
+      if (response.success) {
+        showSuccess(response.message || 'Staff slot allocated successfully!');
         setStaffBookingData({
           staff_name: '',
           phone: '',
           plate_number: '',
-          shift_start: ''
+          shift_start: '',
+          department_name: '',
+          owner_title: '',
+          id_type: 'NID',
+          identification: ''
         });
         fetchReservations();
       } else {
-        showError(data.message || 'Failed to allocate staff slot');
+        showError(response.message || 'Failed to allocate staff slot');
       }
     } catch (error) {
       showError('Network error. Please try again.');
@@ -178,13 +183,9 @@ const ReservationsPage: React.FC = () => {
     formData.append('file', visitorBulkFile);
 
     try {
-      const response = await fetch('/cok/api/smartparking/bulk-visitor-upload', {
-        method: 'POST',
-        body: formData
-      });
-      const data = await response.json();
+      const data = await reservationService.bulkUploadVisitors(formData);
       if (data.success) {
-        showSuccess('Bulk visitor reservations uploaded successfully!');
+        showSuccess(data.message || 'Bulk visitor reservations uploaded successfully!');
         setVisitorBulkFile(null);
         fetchReservations();
       } else {
@@ -208,13 +209,9 @@ const ReservationsPage: React.FC = () => {
     formData.append('file', staffBulkFile);
 
     try {
-      const response = await fetch('/cok/api/smartparking/bulk-staff-upload', {
-        method: 'POST',
-        body: formData
-      });
-      const data = await response.json();
+      const data = await reservationService.bulkUploadStaff(formData);
       if (data.success) {
-        showSuccess('Bulk staff allocations uploaded successfully!');
+        showSuccess(data.message || 'Bulk staff allocations uploaded successfully!');
         setStaffBulkFile(null);
         fetchReservations();
       } else {
@@ -227,23 +224,36 @@ const ReservationsPage: React.FC = () => {
     }
   };
 
-  const cancelReservation = async (id: string) => {
-    if (!confirm('Are you sure you want to cancel this reservation?')) return;
+  const handleCancelClick = (reservation: Reservation) => {
+    setReservationToCancel(reservation);
+    setShowCancelModal(true);
+  };
+
+  const confirmCancelReservation = async () => {
+    if (!reservationToCancel) return;
     
     try {
-      const response = await fetch(`/cok/api/smartparking/reservations/${id}/cancel`, {
-        method: 'PUT'
-      });
-      const data = await response.json();
+      const data = await reservationService.cancelReservation(reservationToCancel.id);
       if (data.success) {
-        showSuccess('Reservation cancelled successfully');
-        fetchReservations();
+        showSuccess(data.message || 'Reservation cancelled successfully');
+        // Small delay to ensure backend completes the operation
+        setTimeout(() => {
+          fetchReservations();
+        }, 100);
       } else {
         showError(data.message || 'Failed to cancel');
       }
     } catch (error) {
       showError('Network error');
+    } finally {
+      setShowCancelModal(false);
+      setReservationToCancel(null);
     }
+  };
+
+  const closeCancelModal = () => {
+    setShowCancelModal(false);
+    setReservationToCancel(null);
   };
 
   // Filter and paginate reservations
@@ -626,7 +636,7 @@ const ReservationsPage: React.FC = () => {
                             <FiEdit2 className="w-4 h-4" />
                           </button>
                           <button 
-                            onClick={() => cancelReservation(reservation.id)}
+                            onClick={() => handleCancelClick(reservation)}
                             className="text-red-500 hover:text-red-700 transition-colors"
                           >
                             <FiTrash2 className="w-4 h-4" />
@@ -672,6 +682,17 @@ const ReservationsPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showCancelModal}
+        onCancel={closeCancelModal}
+        onConfirm={confirmCancelReservation}
+        title="Cancel Reservation"
+        confirmText="Cancel Reservation"
+        type="danger"
+        message={`Are you sure you want to cancel the reservation for plate number ${reservationToCancel?.plate_number || reservationToCancel?.visitor_name || 'this reservation'}? This action cannot be undone.`}
+      />
     </MainLayout>
   );
 };

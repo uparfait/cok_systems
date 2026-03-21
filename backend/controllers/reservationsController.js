@@ -8,12 +8,18 @@ const StaffCar = require('../models/staff_car');
 const getAllReservations = async (req, res) => {
     try {
         // Get visitor reservations from EmergencyCar
-        const visitorReservations = await EmergencyCar.find({})
+        // Only show active reservations (is_active: true or is_active doesn't exist/default to true)
+        const visitorReservations = await EmergencyCar.find({ 
+            $or: [
+                { is_active: { $ne: false } },  // is_active is not false (includes true, undefined, null)
+                { is_active: { $exists: false } }  // is_active field doesn't exist (old records)
+            ]
+        })
             .sort({ createdAt: -1 })
             .lean();
 
         // Get staff reservations from StaffCar
-        const staffReservations = await StaffCar.find({})
+        const staffReservations = await StaffCar.find({ is_active: true })
             .sort({ createdAt: -1 })
             .lean();
 
@@ -22,8 +28,9 @@ const getAllReservations = async (req, res) => {
         visitorReservations.forEach(reservation => {
             if (reservation.visitor_info && reservation.visitor_info.length > 0) {
                 reservation.visitor_info.forEach(visitor => {
+                    // Use plate number as the ID for easier cancellation
                     visitors.push({
-                        id: reservation._id.toString() + '_' + (visitor.plate_number || Math.random().toString(36).substr(2, 9)),
+                        id: visitor.plate_number || visitor.driver_name,
                         reservation_id: reservation._id,
                         visitor_name: visitor.driver_name,
                         plate_number: visitor.plate_number,
@@ -123,30 +130,12 @@ const cancelReservation = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Check if it's a visitor reservation (contains underscore in ID format from our transformation)
-        if (id.includes('_')) {
-            // This is a visitor reservation, find by the reservation_id part
-            const reservationId = id.split('_')[0];
-            
-            const reservation = await EmergencyCar.findById(reservationId);
-            
-            if (!reservation) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Reservation not found'
-                });
-            }
-
-            // Mark as expired by updating validity
-            reservation.validity.to = new Date();
-            await reservation.save();
-
-            return res.status(200).json({
-                success: true,
-                message: 'Visitor reservation cancelled successfully'
-            });
-        } else {
-            // This is a staff reservation
+        // Check if it's a visitor reservation (no underscore - now using plate number as ID)
+        // Staff reservations still use MongoDB ObjectId
+        const isStaffReservation = id.length === 24 && !id.includes('_');
+        
+        if (isStaffReservation) {
+            // This is a staff reservation - use MongoDB ObjectId
             const staffReservation = await StaffCar.findById(id);
             
             if (!staffReservation) {
@@ -162,6 +151,32 @@ const cancelReservation = async (req, res) => {
             return res.status(200).json({
                 success: true,
                 message: 'Staff reservation cancelled successfully'
+            });
+        } else {
+            // This is a visitor reservation - find by plate number
+            const plateNumber = id; // ID is now the plate number
+            
+            // Find the reservation that contains this visitor
+            const reservation = await EmergencyCar.findOne({
+                'visitor_info.plate_number': plateNumber
+            });
+            
+            if (!reservation) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Reservation not found'
+                });
+            }
+
+            // Mark as inactive using is_active field
+            reservation.is_active = false;
+            reservation.validity.to = new Date();
+            await reservation.save();
+
+            return res.status(200).json({
+                success: true,
+                message: `Reservation for plate number ${plateNumber} has been cancelled successfully`,
+                cancelled_plate_number: plateNumber
             });
         }
     } catch (error) {
