@@ -6,7 +6,7 @@ const Router = require('express').Router()
 const multer = require('multer');
 
 const { bulkUploadReservations, registerSingleReservation } = require('../../controllers/reservationController');
-const { getAllReservations, createStaffBooking, cancelReservation, bulkUploadStaff } = require('../../controllers/reservationsController');
+const { getAllReservations, createStaffBooking, cancelReservation, reactivateReservation, bulkUploadStaff } = require('../../controllers/reservationsController');
 
 // parfait's controllers
 const check_in = require('../../controllers/smart_parking/check_in.js')
@@ -101,6 +101,7 @@ Router.use((error, req, res, next) => {
 Router.get('/reservations', getAllReservations);
 Router.post('/staff-booking', createStaffBooking);
 Router.put('/reservations/:id/cancel', cancelReservation);
+Router.put('/reservations/:id/reactivate', reactivateReservation);
 Router.post('/bulk-staff-upload', upload.any(), bulkUploadStaff);
 
 Router.get('/vehicle', list_parking)
