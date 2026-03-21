@@ -808,7 +808,8 @@ const DepartmentManagerDashboard: React.FC = () => {
   const getInitials = (name: string) => {
     if (!name) return 'U';
     const parts = name.split(' ');
-    return parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : name.substring(0, 2).toUpperCase();
+    let formatted =  parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : name.substring(0, 2).toUpperCase();
+    return formatted;
   };
 
   const getAvatarColor = (name: string): string => {
