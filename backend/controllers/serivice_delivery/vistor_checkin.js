@@ -105,6 +105,7 @@ module.exports = async function visitor_checkin(req, res, next) {
             telephone,
             email,
             identification,
+            driver_identification: identification,
             gender,
             vehicle_storage,
             items_entered_with,
