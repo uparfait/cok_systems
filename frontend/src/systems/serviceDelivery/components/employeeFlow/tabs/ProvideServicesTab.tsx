@@ -3,13 +3,13 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  FiSearch, FiClock, FiCheckCircle, FiRefreshCw, FiSquare
+  FiSearch, FiClock, FiCheckCircle, FiRefreshCw, FiSquare, FiArrowRightCircle, FiX
 } from 'react-icons/fi';
 
 import { ServeVisitorModal } from '../index';
 import { Pagination } from '../../shared';
 import { useAuth } from '../../../../../core/contexts/AuthContext';
-import { serviceDeliveryService } from '../../../../../core/services/adminService';
+import { serviceDeliveryService, departmentService, employeeService } from '../../../../../core/services/adminService';
 
 // Custom Live Timer Component
 const LiveTimer: React.FC<{ startTime: string }> = ({ startTime }) => {
@@ -83,6 +83,16 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
   const [isServing, setIsServing] = useState(false);
   const [stats, setStats] = useState({ waitAvg: '0m', waiting: 0, completed: 0 });
 
+  // Transfer Modal State
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferVisitor, setTransferVisitor] = useState<ServiceRequest | null>(null);
+  const [transferDepartment, setTransferDepartment] = useState<string>('');
+  const [transferEmployee, setTransferEmployee] = useState<any>(null);
+  const [transferring, setTransferring] = useState(false);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [transferEmployees, setTransferEmployees] = useState<any[]>([]);
+  const [transferEmployeesLoading, setTransferEmployeesLoading] = useState(false);
+
   const entriesPerPage = 5;
 
   const fetchAssignedVisitors = useCallback(async () => {
@@ -104,14 +114,40 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
         
         const myVisitors = allVisitors.filter((v: any) => {
           if (!v.services_status || !Array.isArray(v.services_status)) return false;
-          return v.services_status.some((status: any) => String(status.provider_id) === myId);
+          // Also check departments_assigned for cases where visitor is assigned to department but not to specific employee
+          const inServicesStatus = v.services_status.some((status: any) => {
+            const statusProviderId = String(status.provider_id || '');
+            return statusProviderId === myId;
+          });
+          
+          const inDepartmentsAssigned = v.departments_assigned?.some((dept: any) => {
+            const deptProviderId = String(dept.provider_id || '');
+            return deptProviderId === myId;
+          });
+          
+          return inServicesStatus || inDepartmentsAssigned;
         });
         
         const formattedRequests: ServiceRequest[] = myVisitors.map((v: any) => {
-          const serviceStatus = v.services_status?.find((s: any) => String(s.provider_id) === myId);
+          // Find service status - check both provider_id and department_id
+          let serviceStatus = v.services_status?.find((s: any) => String(s.provider_id) === myId);
+          
+          // If not found by provider_id, try by department_id
+          if (!serviceStatus && v.departments_assigned) {
+            const myDept = v.departments_assigned.find((d: any) => String(d.provider_id) === myId);
+            if (myDept) {
+              serviceStatus = v.services_status?.find((s: any) => {
+                const sDeptId = typeof s.department_id === 'object' ? s.department_id?._id : s.department_id;
+                return String(sDeptId) === String(myDept.department_id);
+              });
+            }
+          }
           
           let status: 'not_started' | 'inprogress' | 'completed' | 'transfered' = 'not_started';
           const rawStatus = (serviceStatus?.s_type || '').toLowerCase();
+          
+          // Debug logging
+          console.log('Visitor:', v.full_name || v.name, 'ServiceStatus:', serviceStatus?.s_type, 'RawStatus:', rawStatus);
           
           if (rawStatus === 'completed') status = 'completed';
           else if (rawStatus === 'inprogress') status = 'inprogress';
@@ -185,9 +221,117 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
 
   useEffect(() => {
     fetchAssignedVisitors();
+    fetchDepartments();
     const interval = setInterval(fetchAssignedVisitors, 10000);
     return () => clearInterval(interval);
   }, [fetchAssignedVisitors]);
+
+  // Fetch departments for transfer modal
+  const fetchDepartments = async () => {
+    try {
+      const response = await departmentService.getAll() as any;
+      if (response && (response.data || Array.isArray(response))) {
+        setDepartments(Array.isArray(response.data) ? response.data : response);
+      }
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+    }
+  };
+
+  // Handle transfer visitor
+  const handleTransferVisitor = async () => {
+    if (!transferVisitor || !transferDepartment) return;
+    setTransferring(true);
+    try {
+      const currentUser = user as any;
+      const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
+      const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown');
+      
+      const newDept = departments.find(d => d._id === transferDepartment);
+      const newDeptName = newDept?.department_name || newDept?.name || 'Unknown';
+      
+      // Get the current department ID from the visitor
+      const currentDept = transferVisitor.rawVisitor?.departments_assigned?.find(
+        (d: any) => String(d.provider_id) === myId
+      );
+      const previousDepartmentId = currentDept?.department_id;
+      
+      // Get employee info if selected - the employee being transferred TO
+      const providerId = transferEmployee 
+        ? String(transferEmployee._id || transferEmployee.employee_id || '')
+        : undefined;
+      const providerName = transferEmployee 
+        ? String(transferEmployee.full_name || '')
+        : undefined;
+      
+      console.log('Transferring visitor:', {
+        visitorId: transferVisitor.id,
+        newDepartmentId: transferDepartment,
+        newDeptName,
+        providerId,
+        providerName,
+        previousDepartmentId
+      });
+      
+      await serviceDeliveryService.assignToDepartment(
+        transferVisitor.id,
+        transferDepartment,
+        newDeptName,
+        providerId,
+        providerName,
+        previousDepartmentId
+      );
+      
+      setShowTransferModal(false);
+      setTransferVisitor(null);
+      setTransferDepartment('');
+      setTransferEmployee(null);
+      setTransferEmployees([]);
+      await fetchAssignedVisitors();
+    } catch (error) {
+      console.error('Error transferring visitor:', error);
+      alert('Failed to transfer visitor. Please try again.');
+    } finally {
+      setTransferring(false);
+    }
+  };
+
+  // Fetch employees for transfer modal when department changes
+  const fetchTransferEmployees = async (deptId: string) => {
+    if (!deptId) {
+      setTransferEmployees([]);
+      return;
+    }
+    setTransferEmployeesLoading(true);
+    try {
+      const response = await employeeService.getByDepartment(deptId, false) as any;
+      if (response && (response.data || Array.isArray(response))) {
+        setTransferEmployees(Array.isArray(response.data) ? response.data : response);
+      }
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+      setTransferEmployees([]);
+    } finally {
+      setTransferEmployeesLoading(false);
+    }
+  };
+
+  // Open transfer modal
+  const handleTransferClick = (request: ServiceRequest) => {
+    if (request.status === 'completed' || request.status === 'transfered') return;
+    setTransferVisitor(request);
+    setTransferDepartment('');
+    setTransferEmployee(null);
+    setTransferEmployees([]);
+    setShowTransferModal(true);
+  };
+
+  // Handle department change in transfer modal
+  const handleTransferDepartmentChange = (deptId: string) => {
+    setTransferDepartment(deptId);
+    setTransferEmployee(null);
+    fetchTransferEmployees(deptId);
+  };
 
   const filteredRequests = requests.filter(request => {
     const searchLower = searchTerm.toLowerCase();
@@ -400,14 +544,15 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
                     <span className="text-[#34a853] text-[12px] font-medium">✓ Served</span>
                   ) : request.status === 'transfered' ? (
                     <span className="text-[#7b1fa2] text-[12px] font-medium">⇄ Transferred</span>
-                  ) : request.status === 'inprogress' ? (
-                    <button onClick={() => handleServeClick(request)} disabled={isServing} className="flex items-center justify-center gap-1.5 h-8 w-20 bg-[#e53935] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#c62828] transition-colors disabled:opacity-50">
-                      <FiSquare className="w-3 h-3 fill-current" /> Stop
-                    </button>
                   ) : (
-                    <button onClick={() => handleServeClick(request)} disabled={isServing} className="h-8 w-20 bg-[#1a73e8] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#1558c0] transition-colors disabled:opacity-50">
-                      Serve
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleServeClick(request)} disabled={isServing} className="h-8 w-16 bg-[#1a73e8] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#1558c0] transition-colors disabled:opacity-50">
+                        Serve
+                      </button>
+                      <button onClick={() => handleTransferClick(request)} disabled={isServing} className="h-8 w-20 bg-[#7b1fa2] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#6a1b9a] transition-colors disabled:opacity-50 flex items-center justify-center gap-1">
+                        <FiArrowRightCircle className="w-3 h-3" /> Transfer
+                      </button>
+                    </div>
                   )}
                 </td>
               </tr>
@@ -428,6 +573,130 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
         visitor={selectedVisitor as any}
         onServiceEnd={handleServiceComplete} 
       />
+
+      {/* Transfer Modal */}
+      {showTransferModal && transferVisitor && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-[16px] shadow-[0px_10px_30px_rgba(0,0,0,0.1)] w-full max-w-md overflow-hidden">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-[#2C3E50] text-[20px] font-semibold">Transfer Visitor</h2>
+                <button 
+                  onClick={() => {
+                    setShowTransferModal(false);
+                    setTransferVisitor(null);
+                    setTransferDepartment('');
+                    setTransferEmployee(null);
+                    setTransferEmployees([]);
+                  }} 
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FiX className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">Visitor</label>
+                <div className="flex items-center gap-3 p-3 bg-[#F7F9FB] rounded-lg">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold ${transferVisitor.avatarColor}`}>
+                    <span>{transferVisitor.initials}</span>
+                  </div>
+                  <div>
+                    <div className="text-[#2C3E50] text-[14px] font-medium">{transferVisitor.visitorName}</div>
+                    <div className="text-[#8A94A6] text-[12px]">Badge: {transferVisitor.badgeNumber || 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">Select Department</label>
+                <select
+                  value={transferDepartment}
+                  onChange={(e) => handleTransferDepartmentChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#7b1fa2] bg-white"
+                >
+                  <option value="">Choose department...</option>
+                  {departments.map(dept => (
+                    <option key={dept._id} value={dept._id}>
+                      {dept.department_name || dept.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {transferDepartment && (
+                <div className="mb-6">
+                  <label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">Select Employee</label>
+                  <div className="relative">
+                    {transferEmployeesLoading ? (
+                      <div className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-[13px] bg-gray-100 flex items-center justify-center">
+                        <div className="w-4 h-4 border-2 border-[#7b1fa2] border-t-transparent rounded-full animate-spin mr-2"></div>
+                        <span className="text-gray-500">Loading employees...</span>
+                      </div>
+                    ) : (
+                      <select
+                        value={transferEmployee?._id || transferEmployee?.employee_id || ''}
+                        onChange={(e) => {
+                          const emp = transferEmployees.find(em => String(em._id || em.employee_id) === e.target.value);
+                          setTransferEmployee(emp || null);
+                        }}
+                        className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#7b1fa2] bg-white cursor-pointer appearance-none"
+                      >
+                        <option value="">Any employee in department</option>
+                        {transferEmployees.map(emp => {
+                          const empId = String(emp._id || emp.employee_id || '');
+                          return (
+                            <option key={empId} value={empId}>
+                              {emp.full_name} {emp.title ? `(${emp.title})` : ''}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    )}
+                    {!transferEmployeesLoading && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowTransferModal(false);
+                    setTransferVisitor(null);
+                    setTransferDepartment('');
+                    setTransferEmployee(null);
+                    setTransferEmployees([]);
+                  }}
+                  className="flex-1 px-4 py-2 border border-[#D9E1EA] text-[#2C3E50] rounded-[8px] font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleTransferVisitor}
+                  disabled={!transferDepartment || transferring}
+                  className="flex-1 px-4 py-2 bg-[#7b1fa2] text-white rounded-[8px] font-medium hover:bg-[#6a1b9a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {transferring ? (
+                    <>
+                      <FiRefreshCw className="w-4 h-4 animate-spin" /> Transferring...
+                    </>
+                  ) : (
+                    <>
+                      <FiArrowRightCircle className="w-4 h-4" /> Transfer
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
