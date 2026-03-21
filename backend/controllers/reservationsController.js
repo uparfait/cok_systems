@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const EmergencyCar = require('../models/emergency_car');
+const EmergencyCarHistory = require('../models/emergency_car_history');
 const StaffCar = require('../models/staff_car');
 
 /**
@@ -7,30 +8,70 @@ const StaffCar = require('../models/staff_car');
  */
 const getAllReservations = async (req, res) => {
     try {
-        // Get visitor reservations from EmergencyCar
+        // Get ALL visitor reservations from EmergencyCar (including cancelled)
         const visitorReservations = await EmergencyCar.find({})
             .sort({ createdAt: -1 })
             .lean();
 
-        // Get staff reservations from StaffCar
+        // Also get from EmergencyCarHistory as fallback
+        const historyReservations = await EmergencyCarHistory.find({})
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Get staff reservations from StaffCar (both active and inactive for reactivation)
         const staffReservations = await StaffCar.find({})
             .sort({ createdAt: -1 })
             .lean();
 
-        // Transform visitor reservations
+        // Transform visitor reservations (from EmergencyCar)
         const visitors = [];
         visitorReservations.forEach(reservation => {
             if (reservation.visitor_info && reservation.visitor_info.length > 0) {
                 reservation.visitor_info.forEach(visitor => {
+                    // Determine status: cancelled if is_active is false, otherwise check expiry
+                    let status = 'active';
+                    if (reservation.is_active === false) {
+                        status = 'cancelled';
+                    } else if (reservation.validity?.to && new Date() > new Date(reservation.validity.to)) {
+                        status = 'expired';
+                    }
+                    // Use plate number as the ID for easier cancellation
                     visitors.push({
-                        id: reservation._id.toString() + '_' + (visitor.plate_number || Math.random().toString(36).substr(2, 9)),
+                        id: visitor.plate_number || visitor.driver_name,
                         reservation_id: reservation._id,
                         visitor_name: visitor.driver_name,
                         plate_number: visitor.plate_number,
                         telephone: visitor.telephone_number,
                         expected_arrival: reservation.validity?.from ? new Date(reservation.validity.from).toISOString() : new Date().toISOString(),
                         type: 'visitor',
-                        status: new Date() > new Date(reservation.validity?.to) ? 'expired' : 'active',
+                        status: status,
+                        created_at: reservation.createdAt
+                    });
+                });
+            }
+        });
+
+        // Also transform history reservations (from EmergencyCarHistory) as fallback
+        historyReservations.forEach(reservation => {
+            if (reservation.visitor_info && reservation.visitor_info.length > 0) {
+                reservation.visitor_info.forEach(visitor => {
+                    // Determine status: cancelled if is_active is false, otherwise check expiry
+                    let status = 'active';
+                    if (reservation.is_active === false) {
+                        status = 'cancelled';
+                    } else if (reservation.validity?.to && new Date() > new Date(reservation.validity.to)) {
+                        status = 'expired';
+                    }
+                    // Use plate number as the ID for easier cancellation
+                    visitors.push({
+                        id: visitor.plate_number || visitor.driver_name,
+                        reservation_id: reservation._id,
+                        visitor_name: visitor.driver_name,
+                        plate_number: visitor.plate_number,
+                        telephone: visitor.telephone_number,
+                        expected_arrival: reservation.validity?.from ? new Date(reservation.validity.from).toISOString() : new Date().toISOString(),
+                        type: 'visitor',
+                        status: status,
                         created_at: reservation.createdAt
                     });
                 });
@@ -123,30 +164,12 @@ const cancelReservation = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Check if it's a visitor reservation (contains underscore in ID format from our transformation)
-        if (id.includes('_')) {
-            // This is a visitor reservation, find by the reservation_id part
-            const reservationId = id.split('_')[0];
-            
-            const reservation = await EmergencyCar.findById(reservationId);
-            
-            if (!reservation) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Reservation not found'
-                });
-            }
-
-            // Mark as expired by updating validity
-            reservation.validity.to = new Date();
-            await reservation.save();
-
-            return res.status(200).json({
-                success: true,
-                message: 'Visitor reservation cancelled successfully'
-            });
-        } else {
-            // This is a staff reservation
+        // Check if it's a visitor reservation (no underscore - now using plate number as ID)
+        // Staff reservations still use MongoDB ObjectId
+        const isStaffReservation = id.length === 24 && !id.includes('_');
+        
+        if (isStaffReservation) {
+            // This is a staff reservation - use MongoDB ObjectId
             const staffReservation = await StaffCar.findById(id);
             
             if (!staffReservation) {
@@ -163,12 +186,89 @@ const cancelReservation = async (req, res) => {
                 success: true,
                 message: 'Staff reservation cancelled successfully'
             });
+        } else {
+            // This is a visitor reservation - find by plate number
+            const plateNumber = id; // ID is now the plate number
+            
+            // Find the reservation that contains this visitor
+            const reservation = await EmergencyCar.findOne({
+                'visitor_info.plate_number': plateNumber
+            });
+            
+            if (!reservation) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Reservation not found'
+                });
+            }
+
+            // Mark as inactive using is_active field
+            reservation.is_active = false;
+            reservation.validity.to = new Date();
+            await reservation.save();
+
+            return res.status(200).json({
+                success: true,
+                message: `Reservation for plate number ${plateNumber} has been cancelled successfully`,
+                cancelled_plate_number: plateNumber
+            });
         }
     } catch (error) {
         console.error('Error cancelling reservation:', error);
         res.status(500).json({
             success: false,
             message: 'Error cancelling reservation',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Reactivate a cancelled staff reservation
+ */
+const reactivateReservation = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Check if it's a valid MongoDB ObjectId
+        if (!id || id.length !== 24) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid reservation ID'
+            });
+        }
+
+        const staffReservation = await StaffCar.findById(id);
+        
+        if (!staffReservation) {
+            return res.status(404).json({
+                success: false,
+                message: 'Staff reservation not found'
+            });
+        }
+
+        // Check if already active
+        if (staffReservation.is_active === true) {
+            return res.status(400).json({
+                success: false,
+                message: 'Reservation is already active'
+            });
+        }
+
+        // Reactivate the reservation
+        staffReservation.is_active = true;
+        await staffReservation.save();
+
+        return res.status(200).json({
+            success: true,
+            message: `Staff reservation for ${staffReservation.owner_name} has been reactivated successfully`,
+            data: staffReservation
+        });
+    } catch (error) {
+        console.error('Error reactivating reservation:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error reactivating reservation',
             error: error.message
         });
     }
@@ -255,5 +355,6 @@ module.exports = {
     getAllReservations,
     createStaffBooking,
     cancelReservation,
+    reactivateReservation,
     bulkUploadStaff
 };
