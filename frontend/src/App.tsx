@@ -80,6 +80,8 @@ function App() {
               <Route path="/admin/service-delivery/checkin-checkout" element={<ProtectedRoute><AdminCheckInCheckOut /></ProtectedRoute>} />
               <Route path="/admin/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
               <Route path="/admin/feedback" element={<ProtectedRoute><FeedbackPage /></ProtectedRoute>} />
+              <Route path="/admin/service-delivery/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+              <Route path="/admin/service-delivery/feedback" element={<ProtectedRoute><FeedbackPage /></ProtectedRoute>} />
               
               {/* ==================== SMART PARKING SYSTEM (Colleague's Work) ==================== */}
               <Route path="/smart-parking/dashboard" element={<ProtectedRoute><SmartParkingDashboard /></ProtectedRoute>} />

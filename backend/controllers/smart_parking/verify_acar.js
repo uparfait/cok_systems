@@ -85,6 +85,26 @@ module.exports = async function verify_car(req, res, next) {
             vehicle_type = 'Staff';
             is_reserved = isStaffActive; // Only reserve if active
             is_found_in_system = true;
+            
+            // Extract driver details from staff_car
+            if (staff_car.driver_name) {
+                driver_name = staff_car.driver_name;
+            }
+            if (staff_car.telephone) {
+                driver_telephone = staff_car.telephone;
+            }
+            if (staff_car.gender) {
+                driver_gender = staff_car.gender;
+            }
+            if (staff_car.email) {
+                driver_email = staff_car.email;
+            }
+            if (staff_car.id_type || staff_car.identification) {
+                driver_identification = {
+                    id_type: staff_car.id_type,
+                    number: staff_car.identification
+                };
+            }
         } else if (emergency_reservation) {
             vehicle_type = driver_type || 'Visitor';
             is_reserved = true;
@@ -92,6 +112,7 @@ module.exports = async function verify_car(req, res, next) {
             
             // Extract driver details from emergency_reservation visitor_info
             const visitorInfo = emergency_reservation.visitor_info?.find(v => v.plate_number === plate_number);
+            console.log('Found visitorInfo:', visitorInfo);
             if (visitorInfo) {
                 driver_name = visitorInfo.driver_name || driver_name;
                 driver_telephone = visitorInfo.telephone_number || driver_telephone;
@@ -99,6 +120,8 @@ module.exports = async function verify_car(req, res, next) {
                 driver_identification = visitorInfo.driver_identification || driver_identification;
                 driver_type = visitorInfo.driver_type || driver_type;
             }
+            console.log('Driver name after extraction:', driver_name);
+            console.log('Driver telephone after extraction:', driver_telephone);
         } else if (driver_telephone) {
             vehicle_type = driver_type || 'Visitor';
             is_found_in_system = true;

@@ -235,7 +235,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     }
     // Add Reservation menu item
     if (hasPermission(user, 'smart parking', 'read') || isAdmin) {
-      parkingChildren.push({ id: 'parking-reservation', label: 'Reservation', path: '/smart-parking/reservation', icon: 'FiCalendar', resource: 'smart parking', requiredAction: 'read:smart parking' });
+      parkingChildren.push({ id: 'parking-reservation', label: 'Reservation', path: '/admin/smart-parking/reservation', icon: 'FiCalendar', resource: 'smart parking', requiredAction: 'read:smart parking' });
     }
     // Removed Check In and Check Out from Smart Parking menu as requested
     // Reservation and Analytics will be added later
@@ -267,11 +267,11 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     }
     // Analytics
     if (hasPermission(user, 'service delivery', 'read') || isAdmin) {
-      serviceChildren.push({ id: 'service-analytics', label: 'Analytics', path: '/admin/analytics', icon: 'FiBarChart2', resource: 'service delivery', requiredAction: 'read:service delivery' });
+      serviceChildren.push({ id: 'service-analytics', label: 'Analytics', path: '/admin/service-delivery/analytics', icon: 'FiBarChart2', resource: 'service delivery', requiredAction: 'read:service delivery' });
     }
     // Feedback
     if (hasPermission(user, 'service delivery', 'read') || isAdmin) {
-      serviceChildren.push({ id: 'service-feedback', label: 'Feedback', path: '/admin/feedback', icon: 'FiMessageSquare', resource: 'service delivery', requiredAction: 'read:service delivery' });
+      serviceChildren.push({ id: 'service-feedback', label: 'Feedback', path: '/admin/service-delivery/feedback', icon: 'FiMessageSquare', resource: 'service delivery', requiredAction: 'read:service delivery' });
     }
     
     if (serviceChildren.length > 0) {
