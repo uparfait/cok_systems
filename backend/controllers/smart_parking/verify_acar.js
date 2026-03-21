@@ -30,9 +30,11 @@ module.exports = async function verify_car(req, res, next) {
 
         //  Check if it's a reserved Emergency/Visitor Car
         // We look inside the visitor_info array of the EmergencyCar model
+        // Also check is_active on the main document
         const emergency_reservation = await EmergencyCar.findOne({
             "visitor_info.plate_number": plate_number,
-            "validity.to": { $gte: new Date() } // Ensure reservation hasn't expired
+            "validity.to": { $gte: new Date() }, // Ensure reservation hasn't expired
+            is_active: true // Check if the emergency car record is active
         });
 
         // check if is flagged.
