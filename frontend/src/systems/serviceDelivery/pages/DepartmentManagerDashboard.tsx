@@ -1334,7 +1334,7 @@ const DepartmentManagerDashboard: React.FC = () => {
                         <td className="px-4 py-3">
                           <div className="flex items-center">
                             <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs mr-3">
-                              {getInitials(getVisitorName(visitor)) || '@'}
+                              {getInitials(getVisitorName(visitor))?.substring(0, 2).toUpperCase() || '@'}
                             </div>
                             <p className="text-sm font-semibold text-gray-800">{getVisitorName(visitor)}</p>
                           </div>
