@@ -95,18 +95,18 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
 
   const entriesPerPage = 5;
 
-  const fetchAssignedVisitors = useCallback(async () => {
+  const fetchAssignedVisitors = useCallback(async (silent: boolean = false) => {
     const currentUser = user as any;
     const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
     const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown').trim();
 
     if (!myId || myId === 'undefined') {
-      setLoading(false);
+      if (!silent) setLoading(false);
       return;
     }
     
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const response = await serviceDeliveryService.getAll() as any;
       
       if (response && (response.data || response.success || Array.isArray(response))) {
@@ -114,25 +114,16 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
         
         const myVisitors = allVisitors.filter((v: any) => {
           if (!v.services_status || !Array.isArray(v.services_status)) return false;
-          // Also check departments_assigned for cases where visitor is assigned to department but not to specific employee
-          const inServicesStatus = v.services_status.some((status: any) => {
-            const statusProviderId = String(status.provider_id || '');
-            return statusProviderId === myId;
-          });
           
-          const inDepartmentsAssigned = v.departments_assigned?.some((dept: any) => {
-            const deptProviderId = String(dept.provider_id || '');
-            return deptProviderId === myId;
-          });
+          const inServicesStatus = v.services_status.some((status: any) => String(status.provider_id) === myId);
+          const inDepartmentsAssigned = v.departments_assigned?.some((dept: any) => String(dept.provider_id) === myId);
           
           return inServicesStatus || inDepartmentsAssigned;
         });
         
         const formattedRequests: ServiceRequest[] = myVisitors.map((v: any) => {
-          // Find service status - check both provider_id and department_id
           let serviceStatus = v.services_status?.find((s: any) => String(s.provider_id) === myId);
           
-          // If not found by provider_id, try by department_id
           if (!serviceStatus && v.departments_assigned) {
             const myDept = v.departments_assigned.find((d: any) => String(d.provider_id) === myId);
             if (myDept) {
@@ -146,12 +137,34 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
           let status: 'not_started' | 'inprogress' | 'completed' | 'transfered' = 'not_started';
           const rawStatus = (serviceStatus?.s_type || '').toLowerCase();
           
-          // Debug logging
-          console.log('Visitor:', v.full_name || v.name, 'ServiceStatus:', serviceStatus?.s_type, 'RawStatus:', rawStatus);
-          
+          // 👉 NEW LOGIC: Dynamic Assignee Name instead of hardcoding "myName"
+          let currentAssigneeName = myName; 
+
           if (rawStatus === 'completed') status = 'completed';
           else if (rawStatus === 'inprogress') status = 'inprogress';
-          else if (rawStatus === 'transfered' || rawStatus === 'transferred') status = 'transfered';
+          else if (rawStatus === 'transfered' || rawStatus === 'transferred') {
+            const latestAssignment = v.departments_assigned && v.departments_assigned.length > 0 ? v.departments_assigned[v.departments_assigned.length - 1] : null;
+            const latestProviderId = latestAssignment ? (typeof latestAssignment.provider_id === 'object' ? latestAssignment.provider_id._id : latestAssignment.provider_id) : null;
+            
+            if (latestAssignment && String(latestProviderId) === myId) {
+                // Transferred back to me!
+                status = 'not_started'; 
+            } else {
+                // Transferred away from me
+                status = 'transfered';
+                // Set the assigned name to the person/dept they were sent to
+                if (latestAssignment) {
+                  const pName = latestAssignment.provider_name || latestAssignment.employee_name || latestAssignment.assigned_name;
+                  if (pName && pName !== 'Unknown' && pName !== 'unassigned') {
+                    currentAssigneeName = pName;
+                  } else if (latestAssignment.department_name) {
+                    currentAssigneeName = `${latestAssignment.department_name} Dept`;
+                  } else {
+                    currentAssigneeName = 'Transferred Away';
+                  }
+                }
+            }
+          }
           
           const colors = ['bg-purple-500', 'bg-pink-500', 'bg-yellow-400', 'bg-teal-500', 'bg-lavender-400', 'bg-blue-500'];
           const visitorName = v.full_name || v.name || v.visitorName || 'Unknown';
@@ -162,7 +175,6 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
           if (typeof v.identification === 'string') identification = v.identification;
           else if (v.identification?.number) identification = v.identification.number;
 
-          // Extract badge number from backend
           let badgeNumber = '';
           if (v.badge_number) badgeNumber = v.badge_number;
 
@@ -191,7 +203,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
             visitorName: visitorName,
             visitorId: identification,
             badgeNumber: badgeNumber,
-            assignedTo: myName,
+            assignedTo: currentAssigneeName, // 👉 Dynamic Assignee implementation!
             serviceType: serviceStatus?.department_name || 'General Service',
             waitTime: waitTimeString,
             avatarColor: colors[colorIndex],
@@ -215,18 +227,14 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
     } catch (error) {
       console.error('Error fetching assigned visitors:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
-    fetchAssignedVisitors();
-    fetchDepartments();
-    const interval = setInterval(fetchAssignedVisitors, 10000);
-    return () => clearInterval(interval);
+    fetchAssignedVisitors(false);
   }, [fetchAssignedVisitors]);
 
-  // Fetch departments for transfer modal
   const fetchDepartments = async () => {
     try {
       const response = await departmentService.getAll() as any;
@@ -238,100 +246,9 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
     }
   };
 
-  // Handle transfer visitor
-  const handleTransferVisitor = async () => {
-    if (!transferVisitor || !transferDepartment) return;
-    setTransferring(true);
-    try {
-      const currentUser = user as any;
-      const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
-      const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown');
-      
-      const newDept = departments.find(d => d._id === transferDepartment);
-      const newDeptName = newDept?.department_name || newDept?.name || 'Unknown';
-      
-      // Get the current department ID from the visitor
-      const currentDept = transferVisitor.rawVisitor?.departments_assigned?.find(
-        (d: any) => String(d.provider_id) === myId
-      );
-      const previousDepartmentId = currentDept?.department_id;
-      
-      // Get employee info if selected - the employee being transferred TO
-      const providerId = transferEmployee 
-        ? String(transferEmployee._id || transferEmployee.employee_id || '')
-        : undefined;
-      const providerName = transferEmployee 
-        ? String(transferEmployee.full_name || '')
-        : undefined;
-      
-      console.log('Transferring visitor:', {
-        visitorId: transferVisitor.id,
-        newDepartmentId: transferDepartment,
-        newDeptName,
-        providerId,
-        providerName,
-        previousDepartmentId
-      });
-      
-      await serviceDeliveryService.assignToDepartment(
-        transferVisitor.id,
-        transferDepartment,
-        newDeptName,
-        providerId,
-        providerName,
-        previousDepartmentId
-      );
-      
-      setShowTransferModal(false);
-      setTransferVisitor(null);
-      setTransferDepartment('');
-      setTransferEmployee(null);
-      setTransferEmployees([]);
-      await fetchAssignedVisitors();
-    } catch (error) {
-      console.error('Error transferring visitor:', error);
-      alert('Failed to transfer visitor. Please try again.');
-    } finally {
-      setTransferring(false);
-    }
-  };
-
-  // Fetch employees for transfer modal when department changes
-  const fetchTransferEmployees = async (deptId: string) => {
-    if (!deptId) {
-      setTransferEmployees([]);
-      return;
-    }
-    setTransferEmployeesLoading(true);
-    try {
-      const response = await employeeService.getByDepartment(deptId, false) as any;
-      if (response && (response.data || Array.isArray(response))) {
-        setTransferEmployees(Array.isArray(response.data) ? response.data : response);
-      }
-    } catch (error) {
-      console.error('Error fetching employees:', error);
-      setTransferEmployees([]);
-    } finally {
-      setTransferEmployeesLoading(false);
-    }
-  };
-
-  // Open transfer modal
-  const handleTransferClick = (request: ServiceRequest) => {
-    if (request.status === 'completed' || request.status === 'transfered') return;
-    setTransferVisitor(request);
-    setTransferDepartment('');
-    setTransferEmployee(null);
-    setTransferEmployees([]);
-    setShowTransferModal(true);
-  };
-
-  // Handle department change in transfer modal
-  const handleTransferDepartmentChange = (deptId: string) => {
-    setTransferDepartment(deptId);
-    setTransferEmployee(null);
-    fetchTransferEmployees(deptId);
-  };
+  useEffect(() => {
+    fetchDepartments();
+  }, []);
 
   const filteredRequests = requests.filter(request => {
     const searchLower = searchTerm.toLowerCase();
@@ -346,6 +263,19 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
     const matchesStatus = statusFilter === 'all' || normalizedStatus === statusFilter.toLowerCase();
     
     return matchesSearch && matchesStatus;
+  }).sort((a, b) => {
+    // Custom sort order: Not Started (1) -> In Progress (2) -> Transferred (3) -> Completed (4)
+    const statusOrder: Record<string, number> = {
+      'not_started': 1,
+      'not-started': 1,
+      'inprogress': 2,
+      'transfered': 3,
+      'transferred': 3,
+      'completed': 4
+    };
+    const orderA = statusOrder[a.status] ?? 99;
+    const orderB = statusOrder[b.status] ?? 99;
+    return orderA - orderB;
   });
 
   const totalFilteredPages = Math.ceil(filteredRequests.length / entriesPerPage);
@@ -357,17 +287,21 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
     const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
     const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown');
 
-    const updatedServicesStatus = (rawVisitor.services_status || []).map((s: any) => {
-      if (String(s.provider_id) === myId) return { ...s, s_type: targetStatus };
-      return s;
+    const deptInfo = rawVisitor.departments_assigned?.find((d: any) => String(d.provider_id) === myId) || 
+                     rawVisitor.services_status?.find((s: any) => String(s.provider_id) === myId);
+
+    const updatedServicesStatus = (rawVisitor.services_status || []).filter((s: any) => String(s.provider_id) !== String(myId));
+    updatedServicesStatus.push({
+      department_id: deptInfo?.department_id || "",
+      department_name: deptInfo?.department_name || "General",
+      provider_name: myName,
+      provider_id: myId,
+      s_type: targetStatus
     });
 
     const currentDurations = rawVisitor.durations || { services_durations: [], emergency_durations: [] };
     const existingServiceDurations = currentDurations.services_durations || [];
-    
     const existingRecordIndex = existingServiceDurations.findIndex((d: any) => String(d.provider_id) === myId);
-    const deptInfo = rawVisitor.departments_assigned?.find((d: any) => String(d.provider_id) === myId) || 
-                     rawVisitor.services_status?.find((s: any) => String(s.provider_id) === myId);
 
     let updatedServiceDurations = [...existingServiceDurations];
 
@@ -400,20 +334,109 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
     });
   };
 
+  const handleTransferVisitor = async () => {
+    if (!transferVisitor || !transferDepartment) return;
+    setTransferring(true);
+    try {
+      const currentUser = user as any;
+      const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
+      const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown');
+      
+      const newDept = departments.find(d => d._id === transferDepartment);
+      const newDeptName = newDept?.department_name || newDept?.name || 'Unknown';
+      
+      const currentDept = transferVisitor.rawVisitor?.departments_assigned?.find(
+        (d: any) => String(d.provider_id) === myId
+      );
+      const previousDepartmentId = currentDept?.department_id;
+      
+      const providerId = transferEmployee ? String(transferEmployee._id || transferEmployee.employee_id || '') : undefined;
+      const providerName = transferEmployee ? String(transferEmployee.full_name || '') : undefined;
+      
+      // 👉 NEW: Instant Optimistic UI update changes status AND updates the Assigned To name instantly!
+      setRequests(prev => prev.map(r => 
+        r.id === transferVisitor.id ? { 
+            ...r, 
+            status: 'transfered',
+            assignedTo: providerName || `${newDeptName} Dept` || 'Transferred'
+        } : r
+      ));
+
+      await updateBackendStatus('Transfered', transferVisitor.id, transferVisitor.rawVisitor, false, '');
+
+      await serviceDeliveryService.assignToDepartment(
+        transferVisitor.id,
+        transferDepartment,
+        newDeptName,
+        providerId,
+        providerName,
+        previousDepartmentId
+      );
+      
+      setShowTransferModal(false);
+      setTransferVisitor(null);
+      setTransferDepartment('');
+      setTransferEmployee(null);
+      setTransferEmployees([]);
+      
+      fetchAssignedVisitors(true);
+    } catch (error) {
+      console.error('Error transferring visitor:', error);
+      alert('Failed to transfer visitor. Please try again.');
+      fetchAssignedVisitors(true);
+    } finally {
+      setTransferring(false);
+    }
+  };
+
+  const fetchTransferEmployees = async (deptId: string) => {
+    if (!deptId) {
+      setTransferEmployees([]);
+      return;
+    }
+    setTransferEmployeesLoading(true);
+    try {
+      const response = await employeeService.getByDepartment(deptId, false) as any;
+      if (response && (response.data || Array.isArray(response))) {
+        setTransferEmployees(Array.isArray(response.data) ? response.data : response);
+      }
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+      setTransferEmployees([]);
+    } finally {
+      setTransferEmployeesLoading(false);
+    }
+  };
+
+  const handleTransferClick = (request: ServiceRequest) => {
+    if (request.status === 'completed') return;
+    setTransferVisitor(request);
+    setTransferDepartment('');
+    setTransferEmployee(null);
+    setTransferEmployees([]);
+    setShowTransferModal(true);
+  };
+
+  const handleTransferDepartmentChange = (deptId: string) => {
+    setTransferDepartment(deptId);
+    setTransferEmployee(null);
+    fetchTransferEmployees(deptId);
+  };
+
   const handleServeClick = async (request: ServiceRequest) => {
-    if (request.status === 'completed' || request.status === 'transfered') return;
+    if (request.status === 'completed') return;
     
     let currentStatus = request.status;
     let startTime = request.serviceStartTime;
 
-    if (request.status === 'not_started') {
+    if (request.status === 'not_started' || request.status === 'transfered') {
       currentStatus = 'inprogress';
       startTime = new Date().toISOString();
       
       setRequests(prev => prev.map(r => r.id === request.id ? { ...r, status: 'inprogress', serviceStartTime: startTime } : r));
       
       await updateBackendStatus('Inprogress', request.id, request.rawVisitor, true);
-      await fetchAssignedVisitors();
+      fetchAssignedVisitors(true);
     }
 
     setSelectedVisitor({
@@ -441,11 +464,15 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
       const isTransfer = data.notes && data.notes.toLowerCase().includes('transfer');
       const targetStatus = isTransfer ? 'Transfered' : 'Completed';
 
+      setRequests(prev => prev.map(r => 
+        r.id === selectedVisitor.id ? { ...r, status: targetStatus as any } : r
+      ));
+
       await updateBackendStatus(targetStatus, selectedVisitor.id, selectedVisitor.rawVisitor, false, data.duration);
       
-      await fetchAssignedVisitors();
       setShowModal(false);
       setSelectedVisitor(null);
+      fetchAssignedVisitors(true);
     } catch (error) {
       console.error("Failed to process service:", error);
       alert("Failed to process request. Please try again.");
@@ -464,7 +491,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
               <h1 className="text-[#1a2744] text-[32px] font-extrabold">Service Provision</h1>
               <p className="text-[#888] text-[13px] mt-1.5">Manage active visitor requests, track wait times, and provision services efficiently.</p>
             </div>
-            <button onClick={fetchAssignedVisitors} className="flex items-center gap-2 h-9 px-4 border border-[#e0e0e0] rounded-[8px] bg-white text-[#333] text-[13px] hover:bg-gray-50 transition-colors">
+            <button onClick={() => fetchAssignedVisitors(false)} className="flex items-center gap-2 h-9 px-4 border border-[#e0e0e0] rounded-[8px] bg-white text-[#333] text-[13px] hover:bg-gray-50 transition-colors">
               <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh Data
             </button>
           </div>
@@ -477,13 +504,12 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
         </>
       )}
 
-      {/* The Search, Filter, and Table always render */}
       <div className={`bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(0,0,0,0.07)] ${!isDashboardView ? 'mt-6' : ''}`}>
         <div className="flex items-center gap-3">
           <div className="flex-1 relative"><FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><input type="text" placeholder="Search by visitor name, ID, or badge..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full h-11 pl-10 pr-4 border border-[#e0e0e0] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#1a73e8]" /></div>
           <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }} className="h-11 px-4 border border-[#e0e0e0] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#1a73e8] bg-white"><option value="all">All Status</option><option value="not-started">Not Started</option><option value="inprogress">In Progress</option><option value="completed">Completed</option></select>
           {isDashboardView && (
-            <button onClick={fetchAssignedVisitors} className="flex items-center gap-2 h-11 px-4 border border-[#e0e0e0] rounded-[8px] bg-white text-[#333] text-[13px] hover:bg-gray-50">
+            <button onClick={() => fetchAssignedVisitors(false)} className="flex items-center gap-2 h-11 px-4 border border-[#e0e0e0] rounded-[8px] bg-white text-[#333] text-[13px] hover:bg-gray-50">
               <FiRefreshCw className={loading ? 'animate-spin' : ''} /> Refresh
             </button>
           )}
@@ -495,7 +521,6 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
           <thead>
             <tr className="border-b border-[#f0f0f0]">
               <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[25%]">VISITOR</th>
-              {/* 👉 NEW BADGE & ID COLUMN */}
               <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[20%]">BADGE & ID</th>
               <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[15%]">ASSIGNED TO</th>
               <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[15%]">WAIT TIME</th>
@@ -509,7 +534,6 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
             ) : paginatedRequests.length > 0 ? paginatedRequests.map((request) => (
               <tr key={request.id} className="border-b border-[#f8f8f8] h-14">
                 
-                {/* 👉 VISITOR COLUMN (Name + Phone) */}
                 <td className="py-3 px-2">
                   <div className="flex items-center gap-3">
                     <div className={`w-9 h-9 rounded-full ${request.avatarColor} flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0`}>{request.initials}</div>
@@ -520,7 +544,6 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
                   </div>
                 </td>
 
-                {/* 👉 NEW BADGE & ID COLUMN */}
                 <td className="py-3 px-2">
                   <div className="text-[#333] text-[13px] font-medium">{request.badgeNumber ? `Badge: ${request.badgeNumber}` : 'No Badge'}</div>
                   <div className="text-[#888] text-[11px]">ID: {request.visitorId}</div>
@@ -543,7 +566,16 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
                   {request.status === 'completed' ? (
                     <span className="text-[#34a853] text-[12px] font-medium">✓ Served</span>
                   ) : request.status === 'transfered' ? (
-                    <span className="text-[#7b1fa2] text-[12px] font-medium">⇄ Transferred</span>
+                    <span className="text-[#7b1fa2] text-[12px] font-medium">⇄ Transferred Away</span>
+                  ) : request.status === 'inprogress' ? (
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleServeClick(request)} disabled={isServing} className="h-8 w-20 bg-[#e53935] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#c62828] transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                        <FiSquare className="w-3 h-3 fill-current" /> Stop
+                      </button>
+                      <button onClick={() => handleTransferClick(request)} disabled={isServing} className="h-8 w-20 bg-[#7b1fa2] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#6a1b9a] transition-colors disabled:opacity-50 flex items-center justify-center gap-1">
+                        <FiArrowRightCircle className="w-3 h-3" /> Transfer
+                      </button>
+                    </div>
                   ) : (
                     <div className="flex items-center gap-2">
                       <button onClick={() => handleServeClick(request)} disabled={isServing} className="h-8 w-16 bg-[#1a73e8] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#1558c0] transition-colors disabled:opacity-50">
@@ -612,8 +644,13 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
                 <label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">Select Department</label>
                 <select
                   value={transferDepartment}
-                  onChange={(e) => handleTransferDepartmentChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#7b1fa2] bg-white"
+                  onChange={(e) => {
+                    const deptId = e.target.value;
+                    setTransferDepartment(deptId);
+                    setTransferEmployee(null);
+                    fetchTransferEmployees(deptId);
+                  }}
+                  className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#0284C7] bg-white"
                 >
                   <option value="">Choose department...</option>
                   {departments.map(dept => (
@@ -630,7 +667,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
                   <div className="relative">
                     {transferEmployeesLoading ? (
                       <div className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-[13px] bg-gray-100 flex items-center justify-center">
-                        <div className="w-4 h-4 border-2 border-[#7b1fa2] border-t-transparent rounded-full animate-spin mr-2"></div>
+                        <div className="w-4 h-4 border-2 border-[#0284C7] border-t-transparent rounded-full animate-spin mr-2"></div>
                         <span className="text-gray-500">Loading employees...</span>
                       </div>
                     ) : (
@@ -640,7 +677,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
                           const emp = transferEmployees.find(em => String(em._id || em.employee_id) === e.target.value);
                           setTransferEmployee(emp || null);
                         }}
-                        className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#7b1fa2] bg-white cursor-pointer appearance-none"
+                        className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#0284C7] bg-white cursor-pointer appearance-none"
                       >
                         <option value="">Any employee in department</option>
                         {transferEmployees.map(emp => {
@@ -680,7 +717,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
                 <button
                   onClick={handleTransferVisitor}
                   disabled={!transferDepartment || transferring}
-                  className="flex-1 px-4 py-2 bg-[#7b1fa2] text-white rounded-[8px] font-medium hover:bg-[#6a1b9a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2 bg-[#0284C7] text-white rounded-[8px] font-medium hover:bg-[#0369A1] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {transferring ? (
                     <>
