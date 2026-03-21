@@ -2051,7 +2051,7 @@ const DepartmentManagerDashboard: React.FC = () => {
           visitor={{
             name: getVisitorName(servingVisitor),
             id: servingVisitor._id || servingVisitor.id || '',
-            email: servingVisitor.email || servingVisitor. || '',
+            email: servingVisitor.email || servingVisitor.telephone || '',
             service: servingVisitor.service || 'General Service',
             checkInTime: servingVisitor.entry_date 
               ? new Date(servingVisitor.entry_date).toLocaleString('en-US', { 
