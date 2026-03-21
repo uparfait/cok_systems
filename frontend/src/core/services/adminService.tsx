@@ -499,7 +499,7 @@ export const parkingService = {
   
   // Get vehicle by ID (alias)
   getVehicleById: (id: string) => get(`/smartparking/vehicle/${id}`),
-  
+
   // Check in vehicle
   checkIn: (data: any) => post('/smartparking/vehicle/checkin', data),
   
@@ -533,6 +533,53 @@ export const parkingService = {
 
 // Alias for smartParkingService (used by DashboardPage)
 export const smartParkingService = parkingService;
+
+// ==================== RESERVATION APIs ====================
+
+export interface Reservation {
+  id: string;
+  reservation_id: string;
+  visitor_name: string;
+  plate_number: string;
+  telephone: string;
+  expected_arrival: string;
+  type: 'visitor' | 'staff';
+  status: 'active' | 'expired' | 'cancelled';
+  created_at: string;
+}
+
+export const reservationService = {
+  // Get all reservations (visitor + staff)
+  getAll: (): Promise<{ success: boolean; reservations?: Reservation[]; total?: number }> => 
+    get('/smartparking/reservations'),
+  
+  // Create single visitor reservation
+  createVisitorReservation: (data: any) => post('/smartparking/register-single', data),
+  
+  // Bulk upload visitor reservations (Excel file)
+  bulkUploadVisitors: async (formData: FormData): Promise<any> => {
+    const response = await fetch('/cok/api/smartparking/bulk-upload', {
+      method: 'POST',
+      body: formData
+    });
+    return response.json();
+  },
+  
+  // Create staff booking
+  createStaffBooking: (data: any) => post('/smartparking/staff-booking', data),
+  
+  // Bulk upload staff reservations (Excel file)
+  bulkUploadStaff: async (formData: FormData): Promise<any> => {
+    const response = await fetch('/cok/api/smartparking/bulk-staff-upload', {
+      method: 'POST',
+      body: formData
+    });
+    return response.json();
+  },
+  
+  // Cancel reservation
+  cancelReservation: (id: string) => put(`/smartparking/reservations/${id}/cancel`, {}),
+};
 
 // Alias for getAllVisitors (used by DashboardPage)
 export const serviceDeliveryServiceWithVisitors = {
