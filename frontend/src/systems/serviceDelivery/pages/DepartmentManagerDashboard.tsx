@@ -96,6 +96,7 @@ interface Employee {
   title?: string;
   gender?: string;
   status?: string;
+  is_active: boolean;
   department_id?: string | { _id?: string };
   department_name?: string;
   identification?: {
@@ -1721,9 +1722,10 @@ const DepartmentManagerDashboard: React.FC = () => {
                 <thead className="bg-[#F8FAFC]">
                   <tr>
                     <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">EMPLOYEE NAME</th>
+                    <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">ID NUMBER</th>
                     <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">EMAIL</th>
                     <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">ROLE/TITLE</th>
-                    <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">SERVICES SERVED</th>
+                    <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">TELEPHONE</th>
                     <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">STATUS</th>
                     <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">ACTIONS</th>
                   </tr>
@@ -1757,18 +1759,18 @@ const DepartmentManagerDashboard: React.FC = () => {
                           {emp.full_name}
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-600">
-                          {emp.identification?.number || emp.badge_number || 'N/A'}
+                          {emp.identification?.number || '____'}
                         </td>
-                        <td className="px-4 py-4 text-sm text-gray-600">{emp.email || 'N/A'}</td>
-                        <td className="px-4 py-4 text-sm text-gray-600">{emp.title || emp.role || 'N/A'}</td>
+                        <td className="px-4 py-4 text-sm text-gray-600">{emp.email || '____'}</td>
+                        <td className="px-4 py-4 text-sm text-gray-600">{emp.title || emp.role || '____'}</td>
                         <td className="px-4 py-4">
                           <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
-                            {employeeServiceCount[emp._id || emp.employee_id || ''] || 0}
+                            {emp.telephone || '____'}
                           </span>
                         </td>
                         <td className="px-4 py-4">
                           <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full uppercase">
-                            {emp.is_active ? 'Active' : 'Away'}
+                            {emp.is_active ? 'Online' : 'Offline'}
                           </span>
                         </td>
                         <td className="px-4 py-4">
@@ -1792,16 +1794,6 @@ const DepartmentManagerDashboard: React.FC = () => {
                               title="Edit"
                             >
                               <FiEdit className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => {
-                                setSelectedDeptEmployee(emp);
-                                setShowDeleteEmployeeModal(true);
-                              }}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg" 
-                              title="Delete"
-                            >
-                              <FiTrash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </td>
@@ -2059,7 +2051,7 @@ const DepartmentManagerDashboard: React.FC = () => {
           visitor={{
             name: getVisitorName(servingVisitor),
             id: servingVisitor._id || servingVisitor.id || '',
-            email: servingVisitor.email || servingVisitor.telephone || '',
+            email: servingVisitor.email || servingVisitor. || '',
             service: servingVisitor.service || 'General Service',
             checkInTime: servingVisitor.entry_date 
               ? new Date(servingVisitor.entry_date).toLocaleString('en-US', { 
