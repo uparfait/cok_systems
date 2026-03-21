@@ -533,6 +533,37 @@ const ReservationsPage: React.FC = () => {
                       />
                     </div>
                   </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
+                      ID Type
+                    </label>
+                    <select
+                      name="id_type"
+                      value={visitorFormData.id_type}
+                      onChange={handleVisitorInputChange}
+                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    >
+                      <option value="NID">National ID</option>
+                      <option value="Passport">Passport</option>
+                      <option value="Driving Permit">Driving Permit</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
+                      ID Number
+                    </label>
+                    <input
+                      type="text"
+                      name="id_number"
+                      value={visitorFormData.id_number}
+                      onChange={handleVisitorInputChange}
+                      placeholder="Enter ID number"
+                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    />
+                  </div>
                 </div>
                 
                 {/* Responsive button group */}
