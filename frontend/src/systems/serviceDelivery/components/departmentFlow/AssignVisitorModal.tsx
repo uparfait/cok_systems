@@ -46,11 +46,20 @@ interface Visitor {
 }
 
 // Helper function to extract identification string from various formats
-const getIdentification = (identification: string | { number?: string } | undefined): string => {
-  if (!identification) return 'N/A';
-  if (typeof identification === 'string') return identification;
-  if (typeof identification === 'object' && identification.number) {
-    return identification.number;
+const getIdentification = (identification: string | { number?: string } | undefined, driverIdentification?: string | { number?: string } | undefined): string => {
+  // Check identification field first
+  if (identification) {
+    if (typeof identification === 'string') return identification;
+    if (typeof identification === 'object' && identification.number) {
+      return identification.number;
+    }
+  }
+  // Check driver_identification field as fallback
+  if (driverIdentification) {
+    if (typeof driverIdentification === 'string') return driverIdentification;
+    if (typeof driverIdentification === 'object' && driverIdentification.number) {
+      return driverIdentification.number;
+    }
   }
   return 'N/A';
 };
@@ -157,7 +166,7 @@ const AssignVisitorModal: React.FC<AssignVisitorModalProps> = ({
                   {/* Visitor ID */}
                   <div className="flex justify-between">
                     <span className="text-xs text-gray-500">Visitor ID</span>
-                    <span className="text-sm font-medium text-gray-800">{getIdentification(visitor.identification)}</span>
+                    <span className="text-sm font-medium text-gray-800">{getIdentification(visitor.identification, (visitor as any).driver_identification)}</span>
                   </div>
                   {/* Phone */}
                   <div className="flex justify-between">
