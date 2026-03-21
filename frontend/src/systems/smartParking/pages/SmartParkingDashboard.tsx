@@ -369,11 +369,17 @@ const SmartParkingDashboard: React.FC = () => {
     
     setLoading(true);
     try {
+      // Get identification from verified data or driver info
+      const identification = driverInfo.national_id 
+        ? { id_type: driverInfo.id_type || 'National ID', number: driverInfo.national_id }
+        : verifiedData.driver_details?.identification || verifiedData.identification || null;
+      
       const response = await smartParkingService.checkIn({
         plate_number: verifiedData.plate_number,
         driver_name: driverInfo.name || verifiedData.driver_details?.name || verifiedData.driver_name || '',
         driver_telephone: driverInfo.telephone || verifiedData.driver_details?.telephone || verifiedData.driver_telephone || '',
-        driver_type: verifiedData.vehicle_category || '',
+        driver_type: verifiedData.driver_type || verifiedData.vehicle_category || verifiedData.driver_details?.type || '',
+        driver_identification: identification,
         badge_number: driverInfo.badge_number?.trim() || null,
       });
 
