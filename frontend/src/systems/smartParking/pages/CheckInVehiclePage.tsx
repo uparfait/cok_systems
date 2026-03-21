@@ -191,8 +191,8 @@ const CheckInVehiclePage: React.FC = () => {
     
     setLoading(true);
     try {
-      // Get driver type - use staff for reserved staff vehicles, visitor for reserved emergency vehicles
-      let driverType = verifiedData.vehicle_category || '';
+      // Get driver type - use driver_type first (shown in UI), then fall back to vehicle_category
+      let driverType = verifiedData.driver_type || verifiedData.vehicle_category || verifiedData.driver_details?.type || '';
       // Convert to lowercase for backend API
       if (driverType.toLowerCase() === 'staff vehicle') {
         driverType = 'Staff';
@@ -200,13 +200,21 @@ const CheckInVehiclePage: React.FC = () => {
         driverType = 'Visitor';
       } else if (driverType.toLowerCase() === 'regular') {
         driverType = 'Regular';
+      } else if (driverType.toLowerCase() === 'staff') {
+        driverType = 'Staff';
       }
+      
+      // Get identification from verified data or driver info
+      const identification = driverInfo.national_id 
+        ? { id_type: driverInfo.id_type || 'National ID', number: driverInfo.national_id }
+        : verifiedData.driver_details?.identification || verifiedData.identification || null;
       
       const checkInData = {
         plate_number: verifiedData.plate_number,
         driver_name: driverInfo.name || verifiedData.driver_details?.name || verifiedData.driver_name || '',
         driver_telephone: driverInfo.telephone || verifiedData.driver_details?.telephone || verifiedData.driver_telephone || '',
         driver_type: driverType,
+        driver_identification: identification,
         badge_number: driverInfo.badge_number?.trim() || null,
       };
 
