@@ -4,6 +4,7 @@
 
 ### Steps:
 
+
 1. [x] Analyze the codebase to understand toast implementation
 2. [x] Fix ToastContext.tsx - Remove showToast from useEffect dependencies (circular dependency bug)
 3. [x] Update LoginPage.tsx - Add toast messages for login errors, remove inline errors
