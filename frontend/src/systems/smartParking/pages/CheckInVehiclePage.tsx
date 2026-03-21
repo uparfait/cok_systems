@@ -354,7 +354,7 @@ const CheckInVehiclePage: React.FC = () => {
               {verifiedData ? (
                 <div className="bg-gray-50 rounded-lg p-3 mb-4">
                   <div className="font-semibold text-gray-800 text-sm">{verifiedData.driver_details?.name || verifiedData.driver_name || 'Unknown'}</div>
-                  <div className="text-xs text-gray-400">{verifiedData.driver_type || 'N/A'}</div>
+                  <div className="text-xs text-gray-400">{verifiedData.driver_type || '___'}</div>
                   <div className="text-green-600 font-medium text-xs mt-1">ALLOWED</div>
                 </div>
               ) : (
@@ -526,7 +526,7 @@ const CheckInVehiclePage: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-700 font-medium">
                         <FiAward className="w-4 h-4 text-gray-400" />
-                        Badge: {driverInfo.badge_number || (verifiedData.is_reserved ? 'N/A (Reserved)' : 'Not specified')}
+                        Badge: {driverInfo.badge_number || (verifiedData.is_reserved ? '___ (Reserved)' : 'Not specified')}
                       </div>
                     </div>
                   )}
@@ -670,11 +670,11 @@ const CheckInVehiclePage: React.FC = () => {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <span className="text-gray-500">Driver:</span>
-                    <p className="font-medium">{verifiedData.driver_details?.name || verifiedData.driver_name || 'N/A'}</p>
+                    <p className="font-medium">{verifiedData.driver_details?.name || verifiedData.driver_name || '___'}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">Type:</span>
-                    <p className="font-medium">{verifiedData.driver_type || 'N/A'}</p>
+                    <p className="font-medium">{verifiedData.driver_type || '___'}</p>
                   </div>
                 </div>
               </div>
