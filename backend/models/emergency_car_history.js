@@ -18,6 +18,7 @@ const emergency_car_history_schema = new mongoose.Schema({
         from: { type: Date },
         to: { type: Date }
     },
+    is_active: { type: Boolean, default: true },
     registered_by: { type: String }
 },{
     versionKey: false, // removes __v automatically
