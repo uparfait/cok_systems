@@ -263,6 +263,19 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
     const matchesStatus = statusFilter === 'all' || normalizedStatus === statusFilter.toLowerCase();
     
     return matchesSearch && matchesStatus;
+  }).sort((a, b) => {
+    // Custom sort order: Not Started (1) -> In Progress (2) -> Transferred (3) -> Completed (4)
+    const statusOrder: Record<string, number> = {
+      'not_started': 1,
+      'not-started': 1,
+      'inprogress': 2,
+      'transfered': 3,
+      'transferred': 3,
+      'completed': 4
+    };
+    const orderA = statusOrder[a.status] ?? 99;
+    const orderB = statusOrder[b.status] ?? 99;
+    return orderA - orderB;
   });
 
   const totalFilteredPages = Math.ceil(filteredRequests.length / entriesPerPage);
