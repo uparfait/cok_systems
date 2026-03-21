@@ -235,10 +235,10 @@ const ReservationsPage: React.FC = () => {
       const data = await reservationService.cancelReservation(reservationToCancel.id);
       if (data.success) {
         showSuccess(data.message || 'Reservation cancelled successfully');
-        // Small delay to ensure backend completes the operation
+        // Delay to ensure backend completes the operation
         setTimeout(() => {
           fetchReservations();
-        }, 100);
+        }, 500);
       } else {
         showError(data.message || 'Failed to cancel');
       }
@@ -253,6 +253,44 @@ const ReservationsPage: React.FC = () => {
   const closeCancelModal = () => {
     setShowCancelModal(false);
     setReservationToCancel(null);
+  };
+
+  // Download Visitor Template
+  const downloadVisitorTemplate = () => {
+    const headers = ['Name', 'Plate Number', 'ID Type', 'ID Number', 'Phone', 'Slot Number'];
+    const sampleData = [
+      ['John Doe', 'RAD 123A', 'NID', '123456789', '0789123456', 'A1'],
+      ['Jane Smith', 'RAD 456B', 'Passport', 'AB123456', '0789123457', 'A2']
+    ];
+    
+    const csvContent = '\ufeff' + headers.join(',') + '\n' + 
+      sampleData.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'visitor_reservation_template.csv';
+    link.click();
+    showSuccess('Visitor template downloaded successfully');
+  };
+
+  // Download Staff Template
+  const downloadStaffTemplate = () => {
+    const headers = ['Staff Name', 'Plate Number', 'Phone', 'Department', 'Title', 'ID Type', 'ID Number'];
+    const sampleData = [
+      ['John Doe', 'RAF 001A', '0789123456', 'Finance', 'Director', 'NID', '123456789'],
+      ['Jane Smith', 'RAF 002B', '0789123457', 'IT', 'Manager', 'NID', '987654321']
+    ];
+    
+    const csvContent = '\ufeff' + headers.join(',') + '\n' + 
+      sampleData.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'staff_booking_template.csv';
+    link.click();
+    showSuccess('Staff template downloaded successfully');
   };
 
   const handleDownloadHistory = () => {
@@ -308,10 +346,12 @@ const ReservationsPage: React.FC = () => {
     res => res.type === 'staff' && res.status === 'cancelled'
   );
 
-  // Filter and paginate reservations
+  // Filter and paginate reservations (exclude cancelled - they go to staff reactivation card)
   const filteredReservations = reservations.filter(res => 
-    res.visitor_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    res.plate_number.toLowerCase().includes(searchTerm.toLowerCase())
+    res.status !== 'cancelled' && (
+      res.visitor_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      res.plate_number.toLowerCase().includes(searchTerm.toLowerCase())
+    )
   );
   
   const totalPages = Math.ceil(filteredReservations.length / itemsPerPage);
@@ -444,6 +484,14 @@ const ReservationsPage: React.FC = () => {
                       <FiCheck className="w-4 h-4" />
                     )}
                     Reserve Slot
+                  </button>
+                  <button
+                    type="button"
+                    onClick={downloadVisitorTemplate}
+                    className="ml-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all flex items-center gap-2"
+                  >
+                    <FiDownload className="w-4 h-4" />
+                    Template
                   </button>
                 </div>
               </form>
@@ -601,6 +649,14 @@ const ReservationsPage: React.FC = () => {
                       <FiMapPin className="w-4 h-4" />
                     )}
                     Allocate Permanent Slot
+                  </button>
+                  <button
+                    type="button"
+                    onClick={downloadStaffTemplate}
+                    className="ml-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all flex items-center gap-2"
+                  >
+                    <FiDownload className="w-4 h-4" />
+                    Template
                   </button>
                 </div>
               </form>
