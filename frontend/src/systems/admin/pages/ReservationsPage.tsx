@@ -6,11 +6,13 @@ import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
+import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
+import { reservationService } from '../../../core/services/adminService';
 import { 
   FiCalendar, FiUpload, FiUser, FiTruck, FiPhone, FiFileText, 
   FiCheck, FiAlertCircle, FiSearch, FiEdit2, FiTrash2,
   FiClock, FiMapPin, FiUsers, FiBriefcase, FiDownload,
-  FiPlus, FiX, FiChevronLeft, FiChevronRight, FiInfo
+  FiPlus, FiX, FiChevronLeft, FiChevronRight, FiInfo, FiRefreshCw
 } from 'react-icons/fi';
 
 interface ReservationFormData {
@@ -27,7 +29,10 @@ interface StaffBookingData {
   staff_name: string;
   phone: string;
   plate_number: string;
-  shift_start: string;
+  department_name?: string;
+  owner_title?: string;
+  id_type?: string;
+  identification?: string;
 }
 
 interface Reservation {
@@ -37,7 +42,8 @@ interface Reservation {
   telephone: string;
   expected_arrival: string;
   type: 'visitor' | 'staff';
-  status: 'active' | 'cancelled';
+  status: 'active' | 'expired' | 'cancelled';
+  created_at?: string;
 }
 
 const ReservationsPage: React.FC = () => {
@@ -65,13 +71,21 @@ const ReservationsPage: React.FC = () => {
     staff_name: '',
     phone: '',
     plate_number: '',
-    shift_start: ''
+    department_name: '',
+    owner_title: '',
+    id_type: 'NID',
+    identification: ''
   });
   
   // Bulk upload states
   const [visitorBulkFile, setVisitorBulkFile] = useState<File | null>(null);
   const [staffBulkFile, setStaffBulkFile] = useState<File | null>(null);
   const [activeUploadType, setActiveUploadType] = useState<'visitor' | 'staff'>('visitor');
+
+  // Cancel confirmation modal state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   // Fetch reservations on mount
   useEffect(() => {
@@ -80,10 +94,9 @@ const ReservationsPage: React.FC = () => {
 
   const fetchReservations = async () => {
     try {
-      const response = await fetch('/cok/api/smartparking/reservations');
-      const data = await response.json();
-      if (data.success) {
-        setReservations(data.reservations || []);
+      const response = await reservationService.getAll();
+      if (response.success) {
+        setReservations(response.reservations || []);
       }
     } catch (error) {
       console.error('Error fetching reservations:', error);
@@ -95,7 +108,7 @@ const ReservationsPage: React.FC = () => {
     setVisitorFormData(prev => ({ ...prev, [name]: value }));
   }, []);
 
-  const handleStaffInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleStaffInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setStaffBookingData(prev => ({ ...prev, [name]: value }));
   }, []);
@@ -105,16 +118,10 @@ const ReservationsPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/cok/api/smartparking/register-single', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(visitorFormData)
-      });
+      const response = await reservationService.createVisitorReservation(visitorFormData);
 
-      const data = await response.json();
-
-      if (data.success) {
-        showSuccess(data.message || 'Visitor reservation created successfully!');
+      if (response.success) {
+        showSuccess(response.message || 'Visitor reservation created successfully!');
         setVisitorFormData({
           plate_number: '',
           driver_name: '',
@@ -126,7 +133,7 @@ const ReservationsPage: React.FC = () => {
         });
         fetchReservations();
       } else {
-        showError(data.message || 'Failed to create reservation');
+        showError(response.message || 'Failed to create reservation');
       }
     } catch (error) {
       showError('Network error. Please try again.');
@@ -140,25 +147,22 @@ const ReservationsPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/cok/api/smartparking/staff-booking', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(staffFormData)
-      });
+      const response = await reservationService.createStaffBooking(staffFormData);
 
-      const data = await response.json();
-
-      if (data.success) {
-        showSuccess(data.message || 'Staff slot allocated successfully!');
+      if (response.success) {
+        showSuccess(response.message || 'Staff slot allocated successfully!');
         setStaffBookingData({
           staff_name: '',
           phone: '',
           plate_number: '',
-          shift_start: ''
+          department_name: '',
+          owner_title: '',
+          id_type: 'NID',
+          identification: ''
         });
         fetchReservations();
       } else {
-        showError(data.message || 'Failed to allocate staff slot');
+        showError(response.message || 'Failed to allocate staff slot');
       }
     } catch (error) {
       showError('Network error. Please try again.');
@@ -178,13 +182,9 @@ const ReservationsPage: React.FC = () => {
     formData.append('file', visitorBulkFile);
 
     try {
-      const response = await fetch('/cok/api/smartparking/bulk-visitor-upload', {
-        method: 'POST',
-        body: formData
-      });
-      const data = await response.json();
+      const data = await reservationService.bulkUploadVisitors(formData);
       if (data.success) {
-        showSuccess('Bulk visitor reservations uploaded successfully!');
+        showSuccess(data.message || 'Bulk visitor reservations uploaded successfully!');
         setVisitorBulkFile(null);
         fetchReservations();
       } else {
@@ -208,13 +208,9 @@ const ReservationsPage: React.FC = () => {
     formData.append('file', staffBulkFile);
 
     try {
-      const response = await fetch('/cok/api/smartparking/bulk-staff-upload', {
-        method: 'POST',
-        body: formData
-      });
-      const data = await response.json();
+      const data = await reservationService.bulkUploadStaff(formData);
       if (data.success) {
-        showSuccess('Bulk staff allocations uploaded successfully!');
+        showSuccess(data.message || 'Bulk staff allocations uploaded successfully!');
         setStaffBulkFile(null);
         fetchReservations();
       } else {
@@ -227,29 +223,135 @@ const ReservationsPage: React.FC = () => {
     }
   };
 
-  const cancelReservation = async (id: string) => {
-    if (!confirm('Are you sure you want to cancel this reservation?')) return;
+  const handleCancelClick = (reservation: Reservation) => {
+    setReservationToCancel(reservation);
+    setShowCancelModal(true);
+  };
+
+  const confirmCancelReservation = async () => {
+    if (!reservationToCancel) return;
     
     try {
-      const response = await fetch(`/cok/api/smartparking/reservations/${id}/cancel`, {
-        method: 'PUT'
-      });
-      const data = await response.json();
+      const data = await reservationService.cancelReservation(reservationToCancel.id);
       if (data.success) {
-        showSuccess('Reservation cancelled successfully');
-        fetchReservations();
+        showSuccess(data.message || 'Reservation cancelled successfully');
+        // Delay to ensure backend completes the operation
+        setTimeout(() => {
+          fetchReservations();
+        }, 500);
       } else {
         showError(data.message || 'Failed to cancel');
+      }
+    } catch (error) {
+      showError('Network error');
+    } finally {
+      setShowCancelModal(false);
+      setReservationToCancel(null);
+    }
+  };
+
+  const closeCancelModal = () => {
+    setShowCancelModal(false);
+    setReservationToCancel(null);
+  };
+
+  // Download Visitor Template
+  const downloadVisitorTemplate = () => {
+    const headers = ['Name', 'Plate Number', 'ID Type', 'ID Number', 'Phone', 'Slot Number'];
+    const sampleData = [
+      ['John Doe', 'RAD 123A', 'NID', '123456789', '0789123456', 'A1'],
+      ['Jane Smith', 'RAD 456B', 'Passport', 'AB123456', '0789123457', 'A2']
+    ];
+    
+    const csvContent = '\ufeff' + headers.join(',') + '\n' + 
+      sampleData.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'visitor_reservation_template.csv';
+    link.click();
+    showSuccess('Visitor template downloaded successfully');
+  };
+
+  // Download Staff Template
+  const downloadStaffTemplate = () => {
+    const headers = ['Staff Name', 'Plate Number', 'Phone', 'Department', 'Title', 'ID Type', 'ID Number'];
+    const sampleData = [
+      ['John Doe', 'RAF 001A', '0789123456', 'Finance', 'Director', 'NID', '123456789'],
+      ['Jane Smith', 'RAF 002B', '0789123457', 'IT', 'Manager', 'NID', '987654321']
+    ];
+    
+    const csvContent = '\ufeff' + headers.join(',') + '\n' + 
+      sampleData.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'staff_booking_template.csv';
+    link.click();
+    showSuccess('Staff template downloaded successfully');
+  };
+
+  const handleDownloadHistory = () => {
+    // Create CSV content with proper escaping
+    const headers = ['Name', 'Plate Number', 'Telephone', 'Type', 'Status'];
+    const csvRows: string[] = [headers.join(',')];
+    
+    reservations.forEach(res => {
+      const row = [
+        `"${res.visitor_name.replace(/"/g, '""')}"`, // Escape quotes
+        `"${res.plate_number.replace(/"/g, '""')}"`,
+        `"${res.telephone?.replace(/"/g, '""') || ''}"`,
+        res.type,
+        res.status
+      ];
+      csvRows.push(row.join(','));
+    });
+    
+    const csvContent = csvRows.join('\n');
+    
+    // Add BOM for Excel compatibility
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `reservations_history_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleReactivateClick = async (reservation: Reservation) => {
+    try {
+      const data = await reservationService.reactivateReservation(reservation.id);
+      if (data.success) {
+        showSuccess(data.message || 'Reservation reactivated successfully');
+        setTimeout(() => {
+          fetchReservations();
+        }, 100);
+      } else {
+        showError(data.message || 'Failed to reactivate');
       }
     } catch (error) {
       showError('Network error');
     }
   };
 
-  // Filter and paginate reservations
+  // Get cancelled staff reservations for reactivation
+  const cancelledStaffReservations = reservations.filter(
+    res => res.type === 'staff' && res.status === 'cancelled'
+  );
+
+  // Filter and paginate reservations (exclude cancelled - they go to staff reactivation card)
   const filteredReservations = reservations.filter(res => 
-    res.visitor_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    res.plate_number.toLowerCase().includes(searchTerm.toLowerCase())
+    res.status !== 'cancelled' && (
+      res.visitor_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      res.plate_number.toLowerCase().includes(searchTerm.toLowerCase())
+    )
   );
   
   const totalPages = Math.ceil(filteredReservations.length / itemsPerPage);
@@ -275,7 +377,11 @@ const ReservationsPage: React.FC = () => {
             <div>
               <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
                 <FiInfo className="w-6 h-6 text-yellow-500"/>
-                 Manage visitor and staff parking slot allocations for the City of Kigali facilities.</h1>            
+                <span>Parking Reservation Management</span>
+              </h1>
+              <p className="text-sm text-gray-600 mt-2">
+                Manage visitor and staff parking slot allocations for the City of Kigali facilities.
+              </p>
             </div>
           </div>
         </div>
@@ -370,7 +476,7 @@ const ReservationsPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
+                    className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
                   >
                     {loading ? (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -378,6 +484,14 @@ const ReservationsPage: React.FC = () => {
                       <FiCheck className="w-4 h-4" />
                     )}
                     Reserve Slot
+                  </button>
+                  <button
+                    type="button"
+                    onClick={downloadVisitorTemplate}
+                    className="ml-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all flex items-center gap-2"
+                  >
+                    <FiDownload className="w-4 h-4" />
+                    Template
                   </button>
                 </div>
               </form>
@@ -490,15 +604,33 @@ const ReservationsPage: React.FC = () => {
                   
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
-                      Expected Shift Start
+                      Identity Number
                     </label>
                     <div className="relative">
-                      <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <FiFileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                       <input
-                        type="datetime-local"
-                        name="shift_start"
-                        value={staffFormData.shift_start}
+                        type="text"
+                        name="identification"
+                        value={staffFormData.identification}
                         onChange={handleStaffInputChange}
+                        placeholder="National ID Number"
+                        className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
+                      Department
+                    </label>
+                    <div className="relative">
+                      <FiBriefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="text"
+                        name="department_name"
+                        value={staffFormData.department_name}
+                        onChange={handleStaffInputChange}
+                        placeholder="e.g., Finance, IT, HR"
                         className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       />
                     </div>
@@ -509,7 +641,7 @@ const ReservationsPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
+                    className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
                   >
                     {loading ? (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -517,6 +649,14 @@ const ReservationsPage: React.FC = () => {
                       <FiMapPin className="w-4 h-4" />
                     )}
                     Allocate Permanent Slot
+                  </button>
+                  <button
+                    type="button"
+                    onClick={downloadStaffTemplate}
+                    className="ml-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all flex items-center gap-2"
+                  >
+                    <FiDownload className="w-4 h-4" />
+                    Template
                   </button>
                 </div>
               </form>
@@ -568,15 +708,24 @@ const ReservationsPage: React.FC = () => {
               <h2 className="text-lg font-semibold text-gray-900">Reservation List</h2>
               <p className="text-sm text-gray-500 mt-0.5">View and manage all parking reservations</p>
             </div>
-            <div className="relative">
-              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search by name or plate..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 pr-4 py-2 w-full sm:w-64 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowHistoryModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-all"
+              >
+                <FiClock className="w-4 h-4" />
+                View History
+              </button>
+              <div className="relative">
+                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search by name or plate..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 pr-4 py-2 w-full sm:w-64 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
             </div>
           </div>
           
@@ -589,6 +738,7 @@ const ReservationsPage: React.FC = () => {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Telephone</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Expected Arrival</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
@@ -621,23 +771,45 @@ const ReservationsPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                          reservation.status === 'active' 
+                            ? 'bg-green-50 text-green-700' 
+                            : reservation.status === 'cancelled'
+                            ? 'bg-red-50 text-red-700'
+                            : 'bg-gray-50 text-gray-700'
+                        }`}>
+                          {reservation.status === 'active' ? 'Active' : reservation.status === 'cancelled' ? 'Cancelled' : 'Expired'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <button className="text-blue-600 hover:text-blue-800 transition-colors">
                             <FiEdit2 className="w-4 h-4" />
                           </button>
-                          <button 
-                            onClick={() => cancelReservation(reservation.id)}
-                            className="text-red-500 hover:text-red-700 transition-colors"
-                          >
-                            <FiTrash2 className="w-4 h-4" />
-                          </button>
+                          {reservation.status === 'cancelled' && reservation.type === 'staff' ? (
+                            <button 
+                              onClick={() => handleReactivateClick(reservation)}
+                              className="text-green-500 hover:text-green-700 transition-colors"
+                              title="Reactivate reservation"
+                            >
+                              <FiCheck className="w-4 h-4" />
+                            </button>
+                          ) : reservation.status !== 'cancelled' ? (
+                            <button 
+                              onClick={() => handleCancelClick(reservation)}
+                              className="text-red-500 hover:text-red-700 transition-colors"
+                              title="Cancel reservation"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                       No reservations found
                     </td>
                   </tr>
@@ -671,7 +843,149 @@ const ReservationsPage: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Cancelled Staff Reservations - For Reactivation */}
+        {cancelledStaffReservations && cancelledStaffReservations.length > 0 && (
+          <div className="mt-8 bg-white rounded-2xl shadow-sm border border-red-100 overflow-hidden">
+            <div className="px-6 py-5 border-b border-red-100 bg-gradient-to-r from-red-50/50 to-white">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-100 rounded-xl">
+                  <FiRefreshCw className="w-5 h-5 text-red-600" />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-900">Cancelled Staff Reservations</h2>
+                <span className="ml-auto bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-medium">
+                  {cancelledStaffReservations.length} cancelled
+                </span>
+              </div>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-gray-600 mb-4">
+                These staff reservations have been cancelled. Click reactivate when they return to work.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {cancelledStaffReservations.map((reservation) => (
+                  <div 
+                    key={reservation.id} 
+                    className="border border-red-200 bg-red-50 rounded-xl p-4"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-medium text-gray-900">{reservation.visitor_name}</h3>
+                        <p className="text-sm text-gray-500">{reservation.plate_number}</p>
+                        <p className="text-sm text-gray-500">{reservation.telephone}</p>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-2 bg-red-100 text-red-700">
+                          Cancelled
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleReactivateClick(reservation)}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                      >
+                        <FiCheck className="w-3 h-3" />
+                        Reactivate
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showCancelModal}
+        onCancel={closeCancelModal}
+        onConfirm={confirmCancelReservation}
+        title="Cancel Reservation"
+        confirmText="Cancel Reservation"
+        type="danger"
+        message={`Are you sure you want to cancel the reservation for plate number ${reservationToCancel?.plate_number || reservationToCancel?.visitor_name || 'this reservation'}? This action cannot be undone.`}
+      />
+
+      {/* History Modal */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            {/* Overlay */}
+            <div 
+              className="fixed inset-0 bg-black/50 transition-opacity"
+              onClick={() => setShowHistoryModal(false)}
+            />
+            
+            {/* Modal Content */}
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden transform">
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Reservation History</h2>
+                  <p className="text-sm text-gray-500">All reservations (active, cancelled, expired)</p>
+                </div>
+                <button
+                  onClick={() => setShowHistoryModal(false)}
+                  className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  <FiX className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+              
+              {/* Content */}
+              <div className="p-6 overflow-y-auto max-h-[60vh]">
+                <table className="w-full">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Plate</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Phone</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Type</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {reservations.map((res) => (
+                      <tr key={res.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm text-gray-900">{res.visitor_name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{res.plate_number}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{res.telephone}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                            res.type === 'staff' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
+                          }`}>
+                            {res.type}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                            res.status === 'active' ? 'bg-green-100 text-green-700' : 
+                            res.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {res.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Footer */}
+              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+                <span className="text-sm text-gray-500">
+                  Total: {reservations.length} reservations
+                </span>
+                <button
+                  onClick={handleDownloadHistory}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
+                >
+                  <FiDownload className="w-4 h-4" />
+                  Download CSV
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </MainLayout>
   );
 };

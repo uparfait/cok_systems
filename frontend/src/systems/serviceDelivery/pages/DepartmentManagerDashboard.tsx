@@ -96,6 +96,7 @@ interface Employee {
   title?: string;
   gender?: string;
   status?: string;
+  is_active?: boolean;
   department_id?: string | { _id?: string };
   department_name?: string;
   identification?: {
@@ -105,20 +106,316 @@ interface Employee {
   badge_number?: string;
 }
 
+// Wrapper component for Add Employee Modal
+interface AddEmployeeModalContentProps {
+  isOpen: boolean;
+  onClose: () => void;
+  departmentId?: string;
+  departmentName?: string;
+  onSuccess: () => void;
+}
+
+const AddEmployeeModalContent: React.FC<AddEmployeeModalContentProps> = ({ isOpen, onClose, departmentId, departmentName, onSuccess }) => {
+  const [formData, setFormData] = useState({
+    full_name: '',
+    email: '',
+    telephone: '',
+    title: '',
+    gender: '',
+    department_id: departmentId || '',
+    department_name: departmentName || ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async () => {
+    if (!formData.full_name || !formData.email || !formData.telephone) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      const response: any = await employeeService.create({
+        full_name: formData.full_name,
+        email: formData.email,
+        telephone: formData.telephone,
+        title: formData.title,
+        gender: formData.gender,
+        department_id: formData.department_id,
+        department_name: formData.department_name,
+        roles: { role_name: 'department_employee', permissions: [] }
+      });
+
+      // 👉 FIXED: Forgiving API check. If it didn't explicitly fail, it succeeded!
+      if (response && response.success === false) {
+        setError(response.message || 'Failed to create employee');
+      } else if (response && response.error) {
+        setError(response.error);
+      } else {
+        onSuccess();
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to create employee');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto" onClick={onClose}>
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/30" />
+        <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-[600px]" onClick={e => e.stopPropagation()}>
+          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 className="text-lg font-bold text-gray-800">Add New Employee</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><FiX className="w-5 h-5" /></button>
+          </div>
+          <div className="p-6 space-y-4">
+            {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+              <input
+                type="text"
+                value={formData.full_name}
+                onChange={e => setFormData({...formData, full_name: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter full name"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={e => setFormData({...formData, email: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter email address"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Telephone *</label>
+              <input
+                type="tel"
+                value={formData.telephone}
+                onChange={e => setFormData({...formData, telephone: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter phone number"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={e => setFormData({...formData, title: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g., Senior Officer"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+              <select
+                value={formData.gender}
+                onChange={e => setFormData({...formData, gender: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+          </div>
+          <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+            <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+            <button 
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isSubmitting ? 'Adding...' : 'Add Employee'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Wrapper component for Edit Employee Modal
+interface EditEmployeeModalContentProps {
+  isOpen: boolean;
+  onClose: () => void;
+  employee: Employee | null;
+  onSuccess: () => void;
+}
+
+const EditEmployeeModalContent: React.FC<EditEmployeeModalContentProps> = ({ isOpen, onClose, employee, onSuccess }) => {
+  const [formData, setFormData] = useState({
+    full_name: '',
+    email: '',
+    telephone: '',
+    title: '',
+    gender: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (employee) {
+      setFormData({
+        full_name: employee.full_name || '',
+        email: employee.email || '',
+        telephone: employee.telephone || '',
+        title: employee.title || '',
+        gender: employee.gender || ''
+      });
+    }
+  }, [employee]);
+
+  const handleSubmit = async () => {
+    if (!formData.full_name || !formData.email) {
+      setError('Please fill in required fields');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      const empId = employee?._id || employee?.employee_id;
+      if (!empId) {
+        setError('Employee ID not found');
+        return;
+      }
+
+      const response: any = await employeeService.update(empId, {
+        full_name: formData.full_name,
+        email: formData.email,
+        telephone: formData.telephone,
+        title: formData.title,
+        gender: formData.gender
+      });
+
+      // 👉 FIXED: Forgiving API check for edits too!
+      if (response && response.success === false) {
+        setError(response.message || 'Failed to update employee');
+      } else if (response && response.error) {
+        setError(response.error);
+      } else {
+        onSuccess();
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to update employee');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen || !employee) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto" onClick={onClose}>
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/30" />
+        <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-[600px]" onClick={e => e.stopPropagation()}>
+          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 className="text-lg font-bold text-gray-800">Edit Employee</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><FiX className="w-5 h-5" /></button>
+          </div>
+          <div className="p-6 space-y-4">
+            {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+              <input
+                type="text"
+                value={formData.full_name}
+                onChange={e => setFormData({...formData, full_name: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={e => setFormData({...formData, email: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Telephone</label>
+              <input
+                type="tel"
+                value={formData.telephone}
+                onChange={e => setFormData({...formData, telephone: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={e => setFormData({...formData, title: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+              <select
+                value={formData.gender}
+                onChange={e => setFormData({...formData, gender: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+          </div>
+          <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+            <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+            <button 
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isSubmitting ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 const DepartmentManagerDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   
-  // Get department ID from user context
   const departmentId = user?.departmentId || user?.department_id;
   const departmentName = user?.departmentName || user?.department_name;
   
-  // Tab State
   const tabParam = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(tabParam || 'dashboard');
 
-  // LIVE DATA STATES
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [allDepartmentVisitors, setAllDepartmentVisitors] = useState<Visitor[]>([]);
   const [pendingServiceStartTime, setPendingServiceStartTime] = useState<string>('');
@@ -126,7 +423,6 @@ const DepartmentManagerDashboard: React.FC = () => {
   const [departments, setDepartments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Pagination & Filters
   const [currentPage, setCurrentPage] = useState(1);
   const [backendTotal, setBackendTotal] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
@@ -136,9 +432,15 @@ const DepartmentManagerDashboard: React.FC = () => {
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [dashboardStatusFilter, setDashboardStatusFilter] = useState('all');
 
-  // Modals
+  const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
+  const [showViewEmployeeModal, setShowViewEmployeeModal] = useState(false);
+  const [showEditEmployeeModal, setShowEditEmployeeModal] = useState(false);
+  const [showDeleteEmployeeModal, setShowDeleteEmployeeModal] = useState(false);
+  const [selectedDeptEmployee, setSelectedDeptEmployee] = useState<Employee | null>(null);
+
   const [showServeModal, setShowServeModal] = useState(false);
   const [servingVisitor, setServingVisitor] = useState<Visitor | null>(null);
+  const [servingEmployee, setServingEmployee] = useState<Employee | null>(null);
   const [employeeServiceCount, setEmployeeServiceCount] = useState<Record<string, number>>({});
   
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -148,6 +450,10 @@ const DepartmentManagerDashboard: React.FC = () => {
   const [transferring, setTransferring] = useState(false);
   const [transferEmployees, setTransferEmployees] = useState<Employee[]>([]);
   const [transferEmployeesLoading, setTransferEmployeesLoading] = useState(false);
+  
+  const [visitorsByDepartment, setVisitorsByDepartment] = useState<any[]>([]);
+  const [visitorsByProvider, setVisitorsByProvider] = useState<any[]>([]);
+  const [loadingByFilters, setLoadingByFilters] = useState(false);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -164,6 +470,105 @@ const DepartmentManagerDashboard: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, dashboardStatusFilter]);
+
+  // Handle Employee Search from backend
+  const handleEmployeeSearch = async () => {
+    setIsLoading(true);
+    try {
+      let response: any;
+      if (employeeSearch && employeeSearch.trim()) {
+        response = await employeeService.search(employeeSearch.trim());
+      } else {
+        response = await employeeService.getAll();
+      }
+      
+      // 👉 FIXED: Extremely robust employee list parser to ensure the table populates
+      if (Array.isArray(response)) {
+        setEmployees(response);
+      } else if (response && response.data) {
+        setEmployees(Array.isArray(response.data) ? response.data : [response.data]);
+      } else if (response && response.success && Array.isArray(response.employees)) {
+        setEmployees(response.employees);
+      } else {
+        setEmployees([]);
+      }
+    } catch (error: any) {
+      console.error('Error searching employees:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchVisitorsByDepartment = async () => {
+    if (!departmentId) return;
+    setLoadingByFilters(true);
+    try {
+      const response = await serviceDeliveryService.getCurrentVisitorsByDepartment(departmentId);
+      if (response.success && response.data) {
+        setVisitorsByDepartment(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch visitors by department:', error);
+    } finally {
+      setLoadingByFilters(false);
+    }
+  };
+
+  const fetchVisitorsByProvider = async () => {
+    setLoadingByFilters(true);
+    try {
+      const response = await serviceDeliveryService.getAll();
+      if (response.success && response.data) {
+        const allVisitors = response.data as any[];
+        const providerMap: Record<string, any> = {};
+        
+        allVisitors.forEach(v => {
+          const isForThisDept = !departmentId || 
+            (v.services_status || []).some((s:any) => String(s.department_id) === String(departmentId)) ||
+            (v.departments_assigned || []).some((d:any) => String(d.department_id) === String(departmentId));
+          
+          if (isForThisDept) {
+            const assigned = getAssignedEmployee(v);
+            const status = getVisitorStatus(v);
+            
+            if (assigned) {
+              if (!providerMap[assigned.id]) {
+                providerMap[assigned.id] = {
+                  provider_id: assigned.id,
+                  provider_name: assigned.name,
+                  visitors: [],
+                  count: 0
+                };
+              }
+              if (status !== 'Completed') {
+                providerMap[assigned.id].visitors.push(v);
+                providerMap[assigned.id].count++;
+              }
+            } else {
+              if (!providerMap['unassigned']) {
+                providerMap['unassigned'] = {
+                  provider_id: 'unassigned',
+                  provider_name: 'Unassigned Visitors',
+                  visitors: [],
+                  count: 0
+                };
+              }
+              if (status !== 'Completed') {
+                providerMap['unassigned'].visitors.push(v);
+                providerMap['unassigned'].count++;
+              }
+            }
+          }
+        });
+        
+        setVisitorsByProvider(Object.values(providerMap));
+      }
+    } catch (error) {
+      console.error('Failed to fetch visitors by provider:', error);
+    } finally {
+      setLoadingByFilters(false);
+    }
+  };
 
   const getAssignedEmployee = (v: any): { name: string; id: string } | null => {
     if (!v) return null;
@@ -220,7 +625,7 @@ const DepartmentManagerDashboard: React.FC = () => {
     try {
       let visitorRes;
       let allVisitorsRes;
-      let empRes;
+      let empRes: any;
       let deptRes;
       const limit = 20;
 
@@ -276,8 +681,13 @@ const DepartmentManagerDashboard: React.FC = () => {
         if (allVisitorsRes.total !== undefined) setBackendTotal(allVisitorsRes.total);
       }
       
-      if (empRes && (empRes.status || empRes.success)) {
-        setEmployees(Array.isArray(empRes.data) ? empRes.data : []);
+      // 👉 FIXED: Extremely robust employee list parser to ensure the table populates in loadData
+      if (Array.isArray(empRes)) {
+        setEmployees(empRes);
+      } else if (empRes && empRes.data) {
+        setEmployees(Array.isArray(empRes.data) ? empRes.data : [empRes.data]);
+      } else if (empRes && empRes.success && Array.isArray(empRes.employees)) {
+        setEmployees(empRes.employees);
       }
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
@@ -299,7 +709,8 @@ const DepartmentManagerDashboard: React.FC = () => {
   const getInitials = (name: string) => {
     if (!name) return 'U';
     const parts = name.split(' ');
-    return parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : name.substring(0, 2).toUpperCase();
+    let formatted =  parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : name.substring(0, 2).toUpperCase();
+    return formatted;
   };
   
   const getAvatarColor = (name: string) => {
@@ -360,8 +771,8 @@ const DepartmentManagerDashboard: React.FC = () => {
     if (status === 'Transfered') {
       const latestAssignment = v.departments_assigned && v.departments_assigned.length > 0 ? v.departments_assigned[v.departments_assigned.length - 1] : null;
       if (latestAssignment) {
-        const latestProviderId = typeof latestAssignment.provider_id === 'object' ? (latestAssignment.provider_id as any)._id : latestAssignment.provider_id;
-        const latestDeptId = typeof latestAssignment.department_id === 'object' ? (latestAssignment.department_id as any)._id : latestAssignment.department_id;
+        const latestProviderId = typeof latestAssignment.provider_id === 'object' ? (latestAssignment.provider_id as any)?._id : latestAssignment.provider_id;
+        const latestDeptId = typeof latestAssignment.department_id === 'object' ? (latestAssignment.department_id as any)?._id : latestAssignment.department_id;
 
         if (String(latestProviderId) === String(myId) || String(latestDeptId) === String(departmentId)) {
           status = 'Not started';
@@ -427,10 +838,13 @@ const DepartmentManagerDashboard: React.FC = () => {
   };
 
   const updateBackendStatus = async (targetStatus: string, visitorId: string, rawVisitor: any, empId: string, empName: string, isStart: boolean = false, durationStr: string = "") => {
+    const deptInfo = rawVisitor.departments_assigned?.find((d: any) => String(d.provider_id) === empId) || 
+                     rawVisitor.services_status?.find((s: any) => String(s.provider_id) === empId);
+    
     const updatedServicesStatus = (rawVisitor.services_status || []).filter((s: any) => String(s.provider_id) !== String(empId));
     updatedServicesStatus.push({
-      department_id: departmentId || "",
-      department_name: departmentName || "General",
+      department_id: deptInfo?.department_id || departmentId || "",
+      department_name: deptInfo?.department_name || departmentName || "General",
       provider_name: empName,
       provider_id: empId,
       s_type: targetStatus
@@ -465,7 +879,6 @@ const DepartmentManagerDashboard: React.FC = () => {
           duration: durationStr
         };
       } else {
-        // Fallback safety to ensure durations always push correctly
         updatedServiceDurations.push({
           department_id: departmentId || "",
           department_name: departmentName || "General",
@@ -483,7 +896,6 @@ const DepartmentManagerDashboard: React.FC = () => {
     });
   };
 
-  // 👉 FIXED: End Service is now robust and relies strictly on the logged in user's ID
   const handleServiceEnd = async (data: { duration: string; startTime: string; endTime: string; notes: string }) => {
     if (!servingVisitor || !departmentId) return;
     try {
@@ -493,39 +905,30 @@ const DepartmentManagerDashboard: React.FC = () => {
       const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
       const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown');
       
-      // Determine exactly who was serving to end their specific session
-      const assigned = getAssignedEmployee(servingVisitor);
-      const empId = assigned?.id || myId;
-      const empName = assigned?.name || myName;
-      
       const isTransfer = data.notes && data.notes.toLowerCase().includes('transfer');
       const targetStatus = isTransfer ? 'Transfered' : 'Completed';
       
-      // Save the visitor reference before clearing
       const visitorToUpdate = servingVisitor;
       
-      // Optimistic UI Update
       setVisitors(prev => prev.map(v => {
         if (String(v._id || v.id) === String(visitorId)) {
             const newStatus = [...(v.services_status || [])];
-            const myIdx = newStatus.findIndex(s => String(s.provider_id) === String(empId));
+            const myIdx = newStatus.findIndex(s => String(s.provider_id) === String(myId));
             if (myIdx !== -1) {
                 newStatus[myIdx] = { ...newStatus[myIdx], s_type: targetStatus };
             } else {
-                newStatus.push({ department_id: departmentId, provider_id: empId, provider_name: empName, s_type: targetStatus });
+                newStatus.push({ department_id: departmentId, provider_id: myId, provider_name: myName, s_type: targetStatus });
             }
             return { ...v, services_status: newStatus };
         }
         return v;
       }));
 
-      // Close the modal instantly
       setShowServeModal(false);
       setServingVisitor(null);
       setPendingServiceStartTime('');
 
-      // Silent sync to DB
-      await updateBackendStatus(targetStatus, visitorId as string, visitorToUpdate, empId, empName, false, data.duration);
+      await updateBackendStatus(targetStatus, visitorId as string, visitorToUpdate, myId, myName, false, data.duration);
       loadData(currentPage, searchTerm, true);
     } catch (error) {
       console.error('Failed to complete service:', error);
@@ -845,7 +1248,6 @@ const DepartmentManagerDashboard: React.FC = () => {
                               return <span className="text-[#34a853] text-xs font-medium">✓ Completed</span>;
                             }
 
-                            // 👉 FIXED: Rely on the logged in user to click Stop, completely eliminating the 'employees' search bug
                             if (statusLower === 'inprogress') {
                               return (
                                 <div className="flex items-center gap-2">
@@ -854,7 +1256,12 @@ const DepartmentManagerDashboard: React.FC = () => {
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
+                                      const currentUser = user as any;
+                                      const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
+                                      const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown');
+                                      const emp = employees.find(e => String(e._id) === myId || String(e.employee_id) === myId);
                                       setServingVisitor(visitor);
+                                      setServingEmployee(emp || null);
                                       setPendingServiceStartTime(getServiceStartTime(visitor) || '');
                                       setShowServeModal(true);
                                     }}
@@ -882,8 +1289,8 @@ const DepartmentManagerDashboard: React.FC = () => {
                                 ? visitor.departments_assigned[visitor.departments_assigned.length - 1] 
                                 : null;
                             
-                            const currentDeptId = currentAssignment ? (typeof currentAssignment.department_id === 'object' ? (currentAssignment.department_id as any)._id : currentAssignment.department_id) : null;
-                            const currentProviderId = currentAssignment ? (typeof currentAssignment.provider_id === 'object' ? (currentAssignment.provider_id as any)._id : currentAssignment.provider_id) : null;
+                            const currentDeptId = currentAssignment ? (typeof currentAssignment.department_id === 'object' && currentAssignment.department_id ? (currentAssignment.department_id as any)?._id : currentAssignment.department_id) : null;
+                            const currentProviderId = currentAssignment ? (typeof currentAssignment.provider_id === 'object' && currentAssignment.provider_id ? (currentAssignment.provider_id as any)?._id : currentAssignment.provider_id) : null;
 
                             const isCurrentlyInMyDept = currentAssignment && String(currentDeptId) === String(departmentId);
                             const isAssignedToMe = currentAssignment && String(currentProviderId) === String(myId);
@@ -917,7 +1324,6 @@ const DepartmentManagerDashboard: React.FC = () => {
                               <div className="flex items-center gap-2">
                                 <button 
                                   type="button"
-                                  // 👉 FIXED: Serve sets In Progress using the direct Auth Context, avoiding the lookup bug completely
                                   onClick={async (e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
@@ -1172,12 +1578,383 @@ const DepartmentManagerDashboard: React.FC = () => {
       )}
 
       {/* OTHER TABS */}
-      {activeTab === 'status' && <div className="text-center py-8 text-gray-500">Service Status Tracking Content</div>}
-      {activeTab === 'employees' && <div className="text-center py-8 text-gray-500">Employee Management Content</div>}
-      {activeTab === 'by-department' && <div className="text-center py-8 text-gray-500">Visitors By Department Content</div>}
-      {activeTab === 'by-provider' && <div className="text-center py-8 text-gray-500">Visitors By Provider Content</div>}
+      {activeTab === 'status' && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-6 border-b border-gray-100 bg-white">
+            <h2 className="text-[16px] font-bold text-blue-600 uppercase mb-4">Service Status Tracking</h2>
+            <div className="flex gap-4">
+              <input
+                type="text"
+                placeholder="Search visitors..."
+                value={serviceStatusSearch}
+                onChange={(e) => setServiceStatusSearch(e.target.value)}
+                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm"
+              />
+              <select
+                value={serviceStatusFilter}
+                onChange={(e) => setServiceStatusFilter(e.target.value)}
+                className="px-4 py-2 border border-gray-200 rounded-lg text-sm"
+              >
+                <option value="all">All Statuses</option>
+                <option value="not started">Pending</option>
+                <option value="inprogress">In Progress</option>
+                <option value="transfered">Transferred</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-[#F8FAFC]">
+                <tr>
+                  <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">VISITOR NAME</th>
+                  <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">BADGE NUMBER</th>
+                  <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">SERVICE</th>
+                  <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">ASSIGNED TO</th>
+                  <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">STATUS</th>
+                  <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">PHONE</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {visitors.filter(v => {
+                  const matchesSearch = getVisitorName(v).toLowerCase().includes(serviceStatusSearch.toLowerCase()) || (v.telephone || '').includes(serviceStatusSearch);
+                  const matchesStatus = serviceStatusFilter === 'all' ? true : getVisitorStatus(v).toLowerCase() === serviceStatusFilter.toLowerCase();
+                  return matchesSearch && matchesStatus;
+                }).map(visitor => (
+                  <tr key={visitor._id || visitor.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 font-semibold text-gray-800">{getVisitorName(visitor)}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{visitor.badge_number || '_____'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{visitor.service || '_____'}</td>
+                    <td className="px-6 py-4">
+                      {(() => {
+                        const assigned = getAssignedEmployee(visitor);
+                        if (assigned) {
+                          return (
+                            <div className="flex items-center">
+                              <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-xs mr-2">
+                                {getInitials(assigned.name)}
+                              </div>
+                              <span className="text-sm font-medium text-gray-700">{assigned.name}</span>
+                            </div>
+                          );
+                        }
+                        return <span className="text-sm text-gray-400 italic">Unassigned</span>;
+                      })()}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${getVisitorStatus(visitor) === 'Inprogress' ? 'bg-blue-100 text-blue-700' : getVisitorStatus(visitor) === 'Not started' ? 'bg-orange-100 text-orange-600' : getVisitorStatus(visitor) === 'Transfered' ? 'bg-purple-100 text-purple-600' : getVisitorStatus(visitor) === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                        {getVisitorStatus(visitor) === 'Inprogress' ? 'In Progress' : getVisitorStatus(visitor) === 'Not started' ? 'Not Started' : getVisitorStatus(visitor) === 'Transfered' ? 'Transferred' : getVisitorStatus(visitor) === 'Completed' ? 'Completed' : 'Pending'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{visitor.telephone || '_____'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      
+      {activeTab === 'employees' && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white">
+            <h2 className="text-[16px] font-bold text-blue-600 uppercase">Employee Management</h2>
+            <button 
+              onClick={() => setShowAddEmployeeModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-[#0284C7] text-white text-sm font-medium rounded-lg hover:bg-[#0369A1]"
+            >
+              <FiPlus /> Add Employee
+            </button>
+          </div>
+          <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-lg border border-white/30 p-3 mx-4 mt-2">
+            <div className="flex flex-col md:flex-row gap-3 items-center">
+              <div className="flex-1 flex gap-2 w-full">
+                <div className="relative flex-1">
+                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4" />
+                  <input
+                    type="text"
+                    value={employeeSearch}
+                    onChange={(e) => setEmployeeSearch(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleEmployeeSearch()}
+                    placeholder="Search employees by name or email..."
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200/50 rounded-lg bg-white/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
+                  />
+                </div>
+                <button
+                  onClick={handleEmployeeSearch}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2 shadow-md transition-all"
+                >
+                  <FiSearch className="w-4 h-4" />
+                  Search
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-lg border border-white/30 overflow-hidden flex flex-col m-4 mt-2">
+            <div className="overflow-auto flex-1">
+              <table className="w-full">
+                <thead className="bg-[#F8FAFC]">
+                  <tr>
+                    <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">EMPLOYEE NAME</th>
+                    <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">ID NUMBER</th>
+                    <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">EMAIL</th>
+                    <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">ROLE/TITLE</th>
+                    <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">TELEPHONE</th>
+                    <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">STATUS</th>
+                    <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100/50">
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-8 text-center text-gray-500 text-sm">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                          Loading...
+                        </div>
+                      </td>
+                    </tr>
+                  ) : employees.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-8 text-center text-gray-500 text-sm">
+                        <div className="flex flex-col items-center gap-1">
+                          <FiSearch className="w-6 h-6 text-gray-400" />
+                          <span>No employees found</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    employees.filter(e => (e.full_name || '').toLowerCase().includes(employeeSearch.toLowerCase()) || (e.email || '').toLowerCase().includes(employeeSearch.toLowerCase())).map(emp => (
+                      <tr key={emp._id || emp.employee_id} className="hover:bg-gray-50">
+                        <td className="px-4 py-4 font-semibold text-gray-800 flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                            {getInitials(emp.full_name || '')}
+                          </div>
+                          {emp.full_name}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600">
+                          {emp.identification?.number || '____'}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600">{emp.email || '____'}</td>
+                        <td className="px-4 py-4 text-sm text-gray-600">{emp.title || emp.role || '____'}</td>
+                        <td className="px-4 py-4">
+                          <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
+                            {emp.telephone || '____'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full uppercase">
+                            {emp.is_active ? 'Online' : 'Offline'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => {
+                                setSelectedDeptEmployee(emp);
+                                setShowViewEmployeeModal(true);
+                              }}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" 
+                              title="View"
+                            >
+                              <FiEye className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setSelectedDeptEmployee(emp);
+                                setShowEditEmployeeModal(true);
+                              }}
+                              className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg" 
+                              title="Edit"
+                            >
+                              <FiEdit className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'by-department' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-[16px] font-bold text-blue-600 uppercase">Visitors by Department</h2>
+              <button 
+                onClick={() => { fetchVisitorsByDepartment(); }}
+                className="flex items-center gap-2 px-4 py-2 bg-[#0284C7] text-white text-sm font-medium rounded-lg hover:bg-[#0369A1]"
+              >
+                <FiRefreshCw className="w-4 h-4" /> Refresh
+              </button>
+            </div>
+            
+            {loadingByFilters ? (
+              <div className="text-center py-8 text-gray-500">Loading...</div>
+            ) : visitorsByDepartment.length > 0 ? (
+              <div className="space-y-4">
+                {visitorsByDepartment.map((dept: any) => (
+                  <div key={dept._id || dept.department_name} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="font-bold text-gray-800">{dept.department_name || dept._id}</h3>
+                      <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-bold rounded-full">
+                        {dept.count || dept.visitors?.length || 0}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {(dept.visitors || []).slice(0, 3).map((v: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
+                              {getInitials(v.full_name || v.name || 'U')}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm text-gray-700">{v.full_name || v.name || 'Unknown'}</span>
+                              {(() => {
+                                const assigned = getAssignedEmployee(v);
+                                if (assigned) {
+                                  return <span className="text-xs text-gray-500">Assigned to: {assigned.name}</span>;
+                                }
+                                return <span className="text-xs text-gray-400 italic">Unassigned</span>;
+                              })()}
+                            </div>
+                          </div>
+                          {(() => {
+                            const statusObj = Array.isArray(v.services_status) 
+                              ? v.services_status.find((s: any) => s.department_id === departmentId)
+                              : v.services_status;
+                            const sType = statusObj?.s_type || 'Not started';
+                            return (
+                              <span className={`px-2 py-1 rounded text-xs font-bold ${sType === 'Inprogress' ? 'bg-blue-100 text-blue-700' : sType === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                                {sType}
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">No visitors found by department</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'by-provider' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-[16px] font-bold text-blue-600 uppercase">Visitors by Employee (Provider)</h2>
+              <button 
+                onClick={() => { fetchVisitorsByProvider(); }}
+                className="flex items-center gap-2 px-4 py-2 bg-[#0284C7] text-white text-sm font-medium rounded-lg hover:bg-[#0369A1]"
+              >
+                <FiRefreshCw className="w-4 h-4" /> Refresh
+              </button>
+            </div>
+            
+            {loadingByFilters ? (
+              <div className="text-center py-8 text-gray-500">Loading...</div>
+            ) : visitorsByProvider.length > 0 ? (
+              <div className="space-y-4">
+                {visitorsByProvider.map((provider: any) => (
+                  <div key={provider.provider_id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <div className="flex items-center gap-2">
+                        {provider.provider_id === 'unassigned' ? (
+                          <div className="w-10 h-10 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">
+                            <FiUser className="w-5 h-5" />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
+                            {getInitials(provider.provider_name || 'U')}
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="font-bold text-gray-800">{provider.provider_name || 'Unknown'}</h3>
+                          <p className="text-xs text-gray-500">{provider.visitors?.length || 0} active visitors</p>
+                        </div>
+                      </div>
+                      <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-bold rounded-full">
+                        {provider.count || provider.visitors?.length || 0}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {(provider.visitors || []).slice(0, 5).map((v: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-700">{v.full_name || v.name || 'Unknown'}</span>
+                          </div>
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${(v.services_status || []).find((s: any) => String(s.department_id) === String(departmentId))?.s_type === 'Inprogress' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                            {(v.services_status || []).find((s: any) => String(s.department_id) === String(departmentId))?.s_type || 'Not started'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">No visitors found by provider</div>
+            )}
+          </div>
+        </div>
+      )}
+
       {activeTab === 'availability' && <DepartmentAvailabilityTab departmentId={departmentId} />}
       {activeTab === 'reports' && <ReportsTab departmentId={departmentId} departmentName={departmentName} />}
+
+      {/* Add Employee Modal */}
+      {showAddEmployeeModal && (
+        <AddEmployeeModalContent
+          isOpen={showAddEmployeeModal}
+          onClose={() => setShowAddEmployeeModal(false)}
+          departmentId={departmentId}
+          departmentName={departmentName}
+          onSuccess={() => {
+            setShowAddEmployeeModal(false);
+            handleEmployeeSearch();
+          }}
+        />
+      )}
+
+      {/* View Employee Modal */}
+      {showViewEmployeeModal && selectedDeptEmployee && (
+        <ViewEmployeeModal
+          isOpen={showViewEmployeeModal}
+          onClose={() => {
+            setShowViewEmployeeModal(false);
+            setSelectedDeptEmployee(null);
+          }}
+          employee={selectedDeptEmployee}
+        />
+      )}
+
+      {/* Edit Employee Modal */}
+      {showEditEmployeeModal && selectedDeptEmployee && (
+        <EditEmployeeModalContent
+          isOpen={showEditEmployeeModal}
+          onClose={() => {
+            setShowEditEmployeeModal(false);
+            setSelectedDeptEmployee(null);
+          }}
+          employee={selectedDeptEmployee}
+          onSuccess={() => {
+            setShowEditEmployeeModal(false);
+            setSelectedDeptEmployee(null);
+            handleEmployeeSearch();
+          }}
+        />
+      )}
+
     </div>
   );
 };
