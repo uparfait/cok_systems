@@ -11,7 +11,7 @@ import { Pagination } from '../../shared';
 import { useAuth } from '../../../../../core/contexts/AuthContext';
 import { serviceDeliveryService, departmentService, employeeService } from '../../../../../core/services/adminService';
 
-// Custom Live Timer Component
+// Custom Live Timer Component.
 const LiveTimer: React.FC<{ startTime: string }> = ({ startTime }) => {
   const [elapsed, setElapsed] = useState(0);
 
