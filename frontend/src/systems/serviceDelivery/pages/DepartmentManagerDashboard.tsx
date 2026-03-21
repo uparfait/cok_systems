@@ -149,7 +149,6 @@ const AddEmployeeModalContent: React.FC<AddEmployeeModalContentProps> = ({ isOpe
         roles: { role_name: 'department_employee', permissions: [] }
       });
 
-      // 👉 FIXED: Forgiving API check. If it didn't explicitly fail, it succeeded!
       if (response && response.success === false) {
         setError(response.message || 'Failed to create employee');
       } else if (response && response.error) {
@@ -306,7 +305,6 @@ const EditEmployeeModalContent: React.FC<EditEmployeeModalContentProps> = ({ isO
         gender: formData.gender
       });
 
-      // 👉 FIXED: Forgiving API check for edits too!
       if (response && response.success === false) {
         setError(response.message || 'Failed to update employee');
       } else if (response && response.error) {
@@ -471,7 +469,6 @@ const DepartmentManagerDashboard: React.FC = () => {
     setCurrentPage(1);
   }, [searchTerm, dashboardStatusFilter]);
 
-  // Handle Employee Search from backend
   const handleEmployeeSearch = async () => {
     setIsLoading(true);
     try {
@@ -482,7 +479,6 @@ const DepartmentManagerDashboard: React.FC = () => {
         response = await employeeService.getAll();
       }
       
-      // 👉 FIXED: Extremely robust employee list parser to ensure the table populates
       if (Array.isArray(response)) {
         setEmployees(response);
       } else if (response && response.data) {
@@ -681,7 +677,6 @@ const DepartmentManagerDashboard: React.FC = () => {
         if (allVisitorsRes.total !== undefined) setBackendTotal(allVisitorsRes.total);
       }
       
-      // 👉 FIXED: Extremely robust employee list parser to ensure the table populates in loadData
       if (Array.isArray(empRes)) {
         setEmployees(empRes);
       } else if (empRes && empRes.data) {
@@ -896,8 +891,9 @@ const DepartmentManagerDashboard: React.FC = () => {
     });
   };
 
+  // 👉 FIXED: Removed the !departmentId blocker so the modal instantly closes
   const handleServiceEnd = async (data: { duration: string; startTime: string; endTime: string; notes: string }) => {
-    if (!servingVisitor || !departmentId) return;
+    if (!servingVisitor) return;
     try {
       const visitorId = servingVisitor._id || servingVisitor.id;
       
@@ -905,30 +901,36 @@ const DepartmentManagerDashboard: React.FC = () => {
       const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
       const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown');
       
+      const assigned = getAssignedEmployee(servingVisitor);
+      const empId = assigned?.id || myId;
+      const empName = assigned?.name || myName;
+      
       const isTransfer = data.notes && data.notes.toLowerCase().includes('transfer');
       const targetStatus = isTransfer ? 'Transfered' : 'Completed';
       
       const visitorToUpdate = servingVisitor;
       
+      // Optimistic UI Update instantly changes the table
       setVisitors(prev => prev.map(v => {
         if (String(v._id || v.id) === String(visitorId)) {
             const newStatus = [...(v.services_status || [])];
-            const myIdx = newStatus.findIndex(s => String(s.provider_id) === String(myId));
+            const myIdx = newStatus.findIndex(s => String(s.provider_id) === String(empId));
             if (myIdx !== -1) {
                 newStatus[myIdx] = { ...newStatus[myIdx], s_type: targetStatus };
             } else {
-                newStatus.push({ department_id: departmentId, provider_id: myId, provider_name: myName, s_type: targetStatus });
+                newStatus.push({ department_id: departmentId || "", provider_id: empId, provider_name: empName, s_type: targetStatus });
             }
             return { ...v, services_status: newStatus };
         }
         return v;
       }));
 
+      // Forcing the modal to close instantly
       setShowServeModal(false);
       setServingVisitor(null);
       setPendingServiceStartTime('');
 
-      await updateBackendStatus(targetStatus, visitorId as string, visitorToUpdate, myId, myName, false, data.duration);
+      await updateBackendStatus(targetStatus, visitorId as string, visitorToUpdate, empId, empName, false, data.duration);
       loadData(currentPage, searchTerm, true);
     } catch (error) {
       console.error('Failed to complete service:', error);
@@ -1029,6 +1031,19 @@ const DepartmentManagerDashboard: React.FC = () => {
       ? true 
       : getVisitorStatus(v).toLowerCase() === dashboardStatusFilter.toLowerCase();
     return matchesSearch && matchesStatus;
+  }).sort((a, b) => {
+    // Custom sort order: Not Started (1) -> In Progress (2) -> Transferred (3) -> Completed (4)
+    const statusOrder: Record<string, number> = {
+      'not started': 1,
+      'inprogress': 2,
+      'transfered': 3,
+      'completed': 4
+    };
+    const statusA = getVisitorStatus(a).toLowerCase();
+    const statusB = getVisitorStatus(b).toLowerCase();
+    const orderA = statusOrder[statusA] ?? 99;
+    const orderB = statusOrder[statusB] ?? 99;
+    return orderA - orderB;
   });
 
   const itemsPerPage = 20;
@@ -1256,10 +1271,8 @@ const DepartmentManagerDashboard: React.FC = () => {
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
-                                      const currentUser = user as any;
-                                      const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
-                                      const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown');
-                                      const emp = employees.find(e => String(e._id) === myId || String(e.employee_id) === myId);
+                                      const assigned = getAssignedEmployee(visitor);
+                                      const emp = employees.find(e => e.full_name === assigned?.name) || employees[0];
                                       setServingVisitor(visitor);
                                       setServingEmployee(emp || null);
                                       setPendingServiceStartTime(getServiceStartTime(visitor) || '');
@@ -1493,7 +1506,6 @@ const DepartmentManagerDashboard: React.FC = () => {
                 >
                   <option value="">Choose department...</option>
                   {departments
-                    .filter(d => String(d._id) !== String(departmentId))
                     .map(dept => (
                       <option key={dept._id} value={dept._id}>
                         {dept.department_name || dept.name}
@@ -1911,50 +1923,6 @@ const DepartmentManagerDashboard: React.FC = () => {
 
       {activeTab === 'availability' && <DepartmentAvailabilityTab departmentId={departmentId} />}
       {activeTab === 'reports' && <ReportsTab departmentId={departmentId} departmentName={departmentName} />}
-
-      {/* Add Employee Modal */}
-      {showAddEmployeeModal && (
-        <AddEmployeeModalContent
-          isOpen={showAddEmployeeModal}
-          onClose={() => setShowAddEmployeeModal(false)}
-          departmentId={departmentId}
-          departmentName={departmentName}
-          onSuccess={() => {
-            setShowAddEmployeeModal(false);
-            handleEmployeeSearch();
-          }}
-        />
-      )}
-
-      {/* View Employee Modal */}
-      {showViewEmployeeModal && selectedDeptEmployee && (
-        <ViewEmployeeModal
-          isOpen={showViewEmployeeModal}
-          onClose={() => {
-            setShowViewEmployeeModal(false);
-            setSelectedDeptEmployee(null);
-          }}
-          employee={selectedDeptEmployee}
-        />
-      )}
-
-      {/* Edit Employee Modal */}
-      {showEditEmployeeModal && selectedDeptEmployee && (
-        <EditEmployeeModalContent
-          isOpen={showEditEmployeeModal}
-          onClose={() => {
-            setShowEditEmployeeModal(false);
-            setSelectedDeptEmployee(null);
-          }}
-          employee={selectedDeptEmployee}
-          onSuccess={() => {
-            setShowEditEmployeeModal(false);
-            setSelectedDeptEmployee(null);
-            handleEmployeeSearch();
-          }}
-        />
-      )}
-
     </div>
   );
 };
