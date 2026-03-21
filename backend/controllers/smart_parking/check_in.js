@@ -93,7 +93,7 @@ module.exports = async function car_check_in(req, res, next) {
                 driver_telephone = visitor.telephone_number
                 slot_number = visitor.slot_number || 'Not Specified'
                 driver_email = visitor.email || null
-                driver_identification = visitor.identification || null
+                driver_identification = visitor.driver_identification || null
                 driver_gender = visitor.gender || null
             }
         }
@@ -142,7 +142,7 @@ module.exports = async function car_check_in(req, res, next) {
         // Create ServiceDelivery record for all checked-in visitors (with or without vehicle)
         // This allows Service Delivery receptionist to see and assign them to departments
         
-        if (driver_name && (driver_type.toLowerCase() === 'regular' || driver_type.toLowerCase() === 'visitor')) {
+        if (driver_name && (driver_type.toLowerCase() === 'regular' || driver_type.toLowerCase() === 'visitor' || driver_type.toLowerCase() === 'staff')) {
             const hasVehicle = plate_number && plate_number !== 'N/A' && plate_number.toUpperCase() !== 'NOT SPECIFIED';
             const service_delivery = new ServiceDelivery({
                 full_name: driver_name,
@@ -150,6 +150,7 @@ module.exports = async function car_check_in(req, res, next) {
                 gender: driver_gender,
                 email: driver_email,
                 driver_identification: driver_identification,
+                identification: driver_identification, // Also save to identification field for compatibility
                 vehicle_storage: {
                     has_vehicle: hasVehicle,
                     vehicle_details: hasVehicle ? {
@@ -159,7 +160,8 @@ module.exports = async function car_check_in(req, res, next) {
                 },
                 badge_number,
                 is_still_inhouse: true,
-                entry_date: check_in_date
+                entry_date: check_in_date,
+                registered_by: checked_in_by
             })
             await service_delivery.save()
         }

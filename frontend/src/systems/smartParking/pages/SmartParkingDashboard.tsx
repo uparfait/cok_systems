@@ -973,7 +973,7 @@ const SmartParkingDashboard: React.FC = () => {
                 </div>
 
                 {isEditingDriver ? (
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <input
                       type="text"
                       name="name"
@@ -990,7 +990,7 @@ const SmartParkingDashboard: React.FC = () => {
                       placeholder="Phone number"
                       className="w-full px-3 py-2 bg-white/50 backdrop-blur border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
                     />
-                    <div>
+                    <div className="col-span-2">
                       <input
                         type="text"
                         name="badge_number"
