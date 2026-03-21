@@ -1,7 +1,7 @@
 // ReservationsPage - Smart Parking Reservation Management
-// Redesigned with modern UI matching the image specification
+// Fully Responsive Design with mobile-first approach
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
 import MainLayout from '../../../core/components/Layout/MainLayout';
@@ -12,7 +12,8 @@ import {
   FiCalendar, FiUpload, FiUser, FiTruck, FiPhone, FiFileText, 
   FiCheck, FiAlertCircle, FiSearch, FiEdit2, FiTrash2,
   FiClock, FiMapPin, FiUsers, FiBriefcase, FiDownload,
-  FiPlus, FiX, FiChevronLeft, FiChevronRight, FiInfo, FiRefreshCw
+  FiPlus, FiX, FiChevronLeft, FiChevronRight, FiInfo, FiRefreshCw,
+  FiMenu, FiGrid
 } from 'react-icons/fi';
 
 interface ReservationFormData {
@@ -53,7 +54,12 @@ const ReservationsPage: React.FC = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [mobileView, setMobileView] = useState<'list' | 'cards'>('list');
   const itemsPerPage = 5;
+  
+  // File input refs
+  const visitorFileInputRef = useRef<HTMLInputElement>(null);
+  const staffFileInputRef = useRef<HTMLInputElement>(null);
   
   // Visitor form state
   const [visitorFormData, setVisitorFormData] = useState<ReservationFormData>({
@@ -80,12 +86,26 @@ const ReservationsPage: React.FC = () => {
   // Bulk upload states
   const [visitorBulkFile, setVisitorBulkFile] = useState<File | null>(null);
   const [staffBulkFile, setStaffBulkFile] = useState<File | null>(null);
-  const [activeUploadType, setActiveUploadType] = useState<'visitor' | 'staff'>('visitor');
 
   // Cancel confirmation modal state
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+
+  // Detect screen size for responsive adjustments
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+      setIsTablet(window.innerWidth >= 768 && window.innerWidth < 1024);
+    };
+    
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Fetch reservations on mount
   useEffect(() => {
@@ -171,6 +191,54 @@ const ReservationsPage: React.FC = () => {
     }
   };
 
+  // Handle visitor file selection
+  const handleVisitorFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const validTypes = ['.xlsx', '.xls', '.csv'];
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      
+      if (validTypes.includes(fileExtension)) {
+        setVisitorBulkFile(file);
+        showSuccess(`File "${file.name}" selected successfully`);
+      } else {
+        showError('Please select a valid file (.xlsx, .xls, or .csv)');
+        e.target.value = '';
+      }
+    }
+  };
+
+  // Handle staff file selection
+  const handleStaffFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const validTypes = ['.xlsx', '.xls', '.csv'];
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      
+      if (validTypes.includes(fileExtension)) {
+        setStaffBulkFile(file);
+        showSuccess(`File "${file.name}" selected successfully`);
+      } else {
+        showError('Please select a valid file (.xlsx, .xls, or .csv)');
+        e.target.value = '';
+      }
+    }
+  };
+
+  const handleRemoveVisitorFile = () => {
+    setVisitorBulkFile(null);
+    if (visitorFileInputRef.current) {
+      visitorFileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveStaffFile = () => {
+    setStaffBulkFile(null);
+    if (staffFileInputRef.current) {
+      staffFileInputRef.current.value = '';
+    }
+  };
+
   const handleVisitorBulkUpload = async () => {
     if (!visitorBulkFile) {
       showError('Please select a file to upload');
@@ -185,13 +253,13 @@ const ReservationsPage: React.FC = () => {
       const data = await reservationService.bulkUploadVisitors(formData);
       if (data.success) {
         showSuccess(data.message || 'Bulk visitor reservations uploaded successfully!');
-        setVisitorBulkFile(null);
+        handleRemoveVisitorFile();
         fetchReservations();
       } else {
         showError(data.message || 'Upload failed');
       }
     } catch (error) {
-      showError('Network error');
+      showError('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -211,13 +279,13 @@ const ReservationsPage: React.FC = () => {
       const data = await reservationService.bulkUploadStaff(formData);
       if (data.success) {
         showSuccess(data.message || 'Bulk staff allocations uploaded successfully!');
-        setStaffBulkFile(null);
+        handleRemoveStaffFile();
         fetchReservations();
       } else {
         showError(data.message || 'Upload failed');
       }
     } catch (error) {
-      showError('Network error');
+      showError('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -235,7 +303,6 @@ const ReservationsPage: React.FC = () => {
       const data = await reservationService.cancelReservation(reservationToCancel.id);
       if (data.success) {
         showSuccess(data.message || 'Reservation cancelled successfully');
-        // Delay to ensure backend completes the operation
         setTimeout(() => {
           fetchReservations();
         }, 500);
@@ -255,16 +322,16 @@ const ReservationsPage: React.FC = () => {
     setReservationToCancel(null);
   };
 
-  // Download Visitor Template
+  // Download Visitor Template (Headers only - no sample data)
   const downloadVisitorTemplate = () => {
     const headers = ['Name', 'Plate Number', 'ID Type', 'ID Number', 'Phone', 'Slot Number'];
-    const sampleData = [
-      ['John Doe', 'RAD 123A', 'NID', '123456789', '0789123456', 'A1'],
-      ['Jane Smith', 'RAD 456B', 'Passport', 'AB123456', '0789123457', 'A2']
-    ];
+    const title1 = 'Republic of Rwanda';
+    const title2 = 'City of Kigali - Visitor Parking Reservation';
+    const title3 = 'Please fill in the details below:';
     
-    const csvContent = '\ufeff' + headers.join(',') + '\n' + 
-      sampleData.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const csvContent = '\ufeff' + 
+      `"${title1}"\n"${title2}"\n"${title3}"\n` + 
+      headers.join(',') + '\n';
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -274,16 +341,16 @@ const ReservationsPage: React.FC = () => {
     showSuccess('Visitor template downloaded successfully');
   };
 
-  // Download Staff Template
+  // Download Staff Template (Headers only - no sample data)
   const downloadStaffTemplate = () => {
     const headers = ['Staff Name', 'Plate Number', 'Phone', 'Department', 'Title', 'ID Type', 'ID Number'];
-    const sampleData = [
-      ['John Doe', 'RAF 001A', '0789123456', 'Finance', 'Director', 'NID', '123456789'],
-      ['Jane Smith', 'RAF 002B', '0789123457', 'IT', 'Manager', 'NID', '987654321']
-    ];
+    const title1 = 'Republic of Rwanda';
+    const title2 = 'City of Kigali - Staff Parking Allocation';
+    const title3 = 'Please fill in the details below:';
     
-    const csvContent = '\ufeff' + headers.join(',') + '\n' + 
-      sampleData.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const csvContent = '\ufeff' + 
+      `"${title1}"\n"${title2}"\n"${title3}"\n` + 
+      headers.join(',') + '\n';
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -294,13 +361,12 @@ const ReservationsPage: React.FC = () => {
   };
 
   const handleDownloadHistory = () => {
-    // Create CSV content with proper escaping
     const headers = ['Name', 'Plate Number', 'Telephone', 'Type', 'Status'];
     const csvRows: string[] = [headers.join(',')];
     
     reservations.forEach(res => {
       const row = [
-        `"${res.visitor_name.replace(/"/g, '""')}"`, // Escape quotes
+        `"${res.visitor_name.replace(/"/g, '""')}"`,
         `"${res.plate_number.replace(/"/g, '""')}"`,
         `"${res.telephone?.replace(/"/g, '""') || ''}"`,
         res.type,
@@ -310,8 +376,6 @@ const ReservationsPage: React.FC = () => {
     });
     
     const csvContent = csvRows.join('\n');
-    
-    // Add BOM for Excel compatibility
     const BOM = '\uFEFF';
     const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -341,12 +405,10 @@ const ReservationsPage: React.FC = () => {
     }
   };
 
-  // Get cancelled staff reservations for reactivation
   const cancelledStaffReservations = reservations.filter(
     res => res.type === 'staff' && res.status === 'cancelled'
   );
 
-  // Filter and paginate reservations (exclude cancelled - they go to staff reactivation card)
   const filteredReservations = reservations.filter(res => 
     res.status !== 'cancelled' && (
       res.visitor_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -370,38 +432,39 @@ const ReservationsPage: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header Section */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        {/* Header Section - Responsive */}
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                <FiInfo className="w-6 h-6 text-yellow-500"/>
-                <span>Parking Reservation Management</span>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
+                <FiInfo className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500 flex-shrink-0"/>
+                <span className="break-words">Parking Reservation Management</span>
               </h1>
-              <p className="text-sm text-gray-600 mt-2">
+              <p className="text-xs sm:text-sm text-gray-600 mt-1 sm:mt-2">
                 Manage visitor and staff parking slot allocations for the City of Kigali facilities.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Two Column Layout - Visitor & Staff Forms */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Two Column Layout - Responsive Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {/* Visitor Reservations Card */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-blue-50/50 to-white">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-xl">
-                  <FiUsers className="w-5 h-5 text-blue-600" />
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-4 sm:px-6 py-3 sm:py-5 border-b border-gray-100 bg-gradient-to-r from-blue-50/50 to-white">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg sm:rounded-xl">
+                  <FiUsers className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                 </div>
-                <h2 className="text-xl font-semibold text-gray-900">Visitor Reservations</h2>
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Visitor Reservations</h2>
               </div>
             </div>
             
-            <div className="p-6">
-              <form onSubmit={handleVisitorSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-4 sm:p-6">
+              <form onSubmit={handleVisitorSubmit} className="space-y-3 sm:space-y-4">
+                {/* Responsive form grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
                       Full Name <span className="text-red-500">*</span>
@@ -415,7 +478,7 @@ const ReservationsPage: React.FC = () => {
                         onChange={handleVisitorInputChange}
                         required
                         placeholder="Enter full name"
-                        className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        className="w-full pl-9 pr-3 py-2 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       />
                     </div>
                   </div>
@@ -433,7 +496,7 @@ const ReservationsPage: React.FC = () => {
                         onChange={handleVisitorInputChange}
                         required
                         placeholder="e.g., RAD 302H"
-                        className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        className="w-full pl-9 pr-3 py-2 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       />
                     </div>
                   </div>
@@ -449,7 +512,7 @@ const ReservationsPage: React.FC = () => {
                         name="arrival_time"
                         value={visitorFormData.arrival_time}
                         onChange={handleVisitorInputChange}
-                        className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full pl-9 pr-3 py-2 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
                   </div>
@@ -466,17 +529,18 @@ const ReservationsPage: React.FC = () => {
                         value={visitorFormData.telephone_number}
                         onChange={handleVisitorInputChange}
                         placeholder="+250 791 783 308"
-                        className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full pl-9 pr-3 py-2 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
                   </div>
                 </div>
                 
-                <div className="flex justify-end pt-2">
+                {/* Responsive button group */}
+                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
                   <button
                     type="submit"
                     disabled={loading}
-                    className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
+                    className="px-4 sm:px-5 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg sm:rounded-xl font-medium hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm text-sm sm:text-base"
                   >
                     {loading ? (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -488,7 +552,7 @@ const ReservationsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={downloadVisitorTemplate}
-                    className="ml-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all flex items-center gap-2"
+                    className="px-4 sm:px-5 py-2 sm:py-2.5 bg-gray-100 text-gray-700 rounded-lg sm:rounded-xl font-medium hover:bg-gray-200 transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
                   >
                     <FiDownload className="w-4 h-4" />
                     Template
@@ -496,26 +560,43 @@ const ReservationsPage: React.FC = () => {
                 </div>
               </form>
               
-              <div className="mt-6 pt-6 border-t border-gray-100">
-                <div className="flex items-center justify-between mb-3">
+              {/* Bulk Upload Section - Responsive */}
+              <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-100">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                   <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Bulk Visitor Upload</label>
                   <span className="text-xs text-gray-400">Excel (.xlsx, .csv)</span>
                 </div>
-                <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-blue-400 transition-colors bg-gray-50/30">
+                <div className="border-2 border-dashed border-gray-200 rounded-xl p-3 sm:p-4 text-center hover:border-blue-400 transition-colors bg-gray-50/30">
                   <input
+                    ref={visitorFileInputRef}
                     type="file"
                     id="visitor-bulk-upload"
                     accept=".xlsx,.xls,.csv"
-                    onChange={(e) => setVisitorBulkFile(e.target.files?.[0] || null)}
+                    onChange={handleVisitorFileSelect}
                     className="hidden"
                   />
-                  <label htmlFor="visitor-bulk-upload" className="cursor-pointer block">
-                    <FiUpload className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                  <label 
+                    htmlFor="visitor-bulk-upload" 
+                    className="cursor-pointer block"
+                  >
+                    <FiUpload className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500 mx-auto mb-2" />
                     {visitorBulkFile ? (
-                      <div className="text-sm font-medium text-gray-700">{visitorBulkFile.name}</div>
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                        <div className="text-xs sm:text-sm font-medium text-gray-700 break-all">{visitorBulkFile.name}</div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveVisitorFile();
+                          }}
+                          className="text-red-500 hover:text-red-700 text-sm"
+                        >
+                          <FiX className="w-4 h-4" />
+                        </button>
+                      </div>
                     ) : (
                       <>
-                        <div className="text-sm text-gray-600">Click to upload or drag and drop</div>
+                        <div className="text-xs sm:text-sm text-gray-600">Click to upload or drag and drop</div>
                         <div className="text-xs text-gray-400 mt-1">Supported formats: .xlsx, .csv</div>
                       </>
                     )}
@@ -525,9 +606,13 @@ const ReservationsPage: React.FC = () => {
                   <button
                     onClick={handleVisitorBulkUpload}
                     disabled={loading}
-                    className="mt-3 w-full py-2 border border-blue-200 text-blue-600 rounded-xl font-medium hover:bg-blue-50 transition-all flex items-center justify-center gap-2"
+                    className="mt-3 w-full py-2 bg-blue-600 text-white rounded-lg sm:rounded-xl font-medium hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
                   >
-                    <FiUpload className="w-4 h-4" />
+                    {loading ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <FiUpload className="w-4 h-4" />
+                    )}
                     Upload List
                   </button>
                 )}
@@ -536,19 +621,19 @@ const ReservationsPage: React.FC = () => {
           </div>
 
           {/* Permanent Staff Booking Card */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-indigo-50/50 to-white">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 rounded-xl">
-                  <FiBriefcase className="w-5 h-5 text-indigo-600" />
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-4 sm:px-6 py-3 sm:py-5 border-b border-gray-100 bg-gradient-to-r from-indigo-50/50 to-white">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 bg-indigo-100 rounded-lg sm:rounded-xl">
+                  <FiBriefcase className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
                 </div>
-                <h2 className="text-xl font-semibold text-gray-900">Permanent Staff Booking</h2>
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Permanent Staff Booking</h2>
               </div>
             </div>
             
-            <div className="p-6">
-              <form onSubmit={handleStaffSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-4 sm:p-6">
+              <form onSubmit={handleStaffSubmit} className="space-y-3 sm:space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
                       Staff Full Name <span className="text-red-500">*</span>
@@ -562,7 +647,7 @@ const ReservationsPage: React.FC = () => {
                         onChange={handleStaffInputChange}
                         required
                         placeholder="e.g., MUHIRE Kenny"
-                        className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full pl-9 pr-3 py-2 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       />
                     </div>
                   </div>
@@ -580,7 +665,7 @@ const ReservationsPage: React.FC = () => {
                         onChange={handleStaffInputChange}
                         required
                         placeholder="e.g., RAF 100S"
-                        className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full pl-9 pr-3 py-2 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       />
                     </div>
                   </div>
@@ -597,7 +682,7 @@ const ReservationsPage: React.FC = () => {
                         value={staffFormData.phone}
                         onChange={handleStaffInputChange}
                         placeholder="+250 791 783 308"
-                        className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full pl-9 pr-3 py-2 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       />
                     </div>
                   </div>
@@ -614,7 +699,7 @@ const ReservationsPage: React.FC = () => {
                         value={staffFormData.identification}
                         onChange={handleStaffInputChange}
                         placeholder="National ID Number"
-                        className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full pl-9 pr-3 py-2 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       />
                     </div>
                   </div>
@@ -631,17 +716,17 @@ const ReservationsPage: React.FC = () => {
                         value={staffFormData.department_name}
                         onChange={handleStaffInputChange}
                         placeholder="e.g., Finance, IT, HR"
-                        className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full pl-9 pr-3 py-2 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       />
                     </div>
                   </div>
                 </div>
                 
-                <div className="flex justify-end pt-2">
+                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
                   <button
                     type="submit"
                     disabled={loading}
-                    className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
+                    className="px-4 sm:px-5 py-2 sm:py-2.5 bg-indigo-600 text-white rounded-lg sm:rounded-xl font-medium hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm text-sm sm:text-base"
                   >
                     {loading ? (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -653,7 +738,7 @@ const ReservationsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={downloadStaffTemplate}
-                    className="ml-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all flex items-center gap-2"
+                    className="px-4 sm:px-5 py-2 sm:py-2.5 bg-gray-100 text-gray-700 rounded-lg sm:rounded-xl font-medium hover:bg-gray-200 transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
                   >
                     <FiDownload className="w-4 h-4" />
                     Template
@@ -661,26 +746,42 @@ const ReservationsPage: React.FC = () => {
                 </div>
               </form>
               
-              <div className="mt-6 pt-6 border-t border-gray-100">
-                <div className="flex items-center justify-between mb-3">
+              <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-100">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                   <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Staff Directory Sync</label>
                   <span className="text-xs text-gray-400">Upload spreadsheet</span>
                 </div>
-                <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-indigo-400 transition-colors bg-gray-50/30">
+                <div className="border-2 border-dashed border-gray-200 rounded-xl p-3 sm:p-4 text-center hover:border-indigo-400 transition-colors bg-gray-50/30">
                   <input
+                    ref={staffFileInputRef}
                     type="file"
                     id="staff-bulk-upload"
                     accept=".xlsx,.xls,.csv"
-                    onChange={(e) => setStaffBulkFile(e.target.files?.[0] || null)}
+                    onChange={handleStaffFileSelect}
                     className="hidden"
                   />
-                  <label htmlFor="staff-bulk-upload" className="cursor-pointer block">
-                    <FiUpload className="w-8 h-8 text-indigo-500 mx-auto mb-2" />
+                  <label 
+                    htmlFor="staff-bulk-upload" 
+                    className="cursor-pointer block"
+                  >
+                    <FiUpload className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-500 mx-auto mb-2" />
                     {staffBulkFile ? (
-                      <div className="text-sm font-medium text-gray-700">{staffBulkFile.name}</div>
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                        <div className="text-xs sm:text-sm font-medium text-gray-700 break-all">{staffBulkFile.name}</div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveStaffFile();
+                          }}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <FiX className="w-4 h-4" />
+                        </button>
+                      </div>
                     ) : (
                       <>
-                        <div className="text-sm text-gray-600">Choose file for staff reservation</div>
+                        <div className="text-xs sm:text-sm text-gray-600">Choose file for staff reservation</div>
                         <div className="text-xs text-gray-400 mt-1">Excel or CSV format</div>
                       </>
                     )}
@@ -690,9 +791,13 @@ const ReservationsPage: React.FC = () => {
                   <button
                     onClick={handleStaffBulkUpload}
                     disabled={loading}
-                    className="mt-3 w-full py-2 border border-indigo-200 text-indigo-600 rounded-xl font-medium hover:bg-indigo-50 transition-all flex items-center justify-center gap-2"
+                    className="mt-3 w-full py-2 bg-indigo-600 text-white rounded-lg sm:rounded-xl font-medium hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
                   >
-                    <FiUpload className="w-4 h-4" />
+                    {loading ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <FiUpload className="w-4 h-4" />
+                    )}
                     Upload List
                   </button>
                 )}
@@ -701,20 +806,45 @@ const ReservationsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Reservations Table Section */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        {/* Reservations Table Section - Responsive with mobile card view */}
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-4 sm:px-6 py-3 sm:py-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Reservation List</h2>
-              <p className="text-sm text-gray-500 mt-0.5">View and manage all parking reservations</p>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900">Reservation List</h2>
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5">View and manage all parking reservations</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+              {/* View toggle for mobile */}
+              {isMobile && (
+                <div className="flex gap-2 mb-2 sm:mb-0">
+                  <button
+                    onClick={() => setMobileView('list')}
+                    className={`flex-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      mobileView === 'list' 
+                        ? 'bg-indigo-600 text-white' 
+                        : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    List
+                  </button>
+                  <button
+                    onClick={() => setMobileView('cards')}
+                    className={`flex-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      mobileView === 'cards' 
+                        ? 'bg-indigo-600 text-white' 
+                        : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    Cards
+                  </button>
+                </div>
+              )}
               <button
                 onClick={() => setShowHistoryModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-all"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-600 text-white rounded-lg sm:rounded-xl font-medium hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 text-sm"
               >
                 <FiClock className="w-4 h-4" />
-                View History
+                <span>History</span>
               </button>
               <div className="relative">
                 <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -723,55 +853,161 @@ const ReservationsPage: React.FC = () => {
                   placeholder="Search by name or plate..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-4 py-2 w-full sm:w-64 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="pl-9 pr-4 py-1.5 sm:py-2 w-full sm:w-64 border border-gray-200 rounded-lg sm:rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
           </div>
           
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Visitor Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Plate Number</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Telephone</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Expected Arrival</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {paginatedReservations.length > 0 ? (
-                  paginatedReservations.map((reservation) => (
-                    <tr key={reservation.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <span className="font-medium text-gray-900">{reservation.visitor_name}</span>
+          {/* Desktop Table View */}
+          {!isMobile && (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px]">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Visitor Name</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Plate Number</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Telephone</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Expected Arrival</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {paginatedReservations.length > 0 ? (
+                    paginatedReservations.map((reservation) => (
+                      <tr key={reservation.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 sm:px-6 py-3 sm:py-4">
+                          <span className="font-medium text-gray-900 text-sm">{reservation.visitor_name}</span>
+                        </td>
+                        <td className="px-4 sm:px-6 py-3 sm:py-4">
+                          <span className="text-sm text-gray-600">{reservation.plate_number}</span>
+                        </td>
+                        <td className="px-4 sm:px-6 py-3 sm:py-4">
+                          <span className="text-sm text-gray-600">{reservation.telephone}</span>
+                        </td>
+                        <td className="px-4 sm:px-6 py-3 sm:py-4">
+                          <span className="inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                            <FiClock className="w-3 h-3 mr-1" />
+                            {reservation.expected_arrival}
+                          </span>
+                        </td>
+                        <td className="px-4 sm:px-6 py-3 sm:py-4">
+                          <span className={`inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-medium ${
+                            reservation.type === 'staff' 
+                              ? 'bg-purple-50 text-purple-700' 
+                              : 'bg-green-50 text-green-700'
+                          }`}>
+                            {reservation.type === 'staff' ? 'Staff' : 'Visitor'}
+                          </span>
+                        </td>
+                        <td className="px-4 sm:px-6 py-3 sm:py-4">
+                          <span className={`inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-medium ${
+                            reservation.status === 'active' 
+                              ? 'bg-green-50 text-green-700' 
+                              : reservation.status === 'cancelled'
+                              ? 'bg-red-50 text-red-700'
+                              : 'bg-gray-50 text-gray-700'
+                          }`}>
+                            {reservation.status === 'active' ? 'Active' : reservation.status === 'cancelled' ? 'Cancelled' : 'Expired'}
+                          </span>
+                        </td>
+                        <td className="px-4 sm:px-6 py-3 sm:py-4">
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <button className="text-blue-600 hover:text-blue-800 transition-colors">
+                              <FiEdit2 className="w-4 h-4" />
+                            </button>
+                            {reservation.status === 'cancelled' && reservation.type === 'staff' ? (
+                              <button 
+                                onClick={() => handleReactivateClick(reservation)}
+                                className="text-green-500 hover:text-green-700 transition-colors"
+                                title="Reactivate reservation"
+                              >
+                                <FiCheck className="w-4 h-4" />
+                              </button>
+                            ) : reservation.status !== 'cancelled' ? (
+                              <button 
+                                onClick={() => handleCancelClick(reservation)}
+                                className="text-red-500 hover:text-red-700 transition-colors"
+                                title="Cancel reservation"
+                              >
+                                <FiTrash2 className="w-4 h-4" />
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="px-4 sm:px-6 py-8 sm:py-12 text-center text-gray-500 text-sm">
+                        No reservations found
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-600">{reservation.plate_number}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-600">{reservation.telephone}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Mobile Card View */}
+          {isMobile && mobileView === 'cards' && (
+            <div className="p-4 space-y-3">
+              {paginatedReservations.length > 0 ? (
+                paginatedReservations.map((reservation) => (
+                  <div key={reservation.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 text-base">{reservation.visitor_name}</h3>
+                        <p className="text-sm text-gray-600 mt-1">{reservation.plate_number}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button className="text-blue-600 hover:text-blue-800">
+                          <FiEdit2 className="w-4 h-4" />
+                        </button>
+                        {reservation.status === 'cancelled' && reservation.type === 'staff' ? (
+                          <button 
+                            onClick={() => handleReactivateClick(reservation)}
+                            className="text-green-500 hover:text-green-700"
+                          >
+                            <FiCheck className="w-4 h-4" />
+                          </button>
+                        ) : reservation.status !== 'cancelled' ? (
+                          <button 
+                            onClick={() => handleCancelClick(reservation)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <FiTrash2 className="w-4 h-4" />
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">Phone:</span>
+                        <span className="text-gray-700">{reservation.telephone}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">Arrival:</span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
                           <FiClock className="w-3 h-3 mr-1" />
                           {reservation.expected_arrival}
                         </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">Type:</span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                           reservation.type === 'staff' 
                             ? 'bg-purple-50 text-purple-700' 
                             : 'bg-green-50 text-green-700'
                         }`}>
                           {reservation.type === 'staff' ? 'Staff' : 'Visitor'}
                         </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">Status:</span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                           reservation.status === 'active' 
                             ? 'bg-green-50 text-green-700' 
                             : reservation.status === 'cancelled'
@@ -780,62 +1016,39 @@ const ReservationsPage: React.FC = () => {
                         }`}>
                           {reservation.status === 'active' ? 'Active' : reservation.status === 'cancelled' ? 'Cancelled' : 'Expired'}
                         </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <button className="text-blue-600 hover:text-blue-800 transition-colors">
-                            <FiEdit2 className="w-4 h-4" />
-                          </button>
-                          {reservation.status === 'cancelled' && reservation.type === 'staff' ? (
-                            <button 
-                              onClick={() => handleReactivateClick(reservation)}
-                              className="text-green-500 hover:text-green-700 transition-colors"
-                              title="Reactivate reservation"
-                            >
-                              <FiCheck className="w-4 h-4" />
-                            </button>
-                          ) : reservation.status !== 'cancelled' ? (
-                            <button 
-                              onClick={() => handleCancelClick(reservation)}
-                              className="text-red-500 hover:text-red-700 transition-colors"
-                              title="Cancel reservation"
-                            >
-                              <FiTrash2 className="w-4 h-4" />
-                            </button>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                      No reservations found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500 text-sm">
+                  No reservations found
+                </div>
+              )}
+            </div>
+          )}
           
-          {/* Pagination */}
+          {/* Pagination - Responsive */}
           {totalPages > 1 && (
-            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-              <span className="text-sm text-gray-500">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <span className="text-xs sm:text-sm text-gray-500 text-center sm:text-left">
                 Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredReservations.length)} of {filteredReservations.length} reservations
               </span>
-              <div className="flex gap-2">
+              <div className="flex gap-2 justify-center">
                 <button
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="p-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                  className="p-1.5 sm:p-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
                 >
                   <FiChevronLeft className="w-4 h-4" />
                 </button>
+                <span className="px-3 py-1.5 sm:py-2 text-sm">
+                  Page {currentPage} of {totalPages}
+                </span>
                 <button
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="p-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                  className="p-1.5 sm:p-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
                 >
                   <FiChevronRight className="w-4 h-4" />
                 </button>
@@ -844,42 +1057,44 @@ const ReservationsPage: React.FC = () => {
           )}
         </div>
 
-        {/* Cancelled Staff Reservations - For Reactivation */}
+        {/* Cancelled Staff Reservations - Responsive */}
         {cancelledStaffReservations && cancelledStaffReservations.length > 0 && (
-          <div className="mt-8 bg-white rounded-2xl shadow-sm border border-red-100 overflow-hidden">
-            <div className="px-6 py-5 border-b border-red-100 bg-gradient-to-r from-red-50/50 to-white">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-100 rounded-xl">
-                  <FiRefreshCw className="w-5 h-5 text-red-600" />
+          <div className="mt-6 sm:mt-8 bg-white rounded-xl sm:rounded-2xl shadow-sm border border-red-100 overflow-hidden">
+            <div className="px-4 sm:px-6 py-3 sm:py-5 border-b border-red-100 bg-gradient-to-r from-red-50/50 to-white">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-1.5 sm:p-2 bg-red-100 rounded-lg sm:rounded-xl">
+                    <FiRefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
+                  </div>
+                  <h2 className="text-base sm:text-xl font-semibold text-gray-900">Cancelled Staff Reservations</h2>
                 </div>
-                <h2 className="text-xl font-semibold text-gray-900">Cancelled Staff Reservations</h2>
-                <span className="ml-auto bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-medium">
+                <span className="bg-red-100 text-red-700 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium self-start sm:self-auto">
                   {cancelledStaffReservations.length} cancelled
                 </span>
               </div>
             </div>
-            <div className="p-6">
-              <p className="text-sm text-gray-600 mb-4">
+            <div className="p-4 sm:p-6">
+              <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
                 These staff reservations have been cancelled. Click reactivate when they return to work.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {cancelledStaffReservations.map((reservation) => (
                   <div 
                     key={reservation.id} 
-                    className="border border-red-200 bg-red-50 rounded-xl p-4"
+                    className="border border-red-200 bg-red-50 rounded-lg sm:rounded-xl p-3 sm:p-4"
                   >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-medium text-gray-900">{reservation.visitor_name}</h3>
-                        <p className="text-sm text-gray-500">{reservation.plate_number}</p>
-                        <p className="text-sm text-gray-500">{reservation.telephone}</p>
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900 text-sm sm:text-base">{reservation.visitor_name}</h3>
+                        <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{reservation.plate_number}</p>
+                        <p className="text-xs sm:text-sm text-gray-500">{reservation.telephone}</p>
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-2 bg-red-100 text-red-700">
                           Cancelled
                         </span>
                       </div>
                       <button
                         onClick={() => handleReactivateClick(reservation)}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                        className="flex items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-1.5 bg-green-600 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-green-700 transition-colors"
                       >
                         <FiCheck className="w-3 h-3" />
                         Reactivate
@@ -893,7 +1108,7 @@ const ReservationsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Cancel Confirmation Modal */}
+      {/* Modals remain the same but with responsive classes */}
       <ConfirmModal
         isOpen={showCancelModal}
         onCancel={closeCancelModal}
@@ -904,79 +1119,76 @@ const ReservationsPage: React.FC = () => {
         message={`Are you sure you want to cancel the reservation for plate number ${reservationToCancel?.plate_number || reservationToCancel?.visitor_name || 'this reservation'}? This action cannot be undone.`}
       />
 
-      {/* History Modal */}
+      {/* History Modal - Responsive */}
       {showHistoryModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-screen items-center justify-center p-4">
-            {/* Overlay */}
+          <div className="flex min-h-screen items-center justify-center p-3 sm:p-4">
             <div 
               className="fixed inset-0 bg-black/50 transition-opacity"
               onClick={() => setShowHistoryModal(false)}
             />
             
-            {/* Modal Content */}
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden transform">
-              {/* Header */}
-              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+            <div className="relative bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] sm:max-h-[80vh] overflow-hidden transform mx-3 sm:mx-4">
+              <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Reservation History</h2>
-                  <p className="text-sm text-gray-500">All reservations (active, cancelled, expired)</p>
+                  <h2 className="text-base sm:text-xl font-semibold text-gray-900">Reservation History</h2>
+                  <p className="text-xs sm:text-sm text-gray-500">All reservations (active, cancelled, expired)</p>
                 </div>
                 <button
                   onClick={() => setShowHistoryModal(false)}
-                  className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                  className="p-1.5 sm:p-2 hover:bg-gray-200 rounded-lg transition-colors"
                 >
-                  <FiX className="w-5 h-5 text-gray-500" />
+                  <FiX className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
                 </button>
               </div>
               
-              {/* Content */}
-              <div className="p-6 overflow-y-auto max-h-[60vh]">
-                <table className="w-full">
-                  <thead className="bg-gray-50 sticky top-0">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Plate</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Phone</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Type</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {reservations.map((res) => (
-                      <tr key={res.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm text-gray-900">{res.visitor_name}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{res.plate_number}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{res.telephone}</td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                            res.type === 'staff' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
-                          }`}>
-                            {res.type}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                            res.status === 'active' ? 'bg-green-100 text-green-700' : 
-                            res.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
-                          }`}>
-                            {res.status}
-                          </span>
-                        </td>
+              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-120px)] sm:max-h-[60vh]">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[500px]">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-600 uppercase">Name</th>
+                        <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-600 uppercase">Plate</th>
+                        <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-600 uppercase">Phone</th>
+                        <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-600 uppercase">Type</th>
+                        <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {reservations.map((res) => (
+                        <tr key={res.id} className="hover:bg-gray-50">
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900 break-words">{res.visitor_name}</td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">{res.plate_number}</td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">{res.telephone}</td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-3">
+                            <span className={`inline-flex px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-medium ${
+                              res.type === 'staff' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
+                            }`}>
+                              {res.type}
+                            </span>
+                          </td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-3">
+                            <span className={`inline-flex px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-medium ${
+                              res.status === 'active' ? 'bg-green-100 text-green-700' : 
+                              res.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
+                            }`}>
+                              {res.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
               
-              {/* Footer */}
-              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
-                <span className="text-sm text-gray-500">
+              <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-gray-50">
+                <span className="text-xs sm:text-sm text-gray-500 text-center sm:text-left">
                   Total: {reservations.length} reservations
                 </span>
                 <button
                   onClick={handleDownloadHistory}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
+                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white rounded-lg sm:rounded-xl font-medium hover:bg-blue-700 transition-colors text-sm"
                 >
                   <FiDownload className="w-4 h-4" />
                   Download CSV
