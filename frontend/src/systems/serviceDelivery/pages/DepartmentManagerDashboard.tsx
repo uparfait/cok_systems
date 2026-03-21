@@ -1768,7 +1768,7 @@ const DepartmentManagerDashboard: React.FC = () => {
                         </td>
                         <td className="px-4 py-4">
                           <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full uppercase">
-                            {emp.status || 'Active'}
+                            {emp.is_active ? 'Active' : 'Away'}
                           </span>
                         </td>
                         <td className="px-4 py-4">
@@ -2161,7 +2161,7 @@ const DepartmentManagerDashboard: React.FC = () => {
                             const serviceCount = employeeServiceCount[empId] || 0;
                             return (
                               <option key={empId} value={empId}>
-                                {emp.full_name} {emp.title ? `(${emp.title})` : ''} - {serviceCount} visitor{serviceCount !== 1 ? 's' : ''} in queue
+                                {emp.full_name} {emp.is_active ? `(Online)` : '(Offline)'} - {serviceCount} visitor{serviceCount !== 1 ? 's' : ''} in queue
                               </option>
                             );
                           })}
