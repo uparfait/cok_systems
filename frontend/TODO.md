@@ -1,4 +1,4 @@
-# TODO - Completed: Improve Add Card/Form Layout
+# TODO - Completed: Improve Add Card/Form Layout.
 
 ## ✅ Completed Tasks
 
