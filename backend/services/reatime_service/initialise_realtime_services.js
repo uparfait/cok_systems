@@ -157,9 +157,11 @@ module.exports = async function InitialiseAllRealtimeServices() {
                 User.findByIdAndUpdate(socket.user.userId, { is_active: true }, { new: true })
                     .then(updatedUser => {
                         // notify active users
-                        global.WebsocketIO.emit('active_user', {
-                            user_id: updatedUser._id,
-                        })
+                        if (global.WebsocketIO) {
+                            global.WebsocketIO.emit('active_user', {
+                                user_id: updatedUser._id,
+                            })
+                        }
                     })
                     .catch(err => {
                         console.error('Error updating user active status:', err)
@@ -188,9 +190,11 @@ module.exports = async function InitialiseAllRealtimeServices() {
                     User.findByIdAndUpdate(socket.user.userId, { is_active: false }, { new: true })
                         .then(updatedUser => {
                             // notify inactive to users
-                            global.WebsocketIO.emit('inactive_user', {
-                                user_id: updatedUser._id,
-                            })
+                            if (global.WebsocketIO) {
+                                global.WebsocketIO.emit('inactive_user', {
+                                    user_id: updatedUser._id,
+                                })
+                            }
                         })
                         .catch(err => {
                             console.error('Error updating user active status:', err)

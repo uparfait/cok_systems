@@ -94,6 +94,33 @@ module.exports = {
     RoleBased_Room,
     Private_Room,
     setWebSocketInitialized,
-    getWebSocketInitialized
+    getWebSocketInitialized,
+    
+    /**
+     * Safely emit to global.WebsocketIO with null checks
+     * @param {string} event - Event name
+     * @param {object} data - Event data
+     */
+    emitGlobalSafe: function(event, data) {
+        if (!global.WebsocketIO) {
+            console.warn('[WebSocket] Cannot emit globally: global.WebsocketIO is not initialized');
+            return;
+        }
+        global.WebsocketIO.emit(event, data);
+    },
+    
+    /**
+     * Safely emit to a specific room in global.WebsocketIO
+     * @param {string} room - Room name
+     * @param {string} event - Event name
+     * @param {object} data - Event data
+     */
+    emitToRoomSafe: function(room, event, data) {
+        if (!global.WebsocketIO) {
+            console.warn('[WebSocket] Cannot emit to room: global.WebsocketIO is not initialized');
+            return;
+        }
+        global.WebsocketIO.to(room).emit(event, data);
+    }
 };
 
