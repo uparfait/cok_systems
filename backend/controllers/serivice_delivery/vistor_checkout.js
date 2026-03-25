@@ -78,9 +78,8 @@ module.exports = async function visitor_checkout(req, res, next) {
 
             if (active_service.provider_id) {
 
-                const websocketUtils = require('../../../utilities/websocket_utils.js');
-                if (websocketUtils && global.WebsocketIO) {
-                    websocketUtils.emitToUser(global.WebsocketIO, active_service.provider_id, 'you_forgot_to_stop_service', {
+                if (global.WebsocketIO && global.WebsocketIO.emitToUser) {
+                    global.WebsocketIO.emitToUser(active_service.provider_id, 'you_forgot_to_stop_service', {
                         show_notif: true,
                         type: 'warning',
                         to: active_service.provider_id,
@@ -97,13 +96,13 @@ module.exports = async function visitor_checkout(req, res, next) {
 
         const updated_visitor = await visitor.save();
 
-        const websocketUtils = require('../../../utilities/websocket_utils.js');
-        if (websocketUtils && global.WebsocketIO) {
-            websocketUtils.emitToSystem(global.WebsocketIO, 'service_delivery', 'visitor_checkedout', {
+        if (global.WebsocketIO && global.WebsocketIO.emitToSystem) {
+            global.WebsocketIO.emitToSystem('service_delivery', 'visitor_checkedout', {
                 show_notif: is_car_still_parked,
-            type: is_car_still_parked ? 'warning' : 'info',
-            message: is_car_still_parked ? `Visitor ${visitor.full_name} checked-out. But car still parked` : `Visitor ${visitor.full_name} checked out.`
-        });
+                type: is_car_still_parked ? 'warning' : 'info',
+                message: is_car_still_parked ? `Visitor ${visitor.full_name} checked-out. But car still parked` : `Visitor ${visitor.full_name} checked out.`
+            });
+        }
 
         return res.status(200).json({
             success: true,
