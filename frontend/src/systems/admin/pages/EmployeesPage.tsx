@@ -111,6 +111,7 @@ const EmployeesPage: React.FC = () => {
   const [systemPermissions, setSystemPermissions] = useState<SystemPermissionResource[]>([]);
   const [roles, setRoles] = useState<RoleFromBackend[]>([]);
   const [loading, setLoading] = useState(true);
+  const [firstLoad, setfirstLoad] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -199,6 +200,7 @@ const EmployeesPage: React.FC = () => {
   const loadEmployees = async () => {
     try {
       setLoading(true);
+      setfirstLoad(false);
       setError('');
       const response = await employeeService.getAll();
       
@@ -539,7 +541,7 @@ const EmployeesPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {loading ? (
+              {(loading && firstLoad) ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center">
                     <div className="flex justify-center items-center gap-2">

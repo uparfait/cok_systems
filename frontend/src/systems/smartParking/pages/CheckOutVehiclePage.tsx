@@ -48,6 +48,7 @@ const CheckOutVehiclePage: React.FC = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [firstLoad, setFirstLoad] = useState(true);
   
   // Modal state
   const [showActionModal, setShowActionModal] = useState(false);
@@ -148,6 +149,7 @@ const CheckOutVehiclePage: React.FC = () => {
       showError('Failed to load parking records');
     } finally {
       setLoading(false);
+      setFirstLoad(false);
     }
   };
 
@@ -313,7 +315,7 @@ const CheckOutVehiclePage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100/50">
-                {loading ? (
+                {(loading && firstLoad)? (
                   <tr>
                     <td colSpan={9} className="px-3 py-8 text-center text-gray-500 text-sm">
                       Loading...
