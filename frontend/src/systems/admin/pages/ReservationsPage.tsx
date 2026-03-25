@@ -41,6 +41,8 @@ interface Reservation {
   visitor_name: string;
   plate_number: string;
   telephone: string;
+  id_type?: string;
+  id_number?: string;
   expected_arrival: string;
   type: 'visitor' | 'staff';
   status: 'active' | 'expired' | 'cancelled';
@@ -322,52 +324,71 @@ const ReservationsPage: React.FC = () => {
     setReservationToCancel(null);
   };
 
-  // Download Visitor Template (Headers only - no sample data)
+  // Download Visitor Template - Clean format matching backend expectations
   const downloadVisitorTemplate = () => {
+    // Headers exactly as backend expects
     const headers = ['Name', 'Plate Number', 'ID Type', 'ID Number', 'Phone', 'Slot Number'];
-    const title1 = 'Republic of Rwanda';
-    const title2 = 'City of Kigali - Visitor Parking Reservation';
-    const title3 = 'Please fill in the details below:';
     
-    const csvContent = '\ufeff' + 
-      `"${title1}"\n"${title2}"\n"${title3}"\n` + 
-      headers.join(',') + '\n';
+    // Create CSV content with proper formatting - NO title rows
+    const csvRows = [];
+    
+    // Add headers as first row
+    csvRows.push(headers.join(','));
+    
+    // Add 3 empty example rows with default values to guide users
+    // Using NID as default ID type
+    csvRows.push(['', '', 'NID', '', '', ''].join(','));
+    csvRows.push(['', '', 'NID', '', '', ''].join(','));
+    csvRows.push(['', '', 'NID', '', '', ''].join(','));
+    
+    // Add BOM for UTF-8 encoding to handle special characters
+    const csvContent = '\ufeff' + csvRows.join('\n');
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'visitor_reservation_template.csv';
     link.click();
-    showSuccess('Visitor template downloaded successfully');
+    showSuccess('Visitor template downloaded successfully. Please fill in the data and upload.');
   };
 
-  // Download Staff Template (Headers only - no sample data)
+  // Download Staff Template - Clean format matching backend expectations
   const downloadStaffTemplate = () => {
+    // Headers exactly as backend expects
     const headers = ['Staff Name', 'Plate Number', 'Phone', 'Department', 'Title', 'ID Type', 'ID Number'];
-    const title1 = 'Republic of Rwanda';
-    const title2 = 'City of Kigali - Staff Parking Allocation';
-    const title3 = 'Please fill in the details below:';
     
-    const csvContent = '\ufeff' + 
-      `"${title1}"\n"${title2}"\n"${title3}"\n` + 
-      headers.join(',') + '\n';
+    // Create CSV content with proper formatting - NO title rows
+    const csvRows = [];
+    
+    // Add headers as first row
+    csvRows.push(headers.join(','));
+    
+    // Add 3 empty example rows with default values to guide users
+    // Using NID as default ID type
+    csvRows.push(['', '', '', '', '', 'NID', ''].join(','));
+    csvRows.push(['', '', '', '', '', 'NID', ''].join(','));
+    csvRows.push(['', '', '', '', '', 'NID', ''].join(','));
+    
+    // Add BOM for UTF-8 encoding to handle special characters
+    const csvContent = '\ufeff' + csvRows.join('\n');
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'staff_booking_template.csv';
     link.click();
-    showSuccess('Staff template downloaded successfully');
+    showSuccess('Staff template downloaded successfully. Please fill in the data and upload.');
   };
 
   const handleDownloadHistory = () => {
-    const headers = ['Name', 'Plate Number', 'Telephone', 'Type', 'Status'];
+    const headers = ['Name', 'Plate Number', 'ID Number', 'Telephone', 'Type', 'Status'];
     const csvRows: string[] = [headers.join(',')];
     
     reservations.forEach(res => {
       const row = [
         `"${res.visitor_name.replace(/"/g, '""')}"`,
         `"${res.plate_number.replace(/"/g, '""')}"`,
+        `"${res.id_number || ''}"`,
         `"${res.telephone?.replace(/"/g, '""') || ''}"`,
         res.type,
         res.status
@@ -532,6 +553,37 @@ const ReservationsPage: React.FC = () => {
                         className="w-full pl-9 pr-3 py-2 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
+                      ID Type
+                    </label>
+                    <select
+                      name="id_type"
+                      value={visitorFormData.id_type}
+                      onChange={handleVisitorInputChange}
+                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    >
+                      <option value="NID">National ID</option>
+                      <option value="Passport">Passport</option>
+                      <option value="Driving Permit">Driving Permit</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
+                      ID Number
+                    </label>
+                    <input
+                      type="text"
+                      name="id_number"
+                      value={visitorFormData.id_number}
+                      onChange={handleVisitorInputChange}
+                      placeholder="Enter ID number"
+                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    />
                   </div>
                 </div>
                 
@@ -806,6 +858,7 @@ const ReservationsPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Rest of the component remains the same */}
         {/* Reservations Table Section - Responsive with mobile card view */}
         <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-4 sm:px-6 py-3 sm:py-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
@@ -867,8 +920,8 @@ const ReservationsPage: React.FC = () => {
                   <tr>
                     <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Visitor Name</th>
                     <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Plate Number</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">ID Number</th>
                     <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Telephone</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Expected Arrival</th>
                     <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
                     <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                     <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
@@ -885,13 +938,10 @@ const ReservationsPage: React.FC = () => {
                           <span className="text-sm text-gray-600">{reservation.plate_number}</span>
                         </td>
                         <td className="px-4 sm:px-6 py-3 sm:py-4">
-                          <span className="text-sm text-gray-600">{reservation.telephone}</span>
+                          <span className="text-sm text-gray-600">{reservation.id_number || 'N/A'}</span>
                         </td>
                         <td className="px-4 sm:px-6 py-3 sm:py-4">
-                          <span className="inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                            <FiClock className="w-3 h-3 mr-1" />
-                            {reservation.expected_arrival}
-                          </span>
+                          <span className="text-sm text-gray-600">{reservation.telephone}</span>
                         </td>
                         <td className="px-4 sm:px-6 py-3 sm:py-4">
                           <span className={`inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-medium ${
@@ -985,15 +1035,12 @@ const ReservationsPage: React.FC = () => {
                     </div>
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center justify-between">
-                        <span className="text-gray-500">Phone:</span>
-                        <span className="text-gray-700">{reservation.telephone}</span>
+                        <span className="text-gray-500">ID Number:</span>
+                        <span className="text-gray-700">{reservation.id_number || 'N/A'}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-gray-500">Arrival:</span>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                          <FiClock className="w-3 h-3 mr-1" />
-                          {reservation.expected_arrival}
-                        </span>
+                        <span className="text-gray-500">Phone:</span>
+                        <span className="text-gray-700">{reservation.telephone}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-500">Type:</span>
@@ -1108,7 +1155,7 @@ const ReservationsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Modals remain the same but with responsive classes */}
+      {/* Modals remain the same */}
       <ConfirmModal
         isOpen={showCancelModal}
         onCancel={closeCancelModal}
@@ -1149,6 +1196,7 @@ const ReservationsPage: React.FC = () => {
                       <tr>
                         <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-600 uppercase">Name</th>
                         <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-600 uppercase">Plate</th>
+                        <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-600 uppercase">ID Number</th>
                         <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-600 uppercase">Phone</th>
                         <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-600 uppercase">Type</th>
                         <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
@@ -1159,6 +1207,7 @@ const ReservationsPage: React.FC = () => {
                         <tr key={res.id} className="hover:bg-gray-50">
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900 break-words">{res.visitor_name}</td>
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">{res.plate_number}</td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">{res.id_number || 'N/A'}</td>
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">{res.telephone}</td>
                           <td className="px-3 sm:px-4 py-2 sm:py-3">
                             <span className={`inline-flex px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-medium ${

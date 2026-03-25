@@ -26,6 +26,7 @@ interface VehicleData {
   is_flagged?: boolean;
   was_ever_flagged?: boolean;
   badge_number?: string;
+  identification?: any;
   driver_details?: {
     name?: string;
     telephone?: string;
@@ -362,17 +363,15 @@ const SmartParkingDashboard: React.FC = () => {
       return;
     }
 
-    if (!driverInfo.badge_number?.trim()) {
+    if (!verifiedData.is_reserved && !driverInfo.badge_number?.trim()) {
       showWarning('Badge number is required');
       return;
     }
     
     setLoading(true);
     try {
-      // Get identification from verified data or driver info
-      const identification = driverInfo.national_id 
-        ? { id_type: driverInfo.id_type || 'National ID', number: driverInfo.national_id }
-        : verifiedData.driver_details?.identification || verifiedData.identification || null;
+      // Get identification from verified data
+      const identification = verifiedData.driver_details?.identification || null;
       
       const response = await smartParkingService.checkIn({
         plate_number: verifiedData.plate_number,
@@ -956,8 +955,13 @@ const SmartParkingDashboard: React.FC = () => {
                   <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                     <FiUser className="w-4 h-4 text-blue-500" />
                     Driver Information
+                    {verifiedData.is_reserved && (
+                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+                        Reserved
+                      </span>
+                    )}
                   </h4>
-                  {!verifiedData.is_currently_parked && (
+                  {!verifiedData.is_currently_parked && !verifiedData.is_reserved && (
                     <button
                       onClick={() => setIsEditingDriver(!isEditingDriver)}
                       className="text-xs flex items-center gap-1 px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg text-blue-600 transition-colors"
@@ -969,7 +973,7 @@ const SmartParkingDashboard: React.FC = () => {
                 </div>
 
                 {isEditingDriver ? (
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <input
                       type="text"
                       name="name"
@@ -986,19 +990,19 @@ const SmartParkingDashboard: React.FC = () => {
                       placeholder="Phone number"
                       className="w-full px-3 py-2 bg-white/50 backdrop-blur border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
                     />
-                    <div>
+                    <div className="col-span-2">
                       <input
                         type="text"
                         name="badge_number"
                         value={driverInfo.badge_number}
                         onChange={handleDriverInfoChange}
-                        placeholder="Badge number *"
+                        placeholder={verifiedData.is_reserved ? "Badge number (optional for reserved)" : "Badge number *"}
                         className="w-full px-3 py-2 bg-white/50 backdrop-blur border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                        required
+                        required={!verifiedData.is_reserved}
                       />
                       <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                         <FiInfo className="w-3 h-3" />
-                        Required for check-in
+                        {verifiedData.is_reserved ? 'Optional for reserved vehicles' : 'Required for check-in'}
                       </p>
                     </div>
                   </div>
@@ -1015,7 +1019,7 @@ const SmartParkingDashboard: React.FC = () => {
                     <div className="flex items-center gap-3 p-2 bg-white/50 backdrop-blur rounded-lg">
                       <FaRegIdCard className="w-4 h-4 text-gray-400" />
                       <span className="text-sm text-gray-700 font-medium">
-                        Badge: {driverInfo.badge_number || 'Not specified'}
+                        Badge: {driverInfo.badge_number || (verifiedData.is_reserved ? '___ (Reserved)' : 'Not specified')}
                       </span>
                     </div>
                   </div>
