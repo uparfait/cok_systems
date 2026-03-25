@@ -67,14 +67,13 @@ module.exports = async function visitor_checkout(req, res, next) {
             });
 
             // Notify provider if they forgot to stop service
-            if (active_service.provider_id) {
-                const websocketUtils = require('../../../utilities/websocket_utils.js');
-                websocketUtils.emitToUser(global.WebsocketIO, active_service.provider_id, 'you_forgot_to_stop_service', {
+            if (active_service.provider_id && global.WebsocketIO) {
+                global.WebsocketIO.to(`PRIVATE_ROOM_${active_service.provider_id}`).emit('you_forgot_to_stop_service', {
                     show_notif: true,
                     type: 'warning',
                     to: active_service.provider_id,
                     visitor_id: visitor._id,
-                    message: `You forgot to stop the service for visitor ${visitor.full_name} in department ${active_service.department_name}. Auto-stopped on checkout.`
+                    message: `You forgot to stop the service for visitor ${visitor.full_name} in department ${active_service.department_name}. We stopped it for you but please be careful next time.`
                 });
             }
 
@@ -84,13 +83,14 @@ module.exports = async function visitor_checkout(req, res, next) {
 
         const updated_visitor = await visitor.save();
 
-        // Emit WebSocket notification
-        const websocketUtils = require('../../../utilities/websocket_utils.js');
-        websocketUtils.emitToSystem(global.WebsocketIO, 'service_delivery', 'visitor_checkedout', {
-            show_notif: true,
-            type: is_car_still_parked ? 'warning' : 'info',
-            message: is_car_still_parked ? `Visitor ${visitor.full_name} checked-out but car still parked` : `Visitor ${visitor.full_name} fully checked out`
-        });
+        // Emit WebSocket notification (with null check)
+        if (global.WebsocketIO) {
+            global.WebsocketIO.to('SYSTEM_service_delivery').emit('visitor_checkedout', {
+                show_notif: true,
+                type: is_car_still_parked ? 'warning' : 'info',
+                message: is_car_still_parked ? `Visitor ${visitor.full_name} checked-out but car still parked` : `Visitor ${visitor.full_name} fully checked out`
+            });
+        }
 
         return res.status(200).json({
             success: true,
