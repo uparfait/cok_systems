@@ -22,6 +22,7 @@ interface VisitorRecord {
     id_type?: string;
     number?: string;
   };
+  driver_identification?: any;
   vehicle_storage?: {
     has_vehicle: boolean;
     vehicle_details?: {
@@ -446,8 +447,10 @@ const CheckOutPersonPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
-                        <span className="text-gray-600 text-sm font-mono">
-                          {record.identification?.number || '_____'}
+                        <span className="text-gray-600 text-sm">
+                          {typeof record.driver_identification === 'object' 
+                            ? (record.driver_identification?.number || record.identification?.number || '_____') 
+                            : record.driver_identification || '_____'}
                         </span>
                       </td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
