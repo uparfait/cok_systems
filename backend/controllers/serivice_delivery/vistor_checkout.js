@@ -67,8 +67,9 @@ module.exports = async function visitor_checkout(req, res, next) {
             });
 
             // Notify provider if they forgot to stop service
-            if (active_service.provider_id && global.WebsocketIO) {
-                global.WebsocketIO.to(`PRIVATE_ROOM_${active_service.provider_id}`).emit('you_forgot_to_stop_service', {
+            if (active_service.provider_id) {
+                const websocketUtils = require('../../../utilities/websocket_utils.js');
+                websocketUtils.emitToUser(global.WebsocketIO, active_service.provider_id, 'you_forgot_to_stop_service', {
                     show_notif: true,
                     type: 'warning',
                     to: active_service.provider_id,
