@@ -33,14 +33,9 @@ module.exports = async function visitor_checkout(req, res, next) {
                 status: 'active'
             });
 
-            // if is car still parked stop from deny checkout
+            // if is car still parked deny checkout
             if (active_parking) {
-                return res.status(200).json({
-                    success: true,
-                    type: 'warning',
-                    message: "Action denied this vistor has a car please user Vehicle link at left sidebar",
-                    data: visitor
-                });
+                is_car_still_parked = true;
             }
         }
 
@@ -51,31 +46,27 @@ module.exports = async function visitor_checkout(req, res, next) {
             visitor.is_still_inhouse = false;
         }
 
-        // check if there is any working service and desable it as below codes doese
-
-        // cancled all active services and store into service tracking if ignored use as above code
-
+        // Cancel all active services and store into service tracking
         let active_services = visitor.services_status.filter(s => s.s_type === 'Inprogress');
         for (let active_service of active_services) {
-            const current_time = new Date();
+            const service_time = new Date();
             const assigned_dept = visitor.departments_assigned.find(d => d.department_id === active_service.department_id);
             const start_time = assigned_dept ? assigned_dept.assigned_time : visitor.entry_date;
-            const duration_minutes = Math.round((current_time - new Date(start_time)) / 60000);
+            const duration_minutes = Math.round((service_time - new Date(start_time)) / 60000);
             const duration_str = `${duration_minutes} mins`;
 
-            //  Save to ServiceTracking Model
+            // Save to ServiceTracking Model
             await ServiceTracking.create({
                 department_id: active_service.department_id,
                 department_name: active_service.department_name,
                 duration: duration_str,
                 started_at: start_time,
-                ended_at: current_time,
+                ended_at: service_time,
                 provider_name: active_service.provider_name || 'Not specified',
                 provider_id: active_service.provider_id || 'Not specified'
             });
 
-            // check if provider id exists and announce to him/her that forgot too stop service but stopped
-
+            // Notify provider if they forgot to stop service
             if (active_service.provider_id) {
 
                 if (global.WebsocketIO && global.WebsocketIO.emitToUser) {
@@ -90,24 +81,24 @@ module.exports = async function visitor_checkout(req, res, next) {
 
             }
 
-            // Update the service status to 'Completed'
+            // Update service status to 'Completed'
             active_service.s_type = 'Completed';
         }
 
         const updated_visitor = await visitor.save();
 
-        if (global.WebsocketIO && global.WebsocketIO.emitToSystem) {
-            global.WebsocketIO.emitToSystem('service_delivery', 'visitor_checkedout', {
-                show_notif: is_car_still_parked,
-                type: is_car_still_parked ? 'warning' : 'info',
-                message: is_car_still_parked ? `Visitor ${visitor.full_name} checked-out. But car still parked` : `Visitor ${visitor.full_name} checked out.`
-            });
-        }
+        // Emit WebSocket notification
+        const websocketUtils = require('../../../utilities/websocket_utils.js');
+        websocketUtils.emitToSystem(global.WebsocketIO, 'service_delivery', 'visitor_checkedout', {
+            show_notif: true,
+            type: is_car_still_parked ? 'warning' : 'info',
+            message: is_car_still_parked ? `Visitor ${visitor.full_name} checked-out but car still parked` : `Visitor ${visitor.full_name} fully checked out`
+        });
 
         return res.status(200).json({
             success: true,
             type: is_car_still_parked ? 'warning' : 'success',
-            message: is_car_still_parked ? "Visitor checked-out. But car still parked." : "Visitor checked out.",
+            message: is_car_still_parked ? "Visitor checked-out but car still parked (use parking checkout)" : "Visitor fully checked out",
             data: updated_visitor
         });
 
@@ -116,3 +107,4 @@ module.exports = async function visitor_checkout(req, res, next) {
         return res.status(500).json({ success: false, type: "error", message: "Checkout failed", error: error.message });
     }
 };
+
