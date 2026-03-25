@@ -139,9 +139,9 @@ async function HandleReatime(socket) {
         }
     })
 
-    // Send test message only to authenticated users
-    if (socket.user && global.WebsocketIO) {
-        global.WebsocketIO.emit('service_delivery_test', { 
+    // Send test message only to the connecting socket (not all users)
+    if (socket.user && socket) {
+        socket.emit('service_delivery_test', { 
             message: 'This is a real-time update from the server!',
             authenticated: true,
             user: socket.user.email
