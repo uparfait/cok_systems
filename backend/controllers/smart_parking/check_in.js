@@ -166,9 +166,8 @@ module.exports = async function car_check_in(req, res, next) {
             await service_delivery.save()
         }
 
-        const websocketUtils = require('../../../utilities/websocket_utils.js');
-        if (websocketUtils && global.WebsocketIO) {
-            websocketUtils.emitToSystems(global.WebsocketIO, ['smart_parking', 'service_delivery'], 'car_checkedin', { 
+        if (global.WebsocketIO && global.WebsocketIO.emitToSystems) {
+            global.WebsocketIO.emitToSystems(['smart_parking', 'service_delivery'], 'car_checkedin', { 
                 show_notif: false,
                 type: 'info',
                 message: 'New car checked in: ' + plate_number
