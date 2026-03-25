@@ -99,7 +99,11 @@ async function verifySocketToken(token) {
 module.exports = async function InitialiseAllRealtimeServices() {
 
     try {
-        const io = WebsocketIO
+        const io = global.WebsocketIO;
+        if (!io) {
+            console.error('global.WebsocketIO not available. Ensure WebSocketService.initWebsocket() ran first.');
+            return false;
+        }
 
         io.use(async (socket, next) => {
             // Get token from socket handshake headers
