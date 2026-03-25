@@ -105,7 +105,14 @@ module.exports = async function car_check_out(req, res, next) {
 
             if (active_service.provider_id) {
 
-                const websocketUtils = require('../../../utilities/websocket_utils.js');
+                // Wrap in try-catch to handle potential module loading issues
+                let websocketUtils;
+                try {
+                    websocketUtils = require('../../../utilities/websocket_utils.js');
+                } catch (err) {
+                    console.error('[WebSocket] Failed to load websocket_utils:', err.message);
+                }
+                
                 if (websocketUtils && global.WebsocketIO) {
                     websocketUtils.emitToUser(global.WebsocketIO, active_service.provider_id, 'you_forgot_to_stop_service', {
                         show_notif: true,
@@ -182,7 +189,14 @@ module.exports = async function car_check_out(req, res, next) {
         }
         // ================================================================
 
-        const websocketUtils = require('../../../utilities/websocket_utils.js');
+        // Wrap in try-catch to handle potential module loading issues
+        let websocketUtils;
+        try {
+            websocketUtils = require('../../../utilities/websocket_utils.js');
+        } catch (err) {
+            console.error('[WebSocket] Failed to load websocket_utils:', err.message);
+        }
+        
         if (websocketUtils && global.WebsocketIO) {
             websocketUtils.emitToSystems(global.WebsocketIO, ['smart_parking', 'service_delivery'], 'car_checkedout', { 
                 show_notif: is_flagged,

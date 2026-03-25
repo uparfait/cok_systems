@@ -434,15 +434,16 @@ async function SendInBoxMessagesToClient(socket) {
  * @param {object} message - Message object
  */
 async function SendInboxMessageToUser(userId, message) {
-    const userSocketId = GetUserSocketId(userId);
-    if (userSocketId) {
-        global.WebsocketIO.to(userSocketId).emit('new_inbox_message', message);
+    if (!global.WebsocketIO) {
+        console.warn('[Chat] Cannot send inbox message: WebSocket not initialized');
+        return;
     }
-    // Also emit to the sender
-    const senderSocketId = GetUserSocketId(message.sender.userId);
-    if (senderSocketId) {
-        global.WebsocketIO.to(senderSocketId).emit('new_inbox_message', message);
-    }
+    
+    // Emit to receiver's private room (handles multi-tab/connections)
+    global.WebsocketIO.to(Private_Room(userId)).emit('new_inbox_message', message);
+    
+    // Emit to sender's private room
+    global.WebsocketIO.to(Private_Room(message.sender.userId)).emit('new_inbox_message', message);
 }
 
 // Store user socket mappings
