@@ -142,6 +142,14 @@ module.exports = async function InitialiseAllRealtimeServices() {
                 socket.join(Global_ChatRoom());
                 socket.join(Private_Room(socket.user.userId));
                 socket.join(RoleBased_Room(socket.user.role));
+                
+                // Join system-specific rooms
+                const rbac = require('../../utilities/rbac.js');
+                const userSystems = rbac.getUserSystems(socket.user.role);
+                userSystems.forEach(system => {
+                    socket.join(`SYSTEM_${system}`);
+                    console.log(`Socket ${socket.id} joined SYSTEM_${system}`);
+                });
             }
 
             // update this user as active in database if user exists
@@ -166,6 +174,13 @@ module.exports = async function InitialiseAllRealtimeServices() {
                     socket.leave(Global_ChatRoom());
                     socket.leave(Private_Room(socket.user.userId));
                     socket.leave(RoleBased_Room(socket.user.role));
+                    
+                    // Leave system-specific rooms
+                    const rbac = require('../../utilities/rbac.js');
+                    const userSystems = rbac.getUserSystems(socket.user.role);
+                    userSystems.forEach(system => {
+                        socket.leave(`SYSTEM_${system}`);
+                    });
                 }
 
                 // update this user as inactive in database if user exists
