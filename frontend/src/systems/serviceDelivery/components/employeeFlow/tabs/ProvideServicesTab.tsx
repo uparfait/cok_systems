@@ -1,5 +1,5 @@
 // ProvideServicesTab - Service Provision page with Serve Modal
-// NOW REUSABLE: Can be embedded in the Dashboard or viewed standalone
+// NOW REUSABLE: Can be embedded in the Dashboard or viewed standalone.
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
