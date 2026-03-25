@@ -84,11 +84,13 @@ module.exports = async function toggle_temporary_leave(req, res, next) {
 
 
                 const websocketUtils = require('../../../utilities/websocket_utils.js');
-                websocketUtils.emitToSystem(global.WebsocketIO, 'service_delivery', 'leave_return', { 
-                    show_notif: true,
-                    type: 'info',
-                    message: "Visitor " + visitor.full_name + " With plate number " + visitor.vehicle_storage?.vehicle_details?.plate_number + " has " + (action.toLowerCase() === 'leave' ? "stepped outside temporarily." : "returned inside.")
-                 });
+                if (websocketUtils && global.WebsocketIO) {
+                    websocketUtils.emitToSystem(global.WebsocketIO, 'service_delivery', 'leave_return', { 
+                        show_notif: true,
+                        type: 'info',
+                        message: "Visitor " + visitor.full_name + " With plate number " + visitor.vehicle_storage?.vehicle_details?.plate_number + " has " + (action.toLowerCase() === 'leave' ? "stepped outside temporarily." : "returned inside.")
+                     });
+                }
 
         return res.status(200).json({
             success: true,
