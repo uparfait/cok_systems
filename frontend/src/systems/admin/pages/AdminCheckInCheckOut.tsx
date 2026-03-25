@@ -91,6 +91,7 @@ const AdminCheckInCheckOut: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'inside' | 'left' | 'pending'>('inside');
   const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
+  const [firstLoad, setFirstLoad] = useState(true);
   
   // Pagination state
   const [pagination, setPagination] = useState<PaginationInfo>({
@@ -103,6 +104,7 @@ const AdminCheckInCheckOut: React.FC = () => {
   // Fetch visitors data with pagination
   const fetchVisitors = useCallback(async (page: number = 1) => {
     setLoading(true);
+    setFirstLoad(false);
     try {
       // Fetch both inside and left visitors with pagination
       const [insideResponse, leftResponse] = await Promise.all([
@@ -131,6 +133,7 @@ const AdminCheckInCheckOut: React.FC = () => {
       showError('Failed to load visitors');
     } finally {
       setLoading(false);
+      setFirstLoad(false);
     }
   }, [pagination.limit, showError]);
 
@@ -642,7 +645,7 @@ const AdminCheckInCheckOut: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {loading ? (
+                {(loading &&firstLoad) ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-8 text-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-2 border-green-500 border-t-transparent mx-auto"></div>

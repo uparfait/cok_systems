@@ -78,13 +78,14 @@ module.exports = async function visitor_checkout(req, res, next) {
 
             if (active_service.provider_id) {
 
-                global.WebsocketIO?.emit('you_forgot_to_stop_service', {
+                const websocketUtils = require('../../../utilities/websocket_utils.js');
+                websocketUtils.emitToUser(global.WebsocketIO, active_service.provider_id, 'you_forgot_to_stop_service', {
                     show_notif: true,
                     type: 'warning',
                     to: active_service.provider_id,
                     visitor_id: visitor._id,
                     message: `You forgot to stop the service for visitor ${visitor.full_name} in department ${active_service.department_name}. We stopped it for you but please be careful next time.`
-                })
+                });
 
             }
 
@@ -94,11 +95,12 @@ module.exports = async function visitor_checkout(req, res, next) {
 
         const updated_visitor = await visitor.save();
 
-        global.WebsocketIO?.emit('visitor_checkedout', {
+        const websocketUtils = require('../../../utilities/websocket_utils.js');
+        websocketUtils.emitToSystem(global.WebsocketIO, 'service_delivery', 'visitor_checkedout', {
             show_notif: is_car_still_parked,
             type: is_car_still_parked ? 'warning' : 'info',
             message: is_car_still_parked ? `Visitor ${visitor.full_name} checked-out. But car still parked` : `Visitor ${visitor.full_name} checked out.`
-        })
+        });
 
         return res.status(200).json({
             success: true,

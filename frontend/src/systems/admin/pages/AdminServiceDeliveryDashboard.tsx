@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
-import { statisticsService, serviceDeliveryService } from '../../../core/services/adminService';
+import { statisticsService, serviceDeliveryService, departmentService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import { useToast } from '../../../core/contexts/ToastContext';
@@ -69,6 +69,8 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
 
   // State
   const [loading, setLoading] = useState(true);
+  const [firstLoad, setfirstLoad] = useState(true);
+  const [departmentCount, setDepartmentCount] = useState(0);
   const [stats, setStats] = useState<ServiceDeliveryStats>({
     total: 0,
     inhouse: 0,
@@ -80,6 +82,10 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Fetch dashboard data
   const fetchDashboardData = useCallback(async () => {
@@ -94,6 +100,12 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
       const statsResponse = await statisticsService.getServiceDeliveryStats();
       const statsData = statsResponse?.data || statsResponse || {};
       setStats(statsData);
+
+      // Fetch departments count
+      const deptResponse = await departmentService.getAll();
+      const departments = deptResponse?.data || deptResponse || [];
+      const activeDepts = Array.isArray(departments) ? departments.filter((d: any) => d.status !== 'inactive').length : 0;
+      setDepartmentCount(activeDepts);
 
       // Fetch all visitors (both inside and left)
       const [insideResponse, leftResponse] = await Promise.all([
@@ -110,6 +122,7 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
       showError('Failed to load service delivery data');
     } finally {
       setLoading(false);
+      setfirstLoad(false);
     }
   }, [showError]);
 
@@ -139,6 +152,11 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
     
     return matchesSearch && matchesStatus;
   });
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter]);
 
   // Get department name from visitor
   const getDepartmentName = (visitor: Visitor): string => {
@@ -408,7 +426,7 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-500">Departments</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {Object.keys(stats.by_department).length}
+                  {departmentCount}
                 </p>
               </div>
               <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
@@ -425,7 +443,7 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
             <span className="text-sm text-gray-500">Hourly check-ins</span>
           </div>
           
-          {loading ? (
+          {(loading && firstLoad) ? (
             <div className="h-64 flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-2 border-green-500 border-t-transparent"></div>
             </div>
@@ -445,8 +463,22 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
                     tickFormatter={(value) => `${value.toString().padStart(2, '0')}:00`}
                     stroke="#9ca3af"
                     fontSize={12}
+                    label={{
+                      value: 'Hour of Day',
+                      position: 'insideBottom',
+                      offset:0,
+                      style: { fill: '#6b7280', fontSize: 11, fontWeight: 500 }
+                    }}
                   />
-                  <YAxis stroke="#9ca3af" fontSize={12} />
+                  <YAxis stroke="#9ca3af" fontSize={12}
+                   label={{ 
+                    value: 'Number of Visitors', 
+                    angle: -90, 
+                    position: 'insideLeft',
+                    style: { fill: '#6b7280', fontSize: 12, fontWeight: 500, textAnchor: 'middle' },
+                    offset: 20
+            }}
+                  />
                   <Tooltip 
                     formatter={(value: any) => [value || 0, 'Visitors']}
                     labelFormatter={(label) => `${label}:00`}
@@ -507,9 +539,9 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Visitor Name</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Department</th>
@@ -528,7 +560,7 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
                     </td>
                   </tr>
                 ) : filteredVisitors.length > 0 ? (
-                  filteredVisitors.slice(0, 50).map((visitor, index) => {
+                  filteredVisitors.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((visitor, index) => {
                     const statusDisplay = getStatusDisplay(visitor);
                     return (
                       <tr key={visitor._id || index} className="hover:bg-gray-50">
@@ -576,6 +608,47 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {filteredVisitors.length > 0 && (
+            <div className="px-5 py-4 border-t border-gray-100 flex items-center justify-between">
+              <div className="text-sm text-gray-500">
+                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredVisitors.length)} of {filteredVisitors.length} entries
+              </div>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  Previous
+                </button>
+                {Array.from({ length: Math.ceil(filteredVisitors.length / itemsPerPage) }, (_, i) => i + 1).slice(
+                  Math.max(0, currentPage - 3),
+                  Math.min(Math.ceil(filteredVisitors.length / itemsPerPage), currentPage + 2)
+                ).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-3 py-1 border rounded-lg text-sm ${
+                      currentPage === page
+                        ? 'bg-green-600 text-white border-green-600'
+                        : 'border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredVisitors.length / itemsPerPage), p + 1))}
+                  disabled={currentPage >= Math.ceil(filteredVisitors.length / itemsPerPage)}
+                  className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>
