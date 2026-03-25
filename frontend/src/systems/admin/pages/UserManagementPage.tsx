@@ -26,6 +26,7 @@ const UserManagementPage: React.FC = () => {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();  
   const [users, setUsers] = useState<UserWithLock[]>([]);
   const [loading, setLoading] = useState(false);
+  const [firstLoad, setfirstLoad] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredUsers, setFilteredUsers] = useState<UserWithLock[]>([]);
@@ -75,6 +76,7 @@ const UserManagementPage: React.FC = () => {
       setError(err.response?.data?.message || 'Failed to load users');
     } finally {
       setLoading(false);
+      setfirstLoad(false);
     }
   };
 
@@ -242,7 +244,7 @@ const UserManagementPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
+              {(loading && firstLoad) ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center">
                     <div className="flex justify-center items-center gap-2">

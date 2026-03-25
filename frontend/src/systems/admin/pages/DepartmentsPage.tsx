@@ -43,6 +43,7 @@ const DepartmentsPage: React.FC = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [firstLoad, setfirstLoad] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -89,6 +90,7 @@ const DepartmentsPage: React.FC = () => {
     try {
       setLoading(true);
       setError('');
+      setfirstLoad(false);
       
       console.log('Loading departments and employees...');
       
@@ -447,7 +449,7 @@ const DepartmentsPage: React.FC = () => {
 
       {/* Departments Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {loading ? (
+        {(loading && firstLoad) ? (
           <div className="col-span-full">
             <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
               <div className="flex justify-center items-center gap-2">
