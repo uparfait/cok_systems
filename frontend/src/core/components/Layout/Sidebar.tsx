@@ -35,7 +35,7 @@ interface SidebarLink {
   isParent: boolean;
   isExpandable?: boolean;
   parentId?: string;
-  children?: SidebarLink[]; // Children embedded in parent
+  children?: SidebarLink[]; 
 }
 
 interface SidebarProps {
@@ -48,7 +48,6 @@ interface SidebarProps {
   userDepartment: string;
 }
 
-// Icon mapping
 const getIcon = (iconName: string): React.ComponentType<any> => {
   const icons: { [key: string]: React.ComponentType<any> } = {
     FiHome,
@@ -79,7 +78,6 @@ const getIcon = (iconName: string): React.ComponentType<any> => {
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ 
-  // isOpen prop is kept for potential future use (e.g., animation control)
   onToggle, 
   isDesktop = true,
   links, 
@@ -90,25 +88,15 @@ const Sidebar: React.FC<SidebarProps> = ({
   const location = useLocation();
   const { user, logout } = useAuth();
   
-  // Track which dropdowns are expanded - auto-expand based on URL
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(() => {
     const initial = new Set<string>();
-    // Find which parent should be expanded based on current path
     links.forEach(link => {
       const children = link.children || [];
       const linkPath = link.path;
-      // Check if this link or any child should be active
       let isLinkActive = currentPath === linkPath || location.pathname.startsWith(linkPath + '/');
       if (!isLinkActive && children.length > 0) {
         for (const child of children) {
           if (currentPath === child.path || location.pathname.startsWith(child.path + '/')) {
-            isLinkActive = true;
-            break;
-          }
-          // Check path segments
-          const childPathParts = child.path.split('/').slice(0, 3).join('/');
-          const currentPathParts = currentPath.split('/').slice(0, 3).join('/');
-          if (childPathParts === currentPathParts) {
             isLinkActive = true;
             break;
           }
@@ -121,7 +109,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     return initial;
   });
 
-  // Toggle dropdown
   const toggleMenu = (menuId: string) => {
     setExpandedMenus(prev => {
       const next = new Set(prev);
@@ -134,24 +121,14 @@ const Sidebar: React.FC<SidebarProps> = ({
     });
   };
 
-  // Keep dropdown expanded when navigating between child pages - URL based
   useEffect(() => {
-    // Find which parent should be expanded based on current path
     links.forEach(link => {
       const children = link.children || [];
       const linkPath = link.path;
-      // Check if this link or any child should be active
       let isLinkActive = currentPath === linkPath || location.pathname.startsWith(linkPath + '/');
       if (!isLinkActive && children.length > 0) {
         for (const child of children) {
           if (currentPath === child.path || location.pathname.startsWith(child.path + '/')) {
-            isLinkActive = true;
-            break;
-          }
-          // Check path segments
-          const childPathParts = child.path.split('/').slice(0, 3).join('/');
-          const currentPathParts = currentPath.split('/').slice(0, 3).join('/');
-          if (childPathParts === currentPathParts) {
             isLinkActive = true;
             break;
           }
@@ -171,7 +148,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     });
   }, [location.pathname, currentPath, links]);
 
-  // Handle navigation
   const handleNavigation = (path: string) => {
     onNavigate(path);
     if (!isDesktop) {
@@ -179,17 +155,14 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  // Get user display info
   const displayName = user?.fullName || 'User';
   const displayRole = user?.role || 'Guest';
   
-  // Get first two initials
   const nameParts = displayName.trim().split(' ').filter(part => part.length > 0);
   const userInitial = nameParts.length >= 2 
     ? (nameParts[0].charAt(0) + nameParts[1].charAt(0)).toUpperCase()
     : displayName.charAt(0).toUpperCase();
 
-  // Handle logout
   const handleLogout = async () => {
     try {
       await logout();
@@ -199,55 +172,73 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  // Check if a link is active - check both direct match and if current path belongs to children
+  // 👉 FIXED: Bulletproof tab-aware routing logic
   const isActive = (path: string, children?: SidebarLink[]): boolean => {
-    // Get pathname and remove query params for comparison
-    const pathnameOnly = location.pathname;
-    const pathOnly = path.split('?')[0];
+    const currentPathname = location.pathname;
+    const currentSearch = location.search;
+    const currentFullPath = currentPathname + currentSearch;
     
-    // Direct match (both without query params)
-    if (pathnameOnly === pathOnly) return true;
-    // Direct match including query params (for tabs)
-    if (currentPath === path) return true;
-    // Check if path with query params matches (e.g., /page?q=1)
-    if (currentPath.startsWith(pathOnly)) return true;
-    // Starts with path + '/' (for sub-routes)
-    if (pathnameOnly.startsWith(pathOnly + '/')) return true;
-    // Check if current path is any of the children paths
-    if (children && children.length > 0) {
-      for (const child of children) {
-        const childPathOnly = child.path.split('?')[0];
-        if (pathnameOnly === childPathOnly || currentPath === child.path || pathnameOnly.startsWith(child.path + '/')) {
-          return true;
-        }
-        // Also check parent path segments (e.g., /smart-parking/checkin-vehicle for /smart-parking/checkin-person)
-        const childPathParts = child.path.split('/').slice(0, 3).join('/');
-        const currentPathParts = pathnameOnly.split('/').slice(0, 3).join('/');
-        if (childPathParts === currentPathParts) {
-          return true;
-        }
-        // Check with query params
-        if (currentPath.startsWith(childPathOnly)) {
-          return true;
-        }
+    const linkPathname = path.split('?')[0];
+    const linkSearch = path.includes('?') ? '?' + path.split('?')[1] : '';
+
+    // 1. Exact match including query string
+    if (currentFullPath === path) return true;
+
+    // 2. Base path match handling tabs
+    if (currentPathname === linkPathname) {
+      const urlParams = new URLSearchParams(currentSearch);
+      const linkParams = new URLSearchParams(linkSearch);
+      
+      const currentTab = urlParams.get('tab');
+      const linkTab = linkParams.get('tab');
+
+      // If the URL has a tab, only match the link that has the exact same tab
+      if (currentTab) {
+        if (linkTab === currentTab) return true;
+        // Special case: If URL is tab=dashboard, but the link is just the base path, highlight it
+        if (currentTab === 'dashboard' && !linkTab) return true;
+      } else {
+        // If URL has NO tab, match the base link or the link explicitly defined as tab=dashboard
+        if (!linkTab || linkTab === 'dashboard') return true;
       }
     }
+
+    // 3. Sub-route matching (e.g., /smart-parking/dashboard/details matches /smart-parking/dashboard)
+    if (currentPathname.startsWith(linkPathname + '/') && linkPathname !== '/') return true;
+
+    // 4. Children matching
+    if (children && children.length > 0) {
+      for (const child of children) {
+        const childPathname = child.path.split('?')[0];
+        const childParams = new URLSearchParams(child.path.includes('?') ? '?' + child.path.split('?')[1] : '');
+        const childTab = childParams.get('tab');
+        const currentTab = new URLSearchParams(currentSearch).get('tab');
+
+        if (currentPathname === childPathname) {
+          if (currentTab) {
+            if (childTab === currentTab) return true;
+            if (currentTab === 'dashboard' && !childTab) return true;
+          } else {
+             if (!childTab || childTab === 'dashboard') return true;
+          }
+        }
+        if (currentPathname.startsWith(childPathname + '/')) return true;
+      }
+    }
+    
     return false;
   };
 
-  // Get children directly from parent link
   const getChildren = (parent: SidebarLink): SidebarLink[] => {
     return parent.children || [];
   };
 
-  // Get parent links (items with children or standalone)
   const parentLinks = links.filter(link => link.isParent);
 
   return (
     <aside 
       className="fixed left-0 top-0 h-full bg-white border-r border-gray-200 transition-all duration-300 z-50 flex flex-col w-64"
     >
-      {/* Logo Section */}
       <div className="h-20 flex items-center px-4 border-b border-gray-200">
         <div className="flex items-center gap-3">
           <img 
@@ -262,7 +253,6 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      {/* User Department Badge */}
       {userDepartment && (
         <div className="px-4 py-3">
           <div className="bg-blue-50 rounded-lg px-3 py-2">
@@ -272,7 +262,6 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       )}
 
-      {/* Navigation Menu */}
       <nav className="p-3 space-y-1 overflow-y-auto flex-1">
         {parentLinks.map((link) => {
           const Icon = getIcon(link.icon);
@@ -280,18 +269,14 @@ const Sidebar: React.FC<SidebarProps> = ({
           const hasChildren = children.length > 0;
           const isExpanded = expandedMenus.has(link.id);
           
-          // Check if this link or any of its children is active - use URL-based detection
           const linkIsActive = isActive(link.path, children);
           
           return (
             <div key={link.id}>
-              {/* Parent Link - Clickable or Expandable */}
               {hasChildren ? (
-                // Dropdown header - chevron toggles, parent click expands but doesn't collapse
                 <div className="relative">
                   <button
                     onClick={() => {
-                      // If not expanded, expand it
                       if (!isExpanded) {
                         toggleMenu(link.id);
                       }
@@ -327,7 +312,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                   </button>
                 </div>
               ) : (
-                // Single link - no dropdown
                 <button
                   onClick={() => handleNavigation(link.path)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
@@ -341,7 +325,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </button>
               )}
               
-              {/* Child Links - Dropdown Content */}
               {hasChildren && isExpanded && (
                 <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-200 pl-2">
                   {children.map((child) => {
@@ -370,10 +353,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      {/* User Profile Section */}
       <div className="h-16 border-t border-gray-200 bg-white">
         <div className="flex items-center px-4 h-full gap-3">
-          {/* User Avatar */}
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
             {userInitial}
           </div>
