@@ -1,0 +1,1907 @@
+openapi: 3.0.3
+
+info:
+  title: COK Systems API
+  version: "1.0.0"
+  description: |
+    Combined API Documentation for COK Systems
+    - AMOS: Authentication, Feedback & User Management
+    - PARFAIT: Service Delivery, Smart Parking, Statistics, Departments, Employees, Permissions & Roles
+
+servers:
+  - url: https://cok-bc.onrender.com/cok/api
+    description: Production Test
+  - url: http://localhost:2026/cok/api
+    description: Local Test
+
+tags:
+  # AMOS API Tags
+  - name: AMOS - Authentication
+    description: User login, logout, and session management
+  - name: AMOS - First-Time Login
+    description: Account activation for new users
+  - name: AMOS - Password Reset
+    description: Password recovery and reset
+  - name: AMOS - Account Lock
+    description: Account locking and unlocking
+  - name: AMOS - Feedback
+    description: Service feedback and ratings
+
+  # PARFAIT API Tags
+  - name: PARFAIT - Departments
+    description: Department CRUD operations
+  - name: PARFAIT - Employees
+    description: Employee management
+  - name: PARFAIT - Visitors
+    description: Visitor check-in, check-out and service delivery
+  - name: PARFAIT - Vehicles
+    description: Smart parking and vehicle management
+  - name: PARFAIT - Statistics
+    description: Analytics and data insights
+  - name: PARFAIT - System Permissions
+    description: System permissions management
+  - name: PARFAIT - Roles
+    description: Role-based access control
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    MongoObjectId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+      example: "64f1a2b3c4d5e6f7a8b9c0d1"
+
+    PageParam:
+      name: page
+      in: query
+      schema: { type: integer, default: 1 }
+
+    LimitParam:
+      name: limit
+      in: query
+      schema: { type: integer, default: 10 }
+
+    QueryParam:
+      name: query
+      in: query
+      schema: { type: string, default: "" }
+      description: "Search keyword (case-insensitive)"
+
+    StatusParam:
+      name: status
+      in: query
+      schema: { type: string, enum: ['active', 'completed'] }
+      description: "Filter by parking record status (active or completed)"
+
+security:
+  - BearerAuth: []
+
+paths:
+
+  # ═══════════════════════════════════════════════════════
+  # AMOS - AUTHENTICATION
+  # ═══════════════════════════════════════════════════════
+
+  /auth/login:
+    post:
+      tags: [AMOS - Authentication]
+      summary: "Login - Step 1: Verify credentials and send OTP"
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+            example:
+              email: "user@example.com"
+              password: "password123"
+      responses:
+        '200':
+          description: OTP sent successfully
+          content:
+            application/json:
+              example:
+                success: true
+                message: "OTP sent to your email"
+                userId: "64f1a2b3c4d5e6f7a8b9c0d1"
+        '400': { description: Missing required fields }
+        '401': { description: Invalid credentials }
+        '403': { description: Account not activated or locked }
+
+  /auth/login/verify:
+    post:
+      tags: [AMOS - Authentication]
+      summary: "Login - Step 2: Verify OTP and get JWT token"
+      operationId: verifyLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, otp]
+              properties:
+                userId: { type: string }
+                otp: { type: string }
+            example:
+              userId: "64f1a2b3c4d5e6f7a8b9c0d1"
+              otp: "123456"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Login successful"
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                user:
+                  _id: "64f1a2b3c4d5e6f7a8b9c0d1"
+                  email: "user@example.com"
+                  full_name: "John Doe"
+        '400': { description: Invalid or expired OTP }
+
+  /auth/login/resend:
+    post:
+      tags: [AMOS - Authentication]
+      summary: "Resend OTP for login"
+      operationId: resendLoginOTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, email]
+              properties:
+                userId: { type: string }
+                email: { type: string }
+            example:
+              userId: "64f1a2b3c4d5e6f7a8b9c0d1"
+              email: "user@example.com"
+      responses:
+        '200': { description: OTP resent successfully }
+        '400': { description: User ID and email required }
+        '403': { description: Account is locked }
+
+  /auth/logout:
+    post:
+      tags: [AMOS - Authentication]
+      summary: "Logout from current device"
+      operationId: logout
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Logged out successfully
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Logged out successfully"
+
+  /auth/logout/all:
+    post:
+      tags: [AMOS - Authentication]
+      summary: "Logout from all devices"
+      operationId: logoutAll
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId: { type: string }
+            example:
+              userId: "64f1a2b3c4d5e6f7a8b9c0d1"
+      responses:
+        '200':
+          description: Logged out from all devices
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Logged out from all devices"
+
+  # ═══════════════════════════════════════════════════════
+  # AMOS - FIRST-TIME LOGIN
+  # ═══════════════════════════════════════════════════════
+
+  /auth/first-login/check:
+    post:
+      tags: [AMOS - First-Time Login]
+      summary: "Check if account needs activation"
+      operationId: checkEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string }
+            example:
+              email: "user@example.com"
+      responses:
+        '200': { description: Account found, can proceed }
+        '400': { description: Account already activated }
+        '403': { description: Account is locked }
+        '404': { description: Account not found }
+
+  /auth/first-login/send-otp:
+    post:
+      tags: [AMOS - First-Time Login]
+      summary: "Send OTP for account activation"
+      operationId: sendActivationOTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string }
+            example:
+              email: "user@example.com"
+      responses:
+        '200': { description: OTP sent successfully }
+        '400': { description: Account already activated }
+        '403': { description: Account is locked }
+
+  /auth/first-login/activate:
+    post:
+      tags: [AMOS - First-Time Login]
+      summary: "Activate account with signature (after OTP verification)"
+      operationId: activateAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, signature, newPassword, confirmPassword]
+              properties:
+                userId: { type: string }
+                signature: { type: string, description: "Signature token received from /verify-otp endpoint" }
+                newPassword: { type: string }
+                confirmPassword: { type: string }
+            example:
+              userId: "64f1a2b3c4d5e6f7a8b9c0d1"
+              signature: "abc123signature"
+              newPassword: "NewPassword123"
+              confirmPassword: "NewPassword123"
+      responses:
+        '200': { description: Account activated successfully }
+        '400': { description: Invalid or expired signature }
+        '403': { description: Account is locked }
+
+  /auth/first-login/resend:
+    post:
+      tags: [AMOS - First-Time Login]
+      summary: "Resend activation OTP"
+      operationId: resendActivationOTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, email]
+              properties:
+                userId: { type: string }
+                email: { type: string }
+            example:
+              userId: "64f1a2b3c4d5e6f7a8b9c0d1"
+              email: "user@example.com"
+      responses:
+        '200': { description: OTP resent successfully }
+        '403': { description: Account is locked }
+
+  /auth/first-login/verify-otp:
+    post:
+      tags: [AMOS - First-Time Login]
+      summary: "Verify OTP before setting password"
+      operationId: verifyFirstLoginOTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, otp]
+              properties:
+                userId: { type: string }
+                otp: { type: string }
+            example:
+              userId: "64f1a2b3c4d5e6f7a8b9c0d1"
+              otp: "123456"
+      responses:
+        '200':
+          description: OTP verified successfully
+          content:
+            application/json:
+              example:
+                success: true
+                message: "OTP verified successfully"
+                signature: "abc123signature"
+        '400': { description: Invalid OTP or no OTP found }
+        '404': { description: User not found }
+
+  # ═══════════════════════════════════════════════════════
+  # AMOS - PASSWORD RESET
+  # ═══════════════════════════════════════════════════════
+
+  /auth/password-reset:
+    post:
+      tags: [AMOS - Password Reset]
+      summary: "Request password reset - send OTP"
+      operationId: requestPasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string }
+            example:
+              email: "user@example.com"
+      responses:
+        '200': { description: OTP sent }
+        '403': { description: Account is locked }
+
+  /auth/password-reset/verify:
+    post:
+      tags: [AMOS - Password Reset]
+      summary: "Verify OTP for password reset"
+      operationId: verifyPasswordResetOTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, otp]
+              properties:
+                userId: { type: string }
+                otp: { type: string }
+            example:
+              userId: "64f1a2b3c4d5e6f7a8b9c0d1"
+              otp: "123456"
+      responses:
+        '200':
+          description: OTP verified
+          content:
+            application/json:
+              example:
+                success: true
+                message: "OTP verified successfully"
+                tempToken: "abc123tempToken"
+        '400': { description: Invalid or expired OTP }
+
+  /auth/password-reset/reset:
+    post:
+      tags: [AMOS - Password Reset]
+      summary: "Reset password with temp token"
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, tempToken, newPassword, confirmPassword]
+              properties:
+                userId: { type: string }
+                tempToken: { type: string }
+                newPassword: { type: string }
+                confirmPassword: { type: string }
+            example:
+              userId: "64f1a2b3c4d5e6f7a8b9c0d1"
+              tempToken: "abc123tempToken"
+              newPassword: "NewPassword123"
+              confirmPassword: "NewPassword123"
+      responses:
+        '200': { description: Password reset successfully }
+        '400': { description: Invalid or expired token }
+
+  /auth/password-reset/resend:
+    post:
+      tags: [AMOS - Password Reset]
+      summary: "Resend password reset OTP"
+      operationId: resendPasswordResetOTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, email]
+              properties:
+                userId: { type: string }
+                email: { type: string }
+            example:
+              userId: "64f1a2b3c4d5e6f7a8b9c0d1"
+              email: "user@example.com"
+      responses:
+        '200': { description: OTP resent successfully }
+        '403': { description: Account is locked }
+
+  # ═══════════════════════════════════════════════════════
+  # AMOS - ACCOUNT LOCK
+  # ═══════════════════════════════════════════════════════
+
+  /auth/lock-unlock:
+    post:
+      tags: [AMOS - Account Lock]
+      summary: "Lock or unlock a user account"
+      operationId: lockUnlockAccount
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, action]
+              properties:
+                userId: { type: string }
+                action: { type: string, enum: ['lock', 'unlock'] }
+                reason: { type: string }
+            example:
+              userId: "64f1a2b3c4d5e6f7a8b9c0d1"
+              action: "lock"
+              reason: "Too many failed login attempts"
+      responses:
+        '200': { description: Account locked/unlocked }
+        '400': { description: Invalid action }
+        '404': { description: User not found }
+
+  /auth/lock-unlock/status:
+    post:
+      tags: [AMOS - Account Lock]
+      summary: "Check account lock status"
+      operationId: checkLockStatus
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId: { type: string }
+            example:
+              userId: "64f1a2b3c4d5e6f7a8b9c0d1"
+      responses:
+        '200':
+          description: Lock status retrieved
+          content:
+            application/json:
+              example:
+                success: true
+                isLocked: true
+                failedAttempts: 5
+        '404': { description: User not found }
+
+  /auth/lock-unlock/reset-attempts:
+    post:
+      tags: [AMOS - Account Lock]
+      summary: "Reset login attempts for a user"
+      operationId: resetLoginAttempts
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId: { type: string }
+            example:
+              userId: "64f1a2b3c4d5e6f7a8b9c0d1"
+      responses:
+        '200': { description: Login attempts reset }
+        '404': { description: User not found }
+
+  # ═══════════════════════════════════════════════════════
+  # AMOS - FEEDBACK
+  # ═══════════════════════════════════════════════════════
+
+  /feedback/verify-phone:
+    post:
+      tags: [AMOS - Feedback]
+      summary: "Verify phone and get assigned departments"
+      description: "Verifies if phone number exists in service delivery and returns assigned departments for feedback"
+      operationId: verifyPhone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [telephone]
+              properties:
+                telephone:
+                  type: string
+                  example: "+250788123456"
+      responses:
+        '200':
+          description: Phone verified successfully
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Phone verified successfully"
+                data:
+                  visitor_name: "Uwayo parfait"
+                  telephone: "+250788123456"
+                  assigned_departments:
+                    - department_id: "DEPT-001"
+                      department_name: "Finance"
+                      reached_in: true
+        '404':
+          description: No service record found
+
+  /feedback/by-phone/{telephone}:
+    get:
+      tags: [AMOS - Feedback]
+      summary: "Get feedback by phone number"
+      description: "Returns all feedback submitted by a specific phone number. Used for visitors to view their submitted feedback."
+      operationId: getFeedbackByPhone
+      parameters:
+        - name: telephone
+          in: path
+          required: true
+          description: Phone number to search feedback for
+          schema:
+            type: string
+            example: "+250788123456"
+      responses:
+        '200':
+          description: Feedback retrieved successfully
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Feedback retrieved successfully"
+                total: 2
+                data:
+                  - feedback_id: "abc123"
+                    department_name: "Finance"
+                    department_id: "DEPT-001"
+                    provider_name: "John Doe"
+                    rate: 8
+                    rate_out_of: 10
+                    textmessage: "Great service!"
+                    created_date: "2026-03-13T10:00:00.000Z"
+                  - feedback_id: "def456"
+                    department_name: "IT"
+                    department_id: "DEPT-002"
+                    provider_name: "Jane Smith"
+                    rate: 9
+                    rate_out_of: 10
+                    textmessage: "Very helpful"
+                    created_date: "2026-03-12T14:30:00.000Z"
+        '400':
+          description: Phone number required
+        '404':
+          description: No feedback found for this phone number
+
+  /feedback/submit:
+    post:
+      tags: [AMOS - Feedback]
+      summary: "Submit feedback for a department"
+      description: "Submit rating and feedback for an assigned department"
+      operationId: submitFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [telephone, department_id, rate]
+              properties:
+                telephone:
+                  type: string
+                  example: "+250788123456"
+                department_id:
+                  type: string
+                  example: "DEPT-001"
+                rate:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  example: 8
+                textmessage:
+                  type: string
+                  maxLength: 500
+                  example: "Great service!"
+      responses:
+        '201':
+          description: Feedback submitted successfully
+        '400':
+          description: Validation error
+        '403':
+          description: Not assigned to this department
+        '404':
+          description: No service record found
+
+  /feedback/search:
+    get:
+      tags: [AMOS - Feedback]
+      summary: "Search all feedback with limit"
+      description: "Query all feedback with optional pagination and limit"
+      operationId: searchAllFeedback
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+          example: 50
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          example: 1
+      responses:
+        '200':
+          description: Feedback list
+          content:
+            application/json:
+              example:
+                success: true
+                message: "All feedback results"
+                total: 100
+                page: 1
+                data: []
+
+  /feedback/search-by-department:
+    get:
+      tags: [AMOS - Feedback]
+      summary: "Search feedback by department with date range"
+      description: "Query feedback by department_id with optional from and to date filters"
+      operationId: searchByDepartment
+      parameters:
+        - name: department_id
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "DEPT-001"
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2024-01-01"
+          description: "Start date (YYYY-MM-DD)"
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2024-12-31"
+          description: "End date (YYYY-MM-DD)"
+      responses:
+        '200':
+          description: Feedback search results
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Feedback search results"
+                total: 10
+                data: []
+        '400':
+          description: Invalid parameters
+
+  /feedback/{id}:
+    get:
+      tags: [AMOS - Feedback]
+      summary: "Get feedback by ID"
+      description: "Retrieve a single feedback by MongoDB _id"
+      operationId: getFeedbackById
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200':
+          description: Feedback details
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Feedback details"
+                data: {}
+        '400':
+          description: Invalid ID format
+        '404':
+          description: Feedback not found
+
+    delete:
+      tags: [AMOS - Feedback]
+      summary: "Delete feedback by ID"
+      description: "Delete a feedback record by MongoDB _id"
+      operationId: deleteFeedback
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200':
+          description: Feedback deleted successfully
+          content:
+            application/json:
+              example:
+                success: true
+                message: "Feedback deleted successfully"
+        '400':
+          description: Invalid ID format
+        '404':
+          description: Feedback not found
+
+  # ═══════════════════════════════════════════════════════
+  # PARFAIT - DEPARTMENTS
+  # ═══════════════════════════════════════════════════════
+
+  /department/crud:
+    get:
+      tags: [PARFAIT - Departments]
+      summary: "List All Departments"
+      operationId: listAllDepartments
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200': { description: OK }
+        '500': { description: Server error }
+
+    post:
+      tags: [PARFAIT - Departments]
+      summary: "Create Department"
+      operationId: createDepartment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [department_name, department_id, department_response_time_in_minutes]
+              properties:
+                department_name: { type: string, example: "Human Resources" }
+                department_id: { type: string, example: "DEPT-001" }
+                department_leader: { type: string, example: "Jane@gmail.com" }
+                department_response_time_in_minutes: { type: integer, example: 5 }
+      responses:
+        '201': { description: Created }
+        '400': { description: Missing required fields }
+        '409': { description: department_id already exists }
+        '500': { description: Server error }
+
+  /department/crud/search:
+    get:
+      tags: [PARFAIT - Departments]
+      summary: "Search Departments"
+      operationId: searchDepartments
+      description: "Searches across department_name and department_id fields (case-insensitive)."
+      parameters:
+        - $ref: '#/components/parameters/QueryParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200': { description: Search results returned }
+        '500': { description: Server error }
+
+  /department/crud/leader/{email}:
+    get:
+      tags: [PARFAIT - Departments]
+      summary: "Get Departments by Leader Email"
+      operationId: getDepartmentsByLeaderEmail
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema: { type: string }
+          example: "jane@gmail.com"
+      responses:
+        '200': { description: OK }
+        '404': { description: Not found }
+        '500': { description: Server error }
+
+  /department/crud/{department_id}:
+    get:
+      tags: [PARFAIT - Departments]
+      summary: "Get Department by department_id"
+      operationId: getDepartmentById
+      parameters:
+        - name: department_id
+          in: path
+          required: true
+          schema: { type: string }
+          example: "DEPT-001"
+      responses:
+        '200': { description: Found }
+        '404': { description: Not found }
+        '500': { description: Server error }
+
+  /department/crud/{id}:
+    put:
+      tags: [PARFAIT - Departments]
+      summary: "Update Department by MongoDB _id"
+      operationId: updateDepartment
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [department_response_time_in_minutes, department_leader]
+              properties:
+                department_response_time_in_minutes: { type: integer, example: 5 }
+                department_leader: { type: string, example: "Jane@gmail.com" }
+      responses:
+        '200': { description: Updated }
+        '400': { description: Invalid ObjectId or missing fields }
+        '404': { description: Not found }
+        '500': { description: Server error }
+
+    delete:
+      tags: [PARFAIT - Departments]
+      summary: "Delete Department by MongoDB _id"
+      operationId: deleteDepartment
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200': { description: Deleted }
+        '400': { description: Invalid ObjectId }
+        '404': { description: Not found }
+        '500': { description: Server error }
+
+  # ═══════════════════════════════════════════════════════
+  # PARFAIT - EMPLOYEES
+  # ═══════════════════════════════════════════════════════
+
+  /employee/crud:
+    get:
+      tags: [PARFAIT - Employees]
+      summary: "List All Employees"
+      operationId: listAllEmployees
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200': { description: OK }
+        '500': { description: Server error }
+
+    post:
+      tags: [PARFAIT - Employees]
+      summary: "Create Employee"
+      operationId: createEmployee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [full_name, email, telephone]
+              properties:
+                full_name: { type: string, example: "Alice Uwimana" }
+                telephone: { type: string, example: "+250788123456" }
+                email: { type: string, example: "alice.uwimana@cok.gov.rw" }
+                identification: { type: object, example: { type: "National ID", number: "123456789" } }
+                gender: { type: string, example: "Female" }
+                title: { type: string, example: "Ms." }
+                department_id: { type: string, example: "669efcbb56d78e89c7a" }
+      responses:
+        '201': { description: Created }
+        '400': { description: Missing required fields }
+        '409': { description: Email or telephone already exists }
+        '500': { description: Server error }
+
+  /employee/crud/search:
+    get:
+      tags: [PARFAIT - Employees]
+      summary: "Search Employees"
+      operationId: searchEmployees
+      description: "Searches across full_name, telephone, email, and title fields (case-insensitive)."
+      parameters:
+        - $ref: '#/components/parameters/QueryParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200': { description: Search results returned }
+        '500': { description: Server error }
+
+  /employee/crud/by-department:
+    get:
+      tags: [PARFAIT - Employees]
+      summary: "Get Employees by Department"
+      operationId: getEmployeesByDepartment
+      parameters:
+        - name: department_id
+          in: query
+          required: false
+          schema: { type: string }
+          example: "669efcbb56d78e89c7a"
+          description: "Filter by department ID"
+        - name: department_name
+          in: query
+          required: false
+          schema: { type: string }
+          example: "Finance"
+          description: "Filter by department name (search)"
+        - name: is_active
+          in: query
+          required: false
+          schema: { type: boolean }
+          description: "Filter by active status"
+        - name: is_account_activated
+          in: query
+          required: false
+          schema: { type: boolean }
+          description: "Filter by account activation status"
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200': { description: OK }
+        '404': { description: Department not found }
+        '500': { description: Server error }
+
+  /employee/crud/{id}:
+    get:
+      tags: [PARFAIT - Employees]
+      summary: "Get Employee by MongoDB _id"
+      operationId: getEmployeeById
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200': { description: Found }
+        '404': { description: Not found }
+        '500': { description: Server error }
+
+    put:
+      tags: [PARFAIT - Employees]
+      summary: "Update Employee by MongoDB _id"
+      operationId: updateEmployee
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                full_name: { type: string, example: "Alice Uwimana" }
+                telephone: { type: string, example: "+250788123456" }
+                email: { type: string, example: "alice.uwimana@cok.gov.rw" }
+                gender: { type: string, example: "Female" }
+                title: { type: string, example: "Ms." }
+                department_id: { type: string, example: "669efcbb56d78e89c7a" }
+      responses:
+        '200': { description: Updated }
+        '400': { description: Invalid ObjectId }
+        '404': { description: Not found }
+        '409': { description: Email or telephone conflict }
+        '500': { description: Server error }
+
+    delete:
+      tags: [PARFAIT - Employees]
+      summary: "Delete Employee by MongoDB _id"
+      operationId: deleteEmployee
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200': { description: Deleted }
+        '400': { description: Invalid ObjectId }
+        '403': { description: Cannot delete own account }
+        '404': { description: Not found or already deleted }
+        '500': { description: Server error }
+
+  /employee/crud/register-car:
+    post:
+      tags: [PARFAIT - Employees]
+      summary: "Register a staff vehicle"
+      operationId: registerStaffCar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [employee_id, plate_number, vehicle_make, vehicle_model]
+              properties:
+                employee_id: { type: string, example: "64f1a2b3c4d5e6f7a8b9c0d1" }
+                plate_number: { type: string, example: "RAC123A" }
+                vehicle_make: { type: string, example: "Toyota" }
+                vehicle_model: { type: string, example: "Camry" }
+                vehicle_color: { type: string, example: "Silver" }
+      responses:
+        '201': { description: Car registered successfully }
+        '400': { description: Missing required fields }
+        '409': { description: Plate number already registered }
+        '500': { description: Server error }
+
+  /employee/crud/bulk-upload-cars:
+    post:
+      tags: [PARFAIT - Employees]
+      summary: "Bulk upload staff vehicles from Excel"
+      operationId: bulkUploadStaffCars
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201': { description: Cars uploaded successfully }
+        '400': { description: Invalid file format }
+        '500': { description: Server error }
+
+  # ═══════════════════════════════════════════════════════
+  # PARFAIT - VISITORS / SERVICE DELIVERY
+  # ═══════════════════════════════════════════════════════
+
+  /servicedelivery/visitor:
+    get:
+      tags: [PARFAIT - Visitors]
+      summary: "List All Visitors"
+      operationId: listVisitors
+      description: "Filter by in_house status. Default returns only visitors currently in-house."
+      parameters:
+        - name: in_house
+          in: query
+          schema: { type: boolean, default: true }
+          description: "true = currently in-house, false = already left"
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200': { description: OK }
+        '500': { description: Server error }
+
+  /servicedelivery/visitor/search:
+    get:
+      tags: [PARFAIT - Visitors]
+      summary: "Search Visitors"
+      operationId: searchVisitors
+      description: "Searches across full_name, telephone, identification.number, and plate_number (case-insensitive)."
+      parameters:
+        - $ref: '#/components/parameters/QueryParam'
+        - name: in_house
+          in: query
+          schema: { type: boolean }
+          description: "Optionally filter by in-house status"
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200': { description: Search results returned }
+        '500': { description: Server error }
+
+  /servicedelivery/visitor/by-department:
+    get:
+      tags: [PARFAIT - Visitors]
+      summary: "Get Visitors by Department"
+      operationId: getVisitorsByDepartment
+      parameters:
+        - name: department_id
+          in: query
+          required: false
+          schema: { type: string }
+          example: "DEPT-001"
+          description: "Filter by department ID"
+        - name: department_name
+          in: query
+          required: false
+          schema: { type: string }
+          example: "Finance"
+          description: "Filter by department name (search)"
+        - name: is_still_inhouse
+          in: query
+          required: false
+          schema: { type: boolean }
+          description: "Filter by in-house status"
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200': { description: OK }
+        '404': { description: Department not found }
+        '500': { description: Server error }
+
+  /servicedelivery/visitor/by-department-current/{id}:
+    get:
+      tags: [PARFAIT - Visitors]
+      summary: "Get Current Visitors by Department ID"
+      operationId: getVisitorsByDepartmentCurrent
+      description: "Get total visitors count by department ID who are currently in house and have status not completed"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+          example: "DEPT-001"
+          description: "Department ID"
+      responses:
+        '200':
+          description: Current visitors by department
+          content:
+            application/json:
+              example:
+                success: true
+                total_visitors: 25
+                data:
+                  - department_name: "Finance"
+                    count: 10
+        '500': { description: Server error }
+
+  /servicedelivery/visitor/by-provider-current/{id}:
+    get:
+      tags: [PARFAIT - Visitors]
+      summary: "Get Current Visitors by Provider ID"
+      operationId: getVisitorsByProviderCurrent
+      description: "Get total visitors count by provider ID who are currently in house and have status not completed"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+          example: "PROV-001"
+          description: "Provider ID"
+      responses:
+        '200':
+          description: Current visitors by provider
+          content:
+            application/json:
+              example:
+                success: true
+                total_visitors: 20
+                data:
+                  - provider_id: "PROV-001"
+                    provider_name: "ABC Services"
+                    count: 8
+        '500': { description: Server error }
+
+  /servicedelivery/visitor/{id}:
+    get:
+      tags: [PARFAIT - Visitors]
+      summary: "Get Visitor by MongoDB _id"
+      operationId: getVisitorById
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200': { description: Found }
+        '404': { description: Not found }
+        '500': { description: Server error }
+
+    put:
+      tags: [PARFAIT - Visitors]
+      summary: "Update Visitor by MongoDB _id"
+      operationId: updateVisitor
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                full_name: { type: string, example: "Jean Pierre Habimana" }
+                telephone: { type: string, example: "+250788000111" }
+                email: { type: string, example: "jean@example.com" }
+                gender: { type: string, example: "Male" }
+                identification: { type: object, example: { type: "National ID", number: "123456789" } }
+                vehicle_storage: {
+                  type: object,
+                  example: {
+                    has_vehicle: true,
+                    vehicle_details: {
+                      plate_number: "RAC123A",
+                    }
+                  }
+                }
+      responses:
+        '200': { description: Updated }
+        '400': { description: Invalid ObjectId }
+        '404': { description: Not found }
+        '500': { description: Server error }
+
+  /servicedelivery/visitor/checkin:
+    post:
+      tags: [PARFAIT - Visitors]
+      summary: "Visitor Check-In"
+      operationId: visitorCheckin
+      description: "Registers a new visitor. If they have a vehicle, links to an active parking record automatically."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [full_name, telephone]
+              properties:
+                full_name: { type: string, example: "Jean Pierre Habimana" }
+                telephone: { type: string, example: "+250788000111" }
+                email: { type: string, example: "jean@example.com" }
+                gender: { type: string, example: "Male" }
+                badge_number: { type: string, example: "BADGE-001" }
+                identification: { type: object, example: { type: "National ID", number: "123456789" } }
+                vehicle_storage: {
+                  type: object,
+                  example: {
+                    has_vehicle: true,
+                    vehicle_details: {
+                      plate_number: "RAC123A",
+                    }
+                  }
+                }
+      responses:
+        '201': { description: Visitor checked in successfully }
+        '400': { description: full_name is required }
+        '500': { description: Server error }
+
+  /servicedelivery/visitor/assign:
+    post:
+      tags: [PARFAIT - Visitors]
+      summary: "Assign Visitor to Department"
+      operationId: assignVisitorToDepartment
+      description: "Assigns an in-house visitor to a new department."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visitor_id, new_department_id, new_department_name]
+              properties:
+                visitor_id: { type: string, example: "64f1a2b3c4d5e6f7a8b9c0d1" }
+                new_department_id: { type: string, example: "DEPT-002" }
+                new_department_name: { type: string, example: "Finance" }
+      responses:
+        '200': { description: Visitor assigned to new department }
+        '400': { description: Missing required fields }
+        '404': { description: Visitor not found }
+        '500': { description: Server error }
+
+  /servicedelivery/visitor/service/status:
+    post:
+      tags: [PARFAIT - Visitors]
+      summary: "Update Visitor Service Status"
+      operationId: updateServiceStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visitor_id, status]
+              properties:
+                visitor_id: { type: string }
+                status: { type: string }
+      responses:
+        '200': { description: Status updated }
+        '400': { description: Missing required fields }
+        '404': { description: Visitor not found }
+
+  /servicedelivery/visitor/emergency/leave-return:
+    post:
+      tags: [PARFAIT - Visitors]
+      summary: "Toggle Temporary Leave / Return"
+      operationId: toggleTemporaryLeave
+      description: "Marks a visitor as temporarily outside ('leave') or returned ('return'). Tracks duration and optionally logs items taken out."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visitor_id, action]
+              properties:
+                visitor_id: { type: string, example: "64f1a2b3c4d5e6f7a8b9c0d1" }
+                action:
+                  type: string
+                  enum: [leave, return]
+                  example: "leave"
+                items_exited_with:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      item_name: { type: string, example: "Laptop" }
+                      quantity: { type: integer, example: 1 }
+                provider_name: { type: string, example: "Jane Doe" }
+                provider_id: { type: string, example: "64f1a2b3c4d5e6f7a8b9c0d2" }
+                message: { type: string, example: "Visitor went to get documents from car" }
+      responses:
+        '200': { description: Visitor marked as outside or returned }
+        '400': { description: Missing fields, already outside, or no active leave record to close }
+        '404': { description: Visitor not found or not in-house }
+        '500': { description: Server error }
+
+  /servicedelivery/visitor/checkout:
+    post:
+      tags: [PARFAIT - Visitors]
+      summary: "Visitor Check-Out"
+      operationId: visitorCheckout
+      description: "Checks out a visitor. If they have a car still parked, sets status to pending until vehicle exits."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visitor_id]
+              properties:
+                visitor_id: { type: string, example: "64f1a2b3c4d5e6f7a8b9c0d1" }
+                items_exited_with:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      item_name: { type: string, example: "Laptop" }
+                      quantity: { type: integer, example: 1 }
+      responses:
+        '200': { description: Visitor checked out or marked pending (car still parked) }
+        '400': { description: visitor_id is required }
+        '404': { description: Visitor not found or already checked out }
+        '500': { description: Server error }
+
+  # ═══════════════════════════════════════════════════════
+  # PARFAIT - VEHICLES / SMART PARKING
+  # ═══════════════════════════════════════════════════════
+
+  /smartparking/vehicle:
+    get:
+      tags: [PARFAIT - Vehicles]
+      summary: "List All Parking Records"
+      operationId: listAllParkingRecords
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/StatusParam'
+      responses:
+        '200': { description: OK }
+        '500': { description: Server error }
+
+  /smartparking/vehicle/search:
+    get:
+      tags: [PARFAIT - Vehicles]
+      summary: "Search Parking Records"
+      operationId: searchParkingRecords
+      parameters:
+        - $ref: '#/components/parameters/QueryParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/StatusParam'
+      responses:
+        '200': { description: Search results }
+        '500': { description: Server error }
+
+  /smartparking/vehicle/flagged:
+    get:
+      tags: [PARFAIT - Vehicles]
+      summary: "List Active Flagged Cars"
+      responses:
+        '200': { description: OK }
+        '500': { description: Server error }
+
+  /smartparking/vehicle/checkin:
+    post:
+      tags: [PARFAIT - Vehicles]
+      summary: "Vehicle Check-In (Smart Parking)"
+      operationId: parkingCheckIn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plate_number, driver_telephone]
+              properties:
+                plate_number: { type: string, example: "RAC123A" }
+                driver_telephone: { type: string, example: "+250788123456" }
+                driver_name: { type: string, example: "Uwayo parfait" }
+                driver_email: { type: string, example: "me@example.com" }
+                driver_type: { type: string, example: "Visitor,Staff,Regular" }
+                driver_identification: { type: object, example: { type: "National ID", number: "123456789" } }
+                driver_gender: { type: string, example: "Male" }
+                badge_number: { type: string, example: "BADGE-001" }
+      responses:
+        '201': { description: Vehicle checked in }
+        '400': { description: Missing required fields }
+        '409': { description: Vehicle already parked }
+
+  /smartparking/vehicle/checkout:
+    post:
+      tags: [PARFAIT - Vehicles]
+      summary: "Vehicle Check-Out (Smart Parking)"
+      operationId: parkingCheckOut
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plate_number]
+              properties:
+                plate_number: { type: string, example: "RAC123A" }
+      responses:
+        '200': { description: Vehicle checked out }
+        '400': { description: Missing required fields }
+        '404': { description: Vehicle not found }
+
+  /smartparking/vehicle/verify:
+    post:
+      tags: [PARFAIT - Vehicles]
+      summary: "Verify Vehicle"
+      operationId: verifyVehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plate_number]
+              properties:
+                plate_number: { type: string, example: "RAC123A" }
+      responses:
+        '200': { description: Vehicle verified }
+        '404': { description: Vehicle not found }
+
+  /smartparking/vehicle/{id}:
+    get:
+      tags: [PARFAIT - Vehicles]
+      summary: "Get Parking Record by ID"
+      operationId: getParkingRecordById
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200': { description: Found }
+        '404': { description: Not found }
+
+  /smartparking/register-single:
+    post:
+      tags: [PARFAIT - Vehicles]
+      summary: "Register Single Reservation"
+      operationId: registerSingleReservation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plate_number, driver_telephone, expected_arrival]
+              properties:
+                plate_number: { type: string, example: "RAC123A" }
+                driver_telephone: { type: string, example: "+250788123456" }
+                driver_name: { type: string, example: "John Doe" }
+                expected_arrival: { type: string, example: "2024-01-15T10:00:00Z" }
+      responses:
+        '201': { description: Reservation registered }
+        '400': { description: Missing required fields }
+        '409': { description: Reservation already exists }
+
+  /smartparking/bulk-upload:
+    post:
+      tags: [PARFAIT - Vehicles]
+      summary: "Bulk Upload Reservations from Excel"
+      operationId: bulkUploadReservations
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201': { description: Reservations uploaded }
+        '400': { description: Invalid file format }
+        '500': { description: Server error }
+
+  # ═══════════════════════════════════════════════════════
+  # PARFAIT - STATISTICS
+  # ═══════════════════════════════════════════════════════
+
+  /statistics/roles-permissions:
+    get:
+      tags: [PARFAIT - Statistics]
+      summary: "Get Roles with Permissions Statistics"
+      operationId: getRolesWithPermissions
+      responses:
+        '200':
+          description: Roles with permissions statistics
+          content:
+            application/json:
+              example:
+                success: true
+                total_roles: 5
+                data: []
+        '500': { description: Server error }
+
+  /statistics/departments-leaders:
+    get:
+      tags: [PARFAIT - Statistics]
+      summary: "Get Departments with Leaders Statistics"
+      operationId: getDepartmentsWithLeaders
+      responses:
+        '200':
+          description: Departments with leaders
+          content:
+            application/json:
+              example:
+                success: true
+                total_departments: 10
+                data: []
+        '500': { description: Server error }
+
+  /statistics/employees:
+    get:
+      tags: [PARFAIT - Statistics]
+      summary: "Get Employee Statistics"
+      operationId: getEmployeeStats
+      responses:
+        '200':
+          description: Employee statistics
+          content:
+            application/json:
+              example:
+                success: true
+                total_employees: 50
+                data: []
+        '500': { description: Server error }
+
+  /statistics/emergency-cars:
+    get:
+      tags: [PARFAIT - Statistics]
+      summary: "Get Emergency Cars Statistics"
+      operationId: getEmergencyCarsStats
+      responses:
+        '200':
+          description: Emergency cars statistics
+          content:
+            application/json:
+              example:
+                success: true
+                total_emergency_cars: 5
+                data: []
+        '500': { description: Server error }
+
+  /statistics/flagged-vehicles:
+    get:
+      tags: [PARFAIT - Statistics]
+      summary: "Get Flagged Vehicles Statistics"
+      operationId: getFlaggedVehiclesStats
+      responses:
+        '200':
+          description: Flagged vehicles statistics
+          content:
+            application/json:
+              example:
+                success: true
+                total_flagged: 3
+                data: []
+        '500': { description: Server error }
+
+  /statistics/currently-parked:
+    get:
+      tags: [PARFAIT - Statistics]
+      summary: "Get Currently Parked Statistics"
+      operationId: getCurrentlyParkedStats
+      responses:
+        '200':
+          description: Currently parked statistics
+          content:
+            application/json:
+              example:
+                success: true
+                total_currently_parked: 20
+                data: []
+        '500': { description: Server error }
+
+  /statistics/service-delivery:
+    get:
+      tags: [PARFAIT - Statistics]
+      summary: "Get Service Delivery Statistics"
+      operationId: getServiceDeliveryStats
+      responses:
+        '200':
+          description: Service delivery statistics
+          content:
+            application/json:
+              example:
+                success: true
+                total_visitors: 100
+                data: []
+        '500': { description: Server error }
+
+  /statistics/feedback-totals:
+    get:
+      tags: [PARFAIT - Statistics]
+      summary: "Get Feedback Totals"
+      operationId: getFeedbackTotals
+      responses:
+        '200':
+          description: Feedback totals
+          content:
+            application/json:
+              example:
+                success: true
+                total_feedback: 50
+                data: []
+        '500': { description: Server error }
+
+  /statistics/feedback-average:
+    get:
+      tags: [PARFAIT - Statistics]
+      summary: "Get Feedback Average by Department"
+      operationId: getFeedbackAverageByDepartment
+      responses:
+        '200':
+          description: Feedback average by department
+          content:
+            application/json:
+              example:
+                success: true
+                data: []
+        '500': { description: Server error }
+
+  /statistics/hourly-parking:
+    get:
+      tags: [PARFAIT - Statistics]
+      summary: "Get Hourly Parking Statistics (for graphs)"
+      operationId: getHourlyParkingStats
+      responses:
+        '200':
+          description: Hourly parking statistics
+          content:
+            application/json:
+              example:
+                success: true
+                data: []
+        '500': { description: Server error }
+
+  /statistics/hourly-service-delivery:
+    get:
+      tags: [PARFAIT - Statistics]
+      summary: "Get Hourly Service Delivery Statistics (for graphs)"
+      operationId: getHourlyServiceDeliveryStats
+      responses:
+        '200':
+          description: Hourly service delivery statistics
+          content:
+            application/json:
+              example:
+                success: true
+                data: []
+        '500': { description: Server error }
+
+  # ═══════════════════════════════════════════════════════
+  # PARFAIT - SYSTEM PERMISSIONS
+  # ═══════════════════════════════════════════════════════
+
+  /permissions:
+    get:
+      tags: [PARFAIT - System Permissions]
+      summary: "List All System Permissions"
+      operationId: listSystemPermissions
+      responses:
+        '200':
+          description: System permissions list
+          content:
+            application/json:
+              example:
+                success: true
+                data: []
+        '500': { description: Server error }
+
+  # ═══════════════════════════════════════════════════════
+  # PARFAIT - ROLES
+  # ═══════════════════════════════════════════════════════
+
+  /roles:
+    get:
+      tags: [PARFAIT - Roles]
+      summary: "Get all roles"
+      operationId: getAllRoles
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Roles retrieved successfully
+        '500':
+          description: Server error
+
+    post:
+      tags: [PARFAIT - Roles]
+      summary: "Create a new role"
+      operationId: createRole
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role_name]
+              properties:
+                role_name:
+                  type: string
+                  example: "Department Manager"
+                permissions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      resource_name:
+                        type: string
+                      actions:
+                        type: array
+                        items:
+                          type: string
+      responses:
+        '201': { description: Role created successfully }
+        '400': { description: Validation error }
+        '409': { description: Role already exists }
+        '500': { description: Server error }
+
+  /roles/resources/available:
+    get:
+      tags: [PARFAIT - Roles]
+      summary: "Get all available resources and actions"
+      operationId: getAvailableResources
+      responses:
+        '200':
+          description: Available resources retrieved successfully
+        '500':
+          description: Server error }
+
+  /roles/name/{name}:
+    get:
+      tags: [PARFAIT - Roles]
+      summary: "Get role by name"
+      operationId: getRoleByName
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "System Administrator"
+      responses:
+        '200': { description: Role retrieved successfully }
+        '404': { description: Role not found }
+        '500': { description: Server error }
+
+  /roles/{id}:
+    get:
+      tags: [PARFAIT - Roles]
+      summary: "Get role by ID"
+      operationId: getRoleById
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200': { description: Role retrieved successfully }
+        '400': { description: Invalid role ID format }
+        '404': { description: Role not found }
+        '500': { description: Server error }
+
+    put:
+      tags: [PARFAIT - Roles]
+      summary: "Update role by ID"
+      operationId: updateRole
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role_name:
+                  type: string
+                permissions:
+                  type: array
+      responses:
+        '200': { description: Role updated successfully }
+        '400': { description: Validation error or invalid ID }
+        '404': { description: Role not found }
+        '409': { description: Role name already exists }
+        '500': { description: Server error }
+
+    delete:
+      tags: [PARFAIT - Roles]
+      summary: "Delete role by ID"
+      operationId: deleteRole
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      responses:
+        '200': { description: Role deleted successfully }
+        '400': { description: Invalid role ID format }
+        '404': { description: Role not found }
+        '500': { description: Server error }
+
+  /roles/{id}/permissions/toggle:
+    put:
+      tags: [PARFAIT - Roles]
+      summary: "Toggle a specific permission"
+      operationId: togglePermission
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resource_name, action]
+              properties:
+                resource_name:
+                  type: string
+                action:
+                  type: string
+                enabled:
+                  type: boolean
+      responses:
+        '200': { description: Permission toggled successfully }
+        '400': { description: Missing required fields or invalid input }
+        '404': { description: Role not found or permission not found }
+        '500': { description: Server error }
+
+  /roles/{id}/permissions/bulk:
+    put:
+      tags: [PARFAIT - Roles]
+      summary: "Bulk update permissions"
+      operationId: bulkUpdatePermissions
+      parameters:
+        - $ref: '#/components/parameters/MongoObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [permissions]
+              properties:
+                permissions:
+                  type: array
+      responses:
+        '200': { description: Permissions updated successfully }
+        '400': { description: Validation error }
+        '404': { description: Role not found }
+        '500': { description: Server error }
