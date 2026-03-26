@@ -35,6 +35,7 @@ const RolesManagementPage: React.FC = () => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [availableResources, setAvailableResources] = useState<AvailableResource[]>([]);
   const [loading, setLoading] = useState(true);
+  const [firstLoad, setfirstLoad] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredRoles, setFilteredRoles] = useState<Role[]>([]);
@@ -92,6 +93,7 @@ const RolesManagementPage: React.FC = () => {
       setError(err.message || 'Failed to load roles');
     } finally {
       setLoading(false);
+      setfirstLoad(false);
     }
   };
 
@@ -487,7 +489,7 @@ const RolesManagementPage: React.FC = () => {
 
       {/* Roles List */}
       <div className="space-y-4">
-        {loading ? (
+        {(loading && firstLoad) ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <div className="flex justify-center items-center gap-2">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
