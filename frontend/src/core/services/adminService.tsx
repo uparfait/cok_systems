@@ -489,10 +489,10 @@ export const parkingService = {
   },
   
   // Search parking records
-  search: (query: string) => get(`/smartparking/vehicle/search?query=${encodeURIComponent(query)}&status=all`),
+  search: (query: string) => get(`/smartparking/vehicle/search?query=${encodeURIComponent(query)}&status=active`),
   
   // Search vehicles (alias)
-  searchVehicles: (query: string) => get(`/smartparking/vehicle/search?query=${encodeURIComponent(query)}&status=all`),
+  searchVehicles: (query: string) => get(`/smartparking/vehicle/search?query=${encodeURIComponent(query)}&status=active`),
   
   // Get parking record by ID
   getById: (id: string) => get(`/smartparking/vehicle/${id}`),
