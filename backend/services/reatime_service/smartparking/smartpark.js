@@ -48,16 +48,16 @@ async function HandleReatime(socket) {
         });
     });
 
-    // Send test message only to authenticated users
-    if (socket.user) {
-        global.WebsocketIO.emit('smartparking_test', { 
+    // Send test message only to the connecting socket (not all users)
+    if (socket.user && socket) {
+        socket.emit('smartparking_test', { 
             message: 'This is a real-time update from the server!',
             authenticated: true,
             user: socket.user.email
         });
-    } else {
+    } else if (socket) {
         // Unauthenticated users get a generic message
-        global.WebsocketIO.emit('smartparking_test', { 
+        socket.emit('smartparking_test', { 
             message: 'Connected to Smart Parking service',
             authenticated: false
         });

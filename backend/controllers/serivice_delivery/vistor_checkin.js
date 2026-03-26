@@ -119,11 +119,13 @@ module.exports = async function visitor_checkin(req, res, next) {
 
         const saved_visitor = await new_visitor.save()
 
-        global.WebsocketIO?.emit('visitor_checkedin', { 
-            show_notif: false,
-            type: 'info',
-            message: 'Visitor checked in: ' + full_name
-         })
+        if (global.WebsocketIO) {
+            global.WebsocketIO.to('SYSTEM_service_delivery').emit('visitor_checkedin', { 
+                show_notif: false,
+                type: 'info',
+                message: 'Visitor checked in: ' + full_name
+             });
+        }
 
         return res.status(201).json({
             success: true,
