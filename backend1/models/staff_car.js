@@ -1,0 +1,31 @@
+const mongoose = require('mongoose');
+
+const staff_car_schema = new mongoose.Schema({
+    plate_number: { type: String, required: true },
+    id_type: { type: String, default: 'NID' },
+    identification: { type: String },
+    owner_name: { type: String },
+    department_name: { type: String },
+    owner_title: { type: String },
+    telephone: {type: String , default: "Not Specified" },
+    owner_picture: { type: String },
+    is_active: { type: Boolean, default: true },
+    registered_by: { type: String },
+    is_flagged: { type: Boolean, default: false }
+},{
+    versionKey: false, // removes __v automatically
+    toJSON: {
+        transform: function (doc, ret) {
+            delete ret.__v; // just in case
+            return ret;
+        }
+    },
+    toObject: {
+        transform: function (doc, ret) {
+            delete ret.__v;
+            return ret;
+        }
+    }
+});
+
+module.exports = mongoose.model('StaffCar', staff_car_schema);
