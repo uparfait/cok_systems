@@ -11,7 +11,7 @@ import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
   FiTruck, FiSearch, FiAward, FiShield, FiCheckCircle, FiCheck, FiAlertTriangle, FiUser, FiUserPlus,
   FiPhone, FiPlus, FiFileText, FiX, FiFlag, FiSlash, FiCrosshair, FiClock, FiAlertOctagon, FiSettings, FiAlertCircle, FiEdit,
-  FiActivity, FiCalendar, FiMapPin, FiTrendingUp, FiUsers, FiLogOut, FiInfo
+  FiActivity, FiCalendar, FiMapPin, FiTrendingUp, FiUsers, FiLogOut, FiInfo, FiCreditCard
 } from 'react-icons/fi';
 import { BsShieldCheck, BsClockHistory, BsExclamationTriangle } from 'react-icons/bs';
 import { MdOutlineLocalParking, MdOutlineWarning } from 'react-icons/md';
@@ -57,7 +57,8 @@ interface UnknownVehicleForm {
   driver_telephone: string;
   driver_email?: string;
   driver_gender?: string;
-  national_id?: string;
+  id_type: string;
+  id_number: string;
   badge_number?: string;
   driver_type: string;
 }
@@ -75,6 +76,60 @@ interface LongDurationVehicle {
   _id?: string;
 }
 
+// Validation helper function
+const validateIdNumber = (idType: string, idNumber: string): string | null => {
+  if (!idNumber || idNumber.trim() === '') {
+    return null; // Optional field - no validation needed
+  }
+  
+  const trimmedId = idNumber.trim();
+  
+  if (idType === 'National ID') {
+    // National ID must be at least 16 characters
+    if (trimmedId.length < 16) {
+      return 'National ID must be at least 16 characters';
+    }
+    // National ID should only contain numbers (Egyptian national ID format)
+    if (!/^\d+$/.test(trimmedId)) {
+      return 'National ID must contain only numbers';
+    }
+  } else if (idType === 'Passport') {
+    // Passport typically 6-9 characters with letters and numbers
+    if (trimmedId.length < 6) {
+      return 'Passport number must be at least 6 characters';
+    }
+    if (!/^[A-Z0-9]+$/i.test(trimmedId)) {
+      return 'Passport number must contain only letters and numbers';
+    }
+  } else if (idType === 'Driving Licence') {
+    // Driving licence typically 8-15 characters
+    if (trimmedId.length < 8) {
+      return 'Driving Licence must be at least 8 characters';
+    }
+    if (!/^[A-Z0-9]+$/i.test(trimmedId)) {
+      return 'Driving Licence must contain only letters and numbers';
+    }
+  }
+  
+  return null; // Valid
+}
+
+// Email validation helper
+const validateEmail = (email: string): string | null => {
+  if (!email || email.trim() === '') {
+    return null; // Optional field - no validation needed
+  }
+  
+  const trimmedEmail = email.trim();
+  // General email regex - accepts any valid email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(trimmedEmail)) {
+    return 'Please enter a valid email address';
+  }
+  
+  return null; // Valid
+}
+
 const SmartParkingDashboard: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -85,6 +140,9 @@ const SmartParkingDashboard: React.FC = () => {
   const [verifying, setVerifying] = useState(false);
   const [plateNumber, setPlateNumber] = useState('');
   const [statsLoading, setStatsLoading] = useState(true);
+  const [idError, setIdError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
   
   // Modal states
   const [showFoundModal, setShowFoundModal] = useState(false);
@@ -110,7 +168,8 @@ const SmartParkingDashboard: React.FC = () => {
     driver_telephone: '',
     driver_email: '',
     driver_gender: '',
-    national_id: '',
+    id_type: 'National ID',
+    id_number: '',
     badge_number: '',
     driver_type: '',
   });
@@ -146,6 +205,7 @@ const SmartParkingDashboard: React.FC = () => {
     check_out: number;
   }[]>([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+    const [firstLoad, setFirstLoad] = useState(true);
 
   // Fetch dashboard data
   const fetchDashboardData = useCallback(async () => {
@@ -217,6 +277,7 @@ const SmartParkingDashboard: React.FC = () => {
       console.error('Error fetching hourly analytics:', error);
     } finally {
       setAnalyticsLoading(false);
+      setFirstLoad(false);
     }
   }, []);
 
@@ -437,6 +498,20 @@ const SmartParkingDashboard: React.FC = () => {
       showWarning('Invalid phone number format');
       return;
     }
+    
+    // Validate ID number
+    const idValidationError = validateIdNumber(unknownForm.id_type, unknownForm.id_number);
+    if (idValidationError) {
+      showError(idValidationError);
+      return;
+    }
+    
+    // Validate email if provided
+    const emailValidationError = validateEmail(unknownForm.driver_email || '');
+    if (emailValidationError) {
+      showError(emailValidationError);
+      return;
+    }
 
     const finalPlateNumber = unknownForm.plate_number.trim().toUpperCase();
 
@@ -448,7 +523,10 @@ const SmartParkingDashboard: React.FC = () => {
         driver_telephone: unknownForm.driver_telephone.replace(/[^+\d]/g, ""),
         driver_gender: unknownForm.driver_gender || null,
         driver_email: unknownForm.driver_email?.trim() || null,
-        driver_identification: unknownForm.national_id ? { number: unknownForm.national_id.trim() } : null,
+        driver_identification: unknownForm.id_number ? { 
+          id_type: unknownForm.id_type, 
+          number: unknownForm.id_number.trim() 
+        } : null,
         badge_number: unknownForm.badge_number?.trim() || null,
         driver_type: unknownForm.driver_type || '-',
       };
@@ -460,7 +538,8 @@ const SmartParkingDashboard: React.FC = () => {
         setShowSuccessModal(true);
         setPlateNumber('');
         setVerifiedData(null);
-        setUnknownForm({ plate_number: '', driver_name: '', driver_telephone: '', driver_email: '', driver_gender: '', national_id: '', badge_number: '', driver_type: '' });
+        setUnknownForm({ plate_number: '', driver_name: '', driver_telephone: '', driver_email: '', driver_gender: '', id_type: 'National ID', id_number: '', badge_number: '', driver_type: '' });
+        setIdError(null);
         showSuccess('Vehicle registered successfully');
         fetchDashboardData();
       } else {
@@ -486,7 +565,7 @@ const SmartParkingDashboard: React.FC = () => {
     setDriverInfo({ name: '', telephone: '', badge_number: '' });
     setPlateNumber('');
     setVerifiedData(null);
-    setUnknownForm({ plate_number: '', driver_name: '', driver_telephone: '', driver_email: '', driver_gender: '', national_id: '', badge_number: '', driver_type: '' });
+    setUnknownForm({ plate_number: '', driver_name: '', driver_telephone: '', driver_email: '', driver_gender: '', id_type: 'National ID', id_number: '', badge_number: '', driver_type: '' });
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -495,6 +574,20 @@ const SmartParkingDashboard: React.FC = () => {
       ...prev,
       [name]: value
     }));
+    
+    // Validate ID number when id_type or id_number changes
+    if (name === 'id_type' || name === 'id_number') {
+      const newIdType = name === 'id_type' ? value : unknownForm.id_type;
+      const newIdNumber = name === 'id_number' ? value : unknownForm.id_number;
+      const error = validateIdNumber(newIdType, newIdNumber);
+      setIdError(error);
+    }
+    
+    // Validate email when driver_email changes
+    if (name === 'driver_email') {
+      const error = validateEmail(value);
+      setEmailError(error);
+    }
   };
 
   const handleDriverInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -676,128 +769,135 @@ const SmartParkingDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Hourly Analytics Graph */}
-        <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-xl border border-white/30 p-4 sm:p-5 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-xl">
-                <FiTrendingUp className="w-5 h-5 text-blue-600" />
-              </div>
-              <h2 className="text-lg font-semibold text-gray-800">Hourly Parking Analytics</h2>
-            </div>
-            <button
-              onClick={fetchHourlyAnalytics}
-              className="text-sm px-3 py-1.5 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 hover:from-blue-500/20 hover:to-indigo-500/20 rounded-full text-blue-600 font-medium transition-all flex items-center gap-1"
-            >
-              <FiActivity className="w-3.5 h-3.5" />
-              Refresh
-            </button>
-          </div>
+     {/* Hourly Analytics Graph */}
+<div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-xl border border-white/30 p-4 sm:p-5 mb-6">
+  <div className="flex items-center justify-between mb-4">
+    <div className="flex items-center gap-2">
+      <div className="p-2 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-xl">
+        <FiTrendingUp className="w-5 h-5 text-blue-600" />
+      </div>
+      <h2 className="text-lg font-semibold text-gray-800">Hourly Parking Analytics</h2>
+    </div>
+    <button
+      onClick={fetchHourlyAnalytics}
+      className="text-sm px-3 py-1.5 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 hover:from-blue-500/20 hover:to-indigo-500/20 rounded-full text-blue-600 font-medium transition-all flex items-center gap-1"
+    >
+      <FiActivity className="w-3.5 h-3.5" />
+      Refresh
+    </button>
+  </div>
 
-          {analyticsLoading ? (
-            <div className="flex items-center justify-center h-48">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
-            </div>
-          ) : hourlyParkingData.length > 0 ? (
-            <div className="overflow-x-auto">
-              {/* Recharts Area Chart - Wave Style */}
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={hourlyParkingData}
-                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-                  >
-                    <defs>
-                      <linearGradient id="colorCheckIn" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#00aaff" stopOpacity={0.25}/>
-                        <stop offset="95%" stopColor="#00aaff" stopOpacity={0.02}/>
-                      </linearGradient>
-                      <linearGradient id="colorCheckOut" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.25}/>
-                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                    <XAxis 
-                      dataKey="hour" 
-                      tickFormatter={(value) => `${value.toString().padStart(2, '0')}:00`}
-                      stroke="#9ca3af"
-                      fontSize={12}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis stroke="#9ca3af" fontSize={12} axisLine={false} tickLine={false} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                      }}
-                      formatter={(value, name) => [
-                        value, 
-                        name === 'check_in' ? 'Check-ins' : 'Check-outs'
-                      ]}
-                      labelFormatter={(label) => `${label}:00`}
-                    />
-                    <Legend />
-                    <Area 
-                      type="basis" 
-                      dataKey="check_in" 
-                      name="Check-ins" 
-                      stroke="#00aaff" 
-                      strokeWidth={2}
-                      fillOpacity={1} 
-                      fill="url(#colorCheckIn)" 
-                      animationDuration={1500}
-                      dot={{ r: 4, fill: '#fff', stroke: '#00aaff', strokeWidth: 2 }}
-                      activeDot={{ r: 6, fill: '#00aaff', stroke: '#fff', strokeWidth: 2 }}
-                    />
-                    <Area 
-                      type="basis" 
-                      dataKey="check_out" 
-                      name="Check-outs" 
-                      stroke="#ef4444" 
-                      strokeWidth={2}
-                      fillOpacity={1} 
-                      fill="url(#colorCheckOut)" 
-                      animationDuration={1500}
-                      dot={{ r: 4, fill: '#fff', stroke: '#ef4444', strokeWidth: 2 }}
-                      activeDot={{ r: 6, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-              
-              {/* Summary Stats */}
-              <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-100">
-                <div className="text-center">
-                  <p className="text-sm text-gray-500">Total Check-ins Today</p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {hourlyParkingData.reduce((sum, d) => sum + d.check_in, 0)}
-                  </p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-gray-500">Total Check-outs Today</p>
-                  <p className="text-2xl font-bold text-red-600">
-                    {hourlyParkingData.reduce((sum, d) => sum + d.check_out, 0)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-48 text-gray-400">
-              <FiTrendingUp className="w-12 h-12 mb-2 opacity-50" />
-              <p className="text-sm">No hourly data available</p>
-              <button
-                onClick={fetchHourlyAnalytics}
-                className="mt-2 text-sm text-blue-600 hover:underline"
-              >
-                Click to refresh
-              </button>
-            </div>
-          )}
+  {(analyticsLoading && firstLoad) ? (
+    <div className="flex items-center justify-center h-48">
+      <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
+    </div>
+  ) : hourlyParkingData.length > 0 ? (
+    <div className="overflow-x-auto">
+      {/* Recharts Area Chart - Wave Style */}
+      <div className="h-64 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart
+            data={hourlyParkingData}
+            margin={{ top: 20, right: 30, left: 20, bottom: 25 }}
+          >
+            <defs>
+              <linearGradient id="colorCheckIn" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#00aaff" stopOpacity={0.25}/>
+                <stop offset="95%" stopColor="#00aaff" stopOpacity={0.02}/>
+              </linearGradient>
+              <linearGradient id="colorCheckOut" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.25}/>
+                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+            <XAxis 
+              dataKey="hour" 
+              tickFormatter={(value) => `${value.toString().padStart(2, '0')}:00`}
+              stroke="#9ca3af"
+              fontSize={12}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis 
+              stroke="#9ca3af" 
+              fontSize={12} 
+              axisLine={false} 
+              tickLine={false}
+              label={{ 
+                value: 'Number of Vehicles', 
+                angle: -90, 
+                position: 'insideLeft',
+                style: { fill: '#6b7280', fontSize: 12, fontWeight: 500, textAnchor: 'middle' },
+                offset: 0
+              }}
+            />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+              }}
+            />
+            <Legend />
+            <Area 
+              type="monotone" 
+              dataKey="check_in" 
+              name="Check-ins" 
+              stroke="#00aaff" 
+              strokeWidth={2}
+              fillOpacity={1} 
+              fill="url(#colorCheckIn)" 
+              animationDuration={1500}
+              dot={{ r: 4, fill: '#fff', stroke: '#00aaff', strokeWidth: 2 }}
+              activeDot={{ r: 6, fill: '#00aaff', stroke: '#fff', strokeWidth: 2 }}
+            />
+            <Area 
+              type="monotone" 
+              dataKey="check_out" 
+              name="Check-outs" 
+              stroke="#ef4444" 
+              strokeWidth={2}
+              fillOpacity={1} 
+              fill="url(#colorCheckOut)" 
+              animationDuration={1500}
+              dot={{ r: 4, fill: '#fff', stroke: '#ef4444', strokeWidth: 2 }}
+              activeDot={{ r: 6, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+      
+      {/* Summary Stats */}
+      <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-100">
+        <div className="text-center">
+          <p className="text-sm text-gray-500">Total Check-ins Today</p>
+          <p className="text-2xl font-bold text-blue-600">
+            {hourlyParkingData.reduce((sum, d) => sum + d.check_in, 0)}
+          </p>
         </div>
+        <div className="text-center">
+          <p className="text-sm text-gray-500">Total Check-outs Today</p>
+          <p className="text-2xl font-bold text-red-600">
+            {hourlyParkingData.reduce((sum, d) => sum + d.check_out, 0)}
+          </p>
+        </div>
+      </div>
+    </div>
+  ) : (
+    <div className="flex flex-col items-center justify-center h-48 text-gray-400">
+      <FiTrendingUp className="w-12 h-12 mb-2 opacity-50" />
+      <p className="text-sm">No hourly data available</p>
+      <button
+        onClick={fetchHourlyAnalytics}
+        className="mt-2 text-sm text-blue-600 hover:underline"
+      >
+        Click to refresh
+      </button>
+    </div>
+  )}
+</div>
 
         {/* Flagged Vehicles Section */}
         <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-xl border border-white/30 p-4 sm:p-5">
@@ -973,7 +1073,7 @@ const SmartParkingDashboard: React.FC = () => {
                 </div>
 
                 {isEditingDriver ? (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-3">
                     <input
                       type="text"
                       name="name"
@@ -990,7 +1090,7 @@ const SmartParkingDashboard: React.FC = () => {
                       placeholder="Phone number"
                       className="w-full px-3 py-2 bg-white/50 backdrop-blur border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
                     />
-                    <div className="col-span-2">
+                    <div>
                       <input
                         type="text"
                         name="badge_number"
@@ -1101,17 +1201,40 @@ const SmartParkingDashboard: React.FC = () => {
                   />
                 </div>
 
-                {/* National ID */}
+                {/* ID Type */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">National ID / Passport</label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">ID Type</label>
+                  <select
+                    name="id_type"
+                    value={unknownForm.id_type}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 bg-white/50 backdrop-blur border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="National ID">National ID</option>
+                    <option value="Passport">Passport</option>
+                    <option value="Driving Licence">Driving Licence</option>
+                  </select>
+                </div>
+
+                {/* ID Number */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                    {unknownForm.id_type === 'National ID' ? 'National ID (16+ digits)' : 'ID Number'}
+                  </label>
                   <input
                     type="text"
-                    name="national_id"
-                    value={unknownForm.national_id || ''}
+                    name="id_number"
+                    value={unknownForm.id_number || ''}
                     onChange={handleInputChange}
-                    placeholder="Enter ID number"
-                    className="w-full px-3 py-2 bg-white/50 backdrop-blur border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder={unknownForm.id_type === 'National ID' ? 'Enter 16+ digit national ID' : 'Enter ID number'}
+                    className={`w-full px-3 py-2 bg-white/50 backdrop-blur border rounded-lg focus:ring-2 focus:ring-blue-500 ${idError ? 'border-red-500' : 'border-gray-200'}`}
                   />
+                  {idError && (
+                    <p className="mt-1 text-xs text-red-500">{idError}</p>
+                  )}
+                  {unknownForm.id_type === 'National ID' && unknownForm.id_number && !idError && (
+                    <p className="mt-1 text-xs text-green-600">✓ National ID format valid</p>
+                  )}
                 </div>
 
                 {/* Full Names */}
@@ -1149,8 +1272,11 @@ const SmartParkingDashboard: React.FC = () => {
                     value={unknownForm.driver_email || ''}
                     onChange={handleInputChange}
                     placeholder="Enter email address"
-                    className="w-full px-3 py-2 bg-white/50 backdrop-blur border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className={`w-full px-3 py-2 bg-white/50 backdrop-blur border rounded-lg focus:ring-2 focus:ring-blue-500 ${emailError ? 'border-red-500' : 'border-gray-200'}`}
                   />
+                  {emailError && (
+                    <p className="mt-1 text-xs text-red-500">{emailError}</p>
+                  )}
                 </div>
 
                 {/* Badge Number */}
@@ -1516,3 +1642,4 @@ const SmartParkingDashboard: React.FC = () => {
 };
 
 export default SmartParkingDashboard;
+
