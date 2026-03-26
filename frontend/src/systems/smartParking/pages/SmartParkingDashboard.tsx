@@ -8,10 +8,10 @@ import { useToast } from '../../../core/contexts/ToastContext';
 import { useSocket } from '../../../core/contexts/SocketContext';
 import { smartParkingService, statisticsService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
-import { 
+import {
   FiTruck, FiSearch, FiAward, FiShield, FiCheckCircle, FiCheck, FiAlertTriangle, FiUser, FiUserPlus,
   FiPhone, FiPlus, FiFileText, FiX, FiFlag, FiSlash, FiCrosshair, FiClock, FiAlertOctagon, FiSettings, FiAlertCircle, FiEdit,
-  FiActivity, FiCalendar, FiMapPin, FiTrendingUp, FiUsers, FiLogOut, FiInfo
+  FiActivity, FiCalendar, FiMapPin, FiTrendingUp, FiUsers, FiLogOut, FiInfo, FiCreditCard
 } from 'react-icons/fi';
 import { BsShieldCheck, BsClockHistory, BsExclamationTriangle } from 'react-icons/bs';
 import { MdOutlineLocalParking, MdOutlineWarning } from 'react-icons/md';
@@ -57,7 +57,8 @@ interface UnknownVehicleForm {
   driver_telephone: string;
   driver_email?: string;
   driver_gender?: string;
-  national_id?: string;
+  id_type: string;
+  id_number: string;
   badge_number?: string;
   driver_type: string;
 }
@@ -75,17 +76,75 @@ interface LongDurationVehicle {
   _id?: string;
 }
 
+// Validation helper function
+const validateIdNumber = (idType: string, idNumber: string): string | null => {
+  if (!idNumber || idNumber.trim() === '') {
+    return null; // Optional field - no validation needed
+  }
+
+  const trimmedId = idNumber.trim();
+
+  if (idType === 'National ID') {
+    // National ID must be at least 16 characters
+    if (trimmedId.length < 16) {
+      return 'National ID must be at least 16 characters';
+    }
+    // National ID should only contain numbers (Egyptian national ID format)
+    if (!/^\d+$/.test(trimmedId)) {
+      return 'National ID must contain only numbers';
+    }
+  } else if (idType === 'Passport') {
+    // Passport typically 6-9 characters with letters and numbers
+    if (trimmedId.length < 6) {
+      return 'Passport number must be at least 6 characters';
+    }
+    if (!/^[A-Z0-9]+$/i.test(trimmedId)) {
+      return 'Passport number must contain only letters and numbers';
+    }
+  } else if (idType === 'Driving Licence') {
+    // Driving licence typically 8-15 characters
+    if (trimmedId.length < 8) {
+      return 'Driving Licence must be at least 8 characters';
+    }
+    if (!/^[A-Z0-9]+$/i.test(trimmedId)) {
+      return 'Driving Licence must contain only letters and numbers';
+    }
+  }
+
+  return null; // Valid
+}
+
+// Email validation helper
+const validateEmail = (email: string): string | null => {
+  if (!email || email.trim() === '') {
+    return null; // Optional field - no validation needed
+  }
+
+  const trimmedEmail = email.trim();
+  // General email regex - accepts any valid email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(trimmedEmail)) {
+    return 'Please enter a valid email address';
+  }
+
+  return null; // Valid
+}
+
 const SmartParkingDashboard: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { showSuccess, showError, showWarning, showInfo } = useToast();
   const { socket, isConnected, on, off } = useSocket();
-  
+
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [plateNumber, setPlateNumber] = useState('');
   const [statsLoading, setStatsLoading] = useState(true);
-  
+  const [flaggedLoading, setFlaggedLoading] = useState(true);
+  const [idError, setIdError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+
   // Modal states
   const [showFoundModal, setShowFoundModal] = useState(false);
   const [showUnknownModal, setShowUnknownModal] = useState(false);
@@ -110,7 +169,8 @@ const SmartParkingDashboard: React.FC = () => {
     driver_telephone: '',
     driver_email: '',
     driver_gender: '',
-    national_id: '',
+    id_type: 'National ID',
+    id_number: '',
     badge_number: '',
     driver_type: '',
   });
@@ -146,17 +206,18 @@ const SmartParkingDashboard: React.FC = () => {
     check_out: number;
   }[]>([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [firstLoad, setFirstLoad] = useState(true);
 
   // Fetch dashboard data
   const fetchDashboardData = useCallback(async () => {
     setStatsLoading(true);
     try {
       const allRecordsResponse = await smartParkingService.getAll();
-      
+
       if (allRecordsResponse.success && allRecordsResponse.data) {
         const allRecords = allRecordsResponse.data;
         const activeRecords = allRecords.filter((r: any) => r.status === 'active');
-        
+
         const totalInside = activeRecords.length;
         const totalOutside = allRecords.filter((r: any) => r.status === 'completed').length;
         const flaggedButInside = activeRecords.filter((r: any) => r.is_flagged === true).length;
@@ -165,14 +226,14 @@ const SmartParkingDashboard: React.FC = () => {
         const visitorVehicles = activeRecords.filter((r: any) => r.driver_type === 'Visitor').length;
         const visitorReserved = activeRecords.filter((r: any) => r.driver_type === 'Visitor' && (r.is_reserved || r.reserved)).length;
         const staffReserved = activeRecords.filter((r: any) => (r.driver_type === 'Staff' || r.driver_type === 'Regular') && (r.is_reserved || r.reserved)).length;
-        
+
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const newVisitors = allRecords.filter((r: any) => {
           const checkInDate = new Date(r.check_in || r.entry_date);
           return checkInDate >= today && r.driver_type === 'Visitor';
         }).length;
-        
+
         setStats(prev => ({
           ...prev,
           availableSlots: Math.max(0, prev.totalSlots - totalInside),
@@ -202,6 +263,7 @@ const SmartParkingDashboard: React.FC = () => {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setStatsLoading(false);
+      setFlaggedLoading(false);
     }
   }, [selectedDate]);
 
@@ -217,6 +279,7 @@ const SmartParkingDashboard: React.FC = () => {
       console.error('Error fetching hourly analytics:', error);
     } finally {
       setAnalyticsLoading(false);
+      setFirstLoad(false);
     }
   }, []);
 
@@ -244,20 +307,44 @@ const SmartParkingDashboard: React.FC = () => {
       on('parking_update', handleParkingUpdate);
       on('smartparking_test', handleParkingUpdate);
 
+      // Listen for car check-in events from other sessions
+      const handleCarCheckin = (data: any) => {
+        console.log('Car check-in event received:', data);
+        // Always show toaster with type and message
+        switch (data.type) {
+          case 'success':
+            showSuccess(data.message);
+            break;
+          case 'error':
+            showError(data.message);
+            break;
+          case 'warning':
+            showWarning(data.message);
+            break;
+          default:
+            showInfo(data.message);
+        }
+        // Refresh dashboard data
+        fetchDashboardData();
+      };
+
+      on('car_checkedin', handleCarCheckin);
+
       return () => {
         off('parking_checkin', handleParkingUpdate);
         off('parking_checkout', handleParkingUpdate);
         off('parking_update', handleParkingUpdate);
         off('smartparking_test', handleParkingUpdate);
+        off('car_checkedin', handleCarCheckin);
       };
     }
-  }, [socket, isConnected, on, off, handleParkingUpdate]);
+  }, [socket, isConnected, on, off, handleParkingUpdate, fetchDashboardData, showSuccess, showError, showWarning, showInfo]);
 
   // Helper function to get background color based on duration
   const getDurationBgColor = (duration: string) => {
     const hours = parseFloat(duration.replace(/[^0-9.]/g, ''));
     if (hours >= 9) return 'bg-red-500/20 text-red-600 border border-red-200';
-    if (hours < 9 ) return 'bg-orange-500/20 text-orange-600 border border-orange-200';
+    if (hours < 9) return 'bg-orange-500/20 text-orange-600 border border-orange-200';
     return 'bg-gray-500/20 text-gray-600 border border-gray-200';
   };
 
@@ -321,7 +408,7 @@ const SmartParkingDashboard: React.FC = () => {
 
     try {
       const response = await smartParkingService.verifyCar(plateNumber.trim());
-      
+
       if (response.success && response.data) {
         const data = response.data;
         setVerifiedData(data);
@@ -344,9 +431,9 @@ const SmartParkingDashboard: React.FC = () => {
       console.error('Verify error:', err);
       showError(err?.message || 'Failed to verify vehicle');
       const errorData = err?.response?.data;
-      setVerifiedData(errorData?.data || { 
+      setVerifiedData(errorData?.data || {
         plate_number: plateNumber.trim().toUpperCase(),
-        vehicle_category: 'Unknown' 
+        vehicle_category: 'Unknown'
       });
       setUnknownForm(prev => ({ ...prev, plate_number: plateNumber.trim().toUpperCase() }));
       setShowUnknownModal(true);
@@ -357,7 +444,7 @@ const SmartParkingDashboard: React.FC = () => {
 
   const handleConfirmEntry = async () => {
     if (!verifiedData?.plate_number) return;
-    
+
     if (verifiedData.is_currently_parked) {
       showWarning('This vehicle is already checked in');
       return;
@@ -367,12 +454,12 @@ const SmartParkingDashboard: React.FC = () => {
       showWarning('Badge number is required');
       return;
     }
-    
+
     setLoading(true);
     try {
       // Get identification from verified data
       const identification = verifiedData.driver_details?.identification || null;
-      
+
       const response = await smartParkingService.checkIn({
         plate_number: verifiedData.plate_number,
         driver_name: driverInfo.name || verifiedData.driver_details?.name || verifiedData.driver_name || '',
@@ -404,12 +491,12 @@ const SmartParkingDashboard: React.FC = () => {
       showWarning('License plate number is required');
       return;
     }
-    
+
     if (!unknownForm.driver_name.trim()) {
       showWarning('Owner name is required');
       return;
     }
-    
+
     if (!unknownForm.driver_telephone.trim()) {
       showWarning('Phone number is required');
       return;
@@ -425,16 +512,30 @@ const SmartParkingDashboard: React.FC = () => {
       showWarning('Invalid license plate format (e.g., ABC-1234 or ABC123)');
       return;
     }
-    
+
     const nameRegex = /^[a-zA-Z\s\-\']+$/;
     if (!nameRegex.test(unknownForm.driver_name.trim())) {
       showWarning('Invalid name format (only letters, spaces, hyphens allowed)');
       return;
     }
-    
+
     const phoneRegex = /^[+]?[(]?\d{1,4}[)]?[\d\s\-\(\)]{7,20}$/;
     if (!phoneRegex.test(unknownForm.driver_telephone)) {
       showWarning('Invalid phone number format');
+      return;
+    }
+
+    // Validate ID number
+    const idValidationError = validateIdNumber(unknownForm.id_type, unknownForm.id_number);
+    if (idValidationError) {
+      showError(idValidationError);
+      return;
+    }
+
+    // Validate email if provided
+    const emailValidationError = validateEmail(unknownForm.driver_email || '');
+    if (emailValidationError) {
+      showError(emailValidationError);
       return;
     }
 
@@ -448,11 +549,14 @@ const SmartParkingDashboard: React.FC = () => {
         driver_telephone: unknownForm.driver_telephone.replace(/[^+\d]/g, ""),
         driver_gender: unknownForm.driver_gender || null,
         driver_email: unknownForm.driver_email?.trim() || null,
-        driver_identification: unknownForm.national_id ? { number: unknownForm.national_id.trim() } : null,
+        driver_identification: unknownForm.id_number ? {
+          id_type: unknownForm.id_type,
+          number: unknownForm.id_number.trim()
+        } : null,
         badge_number: unknownForm.badge_number?.trim() || null,
         driver_type: unknownForm.driver_type || '-',
       };
-      
+
       const response = await smartParkingService.checkIn(requestData);
 
       if (response.success) {
@@ -460,7 +564,8 @@ const SmartParkingDashboard: React.FC = () => {
         setShowSuccessModal(true);
         setPlateNumber('');
         setVerifiedData(null);
-        setUnknownForm({ plate_number: '', driver_name: '', driver_telephone: '', driver_email: '', driver_gender: '', national_id: '', badge_number: '', driver_type: '' });
+        setUnknownForm({ plate_number: '', driver_name: '', driver_telephone: '', driver_email: '', driver_gender: '', id_type: 'National ID', id_number: '', badge_number: '', driver_type: '' });
+        setIdError(null);
         showSuccess('Vehicle registered successfully');
         fetchDashboardData();
       } else {
@@ -486,7 +591,7 @@ const SmartParkingDashboard: React.FC = () => {
     setDriverInfo({ name: '', telephone: '', badge_number: '' });
     setPlateNumber('');
     setVerifiedData(null);
-    setUnknownForm({ plate_number: '', driver_name: '', driver_telephone: '', driver_email: '', driver_gender: '', national_id: '', badge_number: '', driver_type: '' });
+    setUnknownForm({ plate_number: '', driver_name: '', driver_telephone: '', driver_email: '', driver_gender: '', id_type: 'National ID', id_number: '', badge_number: '', driver_type: '' });
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -495,6 +600,20 @@ const SmartParkingDashboard: React.FC = () => {
       ...prev,
       [name]: value
     }));
+
+    // Validate ID number when id_type or id_number changes
+    if (name === 'id_type' || name === 'id_number') {
+      const newIdType = name === 'id_type' ? value : unknownForm.id_type;
+      const newIdNumber = name === 'id_number' ? value : unknownForm.id_number;
+      const error = validateIdNumber(newIdType, newIdNumber);
+      setIdError(error);
+    }
+
+    // Validate email when driver_email changes
+    if (name === 'driver_email') {
+      const error = validateEmail(value);
+      setEmailError(error);
+    }
   };
 
   const handleDriverInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -512,7 +631,7 @@ const SmartParkingDashboard: React.FC = () => {
       showInfo('Verification cancelled');
       return;
     }
-    
+
     if (!verifiedData) {
       showWarning('No vehicle verified to deny');
       return;
@@ -526,7 +645,7 @@ const SmartParkingDashboard: React.FC = () => {
       showWarning('No vehicle verified to flag');
       return;
     }
-    
+
     setLoading(true);
     try {
       const response = await smartParkingService.flagVehicle?.(verifiedData.plate_number, 'Flagged by gate officer');
@@ -550,7 +669,7 @@ const SmartParkingDashboard: React.FC = () => {
 
   const handleConfirmCheckout = async () => {
     if (!checkoutVehicle?.plate_no) return;
-    
+
     setLoading(true);
     try {
       const response = await smartParkingService.checkOutByPlate(checkoutVehicle.plate_no);
@@ -582,11 +701,14 @@ const SmartParkingDashboard: React.FC = () => {
   return (
     <MainLayout>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30 p-2 sm:p-3 md:p-4 lg:p-6">
-        
+
         {/* Main Stats Grid - Glassmorphism Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
           {/* Total Inside */}
-          <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
+          <button
+            onClick={() => navigate('/smart-parking/checkout-vehicle')}
+            className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20 w-full text-left"
+          >
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-emerald-700 text-sm font-medium mb-1">Total Inside</p>
@@ -598,13 +720,13 @@ const SmartParkingDashboard: React.FC = () => {
               </div>
               <div className="p-3 bg-gradient-to-br from-gray-100 to-gray-200/50 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
                 <FiTruck className="w-6 h-6 text-emerald-700" />
-               </div>
-                 </div>
-                    <div className="mt-3 w-full bg-white/20 h-1.5 rounded-full overflow-hidden"> 
-                     <div className="bg-white h-full rounded-full" style={{ width: '70%' }}>
-                      </div>
-                        </div>
-                           </div>
+              </div>
+            </div>
+            <div className="mt-3 w-full bg-white/20 h-1.5 rounded-full overflow-hidden">
+              <div className="bg-white h-full rounded-full" style={{ width: '70%' }}>
+              </div>
+            </div>
+          </button>
 
           {/* Available Slots */}
           <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
@@ -622,8 +744,8 @@ const SmartParkingDashboard: React.FC = () => {
               </div>
             </div>
             <div className="mt-3 w-full bg-white/20 h-1.5 rounded-full overflow-hidden">
-              <div 
-                className="bg-white h-full rounded-full" 
+              <div
+                className="bg-white h-full rounded-full"
                 style={{ width: `${((stats.totalSlots - stats.availableSlots) / stats.totalSlots) * 100}%` }}
               ></div>
             </div>
@@ -645,8 +767,8 @@ const SmartParkingDashboard: React.FC = () => {
               </div>
             </div>
             <div className="mt-3 w-full bg-white/20 h-1.5 rounded-full overflow-hidden">
-              <div 
-                className="bg-white h-full rounded-full" 
+              <div
+                className="bg-white h-full rounded-full"
                 style={{ width: `${(stats.staffReserved / 100) * 100}%` }}
               ></div>
             </div>
@@ -668,8 +790,8 @@ const SmartParkingDashboard: React.FC = () => {
               </div>
             </div>
             <div className="mt-3 w-full bg-white/20 h-1.5 rounded-full overflow-hidden">
-              <div 
-                className="bg-white h-full rounded-full" 
+              <div
+                className="bg-white h-full rounded-full"
                 style={{ width: `${(stats.visitorReserved / 50) * 100}%` }}
               ></div>
             </div>
@@ -694,7 +816,7 @@ const SmartParkingDashboard: React.FC = () => {
             </button>
           </div>
 
-          {analyticsLoading ? (
+          {(analyticsLoading && firstLoad) ? (
             <div className="flex items-center justify-center h-48">
               <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
             </div>
@@ -705,62 +827,69 @@ const SmartParkingDashboard: React.FC = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
                     data={hourlyParkingData}
-                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 25 }}
                   >
                     <defs>
                       <linearGradient id="colorCheckIn" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#00aaff" stopOpacity={0.25}/>
-                        <stop offset="95%" stopColor="#00aaff" stopOpacity={0.02}/>
+                        <stop offset="5%" stopColor="#00aaff" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#00aaff" stopOpacity={0.02} />
                       </linearGradient>
                       <linearGradient id="colorCheckOut" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.25}/>
-                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02}/>
+                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                    <XAxis 
-                      dataKey="hour" 
+                    <XAxis
+                      dataKey="hour"
                       tickFormatter={(value) => `${value.toString().padStart(2, '0')}:00`}
                       stroke="#9ca3af"
                       fontSize={12}
                       axisLine={false}
                       tickLine={false}
                     />
-                    <YAxis stroke="#9ca3af" fontSize={12} axisLine={false} tickLine={false} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                    <YAxis
+                      stroke="#9ca3af"
+                      fontSize={12}
+                      axisLine={false}
+                      tickLine={false}
+                      label={{
+                        value: 'Number of Vehicles',
+                        angle: -90,
+                        position: 'insideLeft',
+                        style: { fill: '#6b7280', fontSize: 12, fontWeight: 500, textAnchor: 'middle' },
+                        offset: 0
+                      }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
                         border: '1px solid #e5e7eb',
                         borderRadius: '8px',
                         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                       }}
-                      formatter={(value, name) => [
-                        value, 
-                        name === 'check_in' ? 'Check-ins' : 'Check-outs'
-                      ]}
-                      labelFormatter={(label) => `${label}:00`}
                     />
                     <Legend />
-                    <Area 
-                      type="basis" 
-                      dataKey="check_in" 
-                      name="Check-ins" 
-                      stroke="#00aaff" 
+                    <Area
+                      type="monotone"
+                      dataKey="check_in"
+                      name="Check-ins"
+                      stroke="#00aaff"
                       strokeWidth={2}
-                      fillOpacity={1} 
-                      fill="url(#colorCheckIn)" 
+                      fillOpacity={1}
+                      fill="url(#colorCheckIn)"
                       animationDuration={1500}
                       dot={{ r: 4, fill: '#fff', stroke: '#00aaff', strokeWidth: 2 }}
                       activeDot={{ r: 6, fill: '#00aaff', stroke: '#fff', strokeWidth: 2 }}
                     />
-                    <Area 
-                      type="basis" 
-                      dataKey="check_out" 
-                      name="Check-outs" 
-                      stroke="#ef4444" 
+                    <Area
+                      type="monotone"
+                      dataKey="check_out"
+                      name="Check-outs"
+                      stroke="#ef4444"
                       strokeWidth={2}
-                      fillOpacity={1} 
-                      fill="url(#colorCheckOut)" 
+                      fillOpacity={1}
+                      fill="url(#colorCheckOut)"
                       animationDuration={1500}
                       dot={{ r: 4, fill: '#fff', stroke: '#ef4444', strokeWidth: 2 }}
                       activeDot={{ r: 6, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
@@ -768,7 +897,7 @@ const SmartParkingDashboard: React.FC = () => {
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-              
+
               {/* Summary Stats */}
               <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-100">
                 <div className="text-center">
@@ -808,7 +937,7 @@ const SmartParkingDashboard: React.FC = () => {
               </div>
               <h2 className="text-lg font-semibold text-gray-800">Flagged Vehicles</h2>
             </div>
-            <button 
+            <button
               onClick={() => setShowFlaggedModal(true)}
               className="text-sm px-3 py-1.5 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 hover:from-blue-500/20 hover:to-indigo-500/20 rounded-full text-blue-600 font-medium transition-all"
             >
@@ -816,7 +945,12 @@ const SmartParkingDashboard: React.FC = () => {
             </button>
           </div>
 
-          {flaggedVehicles.length === 0 ? (
+          {flaggedLoading ? (
+            <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mb-2"></div>
+              <p className="text-sm">Loading flagged vehicles...</p>
+            </div>
+          ) : flaggedVehicles.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-gray-400">
               <BsShieldCheck className="w-12 h-12 mb-2 opacity-50" />
               <p className="text-sm">No flagged vehicles at the moment</p>
@@ -829,13 +963,14 @@ const SmartParkingDashboard: React.FC = () => {
                     <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Plate No.</th>
                     <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Driver</th>
                     <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Type</th>
+                    <th className="text-left py-3 px-2 text-gray-600 font-medium">Duration</th>
                     <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Status</th>
                     <th className="text-right py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-red-100">
                   {flaggedVehicles.slice(0, 1).map((vehicle, index) => (
-                    <tr key={index} className="hover:bg-red-50 transition-colors">
+                    <tr key={index} className="hover:bg-red-50 cursor-pointer transition-colors" onClick={() => handleCheckoutClick(vehicle)}>
                       <td className="py-3 px-4 font-mono font-bold text-red-600 text-sm">{vehicle.plate_no}</td>
                       <td className="py-3 px-4 text-gray-700 text-sm">{vehicle.driver_name || '-'}</td>
                       <td className="py-3 px-4">
@@ -843,12 +978,17 @@ const SmartParkingDashboard: React.FC = () => {
                           {vehicle.driver_type || '-'}
                         </span>
                       </td>
+
                       <td className="py-3 px-4">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                          vehicle.status === 'active' 
-                            ? 'bg-green-100 text-green-700' 
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                          {vehicle.duration || '-'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${vehicle.status === 'active'
+                            ? 'bg-green-100 text-green-700'
                             : 'bg-gray-100 text-gray-500'
-                        }`}>
+                          }`}>
                           {vehicle.status === 'active' ? 'Inside' : 'Out'}
                         </span>
                       </td>
@@ -877,25 +1017,23 @@ const SmartParkingDashboard: React.FC = () => {
       {showFoundModal && verifiedData && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
           <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-lg mx-2 sm:mx-auto overflow-hidden border border-white/50 animate-scaleIn">
-            <div className={`px-4 sm:px-6 py-4 flex items-center justify-between border-b ${
-              verifiedData.is_flagged && verifiedData.is_currently_parked 
-                ? 'bg-gradient-to-r from-red-500/20 to-red-600/20 border-red-200' 
+            <div className={`px-4 sm:px-6 py-4 flex items-center justify-between border-b ${verifiedData.is_flagged && verifiedData.is_currently_parked
+                ? 'bg-gradient-to-r from-red-500/20 to-red-600/20 border-red-200'
                 : verifiedData.was_ever_flagged && !verifiedData.is_currently_parked
-                ? 'bg-gradient-to-r from-orange-500/20 to-amber-500/20 border-orange-200'
-                : verifiedData.is_currently_parked
-                ? 'bg-gradient-to-r from-orange-500/20 to-amber-500/20 border-orange-200'
-                : 'bg-gradient-to-r from-emerald-500/20 to-green-500/20 border-green-200'
-            }`}>
+                  ? 'bg-gradient-to-r from-orange-500/20 to-amber-500/20 border-orange-200'
+                  : verifiedData.is_currently_parked
+                    ? 'bg-gradient-to-r from-orange-500/20 to-amber-500/20 border-orange-200'
+                    : 'bg-gradient-to-r from-emerald-500/20 to-green-500/20 border-green-200'
+              }`}>
               <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-xl backdrop-blur-sm ${
-                  verifiedData.is_flagged && verifiedData.is_currently_parked 
-                    ? 'bg-red-500/20' 
+                <div className={`p-3 rounded-xl backdrop-blur-sm ${verifiedData.is_flagged && verifiedData.is_currently_parked
+                    ? 'bg-red-500/20'
                     : verifiedData.was_ever_flagged && !verifiedData.is_currently_parked
-                    ? 'bg-orange-500/20'
-                    : verifiedData.is_currently_parked
-                    ? 'bg-orange-500/20'
-                    : 'bg-emerald-500/20'
-                }`}>
+                      ? 'bg-orange-500/20'
+                      : verifiedData.is_currently_parked
+                        ? 'bg-orange-500/20'
+                        : 'bg-emerald-500/20'
+                  }`}>
                   {verifiedData.is_flagged && verifiedData.is_currently_parked ? (
                     <FiAlertTriangle className="w-6 h-6 text-red-600" />
                   ) : verifiedData.was_ever_flagged && !verifiedData.is_currently_parked ? (
@@ -908,22 +1046,21 @@ const SmartParkingDashboard: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">Vehicle Verification</h3>
-                  <p className={`text-sm ${
-                    verifiedData.is_flagged && verifiedData.is_currently_parked 
-                      ? 'text-red-600' 
+                  <p className={`text-sm ${verifiedData.is_flagged && verifiedData.is_currently_parked
+                      ? 'text-red-600'
                       : verifiedData.was_ever_flagged && !verifiedData.is_currently_parked
-                      ? 'text-orange-600'
-                      : verifiedData.is_currently_parked
-                      ? 'text-orange-600'
-                      : 'text-emerald-600'
-                  }`}>
-                    {verifiedData.is_flagged && verifiedData.is_currently_parked 
-                      ? 'Vehicle is flagged' 
+                        ? 'text-orange-600'
+                        : verifiedData.is_currently_parked
+                          ? 'text-orange-600'
+                          : 'text-emerald-600'
+                    }`}>
+                    {verifiedData.is_flagged && verifiedData.is_currently_parked
+                      ? 'Vehicle is flagged'
                       : verifiedData.was_ever_flagged && !verifiedData.is_currently_parked
-                      ? 'Vehicle was flagged in the past'
-                      : verifiedData.is_currently_parked
-                      ? 'Already inside parking'
-                      : 'Auto-scan successful'}
+                        ? 'Vehicle was flagged in the past'
+                        : verifiedData.is_currently_parked
+                          ? 'Already inside parking'
+                          : 'Auto-scan successful'}
                   </p>
                 </div>
               </div>
@@ -931,7 +1068,7 @@ const SmartParkingDashboard: React.FC = () => {
                 <FiX className="w-5 h-5 text-gray-600" />
               </button>
             </div>
-            
+
             <div className="p-4 sm:p-6">
               {/* Profile Section */}
               <div className="flex flex-col items-center mb-6">
@@ -973,7 +1110,7 @@ const SmartParkingDashboard: React.FC = () => {
                 </div>
 
                 {isEditingDriver ? (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-3">
                     <input
                       type="text"
                       name="name"
@@ -990,7 +1127,7 @@ const SmartParkingDashboard: React.FC = () => {
                       placeholder="Phone number"
                       className="w-full px-3 py-2 bg-white/50 backdrop-blur border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
                     />
-                    <div className="col-span-2">
+                    <div>
                       <input
                         type="text"
                         name="badge_number"
@@ -1048,11 +1185,10 @@ const SmartParkingDashboard: React.FC = () => {
               <button
                 onClick={handleConfirmEntry}
                 disabled={verifiedData.is_currently_parked}
-                className={`w-full py-3 px-4 rounded-xl font-semibold text-sm sm:text-base transition-all flex items-center justify-center gap-2 ${
-                  verifiedData.is_currently_parked 
-                    ? 'bg-gray-300 cursor-not-allowed text-gray-600' 
+                className={`w-full py-3 px-4 rounded-xl font-semibold text-sm sm:text-base transition-all flex items-center justify-center gap-2 ${verifiedData.is_currently_parked
+                    ? 'bg-gray-300 cursor-not-allowed text-gray-600'
                     : 'bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white shadow-lg hover:shadow-xl'
-                }`}
+                  }`}
               >
                 <FiCheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                 {verifiedData.is_currently_parked ? 'Already Checked In' : 'Confirm Entry & Open Gate'}
@@ -1085,7 +1221,7 @@ const SmartParkingDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="p-4 sm:p-6">
               <div className="space-y-4">
                 {/* Plate Number */}
@@ -1101,17 +1237,40 @@ const SmartParkingDashboard: React.FC = () => {
                   />
                 </div>
 
-                {/* National ID */}
+                {/* ID Type */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">National ID / Passport</label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">ID Type</label>
+                  <select
+                    name="id_type"
+                    value={unknownForm.id_type}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 bg-white/50 backdrop-blur border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="National ID">National ID</option>
+                    <option value="Passport">Passport</option>
+                    <option value="Driving Licence">Driving Licence</option>
+                  </select>
+                </div>
+
+                {/* ID Number */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                    {unknownForm.id_type === 'National ID' ? 'National ID (16+ digits)' : 'ID Number'}
+                  </label>
                   <input
                     type="text"
-                    name="national_id"
-                    value={unknownForm.national_id || ''}
+                    name="id_number"
+                    value={unknownForm.id_number || ''}
                     onChange={handleInputChange}
-                    placeholder="Enter ID number"
-                    className="w-full px-3 py-2 bg-white/50 backdrop-blur border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder={unknownForm.id_type === 'National ID' ? 'Enter 16+ digit national ID' : 'Enter ID number'}
+                    className={`w-full px-3 py-2 bg-white/50 backdrop-blur border rounded-lg focus:ring-2 focus:ring-blue-500 ${idError ? 'border-red-500' : 'border-gray-200'}`}
                   />
+                  {idError && (
+                    <p className="mt-1 text-xs text-red-500">{idError}</p>
+                  )}
+                  {unknownForm.id_type === 'National ID' && unknownForm.id_number && !idError && (
+                    <p className="mt-1 text-xs text-green-600">✓ National ID format valid</p>
+                  )}
                 </div>
 
                 {/* Full Names */}
@@ -1149,8 +1308,11 @@ const SmartParkingDashboard: React.FC = () => {
                     value={unknownForm.driver_email || ''}
                     onChange={handleInputChange}
                     placeholder="Enter email address"
-                    className="w-full px-3 py-2 bg-white/50 backdrop-blur border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className={`w-full px-3 py-2 bg-white/50 backdrop-blur border rounded-lg focus:ring-2 focus:ring-blue-500 ${emailError ? 'border-red-500' : 'border-gray-200'}`}
                   />
+                  {emailError && (
+                    <p className="mt-1 text-xs text-red-500">{emailError}</p>
+                  )}
                 </div>
 
                 {/* Badge Number */}
@@ -1175,11 +1337,10 @@ const SmartParkingDashboard: React.FC = () => {
                         key={gender}
                         type="button"
                         onClick={() => handleInputChange({ target: { name: 'driver_gender', value: gender } } as any)}
-                        className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                          unknownForm.driver_gender === gender
+                        className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${unknownForm.driver_gender === gender
                             ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md'
                             : 'bg-white/50 backdrop-blur border border-gray-200 text-gray-700 hover:bg-white/80'
-                        }`}
+                          }`}
                       >
                         {gender}
                       </button>
@@ -1196,11 +1357,10 @@ const SmartParkingDashboard: React.FC = () => {
                         key={type}
                         type="button"
                         onClick={() => handleInputChange({ target: { name: 'driver_type', value: type } } as any)}
-                        className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                          unknownForm.driver_type === type
+                        className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${unknownForm.driver_type === type
                             ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md'
                             : 'bg-white/50 backdrop-blur border border-gray-200 text-gray-700 hover:bg-white/80'
-                        }`}
+                          }`}
                       >
                         {type}
                       </button>
@@ -1209,7 +1369,7 @@ const SmartParkingDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex gap-2">
               <button
                 onClick={handleRegisterUnknown}
@@ -1260,44 +1420,87 @@ const SmartParkingDashboard: React.FC = () => {
 
       {/* Checkout Confirmation Modal */}
       {showCheckoutConfirmModal && checkoutVehicle && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-white/50 animate-scaleIn">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-red-500/20 to-orange-500/20 rounded-full flex items-center justify-center">
-                <FiAlertTriangle className="w-8 h-8 text-red-600" />
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-sm mx-2 sm:mx-auto p-4 sm:p-6 border border-white/50 animate-scaleIn">
+            <div className="text-center mb-4 sm:mb-6">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 bg-gradient-to-r from-red-500/20 to-orange-500/20 rounded-full flex items-center justify-center">
+                <FiAlertTriangle className="w-6 h-6 sm:w-8 sm:h-8 text-red-600" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Confirm Checkout</h3>
-              <p className="text-gray-600">Are you sure you want to check out this vehicle?</p>
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">Confirm Checkout</h3>
+              <p className="text-sm sm:text-base text-gray-600">Are you sure you want to check out this flagged vehicle?</p>
             </div>
-            
-            <div className="bg-gradient-to-r from-red-500/5 to-orange-500/5 backdrop-blur-sm rounded-xl p-4 mb-6 border border-red-200">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center">
-                  <FiTruck className="w-6 h-6 text-white" />
+
+            <div className="bg-gradient-to-r from-red-500/5 to-orange-500/5 backdrop-blur-sm rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-red-200">
+              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <FiTruck className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <div>
-                  <div className="font-mono font-bold text-gray-900">{checkoutVehicle.plate_no}</div>
-                  <div className="text-sm text-gray-600">{checkoutVehicle.driver_name}</div>
+                <div className="min-w-0">
+                  <div className="font-mono font-bold text-gray-900 text-sm sm:text-base truncate">{checkoutVehicle.plate_no}</div>
+                  <div className="text-xs sm:text-sm text-gray-600 truncate">{checkoutVehicle.driver_name || 'Unknown Driver'}</div>
                 </div>
+              </div>
+
+              {/* Additional vehicle details */}
+              <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm">
+                <div className="flex justify-between items-center py-1 sm:py-2 border-t border-red-100">
+                  <span className="text-gray-500 flex items-center gap-1">
+                    <FiClock className="w-3 h-3 sm:w-4 sm:h-4" />
+                    Duration:
+                  </span>
+                  <span className="font-medium text-red-600">{checkoutVehicle.duration || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 sm:py-2 border-t border-red-100">
+                  <span className="text-gray-500 flex items-center gap-1">
+                    <FiUser className="w-3 h-3 sm:w-4 sm:h-4" />
+                    Driver Type:
+                  </span>
+                  <span className="font-medium text-gray-700">{checkoutVehicle.driver_type || 'Unknown'}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 sm:py-2 border-t border-red-100">
+                  <span className="text-gray-500 flex items-center gap-1">
+                    <FiActivity className="w-3 h-3 sm:w-4 sm:h-4" />
+                    Status:
+                  </span>
+                  <span className="font-medium text-green-600 text-xs sm:text-sm">Inside (Active)</span>
+                </div>
+                {checkoutVehicle.entry_time && (
+                  <div className="flex justify-between items-center py-1 sm:py-2 border-t border-red-100">
+                    <span className="text-gray-500 flex items-center gap-1">
+                      <FiCalendar className="w-3 h-3 sm:w-4 sm:h-4" />
+                      Entry Time:
+                    </span>
+                    <span className="font-medium text-gray-700 text-xs sm:text-sm">
+                      {new Date(checkoutVehicle.entry_time).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3">
               <button
                 onClick={closeAllModals}
-                className="flex-1 py-3 bg-white/50 backdrop-blur hover:bg-white/80 border border-gray-200 text-gray-700 rounded-xl font-medium transition-all"
+                className="flex-1 py-2 sm:py-3 bg-white/50 backdrop-blur hover:bg-white/80 border border-gray-200 text-gray-700 rounded-xl font-medium transition-all text-sm sm:text-base"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmCheckout}
                 disabled={loading}
-                className="flex-1 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="flex-1 py-2 sm:py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-1 sm:gap-2 disabled:opacity-50 text-sm sm:text-base"
               >
                 {loading ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                    <span>Processing...</span>
+                    <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-2 border-white border-t-transparent"></div>
+                    <span className="hidden sm:inline">Processing...</span>
+                    <span className="sm:hidden">...</span>
                   </>
                 ) : (
                   <>
@@ -1332,7 +1535,7 @@ const SmartParkingDashboard: React.FC = () => {
                 <FiX className="w-5 h-5 text-gray-600" />
               </button>
             </div>
-            
+
             <div className="p-4 sm:p-6">
               <div className="mb-4 flex items-center gap-2">
                 <label className="text-sm text-gray-600">Filter by Date:</label>
@@ -1362,12 +1565,12 @@ const SmartParkingDashboard: React.FC = () => {
                         <td className="py-3 px-2 font-mono font-medium text-gray-800">{vehicle.plate_no}</td>
                         <td className="py-3 px-2 text-gray-600">{vehicle.driver_name || '-'}</td>
                         <td className="py-3 px-2 text-gray-600">
-                          {new Date(vehicle.entry_time).toLocaleString('en-US', { 
-                            month: 'short', 
-                            day: 'numeric', 
-                            hour: '2-digit', 
+                          {new Date(vehicle.entry_time).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
                             minute: '2-digit',
-                            hour12: true 
+                            hour12: true
                           })}
                         </td>
                         <td className="py-3 px-2">
@@ -1376,11 +1579,10 @@ const SmartParkingDashboard: React.FC = () => {
                           </span>
                         </td>
                         <td className="py-3 px-2">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            vehicle.status === 'active' 
-                              ? 'bg-green-100 text-green-600' 
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${vehicle.status === 'active'
+                              ? 'bg-green-100 text-green-600'
                               : 'bg-gray-100 text-gray-600'
-                          }`}>
+                            }`}>
                             {vehicle.status === 'active' ? 'Inside' : 'Out'}
                           </span>
                         </td>
@@ -1430,7 +1632,7 @@ const SmartParkingDashboard: React.FC = () => {
                 <FiX className="w-5 h-5 text-gray-600" />
               </button>
             </div>
-            
+
             <div className="p-4 sm:p-6">
               {flaggedVehicles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-gray-400">
@@ -1445,13 +1647,17 @@ const SmartParkingDashboard: React.FC = () => {
                         <th className="text-left py-3 px-2 text-gray-600 font-medium">Plate No.</th>
                         <th className="text-left py-3 px-2 text-gray-600 font-medium">Driver</th>
                         <th className="text-left py-3 px-2 text-gray-600 font-medium">Type</th>
+                        <th className="text-left py-3 px-2 text-gray-600 font-medium">Duration</th>
                         <th className="text-left py-3 px-2 text-gray-600 font-medium">Status</th>
                         <th className="text-right py-3 px-2 text-gray-600 font-medium">Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {flaggedVehicles.map((vehicle, index) => (
-                        <tr key={index} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                        <tr key={index} className="border-b border-gray-100 hover:bg-gray-50/50 cursor-pointer transition-colors"                                 onClick={() => {
+                                  setShowFlaggedModal(false);
+                                  handleCheckoutClick(vehicle);
+                                }}>
                           <td className="py-3 px-2 font-mono font-bold text-red-600">{vehicle.plate_no}</td>
                           <td className="py-3 px-2 text-gray-600">{vehicle.driver_name || '-'}</td>
                           <td className="py-3 px-2">
@@ -1460,11 +1666,15 @@ const SmartParkingDashboard: React.FC = () => {
                             </span>
                           </td>
                           <td className="py-3 px-2">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              vehicle.status === 'active' 
-                                ? 'bg-green-100 text-green-600' 
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                              {vehicle.duration || '-'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${vehicle.status === 'active'
+                                ? 'bg-green-100 text-green-600'
                                 : 'bg-gray-100 text-gray-600'
-                            }`}>
+                              }`}>
                               {vehicle.status === 'active' ? 'Inside' : 'Out'}
                             </span>
                           </td>
@@ -1516,3 +1726,4 @@ const SmartParkingDashboard: React.FC = () => {
 };
 
 export default SmartParkingDashboard;
+

@@ -55,13 +55,14 @@ const AdminSmartParkingDashboard: React.FC = () => {
 
   // State
   const [loading, setLoading] = useState(true);
+  const [firstLoad, setfirstLoad] = useState(true);
   const [stats, setStats] = useState<ParkingStats>({
     todayVehicles: 0,
     currentlyParked: 0,
     availableSlots: 0,
     flaggedInside: 0,
     flaggedOutside: 0,
-    totalCapacity: 100
+    totalCapacity: 200
   });
   const [hourlyData, setHourlyData] = useState<HourlyData[]>([]);
   const [recentRecords, setRecentRecords] = useState<ParkingRecord[]>([]);
@@ -75,34 +76,41 @@ const AdminSmartParkingDashboard: React.FC = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
+  // Total parking capacity - constant value
+  const TOTAL_CAPACITY = 200;
+
   // Fetch dashboard data
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch hourly parking stats
       const hourlyResponse = await statisticsService.getHourlyParkingStats();
-      const hourly = hourlyResponse?.data?.hourly || hourlyResponse?.hourly || [];
+      // API returns: { success: true, data: { hourly: [...], total_check_in: x, total_check_out: y } }
+      const hourly = hourlyResponse?.data?.hourly || [];
       setHourlyData(hourly);
+
+      // Calculate today's vehicles from hourly data
+      const todayCheckIns = hourly.reduce((sum: number, h: HourlyData) => sum + h.check_in, 0);
 
       // Fetch currently parked
       const parkedResponse = await statisticsService.getCurrentlyParkedStats();
-      const parkedData = parkedResponse?.data?.data || parkedResponse?.data || parkedResponse;
-      const currentlyParked = parkedData?.total || 0;
+      // API returns: { success: true, data: { total: x, by_driver_type: {...} } }
+      const currentlyParked = parkedResponse?.data?.total || 0;
 
       // Fetch flagged vehicles
       const flaggedResponse = await statisticsService.getFlaggedVehiclesStats();
-      const flaggedData = flaggedResponse?.data?.data || flaggedResponse?.data || flaggedResponse;
-      
-      // Fetch today's check-ins from hourly data
-      const todayCheckIns = hourly.reduce((sum: number, h: HourlyData) => sum + h.check_in, 0);
+      // API returns: { success: true, data: { total: x, currently_flagged: { count: x }, history: { count: y } } }
+      const flaggedData = flaggedResponse?.data;
+      const flaggedInside = flaggedData?.currently_flagged?.count || 0;
+      const flaggedOutside = flaggedData?.history?.count || 0;
 
       setStats({
         todayVehicles: todayCheckIns,
         currentlyParked: currentlyParked,
-        availableSlots: Math.max(0, stats.totalCapacity - currentlyParked),
-        flaggedInside: flaggedData?.currently_flagged?.count || 0,
-        flaggedOutside: flaggedData?.history?.count || 0,
-        totalCapacity: 100
+        availableSlots: Math.max(0, TOTAL_CAPACITY - currentlyParked),
+        flaggedInside: flaggedInside,
+        flaggedOutside: flaggedOutside,
+        totalCapacity: TOTAL_CAPACITY
       });
 
       // Fetch recent parking records
@@ -113,8 +121,9 @@ const AdminSmartParkingDashboard: React.FC = () => {
       console.error('Error fetching parking data:', error);
     } finally {
       setLoading(false);
+      setfirstLoad(false);
     }
-  }, [stats.totalCapacity]);
+  }, []);
 
   // Fetch all records for modal
   const fetchAllRecords = useCallback(async () => {
@@ -424,74 +433,91 @@ const AdminSmartParkingDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Parking Usage Chart */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Parking Usage Trends</h2>
-            <span className="text-sm text-gray-500">Today's hourly activity</span>
-          </div>
-          
-          {loading ? (
-            <div className="h-64 flex items-center justify-center">
-              <LoadingSpinner message="Loading chart data..." />
-            </div>
-          ) : (
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={hourlyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorCheckIn" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorCheckOut" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                  <XAxis 
-                    dataKey="hour" 
-                    tickFormatter={(value) => `${value.toString().padStart(2, '0')}:00`}
-                    stroke="#9ca3af"
-                    fontSize={12}
-                  />
-                  <YAxis stroke="#9ca3af" fontSize={12} />
-                  <Tooltip 
-                    formatter={(value: any, name: any) => [
-                      value || 0, 
-                      name === 'check_in' ? 'Check-ins' : 'Check-outs'
-                    ]}
-                    labelFormatter={(label) => `${label}:00`}
-                  />
-                  <Legend />
-                  <Area 
-                    type="monotone" 
-                    dataKey="check_in" 
-                    stroke="#3b82f6" 
-                    strokeWidth={2}
-                    fillOpacity={1} 
-                    fill="url(#colorCheckIn)" 
-                    name="Check-ins"
-                    dot={false}
-                    activeDot={{ r: 6, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="check_out" 
-                    stroke="#ef4444" 
-                    strokeWidth={2}
-                    fillOpacity={1} 
-                    fill="url(#colorCheckOut)" 
-                    name="Check-outs"
-                    dot={false}
-                    activeDot={{ r: 6, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
+     {/* Parking Usage Chart */}
+<div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+  <div className="flex items-center justify-between mb-4">
+    <h2 className="text-lg font-semibold text-gray-900">Parking Usage Trends</h2>
+    <span className="text-sm text-gray-500">Today's hourly activity</span>
+  </div>
+  
+  {(loading && firstLoad) ? (
+    <div className="h-64 flex items-center justify-center">
+      <LoadingSpinner message="Loading chart data..." />
+    </div>
+  ) : (
+    <div className="h-64 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={hourlyData} margin={{ top: 20, right: 30, left: 20, bottom: 25 }}>
+          <defs>
+            <linearGradient id="colorCheckIn" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+            </linearGradient>
+            <linearGradient id="colorCheckOut" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
+              <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+          <XAxis 
+            dataKey="hour" 
+            tickFormatter={(value) => `${value.toString().padStart(2, '0')}:00`}
+            stroke="#9ca3af"
+            fontSize={12}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis 
+            stroke="#9ca3af" 
+            fontSize={12}
+            axisLine={false}
+            tickLine={false}
+            label={{ 
+              value: 'Number of Vehicles', 
+              angle: -90, 
+              position: 'insideLeft',
+              style: { fill: '#6b7280', fontSize: 12, fontWeight: 500, textAnchor: 'middle' },
+              offset: 0
+            }}
+          />
+          <Tooltip 
+           
+            labelFormatter={(label) => `${label}:00`}
+            contentStyle={{ 
+              backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            }}
+          />
+          <Legend />
+          <Area 
+            type="monotone" 
+            dataKey="check_in" 
+            stroke="#3b82f6" 
+            strokeWidth={2}
+            fillOpacity={1} 
+            fill="url(#colorCheckIn)" 
+            name="Check-ins"
+            dot={false}
+            activeDot={{ r: 6, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }}
+          />
+          <Area 
+            type="monotone" 
+            dataKey="check_out" 
+            stroke="#ef4444" 
+            strokeWidth={2}
+            fillOpacity={1} 
+            fill="url(#colorCheckOut)" 
+            name="Check-outs"
+            dot={false}
+            activeDot={{ r: 6, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  )}
+</div>
 
         {/* See All Parking Records Button */}
         <div className="flex justify-center">

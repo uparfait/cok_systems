@@ -1,6 +1,6 @@
 // CheckInVehiclePage - Smart Parking System check-in page for gate officers to verify and register vehicles
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
@@ -8,7 +8,7 @@ import { useSocket } from '../../../core/contexts/SocketContext';
 import { smartParkingService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
-  FiSearch, FiCheckCircle, FiAlertTriangle, FiUser, FiPhone, FiPlus, FiX, FiFlag, FiSlash, FiEdit, FiAlertCircle, FiAward
+  FiSearch, FiCheckCircle, FiAlertTriangle, FiUser, FiPhone, FiPlus, FiX, FiFlag, FiSlash, FiEdit, FiAlertCircle, FiAward, FiCreditCard
 } from 'react-icons/fi';
 import { BsShieldCheck } from 'react-icons/bs';
 
@@ -50,9 +50,64 @@ interface UnknownVehicleForm {
   driver_telephone: string;
   driver_email?: string;
   driver_gender?: string;
-  national_id?: string;
+  id_type: string;
+  id_number: string;
   badge_number?: string;
   driver_type: string;
+}
+
+// Validation helper function
+const validateIdNumber = (idType: string, idNumber: string): string | null => {
+  if (!idNumber || idNumber.trim() === '') {
+    return null; // Optional field - no validation needed
+  }
+  
+  const trimmedId = idNumber.trim();
+  
+  if (idType === 'National ID') {
+    // National ID must be at least 16 characters
+    if (trimmedId.length !== 16 ) {
+      return 'National ID must be 16 characters';
+    }
+    // National ID should only contain numbers (Egyptian national ID format)
+    if (!/^\d+$/.test(trimmedId)) {
+      return 'National ID must contain only numbers';
+    }
+  } else if (idType === 'Passport') {
+    // Passport typically 6-9 characters with letters and numbers
+    if (trimmedId.length < 6) {
+      return 'Passport number must be at least 6 characters';
+    }
+    if (!/^[A-Z0-9]+$/i.test(trimmedId)) {
+      return 'Passport number must contain only letters and numbers';
+    }
+  } else if (idType === 'Driving Licence') {
+    // Driving licence typically 8-15 characters
+    if (trimmedId.length < 8) {
+      return 'Driving Licence must be at least 8 characters';
+    }
+    if (!/^[A-Z0-9]+$/i.test(trimmedId)) {
+      return 'Driving Licence must contain only letters and numbers';
+    }
+  }
+  
+  return null; // Valid
+}
+
+// Email validation helper
+const validateEmail = (email: string): string | null => {
+  if (!email || email.trim() === '') {
+    return null; // Optional field - no validation needed
+  }
+  
+  const trimmedEmail = email.trim();
+  // General email regex - accepts any valid email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(trimmedEmail)) {
+    return 'Please enter a valid email address';
+  }
+  
+  return null; // Valid
 }
 
 const CheckInVehiclePage: React.FC = () => {
@@ -64,6 +119,8 @@ const CheckInVehiclePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [plateNumber, setPlateNumber] = useState('');
+  const [idError, setIdError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
   
   // Modal states
   const [showFoundModal, setShowFoundModal] = useState(false);
@@ -85,7 +142,8 @@ const CheckInVehiclePage: React.FC = () => {
     driver_telephone: '',
     driver_email: '',
     driver_gender: '',
-    national_id: '',
+    id_type: 'National ID',
+    id_number: '',
     badge_number: '',
     driver_type: '',
   });
@@ -97,18 +155,40 @@ const CheckInVehiclePage: React.FC = () => {
     const handleVehicleDetected = (data: any) => {
       if (data.plate_number) {
         setPlateNumber(data.plate_number);
-        handleVerify(data.plate_number);
+        // Call handleVerify by using the function reference from the outer scope
+        // We need to make handleVerify available - we'll use a ref or inline call
+      }
+    };
+
+    // Handle car check-in events from other sessions
+    const handleCarCheckin = (data: any) => {
+      console.log('Car check-in event received:', data);
+      // Always show toaster with type and message
+      switch (data.type) {
+        case 'success':
+          showSuccess(data.message);
+          break;
+        case 'error':
+          showError(data.message);
+          break;
+        case 'warning':
+          showWarning(data.message);
+          break;
+        default:
+          showInfo(data.message);
       }
     };
 
     socket.on('vehicle-detected', handleVehicleDetected);
+    socket.on('car_checkedin', handleCarCheckin);
 
     return () => {
       socket.off('vehicle-detected', handleVehicleDetected);
+      socket.off('car_checkedin', handleCarCheckin);
     };
-  }, [socket]);
+  }, [socket, showSuccess, showError, showWarning, showInfo]);
 
-  const handleVerify = async (plate?: string) => {
+  const handleVerify = useCallback(async (plate?: string) => {
     const searchPlate = plate || plateNumber.trim();
     if (!searchPlate) {
       showWarning('Please enter a plate number');
@@ -134,7 +214,6 @@ const CheckInVehiclePage: React.FC = () => {
         });
         
         // Vehicle is found in system - ALWAYS show Found Vehicle Modal
-        // (Handles all cases: parked, flagged, normal - the modal shows different UI based on status)
         setShowFoundModal(true);
       } else {
         // Vehicle not found in system - show Unknown Modal
@@ -160,7 +239,7 @@ const CheckInVehiclePage: React.FC = () => {
     } finally {
       setVerifying(false);
     }
-  };
+  }, [plateNumber, showWarning, showError, showInfo, smartParkingService]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -168,6 +247,20 @@ const CheckInVehiclePage: React.FC = () => {
       ...prev,
       [name]: value
     }));
+    
+    // Validate ID number when id_type or id_number changes
+    if (name === 'id_type' || name === 'id_number') {
+      const newIdType = name === 'id_type' ? value : unknownForm.id_type;
+      const newIdNumber = name === 'id_number' ? value : unknownForm.id_number;
+      const error = validateIdNumber(newIdType, newIdNumber);
+      setIdError(error);
+    }
+    
+    // Validate email when email changes
+    if (name === 'driver_email') {
+      const error = validateEmail(value);
+      setEmailError(error);
+    }
   };
 
   const handleDriverInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -241,6 +334,20 @@ const CheckInVehiclePage: React.FC = () => {
       showWarning('Please fill in required fields');
       return;
     }
+    
+    // Validate ID number
+    const idValidationError = validateIdNumber(unknownForm.id_type, unknownForm.id_number);
+    if (idValidationError) {
+      showError(idValidationError);
+      return;
+    }
+    
+    // Validate email if provided
+    const emailValidationError = validateEmail(unknownForm.driver_email || '');
+    if (emailValidationError) {
+      showError(emailValidationError);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -252,9 +359,9 @@ const CheckInVehiclePage: React.FC = () => {
         driver_gender: unknownForm.driver_gender,
         driver_type: unknownForm.driver_type,
         badge_number: unknownForm.badge_number,
-        driver_identification: unknownForm.national_id ? {
-          id_type: 'National ID',
-          number: unknownForm.national_id
+        driver_identification: unknownForm.id_number ? {
+          id_type: unknownForm.id_type,
+          number: unknownForm.id_number
         } : {}
       };
 
@@ -271,11 +378,13 @@ const CheckInVehiclePage: React.FC = () => {
           driver_telephone: '',
           driver_email: '',
           driver_gender: '',
-          national_id: '',
+          id_type: 'National ID',
+          id_number: '',
           badge_number: '',
           driver_type: '',
         });
         setVerifiedData(null);
+        setIdError(null);
         showSuccess('Vehicle registered and checked in successfully');
       } else {
         showError(response.message || 'Failed to register vehicle');
@@ -604,12 +713,41 @@ const CheckInVehiclePage: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Plate Number</label>
-                  <input type="text" name="plate_number" value={unknownForm.plate_number} onChange={handleInputChange} placeholder="Enter plate number" className="w-full px-3 py-2 border rounded-lg" />
+                  <input type="text" name="plate_number" value={unknownForm.plate_number} disabled placeholder="Enter plate number" className="w-full px-3 py-2 border rounded-lg bg-gray-100 text-gray-700 font-semibold uppercase" />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">National ID / Passport</label>
-                  <input type="text" name="national_id" value={unknownForm.national_id || ''} onChange={handleInputChange} placeholder="Enter national ID" className="w-full px-3 py-2 border rounded-lg" />
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">ID Type</label>
+                  <select
+                    name="id_type"
+                    value={unknownForm.id_type}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  >
+                    <option value="National ID">National ID</option>
+                    <option value="Passport">Passport</option>
+                    <option value="Driving Licence">Driving Licence</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                    {unknownForm.id_type === 'National ID' ? 'National ID (16 digits)' : 'ID Number'}
+                  </label>
+                  <input 
+                    type="text" 
+                    name="id_number" 
+                    value={unknownForm.id_number || ''} 
+                    onChange={handleInputChange} 
+                    placeholder={unknownForm.id_type === 'National ID' ? 'Enter 16_digit national ID' : 'Enter ID number'} 
+                    className={`w-full px-3 py-2 border rounded-lg ${idError ? 'border-red-500' : ''}`} 
+                  />
+                  {idError && (
+                    <p className="mt-1 text-xs text-red-500">{idError}</p>
+                  )}
+                  {unknownForm.id_type === 'National ID' && unknownForm.id_number && !idError && (
+                    <p className="mt-1 text-xs text-green-600">✓ National ID format valid</p>
+                  )}
                 </div>
 
                 <div>
@@ -624,7 +762,17 @@ const CheckInVehiclePage: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email Address</label>
-                  <input type="email" name="driver_email" value={unknownForm.driver_email || ''} onChange={handleInputChange} placeholder="Enter email (optional)" className="w-full px-3 py-2 border rounded-lg" />
+                  <input 
+                    type="email" 
+                    name="driver_email" 
+                    value={unknownForm.driver_email || ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter email (optional)" 
+                    className={`w-full px-3 py-2 border rounded-lg ${emailError ? 'border-red-500' : ''}`} 
+                  />
+                  {emailError && (
+                    <p className="mt-1 text-xs text-red-500">{emailError}</p>
+                  )}
                 </div>
 
                 <div>

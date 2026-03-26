@@ -202,6 +202,7 @@ const AdminDashboard: React.FC = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
   
   const [loading, setLoading] = useState(true);
+  const [firstLoad, setFirstLoad] = useState(true);
   const [error, setError] = useState<string>('');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [socketConnected, setSocketConnected] = useState(false);
@@ -279,11 +280,13 @@ const AdminDashboard: React.FC = () => {
   // Load all data function
   const loadData = useCallback(async () => {
     setLoading(true);
+    setFirstLoad(false);
     setError('');
     
     // Fallback timeout to ensure loading state is reset
     const loadingTimeout = setTimeout(() => {
       setLoading(false);
+      setFirstLoad(false);
       setLoadingStates({
         stats: false,
         parking: false,
@@ -985,7 +988,7 @@ const AdminDashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                      {loadingStates.parking ? (
+                      {(loadingStates.parking && firstLoad ) ? (
                         <tr>
                           <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
                             <div className="flex justify-center">
@@ -1062,7 +1065,7 @@ const AdminDashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                      {loadingStates.visitors ? (
+                      {(loadingStates.visitors && firstLoad )? (
                         <tr>
                           <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
                             <div className="flex justify-center">
@@ -1116,132 +1119,139 @@ const AdminDashboard: React.FC = () => {
             </div>
   
             {/* Hourly Parking Analytics Chart */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-xl flex items-center justify-center">
-                    <FiTrendingUp className="w-5 h-5 text-blue-600" aria-hidden="true" />
-                  </div>
-                  <div>
-                    <h2 className="font-semibold text-gray-900">Hourly Parking Analytics</h2>
-                    <p className="text-sm text-gray-500">Today's check-ins and check-outs</p>
-                  </div>
-                </div>
-                <button
-                  onClick={fetchHourlyAnalytics}
-                  disabled={analyticsLoading}
-                  className="text-sm px-3 py-1.5 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 hover:from-blue-500/20 hover:to-indigo-500/20 rounded-full text-blue-600 font-medium transition-all flex items-center gap-1 disabled:opacity-50"
-                  aria-label="Refresh analytics data"
-                >
-                  <FiActivity className={`w-3.5 h-3.5 ${analyticsLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
-                  Refresh
-                </button>
-              </div>
-  
-              {analyticsLoading ? (
-                <div className="flex items-center justify-center h-64">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
-                </div>
-              ) : hourlyParkingData.length > 0 ? (
-                <>
-                  <div className="h-64 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart
-                        data={hourlyParkingData}
-                        margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-                      >
-                        <defs>
-                          <linearGradient id="colorCheckInAdmin" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#00aaff" stopOpacity={0.25}/>
-                            <stop offset="95%" stopColor="#00aaff" stopOpacity={0.02}/>
-                          </linearGradient>
-                          <linearGradient id="colorCheckOutAdmin" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.25}/>
-                            <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                        <XAxis 
-                          dataKey="hour" 
-                          tickFormatter={(value) => `${value.toString().padStart(2, '0')}:00`}
-                          stroke="#9ca3af"
-                          fontSize={12}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <YAxis stroke="#9ca3af" fontSize={12} axisLine={false} tickLine={false} />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '8px',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                          }}
-                          formatter={(value, name) => [
-                            value, 
-                            name === 'check_in' ? 'Check-ins' : 'Check-outs'
-                          ]}
-                          labelFormatter={(label) => `${label}:00`}
-                        />
-                        <Legend />
-                        <Area 
-                          type="monotone" 
-                          dataKey="check_in" 
-                          name="Check-ins" 
-                          stroke="#00aaff" 
-                          strokeWidth={2}
-                          fillOpacity={1} 
-                          fill="url(#colorCheckInAdmin)" 
-                          animationDuration={1500}
-                          dot={false}
-                          activeDot={{ r: 6, fill: '#00aaff', stroke: '#fff', strokeWidth: 2 }}
-                        />
-                        <Area 
-                          type="monotone" 
-                          dataKey="check_out" 
-                          name="Check-outs" 
-                          stroke="#ef4444" 
-                          strokeWidth={2}
-                          fillOpacity={1} 
-                          fill="url(#colorCheckOutAdmin)" 
-                          animationDuration={1500}
-                          dot={false}
-                          activeDot={{ r: 6, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                  
-                  {/* Summary Stats */}
-                  <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-100">
-                    <div className="text-center">
-                      <p className="text-xs text-gray-500">Total Check-ins</p>
-                      <p className="text-xl font-bold text-blue-600">
-                        {hourlyParkingData.reduce((sum, d) => sum + d.check_in, 0)}
-                      </p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs text-gray-500">Total Check-outs</p>
-                      <p className="text-xl font-bold text-red-600">
-                        {hourlyParkingData.reduce((sum, d) => sum + d.check_out, 0)}
-                      </p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs text-gray-500">Currently Parked</p>
-                      <p className="text-xl font-bold text-green-600">
-                        {stats.parkingRecords}
-                      </p>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-                  <FiActivity className="w-12 h-12 mb-2 opacity-50" aria-hidden="true" />
-                  <p>No parking data available</p>
-                  <p className="text-xs text-gray-400">Check back later for analytics</p>
-                </div>
-              )}
-            </div>
+<div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+  <div className="flex items-center justify-between mb-4">
+    <div className="flex items-center gap-3">
+      <div className="w-10 h-10 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-xl flex items-center justify-center">
+        <FiTrendingUp className="w-5 h-5 text-blue-600" aria-hidden="true" />
+      </div>
+      <div>
+        <h2 className="font-semibold text-gray-900">Hourly Parking Analytics</h2>
+        <p className="text-sm text-gray-500">Today's check-ins and check-outs</p>
+      </div>
+    </div>
+    <button
+      onClick={fetchHourlyAnalytics}
+      disabled={analyticsLoading}
+      className="text-sm px-3 py-1.5 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 hover:from-blue-500/20 hover:to-indigo-500/20 rounded-full text-blue-600 font-medium transition-all flex items-center gap-1 disabled:opacity-50"
+      aria-label="Refresh analytics data"
+    >
+      <FiActivity className={`w-3.5 h-3.5 ${analyticsLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
+      Refresh
+    </button>
+  </div>
+
+  {(analyticsLoading && firstLoad) ? (
+    <div className="flex items-center justify-center h-64">
+      <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
+    </div>
+  ) : hourlyParkingData.length > 0 ? (
+    <>
+      <div className="h-64 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart
+            data={hourlyParkingData}
+            margin={{ top: 20, right: 30, left: 20, bottom: 25 }}
+          >
+            <defs>
+              <linearGradient id="colorCheckInAdmin" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#00aaff" stopOpacity={0.25}/>
+                <stop offset="95%" stopColor="#00aaff" stopOpacity={0.02}/>
+              </linearGradient>
+              <linearGradient id="colorCheckOutAdmin" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.25}/>
+                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+            <XAxis 
+              dataKey="hour" 
+              tickFormatter={(value) => `${value.toString().padStart(2, '0')}:00`}
+              stroke="#9ca3af"
+              fontSize={12}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis 
+              stroke="#9ca3af" 
+              fontSize={12} 
+              axisLine={false} 
+              tickLine={false}
+              label={{ 
+                value: 'Number of Vehicles', 
+                angle: -90, 
+                position: 'insideLeft',
+                style: { fill: '#6b7280', fontSize: 12, fontWeight: 500, textAnchor: 'middle' },
+                offset: 0
+              }}
+            />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+              }}
+            />
+            <Legend />
+            <Area 
+              type="monotone" 
+              dataKey="check_in" 
+              name="Check-ins" 
+              stroke="#00aaff" 
+              strokeWidth={2}
+              fillOpacity={1} 
+              fill="url(#colorCheckInAdmin)" 
+              animationDuration={1500}
+              dot={false}
+              activeDot={{ r: 6, fill: '#00aaff', stroke: '#fff', strokeWidth: 2 }}
+            />
+            <Area 
+              type="monotone" 
+              dataKey="check_out" 
+              name="Check-outs" 
+              stroke="#ef4444" 
+              strokeWidth={2}
+              fillOpacity={1} 
+              fill="url(#colorCheckOutAdmin)" 
+              animationDuration={1500}
+              dot={false}
+              activeDot={{ r: 6, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+      
+      {/* Summary Stats */}
+      <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-100">
+        <div className="text-center">
+          <p className="text-xs text-gray-500">Total Check-ins</p>
+          <p className="text-xl font-bold text-blue-600">
+            {hourlyParkingData.reduce((sum, d) => sum + d.check_in, 0)}
+          </p>
+        </div>
+        <div className="text-center">
+          <p className="text-xs text-gray-500">Total Check-outs</p>
+          <p className="text-xl font-bold text-red-600">
+            {hourlyParkingData.reduce((sum, d) => sum + d.check_out, 0)}
+          </p>
+        </div>
+        <div className="text-center">
+          <p className="text-xs text-gray-500">Currently Parked</p>
+          <p className="text-xl font-bold text-green-600">
+            {stats.parkingRecords}
+          </p>
+        </div>
+      </div>
+    </>
+  ) : (
+    <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+      <FiActivity className="w-12 h-12 mb-2 opacity-50" aria-hidden="true" />
+      <p>No parking data available</p>
+      <p className="text-xs text-gray-400">Check back later for analytics</p>
+    </div>
+  )}
+</div>
           </div>
   
           {/* Right Column - Activity & Quick Actions */}

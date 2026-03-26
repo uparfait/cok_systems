@@ -424,7 +424,7 @@ const ReceptionistDashboard: React.FC = () => {
                       labelFormatter={(label) => `${label}:00`}
                     />
                     <Area 
-                      type="basis" 
+                      type="monotone" 
                       dataKey="visitors_checked_in" 
                       name="Visitors" 
                       stroke="#00aaff" 

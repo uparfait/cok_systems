@@ -95,6 +95,22 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       });
     });
 
+    // Listen for car check-in events from backend
+    socket.on('car_checkedin', (data: any) => {
+      // Dispatch custom event for toaster (pages will handle showing toast on smart parking routes)
+      const toastEvent = new CustomEvent('car:checkin', { detail: data });
+      window.dispatchEvent(toastEvent);
+      
+      // If show_notif is true, add to notification list
+      if (data.show_notif) {
+        addNotification({
+          type: data.type || 'info',
+          title: 'Car Check-in',
+          message: data.message || 'A new car has checked in',
+        });
+      }
+    });
+
     // Listen for service delivery updates
     socket.on('service_delivery_test', (data: any) => {
       addNotification({
@@ -110,6 +126,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       socket.off('parking_alert');
       socket.off('smartparking_test');
       socket.off('service_delivery_test');
+      socket.off('car_checkedin');
     };
   }, [socket, addNotification]);
 
