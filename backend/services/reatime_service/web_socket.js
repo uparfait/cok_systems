@@ -1,5 +1,4 @@
 const { Server } = require("socket.io");
-const websocketUtils = require('../../utilities/websocket_utils.js');
 
 /**
  * WebSocketService class encapsulates the initialization and management of WebSocket connections using Socket.IO.
@@ -57,10 +56,6 @@ class WebSocketService {
           
 
       global.WebsocketIO = io;
-      
-      // Mark WebSocket as initialized
-      websocketUtils.setWebSocketInitialized(true);
-      
       console.log("WebSocket server initialized successfully.");
       return true;
     } catch (error) {

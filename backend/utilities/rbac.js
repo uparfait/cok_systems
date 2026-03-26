@@ -159,47 +159,14 @@ const getAllRoles = () => {
     return Object.values(ROLES);
 };
 
-// System-Role Mappings for notifications
-const SYSTEM_ROLES = {
-    smart_parking: [
-        ROLES.SYSTEM_ADMIN,
-        ROLES.VEHICLE_REGISTRAR,
-        ROLES.ENTRANCE_OFFICER
-    ],
-    service_delivery: [
-        ROLES.RECEPTIONIST,
-        ROLES.HEAD_OF_DEPARTMENT,
-        ROLES.DEPARTMENT_EMPLOYEE
-    ]
-};
-
-/**
- * Get systems accessible by role
- * @param {string} role - User role
- * @returns {string[]} - Array of systems ['smart_parking', 'service_delivery']
- */
-const getUserSystems = (role) => {
-    const systems = [];
-    if (hasModuleAccess(role, MODULES.SMART_PARKING)) {
-        systems.push('smart_parking');
-    }
-    if (hasModuleAccess(role, MODULES.SERVICE_DELIVERY)) {
-        systems.push('service_delivery');
-    }
-    return systems;
-};
-
 module.exports = {
     ROLES,
     MODULES,
     PERMISSIONS,
     ROLE_PERMISSIONS,
-    SYSTEM_ROLES,
     hasPermission,
     getRolePermissions,
     hasModuleAccess,
-    getUserSystems,
     isValidRole,
     getAllRoles
 };
-

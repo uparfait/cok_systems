@@ -99,11 +99,7 @@ async function verifySocketToken(token) {
 module.exports = async function InitialiseAllRealtimeServices() {
 
     try {
-        const io = global.WebsocketIO;
-        if (!io) {
-            console.error('global.WebsocketIO not available. Ensure WebSocketService.initWebsocket() ran first.');
-            return false;
-        }
+        const io = WebsocketIO
 
         io.use(async (socket, next) => {
             // Get token from socket handshake headers
@@ -146,14 +142,6 @@ module.exports = async function InitialiseAllRealtimeServices() {
                 socket.join(Global_ChatRoom());
                 socket.join(Private_Room(socket.user.userId));
                 socket.join(RoleBased_Room(socket.user.role));
-                
-                // Join system-specific rooms
-                const rbac = require('../../utilities/rbac.js');
-                const userSystems = rbac.getUserSystems(socket.user.role);
-                userSystems.forEach(system => {
-                    socket.join(`SYSTEM_${system}`);
-                    console.log(`Socket ${socket.id} joined SYSTEM_${system}`);
-                });
             }
 
             // update this user as active in database if user exists
@@ -161,11 +149,9 @@ module.exports = async function InitialiseAllRealtimeServices() {
                 User.findByIdAndUpdate(socket.user.userId, { is_active: true }, { new: true })
                     .then(updatedUser => {
                         // notify active users
-                        if (global.WebsocketIO) {
-                            global.WebsocketIO.emit('active_user', {
-                                user_id: updatedUser._id,
-                            })
-                        }
+                        global.WebsocketIO.emit('active_user', {
+                            user_id: updatedUser._id,
+                        })
                     })
                     .catch(err => {
                         console.error('Error updating user active status:', err)
@@ -180,13 +166,6 @@ module.exports = async function InitialiseAllRealtimeServices() {
                     socket.leave(Global_ChatRoom());
                     socket.leave(Private_Room(socket.user.userId));
                     socket.leave(RoleBased_Room(socket.user.role));
-                    
-                    // Leave system-specific rooms
-                    const rbac = require('../../utilities/rbac.js');
-                    const userSystems = rbac.getUserSystems(socket.user.role);
-                    userSystems.forEach(system => {
-                        socket.leave(`SYSTEM_${system}`);
-                    });
                 }
 
                 // update this user as inactive in database if user exists
@@ -194,11 +173,9 @@ module.exports = async function InitialiseAllRealtimeServices() {
                     User.findByIdAndUpdate(socket.user.userId, { is_active: false }, { new: true })
                         .then(updatedUser => {
                             // notify inactive to users
-                            if (global.WebsocketIO) {
-                                global.WebsocketIO.emit('inactive_user', {
-                                    user_id: updatedUser._id,
-                                })
-                            }
+                            global.WebsocketIO.emit('inactive_user', {
+                                user_id: updatedUser._id,
+                            })
                         })
                         .catch(err => {
                             console.error('Error updating user active status:', err)
