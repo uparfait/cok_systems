@@ -313,15 +313,14 @@ const CheckOutVehiclePage: React.FC = () => {
             
             {/* Filter Buttons */}
             <div className="flex gap-2 flex-wrap">
-              {(['all', 'staff', 'visitors', 'regular'] as const).map((filter) => (
+              {(['all',] as const).map((filter) => (
                 <button
-                  key={filter}
-                  onClick={() => handleFilterChange(filter)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    typeFilter === filter
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'bg-white/50 text-gray-700 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50'
-                  }`}
+                   onClick={() => handleFilterChange('all')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  typeFilter === 'all' 
+                    ? 'bg-blue-600 text-white shadow-md' 
+                    : 'bg-white/50 text-gray-700 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50'
+                }`}
                 >
                   {filter.charAt(0).toUpperCase() + filter.slice(1)}
                 </button>
