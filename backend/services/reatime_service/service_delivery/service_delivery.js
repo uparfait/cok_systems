@@ -43,11 +43,9 @@ async function HandleReatime(socket) {
                 find_user.is_active = false
                 await find_user.save()
 
-                if (global.WebsocketIO) {
-                    global.WebsocketIO.emit('notifications', {
-                        message: `${user_name} isn't active from now`
-                    })
-                }
+                global.WebsocketIO.emit('notifications', {
+                    message: `${user_name} isn't active from now`
+                })
 
                 return callback({ success: true, message: "You marked as inactive and notification sent." })
             } else {
@@ -88,11 +86,9 @@ async function HandleReatime(socket) {
             if (find_user && find_user?.is_active === false) {
                 find_user.is_active = true
                 await find_user.save()
-                if (global.WebsocketIO) {
-                    global.WebsocketIO.emit('notifications', {
-                        message: `${user_name} is now active`
-                    })
-                }
+                global.WebsocketIO.emit('notifications', {
+                    message: `${user_name} is now active`
+                })
                 return callback({ success: true, message: "You marked as active and notification sent." })
             } else {
                 return callback({ success: false, message: "You are already active or your account not found." })
@@ -119,15 +115,13 @@ async function HandleReatime(socket) {
             const user = data?.user?.message
 
             if(user && message) {
-                if (global.WebsocketIO) {
-                    global.WebsocketIO.emit('global_notification', { 
-                        title: 'Notification',
-                        sender: user, 
-                        message: message,
-                        sentBy: auth.user.fullName,
-                        sentAt: new Date().toISOString()
-                    })
-                }
+                global.WebsocketIO.emit('global_notification', { 
+                    title: 'Notification',
+                    sender: user, 
+                    message: message,
+                    sentBy: auth.user.fullName,
+                    sentAt: new Date().toISOString()
+                })
                 return callback({status: true, message: "Sent"})
             } else {
                 return callback({status: false, message: "Missing user or message data"})
@@ -139,9 +133,9 @@ async function HandleReatime(socket) {
         }
     })
 
-    // Send test message only to the connecting socket (not all users)
-    if (socket.user && socket) {
-        socket.emit('service_delivery_test', { 
+    // Send test message only to authenticated users
+    if (socket.user) {
+        global.WebsocketIO.emit('service_delivery_test', { 
             message: 'This is a real-time update from the server!',
             authenticated: true,
             user: socket.user.email

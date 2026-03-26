@@ -102,14 +102,17 @@ module.exports = async function car_check_out(req, res, next) {
             });
 
             // check if provider id exists and announce to him/her that forgot too stop service but stopped
-            if (active_service.provider_id && global.WebsocketIO) {
-                global.WebsocketIO.to(`PRIVATE_ROOM_${active_service.provider_id}`).emit('you_forgot_to_stop_service', {
+
+            if (active_service.provider_id) {
+
+                global.WebsocketIO?.emit('you_forgot_to_stop_service', {
                     show_notif: true,
                     type: 'warning',
                     to: active_service.provider_id,
                     visitor_id: pending_visitor._id,
                     message: `You forgot to stop the service for visitor ${pending_visitor.full_name} in department ${active_service.department_name}. We stopped it for you but please be careful next time.`
-                });
+                })
+
             }
 
             // Update the service status to 'Completed'
@@ -176,20 +179,11 @@ module.exports = async function car_check_out(req, res, next) {
         }
         // ================================================================
 
-        const websocketUtils = require('../../../utilities/websocket_utils.js');
-        
-        if (websocketUtils && global.WebsocketIO) {
-            websocketUtils.emitToSystem(global.WebsocketIO, 'smart_parking', 'car_checkedout', { 
-                show_notif: is_flagged,
-                type: is_flagged ? 'warning' : 'info',
-                message: is_flagged ? `Vehicle ${plate_number} flagged for overstaying!` : `Vehicle ${plate_number} checked out.`
-             });
-            websocketUtils.emitToSystem(global.WebsocketIO, 'service_delivery', 'car_checkedout', { 
-                show_notif: is_flagged,
-                type: is_flagged ? 'warning' : 'info',
-                message: is_flagged ? `Vehicle ${plate_number} flagged for overstaying!` : `Vehicle ${plate_number} checked out.`
-             });
-        }
+        global.WebsocketIO?.emit('car_checkedout', { 
+            show_notif: is_flagged,
+            type: is_flagged ? 'warning' : 'info',
+            message: is_flagged ? `Vehicle ${plate_number} flagged for overstaying!` : `Vehicle ${plate_number} checked out.`
+         })
 
         return res.status(200).json({
             success: true,
