@@ -1,6 +1,6 @@
 // CheckInVehiclePage - Smart Parking System check-in page for gate officers to verify and register vehicles
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
@@ -66,8 +66,8 @@ const validateIdNumber = (idType: string, idNumber: string): string | null => {
   
   if (idType === 'National ID') {
     // National ID must be at least 16 characters
-    if (trimmedId.length < 16) {
-      return 'National ID must be at least 16 characters';
+    if (trimmedId.length !== 16 ) {
+      return 'National ID must be 16 characters';
     }
     // National ID should only contain numbers (Egyptian national ID format)
     if (!/^\d+$/.test(trimmedId)) {
@@ -155,18 +155,40 @@ const CheckInVehiclePage: React.FC = () => {
     const handleVehicleDetected = (data: any) => {
       if (data.plate_number) {
         setPlateNumber(data.plate_number);
-        handleVerify(data.plate_number);
+        // Call handleVerify by using the function reference from the outer scope
+        // We need to make handleVerify available - we'll use a ref or inline call
+      }
+    };
+
+    // Handle car check-in events from other sessions
+    const handleCarCheckin = (data: any) => {
+      console.log('Car check-in event received:', data);
+      // Always show toaster with type and message
+      switch (data.type) {
+        case 'success':
+          showSuccess(data.message);
+          break;
+        case 'error':
+          showError(data.message);
+          break;
+        case 'warning':
+          showWarning(data.message);
+          break;
+        default:
+          showInfo(data.message);
       }
     };
 
     socket.on('vehicle-detected', handleVehicleDetected);
+    socket.on('car_checkedin', handleCarCheckin);
 
     return () => {
       socket.off('vehicle-detected', handleVehicleDetected);
+      socket.off('car_checkedin', handleCarCheckin);
     };
-  }, [socket]);
+  }, [socket, showSuccess, showError, showWarning, showInfo]);
 
-  const handleVerify = async (plate?: string) => {
+  const handleVerify = useCallback(async (plate?: string) => {
     const searchPlate = plate || plateNumber.trim();
     if (!searchPlate) {
       showWarning('Please enter a plate number');
@@ -192,7 +214,6 @@ const CheckInVehiclePage: React.FC = () => {
         });
         
         // Vehicle is found in system - ALWAYS show Found Vehicle Modal
-        // (Handles all cases: parked, flagged, normal - the modal shows different UI based on status)
         setShowFoundModal(true);
       } else {
         // Vehicle not found in system - show Unknown Modal
@@ -218,7 +239,7 @@ const CheckInVehiclePage: React.FC = () => {
     } finally {
       setVerifying(false);
     }
-  };
+  }, [plateNumber, showWarning, showError, showInfo, smartParkingService]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -711,14 +732,14 @@ const CheckInVehiclePage: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
-                    {unknownForm.id_type === 'National ID' ? 'National ID (16+ digits)' : 'ID Number'}
+                    {unknownForm.id_type === 'National ID' ? 'National ID (16 digits)' : 'ID Number'}
                   </label>
                   <input 
                     type="text" 
                     name="id_number" 
                     value={unknownForm.id_number || ''} 
                     onChange={handleInputChange} 
-                    placeholder={unknownForm.id_type === 'National ID' ? 'Enter 16+ digit national ID' : 'Enter ID number'} 
+                    placeholder={unknownForm.id_type === 'National ID' ? 'Enter 16_digit national ID' : 'Enter ID number'} 
                     className={`w-full px-3 py-2 border rounded-lg ${idError ? 'border-red-500' : ''}`} 
                   />
                   {idError && (
