@@ -66,7 +66,7 @@ interface ActivityItem {
 const ProfilePage: React.FC = () => {
   const { user, logout, checkAuth } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'profile' | 'activity' | 'security' | 'settings'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'activity' | 'security'>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -308,21 +308,6 @@ const ProfilePage: React.FC = () => {
     return user?.role || '';
   };
 
-  // Get permissions from profile
-  const getPermissions = () => {
-    if (profileData?.roles?.permissions) {
-      return profileData.roles.permissions.map(p => ({
-        resource: p.resource_name,
-        // Handle nested action structure: actions could be [{action: {action_type: '...', description: '...'}}, ...] or [{action_type: '...', description: '...'}, ...]
-        actions: p.actions?.map((a: any) => ({
-          type: a.action?.action_type || a.action_type || 'access',
-          description: a.action?.description || a.description || ''
-        })) || []
-      }));
-    }
-    return user?.permissions || [];
-  };
-
   // Get initials for avatar
   const getInitials = (name?: string) => {
     if (!name) return 'U';
@@ -383,7 +368,6 @@ const ProfilePage: React.FC = () => {
   const displayPicture = profileData?.picture || user.picture || '';
   const departmentName = profileData?.department?.department_name || user.departmentName || '';
   const role = getUserRole();
-  const permissions = getPermissions();
 
   return (
     <MainLayout>
@@ -471,11 +455,7 @@ const ProfilePage: React.FC = () => {
               </div>
               
               {/* Quick Stats */}
-              <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-100">
-                <div className="text-center">
-                  <p className="text-xl font-bold text-gray-900">{permissions.length || 0}</p>
-                  <p className="text-xs text-gray-500">Permissions</p>
-                </div>
+              <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-100">
                 <div className="text-center">
                   <p className="text-xl font-bold text-gray-900">{profileData?.is_account_activated ? 'Activated' : 'Not Activated'}</p>
                   <p className="text-xs text-gray-500">Account Status</p>
@@ -543,15 +523,14 @@ const ProfilePage: React.FC = () => {
                     />
                   </div>
 
-                  {/* Email */}
+                  {/* Email - Disabled */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                     <input
                       type="email"
                       value={formData.email}
-                      onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
+                      disabled
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed focus:outline-none"
                     />
                   </div>
 
@@ -661,17 +640,6 @@ const ProfilePage: React.FC = () => {
               >
                 <FiShield className="w-5 h-5" />
                 Security
-              </button>
-              <button
-                onClick={() => setActiveTab('settings')}
-                className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
-                  activeTab === 'settings'
-                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <FiSettings className="w-5 h-5" />
-                Settings
               </button>
             </nav>
           </div>
@@ -792,42 +760,6 @@ const ProfilePage: React.FC = () => {
                     </div>
                   </div>
                 </div>
-
-                {/* Permissions */}
-                {permissions.length > 0 && (
-                  <div className="mt-8">
-                    <h3 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                      <FiShield className="w-5 h-5" />
-                      Permissions ({permissions.length})
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {permissions.map((permission: any, index: number) => (
-                        <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                          <div className="p-2 bg-blue-100 rounded mt-1">
-                            <HiOutlineUserGroup className="w-4 h-4 text-blue-600" />
-                          </div>
-                          <div className="flex-1">
-                            <span className="font-medium text-gray-700 block">{permission.resource || permission.resource_name}</span>
-                            <div className="mt-1 space-y-1">
-                              {Array.isArray(permission.actions) && permission.actions.map((action: any, actionIndex: number) => (
-                                <div key={actionIndex} className="flex items-center gap-2 text-sm">
-                                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-                                    {action.type || action.action_type || 'access'}
-                                  </span>
-                                  {action.description && (
-                                    <span className="text-gray-500 text-xs">
-                                      - {action.description}
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
@@ -974,15 +906,15 @@ const ProfilePage: React.FC = () => {
                     </span>
                   </div>
 
-                  {/* Role & Permissions */}
+                  {/* Role Information */}
                   <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-purple-100 rounded-lg">
                         <FiAward className="w-5 h-5 text-purple-600" />
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">Role & Permissions</p>
-                        <p className="text-sm text-gray-500">View your role and assigned permissions</p>
+                        <p className="font-medium text-gray-900">Role Information</p>
+                        <p className="text-sm text-gray-500">View your assigned role</p>
                       </div>
                     </div>
                     <button 
@@ -996,68 +928,6 @@ const ProfilePage: React.FC = () => {
               </div>
             )}
 
-            {/* Settings Tab */}
-            {activeTab === 'settings' && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">Account Preferences</h2>
-
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
-                  <div className="flex items-start gap-3">
-                    <FiAlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-amber-800">Settings are managed by administrators</p>
-                      <p className="text-sm text-amber-700 mt-1">
-                        Contact your system administrator to change notification preferences or account settings.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Account Info - Read Only */}
-                  <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl bg-gray-50">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-blue-100 rounded-lg">
-                        <FiUser className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">Account Type</p>
-                        <p className="text-sm text-gray-500">{getRoleDisplayName(role)}</p>
-                      </div>
-                    </div>
-                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-                      Active
-                    </span>
-                  </div>
-
-                  {/* Department - Read Only */}
-                  <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl bg-gray-50">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-teal-100 rounded-lg">
-                        <HiOutlineOfficeBuilding className="w-5 h-5 text-teal-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">Department</p>
-                        <p className="text-sm text-gray-500">{departmentName || 'Not assigned'}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Account ID - Read Only */}
-                  <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl bg-gray-50">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-purple-100 rounded-lg">
-                        <FiShield className="w-5 h-5 text-purple-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">Account ID</p>
-                        <p className="text-sm text-gray-500 font-mono">{user?.userId || 'N/A'}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
