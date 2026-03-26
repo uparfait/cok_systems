@@ -1,9 +1,10 @@
 // CheckInPersonPage - Register Visitor without vehicle for Smart Parking
 // Page that shows the visitor registration form directly on page
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { useToast } from '../../../core/contexts/ToastContext';
+import { useSocket } from '../../../core/contexts/SocketContext';
 import { serviceDeliveryService } from '../../../core/services/adminService';
 import { FiPlus, FiPhone, FiCreditCard, FiUser, FiMail } from 'react-icons/fi';
 
@@ -26,9 +27,9 @@ const validateIdNumber = (idType: string, idNumber: string): string | null => {
   const trimmedId = idNumber.trim();
   
   if (idType === 'National ID') {
-    // National ID must be at least 16 characters
-    if (trimmedId.length < 16) {
-      return 'National ID must be at least 16 characters';
+    // National ID must be 16 characters
+    if (trimmedId.length !== 16) {
+      return 'National ID must be 16_digits';
     }
     // National ID should only contain numbers (Egyptian national ID format)
     if (!/^\d+$/.test(trimmedId)) {
@@ -72,11 +73,41 @@ const validateEmail = (email: string): string | null => {
 }
 
 const CheckInPersonPage: React.FC = () => {
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showWarning, showInfo } = useToast();
+  const { socket, isConnected } = useSocket();
   
   const [loading, setLoading] = useState(false);
   const [idError, setIdError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
+  
+  // Listen for car check-in events from other sessions
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+    
+    const handleCarCheckin = (data: any) => {
+      console.log('Car check-in event received:', data);
+      // Always show toaster with type and message
+      switch (data.type) {
+        case 'success':
+          showSuccess(data.message);
+          break;
+        case 'error':
+          showError(data.message);
+          break;
+        case 'warning':
+          showWarning(data.message);
+          break;
+        default:
+          showInfo(data.message);
+      }
+    };
+    
+    socket.on('car_checkedin', handleCarCheckin);
+    
+    return () => {
+      socket.off('car_checkedin', handleCarCheckin);
+    };
+  }, [socket, isConnected, showSuccess, showError, showWarning, showInfo]);
   
   const [formData, setFormData] = useState<VisitorFormData>({
     full_name: '',
@@ -275,7 +306,7 @@ const CheckInPersonPage: React.FC = () => {
                       value={formData.id_number}
                       onChange={handleChange}
                       className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${idError ? 'border-red-500' : 'border-gray-300'}`}
-                      placeholder={formData.id_type === 'National ID' ? 'Enter 16+ digit national ID' : 'Enter ID number'}
+                      placeholder={formData.id_type === 'National ID' ? 'Enter 16_digit national ID' : 'Enter ID number'}
                     />
                   </div>
                   {idError && (
