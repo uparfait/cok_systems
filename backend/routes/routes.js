@@ -20,33 +20,38 @@ const statistics = require('./statistics/routes.js')
 
 
 Router.use('/servicedelivery', 
+           authenticate,
      // 
     service_delivery)
 
 Router.use("/smartparking", 
+           authenticate,
      //
     smartparking)
 
 Router.use('/department/crud', 
+           authenticate,
      // 
     department)
 
 Router.use('/employee/crud', 
+           authenticate,
      // 
     employee)
 
 Router.use('/permissions', 
+           authenticate,
      // 
     system_permission)
 
-Router.use('/roles', roles_managment)
+Router.use('/roles', authenticate, roles_managment)
 
 Router.use("/auth", auth)
 Router.use('/parfait', parfaits_api_docs)
 Router.use('/amos', amos_api_docs)
 Router.use('/docs', docs)
 Router.use('/feedback', feedback)
-Router.use('/statistics', statistics)
+Router.use('/statistics', authenticate, statistics)
 
 
 module.exports = Router
