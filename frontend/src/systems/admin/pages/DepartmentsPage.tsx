@@ -10,7 +10,7 @@ import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
   FiPlus, FiSearch, FiEdit2, FiTrash2, FiRefreshCw, FiUsers, FiGrid,
-  FiX, FiCheck, FiAlertCircle
+  FiX, FiCheck, FiAlertCircle, FiLayers, FiEye
 } from 'react-icons/fi';
 import { HiOutlineOfficeBuilding } from 'react-icons/hi';
 
@@ -34,6 +34,10 @@ interface Department {
   createdAt?: string;
   updatedAt?: string;
   department_response_time_in_minutes?: number;
+  sub_department_mng?: {
+    is_sub_department: boolean;
+    parent_department_id: string;
+  };
 }
 
 const DepartmentsPage: React.FC = () => {
@@ -59,6 +63,25 @@ const DepartmentsPage: React.FC = () => {
   // Form-level error and success states
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
+
+  // Department unit modal state
+  const [showUnitModal, setShowUnitModal] = useState(false);
+  const [selectedDepartmentForUnit, setSelectedDepartmentForUnit] = useState<Department | null>(null);
+  const [unitFormData, setUnitFormData] = useState({
+    department_name: '',
+    department_id: '',
+    department_leader: '',
+  });
+  const [unitFormError, setUnitFormError] = useState('');
+  const [unitFormSuccess, setUnitFormSuccess] = useState('');
+  const [submittingUnit, setSubmittingUnit] = useState(false);
+
+  // Department details panel state
+  const [showDepartmentDetails, setShowDepartmentDetails] = useState(false);
+  const [selectedDepartmentForDetails, setSelectedDepartmentForDetails] = useState<Department | null>(null);
+  const [departmentUnits, setDepartmentUnits] = useState<Department[]>([]);
+  const [departmentEmployees, setDepartmentEmployees] = useState<Employee[]>([]);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<Partial<Department>>({
@@ -92,8 +115,6 @@ const DepartmentsPage: React.FC = () => {
       setError('');
       setfirstLoad(false);
       
-      console.log('Loading departments and employees...');
-      
       // Load both departments and employees in parallel
       const [deptResponse, empResponse] = await Promise.all([
         departmentService.getAll(),
@@ -103,42 +124,27 @@ const DepartmentsPage: React.FC = () => {
         throw err;
       });
       
-      console.log('Departments response:', deptResponse);
-      console.log('Employees response:', empResponse);
-      
       // Note: Backend returns 'success' not 'status'
       if (deptResponse?.success) {
-        console.log('Departments raw data:', deptResponse.data);
-        // Handle both array response and object with data property
         const deptData = Array.isArray(deptResponse.data) 
           ? deptResponse.data 
           : (deptResponse.data?.data || []);
-        console.log('Departments processed:', deptData);
-        console.log('First department item:', deptData[0]);
         setDepartments(deptData);
       } else if (deptResponse) {
-        console.error('Department response failed:', deptResponse);
         // Use backend message with priority
         setError(deptResponse.message || deptResponse.error || 'Failed to load departments');
       }
       
       if (empResponse?.success) {
-        console.log('Employees raw data:', empResponse.data);
-        // Handle both array response and object with data property
         const empData = Array.isArray(empResponse.data) 
           ? empResponse.data 
           : (empResponse.data?.data || []);
-        console.log('Employees processed:', empData);
         setEmployees(empData);
       }
     } catch (err: any) {
-      console.error('Error loading data:', err);
-      console.error('Error details:', JSON.stringify(err, null, 2));
       setError(err?.message || err?.error || 'An error occurred while loading data');
     } finally {
-      console.log('Setting loading to false');
       setLoading(false);
-      console.log('Loading is now false, departments state:', departments.length);
     }
   };
 
@@ -150,8 +156,10 @@ const DepartmentsPage: React.FC = () => {
       emp.department?.department_name === departmentName
     ).length;
   };
+
   const filteredDepartments = useMemo(() => {
-    let filtered = departments;
+    // ONLY show main departments in the grid, hide sub-departments
+    let filtered = departments.filter(dept => !dept.sub_department_mng?.is_sub_department);
     
     // Filter by search query
     if (searchQuery?.trim()) {
@@ -167,9 +175,9 @@ const DepartmentsPage: React.FC = () => {
     return filtered;
   }, [departments, searchQuery]);
 
-  // Statistics
+  // Statistics (only counting parent departments)
   const stats = useMemo(() => {
-    return departments.length;
+    return departments.filter(dept => !dept.sub_department_mng?.is_sub_department).length;
   }, [departments]);
 
   // Search departments
@@ -186,11 +194,9 @@ const DepartmentsPage: React.FC = () => {
       if (response.success) {
         setDepartments(response.data || []);
       } else {
-        // Use backend message with priority
         setError(response.message || response.error || 'Search failed');
       }
     } catch (err: any) {
-      // Use backend message with priority
       setError(err.message || err.error || 'Search failed');
     } finally {
       setLoading(false);
@@ -219,7 +225,6 @@ const DepartmentsPage: React.FC = () => {
       if (typeof department.department_leader === 'string') {
         leaderEmail = department.department_leader;
       } else if (typeof department.department_leader === 'object') {
-        // It's an object with email property
         leaderEmail = (department.department_leader as any).email || '';
       }
     }
@@ -240,11 +245,9 @@ const DepartmentsPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Clear previous messages
     setFormError('');
     setFormSuccess('');
     
-    // Validate form data
     if (!formData?.department_name?.trim() || !formData?.department_id?.trim()) {
       setFormError('Please fill in all required fields');
       return;
@@ -253,11 +256,9 @@ const DepartmentsPage: React.FC = () => {
     try {
       setSubmitting(true);
 
-      // Prepare data - send appropriate fields based on create vs update
       let submitData: any;
       
       if (editingDepartment?._id || editingDepartment?.department_id) {
-        // Update existing - only send fields that backend accepts
         let leaderValue: string | undefined = undefined;
         if (formData?.department_leader && typeof formData?.department_leader === 'string' && formData?.department_leader.trim()) {
           leaderValue = formData?.department_leader?.trim();
@@ -270,7 +271,6 @@ const DepartmentsPage: React.FC = () => {
           department_leader: leaderValue
         };
       } else {
-        // Create new - send all required fields
         let leaderValue: string | undefined = undefined;
         if (formData?.department_leader && typeof formData?.department_leader === 'string' && formData?.department_leader.trim()) {
           leaderValue = formData?.department_leader?.trim();
@@ -283,14 +283,10 @@ const DepartmentsPage: React.FC = () => {
           department_response_time_in_minutes: formData?.department_response_time_in_minutes ?? 0
         };
       }
-      
-      console.log('Submitting department data:', submitData);
 
       if (editingDepartment?._id || editingDepartment?.department_id) {
-        // Update existing
         const id = editingDepartment._id || editingDepartment.department_id || '';
         const response = await departmentService.update(id, submitData);
-        console.log('Update response:', response);
         
         if (response.success) {
           setFormSuccess(response.message || 'Department updated successfully!');
@@ -302,9 +298,7 @@ const DepartmentsPage: React.FC = () => {
           setFormError(response.message || response.error || 'Failed to update department');
         }
       } else {
-        // Create new
         const response = await departmentService.create(submitData);
-        console.log('Create response:', response);
         
         if (response.success) {
           setFormSuccess(response.message || 'Department created successfully!');
@@ -317,33 +311,22 @@ const DepartmentsPage: React.FC = () => {
         }
       }
     } catch (err: any) {
-      console.error('Department save error:', err);
-      console.error('Error details:', JSON.stringify(err, null, 2));
-      
-      // Check if it's a network error
       if (err.message && (err.message.includes('Network') || err.message.includes('Failed to fetch'))) {
         setFormError('Cannot connect to server. Please check your internet connection and try again.');
-      } else if (err.error) {
-        // Use backend message with priority
-        setFormError(err.message || err.error);
-      } else if (err.message) {
-        setFormError(err.message);
       } else {
-        setFormError('Failed to save department. Please try again.');
+        setFormError(err.message || err.error || 'Failed to save department. Please try again.');
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Handle delete - show confirmation modal
   const handleDeleteClick = (id: string, name: string) => {
     setDeletingId(id);
     setDeletingName(name);
     setShowDeleteConfirm(true);
   };
 
-  // Confirm delete handler
   const handleConfirmDelete = async () => {
     if (!deletingId) return;
     
@@ -353,7 +336,6 @@ const DepartmentsPage: React.FC = () => {
       setShowDeleteConfirm(false);
       loadDepartments();
     } catch (err: any) {
-      // Use backend message with priority
       setError(err.message || err.error || 'Failed to delete department');
     } finally {
       setDeleting(false);
@@ -362,11 +344,124 @@ const DepartmentsPage: React.FC = () => {
     }
   };
 
-  // Cancel delete handler
   const handleCancelDelete = () => {
     setShowDeleteConfirm(false);
     setDeletingId(null);
     setDeletingName('');
+  };
+
+  const handleAddUnit = (department: Department) => {
+    setSelectedDepartmentForUnit(department);
+    setUnitFormData({
+      department_name: '',
+      department_id: '',
+      department_leader: '',
+    });
+    setUnitFormError('');
+    setUnitFormSuccess('');
+    setShowUnitModal(true);
+  };
+
+  const handleUnitSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    setUnitFormError('');
+    setUnitFormSuccess('');
+    
+    if (!unitFormData.department_name.trim() || !unitFormData.department_id.trim()) {
+      setUnitFormError('Please fill in all required fields');
+      return;
+    }
+
+    if (!selectedDepartmentForUnit) {
+      setUnitFormError('No department selected');
+      return;
+    }
+
+    try {
+      setSubmittingUnit(true);
+
+      let leaderValue: string | undefined = undefined;
+      if (unitFormData.department_leader && unitFormData.department_leader.trim()) {
+        leaderValue = unitFormData.department_leader.trim();
+      }
+
+      const submitData = {
+        department_name: unitFormData.department_name,
+        department_id: unitFormData.department_id,
+        department_leader: leaderValue,
+        sub_department_mng: {
+          is_sub_department: true,
+          parent_department_id: selectedDepartmentForUnit._id || selectedDepartmentForUnit.department_id
+        }
+      };
+
+      const response = await departmentService.create(submitData);
+      
+      if (response.success) {
+        setUnitFormSuccess(response.message || 'Department unit created successfully!');
+        setTimeout(() => {
+          setShowUnitModal(false);
+          loadDepartments();
+        }, 1500);
+      } else {
+        setUnitFormError(response.message || response.error || 'Failed to create department unit');
+      }
+    } catch (err: any) {
+      if (err.message && (err.message.includes('Network') || err.message.includes('Failed to fetch'))) {
+        setUnitFormError('Cannot connect to server. Please check your internet connection and try again.');
+      } else {
+        setUnitFormError(err.message || err.error || 'Failed to save department unit. Please try again.');
+      }
+    } finally {
+      setSubmittingUnit(false);
+    }
+  };
+
+  const handleViewDetails = async (department: Department) => {
+    setSelectedDepartmentForDetails(department);
+    setShowDepartmentDetails(true);
+    setLoadingDetails(true);
+
+    try {
+      const allDepts = await departmentService.getAll();
+      if (allDepts.success) {
+        const deptData = Array.isArray(allDepts.data) 
+          ? allDepts.data 
+          : (allDepts.data?.data || []);
+        
+        const units = deptData.filter((dept: any) => {
+          return dept.sub_department_mng?.is_sub_department && 
+                 dept.sub_department_mng?.parent_department_id === (department._id || department.department_id);
+        });
+        setDepartmentUnits(units);
+      }
+
+      const allEmployees = await employeeService.getAll();
+      if (allEmployees.success) {
+        const empData = Array.isArray(allEmployees.data) 
+          ? allEmployees.data 
+          : (allEmployees.data?.data || []);
+        
+        const emps = empData.filter((emp: any) => {
+          return emp.department === department.department_name || 
+                 emp.department?.department_name === department.department_name ||
+                 emp.department_id === department._id;
+        });
+        setDepartmentEmployees(emps);
+      }
+    } catch (err: any) {
+      console.error('Error loading department details:', err);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const handleCloseDetails = () => {
+    setShowDepartmentDetails(false);
+    setSelectedDepartmentForDetails(null);
+    setDepartmentUnits([]);
+    setDepartmentEmployees([]);
   };
 
   return (
@@ -477,12 +572,12 @@ const DepartmentsPage: React.FC = () => {
           filteredDepartments.map((dept) => (
             <div
               key={dept._id || dept.department_id}
-              className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-lg transition-shadow"
+              className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-lg transition-shadow flex flex-col h-full"
             >
               {/* Header with icon */}
               <div className="flex items-start justify-between mb-4">
-                <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center">
-                  <HiOutlineOfficeBuilding className="w-7 h-7 text-blue-600" />
+                <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+                  <HiOutlineOfficeBuilding className="w-6 h-6 text-blue-600" />
                 </div>
               </div>
               
@@ -506,7 +601,7 @@ const DepartmentsPage: React.FC = () => {
               </div>
 
               {/* Leader Info */}
-              <div className="mb-4">
+              <div className="mb-6">
                 <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Department Leader</p>
                 <p className="text-sm text-gray-700 font-medium truncate">
                   {dept.department_leader 
@@ -518,21 +613,31 @@ const DepartmentsPage: React.FC = () => {
                 </p>
               </div>
               
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+              {/* Action Buttons - Styled nicely like screenshots */}
+              <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-gray-100 mt-auto">
+                <button
+                  onClick={() => handleViewDetails(dept)}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-[13px] font-semibold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+                >
+                  <FiEye className="w-4 h-4" /> View
+                </button>
+                <button
+                  onClick={() => handleAddUnit(dept)}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-[13px] font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
+                >
+                  <FiLayers className="w-4 h-4" /> Add Unit
+                </button>
                 <button
                   onClick={() => handleEdit(dept)}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-[13px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
                 >
-                  <FiEdit2 className="w-4 h-4" />
-                  Edit
+                  <FiEdit2 className="w-4 h-4" /> Edit
                 </button>
                 <button
                   onClick={() => handleDeleteClick(dept._id || dept.department_id || '', dept.department_name || 'this department')}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-[13px] font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
                 >
-                  <FiTrash2 className="w-4 h-4" />
-                  Delete
+                  <FiTrash2 className="w-4 h-4" /> Delete
                 </button>
               </div>
             </div>
@@ -683,10 +788,310 @@ const DepartmentsPage: React.FC = () => {
         type="danger"
         isLoading={deleting}
       />
+
+      {/* Add Department Unit Modal */}
+      {showUnitModal && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+        >
+          <div 
+            className="bg-white rounded-2xl w-full max-w-lg shadow-2xl transform animate-scaleIn overflow-hidden"
+          >
+            {/* Modal Header */}
+            <div className="p-5 border-b bg-gray-50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                    <FiLayers className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">
+                      Add Department Unit
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      Create a new unit under {selectedDepartmentForUnit?.department_name}
+                    </p>
+                  </div>
+                </div>
+            </div>
+            
+            <form onSubmit={handleUnitSubmit} className="p-6 space-y-5">
+              {/* Inline Error Message */}
+              {unitFormError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-start gap-2">
+                  <FiAlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <span>{unitFormError}</span>
+                </div>
+              )}
+
+              {/* Inline Success Message */}
+              {unitFormSuccess && (
+                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl flex items-start gap-2">
+                  <FiCheck className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <span>{unitFormSuccess}</span>
+                </div>
+              )}
+
+              {/* Department Unit Name */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Unit Name <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <HiOutlineOfficeBuilding className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    required
+                    value={unitFormData.department_name}
+                    onChange={(e) => setUnitFormData({ ...unitFormData, department_name: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Enter unit name"
+                  />
+                </div>
+              </div>
+              
+              {/* Department Unit ID */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Unit ID <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <FiGrid className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    required
+                    value={unitFormData.department_id}
+                    onChange={(e) => setUnitFormData({ ...unitFormData, department_id: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="e.g., UNIT-001"
+                  />
+                </div>
+              </div>
+              
+              {/* Department Unit Leader */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Unit Head
+                </label>
+                <div className="relative">
+                  <FiUsers className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <select
+                    value={unitFormData.department_leader}
+                    onChange={(e) => setUnitFormData({ ...unitFormData, department_leader: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="">No head assigned</option>
+                    {employees.map((emp) => (
+                      <option key={emp._id || emp.employee_id} value={emp.email}>
+                        {emp.full_name} ({emp.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowUnitModal(false)}
+                  disabled={submittingUnit}
+                  className={`flex-1 px-4 py-2.5 rounded-xl font-semibold transition-colors ${
+                    submittingUnit
+                      ? 'border border-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingUnit}
+                  className="flex-1 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+                >
+                  {submittingUnit ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <FiRefreshCw className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </span>
+                  ) : 'Create Unit'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Department Details Panel */}
+      {showDepartmentDetails && selectedDepartmentForDetails && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+        >
+          <div 
+            className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl transform animate-scaleIn"
+          >
+            {/* Panel Header */}
+            <div className="p-5 border-b bg-gray-50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <HiOutlineOfficeBuilding className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {selectedDepartmentForDetails.department_name}
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    ID: {selectedDepartmentForDetails.department_id || 'N/A'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleCloseDetails}
+                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                title="Close"
+              >
+                <FiX className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Panel Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {loadingDetails ? (
+                <div className="flex justify-center items-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <span className="ml-3 text-gray-500">Loading details...</span>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Department Units Section */}
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                        <FiLayers className="w-5 h-5 text-purple-600" />
+                        Department Units ({departmentUnits.length})
+                      </h3>
+                      <button
+                        onClick={() => {
+                          handleCloseDetails();
+                          handleAddUnit(selectedDepartmentForDetails);
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+                      >
+                        <FiPlus className="w-4 h-4" />
+                        Add Unit
+                      </button>
+                    </div>
+                    {departmentUnits.length === 0 ? (
+                      <div className="bg-gray-50 rounded-xl p-6 text-center">
+                        <FiLayers className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-gray-500">No department units found</p>
+                        <p className="text-sm text-gray-400 mt-1">Click "Add Unit" to create one</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {departmentUnits.map((unit) => (
+                          <div key={unit._id || unit.department_id} className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h4 className="font-semibold text-gray-900">{unit.department_name}</h4>
+                                <p className="text-sm text-gray-500">ID: {unit.department_id || 'N/A'}</p>
+                                <p className="text-sm text-gray-500 mt-1">
+                                  Head: {unit.department_leader 
+                                    ? (typeof unit.department_leader === 'object' 
+                                        ? unit.department_leader.full_name || unit.department_leader.email 
+                                        : unit.department_leader)
+                                    : 'No head assigned'
+                                  }
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => {
+                                    handleCloseDetails();
+                                    handleEdit(unit);
+                                  }}
+                                  className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                                  title="Edit Unit"
+                                >
+                                  <FiEdit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    handleCloseDetails();
+                                    handleDeleteClick(unit._id || unit.department_id || '', unit.department_name || 'this unit');
+                                  }}
+                                  className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                  title="Delete Unit"
+                                >
+                                  <FiTrash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Department Employees Section */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-4">
+                      <FiUsers className="w-5 h-5 text-blue-600" />
+                      Employees ({departmentEmployees.length})
+                    </h3>
+                    {departmentEmployees.length === 0 ? (
+                      <div className="bg-gray-50 rounded-xl p-6 text-center">
+                        <FiUsers className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-gray-500">No employees found in this department</p>
+                      </div>
+                    ) : (
+                      <div className="bg-gray-50 rounded-xl overflow-hidden">
+                        <table className="w-full">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Contact</th>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Position</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {departmentEmployees.map((emp) => (
+                              <tr key={emp._id || emp.employee_id} className="hover:bg-gray-100">
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                      <span className="text-blue-600 font-semibold text-sm">
+                                        {(emp.full_name || 'E').charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <p className="font-medium text-gray-900">{emp.full_name || '-'}</p>
+                                      <p className="text-sm text-gray-500">{emp.email}</p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <p className="text-sm text-gray-600">{emp.telephone || '-'}</p>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <p className="text-sm text-gray-900">
+                                    {emp.roles?.role_name ? emp.roles.role_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-'}
+                                  </p>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     </MainLayout>
   );
 };
 
 export default DepartmentsPage;
-
