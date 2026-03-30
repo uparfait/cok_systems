@@ -14,6 +14,7 @@ module.exports = async function create_user(req, res, next) {
             title = null,
             email = null,
             department_id = null,
+            department_unit = null, // Extracted department_unit
             roles = {}
         } = req.body || {}
 
@@ -162,6 +163,7 @@ module.exports = async function create_user(req, res, next) {
             title: title || 'Not specified',
             email,
             department: dpt ? dpt._id : null,
+            department_unit: department_unit || null, // Saved department_unit
             password: generated_password,
             access_control: {
                 is_locked: false,
@@ -182,9 +184,9 @@ module.exports = async function create_user(req, res, next) {
 
         await new_user.save()
 
-        // increment total_employees in the department
-        if(department_id && department_id !== 'Not specified') {
-            const dept = await department_model.findOne({ department_id: department_id.toString().toUpperCase() })
+       // FIXED: Safely increment total_employees using the exact MongoDB _id
+        if(department_id && department_id !== 'Not specified' && mongoose.Types.ObjectId.isValid(department_id)) {
+            const dept = await department_model.findById(department_id)
             if (dept) {
                 dept.total_employees = (dept.total_employees || 0) + 1
                 await dept.save()
