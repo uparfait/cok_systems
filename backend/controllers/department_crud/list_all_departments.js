@@ -14,6 +14,12 @@ module.exports = async function list_all_departments(req, res, next) {
             .skip(skip_val)
             .sort({ created_date: -1 }).populate('department_leader', 'full_name email title picture')
 
+        // also loop to all and attach sub-departments for each department and populate their leaders as well
+        for (let dept of departments) {
+            const subDepartments = await department_model.find({ 'sub_department_mng.parent_department_id': dept._id.toString() }).populate('department_leader', 'full_name email title picture')
+            dept._doc.sub_departments = subDepartments // add sub_departments field to the department object
+        }
+
         const total_count = await department_model.countDocuments()
 
         return res.status(200).json({

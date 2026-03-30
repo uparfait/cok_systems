@@ -29,6 +29,12 @@ module.exports = async function get_departments_by_leader(req, res, next) {
 
         // Find all departments where this email matches the leader object's email
         const departments = await department_model.find({ "department_leader": user_id }).populate('department_leader', 'full_name email title picture')
+
+        // also loop across all and find sub-departments for each department and populate their leaders as well
+        for (let dept of departments) {
+            const subDepartments = await department_model.find({ 'sub_department_mng.parent_department_id': dept._id.toString() }).populate('department_leader', 'full_name email title picture')
+            dept._doc.sub_departments = subDepartments // add sub_departments field to the department object
+        }
         
 
         if (!departments || departments.length === 0) {
