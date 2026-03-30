@@ -8,6 +8,10 @@ module.exports = async function create_department(req, res, next) {
         let {
             department_name = null,
             department_id = null,
+            sub_department_mng = {
+                is_sub_department: false,
+                parent_department_id: null
+            },
             department_leader = null, // Expecting an email string here
             department_response_time_in_minutes = 0
         } = req.body || {}
@@ -40,6 +44,30 @@ module.exports = async function create_department(req, res, next) {
             })
         }
 
+        //check if parent department exists if this is a sub-department
+        if (sub_department_mng.is_sub_department) {
+            // first check if it exists and mongodb valid id format
+            if (!sub_department_mng.parent_department_id) {
+                return res.status(400).json({
+                    success: false,
+                    type: 'warning',
+                    message: "Parent department ID is required for sub-departments."
+                })
+            }
+            // convert to mongodb id format and check if it exists
+            const parent_department = await department_model.findById(sub_department_mng.parent_department_id)
+            if (!parent_department) {
+                return res.status(404).json({
+                    success: false,
+                    type: 'warning',
+                    message: "Parent department not found."
+                })
+            }
+            // convert parentit to string to don't save it as an Object for later comparing
+            sub_department_mng.parent_department_id = parent_department._id.toString()
+        }
+
+
         // Verify and load user data if a leader email was provided
         let leader_data = null
         if (department_leader && department_leader !== 'Not specified') {
@@ -61,6 +89,7 @@ module.exports = async function create_department(req, res, next) {
 
         // Create new department instance
         const new_department = new department_model({
+            sub_department_mng,
             department_name,
             department_id,
             department_leader: leader_data,

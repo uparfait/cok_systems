@@ -18,6 +18,10 @@ module.exports = async function car_check_in(req, res, next) {
 
         } = req.body || {}
 
+        if (badge_number) {
+            badge_number = badge_number.toString().trim().toUpperCase()
+        }
+
         if (!plate_number) {
             return res.status(400).json({
                 success: false,
@@ -33,18 +37,18 @@ module.exports = async function car_check_in(req, res, next) {
             "validity.to": { $gte: new Date() },
             is_active: true
         });
-        
+
         const is_reserved = (staff_car?.is_active) || !!emergency_reservation;
 
         // Skip badge requirement for reserved vehicles
-        const requires_badge = !is_reserved;
+       // const requires_badge = !is_reserved;
 
         driver_type = driver_type.toLowerCase()
-        
+
 
         const allowed_driver_type = ['regular', 'visitor', 'staff', 'Staff Vehicle']  //  Staff Vehicle fot the Reserved Vehicle 
 
-        if(!allowed_driver_type.includes(driver_type.toLowerCase())) {
+        if (!allowed_driver_type.includes(driver_type.toLowerCase())) {
             return res.status(400).json({
                 success: false,
                 type: 'warning',
@@ -52,8 +56,25 @@ module.exports = async function car_check_in(req, res, next) {
             })
         }
 
+
+
         // Normalize plate number
         plate_number = plate_number.toString().toUpperCase().replace(/\s+/g, '')
+
+        // check in service delivery and in parking if no one with that badge number currently in house
+
+        if (badge_number) {
+            const existing_badge_in_service_delivery = await ServiceDelivery.findOne({ badge_number, is_still_inhouse: true })
+            const existing_badge_in_parking = await ParkingRecord.findOne({ badge_number, status: 'active' })
+            if (existing_badge_in_service_delivery || existing_badge_in_parking) {
+                return res.status(400).json({
+                    success: false,
+                    type: 'warning',
+                    message: "Someone with this badge number is already checked in."
+                })
+            }
+        }
+
 
         // Prevent duplicate active sessions
         const existing_active_car = await ParkingRecord.findOne({ plate_number, status: 'active' })
@@ -70,7 +91,7 @@ module.exports = async function car_check_in(req, res, next) {
         let slot_number = null
 
         // 1. StaffCar - reuse the already fetched staff_car
-        if((!driver_telephone && !driver_name && staff_car) || staff_car) {
+        if ((!driver_telephone && !driver_name && staff_car) || staff_car) {
             driver_name = staff_car.owner_name
             driver_telephone = staff_car.telephone
             driver_type = "Staff"
@@ -81,7 +102,7 @@ module.exports = async function car_check_in(req, res, next) {
                 number: staff_car.identification
             }
 
-            slot_number =   "#S"
+            slot_number = "#S"
         }
 
         // 2. EmergencyCar (check visitor_info array) - reuse the already fetched emergency_reservation
@@ -89,7 +110,7 @@ module.exports = async function car_check_in(req, res, next) {
             const visitor = emergency_reservation.visitor_info.find(v => v.plate_number === plate_number)
             if (visitor) {
                 driver_name = visitor.driver_name
-                driver_type =  "Visitor"
+                driver_type = "Visitor"
                 driver_telephone = visitor.telephone_number
                 slot_number = visitor.slot_number || 'Not Specified'
                 driver_email = visitor.email || null
@@ -141,7 +162,7 @@ module.exports = async function car_check_in(req, res, next) {
 
         // Create ServiceDelivery record for all checked-in visitors (with or without vehicle)
         // This allows Service Delivery receptionist to see and assign them to departments
-        
+
         if (driver_name && (driver_type.toLowerCase() === 'regular' || driver_type.toLowerCase() === 'visitor' || driver_type.toLowerCase() === 'staff')) {
             const hasVehicle = plate_number && plate_number !== 'N/A' && plate_number.toUpperCase() !== 'NOT SPECIFIED';
             const service_delivery = new ServiceDelivery({
@@ -166,11 +187,11 @@ module.exports = async function car_check_in(req, res, next) {
             await service_delivery.save()
         }
 
-        global.WebsocketIO?.emit('car_checkedin', { 
+        global.WebsocketIO?.emit('car_checkedin', {
             show_notif: false,
             type: 'info',
             message: 'New car checked in: ' + plate_number
-         })
+        })
 
         return res.status(201).json({
             success: true,
