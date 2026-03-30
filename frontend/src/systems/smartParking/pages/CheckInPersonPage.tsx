@@ -79,33 +79,103 @@ const CheckInPersonPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [idError, setIdError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [refetchTrigger, setRefetchTrigger] = useState(0);
   
-  // Listen for car check-in events from other sessions
+  // Listen for visitor check-in events from other sessions
   useEffect(() => {
     if (!socket || !isConnected) return;
     
-    const handleCarCheckin = (data: any) => {
-      console.log('Car check-in event received:', data);
-      // Always show toaster with type and message
-      switch (data.type) {
-        case 'success':
-          showSuccess(data.message);
-          break;
-        case 'error':
-          showError(data.message);
-          break;
-        case 'warning':
-          showWarning(data.message);
-          break;
-        default:
-          showInfo(data.message);
+    const handleVisitorCheckin = (data: any) => {
+      console.log('🔔 [CheckInPerson] visitor_checkedin event received:', data);
+      
+      // Check if notification should be shown
+      if (data.show_notif === false) {
+        // Show notification based on type
+        const message = data.message || 'Visitor checked in';
+        const type = data.type || 'info';
+        
+        if (type === 'success') {
+          showSuccess(message);
+        } else if (type === 'error') {
+          showError(message);
+        } else if (type === 'warning') {
+          showWarning(message);
+        } else {
+          showInfo(message);
+        }
       }
+      
+      // Always trigger refetch to update all related data (tables, cards, counts, etc.)
+      // This will cause any component listening to refetchTrigger to refetch data
+      setRefetchTrigger(prev => prev + 1);
+      
+      console.log('✅ [CheckInPerson] Refetch triggered for all related components');
     };
     
-    socket.on('car_checkedin', handleCarCheckin);
+    socket.on('visitor_checkedin', handleVisitorCheckin);
+    
+    // Listen for visitor check-out events
+    const handleVisitorCheckout = (data: any) => {
+      console.log('🔔 [CheckInPerson] visitor_checkedout event received:', data);
+      
+      // Check if notification should be shown
+      if (data.show_notif === false) {
+        // Show notification based on type
+        const message = data.message || 'Visitor checked out';
+        const type = data.type || 'info';
+        
+        if (type === 'success') {
+          showSuccess(message);
+        } else if (type === 'error') {
+          showError(message);
+        } else if (type === 'warning') {
+          showWarning(message);
+        } else {
+          showInfo(message);
+        }
+      }
+      
+      // Always trigger refetch to update all related data (tables, cards, counts, graphs, etc.)
+      setRefetchTrigger(prev => prev + 1);
+      
+      console.log('✅ [CheckInPerson] Refetch triggered after visitor checkout');
+    };
+    
+    socket.on('visitor_checkedout', handleVisitorCheckout);
+    
+    // Listen for car check-out events
+    const handleCarCheckout = (data: any) => {
+      console.log('🔔 [CheckInPerson] car_checkedout event received:', data);
+      
+      // Check if notification should be shown
+      if (data.show_notif === false) {
+        // Show notification based on type
+        const message = data.message || 'Vehicle checked out';
+        const type = data.type || 'info';
+        
+        if (type === 'success') {
+          showSuccess(message);
+        } else if (type === 'error') {
+          showError(message);
+        } else if (type === 'warning') {
+          showWarning(message);
+        } else {
+          showInfo(message);
+        }
+      }
+      
+      // Always trigger refetch to update all related data (tables, cards, counts, graphs, etc.)
+      setRefetchTrigger(prev => prev + 1);
+      
+      console.log('✅ [CheckInPerson] Refetch triggered after car checkout');
+    };
+    
+    socket.on('car_checkedout', handleCarCheckout);
     
     return () => {
-      socket.off('car_checkedin', handleCarCheckin);
+      socket.off('visitor_checkedin', handleVisitorCheckin);
+      socket.off('visitor_checkedout', handleVisitorCheckout);
+      socket.off('car_checkedout', handleCarCheckout);
     };
   }, [socket, isConnected, showSuccess, showError, showWarning, showInfo]);
   
