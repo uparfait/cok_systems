@@ -19,7 +19,7 @@ module.exports = async function car_check_in(req, res, next) {
         } = req.body || {}
 
         if (badge_number) {
-            badge_number = badge_number.toString().toUpperCase()
+            badge_number = badge_number.toString().trim().toUpperCase()
         }
 
         if (!plate_number) {
@@ -41,7 +41,7 @@ module.exports = async function car_check_in(req, res, next) {
         const is_reserved = (staff_car?.is_active) || !!emergency_reservation;
 
         // Skip badge requirement for reserved vehicles
-        const requires_badge = !is_reserved;
+       // const requires_badge = !is_reserved;
 
         driver_type = driver_type.toLowerCase()
 
@@ -63,7 +63,7 @@ module.exports = async function car_check_in(req, res, next) {
 
         // check in service delivery and in parking if no one with that badge number currently in house
 
-        if (requires_badge && badge_number) {
+        if (badge_number) {
             const existing_badge_in_service_delivery = await ServiceDelivery.findOne({ badge_number, is_still_inhouse: true })
             const existing_badge_in_parking = await ParkingRecord.findOne({ badge_number, status: 'active' })
             if (existing_badge_in_service_delivery || existing_badge_in_parking) {

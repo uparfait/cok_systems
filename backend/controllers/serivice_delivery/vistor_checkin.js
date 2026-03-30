@@ -15,7 +15,7 @@ module.exports = async function visitor_checkin(req, res, next) {
         } = req.body || {}
 
         if (badge_number) {
-            badge_number = badge_number.toString().toUpperCase()
+            badge_number = badge_number.toString().trim().toUpperCase()
         }
 
         // Identification is no longer strictly required
@@ -30,6 +30,7 @@ module.exports = async function visitor_checkin(req, res, next) {
         // check in service delivery and in parking if no one with that badge number currently in house
 
         if (badge_number) {
+            
             const existing_badge_in_service_delivery = await ServiceDelivery.findOne({ badge_number, is_still_inhouse: true })
             const existing_badge_in_parking = await ParkingRecord.findOne({ badge_number, status: 'active' })
             if (existing_badge_in_service_delivery || existing_badge_in_parking) {
