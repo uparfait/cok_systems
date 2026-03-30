@@ -109,11 +109,13 @@ interface HourlyParkingData {
 const StatCard = React.memo(({ 
   stat, 
   onClick, 
-  colorClasses 
+  colorClasses,
+  loading = false
 }: { 
   stat: any; 
   onClick: () => void; 
   colorClasses: any;
+  loading?: boolean;
 }) => {
   const Icon = stat.icon;
   const colors = colorClasses[stat.color] || colorClasses.blue;
@@ -132,7 +134,11 @@ const StatCard = React.memo(({
       <div className="relative flex items-start justify-between">
         <div className="flex-1">
           <p className="text-sm font-medium text-gray-500">{stat.label}</p>
-          <p className="text-3xl font-bold text-gray-900 mt-2 tracking-tight">{stat.value}</p>
+          {loading ? (
+            <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
+          ) : (
+            <p className="text-3xl font-bold text-gray-900 mt-2 tracking-tight">{stat.value}</p>
+          )}
           <p className="text-xs text-gray-400 mt-2">{stat.subtext}</p>
         </div>
         <div className={`w-12 h-12 ${colors.light} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
@@ -280,7 +286,6 @@ const AdminDashboard: React.FC = () => {
   // Load all data function
   const loadData = useCallback(async () => {
     setLoading(true);
-    setFirstLoad(false);
     setError('');
     
     // Fallback timeout to ensure loading state is reset
@@ -392,6 +397,7 @@ const AdminDashboard: React.FC = () => {
       // Clear the fallback timeout
       clearTimeout(loadingTimeout);
       setLoading(false);
+      setFirstLoad(false);
       setLoadingStates({
         stats: false,
         parking: false,
@@ -510,36 +516,31 @@ const AdminDashboard: React.FC = () => {
     
     if (socket && isConnected) {
       // Listen for parking check-in events
-      socket.on('parking_checkin', (data: any) => {
-        console.log('Real-time parking check-in:', data);
+      socket.on('car_checkedin', (data: any) => {
         showNotification(data.message || 'New vehicle checked in');
         scheduleReload();
       });
       
       // Listen for parking check-out events
-      socket.on('parking_checkout', (data: any) => {
-        console.log('Real-time parking check-out:', data);
+      socket.on('car_checkedout', (data: any) => {
         showNotification(data.message || 'Vehicle checked out');
         scheduleReload();
       });
       
       // Listen for visitor check-in events
-      socket.on('visitor_checkin', (data: any) => {
-        console.log('Real-time visitor check-in:', data);
+      socket.on('visitor_checkedin', (data: any) => {
         showNotification(data.message || 'New visitor checked in');
         scheduleReload();
       });
       
       // Listen for visitor check-out events
-      socket.on('visitor_checkout', (data: any) => {
-        console.log('Real-time visitor check-out:', data);
+      socket.on('visitor_checkedout', (data: any) => {
         showNotification(data.message || 'Visitor checked out');
         scheduleReload();
       });
       
       // Listen for global notifications
       socket.on('notifications', (data: any) => {
-        console.log('Real-time notification:', data);
         showNotification(data.message);
       });
     }
@@ -553,10 +554,10 @@ const AdminDashboard: React.FC = () => {
         clearTimeout(notificationTimerRef.current);
       }
       if (socket) {
-        socket.off('parking_checkin');
-        socket.off('parking_checkout');
-        socket.off('visitor_checkin');
-        socket.off('visitor_checkout');
+        socket.off('car_checkedin');
+        socket.off('car_checkedout');
+        socket.off('visitor_checkedin');
+        socket.off('visitor_checkedout');
         socket.off('notifications');
       }
     };
@@ -952,6 +953,7 @@ const AdminDashboard: React.FC = () => {
               stat={stat}
               onClick={() => handleStatClick(stat.path)}
               colorClasses={colorClasses}
+              loading={loading && firstLoad}
             />
           ))}
         </div>
@@ -1239,7 +1241,7 @@ const AdminDashboard: React.FC = () => {
         <div className="text-center">
           <p className="text-xs text-gray-500">Currently Parked</p>
           <p className="text-xl font-bold text-green-600">
-            {stats.parkingRecords}
+            {stats.activeVisitors}
           </p>
         </div>
       </div>

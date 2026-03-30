@@ -48,6 +48,7 @@ const FeedbackPage: React.FC = () => {
 
   // State
   const [loading, setLoading] = useState(true);
+  const [firstLoad, setFirstLoad] = useState(true);
   const [feedbackList, setFeedbackList] = useState<FeedbackItem[]>([]);
   const [departmentRatings, setDepartmentRatings] = useState<DepartmentRating[]>([]);
   const [overallAverage, setOverallAverage] = useState<{ average_rating: number; total_feedback: number }>({
@@ -92,6 +93,7 @@ const FeedbackPage: React.FC = () => {
       showError('Failed to load feedback data');
     } finally {
       setLoading(false);
+      setFirstLoad(false);
     }
   }, [showError]);
 
@@ -167,7 +169,11 @@ const FeedbackPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Total Feedback</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{totalFeedback}</p>
+                {(loading && firstLoad) ? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{totalFeedback}</p>
+                )}
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                 <FiMessageSquare className="w-6 h-6 text-blue-600" />
@@ -180,10 +186,14 @@ const FeedbackPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Average Rating</p>
-                <p className="text-2xl font-bold text-yellow-600 mt-1">
-                  {overallAverage.average_rating?.toFixed(1) || '0.0'}
-                  <span className="text-sm text-gray-400">/5</span>
-                </p>
+                {(loading && firstLoad) ? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-yellow-600 mt-1">
+                    {overallAverage.average_rating?.toFixed(1) || '0.0'}
+                    <span className="text-sm text-gray-400">/5</span>
+                  </p>
+                )}
               </div>
               <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
                 <FiStar className="w-6 h-6 text-yellow-600" />
@@ -204,7 +214,11 @@ const FeedbackPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Departments</p>
-                <p className="text-2xl font-bold text-purple-600 mt-1">{departments.length}</p>
+                {(loading && firstLoad) ? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-purple-600 mt-1">{departments.length}</p>
+                )}
               </div>
               <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
                 <FiFilter className="w-6 h-6 text-purple-600" />
@@ -217,7 +231,11 @@ const FeedbackPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Excellent (4.5+)</p>
-                <p className="text-2xl font-bold text-green-600 mt-1">{ratingDistribution.excellent}</p>
+                {(loading && firstLoad) ? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-green-600 mt-1">{ratingDistribution.excellent}</p>
+                )}
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
                 <FiThumbsUp className="w-6 h-6 text-green-600" />

@@ -202,7 +202,6 @@ const EmployeesPage: React.FC = () => {
   const loadEmployees = async () => {
     try {
       setLoading(true);
-      setfirstLoad(false);
       setError('');
       const response = await employeeService.getAll();
       
@@ -232,6 +231,7 @@ const EmployeesPage: React.FC = () => {
       }
     } finally {
       setLoading(false);
+      setfirstLoad(false);
     }
   };
 
