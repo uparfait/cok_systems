@@ -5,12 +5,14 @@ const user_model = require('../../models/user.js')
 module.exports = async function update_department(req, res, next) {
     try {
         const { id } = req.params
-        // oly allow to change reader and response time only
+        // oly allow to change reader and response time only and sub-department status and parent department if it's a sub-department, but not allow to change department_id to avoid confusion and maintain data integrity, also not allowing to change department_name to avoid confusion but this can be changed in future if needed with proper checks for uniqueness and maybe a history log of changes
         let {
+
             department_response_time_in_minutes = 0,
             department_leader = null, // Expecting an email 
             department_name = null,
             department_id = null,
+            sub_department_mng = null
         } = req.body || {}
             let leader_user = null
 
@@ -68,9 +70,35 @@ module.exports = async function update_department(req, res, next) {
             }
         }
 
+        // check if sub-department status or parent department is being updated and if it's valid
+        if (sub_department_mng) {
+            if (sub_department_mng.is_sub_department) {
+                // Perform validation for sub-department updates
+                if (!sub_department_mng.parent_department_id) {
+                    return res.status(400).json({
+                        success: false,
+                        type: "warning",
+                        message: "Parent department ID is required for sub-departments."
+                    })
+                }
+                const parent_department = await department_model.findById(sub_department_mng.parent_department_id)
+                if (!parent_department) {
+                    return res.status(404).json({
+                        success: false,
+                        type: "warning",
+                        message: "Parent department not found."
+                    })
+                }
+                // convert parentit to string to don't save it as an Object for later comparing
+                sub_department_mng.parent_department_id = parent_department._id.toString()
+            }
+        }
+
+
         department.department_response_time_in_minutes = department_response_time_in_minutes
         if(department_name) department.department_name = department_name
         if(department_id) department.department_id = department_id
+        if(sub_department_mng) department.sub_department_mng = sub_department_mng
 
         const saved_department = await department.save()
         const saved_dpt_data = await department_model.findById(saved_department._id).populate('department_leader', 'full_name email title picture')
