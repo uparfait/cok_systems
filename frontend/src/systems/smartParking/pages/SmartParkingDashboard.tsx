@@ -330,15 +330,101 @@ const SmartParkingDashboard: React.FC = () => {
 
       on('car_checkedin', handleCarCheckin);
 
+      // Listen for car check-out events from other sessions
+     const handleCarCheckout = (data: any) => {
+      console.log('🔔 [CheckOutVehicle] car_checkedout event received:', data);
+      
+      // Check if notification should be shown
+      if (data.show_notif === false) {
+        const message = data.message || 'Vehicle checked out';
+        const type = data.type || 'info';
+        
+        if (type === 'success') {
+          showSuccess(message);
+        } else if (type === 'error') {
+          showError(message);
+        } else if (type === 'warning') {
+          showWarning(message);
+        } else {
+          showInfo(message);
+        }
+      }
+        // Refresh dashboard data and analytics
+        fetchDashboardData();
+        fetchHourlyAnalytics();
+      };
+
+      on('car_checkedout', handleCarCheckout);
+
+      // Listen for visitor check-in events
+      const handleVisitorCheckin = (data: any) => {
+        console.log('🔔 [SmartParkingDashboard] visitor_checkedin event received:', data);
+        
+        // Check if notification should be shown
+        if (data.show_notif === false) {
+          // Show notification based on type
+          const message = data.message || 'Visitor checked in';
+          const type = data.type || 'info';
+          
+          if (type === 'success') {
+            showSuccess(message);
+          } else if (type === 'error') {
+            showError(message);
+          } else if (type === 'warning') {
+            showWarning(message);
+          } else {
+            showInfo(message);
+          }
+        }
+        
+        // Always refetch dashboard data to update stats, cards, counts
+        fetchDashboardData();
+        console.log('✅ [SmartParkingDashboard] Dashboard data refetched');
+      };
+
+      on('visitor_checkedin', handleVisitorCheckin);
+
+      // Listen for visitor check-out events
+      const handleVisitorCheckout = (data: any) => {
+        console.log('🔔 [SmartParkingDashboard] visitor_checkedout event received:', data);
+        
+        // Check if notification should be shown
+        if (data.show_notif === false) {
+          // Show notification based on type
+          const message = data.message || 'Visitor checked out';
+          const type = data.type || 'info';
+          
+          if (type === 'success') {
+            showSuccess(message);
+          } else if (type === 'error') {
+            showError(message);
+          } else if (type === 'warning') {
+            showWarning(message);
+          } else {
+            showInfo(message);
+          }
+        }
+        
+        // Always refetch dashboard data to update stats, cards, counts, and graphs
+        fetchDashboardData();
+        fetchHourlyAnalytics();
+        console.log('✅ [SmartParkingDashboard] Dashboard data and analytics refetched after visitor checkout');
+      };
+
+      on('visitor_checkedout', handleVisitorCheckout);
+
       return () => {
         off('parking_checkin', handleParkingUpdate);
         off('parking_checkout', handleParkingUpdate);
         off('parking_update', handleParkingUpdate);
         off('smartparking_test', handleParkingUpdate);
         off('car_checkedin', handleCarCheckin);
+        off('car_checkedout', handleCarCheckout);
+        off('visitor_checkedin', handleVisitorCheckin);
+        off('visitor_checkedout', handleVisitorCheckout);
       };
     }
-  }, [socket, isConnected, on, off, handleParkingUpdate, fetchDashboardData, showSuccess, showError, showWarning, showInfo]);
+  }, [socket, isConnected, on, off, handleParkingUpdate, fetchDashboardData, fetchHourlyAnalytics, showSuccess, showError, showWarning, showInfo]);
 
   // Helper function to get background color based on duration
   const getDurationBgColor = (duration: string) => {
