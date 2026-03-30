@@ -113,7 +113,6 @@ const DepartmentsPage: React.FC = () => {
     try {
       setLoading(true);
       setError('');
-      setfirstLoad(false);
       
       // Load both departments and employees in parallel
       const [deptResponse, empResponse] = await Promise.all([
@@ -145,6 +144,7 @@ const DepartmentsPage: React.FC = () => {
       setError(err?.message || err?.error || 'An error occurred while loading data');
     } finally {
       setLoading(false);
+      setfirstLoad(false);
     }
   };
 
