@@ -798,7 +798,11 @@ const SmartParkingDashboard: React.FC = () => {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-emerald-700 text-sm font-medium mb-1">Total Inside</p>
-                <h3 className="text-3xl font-bold text-emerald-700">{stats.totalInside}</h3>
+                {(statsLoading && firstLoad) ? (
+                  <div className="h-9 w-16 bg-emerald-200/50 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <h3 className="text-3xl font-bold text-emerald-700">{stats.totalInside}</h3>
+                )}
                 <p className="text-gray-600 text-xs mt-2 flex items-center gap-1">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                   Currently parked
@@ -819,7 +823,11 @@ const SmartParkingDashboard: React.FC = () => {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-blue-700 text-sm font-medium mb-1">Available Slots</p>
-                <h3 className="text-3xl font-bold text-blue-700">{stats.availableSlots}</h3>
+                {(statsLoading && firstLoad) ? (
+                  <div className="h-9 w-16 bg-blue-200/50 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <h3 className="text-3xl font-bold text-blue-700">{stats.availableSlots}</h3>
+                )}
                 <p className="text-gray-600 text-xs mt-2 flex items-center gap-1">
                   <FiMapPin className="w-3 h-3" />
                   Out of {stats.totalSlots} total
@@ -842,7 +850,11 @@ const SmartParkingDashboard: React.FC = () => {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-purple-700 text-sm font-medium mb-1">Staff Reserved</p>
-                <h3 className="text-3xl font-bold text-purple-700">{stats.staffReserved}</h3>
+                {(statsLoading && firstLoad) ? (
+                  <div className="h-9 w-16 bg-purple-200/50 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <h3 className="text-3xl font-bold text-purple-700">{stats.staffReserved}</h3>
+                )}
                 <p className="text-gray-700 text-xs mt-2 flex items-center gap-1">
                   <FiUsers className="w-3 h-3" />
                   /100 allocated
@@ -865,7 +877,11 @@ const SmartParkingDashboard: React.FC = () => {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-amber-700 text-sm font-medium mb-1">Visitor Reserved</p>
-                <h3 className="text-3xl font-bold text-amber-700">{stats.visitorReserved}</h3>
+                {(statsLoading && firstLoad) ? (
+                  <div className="h-9 w-16 bg-amber-200/50 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <h3 className="text-3xl font-bold text-amber-700">{stats.visitorReserved}</h3>
+                )}
                 <p className="text-gray-700 text-xs mt-2 flex items-center gap-1">
                   <FiTrendingUp className="w-3 h-3" />
                   /50 allocated
