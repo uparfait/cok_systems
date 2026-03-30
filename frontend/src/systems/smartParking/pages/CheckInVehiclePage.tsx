@@ -121,6 +121,7 @@ const CheckInVehiclePage: React.FC = () => {
   const [plateNumber, setPlateNumber] = useState('');
   const [idError, setIdError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [refetchTrigger, setRefetchTrigger] = useState(0);
   
   // Modal states
   const [showFoundModal, setShowFoundModal] = useState(false);
@@ -159,32 +160,97 @@ const CheckInVehiclePage: React.FC = () => {
         // We need to make handleVerify available - we'll use a ref or inline call
       }
     };
+    
 
-    // Handle car check-in events from other sessions
+    // Listen for vehicle check-in events
     const handleCarCheckin = (data: any) => {
-      console.log('Car check-in event received:', data);
-      // Always show toaster with type and message
-      switch (data.type) {
-        case 'success':
-          showSuccess(data.message);
-          break;
-        case 'error':
-          showError(data.message);
-          break;
-        case 'warning':
-          showWarning(data.message);
-          break;
-        default:
-          showInfo(data.message);
+      console.log('🔔 [CheckInVehicle] vehicle_checkedin event received:', data);
+      
+      // Check if notification should be shown
+      if (data.show_notif === false) {
+        // Show notification based on type
+        const message = data.message || 'Vehicle checked in';
+        const type = data.type || 'info';
+        
+        if (type === 'success') {
+          showSuccess(message);
+        } else if (type === 'error') {
+          showError(message);
+        } else if (type === 'warning') {
+          showWarning(message);
+        } else {
+          showInfo(message);
+        }
       }
+      
+      // Trigger refetch for any related data
+      setRefetchTrigger(prev => prev + 1);
+      console.log('✅ [CheckInVehicle] Refetch triggered');
     };
 
-    socket.on('vehicle-detected', handleVehicleDetected);
     socket.on('car_checkedin', handleCarCheckin);
+
+    // Listen for visitor check-out events
+    const handleVisitorCheckout = (data: any) => {
+      console.log('🔔 [CheckInVehicle] visitor_checkedout event received:', data);
+      
+      // Check if notification should be shown
+      if (data.show_notif === false) {
+        // Show notification based on type
+        const message = data.message || 'Visitor checked out';
+        const type = data.type || 'info';
+        
+        if (type === 'success') {
+          showSuccess(message);
+        } else if (type === 'error') {
+          showError(message);
+        } else if (type === 'warning') {
+          showWarning(message);
+        } else {
+          showInfo(message);
+        }
+      }
+      
+      // Trigger refetch for any related data
+      setRefetchTrigger(prev => prev + 1);
+      console.log('✅ [CheckInVehicle] Refetch triggered after visitor checkout');
+    };
+
+    socket.on('visitor_checkedout', handleVisitorCheckout);
+
+    // Listen for car check-out events
+    const handleCarCheckout = (data: any) => {
+      console.log('🔔 [CheckInVehicle] car_checkedout event received:', data);
+      
+      // Check if notification should be shown
+      if (data.show_notif === false) {
+        // Show notification based on type
+        const message = data.message || 'Vehicle checked out';
+        const type = data.type || 'info';
+        
+        if (type === 'success') {
+          showSuccess(message);
+        } else if (type === 'error') {
+          showError(message);
+        } else if (type === 'warning') {
+          showWarning(message);
+        } else {
+          showInfo(message);
+        }
+      }
+      
+      // Trigger refetch for any related data
+      setRefetchTrigger(prev => prev + 1);
+      console.log('✅ [CheckInVehicle] Refetch triggered after car checkout');
+    };
+
+    socket.on('car_checkedout', handleCarCheckout);
 
     return () => {
       socket.off('vehicle-detected', handleVehicleDetected);
       socket.off('car_checkedin', handleCarCheckin);
+      socket.off('visitor_checkedout', handleVisitorCheckout);
+      socket.off('car_checkedout', handleCarCheckout);
     };
   }, [socket, showSuccess, showError, showWarning, showInfo]);
 
