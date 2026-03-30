@@ -64,8 +64,18 @@ module.exports = async function car_check_in(req, res, next) {
         // check in service delivery and in parking if no one with that badge number currently in house
 
         if (badge_number) {
-            const existing_badge_in_service_delivery = await ServiceDelivery.findOne({ badge_number, is_still_inhouse: true })
-            const existing_badge_in_parking = await ParkingRecord.findOne({ badge_number, status: 'active' })
+            const existing_badge_in_service_delivery = await ServiceDelivery.findOne({ 
+                $and: [
+                    { badge_number }, 
+                    { is_still_inhouse: true }
+                ]
+             })
+            const existing_badge_in_parking = await ParkingRecord.findOne({ 
+                $and: [
+                    { badge_number }, 
+                    { status: 'active' }
+                ]
+             })
             if (existing_badge_in_service_delivery || existing_badge_in_parking) {
                 return res.status(400).json({
                     success: false,
