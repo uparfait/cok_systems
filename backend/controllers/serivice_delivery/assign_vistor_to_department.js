@@ -101,7 +101,7 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
         }
 
 
-            global.WebsocketIO?.to(`DEPARTMENT_ROOM_${dept.new_department_name}`).emit('new_visitor_assigned_to_your_department', {
+            global.WebsocketIO?.to(`DEPARTMENT_ROOM_${new_department_name}`).emit('new_visitor_assigned_to_your_department', {
                 show_notif: true,
                 type: 'info',
                 message: `Your deppartment assigned a new vistor${provider_name ? ' and assigned to ' + provider_name : ''}`
