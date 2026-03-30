@@ -1,4 +1,3 @@
-
 // ReceptionistDashboard Page - MainLayout Compatible + Figma UI Content
 // INTEGRATED WITH BACKEND APIs
 
@@ -11,7 +10,7 @@ import {
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 // Import API Services
-import { serviceDeliveryService, departmentService, statisticsService, employeeService } from "../../../core/services/adminService";
+import { serviceDeliveryService, departmentService, statisticsService } from "../../../core/services/adminService";
 import { useAuth } from "../../../core/contexts/AuthContext";
 import { useSocket } from "../../../core/contexts/SocketContext";
 import { useToast } from "../../../core/contexts/ToastContext";
@@ -84,12 +83,12 @@ const ReceptionistDashboard: React.FC = () => {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
-  const [showExportMenu, setShowExportMenu] = useState(false);
   
   // LIVE DATA STATES
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [unassignedVisitors, setUnassignedVisitors] = useState<Visitor[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
+  const [subDepartmentIds, setSubDepartmentIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [firstLoad, setfirstLoad] = useState(false);
 
@@ -97,39 +96,19 @@ const ReceptionistDashboard: React.FC = () => {
   // Hourly visitor data for graph
   const [hourlyData, setHourlyData] = useState<{hour: number; visitors_checked_in: number}[]>([]);
   const [hourlyDataLoading, setHourlyDataLoading] = useState(true);
-  const [hoveredHour, setHoveredHour] = useState<{hour: number; visitors: number} | null>(null);
   
   // Department visitor counts
   const [departmentVisitorCounts, setDepartmentVisitorCounts] = useState<Record<string, number>>({});
   
-  // Employee data for assignment
-  const [employees, setEmployees] = useState<any[]>([]);
-  const [employeesLoading, setEmployeesLoading] = useState(false);
-  const [selectedDeptForAssignment, setSelectedDeptForAssignment] = useState<string>('');
+  // Unit data for assignment
+  const [units, setUnits] = useState<any[]>([]);
+  const [unitsLoading, setUnitsLoading] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  const [selectedUnit, setSelectedUnit] = useState<string>('');
 
   // Modal States
   const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
-  // Handle employee selection with queue count
-  const handleSelectEmployee = async (employee: any) => {
-    setSelectedEmployee(employee);
-    setEmployeeQueueCount(0);
-    
-    if (employee && employee._id) {
-      try {
-        const res = await serviceDeliveryService.getCurrentVisitorsByProvider(employee._id);
-        if (res.success && res.data) {
-          const providerData = res.data.find((p: any) => p.provider_id === employee._id);
-          setEmployeeQueueCount(providerData?.count || 0);
-        }
-      } catch (error) {
-        console.error("Failed to fetch employee queue:", error);
-      }
-    }
-  };
-  const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
-  const [employeeQueueCount, setEmployeeQueueCount] = useState(0);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
@@ -199,6 +178,23 @@ const ReceptionistDashboard: React.FC = () => {
       if (deptResponse.status || deptResponse.success) {
         const deptData = Array.isArray(deptResponse.data) ? deptResponse.data : [];
         setDepartments(deptData);
+        
+        // 👉 FIX: Properly capture all Sub-Department IDs regardless of formatting
+        const subDeptIds = new Set<string>();
+        deptData.forEach((dept: any) => {
+          // Flat structure check
+          if (dept.sub_department_mng?.is_sub_department === true || dept.sub_department_mng?.is_sub_department === 'true') {
+            subDeptIds.add(String(dept._id || dept.department_id));
+          }
+          // Legacy nested structure check
+          if (dept.sub_departments && Array.isArray(dept.sub_departments)) {
+            dept.sub_departments.forEach((subDept: any) => {
+              const subDeptId = subDept._id || subDept.department_id;
+              if (subDeptId) subDeptIds.add(String(subDeptId));
+            });
+          }
+        });
+        setSubDepartmentIds(subDeptIds);
       }
       
       // Load hourly stats
@@ -234,110 +230,71 @@ const ReceptionistDashboard: React.FC = () => {
     const handleVisitorCheckin = (data: any) => {
       console.log('🔔 [ReceptionistDashboard] visitor_checkedin event received:', data);
       
-      // Check if notification should be shown
       if (data.show_notif === false) {
-        // Show notification based on type
         const message = data.message || 'Visitor checked in';
         const type = data.type || 'info';
         
-        if (type === 'success') {
-          showSuccess(message);
-        } else if (type === 'error') {
-          showError(message);
-        } else if (type === 'warning') {
-          showWarning(message);
-        } else {
-          showInfo(message);
-        }
+        if (type === 'success') showSuccess(message);
+        else if (type === 'error') showError(message);
+        else if (type === 'warning') showWarning(message);
+        else showInfo(message);
       }
       
-      // Always refetch data to update dashboard
       loadData();
-      console.log('✅ [ReceptionistDashboard] Dashboard data refetched');
     };
 
     socket.on('visitor_checkedin', handleVisitorCheckin);
 
-    // Listen for visitor check-out events
     const handleVisitorCheckout = (data: any) => {
       console.log('🔔 [ReceptionistDashboard] visitor_checkedout event received:', data);
       
-      // Check if notification should be shown
       if (data.show_notif === false) {
-        // Show notification based on type
         const message = data.message || 'Visitor checked out';
         const type = data.type || 'info';
         
-        if (type === 'success') {
-          showSuccess(message);
-        } else if (type === 'error') {
-          showError(message);
-        } else if (type === 'warning') {
-          showWarning(message);
-        } else {
-          showInfo(message);
-        }
+        if (type === 'success') showSuccess(message);
+        else if (type === 'error') showError(message);
+        else if (type === 'warning') showWarning(message);
+        else showInfo(message);
       }
       
-      // Always refetch data to update dashboard, graphs, and all displayed data
       loadData();
-      console.log('✅ [ReceptionistDashboard] Dashboard data refetched after visitor checkout');
     };
 
     socket.on('visitor_checkedout', handleVisitorCheckout);
 
-    // Listen for car check-in events
     const handleCarCheckin = (data: any) => {
       console.log('🔔 [ReceptionistDashboard] car_checkedin event received:', data);
       
-      // Check if notification should be shown
       if (data.show_notif === false) {
-        // Show notification based on type
         const message = data.message || 'Vehicle checked in';
         const type = data.type || 'info';
         
-        if (type === 'success') {
-          showSuccess(message);
-        } else if (type === 'error') {
-          showError(message);
-        } else if (type === 'warning') {
-          showWarning(message);
-        } else {
-          showInfo(message);
-        }
+        if (type === 'success') showSuccess(message);
+        else if (type === 'error') showError(message);
+        else if (type === 'warning') showWarning(message);
+        else showInfo(message);
       }
       
-      // Always refetch data to update dashboard and graphs
       loadData();
-      console.log('✅ [ReceptionistDashboard] Dashboard data refetched after car check-in');
     };
 
     socket.on('car_checkedin', handleCarCheckin);
 
-    // Listen for car check-out events
     const handleCarCheckout = (data: any) => {
       console.log('🔔 [ReceptionistDashboard] car_checkedout event received:', data);
       
-      // Check if notification should be shown
       if (data.show_notif === false) {
-        // Show notification based on type
         const message = data.message || 'Vehicle checked out';
         const type = data.type || 'info';
         
-        if (type === 'success') {
-          showSuccess(message);
-        } else if (type === 'error') {
-          showError(message);
-        } else if (type === 'warning') {
-          showWarning(message);
-        } else {
-          showInfo(message);
-        }
+        if (type === 'success') showSuccess(message);
+        else if (type === 'error') showError(message);
+        else if (type === 'warning') showWarning(message);
+        else showInfo(message);
       }
       
-      // Always refetch data to update dashboard and graphs
       loadData();
-      console.log('✅ [ReceptionistDashboard] Dashboard data refetched after car checkout');
     };
 
     socket.on('car_checkedout', handleCarCheckout);
@@ -350,14 +307,16 @@ const ReceptionistDashboard: React.FC = () => {
     };
   }, [socket, isConnected, showSuccess, showError, showWarning, showInfo]);
 
-  // Format Departments for the Modal
-  const formattedDepartments = departments.map(dept => ({
-    id: dept._id || dept.department_id,
-    name: dept.department_name || dept.name,
-    staffAvailable: dept.total_employees || dept.employees || 0,
-    currentQueue: departmentVisitorCounts[dept.department_name || dept.name] || 0,
-    isActive: dept.status === 'Active'
-  }));
+  // 👉 FIX: Formatted Departments - STRICTLY hide sub-departments from the main modal dropdown
+  const formattedDepartments = departments
+    .filter(dept => !dept.sub_department_mng?.is_sub_department && dept.sub_department_mng?.is_sub_department !== 'true')
+    .map(dept => ({
+      id: dept._id || dept.department_id,
+      name: dept.department_name || dept.name,
+      staffAvailable: dept.total_employees || dept.employees || 0,
+      currentQueue: departmentVisitorCounts[dept.department_name || dept.name] || 0,
+      isActive: dept.status !== 'Inactive'
+    }));
 
   // Helper functions
   const getIdentification = (visitor: Visitor): string => {
@@ -381,29 +340,47 @@ const ReceptionistDashboard: React.FC = () => {
   };
 
   // Filtering Visitors
-  // Use unassigned visitors for dashboard display
   const paginatedVisitors = unassignedVisitors;
   
   // Backend handles search and pagination - no frontend filtering needed
-  // Pagination calculation using totalCount from backend
   const itemsPerPage = 20;
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
-  // Derived Stats - use visitors array for consistency
+  // Derived Stats
   const totalVisitors = Array.isArray(visitors) ? visitors.length : 0;
-  const activeVisitors = Array.isArray(visitors) ? visitors.filter(v => v.status === 'In_progress' || v.status === 'Inside').length : 0;
   const assignedCount = Array.isArray(visitors) ? visitors.filter(v => v.departments_assigned && v.departments_assigned.length > 0).length : 0;
   const totalDepartments = Array.isArray(departments) ? departments.length : 0;
 
-  // Load employees when department is selected
-  const loadEmployeesByDepartment = async (departmentId: string) => {
+  // 👉 FIX: Properly load sub-departments matching the selected parent ID
+  const loadUnitsByDepartment = async (departmentId: string) => {
+    setUnitsLoading(true);
     try {
-      const res = await employeeService.getByDepartment(departmentId);
-      if (res.success) {
-        setEmployees(res.data || []);
+      const response = await departmentService.getAll();
+      if (response.status || response.success) {
+        const deptData = Array.isArray(response.data) ? response.data : [];
+        
+        const subDepts = deptData.filter((dept: any) => {
+          return (dept.sub_department_mng?.is_sub_department === true || dept.sub_department_mng?.is_sub_department === 'true') && 
+                 String(dept.sub_department_mng?.parent_department_id) === String(departmentId);
+        });
+        
+        const formattedUnits = subDepts.map((subDept: any) => ({
+          id: subDept._id || subDept.department_id,
+          name: subDept.department_name || subDept.name,
+          staffAvailable: subDept.total_employees || 0,
+          currentQueue: departmentVisitorCounts[subDept.department_name || subDept.name] || 0,
+          isActive: true
+        }));
+        
+        setUnits(formattedUnits);
+      } else {
+        setUnits([]);
       }
     } catch (error) {
-      console.error("Failed to load employees:", error);
+      console.error("Failed to load units:", error);
+      setUnits([]);
+    } finally {
+      setUnitsLoading(false);
     }
   };
 
@@ -411,28 +388,15 @@ const ReceptionistDashboard: React.FC = () => {
   const handleAssignClick = async (visitor: Visitor) => {
     setSelectedVisitor(visitor);
     setShowAssignModal(true);
-    setEmployeesLoading(true);
-    
-    // Load all departments' employees when modal opens
-    try {
-      const res = await employeeService.getAll();
-      if (res.success) {
-        setEmployees(res.data || []);
-      }
-    } catch (error) {
-      console.error("Failed to load employees:", error);
-    } finally {
-      setEmployeesLoading(false);
-    }
   };
 
   const handleCloseModal = () => {
     setShowAssignModal(false);
     setSelectedVisitor(null);
     setSelectedDepartment('');
-    setSelectedEmployee(null);
-    setEmployeeQueueCount(0);
-    setEmployeesLoading(false);
+    setSelectedUnit('');
+    setUnits([]);
+    setUnitsLoading(false);
   };
 
   const handleConfirmAssignment = async () => {
@@ -440,18 +404,23 @@ const ReceptionistDashboard: React.FC = () => {
       setIsAssigning(true);
       try {
         const visitorId = selectedVisitor._id || selectedVisitor.id;
-        const dept = formattedDepartments.find(d => d.id === selectedDepartment);
-        const departmentName = dept?.name || '';
+        
+        // If a unit is selected, assign to the unit; otherwise assign to the department
+        const targetId = selectedUnit || selectedDepartment;
+        const targetInfo = selectedUnit 
+          ? units.find(u => u.id === selectedUnit)
+          : formattedDepartments.find(d => d.id === selectedDepartment);
+        const targetName = targetInfo?.name || '';
         
         await serviceDeliveryService.assignToDepartment(
           visitorId as string, 
-          selectedDepartment,
-          departmentName,
-          selectedEmployee?._id,
-          selectedEmployee?.full_name
+          targetId,
+          targetName,
+          undefined, // No provider_id - unit-based assignment
+          undefined  // No provider_name - unit-based assignment
         );
         
-        setSuccessMessage(`Assignment successful! Visitor assigned to ${departmentName}${selectedEmployee ? ` with ${selectedEmployee.full_name}` : ''}`);
+        setSuccessMessage(`Assignment successful! Visitor assigned to ${targetName}`);
         setShowSuccessMessage(true);
         
         await loadData();
@@ -471,10 +440,6 @@ const ReceptionistDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Note: We REMOVED the horizontal tabs here. 
-        Navigation is now handled purely by the MainLayout sidebar and the ?tab= parameter in the URL. 
-      */}
-
       {/* DASHBOARD TAB CONTENT */}
       {activeTab === 'dashboard' && (
         <div className="max-w-7xl mx-auto space-y-6">
@@ -635,9 +600,6 @@ const ReceptionistDashboard: React.FC = () => {
                     className={`pl-9 pr-4 py-2 w-72 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 ${searchLoading ? 'opacity-50' : ''}`}
                   />
                 </div>
-                {/* <button onClick={() => setShowExportMenu(!showExportMenu)} className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 transition-colors">
-                  <FiDownload className="w-3 h-3" /> Export
-                </button> */}
               </div>
             </div>
 
@@ -727,6 +689,24 @@ const ReceptionistDashboard: React.FC = () => {
             const deptId = v.departments_assigned?.[0]?.department_id;
             const serviceStatus = v.services_status?.find((s: any) => s.department_id === deptId);
             
+            // Check if the assigned department is a sub-department (unit)
+            const isSubDepartment = deptId ? subDepartmentIds.has(deptId) : false;
+            let departmentName = v.departments_assigned?.[0]?.department_name || v.department || 'General';
+            let unitName = '';
+            
+            if (isSubDepartment) {
+              // If it's a sub-department, the department_name is actually the unit name
+              unitName = departmentName;
+              // Find the parent department name
+              const parentDept = departments.find(d => {
+                if (d.sub_departments && Array.isArray(d.sub_departments)) {
+                  return d.sub_departments.some((sub: any) => (sub._id || sub.department_id) === deptId);
+                }
+                return false;
+              });
+              departmentName = parentDept?.department_name || parentDept?.name || 'Unknown Department';
+            }
+            
             return {
               id: String(v._id || v.id || ''),
               fullName: getVisitorName(v),
@@ -734,7 +714,8 @@ const ReceptionistDashboard: React.FC = () => {
               identity: getIdentification(v),
               badgeNumber: v.badge_number || v.badge || '---',
               service: String(v.service || 'General Inquiry'),
-              department: v.departments_assigned?.[0]?.department_name || v.department || 'General',
+              department: departmentName,
+              unit: unitName,
               assignmentTime: getCheckInTime(v),
               status: String(v.status || 'pending'),
               phone: String(v.telephone || ''),
@@ -761,17 +742,24 @@ const ReceptionistDashboard: React.FC = () => {
         onClose={handleCloseModal}
         visitor={selectedVisitor as any}
         departments={formattedDepartments}
-        employees={employees}
+        units={units}
         selectedDepartment={selectedDepartment}
-        selectedEmployee={selectedEmployee}
-        employeeQueueCount={employeeQueueCount}
-        onSelectDepartment={setSelectedDepartment}
-        onSelectEmployee={handleSelectEmployee}
+        selectedUnit={selectedUnit}
+        onSelectDepartment={(deptId) => {
+          setSelectedDepartment(deptId);
+          setSelectedUnit(''); // Reset unit when department changes
+          if (deptId) {
+            loadUnitsByDepartment(deptId);
+          } else {
+            setUnits([]);
+          }
+        }}
+        onSelectUnit={setSelectedUnit}
         onConfirm={handleConfirmAssignment}
         showSuccessMessage={showSuccessMessage}
         successMessage={successMessage}
         isLoading={isAssigning}
-        employeesLoading={employeesLoading}
+        unitsLoading={unitsLoading}
       />
     </div>
   );

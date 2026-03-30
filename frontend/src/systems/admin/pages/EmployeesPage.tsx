@@ -206,6 +206,7 @@ const EmployeesPage: React.FC = () => {
   const loadEmployees = async () => {
     try {
       setLoading(true);
+      setfirstLoad(false);
       setError('');
       const response = await employeeService.getAll();
       
@@ -227,7 +228,6 @@ const EmployeesPage: React.FC = () => {
       }
     } finally {
       setLoading(false);
-      setfirstLoad(false);
     }
   };
 
@@ -271,7 +271,7 @@ const EmployeesPage: React.FC = () => {
         // Filter sub-departments that belong to this department
         const units = deptData.filter((dept: any) => {
           return (dept.sub_department_mng?.is_sub_department === true || dept.sub_department_mng?.is_sub_department === 'true') && 
-                 dept.sub_department_mng?.parent_department_id === departmentId;
+                 String(dept.sub_department_mng?.parent_department_id) === String(departmentId);
         });
         setDepartmentUnits(units);
       }
@@ -471,6 +471,31 @@ const EmployeesPage: React.FC = () => {
     setDeletingName('');
   };
 
+  // Helper mapping function to get unit name from ID securely
+  const getUnitNameDisplay = (employee: Employee) => {
+    // Determine the raw unit value
+    const rawUnitVal = employee.department_unit || 
+      (employee.department && typeof employee.department === 'object' && (employee.department as any).department_unit);
+    
+    if (!rawUnitVal || rawUnitVal === 'Not specified') return '-';
+    
+    // If it's already an object that contains the name, use it
+    if (typeof rawUnitVal === 'object' && (rawUnitVal as any).department_name) {
+      return (rawUnitVal as any).department_name;
+    }
+
+    // Treat it as an ID string and perform a deep search in allDepartments
+    const searchId = String(rawUnitVal).trim();
+    
+    // Find the matching department by ID
+    const matchedDept = allDepartments.find(d => 
+      String(d._id) === searchId || String(d.department_id) === searchId
+    );
+
+    // Return the name if found, otherwise fallback to the raw ID (or '-')
+    return matchedDept?.department_name || searchId;
+  };
+
   return (
     <MainLayout>
     <div className="space-y-6">
@@ -610,21 +635,9 @@ const EmployeesPage: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm text-gray-900">
-                        {/* Safely extract and lookup unit name */}
-                        {(() => {
-                          const unitVal = employee.department_unit || (employee.department && typeof employee.department === 'object' && (employee.department as any).department_unit);
-                          if (!unitVal) return '-';
-                          
-                          if (typeof unitVal === 'object') return (unitVal as any).department_name || '-';
-                          
-                          const foundUnit = departments.find(d => 
-                            String(d._id) === String(unitVal) || 
-                            String(d.department_id) === String(unitVal)
-                          );
-                          
-                          return foundUnit?.department_name || unitVal;
-                        })()}
+                      <span className="text-sm text-gray-900 font-medium">
+                        {/* 👉 FIX: Calls the robust mapper function */}
+                        {getUnitNameDisplay(employee)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -844,6 +857,7 @@ const EmployeesPage: React.FC = () => {
                         });
                         
                         if (selectedDept?._id) {
+                          setLoadingUnits(true);
                           loadDepartmentUnits(selectedDept._id);
                         } else {
                           setDepartmentUnits([]);
@@ -885,6 +899,9 @@ const EmployeesPage: React.FC = () => {
                         </>
                       )}
                     </select>
+                    {formData.department_id && departmentUnits.length === 0 && !loadingUnits && (
+                      <p className="text-xs text-gray-500 mt-1">No department units available for this department</p>
+                    )}
                   </div>
 
                   <div>
