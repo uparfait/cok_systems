@@ -44,7 +44,6 @@ interface ParkingStats {
   currentlyParked: number;
   availableSlots: number;
   flaggedInside: number;
-  flaggedOutside: number;
   totalCapacity: number;
 }
 
@@ -61,7 +60,6 @@ const AdminSmartParkingDashboard: React.FC = () => {
     currentlyParked: 0,
     availableSlots: 0,
     flaggedInside: 0,
-    flaggedOutside: 0,
     totalCapacity: 200
   });
   const [hourlyData, setHourlyData] = useState<HourlyData[]>([]);
@@ -75,6 +73,7 @@ const AdminSmartParkingDashboard: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [realtimeUpdate, setRealtimeUpdate] = useState<string | null>(null);
 
   // Total parking capacity - constant value
   const TOTAL_CAPACITY = 200;
@@ -102,14 +101,13 @@ const AdminSmartParkingDashboard: React.FC = () => {
       // API returns: { success: true, data: { total: x, currently_flagged: { count: x }, history: { count: y } } }
       const flaggedData = flaggedResponse?.data;
       const flaggedInside = flaggedData?.currently_flagged?.count || 0;
-      const flaggedOutside = flaggedData?.history?.count || 0;
+      
 
       setStats({
         todayVehicles: todayCheckIns,
         currentlyParked: currentlyParked,
         availableSlots: Math.max(0, TOTAL_CAPACITY - currentlyParked),
         flaggedInside: flaggedInside,
-        flaggedOutside: flaggedOutside,
         totalCapacity: TOTAL_CAPACITY
       });
 
@@ -182,6 +180,59 @@ const AdminSmartParkingDashboard: React.FC = () => {
       fetchDashboardData();
     }
   }, [isAuthenticated, authLoading, fetchDashboardData]);
+
+  // Listen to real-time smart parking events and auto-refetch
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    const handleCarCheckedIn = (data: any) => {
+      // Show notification and auto-refetch dashboard data when a car is checked in
+      setRealtimeUpdate(data?.message || 'New vehicle checked in');
+      fetchDashboardData();
+    };
+
+    const handleCarCheckedOut = (data: any) => {
+      // Show notification and auto-refetch dashboard data when a car is checked out
+      setRealtimeUpdate(data?.message || 'Vehicle checked out');
+      fetchDashboardData();
+    };
+
+    const handleVisitorCheckedIn = (data: any) => {
+      // Show notification and auto-refetch dashboard data when a visitor is checked in
+      setRealtimeUpdate(data?.message || 'New visitor checked in');
+      fetchDashboardData();
+    };
+
+    const handleVisitorCheckedOut = (data: any) => {
+      // Show notification and auto-refetch dashboard data when a visitor is checked out
+      setRealtimeUpdate(data?.message || 'Visitor checked out');
+      fetchDashboardData();
+    };
+
+    // Subscribe to smart parking events
+    socket.on('car_checkedin', handleCarCheckedIn);
+    socket.on('car_checkedout', handleCarCheckedOut);
+    socket.on('visitor_checkedin', handleVisitorCheckedIn);
+    socket.on('visitor_checkedout', handleVisitorCheckedOut);
+
+    // Cleanup on unmount or when socket changes
+    return () => {
+      socket.off('car_checkedin', handleCarCheckedIn);
+      socket.off('car_checkedout', handleCarCheckedOut);
+      socket.off('visitor_checkedin', handleVisitorCheckedIn);
+      socket.off('visitor_checkedout', handleVisitorCheckedOut);
+    };
+  }, [socket, isConnected, fetchDashboardData]);
+
+  // Clear real-time update notification after 3 seconds
+  useEffect(() => {
+    if (realtimeUpdate) {
+      const timer = setTimeout(() => {
+        setRealtimeUpdate(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [realtimeUpdate]);
 
   // Open records modal
   const handleOpenRecordsModal = useCallback(() => {
@@ -355,6 +406,14 @@ const AdminSmartParkingDashboard: React.FC = () => {
   return (
     <MainLayout>
       <div className="space-y-6">
+        {/* Real-time Update Notification */}
+        {realtimeUpdate && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3 animate-pulse">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping"></div>
+            <p className="text-sm text-blue-700 font-medium">{realtimeUpdate}</p>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
@@ -379,7 +438,11 @@ const AdminSmartParkingDashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Today's Vehicles</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.todayVehicles}</p>
+                {(loading && firstLoad )? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{stats.todayVehicles}</p>
+                )}
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                 <FiTruck className="w-6 h-6 text-blue-600" />
@@ -392,8 +455,14 @@ const AdminSmartParkingDashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Currently Parked</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.currentlyParked}</p>
-                <p className="text-xs text-gray-400 mt-1">{((stats.currentlyParked / stats.totalCapacity) * 100).toFixed(1)}% occupied</p>
+                {(loading && firstLoad) ? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">{stats.currentlyParked}</p>
+                    <p className="text-xs text-gray-400 mt-1">{((stats.currentlyParked / stats.totalCapacity) * 100).toFixed(1)}% occupied</p>
+                  </>
+                )}
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
                 <FiCheckCircle className="w-6 h-6 text-green-600" />
@@ -406,7 +475,11 @@ const AdminSmartParkingDashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Available Slots</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.availableSlots}</p>
+                {(loading && firstLoad) ? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{stats.availableSlots}</p>
+                )}
               </div>
               <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
                 <FiMapPin className="w-6 h-6 text-purple-600" />
@@ -421,10 +494,8 @@ const AdminSmartParkingDashboard: React.FC = () => {
                 <p className="text-sm text-gray-500">Flagged Vehicles</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
                   <span className="text-orange-600">{stats.flaggedInside}</span>
-                  <span className="text-gray-400"> / </span>
-                  <span className="text-gray-500">{stats.flaggedOutside}</span>
                 </p>
-                <p className="text-xs text-gray-400 mt-1">Currently / History</p>
+                <p className="text-xs text-gray-400 mt-1">Currently</p>
               </div>
               <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
                 <FiFlag className="w-6 h-6 text-orange-600" />

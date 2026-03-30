@@ -451,6 +451,7 @@ const getFeedbackAverageByDepartment = async (req, res) => {
  * Get hourly parking statistics for the same day
  * Returns: check-in and check-out counts for each hour
  */
+
 const getHourlyParkingStats = async (req, res) => {
     try {
         // Get start and end of today
@@ -495,12 +496,27 @@ const getHourlyParkingStats = async (req, res) => {
         for (let hour = 0; hour < 24; hour++) {
             const checkIn = checkInsByHour.find(item => item._id === hour);
             const checkOut = checkOutsByHour.find(item => item._id === hour);
-
-            hourlyStats.push({
-                hour: hour,
-                check_in: checkIn ? checkIn.count : 0,
-                check_out: checkOut ? checkOut.count : 0
-            });
+            
+            const checkInCount = checkIn ? checkIn.count : 0;
+            const checkOutCount = checkOut ? checkOut.count : 0;
+            
+            // For hours 0-8: only include if either check_in or check_out is not 0
+            // For hours 9-23: always include (even if both are 0)
+            if (hour < 9) {
+                if (checkInCount !== 0 || checkOutCount !== 0) {
+                    hourlyStats.push({
+                        hour: hour,
+                        check_in: checkInCount,
+                        check_out: checkOutCount
+                    });
+                }
+            } else {
+                hourlyStats.push({
+                    hour: hour,
+                    check_in: checkInCount,
+                    check_out: checkOutCount
+                });
+            }
         }
 
         return res.status(200).json({
@@ -556,11 +572,23 @@ const getHourlyServiceDeliveryStats = async (req, res) => {
         const hourlyStats = [];
         for (let hour = 0; hour < 24; hour++) {
             const checkIn = checkInsByHour.find(item => item._id === hour);
-
-            hourlyStats.push({
-                hour: hour,
-                visitors_checked_in: checkIn ? checkIn.count : 0
-            });
+            const visitorsCheckedIn = checkIn ? checkIn.count : 0;
+            
+            // For hours 0-8: only include if visitors_checked_in is not 0
+            // For hours 9-23: always include (even if it's 0)
+            if (hour < 9) {
+                if (visitorsCheckedIn !== 0) {
+                    hourlyStats.push({
+                        hour: hour,
+                        visitors_checked_in: visitorsCheckedIn
+                    });
+                }
+            } else {
+                hourlyStats.push({
+                    hour: hour,
+                    visitors_checked_in: visitorsCheckedIn
+                });
+            }
         }
 
         return res.status(200).json({

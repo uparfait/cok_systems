@@ -619,17 +619,7 @@ const ProfilePage: React.FC = () => {
                 <FiUser className="w-5 h-5" />
                 Profile
               </button>
-              <button
-                onClick={() => setActiveTab('activity')}
-                className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
-                  activeTab === 'activity'
-                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <FiActivity className="w-5 h-5" />
-                Activity
-              </button>
+    
               <button
                 onClick={() => setActiveTab('security')}
                 className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
@@ -906,24 +896,6 @@ const ProfilePage: React.FC = () => {
                     </span>
                   </div>
 
-                  {/* Role Information */}
-                  <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-purple-100 rounded-lg">
-                        <FiAward className="w-5 h-5 text-purple-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">Role Information</p>
-                        <p className="text-sm text-gray-500">View your assigned role</p>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => setActiveTab('profile')}
-                      className="px-4 py-2 text-blue-600 hover:text-blue-700 font-medium border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
-                    >
-                      View
-                    </button>
-                  </div>
                 </div>
               </div>
             )}
