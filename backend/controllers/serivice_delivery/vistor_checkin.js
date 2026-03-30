@@ -15,7 +15,7 @@ module.exports = async function visitor_checkin(req, res, next) {
         } = req.body || {}
 
         if (badge_number) {
-            badge_number = badge_number.toString().toUpperCase()
+            badge_number = badge_number.toString().trim().toUpperCase()
         }
 
         // Identification is no longer strictly required
