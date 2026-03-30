@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const department_schema = new mongoose.Schema({
     sub_department_mng: {
-        is_sub_department: {type: boolean, default: false},
+        is_sub_department: {type: Boolean, default: false},
         parent_department_id: { type: String, default: null }
     },
     department_name: { type: String, required: true },
