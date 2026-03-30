@@ -43,6 +43,7 @@ const Analytics: React.FC = () => {
 
   // State
   const [loading, setLoading] = useState(true);
+  const [firstLoad, setFirstLoad] = useState(true);
   const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month'>('today');
   
   // Data states
@@ -88,6 +89,7 @@ const Analytics: React.FC = () => {
       showError('Failed to load analytics data');
     } finally {
       setLoading(false);
+      setFirstLoad(false);
     }
   }, [showError]);
 
@@ -169,7 +171,11 @@ const Analytics: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Parking Check-Ins</p>
-                <p className="text-2xl font-bold text-blue-600 mt-1">{totalParkingCheckIns}</p>
+                {(loading && firstLoad) ? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-blue-600 mt-1">{totalParkingCheckIns}</p>
+                )}
                 <p className="text-xs text-green-600 mt-1 flex items-center">
                   <FiTrendingUp className="w-3 h-3 mr-1" /> Today
                 </p>
@@ -184,7 +190,11 @@ const Analytics: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Service Visitors</p>
-                <p className="text-2xl font-bold text-green-600 mt-1">{totalServiceVisitors}</p>
+                {(loading && firstLoad) ? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-green-600 mt-1">{totalServiceVisitors}</p>
+                )}
                 <p className="text-xs text-green-600 mt-1 flex items-center">
                   <FiTrendingUp className="w-3 h-3 mr-1" /> Today
                 </p>
@@ -199,7 +209,11 @@ const Analytics: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Active Employees</p>
-                <p className="text-2xl font-bold text-purple-600 mt-1">{employeeStats.active || 0}</p>
+                {(loading && firstLoad) ? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-purple-600 mt-1">{employeeStats.active || 0}</p>
+                )}
                 <p className="text-xs text-gray-500 mt-1">
                   of {employeeStats.total || 0} total
                 </p>
@@ -214,9 +228,13 @@ const Analytics: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Avg Feedback</p>
-                <p className="text-2xl font-bold text-orange-600 mt-1">
-                  {feedbackData?.overall_average?.average_rating?.toFixed(1) || '0.0'}
-                </p>
+                {(loading && firstLoad) ? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-orange-600 mt-1">
+                    {feedbackData?.overall_average?.average_rating?.toFixed(1) || '0.0'}
+                  </p>
+                )}
                 <p className="text-xs text-gray-500 mt-1">
                   {feedbackData?.overall_average?.total_feedback || 0} reviews
                 </p>
