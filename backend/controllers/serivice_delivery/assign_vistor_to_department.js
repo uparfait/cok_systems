@@ -26,7 +26,7 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
         }
 
         const visitor = await ServiceDelivery.findById(visitor_id);
-        
+
         if (!visitor || !visitor.is_still_inhouse) {
             return res.status(404).json({ success: false, type: 'warning', message: "Visitor not found or has already left." });
         }
@@ -41,10 +41,10 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
 
             if (active_service_index !== -1) {
                 const active_service = visitor.services_status[active_service_index];
-                
+
                 const assigned_dept = visitor.departments_assigned.find(d => d.department_id === previous_department_id);
                 const start_time = assigned_dept ? assigned_dept.assigned_time : visitor.entry_date;
-                
+
                 const duration_minutes = Math.round((current_time - new Date(start_time)) / 60000);
                 const duration_str = `${duration_minutes} mins`;
 
@@ -90,6 +90,22 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
             s_type: 'Not started'
         });
 
+        // announce provider if have one
+
+        if (provider_id) {
+            global.WebsocketIO?.to(`PRIVATE_ROOM_${provider_id.toString()}`).emit('new_visitor_assigned', {
+                show_notif: true,
+                type: 'info',
+                message: 'You have assigned a new vistor'
+            })
+        }
+
+
+            global.WebsocketIO?.to(`DEPARTMENT_ROOM_${new_department_name}`).emit('new_visitor_assigned_to_your_department', {
+                show_notif: true,
+                type: 'info',
+                message: `Your deppartment assigned a new vistor${provider_name ? ' and assigned to ' + provider_name : ''}`
+            })
         const updated_visitor = await visitor.save();
 
         return res.status(200).json({

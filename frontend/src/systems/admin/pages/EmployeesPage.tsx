@@ -32,6 +32,7 @@ interface Employee {
   };
   department_name?: string;
   department_id?: string;
+  department_unit?: string;
   status?: string;
   roles?: {
     role_name: string;
@@ -117,6 +118,7 @@ const EmployeesPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [departmentUnits, setDepartmentUnits] = useState<Department[]>([]);
 
   // Delete confirmation modal state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -255,6 +257,32 @@ const EmployeesPage: React.FC = () => {
     }
   };
 
+  // Load department units for selected department
+  const loadDepartmentUnits = async (departmentId: string) => {
+    if (!departmentId) {
+      setDepartmentUnits([]);
+      return;
+    }
+
+    try {
+      const response = await departmentService.getAll();
+      if (response.success) {
+        const deptData = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data?.data || []);
+        
+        // Filter sub-departments that belong to this department
+        const units = deptData.filter((dept: any) => {
+          return dept.sub_department_mng?.is_sub_department && 
+                 dept.sub_department_mng?.parent_department_id === departmentId;
+        });
+        setDepartmentUnits(units);
+      }
+    } catch (err: any) {
+      console.error('Failed to load department units:', err);
+    }
+  };
+
   // Load roles from backend
   const loadRoles = async () => {
     try {
@@ -313,11 +341,13 @@ const EmployeesPage: React.FC = () => {
       department: '',
       department_name: '',
       department_id: '',
+      department_unit: '',
       roles: {
         role_name: 'department_employee',
         permissions: []
       }
     });
+    setDepartmentUnits([]);
     setFormError('');
     setFormSuccess('');
     setShowModal(true);
@@ -350,11 +380,16 @@ const EmployeesPage: React.FC = () => {
       department: deptName,
       department_name: deptName,
       department_id: deptId,
+      department_unit: employee.department_unit || '',
       roles: {
         role_name: employee.roles?.role_name || 'department_employee',
         permissions: convertedPermissions
       }
     });
+    // Load department units if department is selected
+    if (deptId) {
+      loadDepartmentUnits(deptId);
+    }
     setFormError('');
     setFormSuccess('');
     setShowModal(true);
@@ -813,6 +848,12 @@ const EmployeesPage: React.FC = () => {
                           department_name: e.target.value,
                           department_id: selectedDept?._id || ''
                         });
+                        // Load department units when department is selected
+                        if (selectedDept?._id) {
+                          loadDepartmentUnits(selectedDept._id);
+                        } else {
+                          setDepartmentUnits([]);
+                        }
                       }}
                       className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                     >
@@ -835,6 +876,27 @@ const EmployeesPage: React.FC = () => {
                       className="w-full px-3 py-2.5 border border-gray-200 rounded-lg bg-gray-100 text-gray-500"
                       placeholder="Auto-filled"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Department Unit (Optional)
+                    </label>
+                    <select
+                      value={formData.department_unit || ''}
+                      onChange={(e) => setFormData({ ...formData, department_unit: e.target.value })}
+                      disabled={!formData.department_id || departmentUnits.length === 0}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white disabled:bg-gray-100 disabled:text-gray-500"
+                    >
+                      <option value="">Select department unit</option>
+                      {departmentUnits.map((unit) => (
+                        <option key={unit._id || unit.department_id} value={unit._id || unit.department_id}>
+                          {unit.department_name}
+                        </option>
+                      ))}
+                    </select>
+                    {formData.department_id && departmentUnits.length === 0 && (
+                      <p className="text-xs text-gray-500 mt-1">No department units available for this department</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
