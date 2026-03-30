@@ -1,4 +1,4 @@
-// AssignVisitorModal Component - Modal for assigning visitors to departments
+// AssignVisitorModal Component - Modal for assigning visitors to departments/units
 // This modal appears when clicking "Assign" and blurs the background
 
 import { 
@@ -12,17 +12,15 @@ interface Department {
   staffAvailable: number;
   currentQueue: number;
   isActive: boolean;
+  sub_departments?: Department[];
 }
 
-interface Employee {
-  _id?: string;
-  employee_id?: string;
-  full_name?: string;
-  email?: string;
-  telephone?: string;
-  title?: string;
-  department?: string | { _id?: string; department_name?: string };
-  is_active?: boolean;
+interface Unit {
+  id: string;
+  name: string;
+  staffAvailable: number;
+  currentQueue: number;
+  isActive: boolean;
 }
 
 interface Visitor {
@@ -69,17 +67,16 @@ interface AssignVisitorModalProps {
   onClose: () => void;
   visitor: Visitor | null;
   departments: Department[];
-  employees: Employee[];
+  units: Unit[];
   selectedDepartment: string;
-  selectedEmployee: Employee | null;
-  employeeQueueCount?: number;
+  selectedUnit: string;
   onSelectDepartment: (deptId: string) => void;
-  onSelectEmployee: (employee: Employee | null) => void;
+  onSelectUnit: (unitId: string) => void;
   onConfirm: () => void;
   showSuccessMessage?: boolean;
   successMessage?: string;
   isLoading?: boolean;
-  employeesLoading?: boolean;
+  unitsLoading?: boolean;
 }
 
 // COK Services options
@@ -98,27 +95,29 @@ const AssignVisitorModal: React.FC<AssignVisitorModalProps> = ({
   onClose,
   visitor,
   departments,
-  employees,
+  units,
   selectedDepartment,
-  selectedEmployee,
-  employeeQueueCount = 0,
+  selectedUnit,
   onSelectDepartment,
-  onSelectEmployee,
+  onSelectUnit,
   onConfirm,
   showSuccessMessage,
   successMessage,
   isLoading,
-  employeesLoading = false
+  unitsLoading = false
 }) => {
   if (!isOpen || !visitor) return null;
 
   // Get selected department info
   const selectedDeptInfo = departments.find(d => d.id === selectedDepartment);
   
-  // Check if visitor already has an active assignment to this department
+  // Get selected unit info
+  const selectedUnitInfo = units.find(u => u.id === selectedUnit);
+  
+  // Check if visitor already has an active assignment to this department/unit
   const visitorDepartments = visitor.departments_assigned || [];
   const isAlreadyAssignedToSelectedDept = visitorDepartments.some(
-    (dept: any) => dept.department_id === selectedDepartment && dept.status !== 'completed'
+    (dept: any) => (dept.department_id === selectedDepartment || dept.department_id === selectedUnit) && dept.status !== 'completed'
   );
 
   return (
@@ -134,7 +133,7 @@ const AssignVisitorModal: React.FC<AssignVisitorModalProps> = ({
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden">
         {/* Modal Header - Sky Blue Background */}
         <div className="px-6 py-4 bg-sky-50 border-b border-sky-100 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-800">Assign Visitor to Service & Department</h2>
+          <h2 className="text-lg font-bold text-gray-800">Assign Visitor to Department & Unit</h2>
           <button 
             onClick={onClose} 
             disabled={isAlreadyAssignedToSelectedDept}
@@ -180,14 +179,14 @@ const AssignVisitorModal: React.FC<AssignVisitorModalProps> = ({
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <FiFileText className="text-sky-600" />
-                  <h3 className="text-sm font-semibold text-gray-700">SELECT PROVIDER (OPTIONAL)</h3>
+                  <h3 className="text-sm font-semibold text-gray-700">SELECT UNIT (OPTIONAL)</h3>
                 </div>
 
                 {/* Show department queue info */}
                 {selectedDeptInfo && (
                   <div className="bg-yellow-50 rounded-lg p-3 mb-3 border border-yellow-100">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-600">Current Queue:</span>
+                      <span className="text-xs text-gray-600">Department Queue:</span>
                       <span className="text-sm font-bold text-yellow-700">{(selectedDeptInfo.currentQueue || 0) + 1} visitors</span>
                     </div>
                     <div className="flex items-center justify-between mt-1">
@@ -197,39 +196,35 @@ const AssignVisitorModal: React.FC<AssignVisitorModalProps> = ({
                   </div>
                 )}
 
-                {/* Employee Selection */}
+                {/* Unit Selection */}
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Select Employee (Optional)</label>
+                  <label className="text-xs text-gray-500 block mb-1">Select Unit (Optional)</label>
                   <div className="relative">
-                    {employeesLoading ? (
+                    {unitsLoading ? (
                       <div className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-100 flex items-center justify-center">
                         <div className="w-4 h-4 border-2 border-sky-500 border-t-transparent rounded-full animate-spin mr-2"></div>
-                        <span className="text-gray-500">Loading employees...</span>
+                        <span className="text-gray-500">Loading units...</span>
                       </div>
                     ) : (
                       <select
-                        value={selectedEmployee?._id || ''}
-                        onChange={(e) => {
-                          const emp = employees.find(emp => emp._id === e.target.value);
-                          onSelectEmployee(emp || null);
-                        }}
-                        disabled={!selectedDepartment}
+                        value={selectedUnit}
+                        onChange={(e) => onSelectUnit(e.target.value)}
+                        disabled={!selectedDepartment || units.length === 0}
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 appearance-none bg-white cursor-pointer disabled:bg-gray-100"
                       >
-                        <option value="">No specific employee - Auto-assign</option>
-                        {employees.filter((emp: any) => {
-                          if (!selectedDepartment) return true;
-                          const empDeptId = emp.department?._id || emp.department;
-                          return empDeptId === selectedDepartment;
-                        }).map((emp: any) => (
-                          <option key={emp._id} value={emp._id}>
-                            {emp.full_name} {emp.title ? `(${emp.title})` : ''} {emp.is_active === false ? '(Inactive)' : ''}
+                        <option value="">No specific unit - Assign to department</option>
+                        {units.map((unit: Unit) => (
+                          <option key={unit.id} value={unit.id}>
+                            {unit.name} {unit.staffAvailable > 0 ? `(${unit.staffAvailable} staff)` : ''}
                           </option>
                         ))}
                       </select>
                     )}
                     <FiChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                   </div>
+                  {selectedDepartment && units.length === 0 && !unitsLoading && (
+                    <p className="text-xs text-gray-500 mt-1">No units available for this department</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -264,21 +259,21 @@ const AssignVisitorModal: React.FC<AssignVisitorModalProps> = ({
                 {selectedDepartment && isAlreadyAssignedToSelectedDept && (
                   <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                     <p className="text-sm text-red-600 font-medium">
-                      ⚠️ This visitor already has an active assignment to this department. 
+                      ⚠️ This visitor already has an active assignment to this department/unit. 
                       Please complete or cancel the existing service before reassigning.
                     </p>
                   </div>
                 )}
 
-                {/* Department Status & Availability Card - Sky Blue - Only show when employee selected */}
-                {selectedDeptInfo && selectedEmployee && (
+                {/* Unit Status & Availability Card - Sky Blue - Only show when unit selected */}
+                {selectedUnitInfo && (
                   <div className="bg-sky-50 rounded-lg p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-semibold text-sky-700">Employee Status</h4>
+                      <h4 className="text-sm font-semibold text-sky-700">Unit Status</h4>
                       <div className="flex items-center gap-1">
-                        <span className={`w-2 h-2 rounded-full ${selectedEmployee.is_active !== false ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                        <span className={`text-xs font-medium ${selectedEmployee.is_active !== false ? 'text-green-600' : 'text-red-600'}`}>
-                          {selectedEmployee.is_active !== false ? 'Active' : 'Inactive'}
+                        <span className={`w-2 h-2 rounded-full ${selectedUnitInfo.isActive ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                        <span className={`text-xs font-medium ${selectedUnitInfo.isActive ? 'text-green-600' : 'text-red-600'}`}>
+                          {selectedUnitInfo.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </div>
                     </div>
@@ -287,12 +282,45 @@ const AssignVisitorModal: React.FC<AssignVisitorModalProps> = ({
                     <div className="bg-white rounded-lg p-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <FiPeople className="text-gray-500" />
-                        <span className="text-sm text-gray-600">
-                          {selectedEmployee ? 'Employee Queue' : 'Current Queue'}
-                        </span>
+                        <span className="text-sm text-gray-600">Unit Queue</span>
                       </div>
                       <span className="text-lg font-bold text-gray-800">
-                        {selectedEmployee ? (employeeQueueCount || 0) + 1 : ((selectedDeptInfo?.currentQueue || 0) + 1)}
+                        {(selectedUnitInfo.currentQueue || 0) + 1}
+                      </span>
+                    </div>
+
+                    {/* Available Staff Card - White Background */}
+                    <div className="bg-white rounded-lg p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FiUser className="text-gray-500" />
+                        <span className="text-sm text-gray-600">Available Staff</span>
+                      </div>
+                      <span className="text-lg font-bold text-gray-800">{selectedUnitInfo.staffAvailable}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Department Status Card - Show when department selected but no unit */}
+                {selectedDeptInfo && !selectedUnit && (
+                  <div className="bg-sky-50 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-semibold text-sky-700">Department Status</h4>
+                      <div className="flex items-center gap-1">
+                        <span className={`w-2 h-2 rounded-full ${selectedDeptInfo.isActive ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                        <span className={`text-xs font-medium ${selectedDeptInfo.isActive ? 'text-green-600' : 'text-red-600'}`}>
+                          {selectedDeptInfo.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Current Queue Card - White Background */}
+                    <div className="bg-white rounded-lg p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FiPeople className="text-gray-500" />
+                        <span className="text-sm text-gray-600">Current Queue</span>
+                      </div>
+                      <span className="text-lg font-bold text-gray-800">
+                        {(selectedDeptInfo.currentQueue || 0) + 1}
                       </span>
                     </div>
 
