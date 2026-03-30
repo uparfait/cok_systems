@@ -14,6 +14,37 @@ module.exports = async function delete_department(req, res, next) {
             })
         }
 
+        // avoid deleteing a department which have a sub-departments, first check if there are any departments with sub_department_mng.parent_department_id matching the id to be deleted   
+        const sub_dept = await department_model.findOne({ 'sub_department_mng.parent_department_id': id })
+        if (sub_dept) {
+            return res.status(400).json({
+                success: false,
+                type: "warning",
+                message: "Cannot delete department with existing sub-departments. Please delete or reassign sub-departments first."
+            })
+        }
+
+        // avoid deleting a department which have employees
+        const find_employees = await department_model.findById(id)
+        // check if department exists
+
+        if(!find_employees) {
+            return res.status(404).json({
+                success: false,                
+                type: "warning",
+                message: "Department not found"
+            })
+        }
+        // let count tatal employees
+        const total_employees = find_employees.total_employees || 0
+        if (total_employees > 0) {
+            return res.status(400).json({
+                success: false,
+                type: "warning",
+                message: `Cannot delete department with ${total_employees} assigned employees. Please reassign or remove employees first.`
+            })
+        }
+
         // Delete using the MongoDB internal _id
         const deleted_dept = await department_model.findByIdAndDelete(id)
 

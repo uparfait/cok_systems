@@ -23,6 +23,12 @@ module.exports = async function search_departments(req, res, next) {
             .skip(skip_val)
             .sort({ department_name: 1 })
 
+        // also loop all and attach sub-department
+        for (let dept of departments) {
+            const subDepartments = await department_model.find({ 'sub_department_mng.parent_department_id': dept._id.toString() }).populate('department_leader', 'full_name email title picture')
+            dept._doc.sub_departments = subDepartments // add sub_departments field to the department object
+        }
+
         
 
         const total_count = await department_model.countDocuments(search_criteria)
