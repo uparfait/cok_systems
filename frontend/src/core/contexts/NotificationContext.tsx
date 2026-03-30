@@ -111,6 +111,54 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
     });
 
+    // Listen for car check-out events from backend
+    socket.on('car_checkout', (data: any) => {
+      // Dispatch custom event for toaster
+      const toastEvent = new CustomEvent('car:checkout', { detail: data });
+      window.dispatchEvent(toastEvent);
+      
+      // If show_notif is true, add to notification list
+      if (data.show_notif) {
+        addNotification({
+          type: data.type || 'info',
+          title: 'Car Check-out',
+          message: data.message || 'A car has checked out',
+        });
+      }
+    });
+
+    // Listen for visitor check-in events from backend
+    socket.on('visitor_checkedin', (data: any) => {
+      // Dispatch custom event for toaster
+      const toastEvent = new CustomEvent('visitor:checkin', { detail: data });
+      window.dispatchEvent(toastEvent);
+      
+      // If show_notif is true, add to notification list
+      if (data.show_notif) {
+        addNotification({
+          type: data.type || 'info',
+          title: 'Visitor Check-in',
+          message: data.message || 'A new visitor has checked in',
+        });
+      }
+    });
+
+    // Listen for visitor check-out events from backend
+    socket.on('visitor_checkout', (data: any) => {
+      // Dispatch custom event for toaster
+      const toastEvent = new CustomEvent('visitor:checkout', { detail: data });
+      window.dispatchEvent(toastEvent);
+      
+      // If show_notif is true, add to notification list
+      if (data.show_notif) {
+        addNotification({
+          type: data.type || 'info',
+          title: 'Visitor Check-out',
+          message: data.message || 'A visitor has checked out',
+        });
+      }
+    });
+
     // Listen for service delivery updates
     socket.on('service_delivery_test', (data: any) => {
       addNotification({
@@ -127,6 +175,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       socket.off('smartparking_test');
       socket.off('service_delivery_test');
       socket.off('car_checkedin');
+      socket.off('car_checkout');
+      socket.off('visitor_checkedin');
+      socket.off('visitor_checkout');
     };
   }, [socket, addNotification]);
 
