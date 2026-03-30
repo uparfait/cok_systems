@@ -34,6 +34,10 @@ interface Department {
   createdAt?: string;
   updatedAt?: string;
   department_response_time_in_minutes?: number;
+  sub_department_mng?: {
+    is_sub_department: boolean;
+    parent_department_id: string;
+  };
 }
 
 const DepartmentsPage: React.FC = () => {
@@ -111,8 +115,6 @@ const DepartmentsPage: React.FC = () => {
       setError('');
       setfirstLoad(false);
       
-      console.log('Loading departments and employees...');
-      
       // Load both departments and employees in parallel
       const [deptResponse, empResponse] = await Promise.all([
         departmentService.getAll(),
@@ -122,42 +124,27 @@ const DepartmentsPage: React.FC = () => {
         throw err;
       });
       
-      console.log('Departments response:', deptResponse);
-      console.log('Employees response:', empResponse);
-      
       // Note: Backend returns 'success' not 'status'
       if (deptResponse?.success) {
-        console.log('Departments raw data:', deptResponse.data);
-        // Handle both array response and object with data property
         const deptData = Array.isArray(deptResponse.data) 
           ? deptResponse.data 
           : (deptResponse.data?.data || []);
-        console.log('Departments processed:', deptData);
-        console.log('First department item:', deptData[0]);
         setDepartments(deptData);
       } else if (deptResponse) {
-        console.error('Department response failed:', deptResponse);
         // Use backend message with priority
         setError(deptResponse.message || deptResponse.error || 'Failed to load departments');
       }
       
       if (empResponse?.success) {
-        console.log('Employees raw data:', empResponse.data);
-        // Handle both array response and object with data property
         const empData = Array.isArray(empResponse.data) 
           ? empResponse.data 
           : (empResponse.data?.data || []);
-        console.log('Employees processed:', empData);
         setEmployees(empData);
       }
     } catch (err: any) {
-      console.error('Error loading data:', err);
-      console.error('Error details:', JSON.stringify(err, null, 2));
       setError(err?.message || err?.error || 'An error occurred while loading data');
     } finally {
-      console.log('Setting loading to false');
       setLoading(false);
-      console.log('Loading is now false, departments state:', departments.length);
     }
   };
 
@@ -169,8 +156,10 @@ const DepartmentsPage: React.FC = () => {
       emp.department?.department_name === departmentName
     ).length;
   };
+
   const filteredDepartments = useMemo(() => {
-    let filtered = departments;
+    // ONLY show main departments in the grid, hide sub-departments
+    let filtered = departments.filter(dept => !dept.sub_department_mng?.is_sub_department);
     
     // Filter by search query
     if (searchQuery?.trim()) {
@@ -186,9 +175,9 @@ const DepartmentsPage: React.FC = () => {
     return filtered;
   }, [departments, searchQuery]);
 
-  // Statistics
+  // Statistics (only counting parent departments)
   const stats = useMemo(() => {
-    return departments.length;
+    return departments.filter(dept => !dept.sub_department_mng?.is_sub_department).length;
   }, [departments]);
 
   // Search departments
@@ -205,11 +194,9 @@ const DepartmentsPage: React.FC = () => {
       if (response.success) {
         setDepartments(response.data || []);
       } else {
-        // Use backend message with priority
         setError(response.message || response.error || 'Search failed');
       }
     } catch (err: any) {
-      // Use backend message with priority
       setError(err.message || err.error || 'Search failed');
     } finally {
       setLoading(false);
@@ -238,7 +225,6 @@ const DepartmentsPage: React.FC = () => {
       if (typeof department.department_leader === 'string') {
         leaderEmail = department.department_leader;
       } else if (typeof department.department_leader === 'object') {
-        // It's an object with email property
         leaderEmail = (department.department_leader as any).email || '';
       }
     }
@@ -259,11 +245,9 @@ const DepartmentsPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Clear previous messages
     setFormError('');
     setFormSuccess('');
     
-    // Validate form data
     if (!formData?.department_name?.trim() || !formData?.department_id?.trim()) {
       setFormError('Please fill in all required fields');
       return;
@@ -272,11 +256,9 @@ const DepartmentsPage: React.FC = () => {
     try {
       setSubmitting(true);
 
-      // Prepare data - send appropriate fields based on create vs update
       let submitData: any;
       
       if (editingDepartment?._id || editingDepartment?.department_id) {
-        // Update existing - only send fields that backend accepts
         let leaderValue: string | undefined = undefined;
         if (formData?.department_leader && typeof formData?.department_leader === 'string' && formData?.department_leader.trim()) {
           leaderValue = formData?.department_leader?.trim();
@@ -289,7 +271,6 @@ const DepartmentsPage: React.FC = () => {
           department_leader: leaderValue
         };
       } else {
-        // Create new - send all required fields
         let leaderValue: string | undefined = undefined;
         if (formData?.department_leader && typeof formData?.department_leader === 'string' && formData?.department_leader.trim()) {
           leaderValue = formData?.department_leader?.trim();
@@ -302,14 +283,10 @@ const DepartmentsPage: React.FC = () => {
           department_response_time_in_minutes: formData?.department_response_time_in_minutes ?? 0
         };
       }
-      
-      console.log('Submitting department data:', submitData);
 
       if (editingDepartment?._id || editingDepartment?.department_id) {
-        // Update existing
         const id = editingDepartment._id || editingDepartment.department_id || '';
         const response = await departmentService.update(id, submitData);
-        console.log('Update response:', response);
         
         if (response.success) {
           setFormSuccess(response.message || 'Department updated successfully!');
@@ -321,9 +298,7 @@ const DepartmentsPage: React.FC = () => {
           setFormError(response.message || response.error || 'Failed to update department');
         }
       } else {
-        // Create new
         const response = await departmentService.create(submitData);
-        console.log('Create response:', response);
         
         if (response.success) {
           setFormSuccess(response.message || 'Department created successfully!');
@@ -336,33 +311,22 @@ const DepartmentsPage: React.FC = () => {
         }
       }
     } catch (err: any) {
-      console.error('Department save error:', err);
-      console.error('Error details:', JSON.stringify(err, null, 2));
-      
-      // Check if it's a network error
       if (err.message && (err.message.includes('Network') || err.message.includes('Failed to fetch'))) {
         setFormError('Cannot connect to server. Please check your internet connection and try again.');
-      } else if (err.error) {
-        // Use backend message with priority
-        setFormError(err.message || err.error);
-      } else if (err.message) {
-        setFormError(err.message);
       } else {
-        setFormError('Failed to save department. Please try again.');
+        setFormError(err.message || err.error || 'Failed to save department. Please try again.');
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Handle delete - show confirmation modal
   const handleDeleteClick = (id: string, name: string) => {
     setDeletingId(id);
     setDeletingName(name);
     setShowDeleteConfirm(true);
   };
 
-  // Confirm delete handler
   const handleConfirmDelete = async () => {
     if (!deletingId) return;
     
@@ -372,7 +336,6 @@ const DepartmentsPage: React.FC = () => {
       setShowDeleteConfirm(false);
       loadDepartments();
     } catch (err: any) {
-      // Use backend message with priority
       setError(err.message || err.error || 'Failed to delete department');
     } finally {
       setDeleting(false);
@@ -381,14 +344,12 @@ const DepartmentsPage: React.FC = () => {
     }
   };
 
-  // Cancel delete handler
   const handleCancelDelete = () => {
     setShowDeleteConfirm(false);
     setDeletingId(null);
     setDeletingName('');
   };
 
-  // Open modal for adding department unit
   const handleAddUnit = (department: Department) => {
     setSelectedDepartmentForUnit(department);
     setUnitFormData({
@@ -401,7 +362,6 @@ const DepartmentsPage: React.FC = () => {
     setShowUnitModal(true);
   };
 
-  // Handle unit form submit
   const handleUnitSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -436,10 +396,7 @@ const DepartmentsPage: React.FC = () => {
         }
       };
 
-      console.log('Submitting department unit data:', submitData);
-
       const response = await departmentService.create(submitData);
-      console.log('Create unit response:', response);
       
       if (response.success) {
         setUnitFormSuccess(response.message || 'Department unit created successfully!');
@@ -451,37 +408,28 @@ const DepartmentsPage: React.FC = () => {
         setUnitFormError(response.message || response.error || 'Failed to create department unit');
       }
     } catch (err: any) {
-      console.error('Department unit save error:', err);
-      
       if (err.message && (err.message.includes('Network') || err.message.includes('Failed to fetch'))) {
         setUnitFormError('Cannot connect to server. Please check your internet connection and try again.');
-      } else if (err.error) {
-        setUnitFormError(err.message || err.error);
-      } else if (err.message) {
-        setUnitFormError(err.message);
       } else {
-        setUnitFormError('Failed to save department unit. Please try again.');
+        setUnitFormError(err.message || err.error || 'Failed to save department unit. Please try again.');
       }
     } finally {
       setSubmittingUnit(false);
     }
   };
 
-  // Open department details panel
   const handleViewDetails = async (department: Department) => {
     setSelectedDepartmentForDetails(department);
     setShowDepartmentDetails(true);
     setLoadingDetails(true);
 
     try {
-      // Load department units (sub-departments)
       const allDepts = await departmentService.getAll();
       if (allDepts.success) {
         const deptData = Array.isArray(allDepts.data) 
           ? allDepts.data 
           : (allDepts.data?.data || []);
         
-        // Filter sub-departments that belong to this department
         const units = deptData.filter((dept: any) => {
           return dept.sub_department_mng?.is_sub_department && 
                  dept.sub_department_mng?.parent_department_id === (department._id || department.department_id);
@@ -489,14 +437,12 @@ const DepartmentsPage: React.FC = () => {
         setDepartmentUnits(units);
       }
 
-      // Load employees in this department
       const allEmployees = await employeeService.getAll();
       if (allEmployees.success) {
         const empData = Array.isArray(allEmployees.data) 
           ? allEmployees.data 
           : (allEmployees.data?.data || []);
         
-        // Filter employees that belong to this department
         const emps = empData.filter((emp: any) => {
           return emp.department === department.department_name || 
                  emp.department?.department_name === department.department_name ||
@@ -511,7 +457,6 @@ const DepartmentsPage: React.FC = () => {
     }
   };
 
-  // Close department details panel
   const handleCloseDetails = () => {
     setShowDepartmentDetails(false);
     setSelectedDepartmentForDetails(null);
@@ -627,12 +572,12 @@ const DepartmentsPage: React.FC = () => {
           filteredDepartments.map((dept) => (
             <div
               key={dept._id || dept.department_id}
-              className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-lg transition-shadow"
+              className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-lg transition-shadow flex flex-col h-full"
             >
               {/* Header with icon */}
               <div className="flex items-start justify-between mb-4">
-                <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center">
-                  <HiOutlineOfficeBuilding className="w-7 h-7 text-blue-600" />
+                <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+                  <HiOutlineOfficeBuilding className="w-6 h-6 text-blue-600" />
                 </div>
               </div>
               
@@ -656,7 +601,7 @@ const DepartmentsPage: React.FC = () => {
               </div>
 
               {/* Leader Info */}
-              <div className="mb-4">
+              <div className="mb-6">
                 <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Department Leader</p>
                 <p className="text-sm text-gray-700 font-medium truncate">
                   {dept.department_leader 
@@ -668,35 +613,31 @@ const DepartmentsPage: React.FC = () => {
                 </p>
               </div>
               
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+              {/* Action Buttons - Styled nicely like screenshots */}
+              <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-gray-100 mt-auto">
                 <button
                   onClick={() => handleViewDetails(dept)}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-xl transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-[13px] font-semibold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
                 >
-                  <FiEye className="w-4 h-4" />
-                  View
+                  <FiEye className="w-4 h-4" /> View
                 </button>
                 <button
                   onClick={() => handleAddUnit(dept)}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-[13px] font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
                 >
-                  <FiLayers className="w-4 h-4" />
-                  Add Unit
+                  <FiLayers className="w-4 h-4" /> Add Unit
                 </button>
                 <button
                   onClick={() => handleEdit(dept)}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-[13px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
                 >
-                  <FiEdit2 className="w-4 h-4" />
-                  Edit
+                  <FiEdit2 className="w-4 h-4" /> Edit
                 </button>
                 <button
                   onClick={() => handleDeleteClick(dept._id || dept.department_id || '', dept.department_name || 'this department')}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-[13px] font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
                 >
-                  <FiTrash2 className="w-4 h-4" />
-                  Delete
+                  <FiTrash2 className="w-4 h-4" /> Delete
                 </button>
               </div>
             </div>
@@ -1061,16 +1002,28 @@ const DepartmentsPage: React.FC = () => {
                                   }
                                 </p>
                               </div>
-                              <button
-                                onClick={() => {
-                                  handleCloseDetails();
-                                  handleEdit(unit);
-                                }}
-                                className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                                title="Edit Unit"
-                              >
-                                <FiEdit2 className="w-4 h-4" />
-                              </button>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => {
+                                    handleCloseDetails();
+                                    handleEdit(unit);
+                                  }}
+                                  className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                                  title="Edit Unit"
+                                >
+                                  <FiEdit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    handleCloseDetails();
+                                    handleDeleteClick(unit._id || unit.department_id || '', unit.department_name || 'this unit');
+                                  }}
+                                  className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                  title="Delete Unit"
+                                >
+                                  <FiTrash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -1142,4 +1095,3 @@ const DepartmentsPage: React.FC = () => {
 };
 
 export default DepartmentsPage;
-
