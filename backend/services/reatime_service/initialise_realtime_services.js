@@ -8,6 +8,7 @@
 
 const smart_park_realtime = require('./smartparking/smartpark.js')
 const service_delivery_realtime = require('./service_delivery/service_delivery.js')
+const department = require('../../models/department.js')
 const chat_realtime = require('./chatting/chat.js')
 const jwt = require('../../utilities/jwt.js')
 const User = require('../../models/user.js')
@@ -18,7 +19,7 @@ function Global_ChatRoom() {
 }
 
 function Private_Room(userId) {
-    return `PRIVATE_ROOM_${userId}`
+    return `PRIVATE_ROOM_${userId.toString()}`
 }
 
 function RoleBased_Room(roleName) {
@@ -133,7 +134,7 @@ module.exports = async function InitialiseAllRealtimeServices() {
             next();
         })
 
-        io.on('connection', (socket) => {
+        io.on('connection', async (socket) => {
             console.log('A user connected to real-time services:', socket.userId || socket.id)
 
             // if socket and user exists join to rooms
@@ -142,6 +143,16 @@ module.exports = async function InitialiseAllRealtimeServices() {
                 socket.join(Global_ChatRoom());
                 socket.join(Private_Room(socket.user.userId));
                 socket.join(RoleBased_Room(socket.user.role));
+                
+                // so ckeck if there is a department he is a reader and join him to this department and makesure comparing mongodb id
+
+                const departments = await department.find({ 'department_leader': socket.user.userId });
+                if (departments && departments.length > 0) {
+                    departments.forEach(dept => {
+                        socket.join(`DEPARTMENT_ROOM_${dept.department_name}`)
+                       // console.log(`User ${socket.user.email} joined department room: DEPARTMENT_ROOM_${dept.department_id}`)
+                    })
+                } 
             }
 
             // update this user as active in database if user exists
@@ -159,13 +170,22 @@ module.exports = async function InitialiseAllRealtimeServices() {
             }
            
             
-            socket.on('disconnect', () => {
+            socket.on('disconnect', async () => {
                 console.log('A user disconnected from real-time services:', socket.id)
                 // remove user from all rooms
                 if(socket.user) {
                     socket.leave(Global_ChatRoom());
                     socket.leave(Private_Room(socket.user.userId));
                     socket.leave(RoleBased_Room(socket.user.role));
+
+                    // check user if is a leader in any department and remove him from this department room
+                    const departments = await department.find({ 'department_leader': socket.user.userId });
+                    if (departments && departments.length > 0) {
+                        departments.forEach(dept => {
+                            socket.leave(`DEPARTMENT_ROOM_${dept.department_name}`)
+                            //console.log(`User ${socket.user.email} left department room: DEPARTMENT_ROOM_${dept.department_id}`)
+                        })
+                    }
                 }
 
                 // update this user as inactive in database if user exists
