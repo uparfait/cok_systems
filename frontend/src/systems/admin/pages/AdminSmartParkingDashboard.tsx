@@ -44,7 +44,6 @@ interface ParkingStats {
   currentlyParked: number;
   availableSlots: number;
   flaggedInside: number;
-  flaggedOutside: number;
   totalCapacity: number;
 }
 
@@ -61,7 +60,6 @@ const AdminSmartParkingDashboard: React.FC = () => {
     currentlyParked: 0,
     availableSlots: 0,
     flaggedInside: 0,
-    flaggedOutside: 0,
     totalCapacity: 200
   });
   const [hourlyData, setHourlyData] = useState<HourlyData[]>([]);
