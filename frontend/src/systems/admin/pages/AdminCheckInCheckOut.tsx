@@ -521,7 +521,11 @@ const AdminCheckInCheckOut: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Currently Inside</p>
-                <p className="text-2xl font-bold text-green-600 mt-1">{insideCount}</p>
+                {(loading && firstLoad) ? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-green-600 mt-1">{insideCount}</p>
+                )}
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
                 <FiUserPlus className="w-6 h-6 text-green-600" />
@@ -533,7 +537,11 @@ const AdminCheckInCheckOut: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Pending Exit</p>
-                <p className="text-2xl font-bold text-orange-600 mt-1">{pendingExitCount}</p>
+                {(loading && firstLoad) ? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-orange-600 mt-1">{pendingExitCount}</p>
+                )}
               </div>
               <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
                 <FiClock className="w-6 h-6 text-orange-600" />
@@ -545,7 +553,11 @@ const AdminCheckInCheckOut: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Checked Out</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{leftCount}</p>
+                {(loading && firstLoad) ? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{leftCount}</p>
+                )}
               </div>
               <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
                 <FiUserMinus className="w-6 h-6 text-gray-600" />
@@ -557,7 +569,11 @@ const AdminCheckInCheckOut: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Total Records</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{visitors.length}</p>
+                {(loading && firstLoad) ? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{visitors.length}</p>
+                )}
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                 <FiClock className="w-6 h-6 text-blue-600" />
