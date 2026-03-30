@@ -23,6 +23,7 @@ module.exports = async function update_user(req, res, next) {
             title,
             email,
             department_id,
+            department_unit, // Extracted department_unit
             access_control,
             roles
         } = req.body || {}
@@ -81,19 +82,19 @@ module.exports = async function update_user(req, res, next) {
             if (oldDeptId && oldDeptId !== 'Not specified') {
                 const oldDept = await department_model.findById(oldDeptId)
                 if (oldDept) {
-                    oldDept.number_of_employees = Math.max(0, (oldDept.number_of_employees || 0) - 1)
+                    oldDept.total_employees = Math.max(0, (oldDept.total_employees || 0) - 1)
                     await oldDept.save()
                 }
             }
 
-            // Increment new department employee count
-            newDept.number_of_employees = (newDept.number_of_employees || 0) + 1
+            // FIXED: Increment new department using total_employees
+            newDept.total_employees = (newDept.total_employees || 0) + 1
             await newDept.save()
         } else if (newDeptId === 'Not specified' && user.department && user.department !== 'Not specified') {
-            // If changing to 'Not specified', decrement old department count
+            // FIXED: If changing to 'Not specified', decrement old department using total_employees
             const oldDept = await department_model.findById(user.department)
             if (oldDept) {
-                oldDept.number_of_employees = Math.max(0, (oldDept.number_of_employees || 0) - 1)
+                oldDept.total_employees = Math.max(0, (oldDept.total_employees || 0) - 1)
                 await oldDept.save()
             }
         }
@@ -105,6 +106,8 @@ module.exports = async function update_user(req, res, next) {
         if (title !== undefined) user.title = title
         if (email !== undefined) user.email = email
         if (department_id) user.department = department_id === 'Not specified' ? null : department_id
+        // Save the department unit safely
+        if (department_unit !== undefined) user.department_unit = department_unit === 'Not specified' ? null : department_unit
 
         if (identification) {
             if (identification.id_type !== undefined) user.identification.id_type = identification.id_type
