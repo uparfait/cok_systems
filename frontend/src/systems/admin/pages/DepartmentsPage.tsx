@@ -90,7 +90,6 @@ const DepartmentsPage: React.FC = () => {
     try {
       setLoading(true);
       setError('');
-      setfirstLoad(false);
       
       console.log('Loading departments and employees...');
       
@@ -138,6 +137,7 @@ const DepartmentsPage: React.FC = () => {
     } finally {
       console.log('Setting loading to false');
       setLoading(false);
+      setfirstLoad(false);
       console.log('Loading is now false, departments state:', departments.length);
     }
   };
@@ -399,7 +399,11 @@ const DepartmentsPage: React.FC = () => {
             </div>
             <div>
               <p className="text-gray-500 text-sm">Total Departments</p>
-              <p className="text-2xl font-bold text-gray-900">{stats}</p>
+              {(loading && firstLoad) ? (
+                <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+              ) : (
+                <p className="text-2xl font-bold text-gray-900">{stats}</p>
+              )}
             </div>
           </div>
         </div>

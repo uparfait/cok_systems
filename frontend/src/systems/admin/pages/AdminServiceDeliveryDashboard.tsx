@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
+import { useSocket } from '../../../core/contexts/SocketContext';
 import { statisticsService, serviceDeliveryService, departmentService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
@@ -66,6 +67,7 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
+  const { socket, isConnected } = useSocket();
 
   // State
   const [loading, setLoading] = useState(true);
@@ -138,6 +140,31 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
       fetchDashboardData();
     }
   }, [isAuthenticated, authLoading, fetchDashboardData]);
+
+  // Listen to real-time service delivery events and auto-refetch
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    const handleVisitorCheckedIn = (data: any) => {
+      // Auto-refetch dashboard data when a visitor is checked in
+      fetchDashboardData();
+    };
+
+    const handleVisitorCheckedOut = (data: any) => {
+      // Auto-refetch dashboard data when a visitor is checked out
+      fetchDashboardData();
+    };
+
+    // Subscribe to service delivery events
+    socket.on('visitor_checkedin', handleVisitorCheckedIn);
+    socket.on('visitor_checkedout', handleVisitorCheckedOut);
+
+    // Cleanup on unmount or when socket changes
+    return () => {
+      socket.off('visitor_checkedin', handleVisitorCheckedIn);
+      socket.off('visitor_checkedout', handleVisitorCheckedOut);
+    };
+  }, [socket, isConnected, fetchDashboardData]);
 
   // Filter visitors
   const filteredVisitors = visitors.filter(v => {
@@ -386,7 +413,11 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Total Visitors</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
+                {(loading && firstLoad )? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
+                )}
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                 <FiUsers className="w-6 h-6 text-blue-600" />
@@ -399,7 +430,11 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Currently Inside</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.inhouse}</p>
+                {(loading && firstLoad) ? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{stats.inhouse}</p>
+                )}
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
                 <FiUserPlus className="w-6 h-6 text-green-600" />
@@ -412,7 +447,11 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Completed</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.completed}</p>
+                {(loading && firstLoad )? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{stats.completed}</p>
+                )}
               </div>
               <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
                 <FiCheckCircle className="w-6 h-6 text-purple-600" />
@@ -425,9 +464,13 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Departments</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {departmentCount}
-                </p>
+                {(loading && firstLoad) ? (
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900 mt-1">
+                    {departmentCount}
+                  </p>
+                )}
               </div>
               <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
                 <FiClock className="w-6 h-6 text-orange-600" />
