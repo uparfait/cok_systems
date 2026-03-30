@@ -13,6 +13,8 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 // Import API Services
 import { serviceDeliveryService, departmentService, statisticsService, employeeService } from "../../../core/services/adminService";
 import { useAuth } from "../../../core/contexts/AuthContext";
+import { useSocket } from "../../../core/contexts/SocketContext";
+import { useToast } from "../../../core/contexts/ToastContext";
 
 // Import components
 import AssignedVisitorsList from "../components/departmentFlow/AssignedVisitorsList";
@@ -71,6 +73,8 @@ const ReceptionistDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { socket, isConnected } = useSocket();
+  const { showSuccess, showError, showWarning, showInfo } = useToast();
   
   // State
   const tabParam = searchParams.get('tab');
@@ -87,9 +91,12 @@ const ReceptionistDashboard: React.FC = () => {
   const [unassignedVisitors, setUnassignedVisitors] = useState<Visitor[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [firstLoad, setfirstLoad] = useState(false);
+
   
   // Hourly visitor data for graph
   const [hourlyData, setHourlyData] = useState<{hour: number; visitors_checked_in: number}[]>([]);
+  const [hourlyDataLoading, setHourlyDataLoading] = useState(true);
   const [hoveredHour, setHoveredHour] = useState<{hour: number; visitors: number} | null>(null);
   
   // Department visitor counts
@@ -195,13 +202,22 @@ const ReceptionistDashboard: React.FC = () => {
       }
       
       // Load hourly stats
-      const hourlyResponse = await statisticsService.getHourlyServiceDeliveryStats();
-      if (hourlyResponse.success) {
-        setHourlyData(hourlyResponse.data?.hourly || hourlyResponse.data || []);
+      setHourlyDataLoading(true);
+      try {
+        const hourlyResponse = await statisticsService.getHourlyServiceDeliveryStats();
+        if (hourlyResponse.success) {
+          setHourlyData(hourlyResponse.data?.hourly || hourlyResponse.data || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch hourly stats:", error);
+      } finally {
+        setHourlyDataLoading(false);
+        setfirstLoad(false);
       }
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
     } finally {
+      setfirstLoad(false)
       setIsLoading(false);
       setSearchLoading(false);
     }
@@ -210,6 +226,129 @@ const ReceptionistDashboard: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [currentPage, searchTerm]);
+
+  // Listen for visitor check-in events
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    const handleVisitorCheckin = (data: any) => {
+      console.log('🔔 [ReceptionistDashboard] visitor_checkedin event received:', data);
+      
+      // Check if notification should be shown
+      if (data.show_notif === false) {
+        // Show notification based on type
+        const message = data.message || 'Visitor checked in';
+        const type = data.type || 'info';
+        
+        if (type === 'success') {
+          showSuccess(message);
+        } else if (type === 'error') {
+          showError(message);
+        } else if (type === 'warning') {
+          showWarning(message);
+        } else {
+          showInfo(message);
+        }
+      }
+      
+      // Always refetch data to update dashboard
+      loadData();
+      console.log('✅ [ReceptionistDashboard] Dashboard data refetched');
+    };
+
+    socket.on('visitor_checkedin', handleVisitorCheckin);
+
+    // Listen for visitor check-out events
+    const handleVisitorCheckout = (data: any) => {
+      console.log('🔔 [ReceptionistDashboard] visitor_checkedout event received:', data);
+      
+      // Check if notification should be shown
+      if (data.show_notif === false) {
+        // Show notification based on type
+        const message = data.message || 'Visitor checked out';
+        const type = data.type || 'info';
+        
+        if (type === 'success') {
+          showSuccess(message);
+        } else if (type === 'error') {
+          showError(message);
+        } else if (type === 'warning') {
+          showWarning(message);
+        } else {
+          showInfo(message);
+        }
+      }
+      
+      // Always refetch data to update dashboard, graphs, and all displayed data
+      loadData();
+      console.log('✅ [ReceptionistDashboard] Dashboard data refetched after visitor checkout');
+    };
+
+    socket.on('visitor_checkedout', handleVisitorCheckout);
+
+    // Listen for car check-in events
+    const handleCarCheckin = (data: any) => {
+      console.log('🔔 [ReceptionistDashboard] car_checkedin event received:', data);
+      
+      // Check if notification should be shown
+      if (data.show_notif === false) {
+        // Show notification based on type
+        const message = data.message || 'Vehicle checked in';
+        const type = data.type || 'info';
+        
+        if (type === 'success') {
+          showSuccess(message);
+        } else if (type === 'error') {
+          showError(message);
+        } else if (type === 'warning') {
+          showWarning(message);
+        } else {
+          showInfo(message);
+        }
+      }
+      
+      // Always refetch data to update dashboard and graphs
+      loadData();
+      console.log('✅ [ReceptionistDashboard] Dashboard data refetched after car check-in');
+    };
+
+    socket.on('car_checkedin', handleCarCheckin);
+
+    // Listen for car check-out events
+    const handleCarCheckout = (data: any) => {
+      console.log('🔔 [ReceptionistDashboard] car_checkedout event received:', data);
+      
+      // Check if notification should be shown
+      if (data.show_notif === false) {
+        // Show notification based on type
+        const message = data.message || 'Vehicle checked out';
+        const type = data.type || 'info';
+        
+        if (type === 'success') {
+          showSuccess(message);
+        } else if (type === 'error') {
+          showError(message);
+        } else if (type === 'warning') {
+          showWarning(message);
+        } else {
+          showInfo(message);
+        }
+      }
+      
+      // Always refetch data to update dashboard and graphs
+      loadData();
+      console.log('✅ [ReceptionistDashboard] Dashboard data refetched after car checkout');
+    };
+
+    socket.on('car_checkedout', handleCarCheckout);
+
+    return () => {
+      socket.off('visitor_checkedin', handleVisitorCheckin);
+      socket.off('visitor_checkedout', handleVisitorCheckout);
+      socket.off('car_checkedin', handleCarCheckin);
+      socket.off('car_checkedout', handleCarCheckout);
+    };
+  }, [socket, isConnected, showSuccess, showError, showWarning, showInfo]);
 
   // Format Departments for the Modal
   const formattedDepartments = departments.map(dept => ({
@@ -390,7 +529,14 @@ const ReceptionistDashboard: React.FC = () => {
                 <p className="text-xs text-gray-500">Visitor traffic by hour</p>
               </div>
             </div>
-            {hourlyData.length > 0 ? (
+            {(hourlyDataLoading && firstLoad)? (
+              <div className="h-56 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mx-auto mb-2"></div>
+                  <p className="text-sm text-gray-500">Loading chart data...</p>
+                </div>
+              </div>
+            ) : hourlyData.length > 0 ? (
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
@@ -509,7 +655,7 @@ const ReceptionistDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {isLoading ? (
+                  {(isLoading && firstLoad) ? (
                     <tr><td colSpan={7} className="text-center py-8 text-sm text-gray-500">Loading live data...</td></tr>
                   ) : paginatedVisitors.length === 0 ? (
                     <tr><td colSpan={7} className="text-center py-8 text-sm text-gray-500">No visitors found.</td></tr>

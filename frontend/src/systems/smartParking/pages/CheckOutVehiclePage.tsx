@@ -58,25 +58,7 @@ const CheckOutVehiclePage: React.FC = () => {
   const [selectedRecord, setSelectedRecord] = useState<ParkingRecord | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Handle socket event for car_checkedin
-  const handleCarCheckedIn = useCallback((data: any) => {
-    console.log('Car check-in detected, refreshing table silently...');
-    loadData(searchQuery);
-    // Show toaster with type and message
-    switch (data.type) {
-      case 'success':
-        showSuccess(data.message);
-        break;
-      case 'error':
-        showError(data.message);
-        break;
-      case 'warning':
-        showWarning(data.message);
-        break;
-      default:
-        showInfo(data.message);
-    }
-  }, [searchQuery, showSuccess, showError, showWarning, showInfo]);
+  
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -86,15 +68,55 @@ const CheckOutVehiclePage: React.FC = () => {
     }
   }, [isAuthenticated, authLoading, navigate]);
 
+ 
+
+
+  // Handle socket events for car check-in and check-out
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('car_checkedin', handleCarCheckedIn);
+    // Listen for car check-in events
+    const handleCarCheckin = (data: any) => {
+      console.log('🔔 [CheckOutVehicle] car_checkedin event received:', data);
+      
+      // Check if notification should be shown
+      if (data.show_notif === false) {
+        const message = data.message || 'Vehicle checked in';
+        const type = data.type || 'info';
+        
+        if (type === 'success') {
+          showSuccess(message);
+        } else if (type === 'error') {
+          showError(message);
+        } else if (type === 'warning') {
+          showWarning(message);
+        } else {
+          showInfo(message);
+        }
+      }
+      
+      // Always refetch data to update table
+      loadData(searchQuery);
+      console.log('✅ [CheckOutVehicle] Table data refetched after car check-in');
+    };
+
+    // Listen for car check-out events
+    const handleCarCheckout = (data: any) => {
+      console.log('🔔 [CheckedOutVehicle] car_checkedout event received:', data);
+      
+      // Always refetch data to update table
+      loadData(searchQuery);
+      console.log('✅ [CheckOutVehicle] Table data refetched after car checkout');
+    };
+
+    socket.on('car_checkedin', handleCarCheckin);
+    socket.on('car_checkedout', handleCarCheckout);
 
     return () => {
-      socket.off('car_checkedin', handleCarCheckedIn);
+      socket.off('car_checkedin', handleCarCheckin);
+      socket.off('car_checkedout', handleCarCheckout);
     };
-  }, [socket, handleCarCheckedIn]);
+  }, [socket, showSuccess, showError, showWarning, showInfo, searchQuery]);
 
   useEffect(() => {
     filterRecords();
