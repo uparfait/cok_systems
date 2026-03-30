@@ -101,10 +101,97 @@ const CheckOutPersonPage: React.FC = () => {
 
     socket.on('car_checkedin', handleCarCheckedIn);
 
+    // Listen for visitor check-in events
+    const handleVisitorCheckin = (data: any) => {
+      console.log('🔔 [CheckOutPerson] visitor_checkedin event received:', data);
+      
+      // Check if notification should be shown
+      if (data.show_notif === false) {
+        // Show notification based on type
+        const message = data.message || 'Visitor checked in';
+        const type = data.type || 'info';
+        
+        if (type === 'success') {
+          showSuccess(message);
+        } else if (type === 'error') {
+          showError(message);
+        } else if (type === 'warning') {
+          showWarning(message);
+        } else {
+          showInfo(message);
+        }
+      }
+      
+      // Always refetch data to update table
+      loadData(searchQuery);
+      console.log('✅ [CheckOutPerson] Table data refetched');
+    };
+
+    socket.on('visitor_checkedin', handleVisitorCheckin);
+
+    // Listen for visitor check-out events
+    const handleVisitorCheckout = (data: any) => {
+      console.log('🔔 [CheckOutPerson] visitor_checkedout event received:', data);
+      
+      // Check if notification should be shown
+      if (data.show_notif === false) {
+        // Show notification based on type
+        const message = data.message || 'Visitor checked out';
+        const type = data.type || 'info';
+        
+        if (type === 'success') {
+          showSuccess(message);
+        } else if (type === 'error') {
+          showError(message);
+        } else if (type === 'warning') {
+          showWarning(message);
+        } else {
+          showInfo(message);
+        }
+      }
+      
+      // Always refetch data to update table
+      loadData(searchQuery);
+      console.log('✅ [CheckOutPerson] Table data refetched after visitor checkout');
+    };
+
+    socket.on('visitor_checkedout', handleVisitorCheckout);
+
+    // Listen for car check-out events
+    const handleCarCheckout = (data: any) => {
+      console.log('🔔 [CheckOutPerson] car_checkedout event received:', data);
+      
+      // Check if notification should be shown
+      if (data.show_notif === false) {
+        // Show notification based on type
+        const message = data.message || 'Vehicle checked out';
+        const type = data.type || 'info';
+        
+        if (type === 'success') {
+          showSuccess(message);
+        } else if (type === 'error') {
+          showError(message);
+        } else if (type === 'warning') {
+          showWarning(message);
+        } else {
+          showInfo(message);
+        }
+      }
+      
+      // Always refetch data to update table
+      loadData(searchQuery);
+      console.log('✅ [CheckOutPerson] Table data refetched after car checkout');
+    };
+
+    socket.on('car_checkedout', handleCarCheckout);
+
     return () => {
       socket.off('car_checkedin', handleCarCheckedIn);
+      socket.off('visitor_checkedin', handleVisitorCheckin);
+      socket.off('visitor_checkedout', handleVisitorCheckout);
+      socket.off('car_checkedout', handleCarCheckout);
     };
-  }, [socket, handleCarCheckedIn]);
+  }, [socket, handleCarCheckedIn, showSuccess, showError, showWarning, showInfo, searchQuery]);
 
   useEffect(() => {
     filterRecords();
