@@ -2,8 +2,8 @@
 // Page for managing departments in the COK Systems
 // Clean modern design without status filters
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { departmentService, employeeService, type Employee } from '../../../core/services/adminService';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
@@ -43,6 +43,7 @@ interface Department {
 const DepartmentsPage: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation(); // Used to detect when the user explicitly navigates to this page
   
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -99,18 +100,13 @@ const DepartmentsPage: React.FC = () => {
     }
   }, [showModal]);
 
-  // Check auth and load departments
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      navigate('/login');
-    } else if (isAuthenticated) {
-      loadDepartments();
-    }
-  }, [isAuthenticated, authLoading, navigate]);
-
   // Load departments and employees
-  const loadDepartments = async () => {
+  // Wrapped in useCallback so it can be safely used in useEffect dependencies
+  const loadDepartments = useCallback(async (isInitialLoad: boolean = false) => {
     try {
+      if (isInitialLoad) {
+        setfirstLoad(true);
+      }
       setLoading(true);
       setError('');
       
@@ -123,14 +119,12 @@ const DepartmentsPage: React.FC = () => {
         throw err;
       });
       
-      // Note: Backend returns 'success' not 'status'
       if (deptResponse?.success) {
         const deptData = Array.isArray(deptResponse.data) 
           ? deptResponse.data 
           : (deptResponse.data?.data || []);
         setDepartments(deptData);
       } else if (deptResponse) {
-        // Use backend message with priority
         setError(deptResponse.message || deptResponse.error || 'Failed to load departments');
       }
       
@@ -144,9 +138,19 @@ const DepartmentsPage: React.FC = () => {
       setError(err?.message || err?.error || 'An error occurred while loading data');
     } finally {
       setLoading(false);
-      setfirstLoad(false);
+      setfirstLoad(false); // Ensure first load is cleared after fetching finishes
     }
-  };
+  }, []);
+
+  // Check auth and force load data when the component mounts or the route changes to this page
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate('/login');
+    } else if (isAuthenticated) {
+      // Force a fresh initial load
+      loadDepartments(true);
+    }
+  }, [isAuthenticated, authLoading, navigate, location.pathname, loadDepartments]);
 
   // Calculate employee count for each department
   const getEmployeeCount = (departmentName?: string) => {
@@ -183,7 +187,7 @@ const DepartmentsPage: React.FC = () => {
   // Search departments
   const handleSearch = async () => {
     if (!searchQuery?.trim()) {
-      loadDepartments();
+      loadDepartments(false);
       return;
     }
 
@@ -219,7 +223,6 @@ const DepartmentsPage: React.FC = () => {
 
   // Open modal for editing
   const handleEdit = (department: Department) => {
-    // Extract email from department_leader if it's an object
     let leaderEmail = '';
     if (department.department_leader) {
       if (typeof department.department_leader === 'string') {
@@ -292,7 +295,7 @@ const DepartmentsPage: React.FC = () => {
           setFormSuccess(response.message || 'Department updated successfully!');
           setTimeout(() => {
             setShowModal(false);
-            loadDepartments();
+            loadDepartments(false);
           }, 1500);
         } else {
           setFormError(response.message || response.error || 'Failed to update department');
@@ -304,7 +307,7 @@ const DepartmentsPage: React.FC = () => {
           setFormSuccess(response.message || 'Department created successfully!');
           setTimeout(() => {
             setShowModal(false);
-            loadDepartments();
+            loadDepartments(false);
           }, 1500);
         } else {
           setFormError(response.message || response.error || 'Failed to create department');
@@ -334,7 +337,13 @@ const DepartmentsPage: React.FC = () => {
       setDeleting(true);
       await departmentService.delete(deletingId);
       setShowDeleteConfirm(false);
-      loadDepartments();
+      
+      // If we deleted a unit while the details panel is open, close the panel
+      if (showDepartmentDetails && departmentUnits.some(u => u._id === deletingId || u.department_id === deletingId)) {
+        handleCloseDetails();
+      }
+
+      loadDepartments(false);
     } catch (err: any) {
       setError(err.message || err.error || 'Failed to delete department');
     } finally {
@@ -402,7 +411,13 @@ const DepartmentsPage: React.FC = () => {
         setUnitFormSuccess(response.message || 'Department unit created successfully!');
         setTimeout(() => {
           setShowUnitModal(false);
-          loadDepartments();
+          
+          // Auto-refresh the details panel if it's currently open
+          if (showDepartmentDetails && selectedDepartmentForDetails) {
+            handleViewDetails(selectedDepartmentForDetails);
+          } else {
+            loadDepartments(false);
+          }
         }, 1500);
       } else {
         setUnitFormError(response.message || response.error || 'Failed to create department unit');
@@ -424,30 +439,48 @@ const DepartmentsPage: React.FC = () => {
     setLoadingDetails(true);
 
     try {
+      // Load department units (sub-departments)
       const allDepts = await departmentService.getAll();
+      let units: Department[] = [];
       if (allDepts.success) {
         const deptData = Array.isArray(allDepts.data) 
           ? allDepts.data 
           : (allDepts.data?.data || []);
         
-        const units = deptData.filter((dept: any) => {
+        units = deptData.filter((dept: any) => {
           return dept.sub_department_mng?.is_sub_department && 
                  dept.sub_department_mng?.parent_department_id === (department._id || department.department_id);
         });
         setDepartmentUnits(units);
       }
 
+      // Load ALL employees and filter by parent AND units
       const allEmployees = await employeeService.getAll();
       if (allEmployees.success) {
         const empData = Array.isArray(allEmployees.data) 
           ? allEmployees.data 
           : (allEmployees.data?.data || []);
         
+        const unitIds = units.map(u => String(u._id || u.department_id));
+        const unitNames = units.map(u => String(u.department_name));
+
         const emps = empData.filter((emp: any) => {
-          return emp.department === department.department_name || 
-                 emp.department?.department_name === department.department_name ||
-                 emp.department_id === department._id;
+          const empDeptName = String(emp.department_name || (typeof emp.department === 'object' ? emp.department?.department_name : emp.department));
+          const empDeptId = String(emp.department_id || (typeof emp.department === 'object' ? emp.department?._id : ''));
+
+          // Check if employee belongs to parent department
+          const matchesParent = 
+            empDeptName === String(department.department_name) || 
+            (empDeptId && (empDeptId === String(department._id) || empDeptId === String(department.department_id)));
+
+          // Check if employee belongs to any unit under this parent
+          const matchesUnit = 
+            (empDeptId && unitIds.includes(empDeptId)) || 
+            (empDeptName && unitNames.includes(empDeptName));
+
+          return matchesParent || matchesUnit;
         });
+
         setDepartmentEmployees(emps);
       }
     } catch (err: any) {
@@ -463,6 +496,61 @@ const DepartmentsPage: React.FC = () => {
     setDepartmentUnits([]);
     setDepartmentEmployees([]);
   };
+
+  // Reusable component to render an employee table group
+  const renderEmployeeTable = (emps: Employee[], title: string, emptyMessage: string, keyPrefix: string) => (
+    <div key={keyPrefix} className="mb-8">
+      <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-4">
+        <FiUsers className="w-5 h-5 text-blue-600" />
+        {title} ({emps.length})
+      </h3>
+      {emps.length === 0 ? (
+        <div className="bg-gray-50 rounded-xl p-6 text-center">
+          <FiUsers className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500">{emptyMessage}</p>
+        </div>
+      ) : (
+        <div className="bg-gray-50 rounded-xl overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Contact</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Position</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {emps.map((emp) => (
+                <tr key={emp._id || emp.employee_id} className="hover:bg-gray-100">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span className="text-blue-600 font-semibold text-sm">
+                          {(emp.full_name || 'E').charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{emp.full_name || '-'}</p>
+                        <p className="text-sm text-gray-500">{emp.email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="text-sm text-gray-600">{emp.telephone || '-'}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="text-sm text-gray-900">
+                      {emp.roles?.role_name ? emp.roles.role_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-'}
+                    </p>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <MainLayout>
@@ -528,7 +616,7 @@ const DepartmentsPage: React.FC = () => {
               Search
             </button>
             <button
-              onClick={loadDepartments}
+              onClick={() => loadDepartments(false)}
               className="p-2.5 hover:bg-gray-100 text-gray-600 rounded-lg transition-colors"
               title="Refresh"
             >
@@ -957,14 +1045,14 @@ const DepartmentsPage: React.FC = () => {
             </div>
             
             {/* Panel Content */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)] custom-scrollbar">
               {loadingDetails ? (
                 <div className="flex justify-center items-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                   <span className="ml-3 text-gray-500">Loading details...</span>
                 </div>
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-8">
                   {/* Department Units Section */}
                   <div>
                     <div className="flex items-center justify-between mb-4">
@@ -977,27 +1065,27 @@ const DepartmentsPage: React.FC = () => {
                           handleCloseDetails();
                           handleAddUnit(selectedDepartmentForDetails);
                         }}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
                       >
                         <FiPlus className="w-4 h-4" />
                         Add Unit
                       </button>
                     </div>
                     {departmentUnits.length === 0 ? (
-                      <div className="bg-gray-50 rounded-xl p-6 text-center">
+                      <div className="bg-gray-50 rounded-xl p-6 text-center border border-gray-100">
                         <FiLayers className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500">No department units found</p>
+                        <p className="text-gray-500 font-medium">No department units found</p>
                         <p className="text-sm text-gray-400 mt-1">Click "Add Unit" to create one</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {departmentUnits.map((unit) => (
-                          <div key={unit._id || unit.department_id} className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                          <div key={unit._id || unit.department_id} className="bg-purple-50/50 rounded-xl p-5 border border-purple-100 hover:shadow-md transition-shadow">
                             <div className="flex items-start justify-between">
                               <div>
-                                <h4 className="font-semibold text-gray-900">{unit.department_name}</h4>
-                                <p className="text-sm text-gray-500">ID: {unit.department_id || 'N/A'}</p>
-                                <p className="text-sm text-gray-500 mt-1">
+                                <h4 className="font-bold text-gray-900 text-lg mb-1">{unit.department_name}</h4>
+                                <p className="text-sm text-gray-500 mb-2">ID: {unit.department_id || 'N/A'}</p>
+                                <p className="text-sm text-gray-600 font-medium bg-white px-3 py-1.5 rounded-lg border border-purple-50 inline-block">
                                   Head: {unit.department_leader 
                                     ? (typeof unit.department_leader === 'object' 
                                         ? unit.department_leader.full_name || unit.department_leader.email 
@@ -1035,57 +1123,43 @@ const DepartmentsPage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Department Employees Section */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-4">
-                      <FiUsers className="w-5 h-5 text-blue-600" />
-                      Employees ({departmentEmployees.length})
-                    </h3>
-                    {departmentEmployees.length === 0 ? (
-                      <div className="bg-gray-50 rounded-xl p-6 text-center">
-                        <FiUsers className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500">No employees found in this department</p>
-                      </div>
-                    ) : (
-                      <div className="bg-gray-50 rounded-xl overflow-hidden">
-                        <table className="w-full">
-                          <thead className="bg-gray-100">
-                            <tr>
-                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
-                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Contact</th>
-                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Position</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200">
-                            {departmentEmployees.map((emp) => (
-                              <tr key={emp._id || emp.employee_id} className="hover:bg-gray-100">
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                      <span className="text-blue-600 font-semibold text-sm">
-                                        {(emp.full_name || 'E').charAt(0).toUpperCase()}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      <p className="font-medium text-gray-900">{emp.full_name || '-'}</p>
-                                      <p className="text-sm text-gray-500">{emp.email}</p>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <p className="text-sm text-gray-600">{emp.telephone || '-'}</p>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <p className="text-sm text-gray-900">
-                                    {emp.roles?.role_name ? emp.roles.role_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-'}
-                                  </p>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                  {/* 
+                    GROUPED EMPLOYEES SECTION
+                    1. Main Department Employees
+                    2. Iteration of Unit Employees
+                  */}
+                  <div className="border-t border-gray-100 pt-6">
+                    
+                    {/* Main Department Employees */}
+                    {renderEmployeeTable(
+                      departmentEmployees.filter(emp => {
+                        const empDeptName = String(emp.department_name || (typeof emp.department === 'object' ? emp.department?.department_name : emp.department));
+                        const empDeptId = String(emp.department_id || (typeof emp.department === 'object' ? emp.department?._id : ''));
+                        return empDeptName === String(selectedDepartmentForDetails.department_name) || 
+                               (empDeptId && (empDeptId === String(selectedDepartmentForDetails._id) || empDeptId === String(selectedDepartmentForDetails.department_id)));
+                      }),
+                      'Employees',
+                      'No main employees found in this department',
+                      'main-employees'
                     )}
+
+                    {/* Unit Employees */}
+                    {departmentUnits.map((unit) => {
+                      const unitEmps = departmentEmployees.filter(emp => {
+                        const empDeptName = String(emp.department_name || (typeof emp.department === 'object' ? emp.department?.department_name : emp.department));
+                        const empDeptId = String(emp.department_id || (typeof emp.department === 'object' ? emp.department?._id : ''));
+                        return empDeptName === String(unit.department_name) || 
+                               (empDeptId && (empDeptId === String(unit._id) || empDeptId === String(unit.department_id)));
+                      });
+
+                      return renderEmployeeTable(
+                        unitEmps,
+                        `Employees (${unit.department_name})`,
+                        `No employees assigned to ${unit.department_name}`,
+                        `unit-employees-${unit._id || unit.department_id}`
+                      );
+                    })}
+
                   </div>
                 </div>
               )}

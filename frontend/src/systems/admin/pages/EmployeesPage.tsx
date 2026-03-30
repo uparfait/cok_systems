@@ -29,6 +29,7 @@ interface Employee {
     _id?: string;
     department_id?: string;
     department_name?: string;
+    department_unit?: string;
   };
   department_name?: string;
   department_id?: string;
@@ -52,8 +53,6 @@ type EmployeePermissionBackend = {
 };
 
 // Helper function to convert backend permission format to frontend format
-// Backend: { resource_name: 'employees', actions: [{ action_type: 'read', is_enabled: 'enabled', ... }] }
-// Frontend: { resource: 'employees', actions: ['read', 'create', ...] }
 const convertBackendPermissionsToFrontend = (
   backendPermissions: EmployeePermissionBackend[]
 ): Array<{ resource: string; actions: string[] }> => {
@@ -78,9 +77,13 @@ interface Department {
   department_id?: string;
   department_name?: string;
   department_leader?: string;
+  sub_department_mng?: {
+    is_sub_department: boolean | string;
+    parent_department_id: string;
+  };
 }
 
-// Interface for system permissions from backend (with descriptions)
+// Interface for system permissions from backend
 type SystemPermissionResource = {
   resource: string;
   actions: Array<{
@@ -109,6 +112,7 @@ const EmployeesPage: React.FC = () => {
   
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [allDepartments, setAllDepartments] = useState<Department[]>([]); // Full list to map unit IDs to names
   const [systemPermissions, setSystemPermissions] = useState<SystemPermissionResource[]>([]);
   const [roles, setRoles] = useState<RoleFromBackend[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,7 +122,9 @@ const EmployeesPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  
   const [departmentUnits, setDepartmentUnits] = useState<Department[]>([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
 
   // Delete confirmation modal state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -144,6 +150,7 @@ const EmployeesPage: React.FC = () => {
     department: '',
     department_name: '',
     department_id: '',
+    department_unit: '',
     roles: {
       role_name: 'department_employee',
       permissions: []
@@ -187,10 +194,7 @@ const EmployeesPage: React.FC = () => {
   const loadSystemPermissions = async () => {
     try {
       const response = await permissionService.getSystemPermissions();
-      console.log('System Permissions Response:', response);
-      
       if (response.success && response.data) {
-        // Keep the full action objects with descriptions
         setSystemPermissions(response.data);
       }
     } catch (err) {
@@ -205,22 +209,14 @@ const EmployeesPage: React.FC = () => {
       setError('');
       const response = await employeeService.getAll();
       
-      console.log('Employees API Response:', response);
-      
       if (response.success) {
-        // Handle both array response and object with data property
-        const empData = Array.isArray(response.data) 
-          ? response.data 
-          : (response.data?.data || []);
+        const empData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
         setEmployees(empData);
       } else {
-        // Use backend message with priority
         setError(response.message || response.error || 'Failed to load employees');
       }
     } catch (err: any) {
-      console.error('Error loading employees:', err);
       if (err?.status === false) {
-        // Use backend message with priority
         setError(err.message || err.error || 'Failed to load employees. Please try again.');
       } else if (err?.message?.includes('Network')) {
         setError('Cannot connect to server. Please check your internet connection.');
@@ -238,19 +234,20 @@ const EmployeesPage: React.FC = () => {
   // Load departments for dropdown
   const loadDepartments = async () => {
     try {
-      console.log('Loading departments for dropdown...');
       const response = await departmentService.getAll();
-      console.log('Department dropdown response:', response);
       
-      // Backend returns 'success' not 'status'
       if (response.success) {
-        const deptData = Array.isArray(response.data) 
-          ? response.data 
-          : (response.data?.data || []);
-        console.log('Departments loaded for dropdown:', deptData);
-        setDepartments(deptData);
-      } else {
-        console.error('Failed to load departments - response:', response);
+        const deptData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+        
+        // Store ALL departments (including units) for cross-referencing IDs to Names in the table
+        setAllDepartments(deptData);
+
+        // Filter out sub-departments for the main dropdown
+        const mainDepartments = deptData.filter((d: any) => 
+          !d.sub_department_mng?.is_sub_department && 
+          d.sub_department_mng?.is_sub_department !== 'true'
+        );
+        setDepartments(mainDepartments);
       }
     } catch (err: any) {
       console.error('Failed to load departments:', err);
@@ -261,25 +258,27 @@ const EmployeesPage: React.FC = () => {
   const loadDepartmentUnits = async (departmentId: string) => {
     if (!departmentId) {
       setDepartmentUnits([]);
+      setLoadingUnits(false);
       return;
     }
 
     try {
+      setLoadingUnits(true);
       const response = await departmentService.getAll();
       if (response.success) {
-        const deptData = Array.isArray(response.data) 
-          ? response.data 
-          : (response.data?.data || []);
+        const deptData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
         
         // Filter sub-departments that belong to this department
         const units = deptData.filter((dept: any) => {
-          return dept.sub_department_mng?.is_sub_department && 
+          return (dept.sub_department_mng?.is_sub_department === true || dept.sub_department_mng?.is_sub_department === 'true') && 
                  dept.sub_department_mng?.parent_department_id === departmentId;
         });
         setDepartmentUnits(units);
       }
     } catch (err: any) {
       console.error('Failed to load department units:', err);
+    } finally {
+      setLoadingUnits(false);
     }
   };
 
@@ -287,12 +286,8 @@ const EmployeesPage: React.FC = () => {
   const loadRoles = async () => {
     try {
       const response = await roleService.getAll();
-      console.log('Roles Response:', response);
-      
       if (response.success && response.data) {
-        const rolesData = Array.isArray(response.data) 
-          ? response.data 
-          : (response.data?.data || []);
+        const rolesData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
         setRoles(rolesData);
       }
     } catch (err) {
@@ -312,13 +307,10 @@ const EmployeesPage: React.FC = () => {
       const response = await employeeService.search(searchQuery);
       
       if (response.success) {
-        const empData = Array.isArray(response.data) 
-          ? response.data 
-          : (response.data?.data || []);
+        const empData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
         setEmployees(empData);
       }
     } catch (err: any) {
-      // Use backend message with priority
       setError(err.message || err.error || 'Search failed');
     } finally {
       setLoading(false);
@@ -355,19 +347,17 @@ const EmployeesPage: React.FC = () => {
 
   // Open modal for editing
   const handleEdit = (employee: Employee) => {
-    // Convert backend permissions format to frontend format
     const convertedPermissions = convertBackendPermissionsToFrontend(
       employee.roles?.permissions as unknown as EmployeePermissionBackend[] || []
     );
     
-    // Handle department - can be string, object with department_name, or undefined
-    const deptObj = employee.department as { _id?: string; department_id?: string; department_name?: string } | undefined;
-    const deptName = typeof employee.department === 'object' 
-      ? employee.department?.department_name 
-      : employee.department_name || '';
-    const deptId = typeof employee.department === 'object' 
-      ? employee.department?._id 
-      : employee.department_id || '';
+    // Safely extract department details (ensuring employee.department is not null)
+    const hasDeptObj = employee.department && typeof employee.department === 'object';
+    const deptName = hasDeptObj ? (employee.department as any)?.department_name : employee.department_name || '';
+    const deptId = hasDeptObj ? (employee.department as any)?._id : employee.department_id || '';
+      
+    // Safely extract unit details
+    const unitVal = employee.department_unit || (hasDeptObj && (employee.department as any).department_unit) || '';
     
     setEditingEmployee(employee);
     setFormData({
@@ -380,14 +370,15 @@ const EmployeesPage: React.FC = () => {
       department: deptName,
       department_name: deptName,
       department_id: deptId,
-      department_unit: employee.department_unit || '',
+      department_unit: unitVal,
       roles: {
         role_name: employee.roles?.role_name || 'department_employee',
         permissions: convertedPermissions
       }
     });
-    // Load department units if department is selected
+    
     if (deptId) {
+      setLoadingUnits(true);
       loadDepartmentUnits(deptId);
     }
     setFormError('');
@@ -399,11 +390,9 @@ const EmployeesPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Clear previous messages
     setFormError('');
     setFormSuccess('');
     
-    // Validate form data
     if (!formData.full_name?.trim() || !formData.email?.trim()) {
       setFormError('Please fill in all required fields');
       return;
@@ -412,12 +401,9 @@ const EmployeesPage: React.FC = () => {
     try {
       setSubmitting(true);
 
-      console.log('Submitting employee data:', formData);
-
       if (editingEmployee?._id || editingEmployee?.employee_id) {
         const id = editingEmployee._id || editingEmployee.employee_id || '';
         const response = await employeeService.update(id, formData);
-        console.log('Update response:', response);
         
         if (response.success) {
           setFormSuccess(response.message || 'Employee updated successfully!');
@@ -430,7 +416,6 @@ const EmployeesPage: React.FC = () => {
         }
       } else {
         const response = await employeeService.create(formData);
-        console.log('Create response:', response);
         
         if (response.success) {
           setFormSuccess(response.message || 'Employee created successfully!');
@@ -443,9 +428,6 @@ const EmployeesPage: React.FC = () => {
         }
       }
     } catch (err: any) {
-      console.error('Employee save error:', err);
-      
-      // Check if it's a network error
       if (err.message && (err.message.includes('Network') || err.message.includes('Failed to fetch'))) {
         setFormError('Cannot connect to server. Please check your internet connection and try again.');
       } else if (err.error) {
@@ -460,14 +442,12 @@ const EmployeesPage: React.FC = () => {
     }
   };
 
-  // Handle delete - show confirmation modal
   const handleDeleteClick = (id: string, name: string) => {
     setDeletingId(id);
     setDeletingName(name);
     setShowDeleteConfirm(true);
   };
 
-  // Confirm delete handler
   const handleConfirmDelete = async () => {
     if (!deletingId) return;
     
@@ -477,7 +457,6 @@ const EmployeesPage: React.FC = () => {
       setShowDeleteConfirm(false);
       loadEmployees();
     } catch (err: any) {
-      // Use backend message with priority
       setError(err.message || err.error || 'Failed to delete employee');
     } finally {
       setDeleting(false);
@@ -486,7 +465,6 @@ const EmployeesPage: React.FC = () => {
     }
   };
 
-  // Cancel delete handler
   const handleCancelDelete = () => {
     setShowDeleteConfirm(false);
     setDeletingId(null);
@@ -568,6 +546,9 @@ const EmployeesPage: React.FC = () => {
                   Department
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Unit
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Position
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -578,7 +559,7 @@ const EmployeesPage: React.FC = () => {
             <tbody className="divide-y divide-gray-200">
               {(loading && firstLoad) ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
+                  <td colSpan={6} className="px-6 py-12 text-center">
                     <div className="flex justify-center items-center gap-2">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                       <span className="text-gray-500">Loading employees...</span>
@@ -587,7 +568,7 @@ const EmployeesPage: React.FC = () => {
                 </tr>
               ) : employees.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                     No employees found
                   </td>
                 </tr>
@@ -625,13 +606,29 @@ const EmployeesPage: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-gray-900">
-                        {/* Handle both direct department_name and populated department object */}
-                        {employee.department_name || (typeof employee.department === 'object' && employee.department?.department_name) || '-'}
+                        {employee.department_name || (employee.department && typeof employee.department === 'object' && (employee.department as any)?.department_name) || '-'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-gray-900">
-                      {/* fetches the user role - format role_name nicely (replace underscores with spaces) */}
+                        {/* Safely extract and lookup unit name */}
+                        {(() => {
+                          const unitVal = employee.department_unit || (employee.department && typeof employee.department === 'object' && (employee.department as any).department_unit);
+                          if (!unitVal) return '-';
+                          
+                          if (typeof unitVal === 'object') return (unitVal as any).department_name || '-';
+                          
+                          const foundUnit = departments.find(d => 
+                            String(d._id) === String(unitVal) || 
+                            String(d.department_id) === String(unitVal)
+                          );
+                          
+                          return foundUnit?.department_name || unitVal;
+                        })()}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-gray-900">
                         {employee.roles?.role_name ? employee.roles.role_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-'}
                       </span>
                     </td>
@@ -663,14 +660,10 @@ const EmployeesPage: React.FC = () => {
 
       {/* Modal - No close button, clicking outside won't close */}
       {showModal && (
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-        >
-          <div 
-            className="bg-white rounded-2xl w-full max-w-lg sm:max-w-xl md:max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl transform animate-scaleIn m-3 sm:m-6"
-          >
-            {/* Modal Header */}
-            <div className="p-5 border-b bg-gray-50 sticky top-0 flex items-center justify-between">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg sm:max-w-xl md:max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl transform animate-scaleIn m-3 sm:m-6">
+            
+            <div className="p-5 border-b bg-gray-50 sticky top-0 flex items-center justify-between z-10">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
                   <FiUser className="w-5 h-5 text-blue-600" />
@@ -846,9 +839,10 @@ const EmployeesPage: React.FC = () => {
                         setFormData({ 
                           ...formData, 
                           department_name: e.target.value,
-                          department_id: selectedDept?._id || ''
+                          department_id: selectedDept?._id || '',
+                          department_unit: '' // reset unit when parent changes
                         });
-                        // Load department units when department is selected
+                        
                         if (selectedDept?._id) {
                           loadDepartmentUnits(selectedDept._id);
                         } else {
@@ -865,18 +859,7 @@ const EmployeesPage: React.FC = () => {
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Department ID
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.department_id}
-                      readOnly
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg bg-gray-100 text-gray-500"
-                      placeholder="Auto-filled"
-                    />
-                  </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Department Unit (Optional)
@@ -884,20 +867,26 @@ const EmployeesPage: React.FC = () => {
                     <select
                       value={formData.department_unit || ''}
                       onChange={(e) => setFormData({ ...formData, department_unit: e.target.value })}
-                      disabled={!formData.department_id || departmentUnits.length === 0}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white disabled:bg-gray-100 disabled:text-gray-500"
+                      disabled={!formData.department_id || loadingUnits}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white disabled:bg-gray-200 disabled:text-gray-500"
                     >
-                      <option value="">Select department unit</option>
-                      {departmentUnits.map((unit) => (
-                        <option key={unit._id || unit.department_id} value={unit._id || unit.department_id}>
-                          {unit.department_name}
-                        </option>
-                      ))}
+                      {loadingUnits ? (
+                        <option value="">Loading units...</option>
+                      ) : departmentUnits.length === 0 ? (
+                        <option value="">No units available</option>
+                      ) : (
+                        <>
+                          <option value="">Select department unit</option>
+                          {departmentUnits.map((unit) => (
+                            <option key={unit._id || unit.department_id} value={unit._id || unit.department_id}>
+                              {unit.department_name}
+                            </option>
+                          ))}
+                        </>
+                      )}
                     </select>
-                    {formData.department_id && departmentUnits.length === 0 && (
-                      <p className="text-xs text-gray-500 mt-1">No department units available for this department</p>
-                    )}
                   </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       <span className="flex items-center gap-2">
@@ -911,7 +900,6 @@ const EmployeesPage: React.FC = () => {
                         const selectedRole = roles.find(r => r.role_name === e.target.value);
                         let rolePermissions: Array<{ resource: string; actions: string[] }> = [];
                         
-                        // If role has permissions, convert them to frontend format
                         if (selectedRole?.permissions) {
                           rolePermissions = selectedRole.permissions
                             .filter(p => p.actions && Array.isArray(p.actions))
@@ -1109,4 +1097,3 @@ const EmployeesPage: React.FC = () => {
 };
 
 export default EmployeesPage;
-
