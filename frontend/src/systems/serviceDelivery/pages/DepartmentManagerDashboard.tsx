@@ -11,6 +11,7 @@ import {
 // Import API Services
 import { serviceDeliveryService, employeeService, departmentService } from "../../../core/services/adminService";
 import { useAuth } from "../../../core/contexts/AuthContext";
+import { useSocket } from "../../../core/contexts/SocketContext";
 
 // Custom Live Timer Component
 const LiveTimer: React.FC<{ startTime: string }> = ({ startTime }) => {
@@ -416,6 +417,7 @@ const DepartmentManagerDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const { socket, isConnected } = useSocket();
   
   const departmentId = user?.departmentId || user?.department_id;
   const departmentName = user?.departmentName || user?.department_name;
@@ -429,6 +431,7 @@ const DepartmentManagerDashboard: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [firstLoad, setFirstLoad] = useState(true);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [backendTotal, setBackendTotal] = useState(0);
@@ -626,6 +629,7 @@ const DepartmentManagerDashboard: React.FC = () => {
 
   const loadData = async (page: number = 1, searchQuery: string = '', silent: boolean = false) => {
     if (!silent) setIsLoading(true);
+    if (!silent) setFirstLoad(true);
     setCurrentPage(page);
     try {
       let visitorRes;
@@ -697,12 +701,35 @@ const DepartmentManagerDashboard: React.FC = () => {
       console.error("Failed to fetch dashboard data:", error);
     } finally {
       if (!silent) setIsLoading(false);
+      if (!silent) setFirstLoad(false);
     }
   };
 
   useEffect(() => {
     loadData(1, '', false);
   }, []);
+
+  // Listen for new visitor assigned to department event
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    const handleNewVisitorAssigned = (data: any) => {
+      console.log('New visitor assigned to department:', data);
+      // Refresh visitor list when a new visitor is assigned to this department
+      if (data?.message) {
+        // Show notification or toast if needed
+        console.log('Notification:', data.message);
+      }
+      // Reload visitors data
+      loadData(1, '', true);
+    };
+
+    socket.on('new_visitor_assigned_to_your_department', handleNewVisitorAssigned);
+
+    return () => {
+      socket.off('new_visitor_assigned_to_your_department', handleNewVisitorAssigned);
+    };
+  }, [socket, isConnected]);
 
   const getVisitorName = (v: Visitor) => v.full_name || v.name || 'Unknown';
   const getIdentification = (v: Visitor) => {
@@ -1055,7 +1082,11 @@ const DepartmentManagerDashboard: React.FC = () => {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-3xl font-bold text-gray-800">{pendingVisitors.length}</p>
+                  {(isLoading && firstLoad) ? (
+                    <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
+                  ) : (
+                    <p className="text-3xl font-bold text-gray-800">{pendingVisitors.length}</p>
+                  )}
                   <p className="text-sm text-green-600 mt-1">Pending Requests</p>
                 </div>
                 <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
@@ -1067,7 +1098,11 @@ const DepartmentManagerDashboard: React.FC = () => {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-3xl font-bold text-gray-800">{inProgressVisitors.length}</p>
+                  {(isLoading && firstLoad) ? (
+                    <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
+                  ) : (
+                    <p className="text-3xl font-bold text-gray-800">{inProgressVisitors.length}</p>
+                  )}
                   <p className="text-sm text-gray-500 mt-1">Active tasks</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -1079,7 +1114,11 @@ const DepartmentManagerDashboard: React.FC = () => {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-3xl font-bold text-gray-800">{transferredVisitors.length}</p>
+                  {(isLoading && firstLoad) ? (
+                    <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
+                  ) : (
+                    <p className="text-3xl font-bold text-gray-800">{transferredVisitors.length}</p>
+                  )}
                   <p className="text-sm text-gray-500 mt-1">Transferred</p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -1091,7 +1130,11 @@ const DepartmentManagerDashboard: React.FC = () => {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-3xl font-bold text-gray-800">{completedVisitors.length}</p>
+                  {(isLoading && firstLoad) ? (
+                    <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
+                  ) : (
+                    <p className="text-3xl font-bold text-gray-800">{completedVisitors.length}</p>
+                  )}
                   <p className="text-sm text-gray-500 mt-1">Completed</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">

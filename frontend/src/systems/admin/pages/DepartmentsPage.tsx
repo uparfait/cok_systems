@@ -571,7 +571,11 @@ const DepartmentsPage: React.FC = () => {
             </div>
             <div>
               <p className="text-gray-500 text-sm">Total Departments</p>
-              <p className="text-2xl font-bold text-gray-900">{stats}</p>
+              {(loading && firstLoad) ? (
+                <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+              ) : (
+                <p className="text-2xl font-bold text-gray-900">{stats}</p>
+              )}
             </div>
           </div>
         </div>
