@@ -110,8 +110,8 @@ const DepartmentsPage: React.FC = () => {
       setError('');
       
       const [deptResponse, empResponse] = await Promise.all([
-        departmentService.getAll(1, 1000),
-        employeeService.getAll(1, 1000)
+        departmentService.getAll(),
+        employeeService.getAll()
       ]).catch((err) => {
         console.error('Promise.all error:', err);
         throw err;
@@ -441,7 +441,7 @@ const DepartmentsPage: React.FC = () => {
     setLoadingDetails(true);
 
     try {
-      const allDepts = await departmentService.getAll(1, 1000);
+      const allDepts = await departmentService.getAll();
       let units: Department[] = [];
       if (allDepts.success) {
         const deptData = Array.isArray(allDepts.data) 
@@ -455,7 +455,7 @@ const DepartmentsPage: React.FC = () => {
         setDepartmentUnits(units);
       }
 
-      const allEmployees = await employeeService.getAll(1, 1000);
+      const allEmployees = await employeeService.getAll();
       if (allEmployees.success) {
         const empData = Array.isArray(allEmployees.data) 
           ? allEmployees.data 
