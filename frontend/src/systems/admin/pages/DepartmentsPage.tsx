@@ -109,10 +109,9 @@ const DepartmentsPage: React.FC = () => {
       setLoading(true);
       setError('');
       
-      // 👉 FIX: Passing (1, 1000) to explicitly request all departments
       const [deptResponse, empResponse] = await Promise.all([
-        departmentService.getAll(),
-        employeeService.getAll()
+        departmentService.getAll(1, 1000),
+        employeeService.getAll(1, 1000)
       ]).catch((err) => {
         console.error('Promise.all error:', err);
         throw err;
@@ -160,7 +159,6 @@ const DepartmentsPage: React.FC = () => {
   };
 
   const filteredDepartments = useMemo(() => {
-    // 👉 FIX: Bulletproof filter that checks both boolean and string "true"
     let filtered = departments.filter(dept => 
       dept.sub_department_mng?.is_sub_department !== true && 
       dept.sub_department_mng?.is_sub_department !== 'true'
@@ -443,8 +441,7 @@ const DepartmentsPage: React.FC = () => {
     setLoadingDetails(true);
 
     try {
-      // Load department units (sub-departments)
-      const allDepts = await departmentService.getAll();
+      const allDepts = await departmentService.getAll(1, 1000);
       let units: Department[] = [];
       if (allDepts.success) {
         const deptData = Array.isArray(allDepts.data) 
@@ -458,31 +455,20 @@ const DepartmentsPage: React.FC = () => {
         setDepartmentUnits(units);
       }
 
-      // Load ALL employees and filter by parent AND units
-      const allEmployees = await employeeService.getAll();
+      const allEmployees = await employeeService.getAll(1, 1000);
       if (allEmployees.success) {
         const empData = Array.isArray(allEmployees.data) 
           ? allEmployees.data 
           : (allEmployees.data?.data || []);
         
-        const unitIds = units.map(u => String(u._id || u.department_id));
-        const unitNames = units.map(u => String(u.department_name));
-
+        // Filter employees to ONLY those belonging to the parent department
         const emps = empData.filter((emp: any) => {
-          const empDeptName = String(emp.department_name || (typeof emp.department === 'object' ? emp.department?.department_name : emp.department));
           const empDeptId = String(emp.department_id || (typeof emp.department === 'object' ? emp.department?._id : ''));
-
-          // Check if employee belongs to parent department
-          const matchesParent = 
-            empDeptName === String(department.department_name) || 
-            (empDeptId && (empDeptId === String(department._id) || empDeptId === String(department.department_id)));
-
-          // Check if employee belongs to any unit under this parent
-          const matchesUnit = 
-            (empDeptId && unitIds.includes(empDeptId)) || 
-            (empDeptName && unitNames.includes(empDeptName));
-
-          return matchesParent || matchesUnit;
+          const empDeptName = String(emp.department_name || (typeof emp.department === 'object' ? emp.department?.department_name : emp.department));
+          
+          return empDeptId === String(department._id) || 
+                 empDeptId === String(department.department_id) || 
+                 empDeptName === String(department.department_name);
         });
 
         setDepartmentEmployees(emps);
@@ -501,7 +487,6 @@ const DepartmentsPage: React.FC = () => {
     setDepartmentEmployees([]);
   };
 
-  // Reusable component to render an employee table group
   const renderEmployeeTable = (emps: Employee[], title: string, emptyMessage: string, keyPrefix: string) => (
     <div key={keyPrefix} className="mb-8">
       <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-4">
@@ -1130,26 +1115,25 @@ const DepartmentsPage: React.FC = () => {
                   */}
                   <div className="border-t border-gray-100 pt-6">
                     
-                    {/* Main Department Employees */}
+                    {/* 👉 FIX: Filter Main Department Employees securely by verifying they have NO unit */}
                     {renderEmployeeTable(
-                      departmentEmployees.filter(emp => {
-                        const empDeptName = String(emp.department_name || (typeof emp.department === 'object' ? emp.department?.department_name : emp.department));
-                        const empDeptId = String(emp.department_id || (typeof emp.department === 'object' ? emp.department?._id : ''));
-                        return empDeptName === String(selectedDepartmentForDetails.department_name) || 
-                               (empDeptId && (empDeptId === String(selectedDepartmentForDetails._id) || empDeptId === String(selectedDepartmentForDetails.department_id)));
+                      departmentEmployees.filter((emp: any) => {
+                        const empUnit = String(emp.department_unit || (typeof emp.department === 'object' ? emp.department?.department_unit : '') || '').trim();
+                        const hasUnit = empUnit !== '' && empUnit !== 'undefined' && empUnit !== 'null' && empUnit !== 'Not specified' && empUnit !== '-';
+                        return !hasUnit;
                       }),
                       'Employees',
                       'No main employees found in this department',
                       'main-employees'
                     )}
 
-                    {/* Unit Employees */}
+                    {/* 👉 FIX: Filter Unit Employees securely by matching their unit ID to the mapped unit */}
                     {departmentUnits.map((unit) => {
-                      const unitEmps = departmentEmployees.filter(emp => {
-                        const empDeptName = String(emp.department_name || (typeof emp.department === 'object' ? emp.department?.department_name : emp.department));
-                        const empDeptId = String(emp.department_id || (typeof emp.department === 'object' ? emp.department?._id : ''));
-                        return empDeptName === String(unit.department_name) || 
-                               (empDeptId && (empDeptId === String(unit._id) || empDeptId === String(unit.department_id)));
+                      const unitEmps = departmentEmployees.filter((emp: any) => {
+                        const empUnit = String(emp.department_unit || (typeof emp.department === 'object' ? emp.department?.department_unit : '') || '').trim();
+                        return empUnit === String(unit._id) || 
+                               empUnit === String(unit.department_id) || 
+                               empUnit === String(unit.department_name);
                       });
 
                       return renderEmployeeTable(
