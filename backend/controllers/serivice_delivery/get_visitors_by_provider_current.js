@@ -9,84 +9,63 @@ const ServiceDelivery = require('../../models/service_delivery.js');
  */
 module.exports = async function get_visitors_by_provider_current(req, res, next) {
     try {
-        const provider_id = req.params.id;
+        let { in_house = true, limit = 10, page = 1 } = req.query || {}
 
-        // Build the aggregation pipeline
-        const pipeline = [
-            // First, match only visitors who are still in house
-            {
-                $match: {
-                    is_still_inhouse: true
+        const limit_val = Math.min(parseInt(limit), 50)
+        const skip_val = (parseInt(page) - 1) * limit_val
+
+        let filter = {}
+        if (in_house === 'true' || in_house === true) filter.is_still_inhouse = true
+        if (in_house === 'false' || in_house === false) filter.is_still_inhouse = false
+
+        const visitors = await ServiceDelivery.find(filter)
+            .limit(limit_val)
+            .skip(skip_val)
+            .sort({ entry_date: -1 })
+
+        const total_count = await ServiceDelivery.countDocuments(filter)
+
+        // Calculate current duration for in-house visitors
+        const visitorsWithDuration = visitors.map(visitor => {
+            const visitorObj = visitor.toObject();
+            if (visitor.is_still_inhouse && visitor.entry_date) {
+                const entryTime = new Date(visitor.entry_date);
+                const currentTime = new Date();
+                const durationMs = currentTime - entryTime;
+                const hours = Math.floor(durationMs / (1000 * 60 * 60));
+                const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+                
+                // Calculate duration in different formats
+                if (hours > 0) {
+                    visitorObj.current_duration = `${hours}h ${minutes}m`;
+                } else {
+                    visitorObj.current_duration = `${minutes} mins`;
                 }
-            },
-            // Unwind services_status array to work with individual statuses
-            {
-                $unwind: {
-                    path: '$services_status',
-                    preserveNullAndEmptyArrays: false
-                }
-            },
-            // Match only services that are not completed
-            {
-                $match: {
-                    'services_status.s_type': { $ne: 'Completed' }
-                }
-            },
-            // If provider_id is provided, filter by it
-            ...(provider_id ? [{
-                $match: {
-                    'services_status.provider_id': provider_id
-                }
-            }] : []),
-            // Remove sensitive or unnecessary fields before grouping
-            {
-                $project: {
-                    'password': 0, // In case it accidentally exists in the document
-                    'auth': 0,     // In case it accidentally exists in the document
-                    '__v': 0
-                }
-            },
-            // Group by provider_id
-            {
-                $group: {
-                    _id: '$services_status.provider_id',
-                    count: { $sum: 1 },
-                    provider_name: { $first: '$services_status.provider_name' },
-                    // Push the entire matched document into a 'visitors' array
-                    // Using $$ROOT gives us the whole document
-                    visitors: { $push: '$$ROOT' } 
-                }
-            },
-            // Sort by count descending
-            {
-                $sort: { count: -1 }
-            },
-            // Format the output
-            {
-                $project: {
-                    _id: 0,
-                    provider_id: '$_id',
-                    provider_name: 1,
-                    count: 1,
-                    // Re-format the visitors array to clean up the unwound structure if needed, 
-                    // but usually returning the root document is what you want.
-                    visitors: 1 
-                }
+                visitorObj.current_duration_hours = hours + (minutes / 60);
+                
+                // Check if approaching 8 hour limit
+                const hoursInside = hours + (minutes / 60);
+                visitorObj.is_near_limit = hoursInside >= 7; // 7 hours = near 8 hour limit
+                visitorObj.is_over_limit = hoursInside >= 8;
+            } else if (visitor.vehicle_storage?.has_vehicle && visitor.vehicle_storage?.vehicle_details?.duration) {
+                // Use stored duration for checked out visitors
+                visitorObj.current_duration = visitor.vehicle_storage.vehicle_details.duration;
+                visitorObj.current_duration_hours = parseFloat(visitor.vehicle_storage.vehicle_details.duration) / 60 || 0;
+            } else {
+                visitorObj.current_duration = 'N/A';
+                visitorObj.current_duration_hours = 0;
             }
-        ];
-
-        const providerData = await ServiceDelivery.aggregate(pipeline);
-        
-        // Calculate total visitors across all matched providers
-        const total = providerData.reduce((sum, item) => sum + item.count, 0);
+            return visitorObj;
+        });
 
         return res.status(200).json({
             success: true,
-            type: 'success',
-            message: 'Current visitors by provider retrieved successfully',
-            total_visitors: total,
-            data: providerData
-        });
+            type: "success",
+            message: "Visitors results",
+            total: total_count,
+            page: parseInt(page),
+            data: visitorsWithDuration
+        })
 
     } catch (error) {
         console.error("Error in get_visitors_by_provider_current:", error);

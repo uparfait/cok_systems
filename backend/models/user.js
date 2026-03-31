@@ -15,7 +15,7 @@ const user_schema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Department'
     },
-    // 👉 EXACT CHANGE: Added department_unit here
+    
     department_unit: { type: String },
     password: { type: String },
     access_control: {
