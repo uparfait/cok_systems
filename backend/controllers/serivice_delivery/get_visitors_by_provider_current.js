@@ -17,6 +17,8 @@ module.exports = async function get_visitors_by_provider_current(req, res, next)
         let filter = {}
         if (in_house === 'true' || in_house === true) filter.is_still_inhouse = true
         if (in_house === 'false' || in_house === false) filter.is_still_inhouse = false
+        // makesure that departments_assigned not an empty array
+        filter.departments_assigned = { $exists: true, $not: { $size: 0 } }
 
         const visitors = await ServiceDelivery.find(filter)
             .limit(limit_val)
