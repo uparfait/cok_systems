@@ -104,7 +104,6 @@ const AdminCheckInCheckOut: React.FC = () => {
   // Fetch visitors data with pagination
   const fetchVisitors = useCallback(async (page: number = 1) => {
     setLoading(true);
-    setFirstLoad(false);
     try {
       // Fetch both inside and left visitors with pagination
       const [insideResponse, leftResponse] = await Promise.all([
