@@ -35,7 +35,7 @@ interface Department {
   updatedAt?: string;
   department_response_time_in_minutes?: number;
   sub_department_mng?: {
-    is_sub_department: boolean;
+    is_sub_department: boolean | string;
     parent_department_id: string;
   };
 }
@@ -43,7 +43,7 @@ interface Department {
 const DepartmentsPage: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation(); // Used to detect when the user explicitly navigates to this page
+  const location = useLocation(); 
   
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -101,7 +101,6 @@ const DepartmentsPage: React.FC = () => {
   }, [showModal]);
 
   // Load departments and employees
-  // Wrapped in useCallback so it can be safely used in useEffect dependencies
   const loadDepartments = useCallback(async (isInitialLoad: boolean = false) => {
     try {
       if (isInitialLoad) {
@@ -110,7 +109,7 @@ const DepartmentsPage: React.FC = () => {
       setLoading(true);
       setError('');
       
-      // Load both departments and employees in parallel
+      // 👉 FIX: Passing (1, 1000) to explicitly request all departments
       const [deptResponse, empResponse] = await Promise.all([
         departmentService.getAll(),
         employeeService.getAll()
@@ -138,7 +137,7 @@ const DepartmentsPage: React.FC = () => {
       setError(err?.message || err?.error || 'An error occurred while loading data');
     } finally {
       setLoading(false);
-      setfirstLoad(false); // Ensure first load is cleared after fetching finishes
+      setfirstLoad(false); 
     }
   }, []);
 
@@ -147,7 +146,6 @@ const DepartmentsPage: React.FC = () => {
     if (!authLoading && !isAuthenticated) {
       navigate('/login');
     } else if (isAuthenticated) {
-      // Force a fresh initial load
       loadDepartments(true);
     }
   }, [isAuthenticated, authLoading, navigate, location.pathname, loadDepartments]);
@@ -162,8 +160,11 @@ const DepartmentsPage: React.FC = () => {
   };
 
   const filteredDepartments = useMemo(() => {
-    // ONLY show main departments in the grid, hide sub-departments
-    let filtered = departments.filter(dept => !dept.sub_department_mng?.is_sub_department);
+    // 👉 FIX: Bulletproof filter that checks both boolean and string "true"
+    let filtered = departments.filter(dept => 
+      dept.sub_department_mng?.is_sub_department !== true && 
+      dept.sub_department_mng?.is_sub_department !== 'true'
+    );
     
     // Filter by search query
     if (searchQuery?.trim()) {
@@ -181,7 +182,10 @@ const DepartmentsPage: React.FC = () => {
 
   // Statistics (only counting parent departments)
   const stats = useMemo(() => {
-    return departments.filter(dept => !dept.sub_department_mng?.is_sub_department).length;
+    return departments.filter(dept => 
+      dept.sub_department_mng?.is_sub_department !== true && 
+      dept.sub_department_mng?.is_sub_department !== 'true'
+    ).length;
   }, [departments]);
 
   // Search departments
@@ -448,8 +452,8 @@ const DepartmentsPage: React.FC = () => {
           : (allDepts.data?.data || []);
         
         units = deptData.filter((dept: any) => {
-          return dept.sub_department_mng?.is_sub_department && 
-                 dept.sub_department_mng?.parent_department_id === (department._id || department.department_id);
+          return (dept.sub_department_mng?.is_sub_department === true || dept.sub_department_mng?.is_sub_department === 'true') && 
+                 String(dept.sub_department_mng?.parent_department_id) === String(department._id || department.department_id);
         });
         setDepartmentUnits(units);
       }
@@ -582,11 +586,7 @@ const DepartmentsPage: React.FC = () => {
             </div>
             <div>
               <p className="text-gray-500 text-sm">Total Departments</p>
-              {(loading && firstLoad) ? (
-                <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
-              ) : (
-                <p className="text-2xl font-bold text-gray-900">{stats}</p>
-              )}
+              <p className="text-2xl font-bold text-gray-900">{stats}</p>
             </div>
           </div>
         </div>
