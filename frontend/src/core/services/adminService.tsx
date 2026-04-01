@@ -122,16 +122,16 @@ export const employeeService = {
 
 export const feedbackService = {
   // Get all feedback
-  getAll: () => get('/feedback'),
+  getAll: () => get('/feedback/search?limit=50&page=1'),
   
   // Search feedback
-  search: (query: string) => get(`/feedback/search?query=${encodeURIComponent(query)}`),
+  search: (query: string) => get(`/feedback/search?limit=${encodeURIComponent(query)}`),
   
   // Get feedback by ID
   getById: (id: string) => get(`/feedback/${id}`),
   
   // Submit feedback
-  submit: (data: any) => post('/feedback', data),
+  submit: (data: any) => post('/feedback/submit', data),
   
   // Delete feedback
   delete: (id: string) => del(`/feedback/${id}`),
@@ -220,16 +220,16 @@ export interface Visitor {
 
 export const serviceDeliveryService = {
   // Get all visitors with pagination and filter
-  getAll: (page: number = 1, limit: number = 20, inHouse: boolean = true) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}&in_house=${inHouse}`),
+  getAll: (page: number = 1, limit: number = 50, inHouse: boolean = true) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}&in_house=${inHouse}`),
   
   // Get all visitors (alias)
-  getAllVisitors: (page: number = 1, limit: number = 20) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}`),
+  getAllVisitors: (page: number = 1, limit: number = 50) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}`),
   
   // Search visitors with pagination
-  search: (query: string, page: number = 1, limit: number = 20, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),
+  search: (query: string, page: number = 1, limit: number = 50, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),
   
   // Search visitors (alias)
-  searchVisitors: (query: string, page: number = 1, limit: number = 20, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),
+  searchVisitors: (query: string, page: number = 1, limit: number = 50, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),
   
   // Get visitor by ID
   getById: (id: string) => get(`/servicedelivery/visitor/${id}`),
@@ -312,58 +312,122 @@ export const serviceDeliveryService = {
 // ==================== SMART PARKING APIs ====================
 
 export const parkingService = {
-  // Get all parking records (including all statuses)
-  getAll: () => get('/smartparking/vehicle?status=all&limit=100'),
+  // Get all parking records (including all statuses) - fetches all pages to get complete data
+  getAll: async () => {
+    try {
+      let allRecords: any[] = [];
+      let page = 1;
+      let hasMore = true;
+      let totalCount = 0;
+      
+      // Fetch all pages to get complete data (backend has 50 record limit per page)
+      while (hasMore) {
+        const response = await get(`/smartparking/vehicle?status=all&limit=50&page=${page}`);
+        
+        if (response.success && response.data && response.data.length > 0) {
+          allRecords = allRecords.concat(response.data);
+          
+          // Get total count from first page response
+          if (page === 1 && response.total) {
+            totalCount = response.total;
+          }
+          
+          // Check if there are more pages
+          // If we got less than 50 records, we've reached the end
+          if (response.data.length < 50) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+      
+      return {
+        success: true,
+        data: allRecords,
+        total: totalCount
+      };
+    } catch (error) {
+      console.error('Error fetching all parking records:', error);
+      return { success: false, data: [], total: 0 };
+    }
+  },
   
   // Get parking records with pagination
-  getAllPaginated: (page: number = 1, limit: number = 20) => get(`/smartparking/vehicle?status=all&page=${page}&limit=${limit}`),
+  getAllPaginated: (page: number = 1, limit: number = 50) => get(`/smartparking/vehicle?status=all&page=${page}&limit=${limit}`),
+  
+
   
   // Update parking record
   update: (id: string, data: any) => put(`/smartparking/vehicle/${id}`, data),
   
-  // Get all vehicles (alias)
-  getAllVehicles: () => get('/smartparking/vehicle?status=all&limit=100'),
+  // Get all vehicles (alias) - fetches all pages to get complete data
+  getAllVehicles: async () => {
+    try {
+      let allRecords: any[] = [];
+      let page = 1;
+      let hasMore = true;
+      
+      // Fetch all pages to get complete data (backend has 50 record limit per page)
+      while (hasMore) {
+        const response = await get(`/smartparking/vehicle?status=all&limit=50&page=${page}`);
+        
+        if (response.success && response.data && response.data.length > 0) {
+          allRecords = allRecords.concat(response.data);
+          
+          // Check if there are more pages
+          // If we got less than 50 records, we've reached the end
+          if (response.data.length < 50) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+      
+      return {
+        success: true,
+        data: allRecords
+      };
+    } catch (error) {
+      console.error('Error fetching all vehicles:', error);
+      return { success: false, data: [] };
+    }
+  },
   
-  // Get parking stats - calculates from parking records
+  // Get parking stats - uses efficient currently-parked endpoint
   getStats: async () => {
     try {
-      const response = await get('/smartparking/vehicle?status=all&limit=100');
-      if (response.success && response.data) {
-        const records = response.data;
-        const activeRecords = records.filter((r: any) => r.status === 'active');
-        const staffVehicles = activeRecords.filter((r: any) => r.driver_type === 'Staff' || r.driver_type === 'Regular');
-        const visitorVehicles = activeRecords.filter((r: any) => r.driver_type === 'Visitor');
+      // Use the efficient currently-parked endpoint to get counts
+      const currentlyParkedResponse = await get('/statistics/currently-parked');
+      
+      if (currentlyParkedResponse.success && currentlyParkedResponse.data) {
+        const { total, by_driver_type } = currentlyParkedResponse.data;
         
         // Calculate total slots (assume 200 as default, can be configured)
         const totalSlots = 200;
-        const occupiedSlots = activeRecords.length;
+        const occupiedSlots = total || 0;
         const availableSlots = totalSlots - occupiedSlots;
-        
-        // Count reserved vehicles
-        const reservedVehicles = activeRecords.filter((r: any) => r.is_reserved || r.reserved);
-        
-        // Get new visitors today
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const newVisitors = records.filter((r: any) => {
-          const checkInDate = new Date(r.check_in || r.entry_date);
-          return checkInDate >= today && (r.driver_type === 'Visitor');
-        }).length;
         
         return {
           success: true,
           data: {
             availableSlots: Math.max(0, availableSlots),
             totalSlots,
-            staffVehicles: staffVehicles.length,
-            visitorVehicles: visitorVehicles.length,
-            reservedSlots: reservedVehicles.length,
-            newVisitors,
-            totalParked: activeRecords.length
+            staffVehicles: (by_driver_type?.Staff || 0) + (by_driver_type?.Regular || 0),
+            visitorVehicles: by_driver_type?.Visitor || 0,
+            reservedSlots: 0, // Will be calculated from detailed data if needed
+            newVisitors: 0, // Will be calculated from detailed data if needed
+            totalParked: total || 0
           }
         };
       }
-      return response;
+      
+      return currentlyParkedResponse;
     } catch (error) {
       console.error('Error calculating stats:', error);
       return { success: false, data: {} };
@@ -445,20 +509,17 @@ export const parkingService = {
     }
   },
 
-  // Get flagged active vehicles - only vehicles that are flagged AND currently inside (active status)
-  getFlaggedActiveVehicles: async () => {
+  // Get flagged active vehicles - fetches single page for pagination
+  getFlaggedActiveVehicles: async (page: number = 1, limit: number = 50) => {
     try {
-      // Fetch only active records with is_flagged=true
-      const response = await get('/smartparking/vehicle?status=active&limit=100');
+      // Use dedicated flagged endpoint with pagination
+      const response = await get(`/smartparking/vehicle/flagged?limit=${limit}&page=${page}`);
       if (response.success && response.data) {
         const records = response.data;
-        
-        // Filter for flagged vehicles that are currently inside (active status only)
         const now = new Date();
-        const flaggedActive = records.filter((r: any) => {
-          // Only include if currently flagged AND active (inside)
-          return r.is_flagged === true && r.status === 'active';
-        }).map((r: any) => {
+        
+        // Map the records to the expected format
+        const flaggedActive = records.map((r: any) => {
           const entryTime = new Date(r.check_in || r.entry_date || r.createdAt);
           const hoursDiff = (now.getTime() - entryTime.getTime()) / (1000 * 60 * 60);
           const hours = Math.floor(hoursDiff);
@@ -471,28 +532,26 @@ export const parkingService = {
             driver_name: r.driver_name || 'Unknown',
             driver_type: r.driver_type || 'Unknown',
             is_flagged: true,
-            status: 'active',
+            status: r.status || 'active',
             _id: r._id
           };
         });
         
         return {
           success: true,
-          data: flaggedActive
+          data: flaggedActive,
+          total: response.total || 0
         };
       }
       return response;
     } catch (error) {
       console.error('Error getting flagged active vehicles:', error);
-      return { success: false, data: [] };
+      return { success: false, data: [], total: 0 };
     }
   },
   
   // Search parking records
-  search: (query: string) => get(`/smartparking/vehicle/search?query=${encodeURIComponent(query)}&status=active`),
-  
-  // Search vehicles (alias)
-  searchVehicles: (query: string) => get(`/smartparking/vehicle/search?query=${encodeURIComponent(query)}&status=active`),
+  search: (query: string, page: number = 1, limit: number = 50) => get(`/smartparking/vehicle/search?query=${encodeURIComponent(query)}&status=active&page=${page}&limit=${limit}`),
   
   // Get parking record by ID
   getById: (id: string) => get(`/smartparking/vehicle/${id}`),
@@ -521,14 +580,14 @@ export const parkingService = {
   // Get flagged vehicles (alias)
   getFlaggedVehicles: () => get('/smartparking/vehicle/flagged'),
   
-  // Flag a vehicle
-  flagVehicle: (plateNumber: string, reason: string) => post('/smartparking/vehicle/flag', { plate_number: plateNumber, reason }),
-  
   // Register single vehicle
   registerSingle: (data: any) => post('/smartparking/register-single', data),
   
   // Bulk upload vehicles
   bulkUpload: (formData: FormData) => post('/smartparking/bulk-upload', formData),
+  
+  // Flag vehicle
+  flagVehicle: (plateNumber: string, reason: string) => post('/smartparking/vehicle/flag', { plate_number: plateNumber, reason }),
 };
 
 // Alias for smartParkingService (used by DashboardPage)
@@ -557,25 +616,13 @@ export const reservationService = {
   createVisitorReservation: (data: any) => post('/smartparking/register-single', data),
   
   // Bulk upload visitor reservations (Excel file)
-  bulkUploadVisitors: async (formData: FormData): Promise<any> => {
-    const response = await fetch('/cok/api/smartparking/bulk-upload', {
-      method: 'POST',
-      body: formData
-    });
-    return response.json();
-  },
+  bulkUploadVisitors: (formData: FormData) => post('/smartparking/bulk-upload', formData),
   
   // Create staff booking
   createStaffBooking: (data: any) => post('/smartparking/staff-booking', data),
   
   // Bulk upload staff reservations (Excel file)
-  bulkUploadStaff: async (formData: FormData): Promise<any> => {
-    const response = await fetch('/cok/api/smartparking/bulk-staff-upload', {
-      method: 'POST',
-      body: formData
-    });
-    return response.json();
-  },
+  bulkUploadStaff: (formData: FormData) => post('/smartparking/bulk-staff-upload', formData),
   
   // Cancel reservation
   cancelReservation: (id: string) => put(`/smartparking/reservations/${id}/cancel`, {}),
@@ -603,17 +650,6 @@ export interface SystemPermission {
 export const permissionService = {
   // Get all system resources and their available actions (from backend)
   getSystemPermissions: () => get('/permissions'),
-  
-  // Get permissions for a specific resource
-  getResourcePermissions: (resource: string) => get(`/permissions/resource/${encodeURIComponent(resource)}`),
-  
-  // Assign permissions to a user
-  assignPermissions: (userId: string, resource: string, actions: string[]) => 
-    post(`/permissions/user/${userId}/assign`, { resource, actions }),
-  
-  // Remove permissions from a user
-  removePermissions: (userId: string, resource: string, actions?: string[]) => 
-    post(`/permissions/user/${userId}/remove`, { resource, actions }),
 };
 
 // ==================== STATISTICS APIs ====================

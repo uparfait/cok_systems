@@ -8,7 +8,7 @@ import { useSocket } from '../../../core/contexts/SocketContext';
 import { smartParkingService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
-  FiSearch, FiTruck, FiCheckCircle, FiLogOut, FiClock, FiX
+  FiSearch, FiTruck, FiCheckCircle, FiLogOut, FiClock, FiX, FiFilter
 } from 'react-icons/fi';
 
 interface ParkingRecord {
@@ -41,6 +41,7 @@ const CheckOutVehiclePage: React.FC = () => {
   const { socket } = useSocket();
   
   const [loading, setLoading] = useState(true);
+  const [paginationLoading, setPaginationLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'staff' | 'visitors' | 'regular'>('all');
   const [allRecords, setAllRecords] = useState<ParkingRecord[]>([]);
@@ -58,130 +59,28 @@ const CheckOutVehiclePage: React.FC = () => {
   const [selectedRecord, setSelectedRecord] = useState<ParkingRecord | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  
-
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      navigate('/login');
-    } else if (isAuthenticated) {
-      loadData('');
-    }
-  }, [isAuthenticated, authLoading, navigate]);
-
- 
-
-
-  // Handle socket events for car check-in and check-out
-  useEffect(() => {
-    if (!socket) return;
-
-    // Listen for car check-in events
-    const handleCarCheckin = (data: any) => {
-      console.log('🔔 [CheckOutVehicle] car_checkedin event received:', data);
-      
-      // Check if notification should be shown
-      if (data.show_notif === false) {
-        const message = data.message || 'Vehicle checked in';
-        const type = data.type || 'info';
-        
-        if (type === 'success') {
-          showSuccess(message);
-        } else if (type === 'error') {
-          showError(message);
-        } else if (type === 'warning') {
-          showWarning(message);
-        } else {
-          showInfo(message);
-        }
-      }
-      
-      // Always refetch data to update table
-      loadData(searchQuery);
-      console.log('✅ [CheckOutVehicle] Table data refetched after car check-in');
-    };
-
-    // Listen for car check-out events
-    const handleCarCheckout = (data: any) => {
-      console.log('🔔 [CheckedOutVehicle] car_checkedout event received:', data);
-      
-      // Always refetch data to update table
-      loadData(searchQuery);
-      console.log('✅ [CheckOutVehicle] Table data refetched after car checkout');
-    };
-
-    socket.on('car_checkedin', handleCarCheckin);
-    socket.on('car_checkedout', handleCarCheckout);
-
-    return () => {
-      socket.off('car_checkedin', handleCarCheckin);
-      socket.off('car_checkedout', handleCarCheckout);
-    };
-  }, [socket, showSuccess, showError, showWarning, showInfo, searchQuery]);
-
-  useEffect(() => {
-    filterRecords();
-  }, [allRecords]);
-
-  const handleFilterChange = (filter: 'all' | 'staff' | 'visitors' | 'regular') => {
-    setTypeFilter(filter);
-    // Build query based on filter type
-    let query = '';
-    if (filter === 'staff') {
-      query = 'staff';
-    } else if (filter === 'visitors') {
-      query = 'visitor';
-    } else if (filter === 'regular') {
-      query = 'regular';
-    }
-    // Reload data with filter query
-    loadData(query);
-  };
-
-  const handleSearch = () => {
-    // Clear any pending debounced search
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    setIsSearching(true);
-    loadData(searchQuery);
-  };
-
-  // Debounced search as user types
-  useEffect(() => {
-    // Don't search on initial load
-    if (firstLoad) return;
-    
-    // Don't search if query hasn't changed
-    if (searchQuery === lastSearchQueryRef.current) return;
-    
-    lastSearchQueryRef.current = searchQuery;
-    
-    // Clear previous timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
+  // Load data function with proper error handling
+  const loadData = useCallback(async (query: string = '', page: number = 1, filterType: string = typeFilter) => {
+    const isLoadingNew = page === 1 && !query;
+    if (isLoadingNew) {
+      setLoading(true);
+    } else {
+      setPaginationLoading(true);
     }
     
-    // Set new timeout for debounced search (300ms delay)
-    searchTimeoutRef.current = setTimeout(() => {
-      setIsSearching(true);
-      loadData(searchQuery);
-    }, 300);
-    
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, [searchQuery, firstLoad]);
-
-  const loadData = async (query: string = '') => {
-    setLoading(true);
     try {
       let response;
-      if (query && query.trim()) {
-        response = await smartParkingService.search(query.trim());
+      
+      // Build search query based on filter type
+      let searchTerm = query;
+      if (filterType !== 'all' && !searchTerm) {
+        searchTerm = filterType;
+      }
+      
+      if (searchTerm && searchTerm.trim()) {
+        response = await smartParkingService.search(searchTerm.trim(), page, 50);
       } else {
-        response = await smartParkingService.getAll();
+        response = await smartParkingService.getAllPaginated(page, 50);
       }
       
       if (response.success && response.data) {
@@ -212,53 +111,179 @@ const CheckOutVehiclePage: React.FC = () => {
           return recordObj;
         });
         
-        setAllRecords(recordsWithDuration);
-        setTotalCount(response.total || 0);
-        setTotalPages(Math.ceil((response.total || 0) / 20));
+        // Apply client-side filtering if needed (for type filter)
+        let filteredRecords = recordsWithDuration;
+        if (filterType !== 'all' && !searchTerm) {
+          filteredRecords = recordsWithDuration.filter(record => {
+            if (filterType === 'staff') {
+              return record.driver_type?.toLowerCase() === 'staff';
+            } else if (filterType === 'visitors') {
+              return record.driver_type?.toLowerCase() === 'visitor';
+            } else if (filterType === 'regular') {
+              return record.driver_type?.toLowerCase() === 'regular';
+            }
+            return true;
+          });
+        }
+        
+        setAllRecords(filteredRecords);
+        setFilteredRecords(filteredRecords);
+        setTotalCount(response.total || filteredRecords.length);
+        setTotalPages(Math.ceil((response.total || filteredRecords.length) / 50));
+        setCurrentPage(page);
+      } else {
+        setAllRecords([]);
+        setFilteredRecords([]);
+        setTotalCount(0);
+        setTotalPages(1);
       }
     } catch (error: any) {
       console.error('Error loading data:', error);
-      showError('Failed to load parking records');
+      showError(error.message || 'Failed to load parking records');
+      setAllRecords([]);
+      setFilteredRecords([]);
     } finally {
       setLoading(false);
+      setPaginationLoading(false);
       setIsSearching(false);
       setFirstLoad(false);
     }
-  };
+  }, [typeFilter, showError]);
 
-  const filterRecords = () => {
-    let filtered = [...allRecords];
+  // Handle filter change
+  const handleFilterChange = useCallback((filter: 'all' | 'staff' | 'visitors' | 'regular') => {
+    setTypeFilter(filter);
+    setCurrentPage(1);
+    setSearchQuery(''); // Clear search when filtering
+    lastSearchQueryRef.current = '';
+    loadData('', 1, filter);
+  }, [loadData]);
+
+  // Handle search
+  const handleSearch = useCallback(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    setIsSearching(true);
+    setCurrentPage(1);
+    setTypeFilter('all'); // Reset filter when searching
+    loadData(searchQuery, 1, 'all');
+  }, [searchQuery, loadData]);
+
+  // Debounced search as user types
+  useEffect(() => {
+    // Don't search on initial load
+    if (firstLoad) return;
     
-    // Type filter is done on backend for search, but we keep client-side filtering for type buttons
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter(record => {
-        if (typeFilter === 'staff') {
-          return record.driver_type?.toLowerCase() === 'staff';
-        } else if (typeFilter === 'visitors') {
-          return record.driver_type?.toLowerCase() === 'visitor';
-        } else if (typeFilter === 'regular') {
-          return record.driver_type?.toLowerCase() === 'regular';
-        }
-        return true;
-      });
+    // Don't search if query hasn't changed
+    if (searchQuery === lastSearchQueryRef.current) return;
+    
+    lastSearchQueryRef.current = searchQuery;
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
     
-    setFilteredRecords(filtered);
-  };
+    // If search query is empty, load all data
+    if (!searchQuery.trim()) {
+      loadData('', 1, 'all');
+      setTypeFilter('all');
+      return;
+    }
+    
+    // Set new timeout for debounced search (300ms delay)
+    searchTimeoutRef.current = setTimeout(() => {
+      setIsSearching(true);
+      setCurrentPage(1);
+      setTypeFilter('all');
+      loadData(searchQuery, 1, 'all');
+    }, 300);
+    
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery, firstLoad, loadData]);
+
+  // Initial load
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate('/login');
+    } else if (isAuthenticated) {
+      loadData('', 1, 'all');
+    }
+  }, [isAuthenticated, authLoading, navigate, loadData]);
+
+  // Handle socket events
+  useEffect(() => {
+    if (!socket) return;
+
+    // Listen for car check-in events
+    const handleCarCheckin = (data: any) => {
+      console.log('🔔 [CheckOutVehicle] car_checkedin event received:', data);
+      
+      if (data.show_notif === false) {
+        const message = data.message || 'Vehicle checked in';
+        const type = data.type || 'info';
+        
+        if (type === 'success') showSuccess(message);
+        else if (type === 'error') showError(message);
+        else if (type === 'warning') showWarning(message);
+        else showInfo(message);
+      }
+      
+      // Refresh data
+      loadData(searchQuery, currentPage, typeFilter);
+    };
+
+    // Listen for car check-out events
+    const handleCarCheckout = (data: any) => {
+      console.log('🔔 [CheckOutVehicle] car_checkedout event received:', data);
+      
+      if (data.show_notif === false) {
+        const message = data.message || 'Vehicle checked out';
+        const type = data.type || 'info';
+        
+        if (type === 'success') showSuccess(message);
+        else if (type === 'error') showError(message);
+        else if (type === 'warning') showWarning(message);
+        else showInfo(message);
+      }
+      
+      // Refresh data
+      loadData(searchQuery, currentPage, typeFilter);
+    };
+
+    socket.on('car_checkedin', handleCarCheckin);
+    socket.on('car_checkedout', handleCarCheckout);
+
+    return () => {
+      socket.off('car_checkedin', handleCarCheckin);
+      socket.off('car_checkedout', handleCarCheckout);
+    };
+  }, [socket, showSuccess, showError, showWarning, showInfo, searchQuery, currentPage, typeFilter, loadData]);
+
+  // Handle page change
+  const handlePageChange = useCallback((newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setCurrentPage(newPage);
+    loadData(searchQuery, newPage, typeFilter);
+  }, [searchQuery, typeFilter, totalPages, loadData]);
 
   const handleCheckout = async () => {
     if (!selectedRecord) return;
     
     setActionLoading(true);
     try {
-      // Use checkOutByPlate to send plate_number instead of ID
       const response = await smartParkingService.checkOutByPlate(selectedRecord.plate_number);
       
       if (response.success) {
         showSuccess('Vehicle checked out successfully!');
         setShowActionModal(false);
         setSelectedRecord(null);
-        loadData(searchQuery);
+        loadData(searchQuery, currentPage, typeFilter);
       } else {
         showError(response.message || 'Failed to checkout vehicle');
       }
@@ -305,6 +330,14 @@ const CheckOutVehiclePage: React.FC = () => {
     );
   };
 
+  const getFilterButtonClass = (filter: string) => {
+    return `px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+      typeFilter === filter 
+        ? 'bg-blue-600 text-white shadow-md' 
+        : 'bg-white/50 text-gray-700 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50'
+    }`;
+  };
+
   return (
     <MainLayout>
       <div className="p-2">
@@ -333,18 +366,15 @@ const CheckOutVehiclePage: React.FC = () => {
               </button>
             </div>
             
-            {/* Filter Buttons */}
+            {/* Filter Buttons - Fixed: Added all filter options */}
             <div className="flex gap-2 flex-wrap">
-              {(['all',] as const).map((filter) => (
+              {(['all', 'staff', 'visitors', 'regular'] as const).map((filter) => (
                 <button
-                   onClick={() => handleFilterChange('all')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  typeFilter === 'all' 
-                    ? 'bg-blue-600 text-white shadow-md' 
-                    : 'bg-white/50 text-gray-700 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50'
-                }`}
+                  key={filter}
+                  onClick={() => handleFilterChange(filter)}
+                  className={getFilterButtonClass(filter)}
                 >
-                  {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                  {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
                 </button>
               ))}
             </div>
@@ -355,7 +385,7 @@ const CheckOutVehiclePage: React.FC = () => {
         <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-lg border border-white/30 overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 140px)' }}>
           <div className="overflow-auto flex-1">
             <table className="w-full min-w-[1100px]">
-              <thead className="bg-gradient-to-r from-gray-500/10 to-gray-500/5 sticky top-0 z-10">
+              <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     Plate Number
@@ -396,7 +426,13 @@ const CheckOutVehiclePage: React.FC = () => {
                 ) : isSearching ? (
                   <tr>
                     <td colSpan={9} className="px-3 py-8 text-center text-blue-600 text-sm font-medium">
-                      searching.......
+                      Searching...
+                    </td>
+                  </tr>
+                ) : paginationLoading ? (
+                  <tr>
+                    <td colSpan={9} className="px-3 py-8 text-center text-gray-500 text-sm">
+                      Loading page...
                     </td>
                   </tr>
                 ) : filteredRecords.length === 0 ? (
@@ -471,36 +507,26 @@ const CheckOutVehiclePage: React.FC = () => {
             </table>
           </div>
           
-          {/* Results count */}
+          {/* Pagination - Fixed: Proper page navigation */}
           <div className="px-2 py-2 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
             <p className="text-xs text-gray-600">
               Showing {filteredRecords.length} of {totalCount} results
             </p>
-            <div className="flex gap-1">
+            <div className="flex gap-2">
               <button
-                onClick={() => {
-                  if (currentPage > 1) {
-                    setCurrentPage(currentPage - 1);
-                    loadData(searchQuery);
-                  }
-                }}
-                disabled={currentPage === 1}
-                className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1 || paginationLoading}
+                className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                Prev
+                Previous
               </button>
-              <span className="text-xs text-gray-600 py-1">
-                {currentPage}/{totalPages}
+              <span className="text-sm text-gray-600 py-1 px-3">
+                Page {currentPage} of {totalPages || 1}
               </span>
               <button
-                onClick={() => {
-                  if (currentPage < totalPages) {
-                    setCurrentPage(currentPage + 1);
-                    loadData(searchQuery);
-                  }
-                }}
-                disabled={currentPage >= totalPages}
-                className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= totalPages || paginationLoading}
+                className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 Next
               </button>

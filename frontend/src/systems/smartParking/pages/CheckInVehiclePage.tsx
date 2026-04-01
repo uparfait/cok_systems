@@ -395,7 +395,7 @@ const CheckInVehiclePage: React.FC = () => {
     }
   };
 
-  const handleRegisterUnknown = async () => {
+  const handleRegisterUnknown = useCallback(async () => {
     if (!unknownForm.plate_number || !unknownForm.driver_name || !unknownForm.driver_telephone) {
       showWarning('Please fill in required fields');
       return;
@@ -460,7 +460,7 @@ const CheckInVehiclePage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [unknownForm, showWarning, showError, showSuccess, smartParkingService]);
 
   const handleDenyEntry = () => {
     if (verifying) {
