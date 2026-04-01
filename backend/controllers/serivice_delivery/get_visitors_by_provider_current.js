@@ -360,10 +360,22 @@ module.exports = async function get_visitors_by_provider_current(req, res, next)
                     visitors: { $push: '$$ROOT' }
                 }
             },
+            // Add a field to determine sort order (Unassigned = 1, others = 0)
+            {
+                $addFields: {
+                    sort_order: {
+                        $cond: {
+                            if: { $eq: ['$_id', 'Unassigned'] },
+                            then: 1,
+                            else: 0
+                        }
+                    }
+                }
+            },
             // Sort with Unassigned at the bottom, then by count descending
             {
                 $sort: { 
-                    $cond: [{ $eq: ['$_id', 'Unassigned'] }, 1, 0],
+                    sort_order: 1,
                     count: -1
                 }
             },
