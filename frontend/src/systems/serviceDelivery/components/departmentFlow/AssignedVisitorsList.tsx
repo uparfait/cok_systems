@@ -2,7 +2,7 @@
 // export default AssignedVisitorsList;
 // AssignedVisitorsList Component - Exact Figma Design Implementation
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { 
   FiSearch, FiFile, FiFileText, FiEdit, FiFilter,
   FiCheck, FiArrowRight, FiUser, FiCheckCircle, FiX, 
@@ -112,6 +112,9 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
   const [editingVisitor, setEditingVisitor] = useState<AssignedVisitor | null>(null);
   const [activeVisitorId, setActiveVisitorId] = useState<string | null>(null);
   const [showServicePanel, setShowServicePanel] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSearchTermRef = useRef("");
   const itemsPerPage = 5;
 
   // Update visitors when propVisitors changes
@@ -177,6 +180,52 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, statusFilter]);
+
+  // Handle search button click
+  const handleSearch = useCallback(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    setIsSearching(true);
+    setCurrentPage(1);
+    setStatusFilter('all'); // Reset filter when searching
+    lastSearchTermRef.current = searchTerm;
+    // Search is handled by the filteredVisitors useMemo
+    setTimeout(() => setIsSearching(false), 300);
+  }, [searchTerm]);
+
+  // Debounced search as user types
+  useEffect(() => {
+    // Don't search if term hasn't changed
+    if (searchTerm === lastSearchTermRef.current) return;
+    
+    lastSearchTermRef.current = searchTerm;
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // If search query is empty, reset
+    if (!searchTerm.trim()) {
+      setStatusFilter('all');
+      return;
+    }
+    
+    // Set new timeout for debounced search (300ms delay)
+    searchTimeoutRef.current = setTimeout(() => {
+      setIsSearching(true);
+      setCurrentPage(1);
+      setStatusFilter('all');
+      setTimeout(() => setIsSearching(false), 300);
+    }, 300);
+    
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchTerm]);
 
   // Export functions
   const handleExportPDF = () => {
@@ -314,35 +363,44 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
         <div className={`${showServicePanel && selectedVisitor ? 'w-[calc(100%-320px)]' : 'w-full'} space-y-4 pr-4 transition-all duration-300`}>
           {/* Search and Filter Card */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <div className="flex items-center gap-4">
-              {/* Search Box */}
-              <div className="relative flex-1">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search by visitor name, ID or badge..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              {/* Status Filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-600">STATUS:</span>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+            <div className="flex flex-col md:flex-row gap-3 items-center">
+              {/* Search Input */}
+              <div className="flex-1 flex gap-2 w-full">
+                <div className="relative flex-1">
+                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                    placeholder="Search by visitor name, ID or badge..."
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  />
+                </div>
+                <button
+                  onClick={handleSearch}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2 shadow-md transition-all"
                 >
-                  <option value="all">All Status</option>
-                  <option value="accepted">Accepted</option>
-                  <option value="completed">Completed</option>
-                  <option value="transferred">Transferred</option>
-                  <option value="inprogress">In Progress</option>
-                  <option value="waiting">Not Started</option>
-                </select>
-                <FiFilter className="w-4 h-4 text-gray-400" />
+                  <FiSearch className="w-4 h-4" />
+                  Search
+                </button>
+              </div>
+              
+              {/* Filter Buttons */}
+              <div className="flex gap-2 flex-wrap">
+                {(['all', 'accepted', 'completed', 'transferred', 'inprogress', 'waiting'] as const).map((filter) => (
+                  <button
+                    key={filter}
+                    onClick={() => setStatusFilter(filter)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      statusFilter === filter 
+                        ? 'bg-blue-600 text-white shadow-md' 
+                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                    }`}
+                  >
+                    {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -420,37 +478,27 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
 
             {/* Bottom of Table */}
             {filteredVisitors.length > 0 && (
-              <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-                <p className="text-sm text-gray-500">
-                  Showing {paginatedVisitors.length} of {filteredVisitors.length} assigned visitors
+              <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
+                <p className="text-xs text-gray-600">
+                  Showing {paginatedVisitors.length} of {filteredVisitors.length} results
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex gap-2">
                   <button
                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
-                    className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
-                    <FiArrowRight className="w-4 h-4 rotate-180" />
+                    Previous
                   </button>
-                  {getPageNumbers().map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                        currentPage === page 
-                          ? 'bg-blue-500 text-white' 
-                          : 'hover:bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
+                  <span className="text-sm text-gray-600 py-1 px-3">
+                    Page {currentPage} of {totalPages || 1}
+                  </span>
                   <button
                     onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                     disabled={currentPage === totalPages || totalPages === 0}
-                    className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
-                    <FiArrowRight className="w-4 h-4" />
+                    Next
                   </button>
                 </div>
               </div>
