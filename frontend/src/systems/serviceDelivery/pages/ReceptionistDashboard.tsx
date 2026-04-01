@@ -68,6 +68,48 @@ interface Visitor {
   }>;
 }
 
+// Skeleton Components
+const SkeletonCard: React.FC = () => (
+  <div className="backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg border border-white/20 animate-pulse">
+    <div className="flex items-start justify-between">
+      <div className="flex-1">
+        <div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
+        <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+      </div>
+      <div className="p-3 bg-gray-200 rounded-xl w-12 h-12"></div>
+    </div>
+  </div>
+);
+
+const SkeletonTableRow: React.FC = () => (
+  <tr className="border-b border-gray-50">
+    <td className="px-6 py-4">
+      <div className="h-5 bg-gray-200 rounded-full w-16 animate-pulse"></div>
+    </td>
+    <td className="px-6 py-4">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse"></div>
+        <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
+      </div>
+    </td>
+    <td className="px-6 py-4">
+      <div className="h-3 bg-gray-200 rounded w-20 animate-pulse"></div>
+    </td>
+    <td className="px-6 py-4">
+      <div className="h-5 bg-gray-200 rounded w-16 animate-pulse"></div>
+    </td>
+    <td className="px-6 py-4">
+      <div className="h-3 bg-gray-200 rounded w-16 animate-pulse"></div>
+    </td>
+    <td className="px-6 py-4">
+      <div className="h-3 bg-gray-200 rounded w-20 animate-pulse"></div>
+    </td>
+    <td className="px-6 py-4">
+      <div className="h-8 bg-gray-200 rounded w-20 animate-pulse"></div>
+    </td>
+  </tr>
+);
+
 const ReceptionistDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -90,7 +132,7 @@ const ReceptionistDashboard: React.FC = () => {
   const [departments, setDepartments] = useState<any[]>([]);
   const [subDepartmentIds, setSubDepartmentIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
-  const [firstLoad, setfirstLoad] = useState(false);
+  const [firstLoad, setFirstLoad] = useState(true);
 
   
   // Hourly visitor data for graph
@@ -141,9 +183,9 @@ const ReceptionistDashboard: React.FC = () => {
       
       // Use backend search if searchTerm exists, otherwise get all
       if (searchTerm && searchTerm.trim()) {
-        visitorRes = await serviceDeliveryService.search(searchTerm, currentPage, 20);
+        visitorRes = await serviceDeliveryService.search(searchTerm, currentPage, 50);
       } else {
-        visitorRes = await serviceDeliveryService.getAll(currentPage, 20);
+        visitorRes = await serviceDeliveryService.getAll(currentPage, 50);
       }
 
       if (visitorRes.status || visitorRes.success) {
@@ -208,12 +250,12 @@ const ReceptionistDashboard: React.FC = () => {
         console.error("Failed to fetch hourly stats:", error);
       } finally {
         setHourlyDataLoading(false);
-        setfirstLoad(false);
+        setFirstLoad(false);
       }
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
     } finally {
-      setfirstLoad(false)
+      setFirstLoad(false)
       setIsLoading(false);
       setSearchLoading(false);
     }
@@ -343,7 +385,7 @@ const ReceptionistDashboard: React.FC = () => {
   const paginatedVisitors = unassignedVisitors;
   
   // Backend handles search and pagination - no frontend filtering needed
-  const itemsPerPage = 20;
+  const itemsPerPage = 50;
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   // Derived Stats
@@ -446,41 +488,51 @@ const ReceptionistDashboard: React.FC = () => {
           
           {/* KPI Cards (Glassmorphism Styled) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-blue-700 text-sm font-medium mb-1">Today's Total Visitors</p>
-                  <h3 className="text-3xl font-bold text-blue-700">{totalVisitors}</h3>
+            {firstLoad ? (
+              <>
+                <SkeletonCard />
+                <SkeletonCard />
+                <SkeletonCard />
+              </>
+            ) : (
+              <>
+                <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-blue-700 text-sm font-medium mb-1">Today's Total Visitors</p>
+                      <h3 className="text-3xl font-bold text-blue-700">{totalCount}</h3>
+                    </div>
+                    <div className="p-3 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
+                      <FiUsers className="w-6 h-6 text-blue-600" />
+                    </div>
+                  </div>
                 </div>
-                <div className="p-3 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
-                  <FiUsers className="w-6 h-6 text-blue-600" />
-                </div>
-              </div>
-            </div>
 
-            <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-emerald-700 text-sm font-medium mb-1">Total Departments</p>
-                  <h3 className="text-3xl font-bold text-emerald-700">{totalDepartments}</h3>
+                <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-emerald-700 text-sm font-medium mb-1">Total Departments</p>
+                      <h3 className="text-3xl font-bold text-emerald-700">{totalDepartments}</h3>
+                    </div>
+                    <div className="p-3 bg-gradient-to-br from-emerald-500/20 to-green-500/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
+                      <FiGrid className="w-6 h-6 text-emerald-600" />
+                    </div>
+                  </div>
                 </div>
-                <div className="p-3 bg-gradient-to-br from-emerald-500/20 to-green-500/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
-                  <FiGrid className="w-6 h-6 text-emerald-600" />
-                </div>
-              </div>
-            </div>
 
-            <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-teal-700 text-sm font-medium mb-1">Total Assigned</p>
-                  <h3 className="text-3xl font-bold text-teal-700">{assignedCount}</h3>
+                <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-teal-700 text-sm font-medium mb-1">Total Assigned</p>
+                      <h3 className="text-3xl font-bold text-teal-700">{assignedCount}</h3>
+                    </div>
+                    <div className="p-3 bg-gradient-to-br from-teal-500/20 to-cyan-500/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
+                      <FiCheckCircle className="w-6 h-6 text-teal-600" />
+                    </div>
+                  </div>
                 </div>
-                <div className="p-3 bg-gradient-to-br from-teal-500/20 to-cyan-500/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
-                  <FiCheckCircle className="w-6 h-6 text-teal-600" />
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
 
           {/* Chart Section - Glassmorphism Style */}
@@ -603,9 +655,9 @@ const ReceptionistDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="overflow-x-auto min-h-[300px]">
+            <div className="overflow-x-auto min-h-[300px] max-h-[500px] overflow-y-auto">
               <table className="w-full">
-                <thead>
+                <thead className="sticky top-0 bg-white z-10">
                   <tr className="border-b border-gray-100">
                     <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider px-6 py-4">BADGE NUMBER</th>
                     <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider px-6 py-4">VISITOR NAME</th>
@@ -618,7 +670,13 @@ const ReceptionistDashboard: React.FC = () => {
                 </thead>
                 <tbody>
                   {(isLoading && firstLoad) ? (
-                    <tr><td colSpan={7} className="text-center py-8 text-sm text-gray-500">Loading live data...</td></tr>
+                    <>
+                      <SkeletonTableRow />
+                      <SkeletonTableRow />
+                      <SkeletonTableRow />
+                      <SkeletonTableRow />
+                      <SkeletonTableRow />
+                    </>
                   ) : paginatedVisitors.length === 0 ? (
                     <tr><td colSpan={7} className="text-center py-8 text-sm text-gray-500">No visitors found.</td></tr>
                   ) : (
@@ -665,16 +723,28 @@ const ReceptionistDashboard: React.FC = () => {
             </div>
             
             {/* Pagination Footer */}
-            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-              <p className="text-xs text-gray-400">
-                Showing {paginatedVisitors.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} entries
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
+              <p className="text-xs text-gray-600">
+                Showing {paginatedVisitors.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} results
               </p>
-              <div className="flex gap-1">
-                <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="w-6 h-6 flex items-center justify-center text-gray-400 border border-gray-200 rounded text-xs hover:bg-gray-50 disabled:opacity-50"><FiChevronLeft/></button>
-                {Array.from({length: totalPages}, (_, i) => (
-                  <button key={i} onClick={() => setCurrentPage(i + 1)} className={`w-6 h-6 flex items-center justify-center rounded text-xs font-medium ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'text-gray-600 border border-gray-200'}`}>{i + 1}</button>
-                ))}
-                <button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="w-6 h-6 flex items-center justify-center text-gray-400 border border-gray-200 rounded text-xs hover:bg-gray-50 disabled:opacity-50"><FiChevronRight/></button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  Previous
+                </button>
+                <span className="text-sm text-gray-600 py-1 px-3">
+                  Page {currentPage} of {totalPages || 1}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages || totalPages === 0}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  Next
+                </button>
               </div>
             </div>
           </div>
