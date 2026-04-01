@@ -116,6 +116,13 @@ export const employeeService = {
   
   // Delete employee
   delete: (id: string) => del(`/employee/crud/${id}`),
+  
+  // Create multiple employees from file upload
+  createMultiple: (formData: FormData) => {
+    return post('/multiple/employees', formData, {
+      'Content-Type': 'multipart/form-data'
+    });
+  },
 };
 
 // ==================== FEEDBACK APIs ====================
