@@ -131,7 +131,10 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
         // 👉 MAPPING LOGIC: Format the data perfectly for the table
         const formattedRequests: ServiceRequest[] = allVisitors.map((v: any) => {
           // Check if explicitly assigned to me
-          const myServiceStatus = v.services_status?.find((s: any) => String(s.provider_id) === myId);
+          // Note: After aggregation, services_status is a single object, not an array
+          const myServiceStatus = v.services_status && typeof v.services_status === 'object' && v.services_status.provider_id === myId 
+            ? v.services_status 
+            : null;
           const myDeptAssign = v.departments_assigned?.find((d: any) => String(d.provider_id) === myId);
           const isExplicitlyMine = !!myServiceStatus || !!myDeptAssign;
 
@@ -142,10 +145,11 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
 
           if (isExplicitlyMine) {
             // Read my explicit status
-            const rawStatus = (myServiceStatus?.s_type || v.status || '').toLowerCase();
-            if (rawStatus === 'completed') status = 'completed';
-            else if (rawStatus === 'inprogress') status = 'inprogress';
-            else if (rawStatus === 'transfered' || rawStatus === 'transferred') status = 'transfered';
+            const rawStatus = myServiceStatus?.s_type || v.status || '';
+            const normalizedStatus = rawStatus.toLowerCase();
+            if (normalizedStatus === 'completed') status = 'completed';
+            else if (normalizedStatus === 'inprogress') status = 'inprogress';
+            else if (normalizedStatus === 'transfered' || normalizedStatus === 'transferred') status = 'transfered';
             else status = 'not_started';
 
             assignedToDisplay = myName;
@@ -275,11 +279,11 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
     return matchesSearch && matchesStatus;
   }).sort((a, b) => {
     const statusOrder: Record<string, number> = {
-      'not_started': 1,
-      'not-started': 1,
-      'inprogress': 2,
-      'transfered': 3,
-      'transferred': 3,
+      'inprogress': 1,
+      'transfered': 2,
+      'transferred': 2,
+      'not_started': 3,
+      'not-started': 3,
       'completed': 4
     };
     const orderA = statusOrder[a.status] ?? 99;
@@ -299,8 +303,10 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
     const myUnitId = String(currentUser?.department_unit || '');
 
     // Try to find exact assignment first
+    // Note: services_status is now a single object (not an array) after backend aggregation
     let deptInfo = rawVisitor.departments_assigned?.find((d: any) => String(d.provider_id) === myId) || 
-                   rawVisitor.services_status?.find((s: any) => String(s.provider_id) === myId);
+                   (rawVisitor.services_status && typeof rawVisitor.services_status === 'object' && 
+                    String(rawVisitor.services_status.provider_id) === myId ? rawVisitor.services_status : null);
 
     // 👉 FIX: If no exact assignment, find the unit assignment
     if (!deptInfo) {
@@ -310,7 +316,17 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
       });
     }
 
-    const updatedServicesStatus = (rawVisitor.services_status || []).filter((s: any) => String(s.provider_id) !== String(myId));
+    // Handle both array and object cases for services_status
+    // After backend aggregation, services_status is a single object, not an array
+    let updatedServicesStatus: any[] = [];
+    if (Array.isArray(rawVisitor.services_status)) {
+      updatedServicesStatus = rawVisitor.services_status.filter((s: any) => String(s.provider_id) !== String(myId));
+    } else if (rawVisitor.services_status && typeof rawVisitor.services_status === 'object') {
+      // If it's a single object, only include it if it's not for the current provider
+      if (String(rawVisitor.services_status.provider_id) !== String(myId)) {
+        updatedServicesStatus = [rawVisitor.services_status];
+      }
+    }
     updatedServicesStatus.push({
       department_id: deptInfo?.department_id || "",
       department_name: deptInfo?.department_name || "General",

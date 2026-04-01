@@ -71,7 +71,11 @@ const EmployeeDashboardTab: React.FC = () => {
         // 👉 MAPPING LOGIC: Format the data perfectly for the table
         const records: ServiceRecord[] = allVisitors.map((visitor: any) => {
           // Check if explicitly assigned to me
-          const myServiceStatus = visitor.services_status?.find((s: any) => String(s.provider_id) === myUserId);
+          // Note: services_status is now a single object (not an array) after backend aggregation
+          const myServiceStatus = visitor.services_status && typeof visitor.services_status === 'object' && 
+                                  String(visitor.services_status.provider_id) === myUserId 
+            ? visitor.services_status 
+            : null;
           const myDeptAssign = visitor.departments_assigned?.find((d: any) => String(d.provider_id) === myUserId);
           const isExplicitlyMine = !!myServiceStatus || !!myDeptAssign;
 
@@ -82,10 +86,11 @@ const EmployeeDashboardTab: React.FC = () => {
 
           if (isExplicitlyMine) {
             // Read my explicit status
-            const rawStatus = (myServiceStatus?.s_type || visitor.status || '').toLowerCase();
-            if (rawStatus === 'completed') status = 'completed';
-            else if (rawStatus === 'inprogress') status = 'inprogress';
-            else if (rawStatus === 'transfered' || rawStatus === 'transferred') status = 'transfered';
+            const rawStatus = myServiceStatus?.s_type || visitor.status || '';
+            const normalizedStatus = rawStatus.toLowerCase();
+            if (normalizedStatus === 'completed') status = 'completed';
+            else if (normalizedStatus === 'inprogress') status = 'inprogress';
+            else if (normalizedStatus === 'transfered' || normalizedStatus === 'transferred') status = 'transfered';
             else status = 'not_started';
 
             assignedToDisplay = myName;
@@ -155,7 +160,19 @@ const EmployeeDashboardTab: React.FC = () => {
           };
         });
         
-        records.reverse(); 
+        // Sort records: In Progress first, then Transferred, then Not Started
+        records.sort((a, b) => {
+          const statusOrder: Record<string, number> = {
+            'inprogress': 1,
+            'transfered': 2,
+            'not_started': 3,
+            'completed': 4
+          };
+          const orderA = statusOrder[a.status] ?? 99;
+          const orderB = statusOrder[b.status] ?? 99;
+          return orderA - orderB;
+        });
+        
         setServiceRecords(records);
         
         setStats({
