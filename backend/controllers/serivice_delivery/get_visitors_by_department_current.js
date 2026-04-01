@@ -13,23 +13,12 @@ module.exports = async function get_visitors_by_department_current(req, res, nex
 
         // Build the aggregation pipeline
         const pipeline = [
-            // First, match only visitors who are still in house
-            {
-                $match: {
-                    is_still_inhouse: true
-                }
-            },
+            
             // Unwind services_status array to work with individual statuses
             {
                 $unwind: {
                     path: '$services_status',
                     preserveNullAndEmptyArrays: false
-                }
-            },
-            // Match only services that are not completed
-            {
-                $match: {
-                    'services_status.s_type': { $ne: 'Completed' }
                 }
             },
             // If department_id is provided, filter by it
