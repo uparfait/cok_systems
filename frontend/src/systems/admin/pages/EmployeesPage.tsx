@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { employeeService, departmentService, permissionService, roleService } from '../../../core/services/adminService';
+import { dispatchToast } from '../../../core/services/apiClient';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
@@ -136,6 +137,17 @@ const EmployeesPage: React.FC = () => {
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
 
+  // Multiple employee upload state
+  const [showMultipleUploadModal, setShowMultipleUploadModal] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadDepartmentId, setUploadDepartmentId] = useState('');
+  const [uploadDepartmentUnit, setUploadDepartmentUnit] = useState('');
+  const [uploadRoleName, setUploadRoleName] = useState('department_employee');
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [uploadSuccess, setUploadSuccess] = useState('');
+  const [uploadErrors, setUploadErrors] = useState<any[]>([]);
+
   // Form state
   const [formData, setFormData] = useState<Partial<Employee>>({
     full_name: '',
@@ -164,6 +176,17 @@ const EmployeesPage: React.FC = () => {
       setFormSuccess('');
     }
   }, [showModal]);
+
+  // Load roles when multiple upload modal opens
+  useEffect(() => {
+    if (showMultipleUploadModal) {
+      setUploadError('');
+      setUploadSuccess('');
+      if (roles.length === 0) {
+        loadRoles();
+      }
+    }
+  }, [showMultipleUploadModal, roles.length]);
 
   // Check if modal is opened and load permissions/roles if needed
   useEffect(() => {
@@ -472,6 +495,155 @@ const EmployeesPage: React.FC = () => {
     setDeletingName('');
   };
 
+  // Open multiple upload modal
+  const handleOpenMultipleUpload = () => {
+    setUploadFile(null);
+    setUploadDepartmentId('');
+    setUploadDepartmentUnit('');
+    setUploadRoleName('department_employee');
+    setUploadError('');
+    setUploadSuccess('');
+    setUploadErrors([]);
+    setShowMultipleUploadModal(true);
+  };
+
+  // Handle file selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const allowedTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel',
+        'text/csv',
+        'application/csv'
+      ];
+      const allowedExtensions = ['.xlsx', '.xls', '.csv'];
+      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+      
+      if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+        setUploadError('Invalid file type. Please upload an Excel file (.xlsx, .xls) or CSV file (.csv).');
+        setUploadFile(null);
+        return;
+      }
+      
+      if (file.size > 5 * 1024 * 1024) {
+        setUploadError('File size exceeds 5MB limit.');
+        setUploadFile(null);
+        return;
+      }
+      
+      setUploadFile(file);
+      setUploadError('');
+    }
+  };
+
+  // Handle multiple employee upload
+  const handleMultipleUpload = async () => {
+    if (!uploadFile) {
+      setUploadError('Please select a file to upload.');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setUploadError('');
+      setUploadSuccess('');
+      setUploadErrors([]);
+
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      
+      if (uploadDepartmentId) {
+        formData.append('department_id', uploadDepartmentId);
+      }
+      
+      if (uploadDepartmentUnit) {
+        formData.append('department_unit', uploadDepartmentUnit);
+      }
+      
+      formData.append('roles', JSON.stringify({
+        role_name: uploadRoleName
+      }));
+
+      const response = await employeeService.createMultiple(formData);
+
+      if (response.success) {
+        setUploadSuccess(response.message || 'Employees created successfully!');
+        dispatchToast('success', response.message || 'Employees created successfully!');
+        setTimeout(() => {
+          setShowMultipleUploadModal(false);
+          loadEmployees();
+        }, 2000);
+      } else {
+        if (response.errors && Array.isArray(response.errors)) {
+          setUploadErrors(response.errors);
+        }
+        setUploadError(response.message || 'Failed to create employees.');
+        dispatchToast('error', response.message || 'Failed to create employees.');
+      }
+    } catch (err: any) {
+      if (err.message && (err.message.includes('Network') || err.message.includes('Failed to fetch'))) {
+        setUploadError('Cannot connect to server. Please check your internet connection and try again.');
+      } else if (err.error) {
+        setUploadError(err.error);
+      } else if (err.message) {
+        setUploadError(err.message);
+      } else {
+        setUploadError('Failed to upload employees. Please try again.');
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Load department units for upload modal
+  const loadUploadDepartmentUnits = async (departmentId: string) => {
+    if (!departmentId) {
+      setUploadDepartmentUnit('');
+      return;
+    }
+
+    try {
+      const response = await departmentService.getAll();
+      if (response.success) {
+        const deptData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+        const units = deptData.filter((dept: any) => {
+          return (dept.sub_department_mng?.is_sub_department === true || dept.sub_department_mng?.is_sub_department === 'true') && 
+                 String(dept.sub_department_mng?.parent_department_id) === String(departmentId);
+        });
+        setDepartmentUnits(units);
+      }
+    } catch (err: any) {
+      console.error('Failed to load department units:', err);
+    }
+  };
+
+  // Handle department change in upload modal
+  const handleUploadDepartmentChange = (departmentId: string) => {
+    setUploadDepartmentId(departmentId);
+    setUploadDepartmentUnit('');
+    if (departmentId) {
+      loadUploadDepartmentUnits(departmentId);
+    } else {
+      setDepartmentUnits([]);
+    }
+  };
+
+  // Download template for multiple employee upload
+  const handleDownloadTemplate = () => {
+    const headers = ['fullname', 'telephone', 'email', 'gender'];
+    const csvContent = headers.join(',') + '\n';
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'employee_upload_template.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Helper mapping function to get unit name from ID securely
   const getUnitNameDisplay = (employee: Employee) => {
     // Determine the raw unit value
@@ -509,13 +681,22 @@ const EmployeesPage: React.FC = () => {
           </h1>
           <p className="text-gray-500 mt-1">Manage employees in the organization</p>
         </div>
-        <button
-          onClick={handleNewEmployee}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors"
-        >
-          <FiPlus className="w-5 h-5" />
-          Add Employee
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={handleNewEmployee}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors"
+          >
+            <FiPlus className="w-5 h-5" />
+            Add Employee
+          </button>
+          <button
+            onClick={handleOpenMultipleUpload}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold transition-colors"
+          >
+            <FiPlus className="w-5 h-5" />
+            Add Multiple Employee
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -1090,6 +1271,234 @@ const EmployeesPage: React.FC = () => {
                       Saved!
                     </span>
                   ) : editingEmployee ? 'Update' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Multiple Employee Upload Modal */}
+      {showMultipleUploadModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg sm:max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl transform animate-scaleIn m-3 sm:m-6">
+            
+            <div className="p-5 border-b bg-gray-50 sticky top-0 flex items-center justify-between z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                  <FiPlus className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    Add Multiple Employees
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    Upload an Excel or CSV file to create multiple employees at once
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowMultipleUploadModal(false)}
+                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                title="Close"
+              >
+                <FiX className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => { e.preventDefault(); handleMultipleUpload(); }} className="p-5 space-y-5">
+              {/* Error Message */}
+              {uploadError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-2">
+                  <FiAlertCircle className="w-5 h-5 flex-shrink-0" />
+                  <span>{uploadError}</span>
+                </div>
+              )}
+
+              {/* Success Message */}
+              {uploadSuccess && (
+                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl flex items-center gap-2">
+                  <FiCheck className="w-5 h-5 flex-shrink-0" />
+                  <span>{uploadSuccess}</span>
+                </div>
+              )}
+
+              {/* Validation Errors */}
+              {uploadErrors.length > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-xl">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FiAlertCircle className="w-5 h-5 flex-shrink-0" />
+                    <span className="font-semibold">Validation Errors:</span>
+                  </div>
+                  <ul className="list-disc list-inside space-y-1 text-sm">
+                    {uploadErrors.map((err, index) => (
+                      <li key={index}>
+                        {err.row ? `Row ${err.row}: ` : ''}
+                        {err.message || (err.errors && err.errors.join(', '))}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* File Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Upload File <span className="text-red-500">*</span>
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-green-400 transition-colors">
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  <label htmlFor="file-upload" className="cursor-pointer">
+                    <div className="flex flex-col items-center gap-2">
+                      <FiPlus className="w-8 h-8 text-gray-400" />
+                      <span className="text-sm text-gray-600">
+                        {uploadFile ? uploadFile.name : 'Click to select file or drag and drop'}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Excel (.xlsx, .xls) or CSV (.csv) - Max 5MB
+                      </span>
+                    </div>
+                  </label>
+                </div>
+                {uploadFile && (
+                  <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
+                    <FiCheck className="w-3 h-3" />
+                    File selected: {uploadFile.name}
+                  </p>
+                )}
+              </div>
+
+              {/* Department Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Department (Optional)
+                </label>
+                <select
+                  value={uploadDepartmentId}
+                  onChange={(e) => handleUploadDepartmentChange(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
+                >
+                  <option value="">Select department</option>
+                  {departments.map((dept) => (
+                    <option key={dept._id || dept.department_id} value={dept._id || dept.department_id}>
+                      {dept.department_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Department Unit Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Department Unit (Optional)
+                </label>
+                <select
+                  value={uploadDepartmentUnit}
+                  onChange={(e) => setUploadDepartmentUnit(e.target.value)}
+                  disabled={!uploadDepartmentId || loadingUnits}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white disabled:bg-gray-200 disabled:text-gray-500"
+                >
+                  {loadingUnits ? (
+                    <option value="">Loading units...</option>
+                  ) : departmentUnits.length === 0 ? (
+                    <option value="">No units available</option>
+                  ) : (
+                    <>
+                      <option value="">Select department unit</option>
+                      {departmentUnits.map((unit) => (
+                        <option key={unit._id || unit.department_id} value={unit._id || unit.department_id}>
+                          {unit.department_name}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+                {uploadDepartmentId && departmentUnits.length === 0 && !loadingUnits && (
+                  <p className="text-xs text-gray-500 mt-1">No department units available for this department</p>
+                )}
+              </div>
+
+              {/* Role Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <span className="flex items-center gap-2">
+                    <FiShield className="w-4 h-4" />
+                    User Role
+                  </span>
+                </label>
+                <select
+                  value={uploadRoleName}
+                  onChange={(e) => setUploadRoleName(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
+                >
+                  {roles.length > 0 ? (
+                    roles.map((role) => (
+                      <option key={role._id || role.role_name} value={role.role_name}>
+                        {role.role_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">No roles available</option>
+                  )}
+                </select>
+              </div>
+
+              {/* File Format Info */}
+              <div className="bg-blue-50 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-blue-900">File Format Requirements:</h4>
+                  <button
+                    type="button"
+                    onClick={handleDownloadTemplate}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg font-medium transition-colors"
+                  >
+                    <FiPlus className="w-3 h-3" />
+                    Download Template
+                  </button>
+                </div>
+                <ul className="text-xs text-blue-800 space-y-1">
+                  <li>• <strong>Required columns:</strong> fullname, telephone, email, gender</li>
+                  <li>• <strong>Gender options:</strong> Male, Female, Other, Not specified</li>
+                  <li>• <strong>Email format:</strong> example@domain.com</li>
+                  <li>• <strong>Telephone:</strong> At least 10 digits</li>
+                </ul>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowMultipleUploadModal(false)}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={uploading || !uploadFile || !!uploadSuccess}
+                  className={`flex-1 px-4 py-2.5 rounded-xl font-medium transition-all ${
+                    uploadSuccess 
+                      ? 'bg-green-600 text-white' 
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  } ${uploading || !uploadFile ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {uploading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <FiRefreshCw className="w-4 h-4 animate-spin" />
+                      Uploading...
+                    </span>
+                  ) : uploadSuccess ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <FiCheck className="w-4 h-4" />
+                      Uploaded!
+                    </span>
+                  ) : 'Upload Employees'}
                 </button>
               </div>
             </form>

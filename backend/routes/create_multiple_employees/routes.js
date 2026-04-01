@@ -1,6 +1,6 @@
 const Router = require('express').Router();
 const multer = require('multer');
-const create_users_bulk = require('../../controllers/create_multiple_employees.js');
+const create_users_bulk = require('../../controllers/employee_crud/create_multiple_employees.js');
 
 // Configure Multer for file upload
 const upload = multer({ 
