@@ -17,6 +17,7 @@ const feedback = require("./feedback/routes.js")
 const authenticate = require('../middlewares/authenticate.js')
 const roles_managment = require('./roles_managment/routes.js')
 const statistics = require('./statistics/routes.js')
+const create_multiple_employees = require('./create_multiple_employees/routes.js')
 
 
 Router.use('/servicedelivery', 
@@ -52,6 +53,7 @@ Router.use('/amos', amos_api_docs)
 Router.use('/docs', docs)
 Router.use('/feedback', feedback)
 Router.use('/statistics', authenticate, statistics)
+Router.use('/multiple',authenticate,  create_multiple_employees)
 
 
 module.exports = Router
