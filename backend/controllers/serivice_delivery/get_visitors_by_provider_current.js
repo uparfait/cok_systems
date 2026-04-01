@@ -1,52 +1,81 @@
-const ServiceDelivery = require('../../models/service_delivery.js')
+const ServiceDelivery = require('../../models/service_delivery.js');
 
-module.exports = async function search_visitors(req, res, next) {
+/**
+ * Get total visitors count and details by provider who are currently in house 
+ * and have status not completed
+ * Filter: is_still_inhouse = true AND services_status.s_type != 'Completed'
+ * Return: count and visitors array by provider_id
+ * Param: provider_id from URL params (optional)
+ */
+module.exports = async function get_visitors_by_provider_current(req, res, next) {
     try {
-        let { query = '', in_house = true, limit = 10, page = 1 } = req.query || {}
+        let { in_house = true, limit = 10, page = 1 } = req.query || {}
 
-        const limit_val = Math.min(parseInt(500), 500)
+        const limit_val = Math.min(parseInt(limit), 50)
         const skip_val = (parseInt(page) - 1) * limit_val
 
-        const safe_query = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        const regex = new RegExp(safe_query, 'i')
+        let filter = {}
+        if (in_house === 'true' || in_house === true) filter.is_still_inhouse = true
+        if (in_house === 'false' || in_house === false) filter.is_still_inhouse = false
+        // makesure that departments_assigned not an empty array
+        filter.departments_assigned = { $exists: true, $not: { $size: 0 } }
 
-        let search_criteria = {
-            $or: [
-                { full_name: regex },
-                { telephone: regex },
-                { 'identification.number': regex },
-                { plate_number: regex },
-                {badge_number: regex}
-            ]
-        }
-
-        // If specifically requested true/false, add it to criteria
-        if (in_house === 'true' || in_house === true) search_criteria.is_still_inhouse = true
-        if (in_house === 'false' || in_house === false) search_criteria.is_still_inhouse = false
-
-        const visitors = await ServiceDelivery.find()
+        const visitors = await ServiceDelivery.find(filter)
             .limit(limit_val)
             .skip(skip_val)
             .sort({ entry_date: -1 })
 
-        const total_count = await ServiceDelivery.countDocuments(search_criteria)
+        const total_count = await ServiceDelivery.countDocuments(filter)
+
+        // Calculate current duration for in-house visitors
+        const visitorsWithDuration = visitors.map(visitor => {
+            const visitorObj = visitor.toObject();
+            if (visitor.is_still_inhouse && visitor.entry_date) {
+                const entryTime = new Date(visitor.entry_date);
+                const currentTime = new Date();
+                const durationMs = currentTime - entryTime;
+                const hours = Math.floor(durationMs / (1000 * 60 * 60));
+                const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+                
+                // Calculate duration in different formats
+                if (hours > 0) {
+                    visitorObj.current_duration = `${hours}h ${minutes}m`;
+                } else {
+                    visitorObj.current_duration = `${minutes} mins`;
+                }
+                visitorObj.current_duration_hours = hours + (minutes / 60);
+                
+                // Check if approaching 8 hour limit
+                const hoursInside = hours + (minutes / 60);
+                visitorObj.is_near_limit = hoursInside >= 7; // 7 hours = near 8 hour limit
+                visitorObj.is_over_limit = hoursInside >= 8;
+            } else if (visitor.vehicle_storage?.has_vehicle && visitor.vehicle_storage?.vehicle_details?.duration) {
+                // Use stored duration for checked out visitors
+                visitorObj.current_duration = visitor.vehicle_storage.vehicle_details.duration;
+                visitorObj.current_duration_hours = parseFloat(visitor.vehicle_storage.vehicle_details.duration) / 60 || 0;
+            } else {
+                visitorObj.current_duration = 'N/A';
+                visitorObj.current_duration_hours = 0;
+            }
+            return visitorObj;
+        });
 
         return res.status(200).json({
             success: true,
             type: "success",
-            message: "Visitor search results",
+            message: "Visitors results",
             total: total_count,
             page: parseInt(page),
-            data: visitors
+            data: visitorsWithDuration
         })
 
     } catch (error) {
-        console.error("Error in search_visitors:", error)
+        console.error("Error in get_visitors_by_provider_current:", error);
         return res.status(500).json({
             success: false,
             type: "error",
-            message: "Something went wrong while searching visitors",
+            message: "Something went wrong while retrieving current visitors by provider",
             error: error.message
-        })
+        });
     }
-}
+};
