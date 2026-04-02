@@ -1,7 +1,7 @@
 // AdminCheckInCheckOut - Admin Check-In/Check-Out Management Page
 // Features: Manual check-in/out, visitor search, status management, pagination, PDF export
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { serviceDeliveryService, statisticsService } from '../../../core/services/adminService';
@@ -16,7 +16,7 @@ import { HiOutlineClipboardList } from 'react-icons/hi';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-// Types
+// ==================== TYPES ====================
 interface Visitor {
   _id: string;
   full_name?: string;
@@ -79,12 +79,16 @@ interface PaginationInfo {
   totalPages: number;
 }
 
+// ==================== CONSTANTS ====================
+const DEFAULT_PAGE_SIZE = 50;
+
+// ==================== MAIN COMPONENT ====================
 const AdminCheckInCheckOut: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
 
-  // State
+  // ==================== STATE ====================
   const [loading, setLoading] = useState(true);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [filteredVisitors, setFilteredVisitors] = useState<Visitor[]>([]);
@@ -96,37 +100,73 @@ const AdminCheckInCheckOut: React.FC = () => {
   // Pagination state
   const [pagination, setPagination] = useState<PaginationInfo>({
     page: 1,
-    limit: 20,
+    limit: DEFAULT_PAGE_SIZE,
     total: 0,
     totalPages: 0
   });
 
-  // Fetch visitors data with pagination
+  // ==================== DERIVED STATE ====================
+  // Calculate statistics from visitors data (used for stats cards and tabs)
+  const insideCount = useMemo(() => 
+    visitors.filter(v => (v.is_still_inhouse || v.status === 'Inside') && !v.marked_as_out).length,
+    [visitors]
+  );
+  
+  const pendingExitCount = useMemo(() => 
+    visitors.filter(v => v.is_still_inhouse && v.marked_as_out).length,
+    [visitors]
+  );
+  
+  const leftCount = useMemo(() => 
+    visitors.filter(v => !v.is_still_inhouse && v.status !== 'Inside' && !v.marked_as_out).length,
+    [visitors]
+  );
+
+  // Real totals for cards (fetched separately)
+  const [realInsideCount, setRealInsideCount] = useState(0);
+  const [realPendingExitCount, setRealPendingExitCount] = useState(0);
+  const [realLeftCount, setRealLeftCount] = useState(0);
+
+  // ==================== DATA FETCHING ====================
+  // Fetch real counts for cards (inside, pending, left)
+  const fetchRealCounts = useCallback(async () => {
+    try {
+      // Fetch inside count
+      const insideResponse = await serviceDeliveryService.getAll(1, 1, true);
+      const insideTotal = insideResponse?.total || 0;
+      setRealInsideCount(insideTotal);
+
+      // Fetch left count
+      const leftResponse = await serviceDeliveryService.getAll(1, 1, false);
+      const leftTotal = leftResponse?.total || 0;
+      setRealLeftCount(leftTotal);
+    } catch (error) {
+      console.error('Error fetching real counts:', error);
+    }
+  }, []);
+
   const fetchVisitors = useCallback(async (page: number = 1) => {
     setLoading(true);
     try {
-      // Fetch both inside and left visitors with pagination
-      const [insideResponse, leftResponse] = await Promise.all([
-        serviceDeliveryService.getAll(page, pagination.limit, true),  // inhouse = true
-        serviceDeliveryService.getAll(page, pagination.limit, false)  // inhouse = false
-      ]);
+      // Fetch all visitors without in_house filter to get complete list
+      const response = await serviceDeliveryService.getAll(page, DEFAULT_PAGE_SIZE);
+      const data = response?.data || [];
+      const total = response?.total || 0;
       
-      // API returns response.data directly which contains { success, data, total, etc }
-      const insideData = insideResponse?.data?.data || insideResponse?.data || [];
-      const leftData = leftResponse?.data?.data || leftResponse?.data || [];
+      const visitorsData = Array.isArray(data) ? data : [];
+      setVisitors(visitorsData);
       
-      // Get pagination info from inside response
-      const paginationInfo = insideResponse?.data?.pagination || insideResponse?.pagination || {
-        page,
-        limit: pagination.limit,
-        total: insideData.length + leftData.length,
-        totalPages: Math.ceil((insideData.length + leftData.length) / pagination.limit)
-      };
+      // Calculate pending exit count from fetched data
+      const pendingCount = visitorsData.filter(v => v.is_still_inhouse && v.marked_as_out).length;
+      setRealPendingExitCount(pendingCount);
       
-      // Combine both sets
-      const allVisitors = [...insideData, ...leftData];
-      setVisitors(Array.isArray(allVisitors) ? allVisitors : []);
-      setPagination(prev => ({ ...prev, ...paginationInfo }));
+      setPagination(prev => ({ 
+        ...prev, 
+        total: total,
+        totalPages: Math.ceil(total / DEFAULT_PAGE_SIZE),
+        page: page,
+        limit: DEFAULT_PAGE_SIZE
+      }));
     } catch (error) {
       console.error('Error fetching visitors:', error);
       showError('Failed to load visitors');
@@ -134,22 +174,9 @@ const AdminCheckInCheckOut: React.FC = () => {
       setLoading(false);
       setFirstLoad(false);
     }
-  }, [pagination.limit, showError]);
+  }, [showError]);
 
-  // Initial load
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      navigate('/login');
-    }
-  }, [authLoading, isAuthenticated, navigate]);
-
-  useEffect(() => {
-    if (isAuthenticated && !authLoading) {
-      fetchVisitors(pagination.page);
-    }
-  }, [isAuthenticated, authLoading, pagination.page, fetchVisitors]);
-
-  // Handle search
+  // ==================== SEARCH HANDLERS ====================
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) {
       fetchVisitors(1);
@@ -158,10 +185,22 @@ const AdminCheckInCheckOut: React.FC = () => {
     
     setLoading(true);
     try {
-      const response = await serviceDeliveryService.searchVisitors(searchQuery, 1, 100);
-      const data = response?.data?.data || response?.data || [];
-      setVisitors(Array.isArray(data) ? data : []);
-      setPagination(prev => ({ ...prev, total: data.length, totalPages: 1 }));
+      // Search visitors without in_house filter (pass 'all' to search all)
+      const response = await serviceDeliveryService.searchVisitors(searchQuery, 1, 100, 'all' as any);
+      const data = response?.data || [];
+      const visitorsData = Array.isArray(data) ? data : [];
+      setVisitors(visitorsData);
+      
+      // Calculate pending exit count from search results
+      const pendingCount = visitorsData.filter(v => v.is_still_inhouse && v.marked_as_out).length;
+      setRealPendingExitCount(pendingCount);
+      
+      setPagination(prev => ({ 
+        ...prev, 
+        total: visitorsData.length, 
+        totalPages: 1,
+        page: 1
+      }));
     } catch (error) {
       console.error('Error searching visitors:', error);
       showError('Failed to search visitors');
@@ -170,9 +209,10 @@ const AdminCheckInCheckOut: React.FC = () => {
     }
   }, [searchQuery, fetchVisitors, showError]);
 
-  // Filter visitors based on search and status
+  // ==================== FILTER VISITORS ====================
+  // Filter visitors first, then paginate
   useEffect(() => {
-    let filtered = visitors;
+    let filtered = [...visitors];
 
     // Filter by tab (inside/left/pending)
     if (activeTab === 'inside') {
@@ -196,10 +236,21 @@ const AdminCheckInCheckOut: React.FC = () => {
       );
     }
 
-    setFilteredVisitors(filtered);
-  }, [visitors, searchQuery, activeTab]);
+    // Update pagination total based on filtered results
+    setPagination(prev => ({
+      ...prev,
+      total: filtered.length,
+      totalPages: Math.ceil(filtered.length / prev.limit)
+    }));
 
-  // Handle manual check-in
+    // Apply pagination to filtered results
+    const startIndex = (pagination.page - 1) * pagination.limit;
+    const endIndex = startIndex + pagination.limit;
+    const paginatedFiltered = filtered.slice(startIndex, endIndex);
+    setFilteredVisitors(paginatedFiltered);
+  }, [visitors, searchQuery, activeTab, pagination.page, pagination.limit]);
+
+  // ==================== CHECK-IN/OUT HANDLERS ====================
   const handleCheckIn = async (visitor: Visitor) => {
     try {
       const response = await serviceDeliveryService.checkIn({
@@ -212,6 +263,7 @@ const AdminCheckInCheckOut: React.FC = () => {
       if (response?.success) {
         showSuccess('Visitor checked in successfully');
         fetchVisitors(pagination.page);
+        fetchRealCounts();
       } else {
         showError(response?.message || 'Failed to check in visitor');
       }
@@ -221,7 +273,6 @@ const AdminCheckInCheckOut: React.FC = () => {
     }
   };
 
-  // Handle manual check-out
   const handleCheckOut = async (visitor: Visitor) => {
     try {
       const response = await serviceDeliveryService.checkOut(visitor._id);
@@ -229,6 +280,7 @@ const AdminCheckInCheckOut: React.FC = () => {
       if (response?.success) {
         showSuccess('Visitor checked out successfully');
         fetchVisitors(pagination.page);
+        fetchRealCounts();
       } else {
         showError(response?.message || 'Failed to check out visitor');
       }
@@ -238,20 +290,20 @@ const AdminCheckInCheckOut: React.FC = () => {
     }
   };
 
-  // Handle pagination
+  // ==================== PAGINATION ====================
   const handlePageChange = (newPage: number) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
-    fetchVisitors(newPage);
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      setPagination(prev => ({ ...prev, page: newPage }));
+    }
   };
 
-  // Format duration - uses current_duration from backend
+  // ==================== UTILITY FUNCTIONS ====================
   const formatDuration = (visitor: Visitor) => {
     if (visitor.current_duration) return visitor.current_duration;
     if (visitor.durations?.entry_and_leave_duration) return visitor.durations.entry_and_leave_duration;
     return '-';
   };
 
-  // Safe date formatter
   const formatDate = (dateValue: string | Date | undefined): string => {
     if (!dateValue) return '-';
     try {
@@ -261,7 +313,6 @@ const AdminCheckInCheckOut: React.FC = () => {
     }
   };
 
-  // Get department name
   const getDepartmentName = (visitor: Visitor) => {
     if (visitor.department || visitor.departmentName) {
       return visitor.department || visitor.departmentName;
@@ -272,14 +323,14 @@ const AdminCheckInCheckOut: React.FC = () => {
     return 'Not Assigned';
   };
 
-  // Download PDF Report with COK Logo and multiple tables
+  // ==================== PDF EXPORT ====================
   const downloadPDF = useCallback(() => {
-    const doc = new jsPDF('l', 'mm', 'a4'); // Landscape mode
+    const doc = new jsPDF('l', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     let yPosition = 15;
 
-    // Center Logo - Bigger size
+    // Center Logo
     const logoWidth = 40;
     const logoHeight = 40;
     const logoX = (pageWidth - logoWidth) / 2;
@@ -313,10 +364,10 @@ const AdminCheckInCheckOut: React.FC = () => {
     doc.text(`${now.toLocaleTimeString()}`, pageWidth / 2, yPosition, { align: 'center' });
     yPosition += 12;
 
-    // Underlined Header
+    // Header
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(34, 197, 94); // Green color
+    doc.setTextColor(34, 197, 94);
     const headerText = 'VISITOR CHECK-IN / CHECK-OUT REPORT';
     const headerWidth = doc.getTextWidth(headerText);
     doc.text(headerText, pageWidth / 2, yPosition, { align: 'center' });
@@ -333,13 +384,11 @@ const AdminCheckInCheckOut: React.FC = () => {
     const pendingVisitors = visitors.filter(v => v.is_still_inhouse && v.marked_as_out);
     const checkedOutVisitors = visitors.filter(v => !v.is_still_inhouse && v.status !== 'Inside' && !v.marked_as_out);
 
-    // Helper function to truncate text
     const truncateText = (text: string | undefined, maxLength: number) => {
       if (!text) return 'N/A';
       return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
     };
 
-    // Helper function to format date for PDF
     const formatDateForPDF = (dateStr: string | undefined) => {
       if (!dateStr) return 'N/A';
       try {
@@ -366,17 +415,13 @@ const AdminCheckInCheckOut: React.FC = () => {
         body: insideTableData,
         theme: 'grid',
         headStyles: {
-          fillColor: [34, 197, 94], // Green
+          fillColor: [34, 197, 94],
           textColor: [255, 255, 255],
           fontSize: 9,
           fontStyle: 'bold'
         },
-        bodyStyles: {
-          fontSize: 8
-        },
-        alternateRowStyles: {
-          fillColor: [240, 255, 240]
-        },
+        bodyStyles: { fontSize: 8 },
+        alternateRowStyles: { fillColor: [240, 255, 240] },
         margin: { left: 10, right: 10 },
         tableWidth: 'auto'
       });
@@ -386,7 +431,6 @@ const AdminCheckInCheckOut: React.FC = () => {
 
     // Table 2: Pending Exit
     if (pendingVisitors.length > 0) {
-      // Check if we need a new page
       if (yPosition > pageHeight - 60) {
         doc.addPage();
         yPosition = 15;
@@ -407,17 +451,13 @@ const AdminCheckInCheckOut: React.FC = () => {
         body: pendingTableData,
         theme: 'grid',
         headStyles: {
-          fillColor: [249, 115, 22], // Orange
+          fillColor: [249, 115, 22],
           textColor: [255, 255, 255],
           fontSize: 9,
           fontStyle: 'bold'
         },
-        bodyStyles: {
-          fontSize: 8
-        },
-        alternateRowStyles: {
-          fillColor: [255, 251, 235]
-        },
+        bodyStyles: { fontSize: 8 },
+        alternateRowStyles: { fillColor: [255, 251, 235] },
         margin: { left: 10, right: 10 },
         tableWidth: 'auto'
       });
@@ -427,7 +467,6 @@ const AdminCheckInCheckOut: React.FC = () => {
 
     // Table 3: Checked Out
     if (checkedOutVisitors.length > 0) {
-      // Check if we need a new page
       if (yPosition > pageHeight - 60) {
         doc.addPage();
         yPosition = 15;
@@ -449,28 +488,37 @@ const AdminCheckInCheckOut: React.FC = () => {
         body: checkedOutTableData,
         theme: 'grid',
         headStyles: {
-          fillColor: [107, 114, 128], // Gray
+          fillColor: [107, 114, 128],
           textColor: [255, 255, 255],
           fontSize: 9,
           fontStyle: 'bold'
         },
-        bodyStyles: {
-          fontSize: 8
-        },
-        alternateRowStyles: {
-          fillColor: [249, 250, 251]
-        },
+        bodyStyles: { fontSize: 8 },
+        alternateRowStyles: { fillColor: [249, 250, 251] },
         margin: { left: 10, right: 10 },
         tableWidth: 'auto'
       });
     }
 
-    // Save
     doc.save(`visitor-report-${new Date().toISOString().split('T')[0]}.pdf`);
     showSuccess('Report downloaded successfully');
-  }, [visitors, showSuccess]);
+  }, [visitors, showSuccess, formatDuration, getDepartmentName]);
 
-  // Loading state
+  // ==================== EFFECTS ====================
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate('/login');
+    }
+  }, [authLoading, isAuthenticated, navigate]);
+
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      fetchVisitors(pagination.page);
+      fetchRealCounts();
+    }
+  }, [isAuthenticated, authLoading, pagination.page, fetchVisitors, fetchRealCounts]);
+
+  // ==================== RENDER ====================
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[600px]">
@@ -479,11 +527,6 @@ const AdminCheckInCheckOut: React.FC = () => {
     );
   }
 
-  // Calculate stats
-  const insideCount = visitors.filter(v => (v.is_still_inhouse || v.status === 'Inside') && !v.marked_as_out).length;
-  const pendingExitCount = visitors.filter(v => v.is_still_inhouse && v.marked_as_out).length;
-  const leftCount = visitors.filter(v => !v.is_still_inhouse && v.status !== 'Inside' && !v.marked_as_out).length;
-
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -491,10 +534,9 @@ const AdminCheckInCheckOut: React.FC = () => {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h1 className="text-xl font-bold text-gray-900 flex items-center gap-3">
-              <HiOutlineClipboardList className="w-6 h-6 text-green-400" />
+              <HiOutlineClipboardList className="w-6 h-6 text-green-600" />
               Manage visitor check-ins and check-outs
             </h1>
-          
           </div>
           <div className="flex gap-2">
             <button 
@@ -521,9 +563,9 @@ const AdminCheckInCheckOut: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-500">Currently Inside</p>
                 {(loading && firstLoad) ? (
-                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1" />
                 ) : (
-                  <p className="text-2xl font-bold text-green-600 mt-1">{insideCount}</p>
+                  <p className="text-2xl font-bold text-green-600 mt-1">{realInsideCount}</p>
                 )}
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
@@ -537,9 +579,9 @@ const AdminCheckInCheckOut: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-500">Pending Exit</p>
                 {(loading && firstLoad) ? (
-                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1" />
                 ) : (
-                  <p className="text-2xl font-bold text-orange-600 mt-1">{pendingExitCount}</p>
+                  <p className="text-2xl font-bold text-orange-600 mt-1">{realPendingExitCount}</p>
                 )}
               </div>
               <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
@@ -553,9 +595,9 @@ const AdminCheckInCheckOut: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-500">Checked Out</p>
                 {(loading && firstLoad) ? (
-                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1" />
                 ) : (
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{leftCount}</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{realLeftCount}</p>
                 )}
               </div>
               <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
@@ -569,13 +611,13 @@ const AdminCheckInCheckOut: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-500">Total Records</p>
                 {(loading && firstLoad) ? (
-                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1" />
                 ) : (
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{visitors.length}</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{pagination.total}</p>
                 )}
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <FiClock className="w-6 h-6 text-blue-600" />
+                <HiOutlineClipboardList className="w-6 h-6 text-blue-600" />
               </div>
             </div>
           </div>
@@ -586,7 +628,10 @@ const AdminCheckInCheckOut: React.FC = () => {
           <div className="border-b border-gray-100">
             <nav className="flex -mb-px">
               <button
-                onClick={() => setActiveTab('inside')}
+                onClick={() => {
+                  setActiveTab('inside');
+                  setPagination(prev => ({ ...prev, page: 1 }));
+                }}
                 className={`py-4 px-6 text-sm font-medium border-b-2 ${
                   activeTab === 'inside'
                     ? 'border-green-500 text-green-600'
@@ -594,10 +639,13 @@ const AdminCheckInCheckOut: React.FC = () => {
                 }`}
               >
                 <FiUserPlus className="inline-block w-4 h-4 mr-2" />
-                Currently Inside ({insideCount})
+                Currently Inside ({realInsideCount})
               </button>
               <button
-                onClick={() => setActiveTab('pending')}
+                onClick={() => {
+                  setActiveTab('pending');
+                  setPagination(prev => ({ ...prev, page: 1 }));
+                }}
                 className={`py-4 px-6 text-sm font-medium border-b-2 ${
                   activeTab === 'pending'
                     ? 'border-orange-500 text-orange-600'
@@ -608,7 +656,10 @@ const AdminCheckInCheckOut: React.FC = () => {
                 Pending Exit ({pendingExitCount})
               </button>
               <button
-                onClick={() => setActiveTab('left')}
+                onClick={() => {
+                  setActiveTab('left');
+                  setPagination(prev => ({ ...prev, page: 1 }));
+                }}
                 className={`py-4 px-6 text-sm font-medium border-b-2 ${
                   activeTab === 'left'
                     ? 'border-gray-500 text-gray-600'
@@ -616,7 +667,7 @@ const AdminCheckInCheckOut: React.FC = () => {
                 }`}
               >
                 <FiUserMinus className="inline-block w-4 h-4 mr-2" />
-                Checked Out ({leftCount})
+                Checked Out ({realLeftCount})
               </button>
             </nav>
           </div>
@@ -660,10 +711,10 @@ const AdminCheckInCheckOut: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {(loading &&firstLoad) ? (
+                {(loading && firstLoad) ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-8 text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-green-500 border-t-transparent mx-auto"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-green-500 border-t-transparent mx-auto" />
                     </td>
                   </tr>
                 ) : filteredVisitors.length > 0 ? (

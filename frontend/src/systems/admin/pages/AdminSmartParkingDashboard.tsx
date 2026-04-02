@@ -74,6 +74,12 @@ const AdminSmartParkingDashboard: React.FC = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [realtimeUpdate, setRealtimeUpdate] = useState<string | null>(null);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const PAGE_SIZE = 20;
 
   // Total parking capacity - constant value
   const TOTAL_CAPACITY = 200;
@@ -123,15 +129,30 @@ const AdminSmartParkingDashboard: React.FC = () => {
     }
   }, []);
 
-  // Fetch all records for modal
-  const fetchAllRecords = useCallback(async () => {
+  // Fetch records for modal with pagination
+  const fetchAllRecords = useCallback(async (page: number = 1) => {
     setModalLoading(true);
     try {
-      const response = await smartParkingService.getAll();
-      let records = response?.data || response || [];
+      // Build query parameters for server-side filtering
+      let statusParam = statusFilter !== 'all' ? statusFilter : 'all';
       
-      // Apply filters
-      if (Array.isArray(records)) {
+      const response = await smartParkingService.getAllPaginated(page, PAGE_SIZE);
+      
+      // Handle response structure
+      let records: ParkingRecord[] = [];
+      let total = 0;
+      
+      if (response?.data && Array.isArray(response.data)) {
+        records = response.data;
+        total = response.total || 0;
+      } else if (Array.isArray(response)) {
+        records = response;
+        total = response.length;
+      }
+      
+      // Apply client-side filters for search and date range
+      // (Backend supports status filter but not search/date filters)
+      if (records.length > 0) {
         // Filter by search
         if (searchQuery) {
           records = records.filter((r: ParkingRecord) => 
@@ -141,7 +162,7 @@ const AdminSmartParkingDashboard: React.FC = () => {
           );
         }
         
-        // Filter by status
+        // Filter by status (if not already filtered by backend)
         if (statusFilter !== 'all') {
           records = records.filter((r: ParkingRecord) => r.status === statusFilter);
         }
@@ -159,10 +180,15 @@ const AdminSmartParkingDashboard: React.FC = () => {
         }
       }
       
-      setAllRecords(Array.isArray(records) ? records : []);
+      setAllRecords(records);
+      setTotalRecords(total);
+      setTotalPages(Math.ceil(total / PAGE_SIZE));
+      setCurrentPage(page);
     } catch (error) {
-      console.error('Error fetching all records:', error);
+      console.error('Error fetching records:', error);
       setAllRecords([]);
+      setTotalRecords(0);
+      setTotalPages(1);
     } finally {
       setModalLoading(false);
     }
@@ -188,25 +214,37 @@ const AdminSmartParkingDashboard: React.FC = () => {
     const handleCarCheckedIn = (data: any) => {
       // Show notification and auto-refetch dashboard data when a car is checked in
       setRealtimeUpdate(data?.message || 'New vehicle checked in');
-      fetchDashboardData();
+      // Only refetch dashboard if modal is not open to prevent looping
+      if (!showRecordsModal) {
+        fetchDashboardData();
+      }
     };
 
     const handleCarCheckedOut = (data: any) => {
       // Show notification and auto-refetch dashboard data when a car is checked out
       setRealtimeUpdate(data?.message || 'Vehicle checked out');
-      fetchDashboardData();
+      // Only refetch dashboard if modal is not open to prevent looping
+      if (!showRecordsModal) {
+        fetchDashboardData();
+      }
     };
 
     const handleVisitorCheckedIn = (data: any) => {
       // Show notification and auto-refetch dashboard data when a visitor is checked in
       setRealtimeUpdate(data?.message || 'New visitor checked in');
-      fetchDashboardData();
+      // Only refetch dashboard if modal is not open to prevent looping
+      if (!showRecordsModal) {
+        fetchDashboardData();
+      }
     };
 
     const handleVisitorCheckedOut = (data: any) => {
       // Show notification and auto-refetch dashboard data when a visitor is checked out
       setRealtimeUpdate(data?.message || 'Visitor checked out');
-      fetchDashboardData();
+      // Only refetch dashboard if modal is not open to prevent looping
+      if (!showRecordsModal) {
+        fetchDashboardData();
+      }
     };
 
     // Subscribe to smart parking events
@@ -222,7 +260,7 @@ const AdminSmartParkingDashboard: React.FC = () => {
       socket.off('visitor_checkedin', handleVisitorCheckedIn);
       socket.off('visitor_checkedout', handleVisitorCheckedOut);
     };
-  }, [socket, isConnected, fetchDashboardData]);
+  }, [socket, isConnected, fetchDashboardData, showRecordsModal]);
 
   // Clear real-time update notification after 3 seconds
   useEffect(() => {
@@ -237,7 +275,8 @@ const AdminSmartParkingDashboard: React.FC = () => {
   // Open records modal
   const handleOpenRecordsModal = useCallback(() => {
     setShowRecordsModal(true);
-    fetchAllRecords();
+    setCurrentPage(1);
+    fetchAllRecords(1);
   }, [fetchAllRecords]);
 
   // Format date for PDF
@@ -687,7 +726,10 @@ const AdminSmartParkingDashboard: React.FC = () => {
 
                 {/* Apply Button */}
                 <button 
-                  onClick={fetchAllRecords}
+                  onClick={() => {
+                    setCurrentPage(1);
+                    fetchAllRecords(1);
+                  }}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                 >
                   <FiFilter className="w-4 h-4" />
@@ -771,12 +813,64 @@ const AdminSmartParkingDashboard: React.FC = () => {
               )}
             </div>
             
-            {/* Modal Footer with Record Count */}
+            {/* Modal Footer with Pagination */}
             <div className="px-6 py-3 border-t border-gray-100 bg-gray-50">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
                 <p className="text-sm text-gray-600">
-                  Showing <span className="font-semibold">{allRecords.length}</span> records
+                  Showing <span className="font-semibold">{allRecords.length}</span> of <span className="font-semibold">{totalRecords}</span> records
                 </p>
+                
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => fetchAllRecords(currentPage - 1)}
+                      disabled={currentPage === 1 || modalLoading}
+                      className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Previous
+                    </button>
+                    
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => fetchAllRecords(pageNum)}
+                            disabled={modalLoading}
+                            className={`w-8 h-8 text-sm font-medium rounded-lg transition-colors ${
+                              currentPage === pageNum
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    
+                    <button
+                      onClick={() => fetchAllRecords(currentPage + 1)}
+                      disabled={currentPage === totalPages || modalLoading}
+                      className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+                
                 <p className="text-xs text-gray-500">
                   Last updated: {new Date().toLocaleString()}
                 </p>
