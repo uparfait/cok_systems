@@ -1,3 +1,4 @@
+
 // Admin API Services - TypeScript definitions
 // All admin-related API endpoints are defined here
 
@@ -227,10 +228,22 @@ export interface Visitor {
 
 export const serviceDeliveryService = {
   // Get all visitors with pagination and filter
-  getAll: (page: number = 1, limit: number = 50, inHouse: boolean = true) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}&in_house=${inHouse}`),
+  getAll: (page: number = 1, limit: number = 50, inHouse?: boolean) => {
+    let url = `/servicedelivery/visitor?page=${page}&limit=${limit}`;
+    if (inHouse !== undefined) {
+      url += `&in_house=${inHouse}`;
+    }
+    return get(url);
+  },
   
   // Get all visitors (alias)
-  getAllVisitors: (page: number = 1, limit: number = 50) => get(`/servicedelivery/visitor?page=${page}&limit=${limit}`),
+  getAllVisitors: (page: number = 1, limit: number = 50, inHouse?: boolean) => {
+    let url = `/servicedelivery/visitor?page=${page}&limit=${limit}`;
+    if (inHouse !== undefined) {
+      url += `&in_house=${inHouse}`;
+    }
+    return get(url);
+  },
   
   // Search visitors with pagination
   search: (query: string, page: number = 1, limit: number = 50, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),
@@ -319,45 +332,23 @@ export const serviceDeliveryService = {
 // ==================== SMART PARKING APIs ====================
 
 export const parkingService = {
-  // Get all parking records (including all statuses) - fetches all pages to get complete data
+  // Get all parking records (first page only) - use getAllPaginated for pagination
   getAll: async () => {
     try {
-      let allRecords: any[] = [];
-      let page = 1;
-      let hasMore = true;
-      let totalCount = 0;
+      // Fetch only first page to avoid long loading times
+      const response = await get(`/smartparking/vehicle?status=all&limit=50&page=1`);
       
-      // Fetch all pages to get complete data (backend has 50 record limit per page)
-      while (hasMore) {
-        const response = await get(`/smartparking/vehicle?status=all&limit=50&page=${page}`);
-        
-        if (response.success && response.data && response.data.length > 0) {
-          allRecords = allRecords.concat(response.data);
-          
-          // Get total count from first page response
-          if (page === 1 && response.total) {
-            totalCount = response.total;
-          }
-          
-          // Check if there are more pages
-          // If we got less than 50 records, we've reached the end
-          if (response.data.length < 50) {
-            hasMore = false;
-          } else {
-            page++;
-          }
-        } else {
-          hasMore = false;
-        }
+      if (response.success) {
+        return {
+          success: true,
+          data: response.data || [],
+          total: response.total || 0
+        };
       }
       
-      return {
-        success: true,
-        data: allRecords,
-        total: totalCount
-      };
+      return { success: false, data: [], total: 0 };
     } catch (error) {
-      console.error('Error fetching all parking records:', error);
+      console.error('Error fetching parking records:', error);
       return { success: false, data: [], total: 0 };
     }
   },
@@ -370,38 +361,22 @@ export const parkingService = {
   // Update parking record
   update: (id: string, data: any) => put(`/smartparking/vehicle/${id}`, data),
   
-  // Get all vehicles (alias) - fetches all pages to get complete data
+  // Get all vehicles (first page only) - use getAllPaginated for pagination
   getAllVehicles: async () => {
     try {
-      let allRecords: any[] = [];
-      let page = 1;
-      let hasMore = true;
+      // Fetch only first page to avoid long loading times
+      const response = await get(`/smartparking/vehicle?status=all&limit=50&page=1`);
       
-      // Fetch all pages to get complete data (backend has 50 record limit per page)
-      while (hasMore) {
-        const response = await get(`/smartparking/vehicle?status=all&limit=50&page=${page}`);
-        
-        if (response.success && response.data && response.data.length > 0) {
-          allRecords = allRecords.concat(response.data);
-          
-          // Check if there are more pages
-          // If we got less than 50 records, we've reached the end
-          if (response.data.length < 50) {
-            hasMore = false;
-          } else {
-            page++;
-          }
-        } else {
-          hasMore = false;
-        }
+      if (response.success) {
+        return {
+          success: true,
+          data: response.data || []
+        };
       }
       
-      return {
-        success: true,
-        data: allRecords
-      };
+      return { success: false, data: [] };
     } catch (error) {
-      console.error('Error fetching all vehicles:', error);
+      console.error('Error fetching vehicles:', error);
       return { success: false, data: [] };
     }
   },
@@ -829,3 +804,4 @@ export const roleService = {
   bulkUpdatePermissions: (id: string, permissions: Array<{ resource_name: string; actions: string[] }>) => 
     put(`/roles/${id}/permissions/bulk`, { permissions }),
 };
+
