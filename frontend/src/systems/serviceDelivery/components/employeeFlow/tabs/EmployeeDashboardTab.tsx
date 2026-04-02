@@ -37,7 +37,6 @@ const EmployeeDashboardTab: React.FC = () => {
 
   const fetchAssignedVisitors = useCallback(async () => {
     const currentUser = user as any;
-    // Fix: Use userId which is the correct field name in User interface
     const myUserId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
     const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown').trim();
 
@@ -48,38 +47,79 @@ const EmployeeDashboardTab: React.FC = () => {
     
     try {
       setLoading(true);
-      const response = await serviceDeliveryService.getAll() as any;
+      // 👉 NEW: Use the updated backend endpoint that returns ALL visitors (assigned and unassigned)
+      const response = await serviceDeliveryService.getCurrentVisitorsByProvider(myUserId) as any;
       
-      if (response && (response.data || response.success || Array.isArray(response))) {
-        const allVisitors = Array.isArray(response.data) ? response.data : Array.isArray(response) ? response : [];
+      if (response && response.success && response.data) {
+        // The backend now returns visitors grouped by department (including "Unassigned")
+        const departmentGroups = response.data;
         
-        const myVisitors = allVisitors.filter((v: any) => {
-          // Check if visitor is assigned to this employee in services_status
-          if (v.services_status && Array.isArray(v.services_status)) {
-            const hasServiceStatus = v.services_status.some((status: any) => String(status.provider_id) === myUserId);
-            if (hasServiceStatus) return true;
+        // Flatten all visitors from all department groups into a single array
+        const allVisitors: any[] = [];
+        departmentGroups.forEach((group: any) => {
+          if (group.visitors && Array.isArray(group.visitors)) {
+            group.visitors.forEach((visitor: any) => {
+              // Add department info to each visitor for display
+              allVisitors.push({
+                ...visitor,
+                _departmentGroup: group.department_name
+              });
+            });
           }
-          // Also check departments_assigned for visitors assigned to this employee's department
-          if (v.departments_assigned && Array.isArray(v.departments_assigned)) {
-            const isAssigned = v.departments_assigned.some((dept: any) => String(dept.provider_id) === myUserId);
-            if (isAssigned) return true;
-          }
-          return false;
         });
         
-        const records: ServiceRecord[] = myVisitors.map((visitor: any) => {
-          // First check services_status for this employee
-          const serviceStatus = visitor.services_status?.find((s: any) => String(s.provider_id) === myUserId);
-          
+        // 👉 MAPPING LOGIC: Format the data perfectly for the table
+        const records: ServiceRecord[] = allVisitors.map((visitor: any) => {
+          // Check if explicitly assigned to me
+          // Note: services_status is now a single object (not an array) after backend aggregation
+          const myServiceStatus = visitor.services_status && typeof visitor.services_status === 'object' && 
+                                  String(visitor.services_status.provider_id) === myUserId 
+            ? visitor.services_status 
+            : null;
+          const myDeptAssign = visitor.departments_assigned?.find((d: any) => String(d.provider_id) === myUserId);
+          const isExplicitlyMine = !!myServiceStatus || !!myDeptAssign;
+
           let status: 'not_started' | 'inprogress' | 'completed' | 'transfered' = 'not_started';
-          const rawStatus = (serviceStatus?.s_type || visitor.status || '').toLowerCase();
-          
-          if (rawStatus === 'completed') status = 'completed';
-          else if (rawStatus === 'inprogress') status = 'inprogress';
-          else if (rawStatus === 'transfered' || rawStatus === 'transferred') status = 'transfered';
-          // If no services_status found but visitor is in departments_assigned, still show as not_started
-          else if (!serviceStatus && visitor.departments_assigned?.some((d: any) => String(d.provider_id) === myUserId)) {
+          let assignedToDisplay = myName;
+          let serviceStartTime = '';
+          let checkIn = visitor.entry_date || new Date().toISOString();
+
+          if (isExplicitlyMine) {
+            // Read my explicit status
+            const rawStatus = myServiceStatus?.s_type || visitor.status || '';
+            const normalizedStatus = rawStatus.toLowerCase();
+            if (normalizedStatus === 'completed') status = 'completed';
+            else if (normalizedStatus === 'inprogress') status = 'inprogress';
+            else if (normalizedStatus === 'transfered' || normalizedStatus === 'transferred') status = 'transfered';
+            else status = 'not_started';
+
+            assignedToDisplay = myName;
+            checkIn = myDeptAssign?.assigned_time || visitor.entry_date || new Date().toISOString();
+            const serviceDuration = visitor.durations?.services_durations?.find((d: any) => String(d.provider_id) === myUserId);
+            serviceStartTime = serviceDuration?.started_at || '';
+          } else {
+            // It's a general unassigned queue item or assigned to another department
             status = 'not_started';
+            const latestAssign = visitor.departments_assigned?.[visitor.departments_assigned.length - 1];
+            
+            // Check if this is an unassigned visitor
+            const isUnassigned = visitor._departmentGroup === 'Unassigned' || 
+                                !latestAssign?.provider_id || 
+                                latestAssign.provider_id === 'undefined' || 
+                                latestAssign.provider_id === 'null' || 
+                                latestAssign.provider_id === '' || 
+                                latestAssign.provider_id === 'unassigned';
+            
+            if (isUnassigned) {
+              assignedToDisplay = 'Unassigned';
+            } else if (latestAssign) {
+              // Show department name if assigned to a department
+              assignedToDisplay = latestAssign.department_name || visitor._departmentGroup || 'General Queue';
+            } else {
+              assignedToDisplay = visitor._departmentGroup || 'General Queue';
+            }
+            
+            checkIn = latestAssign?.assigned_time || visitor.entry_date || new Date().toISOString();
           }
           
           const colors = ['bg-purple-500', 'bg-pink-500', 'bg-yellow-400', 'bg-teal-500', 'bg-blue-500'];
@@ -91,17 +131,8 @@ const EmployeeDashboardTab: React.FC = () => {
           if (typeof visitor.identification === 'string') identification = visitor.identification;
           else if (visitor.identification?.number) identification = visitor.identification.number;
 
-          // Extract badge number from backend
-          let badgeNumber = '';
-          if (visitor.badge_number) badgeNumber = visitor.badge_number;
+          let badgeNumber = visitor.badge_number || '';
 
-          // 👉 FIX: Legally pull the start time from the durations array!
-          const serviceDuration = visitor.durations?.services_durations?.find((d: any) => String(d.provider_id) === myUserId);
-          const serviceStartTime = serviceDuration?.started_at || '';
-
-          const deptAssigned = visitor.departments_assigned?.find((d: any) => String(d.provider_id) === myUserId);
-          const checkIn = deptAssigned?.assigned_time || visitor.entry_date || new Date().toISOString();
-          
           const waitTimeEndStamp = (status === 'inprogress' || status === 'completed' || status === 'transfered') && serviceStartTime
             ? new Date(serviceStartTime).getTime() 
             : new Date().getTime();
@@ -121,7 +152,7 @@ const EmployeeDashboardTab: React.FC = () => {
             visitorName: visitorName,
             visitorId: identification,
             badgeNumber: badgeNumber,
-            assignedTo: myName,
+            assignedTo: assignedToDisplay,
             status,
             waitTime: waitTimeString,
             avatarColor: colors[colorIndex],
@@ -129,7 +160,19 @@ const EmployeeDashboardTab: React.FC = () => {
           };
         });
         
-        records.reverse(); // Newest top
+        // Sort records: In Progress first, then Transferred, then Not Started
+        records.sort((a, b) => {
+          const statusOrder: Record<string, number> = {
+            'inprogress': 1,
+            'transfered': 2,
+            'not_started': 3,
+            'completed': 4
+          };
+          const orderA = statusOrder[a.status] ?? 99;
+          const orderB = statusOrder[b.status] ?? 99;
+          return orderA - orderB;
+        });
+        
         setServiceRecords(records);
         
         setStats({
@@ -243,7 +286,7 @@ const EmployeeDashboardTab: React.FC = () => {
                 </tr>
               );
             }) : (
-              <tr><td colSpan={6} className="py-8 text-center text-[#888]">No visitors assigned to you yet.</td></tr>
+              <tr><td colSpan={6} className="py-8 text-center text-[#888]">No active visitors waiting in queue.</td></tr>
             )}
           </tbody>
         </table>
