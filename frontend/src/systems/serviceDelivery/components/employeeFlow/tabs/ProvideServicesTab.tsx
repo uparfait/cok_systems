@@ -99,7 +99,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
     const currentUser = user as any;
     const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
     const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown').trim();
-
+    
     if (!myId || myId === 'undefined') {
       if (!silent) setLoading(false);
       return;
@@ -107,63 +107,78 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
     
     try {
       if (!silent) setLoading(true);
-      const response = await serviceDeliveryService.getAll() as any;
+      // 👉 NEW: Use the updated backend endpoint that returns ALL visitors (assigned and unassigned)
+      const response = await serviceDeliveryService.getCurrentVisitorsByProvider(myId) as any;
       
-      if (response && (response.data || response.success || Array.isArray(response))) {
-        const allVisitors = Array.isArray(response.data) ? response.data : Array.isArray(response) ? response : [];
+      if (response && response.success && response.data) {
+        // The backend now returns visitors grouped by department (including "Unassigned")
+        const departmentGroups = response.data;
         
-        const myVisitors = allVisitors.filter((v: any) => {
-          if (!v.services_status || !Array.isArray(v.services_status)) return false;
-          
-          const inServicesStatus = v.services_status.some((status: any) => String(status.provider_id) === myId);
-          const inDepartmentsAssigned = v.departments_assigned?.some((dept: any) => String(dept.provider_id) === myId);
-          
-          return inServicesStatus || inDepartmentsAssigned;
+        // Flatten all visitors from all department groups into a single array
+        const allVisitors: any[] = [];
+        departmentGroups.forEach((group: any) => {
+          if (group.visitors && Array.isArray(group.visitors)) {
+            group.visitors.forEach((visitor: any) => {
+              // Add department info to each visitor for display
+              allVisitors.push({
+                ...visitor,
+                _departmentGroup: group.department_name
+              });
+            });
+          }
         });
         
-        const formattedRequests: ServiceRequest[] = myVisitors.map((v: any) => {
-          let serviceStatus = v.services_status?.find((s: any) => String(s.provider_id) === myId);
-          
-          if (!serviceStatus && v.departments_assigned) {
-            const myDept = v.departments_assigned.find((d: any) => String(d.provider_id) === myId);
-            if (myDept) {
-              serviceStatus = v.services_status?.find((s: any) => {
-                const sDeptId = typeof s.department_id === 'object' ? s.department_id?._id : s.department_id;
-                return String(sDeptId) === String(myDept.department_id);
-              });
-            }
-          }
-          
-          let status: 'not_started' | 'inprogress' | 'completed' | 'transfered' = 'not_started';
-          const rawStatus = (serviceStatus?.s_type || '').toLowerCase();
-          
-          // 👉 NEW LOGIC: Dynamic Assignee Name instead of hardcoding "myName"
-          let currentAssigneeName = myName; 
+        // 👉 MAPPING LOGIC: Format the data perfectly for the table
+        const formattedRequests: ServiceRequest[] = allVisitors.map((v: any) => {
+          // Check if explicitly assigned to me
+          // Note: After aggregation, services_status is a single object, not an array
+          const myServiceStatus = v.services_status && typeof v.services_status === 'object' && v.services_status.provider_id === myId 
+            ? v.services_status 
+            : null;
+          const myDeptAssign = v.departments_assigned?.find((d: any) => String(d.provider_id) === myId);
+          const isExplicitlyMine = !!myServiceStatus || !!myDeptAssign;
 
-          if (rawStatus === 'completed') status = 'completed';
-          else if (rawStatus === 'inprogress') status = 'inprogress';
-          else if (rawStatus === 'transfered' || rawStatus === 'transferred') {
-            const latestAssignment = v.departments_assigned && v.departments_assigned.length > 0 ? v.departments_assigned[v.departments_assigned.length - 1] : null;
-            const latestProviderId = latestAssignment ? (typeof latestAssignment.provider_id === 'object' ? latestAssignment.provider_id._id : latestAssignment.provider_id) : null;
+          let status: 'not_started' | 'inprogress' | 'completed' | 'transfered' = 'not_started';
+          let assignedToDisplay = myName;
+          let serviceStartTime = '';
+          let checkIn = v.entry_date || new Date().toISOString();
+
+          if (isExplicitlyMine) {
+            // Read my explicit status
+            const rawStatus = myServiceStatus?.s_type || v.status || '';
+            const normalizedStatus = rawStatus.toLowerCase();
+            if (normalizedStatus === 'completed') status = 'completed';
+            else if (normalizedStatus === 'inprogress') status = 'inprogress';
+            else if (normalizedStatus === 'transfered' || normalizedStatus === 'transferred') status = 'transfered';
+            else status = 'not_started';
+
+            assignedToDisplay = myName;
+            checkIn = myDeptAssign?.assigned_time || v.entry_date || new Date().toISOString();
+            const serviceDuration = v.durations?.services_durations?.find((d: any) => String(d.provider_id) === myId);
+            serviceStartTime = serviceDuration?.started_at || '';
+          } else {
+            // It's a general unassigned queue item or assigned to another department
+            status = 'not_started';
+            const latestAssign = v.departments_assigned?.[v.departments_assigned.length - 1];
             
-            if (latestAssignment && String(latestProviderId) === myId) {
-                // Transferred back to me!
-                status = 'not_started'; 
+            // Check if this is an unassigned visitor
+            const isUnassigned = v._departmentGroup === 'Unassigned' || 
+                                !latestAssign?.provider_id || 
+                                latestAssign.provider_id === 'undefined' || 
+                                latestAssign.provider_id === 'null' || 
+                                latestAssign.provider_id === '' || 
+                                latestAssign.provider_id === 'unassigned';
+            
+            if (isUnassigned) {
+              assignedToDisplay = 'Unassigned';
+            } else if (latestAssign) {
+              // Show department name if assigned to a department
+              assignedToDisplay = latestAssign.department_name || v._departmentGroup || 'General Queue';
             } else {
-                // Transferred away from me
-                status = 'transfered';
-                // Set the assigned name to the person/dept they were sent to
-                if (latestAssignment) {
-                  const pName = latestAssignment.provider_name || latestAssignment.employee_name || latestAssignment.assigned_name;
-                  if (pName && pName !== 'Unknown' && pName !== 'unassigned') {
-                    currentAssigneeName = pName;
-                  } else if (latestAssignment.department_name) {
-                    currentAssigneeName = `${latestAssignment.department_name} Dept`;
-                  } else {
-                    currentAssigneeName = 'Transferred Away';
-                  }
-                }
+              assignedToDisplay = v._departmentGroup || 'General Queue';
             }
+            
+            checkIn = latestAssign?.assigned_time || v.entry_date || new Date().toISOString();
           }
           
           const colors = ['bg-purple-500', 'bg-pink-500', 'bg-yellow-400', 'bg-teal-500', 'bg-lavender-400', 'bg-blue-500'];
@@ -178,19 +193,18 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
           let badgeNumber = '';
           if (v.badge_number) badgeNumber = v.badge_number;
 
-          const deptAssigned = v.departments_assigned?.find((d: any) => String(d.provider_id) === myId);
-          const checkIn = deptAssigned?.assigned_time || v.entry_date || new Date().toISOString();
+          const checkInTime = myDeptAssign?.assigned_time || v.entry_date || new Date().toISOString();
           
           const serviceDuration = v.durations?.services_durations?.find((d: any) => String(d.provider_id) === myId);
-          const serviceStartTime = serviceDuration?.started_at || '';
+          const serviceStartTimeVal = serviceDuration?.started_at || '';
           
-          const waitTimeEndStamp = (status === 'inprogress' || status === 'completed' || status === 'transfered') && serviceStartTime
-            ? new Date(serviceStartTime).getTime() 
+          const waitTimeEndStamp = (status === 'inprogress' || status === 'completed' || status === 'transfered') && serviceStartTimeVal
+            ? new Date(serviceStartTimeVal).getTime() 
             : new Date().getTime();
 
           let waitTimeString = 'Just now';
-          if (checkIn) {
-            const diffMins = Math.floor((waitTimeEndStamp - new Date(checkIn).getTime()) / 60000);
+          if (checkInTime) {
+            const diffMins = Math.floor((waitTimeEndStamp - new Date(checkInTime).getTime()) / 60000);
             if (diffMins > 0) {
               const hours = Math.floor(diffMins / 60);
               const mins = diffMins % 60;
@@ -203,15 +217,15 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
             visitorName: visitorName,
             visitorId: identification,
             badgeNumber: badgeNumber,
-            assignedTo: currentAssigneeName, // 👉 Dynamic Assignee implementation!
-            serviceType: serviceStatus?.department_name || 'General Service',
+            assignedTo: assignedToDisplay,
+            serviceType: myServiceStatus?.department_name || myDeptAssign?.department_name || v._departmentGroup || 'General Service',
             waitTime: waitTimeString,
             avatarColor: colors[colorIndex],
             initials: initials,
             status: status,
-            serviceStartTime: serviceStartTime,
+            serviceStartTime: serviceStartTimeVal,
             telephone: v.telephone || 'N/A',
-            checkInRaw: checkIn,
+            checkInRaw: checkInTime,
             rawVisitor: v
           };
         });
@@ -264,13 +278,12 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
     
     return matchesSearch && matchesStatus;
   }).sort((a, b) => {
-    // Custom sort order: Not Started (1) -> In Progress (2) -> Transferred (3) -> Completed (4)
     const statusOrder: Record<string, number> = {
-      'not_started': 1,
-      'not-started': 1,
-      'inprogress': 2,
-      'transfered': 3,
-      'transferred': 3,
+      'inprogress': 1,
+      'transfered': 2,
+      'transferred': 2,
+      'not_started': 3,
+      'not-started': 3,
       'completed': 4
     };
     const orderA = statusOrder[a.status] ?? 99;
@@ -286,11 +299,34 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
     const currentUser = user as any;
     const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
     const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown');
+    const myDeptId = String(currentUser?.department?._id || currentUser?.department_id || currentUser?.department || '');
+    const myUnitId = String(currentUser?.department_unit || '');
 
-    const deptInfo = rawVisitor.departments_assigned?.find((d: any) => String(d.provider_id) === myId) || 
-                     rawVisitor.services_status?.find((s: any) => String(s.provider_id) === myId);
+    // Try to find exact assignment first
+    // Note: services_status is now a single object (not an array) after backend aggregation
+    let deptInfo = rawVisitor.departments_assigned?.find((d: any) => String(d.provider_id) === myId) || 
+                   (rawVisitor.services_status && typeof rawVisitor.services_status === 'object' && 
+                    String(rawVisitor.services_status.provider_id) === myId ? rawVisitor.services_status : null);
 
-    const updatedServicesStatus = (rawVisitor.services_status || []).filter((s: any) => String(s.provider_id) !== String(myId));
+    // 👉 FIX: If no exact assignment, find the unit assignment
+    if (!deptInfo) {
+      deptInfo = rawVisitor.departments_assigned?.find((d: any) => {
+         const dId = String(d.department_id);
+         return true
+      });
+    }
+
+    // Handle both array and object cases for services_status
+    // After backend aggregation, services_status is a single object, not an array
+    let updatedServicesStatus: any[] = [];
+    if (Array.isArray(rawVisitor.services_status)) {
+      updatedServicesStatus = rawVisitor.services_status.filter((s: any) => String(s.provider_id) !== String(myId));
+    } else if (rawVisitor.services_status && typeof rawVisitor.services_status === 'object') {
+      // If it's a single object, only include it if it's not for the current provider
+      if (String(rawVisitor.services_status.provider_id) !== String(myId)) {
+        updatedServicesStatus = [rawVisitor.services_status];
+      }
+    }
     updatedServicesStatus.push({
       department_id: deptInfo?.department_id || "",
       department_name: deptInfo?.department_name || "General",
@@ -353,7 +389,6 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
       const providerId = transferEmployee ? String(transferEmployee._id || transferEmployee.employee_id || '') : undefined;
       const providerName = transferEmployee ? String(transferEmployee.full_name || '') : undefined;
       
-      // 👉 NEW: Instant Optimistic UI update changes status AND updates the Assigned To name instantly!
       setRequests(prev => prev.map(r => 
         r.id === transferVisitor.id ? { 
             ...r, 
@@ -589,7 +624,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
                 </td>
               </tr>
             )) : (
-              <tr><td colSpan={6} className="py-8 text-center text-gray-500">No active visitors assigned to you.</td></tr>
+              <tr><td colSpan={6} className="py-8 text-center text-gray-500">No active visitors assigned to you or your unit.</td></tr>
             )}
           </tbody>
         </table>
