@@ -5,9 +5,28 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
-// Socket server URL
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 
-  (window.location.hostname === 'localhost' ? 'https://cok-bc.onrender.com' : 'https://cok-bc.onrender.com');
+// Socket server URL - use local for development, remote for production
+const getSocketUrl = () => {
+  // Check for environment variable first
+  if (import.meta.env.VITE_SOCKET_URL) {
+    return import.meta.env.VITE_SOCKET_URL;
+  }
+  
+  // Check if running on localhost - connect to local backend
+  const isLocalhost = window.location.hostname === 'localhost' || 
+                      window.location.hostname === '127.0.0.1';
+  
+  if (isLocalhost) {
+    // For local development, use the same port as the API
+    // The API runs on port 2026 based on backend configuration
+    return 'http://localhost:2026';
+  }
+  
+  // For production/remote, use the remote server
+  return 'https://cok-bc.onrender.com';
+};
+
+const SOCKET_URL = getSocketUrl();
 
 // Context type
 interface SocketContextType {
@@ -65,12 +84,14 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       },
       transports: ['polling', 'websocket'],
       reconnection: true,
-      reconnectionAttempts: 3,
-      reconnectionDelay: 3000,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
       reconnectionDelayMax: 10000,
-      timeout: 15000,
+      timeout: 20000,
       autoConnect: true,
     });
+
+    console.log(`[SocketContext] Connecting to: ${SOCKET_URL}`);
 
     socketRef.current = newSocket;
     hasConnectedRef.current = true;

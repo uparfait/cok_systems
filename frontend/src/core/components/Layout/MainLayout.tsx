@@ -154,7 +154,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, customNavItems }) => 
       </div>
 
       {/* Main Content Area */}
-      <div className={`flex-1 flex flex-col min-w-0 ${isDesktop ? 'lg:ml-64 ml-0' : 'ml-0'}`}>
+      <div className={`flex-1 flex flex-col min-w-0 h-screen overflow-hidden ${isDesktop ? 'lg:ml-64 ml-0' : 'ml-0'}`}>
         {/* Header */}
         <Header 
           onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
@@ -165,7 +165,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, customNavItems }) => 
         />
 
         {/* Page Content */}
-        <main className="flex-1 p-3 sm:p-4 lg:p-6">
+        <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto">
           {children}
         </main>
       </div>

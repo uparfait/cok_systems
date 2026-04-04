@@ -6,6 +6,7 @@ import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
 import { useSocket } from '../../../core/contexts/SocketContext';
 import { smartParkingService } from '../../../core/services/adminService';
+import { useParkingEvents } from '../../../core/hooks/useParkingEvents';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
   FiSearch, FiTruck, FiCheckCircle, FiLogOut, FiClock, FiX, FiFilter
@@ -216,54 +217,18 @@ const CheckOutVehiclePage: React.FC = () => {
     }
   }, [isAuthenticated, authLoading, navigate, loadData]);
 
-  // Handle socket events
+  // Debug: Track socket changes
   useEffect(() => {
-    if (!socket) return;
+    console.log('🔌 [CheckOutVehicle] Socket changed:', socket?.id, 'connected:', socket?.connected);
+  }, [socket]);
 
-    // Listen for car check-in events
-    const handleCarCheckin = (data: any) => {
-      console.log('🔔 [CheckOutVehicle] car_checkedin event received:', data);
-      
-      if (data.show_notif === false) {
-        const message = data.message || 'Vehicle checked in';
-        const type = data.type || 'info';
-        
-        if (type === 'success') showSuccess(message);
-        else if (type === 'error') showError(message);
-        else if (type === 'warning') showWarning(message);
-        else showInfo(message);
-      }
-      
-      // Refresh data
-      loadData(searchQuery, currentPage, typeFilter);
-    };
-
-    // Listen for car check-out events
-    const handleCarCheckout = (data: any) => {
-      console.log('🔔 [CheckOutVehicle] car_checkedout event received:', data);
-      
-      if (data.show_notif === false) {
-        const message = data.message || 'Vehicle checked out';
-        const type = data.type || 'info';
-        
-        if (type === 'success') showSuccess(message);
-        else if (type === 'error') showError(message);
-        else if (type === 'warning') showWarning(message);
-        else showInfo(message);
-      }
-      
-      // Refresh data
-      loadData(searchQuery, currentPage, typeFilter);
-    };
-
-    socket.on('car_checkedin', handleCarCheckin);
-    socket.on('car_checkedout', handleCarCheckout);
-
-    return () => {
-      socket.off('car_checkedin', handleCarCheckin);
-      socket.off('car_checkedout', handleCarCheckout);
-    };
-  }, [socket, showSuccess, showError, showWarning, showInfo, searchQuery, currentPage, typeFilter, loadData]);
+  // Socket events handled by useParkingEvents hook (universal)
+  useParkingEvents({ 
+    refetch: () => {
+      setCurrentPage(1);
+      loadData('', 1, typeFilter);
+    }
+  });
 
   // Handle page change
   const handlePageChange = useCallback((newPage: number) => {
