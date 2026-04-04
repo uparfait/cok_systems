@@ -8,6 +8,7 @@ import { useAuth } from '../../../core/contexts/AuthContext';
 import { employeeService, departmentService, permissionService, roleService } from '../../../core/services/adminService';
 import { dispatchToast } from '../../../core/services/apiClient';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
+import ErrorModal from '../../../core/components/Modals/ErrorModal';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
   FiPlus, FiSearch, FiEdit2, FiTrash2, FiRefreshCw, FiUsers,
@@ -143,10 +144,15 @@ const EmployeesPage: React.FC = () => {
   const [uploadDepartmentId, setUploadDepartmentId] = useState('');
   const [uploadDepartmentUnit, setUploadDepartmentUnit] = useState('');
   const [uploadRoleName, setUploadRoleName] = useState('department_employee');
+  const [uploadPermissions, setUploadPermissions] = useState<Array<{ resource: string; actions: string[] }>>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  const [uploadSuccess, setUploadSuccess] = useState('');
   const [uploadErrors, setUploadErrors] = useState<any[]>([]);
+  const [uploadSuccess, setUploadSuccess] = useState('');
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorModalTitle, setErrorModalTitle] = useState('');
+  const [errorModalMessage, setErrorModalMessage] = useState('');
+  const [errorModalErrors, setErrorModalErrors] = useState<any[]>([]);
 
   // Form state
   const [formData, setFormData] = useState<Partial<Employee>>({
@@ -501,6 +507,7 @@ const EmployeesPage: React.FC = () => {
     setUploadDepartmentId('');
     setUploadDepartmentUnit('');
     setUploadRoleName('department_employee');
+    setUploadPermissions([]);
     setUploadError('');
     setUploadSuccess('');
     setUploadErrors([]);
@@ -562,7 +569,8 @@ const EmployeesPage: React.FC = () => {
       }
       
       formData.append('roles', JSON.stringify({
-        role_name: uploadRoleName
+        role_name: uploadRoleName,
+        permissions: uploadPermissions
       }));
 
       const response = await employeeService.createMultiple(formData);
@@ -575,22 +583,34 @@ const EmployeesPage: React.FC = () => {
           loadEmployees();
         }, 2000);
       } else {
-        if (response.errors && Array.isArray(response.errors)) {
-          setUploadErrors(response.errors);
-        }
-        setUploadError(response.message || 'Failed to create employees.');
-        dispatchToast('error', response.message || 'Failed to create employees.');
+        // Show error modal instead of toast
+        setErrorModalTitle('Upload Failed');
+        setErrorModalMessage(response.message || 'Failed to create employees.');
+        setErrorModalErrors(response.errors || []);
+        setShowErrorModal(true);
       }
     } catch (err: any) {
+      let errorMessage = 'Failed to upload employees. Please try again.';
+      let errorList: any[] = [];
+      
       if (err.message && (err.message.includes('Network') || err.message.includes('Failed to fetch'))) {
-        setUploadError('Cannot connect to server. Please check your internet connection and try again.');
+        errorMessage = 'Cannot connect to server. Please check your internet connection and try again.';
       } else if (err.error) {
-        setUploadError(err.error);
+        errorMessage = err.error;
       } else if (err.message) {
-        setUploadError(err.message);
-      } else {
-        setUploadError('Failed to upload employees. Please try again.');
+        errorMessage = err.message;
       }
+      
+      // Get errors array from error object if available
+      if (err.errors && Array.isArray(err.errors)) {
+        errorList = err.errors;
+      }
+      
+      // Show error modal for catch errors
+      setErrorModalTitle('Upload Failed');
+      setErrorModalMessage(errorMessage);
+      setErrorModalErrors(errorList);
+      setShowErrorModal(true);
     } finally {
       setUploading(false);
     }
@@ -1307,14 +1327,6 @@ const EmployeesPage: React.FC = () => {
             </div>
 
             <form onSubmit={(e) => { e.preventDefault(); handleMultipleUpload(); }} className="p-5 space-y-5">
-              {/* Error Message */}
-              {uploadError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-2">
-                  <FiAlertCircle className="w-5 h-5 flex-shrink-0" />
-                  <span>{uploadError}</span>
-                </div>
-              )}
-
               {/* Success Message */}
               {uploadSuccess && (
                 <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl flex items-center gap-2">
@@ -1322,25 +1334,27 @@ const EmployeesPage: React.FC = () => {
                   <span>{uploadSuccess}</span>
                 </div>
               )}
-
-              {/* Validation Errors */}
-              {uploadErrors.length > 0 && (
-                <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-xl">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FiAlertCircle className="w-5 h-5 flex-shrink-0" />
-                    <span className="font-semibold">Validation Errors:</span>
-                  </div>
-                  <ul className="list-disc list-inside space-y-1 text-sm">
-                    {uploadErrors.map((err, index) => (
-                      <li key={index}>
-                        {err.row ? `Row ${err.row}: ` : ''}
-                        {err.message || (err.errors && err.errors.join(', '))}
-                      </li>
-                    ))}
-                  </ul>
+                              {/* File Format Info */}
+              <div className="bg-blue-50 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-blue-900">File Format Requirements:</h4>
+                  <button
+                    type="button"
+                    onClick={handleDownloadTemplate}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg font-medium transition-colors"
+                  >
+                    <FiPlus className="w-3 h-3" />
+                    Download Template
+                  </button>
                 </div>
-              )}
-
+                <ul className="text-xs text-blue-800 space-y-1">
+                  <li>• <strong>Required columns:</strong> fullname, telephone, email, gender</li>
+                  <li>• <strong>Gender options:</strong> Male, Female, Other, Not specified</li>
+                  <li>• <strong>Email format:</strong> example@domain.com</li>
+                  <li>• <strong>Telephone:</strong> At least 10 digits</li>
+                </ul>
+              </div>
+              
               {/* File Upload */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1449,25 +1463,98 @@ const EmployeesPage: React.FC = () => {
                 </select>
               </div>
 
-              {/* File Format Info */}
-              <div className="bg-blue-50 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold text-blue-900">File Format Requirements:</h4>
-                  <button
-                    type="button"
-                    onClick={handleDownloadTemplate}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg font-medium transition-colors"
-                  >
-                    <FiPlus className="w-3 h-3" />
-                    Download Template
-                  </button>
+              {/* Permissions Section */}
+              <div className="bg-purple-50 rounded-xl p-4 space-y-4">
+                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center gap-2">
+                  <FiShield className="w-4 h-4" />
+                  Permissions
+                </h3>
+                
+                <p className="text-xs text-gray-600">
+                  Select the permissions these employees should have for each system resource.
+                </p>
+
+                <div className="space-y-4 max-h-80 overflow-y-auto">
+                  {systemPermissions.length > 0 ? (
+                    systemPermissions.map((resource) => {
+                      const currentPerm = uploadPermissions.find(
+                        p => p?.resource?.toLowerCase() === resource.resource?.toLowerCase()
+                      );
+                      const selectedActions = currentPerm?.actions || [];
+
+                      return (
+                        <div key={resource.resource} className="border border-gray-200 rounded-lg bg-white p-3">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="font-medium text-gray-900 capitalize">
+                              {resource.resource}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const allActionTypes = resource.actions.map(a => a.action_type);
+                                const newActions = selectedActions.length === allActionTypes.length 
+                                  ? [] 
+                                  : allActionTypes;
+                                
+                                const newPermissions = uploadPermissions.filter(
+                                  p => p?.resource?.toLowerCase() !== resource.resource?.toLowerCase()
+                                );
+                                
+                                if (newActions.length > 0) {
+                                  newPermissions.push({
+                                    resource: resource.resource,
+                                    actions: newActions
+                                  });
+                                }
+                                
+                                setUploadPermissions(newPermissions);
+                              }}
+                              className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                              {selectedActions.length === resource.actions.length ? 'Deselect All' : 'Select All'}
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            {resource.actions.map((action) => {
+                              const isSelected = selectedActions.includes(action.action_type);
+                              return (
+                                <div key={action.action_type} className="flex items-center justify-between">
+                                  <span className="text-sm text-gray-600 flex-1">
+                                    {action.description}
+                                  </span>
+                                  <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={(e) => {
+                                        const newPermissions = uploadPermissions.filter(
+                                          p => p?.resource?.toLowerCase() !== resource.resource?.toLowerCase()
+                                        );
+                                        
+                                        if (e.target.checked) {
+                                          newPermissions.push({
+                                            resource: resource.resource,
+                                            actions: [...selectedActions, action.action_type]
+                                          });
+                                        }
+                                        
+                                        setUploadPermissions(newPermissions);
+                                      }}
+                                      className="sr-only peer"
+                                    />
+                                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-600"></div>
+                                  </label>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-4">No permissions available</p>
+                  )}
                 </div>
-                <ul className="text-xs text-blue-800 space-y-1">
-                  <li>• <strong>Required columns:</strong> fullname, telephone, email, gender</li>
-                  <li>• <strong>Gender options:</strong> Male, Female, Other, Not specified</li>
-                  <li>• <strong>Email format:</strong> example@domain.com</li>
-                  <li>• <strong>Telephone:</strong> At least 10 digits</li>
-                </ul>
               </div>
 
               {/* Action Buttons */}
@@ -1517,6 +1604,16 @@ const EmployeesPage: React.FC = () => {
         onCancel={handleCancelDelete}
         type="danger"
         isLoading={deleting}
+      />
+
+      {/* Error Modal for Multiple Upload */}
+      <ErrorModal
+        isOpen={showErrorModal}
+        title={errorModalTitle}
+        message={errorModalMessage}
+        errors={errorModalErrors}
+        onClose={() => setShowErrorModal(false)}
+        type="error"
       />
     </div>
     </MainLayout>
