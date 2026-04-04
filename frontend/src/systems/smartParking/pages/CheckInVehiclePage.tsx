@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
 import { useSocket } from '../../../core/contexts/SocketContext';
+import { useParkingEvents } from '../../../core/hooks/useParkingEvents';
 import { smartParkingService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
@@ -149,111 +150,27 @@ const CheckInVehiclePage: React.FC = () => {
     driver_type: '',
   });
 
-  // Handle socket events
+// Socket events handled by useParkingEvents hook (universal)
+// Keep vehicle-detected for auto-plate input
   useEffect(() => {
     if (!socket) return;
 
     const handleVehicleDetected = (data: any) => {
       if (data.plate_number) {
         setPlateNumber(data.plate_number);
-        // Call handleVerify by using the function reference from the outer scope
-        // We need to make handleVerify available - we'll use a ref or inline call
       }
     };
-    
 
-    // Listen for vehicle check-in events
-    const handleCarCheckin = (data: any) => {
-      console.log('🔔 [CheckInVehicle] vehicle_checkedin event received:', data);
-      
-      // Check if notification should be shown
-      if (data.show_notif === false) {
-        // Show notification based on type
-        const message = data.message || 'Vehicle checked in';
-        const type = data.type || 'info';
-        
-        if (type === 'success') {
-          showSuccess(message);
-        } else if (type === 'error') {
-          showError(message);
-        } else if (type === 'warning') {
-          showWarning(message);
-        } else {
-          showInfo(message);
-        }
-      }
-      
-      // Trigger refetch for any related data
-      setRefetchTrigger(prev => prev + 1);
-      console.log('✅ [CheckInVehicle] Refetch triggered');
-    };
-
-    socket.on('car_checkedin', handleCarCheckin);
-
-    // Listen for visitor check-out events
-    const handleVisitorCheckout = (data: any) => {
-      console.log('🔔 [CheckInVehicle] visitor_checkedout event received:', data);
-      
-      // Check if notification should be shown
-      if (data.show_notif === false) {
-        // Show notification based on type
-        const message = data.message || 'Visitor checked out';
-        const type = data.type || 'info';
-        
-        if (type === 'success') {
-          showSuccess(message);
-        } else if (type === 'error') {
-          showError(message);
-        } else if (type === 'warning') {
-          showWarning(message);
-        } else {
-          showInfo(message);
-        }
-      }
-      
-      // Trigger refetch for any related data
-      setRefetchTrigger(prev => prev + 1);
-      console.log('✅ [CheckInVehicle] Refetch triggered after visitor checkout');
-    };
-
-    socket.on('visitor_checkedout', handleVisitorCheckout);
-
-    // Listen for car check-out events
-    const handleCarCheckout = (data: any) => {
-      console.log('🔔 [CheckInVehicle] car_checkedout event received:', data);
-      
-      // Check if notification should be shown
-      if (data.show_notif === false) {
-        // Show notification based on type
-        const message = data.message || 'Vehicle checked out';
-        const type = data.type || 'info';
-        
-        if (type === 'success') {
-          showSuccess(message);
-        } else if (type === 'error') {
-          showError(message);
-        } else if (type === 'warning') {
-          showWarning(message);
-        } else {
-          showInfo(message);
-        }
-      }
-      
-      // Trigger refetch for any related data
-      setRefetchTrigger(prev => prev + 1);
-      console.log('✅ [CheckInVehicle] Refetch triggered after car checkout');
-    };
-
-    socket.on('car_checkedout', handleCarCheckout);
+    socket.on('vehicle-detected', handleVehicleDetected);
 
     return () => {
       socket.off('vehicle-detected', handleVehicleDetected);
-      socket.off('car_checkedin', handleCarCheckin);
-      socket.off('visitor_checkedout', handleVisitorCheckout);
-      socket.off('car_checkedout', handleCarCheckout);
     };
-  }, [socket, showSuccess, showError, showWarning, showInfo]);
+  }, [socket]);
 
+
+
+  // Define handleVerify before using it in useParkingEvents
   const handleVerify = useCallback(async (plate?: string) => {
     const searchPlate = plate || plateNumber.trim();
     if (!searchPlate) {
@@ -306,6 +223,8 @@ const CheckInVehiclePage: React.FC = () => {
       setVerifying(false);
     }
   }, [plateNumber, showWarning, showError, showInfo, smartParkingService]);
+
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;

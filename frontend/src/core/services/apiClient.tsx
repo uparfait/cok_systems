@@ -222,7 +222,7 @@ apiClient.interceptors.response.use(
     }
 
     // Return the error data with standardized format
-    const errorData = error.response?.data as { error?: string; message?: string; success?: boolean } | undefined;
+    const errorData = error.response?.data as { error?: string; message?: string; success?: boolean; errors?: any[]; type?: string } | undefined;
     const statusCode = error.response?.status;
     
     // Handle different backend response formats
@@ -257,6 +257,8 @@ apiClient.interceptors.response.use(
       status: false,
       error: errorField,
       message: errorMessage,
+      errors: errorData?.errors || [],
+      type: errorData?.type || 'error',
     });
   }
 );
@@ -308,6 +310,8 @@ export const apiRequest = async (
         status: false,
         error: error.error || error.message,
         message: error.message || error.error || 'An error occurred',
+        errors: error.errors || [],
+        type: error.type || 'error',
       };
     }
 
@@ -343,6 +347,8 @@ export const apiRequest = async (
         status: false,
         error: errorMessage,
         message: errorMessage,
+        errors: responseData?.errors || [],
+        type: responseData?.type || 'error',
       };
     }
 
@@ -351,6 +357,8 @@ export const apiRequest = async (
       status: false,
       error: errorMessage,
       message: errorMessage,
+      errors: responseData?.errors || [],
+      type: responseData?.type || 'error',
     };
   }
 };
