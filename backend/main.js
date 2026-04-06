@@ -81,8 +81,6 @@ const PORT = process.env.PORT || 2026;
 const server = http.createServer(app);
 const web_socket_service = new WebSocketService(server);
 
-// Set x-powered-by header to 'Linux-sys' to hidden technology stack
-app.set("x-powered-by", "Linux-sys");
 
 /**
  * Configure Cross-Origin Resource Sharing (CORS)
@@ -114,6 +112,8 @@ app.use(cookieParser(process.env.COOKIE_SECRET || "extensible-cok-2026"));
  * Mount System Routes
  * All modular routes are prefixed with /cok/api
  */
+// Set x-powered-by header to 'Linux-sys' to hidden technology stack
+app.set("x-powered-by", "Linux-sys");
 app.use("/cok/api", allRoutes);
 
 /**
