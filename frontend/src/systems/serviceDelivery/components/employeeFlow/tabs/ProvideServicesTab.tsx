@@ -217,7 +217,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
                   v.entry_date ||
                   new Date().toISOString();
                 const serviceDuration = v.durations?.services_durations?.find(
-                  (d: any) => String(d.provider_id) === myId,
+                  (d: any) => String(d.provider_id) === myId && d.ended_at === null,
                 );
                 serviceStartTime = serviceDuration?.started_at || "";
               }
@@ -255,7 +255,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
                 new Date().toISOString();
 
               const serviceDuration = v.durations?.services_durations?.find(
-                (d: any) => String(d.provider_id) === myId,
+                (d: any) => String(d.provider_id) === myId && d.ended_at === null,
               );
               const serviceStartTimeVal = serviceDuration?.started_at || "";
 
@@ -398,6 +398,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
     rawVisitor: any,
     isStart: boolean = false,
     durationStr: string = "",
+    notes: string = "",
   ) => {
     const currentUser = user as any;
     const myId = String(
@@ -502,7 +503,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
     await serviceDeliveryService.updateServiceStatus({
       visitor_id: visitorId,
       status: targetStatus,
-      notes: null
+      notes: notes
     });
   };
 
@@ -693,6 +694,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
         selectedVisitor.rawVisitor,
         false,
         data.duration,
+        data.notes,
       );
 
       setShowModal(false);

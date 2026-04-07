@@ -119,7 +119,7 @@ module.exports = async function toggle_service_status(req, res, next) {
             const active_service = visitor.services_status[service_index];
 
             active_service.s_type = 'Inprogress';
-            
+
 
             // Set the provider/officer info who accepted/started the service
             active_service.provider_id = officerId;
@@ -132,6 +132,17 @@ module.exports = async function toggle_service_status(req, res, next) {
                 dept_assign.provider_name = officerName;
             }
             visitor.is_being_served = true;
+
+            // Add to durations for real-time tracking
+            visitor.durations.services_durations.push({
+                department_id: active_service.department_id,
+                department_name: active_service.department_name,
+                started_at: current_time,
+                ended_at: null,
+                duration: null,
+                provider_name: officerName,
+                provider_id: officerId
+            });
         }
 
 
@@ -169,14 +180,18 @@ module.exports = async function toggle_service_status(req, res, next) {
 
 
             // check if the one who is going to stop the service is the one who started it.
-            if(assigned_dept.provider_id.toString() !== officerId.toString()){ 
+            if(assigned_dept.provider_id.toString() !== officerId.toString()){
                 return res.status(403).json({
                     success: false,
                     type: 'warning',
                     message: 'Service can only be stopped by someone who started it.'
                 });
              }
-            const start_time = assigned_dept ? assigned_dept.assigned_time : visitor.entry_date;
+            // Find the start time from durations
+            const currentServiceDuration = visitor.durations.services_durations.find(
+                d => d.provider_id.toString() === officerId.toString() && d.ended_at === null
+            );
+            const start_time = currentServiceDuration ? currentServiceDuration.started_at : (assigned_dept ? assigned_dept.assigned_time : visitor.entry_date);
 
             const duration_minutes = Math.round(( new Date() - new Date(start_time)) / 60000);
             const duration_str = `${duration_minutes} mins`;
@@ -192,16 +207,14 @@ module.exports = async function toggle_service_status(req, res, next) {
                 provider_id: active_service.provider_id
             });
 
-            // B. Push to visitor's durations array
-            visitor.durations.services_durations.push({
-                department_id: active_service.department_id,
-                department_name: active_service.department_name,
-                duration: duration_str,
-                started_at: start_time,
-                ended_at: current_time,
-                provider_name: officerName,
-                provider_id: officerId
-            });
+            // B. Update the existing duration entry
+            const durationIndex = visitor.durations.services_durations.findIndex(
+                d => d.provider_id.toString() === officerId.toString() && d.ended_at === null
+            );
+            if (durationIndex !== -1) {
+                visitor.durations.services_durations[durationIndex].ended_at = current_time;
+                visitor.durations.services_durations[durationIndex].duration = duration_str;
+            }
 
             // C. Also update the services_status with final provider info
             active_service.provider_id = officerId;
