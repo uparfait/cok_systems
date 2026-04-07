@@ -34,7 +34,8 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
 
         // check if department exists and have employees
 
-        const _department = Department.findById(new_department_id);
+        const _department = await Department.findById(new_department_id);
+        console.log(_department)
 
         if(!_department) {
             return res.status(404).json({
