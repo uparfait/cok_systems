@@ -1,4 +1,5 @@
 const ServiceDelivery = require('../../models/service_delivery.js');
+const Department = require('../../models/department.js');
 
 /**
  * Get total visitors count and details by department who are currently in house 
@@ -9,131 +10,153 @@ const ServiceDelivery = require('../../models/service_delivery.js');
  * Param: department_id from URL params (optional)
  */
 module.exports = async function get_visitors_by_department_current(req, res, next) {
-    try {
-        const department_id = req.params.id;
+ try {
+    let { in_house = true, limit = 10, page = 1 } = req.query || {};
 
-        // Build the aggregation pipeline
-        const pipeline = [
-            // First, filter only in-house visitors
-            {
-                $match: {
-                    is_still_inhouse: true
-                }
-            },
-            // Handle empty/null services_status by adding a placeholder
-            {
-                $addFields: {
-                    services_status: {
-                        $cond: {
-                            if: {
-                                $or: [
-                                    { $eq: ['$services_status', null] },
-                                    { $not: ['$services_status'] },
-                                    { $eq: [{ $size: { $ifNull: ['$services_status', []] } }, 0] }
-                                ]
-                            },
-                            then: [{
-                                department_id: 'unassigned',
-                                department_name: 'Unassigned',
-                                s_type: 'Pending'
-                            }],
-                            else: '$services_status'
-                        }
-                    }
-                }
-            },
-            // Filter out completed services but preserve unassigned
-            {
-                $addFields: {
-                    services_status: {
-                        $filter: {
-                            input: '$services_status',
-                            as: 'service',
-                            cond: {
-                                $or: [
-                                    { $eq: ['$$service.department_id', 'unassigned'] },
-                                    { $ne: ['$$service.s_type', 'Completed'] }
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
-            // Remove documents that have no services_status after filtering
-            {
-                $match: {
-                    'services_status.0': { $exists: true }
-                }
-            },
-            // Unwind services_status array
-            {
-                $unwind: {
-                    path: '$services_status',
-                    preserveNullAndEmptyArrays: false
-                }
-            },
-            // If department_id is provided, filter by it
-            ...(department_id ? [{
-                $match: {
-                    'services_status.department_id': department_id
-                }
-            }] : []),
-            // Remove sensitive or unnecessary fields before grouping
-            {
-                $project: {
-                    'password': 0,
-                    'auth': 0,
-                    '__v': 0
-                }
-            },
-            // Group by department_name and collect visitors
-            {
-                $group: {
-                    _id: '$services_status.department_name',
-                    count: { $sum: 1 },
-                    visitors: { $push: '$$ROOT' }
-                }
-            },
-            // Sort by count descending (optional: put Unassigned at bottom)
-            {
-                
-                    $sort: { 
-                        $cond: [{ $eq: ['$_id', 'Unassigned'] }, 1, 0],
-                        count: -1
-                    }
-                
-            },
-            // Format the output
-            {
-                $project: {
-                    _id: 0,
-                    department_name: '$_id',
-                    count: 1,
-                    visitors: 1
-                }
-            }
-        ];
+    let user_role_name = req.user?.role_name;
+    let user_department_id = req.user?.department?._id.toString() || null;
+    let user_department_unit_id = req.user?.department_unit.toString() || null;
+    //let filter_role_names = ['Employee', 'Head of department']
 
-        const departmentData = await ServiceDelivery.aggregate(pipeline);
+    const limit_val = Math.min(parseInt(limit), 50);
+    const skip_val = (parseInt(page) - 1) * limit_val;
 
-        // Calculate total visitors across all matched departments
-        const total = departmentData.reduce((sum, item) => sum + item.count, 0);
+    let filter = {};
+    if (in_house === "true" || in_house === true)
+      filter.is_still_inhouse = true;
+    if (in_house === "false" || in_house === false)
+      filter.is_still_inhouse = false;
 
-        return res.status(200).json({
-            success: true,
-            type: 'success',
-            message: 'Current visitors by department retrieved successfully',
-            total_visitors: total,
-            data: departmentData
-        });
+    // if user role is employee check  if has department unit and only fetch visitors of that department unit
+    // if not has a department unit fetch the one in department
 
-    } catch (error) {
-        console.error("Error in get_visitors_by_department_current:", error);
-        return res.status(500).json({
-            success: false,
-            type: "error",
-            message: "Something went wrong while retrieving current visitors by department",
-            error: error.message
-        });
+    if (user_role_name === "Employee") {
+      if (user_department_unit_id) {
+        // also because department assigned is an array of objects we need to use $elemMatch to match the department unit id within the array of objects
+        // filter["departments_assigned.department_unit_id"] =
+        //   user_department_unit_id;
+        filter["departments_assigned"] = {
+          $elemMatch: { department_id: user_department_unit_id },
+        };
+      } else if (user_department_id) {
+        // filter["departments_assigned.department_id"] = user_department_id;
+        filter["departments_assigned"] = {
+          $elemMatch: { department_id: user_department_id },
+        };
+      }
     }
+
+    // check if user is head of department and get the department id and sub department ids and fetch the visitors of those departments
+    if (user_role_name === "Head of department") {
+      // find the department where the user is the leader
+      const department = await Department.findOne({
+        department_leader: req.user._id,
+      });
+      // check if is sub department and find its childs
+      if (!department) {
+        return res.status(403).json({
+          success: false,
+          type: "error",
+          message: "You are not assigned as a leader of any department",
+        });
+      }
+
+      if (department.sub_department_mng.is_sub_department) {
+        // find the parent department
+        const parent_department = await Department.findOne({
+          department_id: department.sub_department_mng.parent_department_id,
+        });
+        if (parent_department) {
+          // find the sub departments of the parent department
+          const sub_departments = await Department.find({
+            "sub_department_mng.parent_department_id":
+              parent_department.department_id,
+          });
+          const department_ids = [
+            parent_department.department_id,
+            ...sub_departments.map((dep) => dep.department_id),
+          ];
+
+          // becouse department assigned is an array of objects we need to use $in operator to match any of the department ids
+          // filter["departments_assigned.department_id"] = { $in: department_ids };
+          filter["departments_assigned"] = {
+            $elemMatch: { department_id: { $in: department_ids } },
+          };
+        } else {
+          // and also becouse department assigned is an array of objects we need to use $in operator to match the department id within an array
+          // below codes not works because it will try to match the whole array with the department id but we need to match any of the department ids in the array
+          //filter["departments_assigned.department_id"] = { $in: [department.department_id] };
+          // let try to use $elemMatch to match the department id within the array of objects
+          filter["departments_assigned"] = {
+            $elemMatch: { department_id: department.department_id },
+          };
+        }
+      }
+    }
+
+    const visitors = await ServiceDelivery.find(filter)
+      .limit(limit_val)
+      .skip(skip_val)
+      .sort({ entry_date: -1 });
+
+    const total_count = await ServiceDelivery.countDocuments(filter);
+
+    // Calculate current duration for in-house visitors
+    const visitorsWithDuration = visitors.map((visitor) => {
+      const visitorObj = visitor.toObject();
+      if (visitor.is_still_inhouse && visitor.entry_date) {
+        const entryTime = new Date(visitor.entry_date);
+        const currentTime = new Date();
+        const durationMs = currentTime - entryTime;
+        const hours = Math.floor(durationMs / (1000 * 60 * 60));
+        const minutes = Math.floor(
+          (durationMs % (1000 * 60 * 60)) / (1000 * 60),
+        );
+
+        // Calculate duration in different formats
+        if (hours > 0) {
+          visitorObj.current_duration = `${hours}h ${minutes}m`;
+        } else {
+          visitorObj.current_duration = `${minutes} mins`;
+        }
+        visitorObj.current_duration_hours = hours + minutes / 60;
+
+        // Check if approaching 8 hour limit
+        const hoursInside = hours + minutes / 60;
+        visitorObj.is_near_limit = hoursInside >= 7; // 7 hours = near 8 hour limit
+        visitorObj.is_over_limit = hoursInside >= 8;
+      } else if (
+        visitor.vehicle_storage?.has_vehicle &&
+        visitor.vehicle_storage?.vehicle_details?.duration
+      ) {
+        // Use stored duration for checked out visitors
+        visitorObj.current_duration =
+          visitor.vehicle_storage.vehicle_details.duration;
+        visitorObj.current_duration_hours =
+          parseFloat(visitor.vehicle_storage.vehicle_details.duration) / 60 ||
+          0;
+      } else {
+        visitorObj.current_duration = "N/A";
+        visitorObj.current_duration_hours = 0;
+      }
+      return visitorObj;
+    });
+
+    return res.status(200).json({
+      success: true,
+      type: "success",
+      message: "Visitors results",
+      total: total_count,
+      page: parseInt(page),
+      data: visitorsWithDuration,
+    });
+  } catch (error) {
+    console.error("Error in list_visitors:", error);
+    return res.status(500).json({
+      success: false,
+      type: "error",
+      message: "Something went wrong while retrieving visitors",
+      error: error.message,
+    });
+  }
 };

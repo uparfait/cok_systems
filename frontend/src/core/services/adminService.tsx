@@ -326,7 +326,7 @@ export const serviceDeliveryService = {
   // 👉 ADD THIS NEW UPDATE FUNCTION:
   update: (id: string, data: any) => put(`/servicedelivery/visitor/${id}`, data),
   // Update service status - uses dedicated endpoint for service status and durations
-  updateServiceStatus: (id: string, data: any) => put(`/servicedelivery/visitor/${id}/status`, data),
+  updateServiceStatus: (data: any) => post(`/servicedelivery/visitor/service/status`, data),
 };
 
 // ==================== SMART PARKING APIs ====================
