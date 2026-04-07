@@ -129,6 +129,8 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
   const [transferEmployees, setTransferEmployees] = useState<any[]>([]);
   const [transferEmployeesLoading, setTransferEmployeesLoading] =
     useState(false);
+  const [units, setUnits] = useState<any[]>([]);
+  const [selectedUnit, setSelectedUnit] = useState<string>("");
 
   const entriesPerPage = 5;
 
@@ -508,7 +510,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
   };
 
   const handleTransferVisitor = async () => {
-    
+
     if (!transferVisitor || !transferDepartment) return;
     setTransferring(true);
     try {
@@ -527,9 +529,12 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
           "Unknown",
       );
 
-      const newDept = departments.find((d) => d._id === transferDepartment);
-      const newDeptName =
-        newDept?.department_name || newDept?.name || "Unknown";
+      // Determine target: unit if selected, else department
+      const targetId = selectedUnit || transferDepartment;
+      const targetInfo = selectedUnit
+        ? units.find((u) => u.id === selectedUnit)
+        : departments.find((d) => d._id === transferDepartment);
+      const targetName = targetInfo?.name || "Unknown";
 
       const currentDept =
         transferVisitor.rawVisitor?.departments_assigned?.find(
@@ -537,6 +542,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
         );
       const previousDepartmentId = currentDept?.department_id;
 
+      // Only assign specific provider if employee selected
       const providerId = transferEmployee
         ? String(transferEmployee._id || transferEmployee.employee_id || "")
         : undefined;
@@ -551,7 +557,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
                 ...r,
                 status: "transfered",
                 assignedTo:
-                  providerName || `${newDeptName} Dept` || "Transferred",
+                  providerName || `${targetName}` || "Transferred",
               }
             : r,
         ),
@@ -559,8 +565,8 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
 
       await serviceDeliveryService.assignToDepartment(
         transferVisitor.id,
-        transferDepartment,
-        newDeptName,
+        targetId,
+        targetName,
         providerId,
         providerName,
         previousDepartmentId,
@@ -571,10 +577,12 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
       setTransferDepartment("");
       setTransferEmployee(null);
       setTransferEmployees([]);
+      setUnits([]);
+      setSelectedUnit("");
 
       fetchAssignedVisitors(true);
     } catch (error) {
-      
+
       console.error("Error transferring visitor:", error);
       alert("Failed to transfer visitor. Please try again.");
       fetchAssignedVisitors(true);
@@ -607,19 +615,64 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
     }
   };
 
+  const loadUnitsByDepartment = async (departmentId: string) => {
+    setTransferEmployeesLoading(true);
+    try {
+      const response = await departmentService.getAll();
+      if (response.status || response.success) {
+        const deptData = Array.isArray(response.data) ? response.data : [];
+
+        const subDepts = deptData.filter((dept: any) => {
+          return (
+            (dept.sub_department_mng?.is_sub_department === true ||
+              dept.sub_department_mng?.is_sub_department === "true") &&
+            String(dept.sub_department_mng?.parent_department_id) ===
+              String(departmentId)
+          );
+        });
+
+        const formattedUnits = subDepts.map((subDept: any) => ({
+          id: subDept._id || subDept.department_id,
+          name: subDept.department_name || subDept.name,
+          staffAvailable: subDept.total_employees || 0,
+          currentQueue: 0, // We don't have counts here
+          isActive: true,
+        }));
+
+        setUnits(formattedUnits);
+      } else {
+        setUnits([]);
+      }
+    } catch (error) {
+      console.error("Failed to load units:", error);
+      setUnits([]);
+    } finally {
+      setTransferEmployeesLoading(false);
+    }
+  };
+
   const handleTransferClick = (request: ServiceRequest) => {
     if (request.status === "completed") return;
     setTransferVisitor(request);
     setTransferDepartment("");
     setTransferEmployee(null);
     setTransferEmployees([]);
+    setUnits([]);
+    setSelectedUnit("");
     setShowTransferModal(true);
   };
 
   const handleTransferDepartmentChange = (deptId: string) => {
     setTransferDepartment(deptId);
     setTransferEmployee(null);
-    fetchTransferEmployees(deptId);
+    setSelectedUnit("");
+    if (deptId) {
+      loadUnitsByDepartment(deptId);
+      fetchTransferEmployees(deptId); // Keep for potential employee selection, but we'll make it optional
+    } else {
+      setUnits([]);
+      setTransferEmployees([]);
+    }
   };
 
   const handleServeClick = async (request: ServiceRequest) => {
@@ -1018,6 +1071,8 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
                     setTransferDepartment("");
                     setTransferEmployee(null);
                     setTransferEmployees([]);
+                    setUnits([]);
+                    setSelectedUnit("");
                   }}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -1052,12 +1107,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
                 </label>
                 <select
                   value={transferDepartment}
-                  onChange={(e) => {
-                    const deptId = e.target.value;
-                    setTransferDepartment(deptId);
-                    setTransferEmployee(null);
-                    fetchTransferEmployees(deptId);
-                  }}
+                  onChange={(e) => handleTransferDepartmentChange(e.target.value)}
                   className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#0284C7] bg-white"
                 >
                   <option value="">Choose department...</option>
@@ -1070,9 +1120,29 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
               </div>
 
               {transferDepartment && (
+                <div className="mb-4">
+                  <label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">
+                    Select Unit (Optional)
+                  </label>
+                  <select
+                    value={selectedUnit}
+                    onChange={(e) => setSelectedUnit(e.target.value)}
+                    className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#0284C7] bg-white"
+                  >
+                    <option value="">No specific unit</option>
+                    {units.map((unit) => (
+                      <option key={unit.id} value={unit.id}>
+                        {unit.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {transferDepartment && (
                 <div className="mb-6">
                   <label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">
-                    Select Employee
+                    Assign to Specific Employee (Optional)
                   </label>
                   <div className="relative">
                     {transferEmployeesLoading ? (
@@ -1099,7 +1169,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
                         }}
                         className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#0284C7] bg-white cursor-pointer appearance-none"
                       >
-                        <option value="">Any employee in department</option>
+                        <option value="">Any employee in department/unit</option>
                         {transferEmployees.map((emp) => {
                           const empId = String(
                             emp._id || emp.employee_id || "",
@@ -1142,6 +1212,8 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
                     setTransferDepartment("");
                     setTransferEmployee(null);
                     setTransferEmployees([]);
+                    setUnits([]);
+                    setSelectedUnit("");
                   }}
                   className="flex-1 px-4 py-2 border border-[#D9E1EA] text-[#2C3E50] rounded-[8px] font-medium hover:bg-gray-50 transition-colors"
                 >

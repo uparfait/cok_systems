@@ -21,19 +21,28 @@ module.exports = async function list_visitors(req, res, next) {
 
     // if user role is employee check  if has department unit and only fetch visitors of that department unit
     // if not has a department unit fetch the one in department
+    // If department is a unit, also include visitors assigned to parent department
 
     if (user_role_name === "Employee") {
+      let departmentIds = [];
       if (user_department_unit_id) {
-        // also because department assigned is an array of objects we need to use $elemMatch to match the department unit id within the array of objects
-        // filter["departments_assigned.department_unit_id"] =
-        //   user_department_unit_id;
-        filter["departments_assigned"] = {
-          $elemMatch: { department_id: user_department_unit_id },
-        };
+        departmentIds.push(user_department_unit_id);
+        // Find parent department
+        const unitDept = await Department.findById(user_department_unit_id);
+        if (unitDept && unitDept.sub_department_mng?.is_sub_department) {
+          const parentDept = await Department.findOne({
+            department_id: unitDept.sub_department_mng.parent_department_id,
+          });
+          if (parentDept) {
+            departmentIds.push(parentDept._id.toString());
+          }
+        }
       } else if (user_department_id) {
-        // filter["departments_assigned.department_id"] = user_department_id;
+        departmentIds.push(user_department_id);
+      }
+      if (departmentIds.length > 0) {
         filter["departments_assigned"] = {
-          $elemMatch: { department_id: user_department_id },
+          $elemMatch: { department_id: { $in: departmentIds } },
         };
       }
     }
@@ -53,37 +62,39 @@ module.exports = async function list_visitors(req, res, next) {
         });
       }
 
-      if (department.sub_department_mng.is_sub_department) {
+      let department_ids = [];
+      if (department.sub_department_mng?.is_sub_department) {
         // find the parent department
         const parent_department = await Department.findOne({
           department_id: department.sub_department_mng.parent_department_id,
         });
         if (parent_department) {
-          // find the sub departments of the parent department
+          // find the sub departments of the parent department.
           const sub_departments = await Department.find({
             "sub_department_mng.parent_department_id":
               parent_department.department_id,
           });
-          const department_ids = [
-            parent_department.department_id,
-            ...sub_departments.map((dep) => dep.department_id),
+          department_ids = [
+            parent_department._id.toString(),
+            ...sub_departments.map((dep) => dep._id.toString()),
           ];
-
-          // becouse department assigned is an array of objects we need to use $in operator to match any of the department ids
-          // filter["departments_assigned.department_id"] = { $in: department_ids }; and void from sending visitors where department_assigne
-          filter["departments_assigned"] = {
-            $elemMatch: { department_id: { $in: department_ids } },
-          };
         } else {
-          // and also becouse department assigned is an array of objects we need to use $in operator to match the department id within an array
-          // below codes not works because it will try to match the whole array with the department id but we need to match any of the department ids in the array
-          //filter["departments_assigned.department_id"] = { $in: [department.department_id] };
-          // let try to use $elemMatch to match the department id within the array of objects
-          filter["departments_assigned"] = {
-            $elemMatch: { department_id: department.department_id },
-          };
+          department_ids = [department._id.toString()];
         }
+      } else {
+        // Not a sub department, find its sub departments and include them
+        const sub_departments = await Department.find({
+          "sub_department_mng.parent_department_id": department.department_id,
+        });
+        department_ids = [
+          department._id.toString(),
+          ...sub_departments.map((dep) => dep._id.toString()),
+        ];
       }
+
+      filter["departments_assigned"] = {
+        $elemMatch: { department_id: { $in: department_ids } },
+      };
     }
 
     const visitors = await ServiceDelivery.find(filter)
