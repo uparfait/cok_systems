@@ -8,7 +8,7 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
             visitor_id = null,
             new_department_id = null,
             new_department_name = null,
-            provider_name = req.user?.name || 'Not specified',
+            provider_name =  'Not specified',
             provider_id = null,
             previous_department_id = null
         } = req.body || {};
@@ -104,7 +104,7 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
             global.WebsocketIO?.to(`DEPARTMENT_ROOM_${new_department_name}`).emit('new_visitor_assigned_to_your_department', {
                 show_notif: true,
                 type: 'info',
-                message: `Your deppartment assigned a new vistor${provider_name ? ' and assigned to ' + provider_name : ''}`
+                message: `Your deppartment assigned a new vistor`
             })
         const updated_visitor = await visitor.save();
 
