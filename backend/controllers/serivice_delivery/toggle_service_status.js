@@ -126,6 +126,7 @@ module.exports = async function toggle_service_status(req, res, next) {
                 dept_assign.provider_id = officerId;
                 dept_assign.provider_name = officerName;
             }
+            visitor.is_being_served = false;
         }
 
 
@@ -140,6 +141,15 @@ module.exports = async function toggle_service_status(req, res, next) {
                     message: "Department assigned not found!"
                 });
             }
+
+            // check if the one who is going to stop the service is the one who started it.
+            if(assigned_dept.provider_id.toString() !== officerId.toString){ 
+                return res.status(403).json({
+                    success: false,
+                    type: 'warning',
+                    message: 'Service can only be stopped by someone who started it.'
+                });
+             }
             const start_time = assigned_dept ? assigned_dept.assigned_time : visitor.entry_date;
 
             const duration_minutes = Math.round((current_time - new Date(start_time)) / 60000);
@@ -172,6 +182,7 @@ module.exports = async function toggle_service_status(req, res, next) {
             active_service.provider_name = officerName;
 
             active_service.s_type = 'Completed';
+            visitor.is_being_served = false;
         }
 
         const updated_visitor = await visitor.save();
