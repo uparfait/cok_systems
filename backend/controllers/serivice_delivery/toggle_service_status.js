@@ -7,11 +7,10 @@ module.exports = async function toggle_service_status(req, res, next) {
     try {
         let {
             visitor_id = null,
-            department_id = null,
             status = null, // 'Inprogress' or 'Completed'
-            provider_id = null,
-            provider_name = null
+            notes = null
         } = req.body || {};
+
 
         // Get current user from request (set by auth middleware)
         const currentUser = req.user;
@@ -34,22 +33,18 @@ module.exports = async function toggle_service_status(req, res, next) {
 
         const visitor = await ServiceDelivery.findById(visitor_id);
 
+        
+
         if (!visitor || !visitor.is_still_inhouse) {
             return res.status(404).json({ success: false, type: 'warning', message: "Active visitor not found" });
         }
 
 
 
-        const user_department_id = req.user?.department_unit || req.user?.department?._id?.toString();
-        if (user_department_id !== department_id) {
-            return res.status(403).json({
-                success: false,
-                type: 'warning',
-                message: "You do not have permission to update this service status for the specified department."
-            });
-        }
+        const user_department_id = req.user?.department_unit?.toString() || req.user?.department?._id?.toString();
+       
         // find department in database
-        const user_department = await Department.findById(department_id);
+        const user_department = await Department.findById(user_department_id);
 
         if (!user_department) {
             return res.status(404).json({
@@ -59,13 +54,21 @@ module.exports = async function toggle_service_status(req, res, next) {
             });
         }
 
-        department_id = user_department._id.toString();
+       let department_id = user_department._id.toString();
 
 
         // 2. Logic for marking as 'Inprogress' (Officer Accepted)
         if (status === 'Inprogress') {
+
+            if(visitor.is_being_served) {
+                return res.status(400).json({
+                    success: false,
+                    type: 'warning',
+                    message: "Visitor is already being served by another part!"
+                });
+            }
             const current_time = new Date();
-            const dept_assign = visitor.departments_assigned.find(d => d.department_id === department_id);
+            const dept_assign = visitor.departments_assigned.find(d => d.department_id.toString() === department_id);
 
             // check if no department match this and ASSIGN HIM/HER A DEPARTMENT
             if (!dept_assign) {
@@ -108,13 +111,14 @@ module.exports = async function toggle_service_status(req, res, next) {
                 return res.status(404).json({
                     success: false,
                     type: 'warning',
-                    message: `No active service found for department ID ${department_id} to toggle.`
+                    message: `No active service found`
                 });
             }
 
             const active_service = visitor.services_status[service_index];
 
             active_service.s_type = 'Inprogress';
+            
 
             // Set the provider/officer info who accepted/started the service
             active_service.provider_id = officerId;
@@ -126,7 +130,7 @@ module.exports = async function toggle_service_status(req, res, next) {
                 dept_assign.provider_id = officerId;
                 dept_assign.provider_name = officerName;
             }
-            visitor.is_being_served = false;
+            visitor.is_being_served = true;
         }
 
 
@@ -143,7 +147,7 @@ module.exports = async function toggle_service_status(req, res, next) {
             }
 
             // check if the one who is going to stop the service is the one who started it.
-            if(assigned_dept.provider_id.toString() !== officerId.toString){ 
+            if(assigned_dept.provider_id.toString() !== officerId.toString()){ 
                 return res.status(403).json({
                     success: false,
                     type: 'warning',
@@ -183,6 +187,16 @@ module.exports = async function toggle_service_status(req, res, next) {
 
             active_service.s_type = 'Completed';
             visitor.is_being_served = false;
+
+            
+
+            if(notes) {
+                visitor.notes.push({
+                    writter_name: officerName,
+                    message: notes,
+                    timestamp: new Date().toLocaleDateString()
+                });
+            }
         }
 
         const updated_visitor = await visitor.save();
