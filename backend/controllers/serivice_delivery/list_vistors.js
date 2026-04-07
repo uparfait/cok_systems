@@ -7,7 +7,7 @@ module.exports = async function list_visitors(req, res, next) {
 
     let user_role_name = req.user?.role_name;
     let user_department_id = req.user?.department?._id.toString() || null;
-    let user_department_unit_id = req.user?.department_unit.toString() || null;
+    let user_department_unit_id = req.user?.department_unit?.toString() || null;
     //let filter_role_names = ['Employee', 'Head of department']
 
     const limit_val = Math.min(parseInt(limit), 50);
@@ -70,7 +70,7 @@ module.exports = async function list_visitors(req, res, next) {
     }
 
     
-}     
+}  
 
     const visitors = await ServiceDelivery.find(filter)
       .limit(limit_val)

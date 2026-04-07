@@ -107,6 +107,10 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
             }
         }
 
+        // first of all empty department assigned to the visitor to avoid any conflict with the new department assignment
+
+        visitor.departments_assigned = [];
+
         // Assign the new department
         visitor.departments_assigned.push({
             department_id: new_department_id,
@@ -116,6 +120,8 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
             provider_id,
             reached_in: false
         });
+
+        visitor.services_status = [];
 
         visitor.services_status.push({
             department_id: new_department_id,
@@ -127,16 +133,16 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
 
         // announce provider if have one
 
-        if (provider_id) {
-            global.WebsocketIO?.to(`PRIVATE_ROOM_${provider_id.toString()}`).emit('new_visitor_assigned', {
+       
+            global.WebsocketIO?.emit('new_visitor_assigned', {
                 show_notif: true,
                 type: 'info',
                 message: 'You have assigned a new visitor'
             })
-        }
+        
 
 
-            global.WebsocketIO?.to(`DEPARTMENT_ROOM_${new_department_name}`).emit('new_visitor_assigned_to_your_department', {
+            global.WebsocketIO?.emit('new_visitor_assigned_to_your_department', {
                 show_notif: true,
                 type: 'info',
                 message: `Your department assigned a new visitor`

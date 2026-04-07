@@ -7,8 +7,9 @@ module.exports = async function toggle_service_status(req, res, next) {
     try {
         let {
             visitor_id = null,
-            status = null, // 'Inprogress' or 'Completed'
-            notes = null
+            status = null, // 'Inprogress', 'Transfered' or 'Completed'
+            notes = null,
+
         } = req.body || {};
 
 
@@ -16,19 +17,19 @@ module.exports = async function toggle_service_status(req, res, next) {
         const currentUser = req.user;
 
         // Use provided provider info or fall back to current user
-        const officerId = provider_id || currentUser?._id || currentUser?.id || currentUser?.employee_id;
-        const officerName = provider_name || currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown Officer';
+        const officerId =  currentUser?._id || currentUser?.id || currentUser?.employee_id;
+        const officerName =  currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown Officer';
 
-        if (!visitor_id || !department_id || !status) {
+        if (!visitor_id || !status) {
             return res.status(400).json({
                 success: false,
                 type: 'warning',
-                message: "Visitor ID, Department ID, and Status are required"
+                message: "Visitor ID and Status are required"
             });
         }
 
-        if (!['Inprogress', 'Completed'].includes(status)) {
-            return res.status(400).json({ success: false, type: 'warning', message: "Status must be 'Inprogress' or 'Completed'" });
+        if (!['Inprogress', 'Completed', 'Transfered'].includes(status)) {
+            return res.status(400).json({ success: false, type: 'warning', message: "Status must be 'Inprogress', 'Completed', or 'Transfered'" });
         }
 
         const visitor = await ServiceDelivery.findById(visitor_id);
@@ -146,6 +147,27 @@ module.exports = async function toggle_service_status(req, res, next) {
                 });
             }
 
+              //  Find the exact service status to update
+            const service_index = visitor.services_status.findIndex(
+                s => s.s_type !== 'Completed'
+            );
+
+
+            if (service_index === -1) {
+                return res.status(404).json({
+                    success: false,
+                    type: 'warning',
+                    message: `No active service found`
+                });
+            }
+
+
+
+            const active_service = visitor.services_status[service_index];
+
+            const current_time = new Date();
+
+
             // check if the one who is going to stop the service is the one who started it.
             if(assigned_dept.provider_id.toString() !== officerId.toString()){ 
                 return res.status(403).json({
@@ -156,7 +178,7 @@ module.exports = async function toggle_service_status(req, res, next) {
              }
             const start_time = assigned_dept ? assigned_dept.assigned_time : visitor.entry_date;
 
-            const duration_minutes = Math.round((current_time - new Date(start_time)) / 60000);
+            const duration_minutes = Math.round(( new Date() - new Date(start_time)) / 60000);
             const duration_str = `${duration_minutes} mins`;
 
             // A. Save to ServiceTracking Model
