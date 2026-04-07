@@ -16,7 +16,7 @@ module.exports = async function delete_employee(req, res, next) {
         }
 
         //  Prevent self-deletion
-        if (req.user && req.user?.id === id) {
+        if (req.user && req.user?.id.toString() === id.toString()) {
             return res.status(403).json({
                 success: false,
                 type: "warning",
@@ -57,6 +57,16 @@ module.exports = async function delete_employee(req, res, next) {
                     await dept.save()
                 }
             }
+
+            // check also if have department unit and decrement employee in that unit as well
+            if(user.department_unit && user.department_unit !== 'Not specified' && user.department_unit !== user.department) {
+                const deptUnit = await department_model.findById(user.department_unit)
+                if(deptUnit) {
+                    deptUnit.number_of_employees = Math.max(0, (deptUnit.number_of_employees || 1) - 1)
+                    await deptUnit.save()
+                }
+            }
+
 
         //  Perform deletion
         const deleted_user = await user_model.findByIdAndDelete(id)

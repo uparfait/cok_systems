@@ -21,6 +21,8 @@ module.exports = async function create_multiple_employees(req, res, next) {
             roles = {}
         } = req.body || {};
 
+        
+
         // Check for upload errors from multer
         if (req.UploadError) {
             return res.status(400).json({
@@ -68,6 +70,7 @@ module.exports = async function create_multiple_employees(req, res, next) {
 
         // Validate department_id if provided
         let dpt = null;
+        let dpt_to_update = null;
         if (department_id && department_id !== 'Not specified') {
             if (!mongoose.Types.ObjectId.isValid(department_id)) {
                 return res.status(400).json({
@@ -86,6 +89,27 @@ module.exports = async function create_multiple_employees(req, res, next) {
                 });
             }
         }
+
+        // validate department_unit if provided
+        if (department_unit && department_unit !== 'Not specified') {
+            if (!mongoose.Types.ObjectId.isValid(department_unit)) {
+                return res.status(400).json({
+                    success: false,
+                    type: "warning",
+                    message: `Invalid department_unit format: ${department_unit}`
+                });
+            }
+            const deptUnitExists = await department_model.findById(department_unit);
+            if (!deptUnitExists) {
+                return res.status(404).json({
+                    success: false,
+                    type: "warning",
+                    message: `Department unit with ID ${department_unit} not found. Please create it first or use another department unit.`
+                });
+            }
+            dpt_to_update = deptUnitExists;
+        }
+
 
         // Map and validate each row
         const mappedEmployees = [];
@@ -386,6 +410,11 @@ module.exports = async function create_multiple_employees(req, res, next) {
             if (dpt && department_id && department_id !== 'Not specified') {
                 dpt.total_employees = (dpt.total_employees || 0) + mappedEmployees.length;
                 await dpt.save({ session });
+                // also update department unit if specified and different from main department
+                if(dpt_to_update && dpt_to_update._id.toString() !== department_id) {
+                    dpt_to_update.total_employees = (dpt_to_update.total_employees || 0) + mappedEmployees.length;
+                    await dpt_to_update.save({ session });
+                }
             }
             
             // Commit transaction
