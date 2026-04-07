@@ -1,5 +1,6 @@
 const ServiceDelivery = require('../../models/service_delivery.js');
 const ServiceTracking = require('../../models/service_tracking.js');
+const Department = require('../../models/department.js');
 const mongoose = require('mongoose');
 
 module.exports = async function assign_visitor_to_department(req, res, next) {
@@ -20,6 +21,38 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
                 message: "Visitor ID, New Department ID, and New Department Name are required"
             });
         }
+
+        // check if new department id is of mongodb allowed format
+
+        if(!mongoose.Types.ObjectId.isValid(new_department_id)) {
+            return res.status(400).json({
+                success: false,
+                type: 'warning',
+                message: 'Invalid department id'
+            })
+        }
+
+        // check if department exists and have employees
+
+        const _department = Department.findById(new_department_id);
+
+        if(!_department) {
+            return res.status(404).json({
+                success: false,
+                type: 'warning',
+                message: 'Department not found'
+            })
+        }
+
+        if(_department.total_employees == 0) {
+            return res.status(400).json({
+                 success: false,
+                type: 'warning',
+                message: 'There is no any employee in this department'
+            })
+        }
+
+
 
         if (!mongoose.Types.ObjectId.isValid(visitor_id)) {
             return res.status(400).json({ success: false, type: 'warning', message: "Invalid Visitor ID" });
