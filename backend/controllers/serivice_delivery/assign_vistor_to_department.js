@@ -69,6 +69,7 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
                 });
 
                 visitor.services_status[active_service_index].s_type = 'Transfered';
+               
             }
         }
 
@@ -96,7 +97,7 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
             global.WebsocketIO?.to(`PRIVATE_ROOM_${provider_id.toString()}`).emit('new_visitor_assigned', {
                 show_notif: true,
                 type: 'info',
-                message: 'You have assigned a new vistor'
+                message: 'You have assigned a new visitor'
             })
         }
 
@@ -104,8 +105,9 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
             global.WebsocketIO?.to(`DEPARTMENT_ROOM_${new_department_name}`).emit('new_visitor_assigned_to_your_department', {
                 show_notif: true,
                 type: 'info',
-                message: `Your deppartment assigned a new vistor`
+                message: `Your department assigned a new visitor`
             })
+        visitor.is_being_served = false;
         const updated_visitor = await visitor.save();
 
         return res.status(200).json({
