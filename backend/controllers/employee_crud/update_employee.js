@@ -61,11 +61,11 @@ module.exports = async function update_user(req, res, next) {
     /**
      * Handle department change: decrement old department, increment new department
      */
-    let oldDeptId = user.department;
-    let newDeptId = department_id;
+    let oldDeptId = user.department && user.department.toString();
+    let newDeptId = department_id.toString();
 
-    let oldDeptUnitId = user.department_unit;
-    let newDeptUnitId = department_unit;
+    let oldDeptUnitId = user.department_unit && user.department_unit.toString();
+    let newDeptUnitId = department_unit && department_unit.toString();
 
     if (newDeptId && newDeptId !== "Not specified" && newDeptId !== oldDeptId) {
       if (!mongoose.Types.ObjectId.isValid(newDeptId)) {
