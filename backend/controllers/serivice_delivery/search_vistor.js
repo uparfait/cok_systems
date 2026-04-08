@@ -1,10 +1,15 @@
 const ServiceDelivery = require('../../models/service_delivery.js')
+const Department = require('../../models/department.js')
 
 module.exports = async function search_visitors(req, res, next) {
     try {
-        let { query = '', in_house = true, limit = 10, page = 1 } = req.query || {}
+        let { query = '', in_house = true, limit = 20, page = 1 } = req.query || {}
 
-        const limit_val = Math.min(parseInt(limit), 50)
+        let user_role_name = req.user?.role_name;
+        let user_department_id = req.user?.department?._id.toString() || null;
+        let user_department_unit_id = req.user?.department_unit?.toString() || null;
+
+        const limit_val = Math.min(parseInt(limit), 20)
         const skip_val = (parseInt(page) - 1) * limit_val
 
         const safe_query = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -16,7 +21,9 @@ module.exports = async function search_visitors(req, res, next) {
                 { telephone: regex },
                 { 'identification.number': regex },
                 { plate_number: regex },
-                {badge_number: regex}
+                { badge_number: regex },
+                { 'departments_assigned.provider_name': regex },
+                { 'services_status.provider_name': regex }
             ]
         }
 

@@ -9,10 +9,6 @@ import {
   FiClock,
   FiCheckCircle,
   FiMoreVertical,
-  FiChevronDown,
-  FiDownload,
-  FiChevronLeft,
-  FiChevronRight,
   FiGrid,
 } from "react-icons/fi";
 import {
@@ -605,7 +601,7 @@ const ReceptionistDashboard: React.FC = () => {
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-blue-700 text-sm font-medium mb-1">
-                        Today's Total Visitors
+                      Total Current Visitors
                       </p>
                       <h3 className="text-3xl font-bold text-blue-700">
                         {totalCount}
@@ -787,7 +783,7 @@ const ReceptionistDashboard: React.FC = () => {
                 </div>
                 <div className="w-px bg-gray-200"></div>
                 <div className="text-center">
-                  <p className="text-xs text-gray-500 mb-1">Total Today</p>
+                  <p className="text-xs text-gray-500 mb-1">Total Current</p>
                   <p className="text-lg font-bold text-gray-800">
                     {totalCount}
                   </p>

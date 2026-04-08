@@ -311,7 +311,12 @@ export const serviceDeliveryService = {
   getCurrentVisitorsByDepartment: (departmentId: string) => get(`/servicedelivery/visitor/by-department-current/${encodeURIComponent(departmentId)}`),
   
   // Get current visitors count by provider (employee)
-  getCurrentVisitorsByProvider: (providerId: string) => get(`/servicedelivery/visitor/by-provider-current/${encodeURIComponent(providerId)}`),
+  getCurrentVisitorsByProvider: (providerId: string, page?: number, limit?: number) => {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (limit) params.append('limit', limit.toString());
+    return get(`/servicedelivery/visitor/by-provider-current/${encodeURIComponent(providerId)}?${params.toString()}`);
+  },
 
   // Get visitors by provider (employee) - returns actual visitor records
   getVisitorsByProvider: (providerId: string, page?: number, limit?: number) => {

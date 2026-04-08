@@ -104,6 +104,8 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [selectedVisitor, setSelectedVisitor] =
     useState<SelectedVisitor | null>(null);
@@ -132,10 +134,8 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
   const [units, setUnits] = useState<any[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<string>("");
 
-  const entriesPerPage = 5;
-
   const fetchAssignedVisitors = useCallback(
-    async (silent: boolean = false) => {
+    async (silent: boolean = false, page: number = currentPage, query: string = searchTerm) => {
       const currentUser = user as any;
       const myId = String(
         currentUser?.userId ||
@@ -158,156 +158,118 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
 
       try {
         if (!silent) setLoading(true);
-        // 👉 NEW: Use the updated backend endpoint that returns ALL visitors (assigned and unassigned)
-        const response =
-          (await serviceDeliveryService.getCurrentVisitorsByProvider(
-            myId,
-          )) as any;
+        let response;
+        if (query && query.trim()) {
+          response = await serviceDeliveryService.search(query, page, 20);
+        } else {
+          response = await serviceDeliveryService.getCurrentVisitorsByProvider(myId, page, 20);
+        }
 
-        if (response && response.success && response.data) {
-          // The backend now returns visitors grouped by department (including "Unassigned")
-          const departmentGroups = response.data;
+        if (response && response.success) {
+          const allVisitors: any[] = response.data || [];
 
-          // Flatten all visitors from all department groups into a single array
-          const allVisitors: any[] = [];
-          departmentGroups.forEach((group: any) => {
-            allVisitors.push(group);
-          });
+          setTotalCount(response.total || 0);
+          setTotalPages(Math.ceil((response.total || 0) / 20));
 
-          // 👉 MAPPING LOGIC: Format the data perfectly for the table also no reason to filter
-          const formattedRequests: ServiceRequest[] = allVisitors.map(
-            (v: any) => {
-              const myServiceStatus =
-                v.services_status.length !== 0
-                  ? v.services_status.reverse()[0]
-                  : null;
+          const formattedRequests = allVisitors.map((v: any) => {
+            const colors = [
+              "bg-purple-500",
+              "bg-pink-500",
+              "bg-yellow-400",
+              "bg-teal-500",
+              "bg-lavender-400",
+              "bg-blue-500",
+            ];
+            const visitorName =
+              v.full_name || v.name || v.visitorName || "Unknown";
+            const colorIndex = visitorName.charCodeAt(0) % colors.length;
+            const initials = visitorName
+              .split(" ")
+              .map((n: string) => n[0])
+              .join("")
+              .substring(0, 2)
+              .toUpperCase();
 
-              console.log("My services status", myServiceStatus);
-              // we don't have to filter because backend already did
-              const myDeptAssign =
-                v.departments_assigned?.length !== 0
-                  ? v.departments_assigned.reverse()[0]
-                  : null;
+            let identification = "N/A";
+            if (typeof v.identification === "string")
+              identification = v.identification;
+            else if (v.identification?.number)
+              identification = v.identification.number;
 
-              console.log("My department assign", myDeptAssign);
+            let badgeNumber = "";
+            if (v.badge_number) badgeNumber = v.badge_number;
 
-              let status:
-                | "Not started"
-                | "inprogress"
-                | "completed"
-                | "transfered" = "Not started";
-              let assignedToDisplay = myDeptAssign?.provider_name || "None";
-              let serviceStartTime = "";
-              let checkIn = v.entry_date || new Date().toISOString();
+            // Find assignment for current provider
+            const myAssignment = v.departments_assigned?.find(
+              (d: any) => String(d.provider_id) === myId
+            );
 
-              if (true) {
-                // Read my explicit status
-                const rawStatus = myServiceStatus?.s_type || v.status || "";
-                const normalizedStatus = rawStatus.toLowerCase();
-                if (normalizedStatus === "completed") status = "completed";
-                else if (normalizedStatus === "inprogress")
-                  status = "inprogress";
-                else if (
-                  normalizedStatus === "transfered" ||
-                  normalizedStatus === "transferred"
-                )
-                  status = "transfered";
-                else status = "Not started";
+            const checkInTime = myAssignment?.assigned_time || v.entry_date || new Date().toISOString();
 
-                checkIn =
-                  myDeptAssign?.assigned_time ||
-                  v.entry_date ||
-                  new Date().toISOString();
-                const serviceDuration = v.durations?.services_durations?.find(
-                  (d: any) => String(d.provider_id) === myId && d.ended_at === null,
-                );
-                serviceStartTime = serviceDuration?.started_at || "";
-              }
+            // Find service duration for current provider
+            const serviceDuration = v.durations?.services_durations?.find(
+              (d: any) => String(d.provider_id) === myId && d.ended_at === null,
+            );
+            const serviceStartTimeVal = serviceDuration?.started_at || "";
 
-              const colors = [
-                "bg-purple-500",
-                "bg-pink-500",
-                "bg-yellow-400",
-                "bg-teal-500",
-                "bg-lavender-400",
-                "bg-blue-500",
-              ];
-              const visitorName =
-                v.full_name || v.name || v.visitorName || "Unknown";
-              const colorIndex = visitorName.charCodeAt(0) % colors.length;
-              const initials = visitorName
-                .split(" ")
-                .map((n: string) => n[0])
-                .join("")
-                .substring(0, 2)
-                .toUpperCase();
-
-              let identification = "N/A";
-              if (typeof v.identification === "string")
-                identification = v.identification;
-              else if (v.identification?.number)
-                identification = v.identification.number;
-
-              let badgeNumber = "";
-              if (v.badge_number) badgeNumber = v.badge_number;
-
-              const checkInTime =
-                myDeptAssign?.assigned_time ||
-                v.entry_date ||
-                new Date().toISOString();
-
-              const serviceDuration = v.durations?.services_durations?.find(
-                (d: any) => String(d.provider_id) === myId && d.ended_at === null,
+            // Find service status
+            let myServiceStatus = null;
+            if (Array.isArray(v.services_status)) {
+              myServiceStatus = v.services_status.find(
+                (s: any) => String(s.provider_id) === myId
               );
-              const serviceStartTimeVal = serviceDuration?.started_at || "";
-
-              const waitTimeEndStamp =
-                (status === "inprogress" ||
-                  status === "completed" ||
-                  status === "transfered") &&
-                serviceStartTimeVal
-                  ? new Date(serviceStartTimeVal).getTime()
-                  : new Date().getTime();
-
-              let waitTimeString = "Just now";
-              if (checkInTime) {
-                const diffMins = Math.floor(
-                  (waitTimeEndStamp - new Date(checkInTime).getTime()) / 60000,
-                );
-                if (diffMins > 0) {
-                  const hours = Math.floor(diffMins / 60);
-                  const mins = diffMins % 60;
-                  waitTimeString =
-                    hours > 0 ? `${hours}h ${mins}m` : `${mins} mins`;
-                }
+            } else if (v.services_status && typeof v.services_status === "object") {
+              if (String(v.services_status.provider_id) === myId) {
+                myServiceStatus = v.services_status;
               }
+            }
 
-              return {
-                id: v._id || v.id,
-                visitorName: visitorName,
-                visitorId: identification,
-                badgeNumber: badgeNumber,
-                assignedTo: assignedToDisplay,
-                serviceType:
-                  myServiceStatus?.department_name ||
-                  myDeptAssign?.department_name ||
-                  v._departmentGroup ||
-                  "General Service",
-                waitTime: waitTimeString,
-                avatarColor: colors[colorIndex],
-                initials: initials,
-                status: status,
-                serviceStartTime: serviceStartTimeVal,
-                telephone: v.telephone || "N/A",
-                checkInRaw: checkInTime,
-                rawVisitor: v,
-                not_transferred_to_me: myServiceStatus
-                  ? String(myServiceStatus.provider_id) !== myId &&
-                    myServiceStatus.s_type.toLowerCase() === "transferred"
-                  : false,
-              };
-            },
-          );
+            let status = (myServiceStatus?.s_type || v.status || "Not started").toLowerCase();
+            if (status === "not started") status = "Not started";
+            if (status === "inprogress") status = "inprogress";
+            if (status === "completed") status = "completed";
+            if (status === "transfered" || status === "transferred") status = "transfered";
+
+            const waitTimeEndStamp = 
+              (status === "inprogress" || status === "completed" || status === "transfered") && serviceStartTimeVal
+                ? new Date(serviceStartTimeVal).getTime()
+                : new Date().getTime();
+
+            let waitTimeString = "Just now";
+            if (checkInTime) {
+              const diffMins = Math.floor(
+                (waitTimeEndStamp - new Date(checkInTime).getTime()) / 60000,
+              );
+              if (diffMins > 0) {
+                const hours = Math.floor(diffMins / 60);
+                const mins = diffMins % 60;
+                waitTimeString = hours > 0 ? `${hours}h ${mins}m` : `${mins} mins`;
+              }
+            }
+
+            const assignedToDisplay = myAssignment?.provider_name || myAssignment?.department_name || "Unassigned";
+
+            return {
+              id: v._id || v.id,
+              visitorName: visitorName,
+              visitorId: identification,
+              badgeNumber: badgeNumber,
+              assignedTo: assignedToDisplay,
+              serviceType: myAssignment?.department_name || v._departmentGroup || "General Service",
+              waitTime: waitTimeString,
+              avatarColor: colors[colorIndex],
+              initials: initials,
+              status: status,
+              serviceStartTime: serviceStartTimeVal,
+              telephone: v.telephone || "N/A",
+              checkInRaw: checkInTime,
+              rawVisitor: v,
+              not_transferred_to_me: myServiceStatus 
+                ? String(myServiceStatus.provider_id) !== myId && 
+                  myServiceStatus.s_type?.toLowerCase() === "transferred"
+                : false,
+            };
+          });
 
           formattedRequests.reverse();
           setRequests(formattedRequests);
@@ -331,7 +293,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
         if (!silent) setLoading(false);
       }
     },
-    [user],
+    [user, currentPage, searchTerm],
   );
 
   useEffect(() => {
@@ -385,15 +347,6 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
       return orderA - orderB;
     });
 
-  const totalFilteredPages = Math.ceil(
-    filteredRequests.length / entriesPerPage,
-  );
-  const startIndex = (currentPage - 1) * entriesPerPage;
-  const paginatedRequests = filteredRequests.slice(
-    startIndex,
-    startIndex + entriesPerPage,
-  );
-
   const updateBackendStatus = async (
     targetStatus: string,
     visitorId: string,
@@ -416,90 +369,17 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
         currentUser?.name ||
         "Unknown",
     );
-    const myDeptId = String(
-      currentUser?.department?._id ||
-        currentUser?.department_id ||
-        currentUser?.department ||
-        "",
-    );
-    const myUnitId = String(currentUser?.department_unit || "");
 
     // Try to find exact assignment first
-    // Note: services_status is now a single object (not an array) after backend aggregation
-    let deptInfo =
-      rawVisitor.departments_assigned?.find(
-        (d: any) => String(d.provider_id) === myId,
-      ) ||
-      (rawVisitor.services_status &&
-      typeof rawVisitor.services_status === "object" &&
-      String(rawVisitor.services_status.provider_id) === myId
-        ? rawVisitor.services_status
-        : null);
-
-    // 👉 FIX: If no exact assignment, find the unit assignment
-    if (!deptInfo) {
-      deptInfo = rawVisitor.departments_assigned?.find((d: any) => {
-        const dId = String(d.department_id);
-        return true;
-      });
-    }
-
-    // Handle both array and object cases for services_status
-    // After backend aggregation, services_status is a single object, not an array
-    let updatedServicesStatus: any[] = [];
-    if (Array.isArray(rawVisitor.services_status)) {
-      updatedServicesStatus = rawVisitor.services_status.filter(
-        (s: any) => String(s.provider_id) !== String(myId),
-      );
-    } else if (
-      rawVisitor.services_status &&
-      typeof rawVisitor.services_status === "object"
-    ) {
-      // If it's a single object, only include it if it's not for the current provider
-      if (String(rawVisitor.services_status.provider_id) !== String(myId)) {
-        updatedServicesStatus = [rawVisitor.services_status];
-      }
-    }
-    updatedServicesStatus.push({
-      department_id: deptInfo?.department_id || "",
-      department_name: deptInfo?.department_name || "General",
-      provider_name: myName,
-      provider_id: myId,
-      s_type: targetStatus,
-    });
-
-    const currentDurations = rawVisitor.durations || {
-      services_durations: [],
-      emergency_durations: [],
-    };
-    const existingServiceDurations = currentDurations.services_durations || [];
-    const existingRecordIndex = existingServiceDurations.findIndex(
+    let deptInfo = rawVisitor.departments_assigned?.find(
       (d: any) => String(d.provider_id) === myId,
     );
 
-    let updatedServiceDurations = [...existingServiceDurations];
-
-    if (isStart) {
-      if (existingRecordIndex === -1) {
-        updatedServiceDurations.push({
-          department_id: deptInfo?.department_id || "",
-          department_name: deptInfo?.department_name || "General",
-          provider_name: myName,
-          provider_id: myId,
-          started_at: new Date().toISOString(),
-        });
-      } else {
-        updatedServiceDurations[existingRecordIndex] = {
-          ...updatedServiceDurations[existingRecordIndex],
-          started_at: new Date().toISOString(),
-        };
-      }
-    } else if (!isStart && durationStr && existingRecordIndex !== -1) {
-      updatedServiceDurations[existingRecordIndex] = {
-        ...updatedServiceDurations[existingRecordIndex],
-        ended_at: new Date().toISOString(),
-        duration: durationStr,
-      };
+    // If no exact assignment, find the unit assignment
+    if (!deptInfo) {
+      deptInfo = rawVisitor.departments_assigned?.find((d: any) => {
+        return String(d.department_id) === String(currentUser?.department_id);
+      });
     }
 
     await serviceDeliveryService.updateServiceStatus({
@@ -510,7 +390,6 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
   };
 
   const handleTransferVisitor = async () => {
-
     if (!transferVisitor || !transferDepartment) return;
     setTransferring(true);
     try {
@@ -522,24 +401,17 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
           currentUser?.employee_id ||
           "",
       );
-      const myName = String(
-        currentUser?.full_name ||
-          currentUser?.fullName ||
-          currentUser?.name ||
-          "Unknown",
-      );
 
       // Determine target: unit if selected, else department
       const targetId = selectedUnit || transferDepartment;
       const targetInfo = selectedUnit
         ? units.find((u) => u.id === selectedUnit)
         : departments.find((d) => d._id === transferDepartment);
-      const targetName = targetInfo?.name || "Unknown";
+      const targetName = targetInfo?.name || targetInfo?.department_name || "Unknown";
 
-      const currentDept =
-        transferVisitor.rawVisitor?.departments_assigned?.find(
-          (d: any) => String(d.provider_id) === myId,
-        );
+      const currentDept = transferVisitor.rawVisitor?.departments_assigned?.find(
+        (d: any) => String(d.provider_id) === myId,
+      );
       const previousDepartmentId = currentDept?.department_id;
 
       // Only assign specific provider if employee selected
@@ -556,8 +428,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
             ? {
                 ...r,
                 status: "transfered",
-                assignedTo:
-                  providerName || `${targetName}` || "Transferred",
+                assignedTo: providerName || `${targetName}` || "Transferred",
               }
             : r,
         ),
@@ -582,7 +453,6 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
 
       fetchAssignedVisitors(true);
     } catch (error) {
-
       console.error("Error transferring visitor:", error);
       alert("Failed to transfer visitor. Please try again.");
       fetchAssignedVisitors(true);
@@ -635,7 +505,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
           id: subDept._id || subDept.department_id,
           name: subDept.department_name || subDept.name,
           staffAvailable: subDept.total_employees || 0,
-          currentQueue: 0, // We don't have counts here
+          currentQueue: 0,
           isActive: true,
         }));
 
@@ -668,7 +538,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
     setSelectedUnit("");
     if (deptId) {
       loadUnitsByDepartment(deptId);
-      fetchTransferEmployees(deptId); // Keep for potential employee selection, but we'll make it optional
+      fetchTransferEmployees(deptId);
     } else {
       setUnits([]);
       setTransferEmployees([]);
@@ -842,15 +712,28 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
         className={`bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(0,0,0,0.07)] ${!isDashboardView ? "mt-6" : ""}`}
       >
         <div className="flex items-center gap-3">
-          <div className="flex-1 relative">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search by visitor name, ID, or badge..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full h-11 pl-10 pr-4 border border-[#e0e0e0] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#1a73e8]"
-            />
+          <div className="flex">
+            <div className="flex-1 relative">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Search by visitor name, ID, or badge..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full h-11 pl-10 pr-4 border border-[#e0e0e0] rounded-l-[8px] text-[13px] focus:ring-2 focus:ring-[#1a73e8]"
+              />
+            </div>
+            <button
+              onClick={() => {
+                setCurrentPage(1);
+                fetchAssignedVisitors(false, 1, searchTerm);
+              }}
+              disabled={loading}
+              className="px-4 py-2 bg-[#1a73e8] text-white rounded-r-[8px] hover:bg-[#1557b0] focus:ring-2 focus:ring-[#1a73e8] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 h-11"
+            >
+              {loading && searchTerm ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : null}
+              {loading && searchTerm ? 'Searching...' : 'Search'}
+            </button>
           </div>
           <select
             value={statusFilter}
@@ -907,8 +790,8 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
                   Loading requests...
                 </td>
               </tr>
-            ) : paginatedRequests.length > 0 ? (
-              paginatedRequests.map((request) => (
+            ) : requests.length > 0 ? (
+              requests.map((request) => (
                 <tr key={request.id} className="border-b border-[#f8f8f8] h-14">
                   <td className="py-3 px-2">
                     <div className="flex items-center gap-3">
@@ -1024,24 +907,32 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="py-8 text-center text-gray-500">
-                  No active visitors assigned to you or your unit.
+                <td colSpan={7} className="text-center py-8 text-gray-500">
+                  {searchTerm ? "No visitors found matching your search." : "No visitors found for your department."}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
 
-        {filteredRequests.length > 0 && (
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalFilteredPages || 1}
-            onPageChange={setCurrentPage}
-            style="arrows-only"
-            showPageInfo={true}
-            prevLabel="Previous"
-            nextLabel="Next"
-          />
+        {totalCount > 0 && (
+          <div className="flex justify-between items-center mt-4 px-6 py-3 bg-gray-50 rounded-lg">
+            <div className="text-sm text-gray-600">
+              Showing {requests.length} of {totalCount} visitors
+            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages || 1}
+              onPageChange={(page) => {
+                setCurrentPage(page);
+                fetchAssignedVisitors(false, page, searchTerm);
+              }}
+              style="arrows-only"
+              showPageInfo={true}
+              prevLabel="Previous"
+              nextLabel="Next"
+            />
+          </div>
         )}
       </div>
 
@@ -1145,44 +1036,36 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
                     Assign to Specific Employee (Optional)
                   </label>
                   <div className="relative">
-                    {transferEmployeesLoading ? (
-                      <div className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-[13px] bg-gray-100 flex items-center justify-center">
-                        <div className="w-4 h-4 border-2 border-[#0284C7] border-t-transparent rounded-full animate-spin mr-2"></div>
-                        <span className="text-gray-500">
-                          Loading employees...
-                        </span>
-                      </div>
-                    ) : (
-                      <select
-                        value={
-                          transferEmployee?._id ||
-                          transferEmployee?.employee_id ||
-                          ""
-                        }
-                        onChange={(e) => {
-                          const emp = transferEmployees.find(
-                            (em) =>
-                              String(em._id || em.employee_id) ===
-                              e.target.value,
-                          );
-                          setTransferEmployee(emp || null);
-                        }}
-                        className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#0284C7] bg-white cursor-pointer appearance-none"
-                      >
-                        <option value="">Any employee in department/unit</option>
-                        {transferEmployees.map((emp) => {
-                          const empId = String(
-                            emp._id || emp.employee_id || "",
-                          );
-                          return (
-                            <option key={empId} value={empId}>
-                              {emp.full_name}{" "}
-                              {emp.title ? `(${emp.title})` : ""}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    )}
+                    <select
+                      value={
+                        transferEmployee?._id ||
+                        transferEmployee?.employee_id ||
+                        ""
+                      }
+                      onChange={(e) => {
+                        const emp = transferEmployees.find(
+                          (em) =>
+                            String(em._id || em.employee_id) ===
+                            e.target.value,
+                        );
+                        setTransferEmployee(emp || null);
+                      }}
+                      className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#0284C7] bg-white cursor-pointer appearance-none"
+                      disabled={transferEmployeesLoading}
+                    >
+                      <option value="">Any employee in department/unit</option>
+                      {transferEmployees.map((emp) => {
+                        const empId = String(
+                          emp._id || emp.employee_id || "",
+                        );
+                        return (
+                          <option key={empId} value={empId}>
+                            {emp.full_name}{" "}
+                            {emp.title ? `(${emp.title})` : ""}
+                          </option>
+                        );
+                      })}
+                    </select>
                     {!transferEmployeesLoading && (
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                         <svg
@@ -1201,6 +1084,11 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
                       </div>
                     )}
                   </div>
+                  {transferEmployeesLoading && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Loading employees...
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1226,13 +1114,11 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
                 >
                   {transferring ? (
                     <>
-                      <FiRefreshCw className="w-4 h-4 animate-spin" />{" "}
+                      <FiRefreshCw className="w-4 h-4 animate-spin" />
                       Transferring...
                     </>
                   ) : (
-                    <>
-                      <FiArrowRightCircle className="w-4 h-4" /> Transfer
-                    </>
+                    "Transfer Visitor"
                   )}
                 </button>
               </div>

@@ -11,14 +11,13 @@ import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import { useToast } from '../../../core/contexts/ToastContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { 
-  FiUsers, FiUserPlus, FiUserMinus, FiClock, FiCheckCircle, FiX,
-  FiRefreshCw, FiSearch, FiFilter, FiCalendar, FiDownload, FiAlertCircle,
-  FiFileText
+import {
+  FiUsers, FiUserPlus, FiClock, FiCheckCircle,
+  FiRefreshCw, FiSearch, FiDownload
 } from 'react-icons/fi';
 import { HiOutlineClipboardList } from 'react-icons/hi';
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 
 // Types

@@ -9,10 +9,10 @@ import { useSocket } from '../../../core/contexts/SocketContext';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import { departmentService, employeeService, smartParkingService, serviceDeliveryService, statisticsService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
-import { 
-  FiUsers, FiGrid, FiTruck, FiSettings, FiRefreshCw, FiTrendingUp, FiTrendingDown,
-  FiAlertTriangle, FiCheckCircle, FiClock, FiActivity, FiArrowRight, FiEye,
-  FiCalendar, FiMapPin, FiTarget, FiZap, FiAward, FiLayers, FiPieChart, FiBarChart, FiWifiOff, FiX
+import {
+  FiUsers, FiGrid, FiTruck, FiSettings, FiRefreshCw, FiTrendingUp,
+  FiAlertTriangle, FiCheckCircle, FiClock, FiActivity, FiArrowRight,
+  FiWifiOff, FiX
 } from 'react-icons/fi';
 import { HiOutlineOfficeBuilding, HiOutlineChartBar, HiOutlineShieldCheck } from 'react-icons/hi';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
