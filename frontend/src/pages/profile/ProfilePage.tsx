@@ -418,11 +418,12 @@ const ProfilePage: React.FC = () => {
       setTimeout(() => setShowSuccessMessage(false), 5000);
     } catch (err: any) {
       // Handle backend validation errors
-      if (err.errors && Array.isArray(err.errors)) {
+      if (err.errors && Array.isArray(err.errors) && err.errors.length > 0) {
         setValidationErrors(err.errors);
-        setError('Password validation failed');
+        setError(err.message || 'Validation failed');
       } else {
         setError(err.message || 'Failed to change password');
+        setValidationErrors([]); // Clear any previous validation errors
       }
     } finally {
       setIsChangingPassword(false);
