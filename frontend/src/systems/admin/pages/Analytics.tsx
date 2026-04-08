@@ -12,9 +12,9 @@ import {
   FiTrendingUp, FiRefreshCw, FiUsers,
   FiTruck, FiCheckCircle, FiBarChart2, FiPieChart
 } from 'react-icons/fi';
-import { 
+import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell, LineChart, Line
+  BarChart, Bar, PieChart, Pie, Cell
 } from 'recharts';
 
 // Colors for charts
@@ -270,14 +270,14 @@ const Analytics: React.FC = () => {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                    <XAxis 
-                      dataKey="hour" 
-                      tickFormatter={(v) => `${v}:00`}
+                    <XAxis
+                      dataKey="hour"
+                      tickFormatter={(v: number) => `${v}:00`}
                       stroke="#9ca3af"
-                      fontSize={12}
+                      tick={{ fontSize: 12 }}
                     />
-                    <YAxis stroke="#9ca3af" fontSize={12} />
-                    <Tooltip formatter={(v: any) => [v || 0]} labelFormatter={(l) => `${l}:00`} />
+                    <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
+                    <Tooltip formatter={(v: any) => [v || 0]} labelFormatter={(l: string | number) => `${l}:00`} />
                     <Legend />
                     <Area type="monotone" dataKey="check_in" stroke="#3b82f6" strokeWidth={2} fill="url(#colorCheckIn)" name="Check-Ins" dot={false} activeDot={{ r: 6, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }} />
                     <Area type="monotone" dataKey="check_out" stroke="#ef4444" strokeWidth={2} fill="url(#colorCheckOut)" name="Check-Outs" dot={false} activeDot={{ r: 6, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }} />
@@ -305,14 +305,14 @@ const Analytics: React.FC = () => {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                    <XAxis 
-                      dataKey="hour" 
-                      tickFormatter={(v) => `${v}:00`}
+                    <XAxis
+                      dataKey="hour"
+                      tickFormatter={(v: number) => `${v}:00`}
                       stroke="#9ca3af"
-                      fontSize={12}
+                      tick={{ fontSize: 12 }}
                     />
-                    <YAxis stroke="#9ca3af" fontSize={12} />
-                    <Tooltip formatter={(v: any) => [v || 0, 'Visitors']} labelFormatter={(l) => `${l}:00`} />
+                    <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
+                    <Tooltip formatter={(v: any) => [v || 0, 'Visitors']} labelFormatter={(l: string | number) => `${l}:00`} />
                     <Area type="monotone" dataKey="visitors_checked_in" stroke="#10b981" strokeWidth={2} fill="url(#colorService)" name="Visitors" dot={false} activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }} />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -335,13 +335,13 @@ const Analytics: React.FC = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={comparisonData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                    <XAxis 
-                      dataKey="hour" 
-                      tickFormatter={(v) => `${v}:00`}
+                    <XAxis
+                      dataKey="hour"
+                      tickFormatter={(v: number) => `${v}:00`}
                       stroke="#9ca3af"
-                      fontSize={12}
+                      tick={{ fontSize: 12 }}
                     />
-                    <YAxis stroke="#9ca3af" fontSize={12} />
+                    <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
                     <Tooltip />
                     <Legend />
                     <Bar dataKey="parking" fill="#3b82f6" name="Parking" radius={[4, 4, 0, 0]} />

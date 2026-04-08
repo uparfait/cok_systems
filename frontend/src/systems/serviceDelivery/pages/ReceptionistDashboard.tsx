@@ -34,7 +34,7 @@ import { useToast } from "../../../core/contexts/ToastContext";
 // Import components
 import AssignedVisitorsList from "../components/departmentFlow/AssignedVisitorsList";
 import AssignVisitorModal from "../components/departmentFlow/AssignVisitorModal";
-import DepartmentAvailability from "../components/departmentFlow/DepartmentAvailability";
+
 
 // Types - Matching your backend structure
 interface Visitor {
@@ -702,17 +702,17 @@ const ReceptionistDashboard: React.FC = () => {
                     />
                     <XAxis
                       dataKey="hour"
-                      tickFormatter={(value) =>
+                      tickFormatter={(value: number) =>
                         `${value.toString().padStart(2, "0")}:00`
                       }
                       stroke="#9ca3af"
-                      fontSize={12}
+                      tick={{ fontSize: 12 }}
                       axisLine={false}
                       tickLine={false}
                     />
                     <YAxis
                       stroke="#9ca3af"
-                      fontSize={12}
+                      tick={{ fontSize: 12 }}
                       axisLine={false}
                       tickLine={false}
                     />
@@ -723,8 +723,8 @@ const ReceptionistDashboard: React.FC = () => {
                         borderRadius: "8px",
                         boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                       }}
-                      formatter={(value) => [value, "Visitors"]}
-                      labelFormatter={(label) => `${label}:00`}
+                      formatter={(value: string | number | (string | number)[]) => [value, "Visitors"]}
+                      labelFormatter={(label: string | number) => `${label}:00`}
                     />
                     <Area
                       type="monotone"

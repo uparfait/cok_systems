@@ -7,11 +7,11 @@ import autoTable from 'jspdf-autotable';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useSocket } from '../../../core/contexts/SocketContext';
-import { smartParkingService, statisticsService, parkingService } from '../../../core/services/adminService';
+import { smartParkingService, statisticsService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
-import { 
-  FiTruck, FiSearch, FiClock, FiAlertTriangle, FiFlag, FiCheckCircle, FiX,
+import {
+  FiTruck, FiSearch, FiFlag, FiCheckCircle, FiX,
   FiArrowRight, FiDownload, FiFilter, FiCalendar, FiRefreshCw,
   FiMapPin, FiFileText
 } from 'react-icons/fi';
@@ -569,17 +569,17 @@ const AdminSmartParkingDashboard: React.FC = () => {
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-          <XAxis 
-            dataKey="hour" 
-            tickFormatter={(value) => `${value.toString().padStart(2, '0')}:00`}
+          <XAxis
+            dataKey="hour"
+            tickFormatter={(value: number) => `${value.toString().padStart(2, '0')}:00`}
             stroke="#9ca3af"
-            fontSize={12}
+            tick={{ fontSize: 12 }}
             axisLine={false}
             tickLine={false}
           />
-          <YAxis 
-            stroke="#9ca3af" 
-            fontSize={12}
+          <YAxis
+            stroke="#9ca3af"
+            tick={{ fontSize: 12 }}
             axisLine={false}
             tickLine={false}
             label={{ 
@@ -592,7 +592,7 @@ const AdminSmartParkingDashboard: React.FC = () => {
           />
           <Tooltip 
            
-            labelFormatter={(label) => `${label}:00`}
+            labelFormatter={(label: string | number) => `${label}:00`}
             contentStyle={{ 
               backgroundColor: 'rgba(255, 255, 255, 0.95)', 
               border: '1px solid #e5e7eb',

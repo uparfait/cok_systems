@@ -1095,25 +1095,25 @@ const AdminDashboard: React.FC = () => {
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                        <XAxis 
-                          dataKey="hour" 
-                          tickFormatter={(value) => `${value.toString().padStart(2, '0')}:00`}
+                        <XAxis
+                          dataKey="hour"
+                          tickFormatter={(value: number) => `${value.toString().padStart(2, '0')}:00`}
                           stroke="#9ca3af"
-                          fontSize={12}
+                          tick={{ fontSize: 12 }}
                           axisLine={false}
                           tickLine={false}
                         />
-                        <YAxis 
-                          stroke="#9ca3af" 
-                          fontSize={12} 
-                          axisLine={false} 
+                        <YAxis
+                          stroke="#9ca3af"
+                          tick={{ fontSize: 12 }}
+                          axisLine={false}
                           tickLine={false}
-                          label={{ 
-                            value: 'Number of Vehicles', 
-                            angle: -90, 
+                          label={{
+                            value: 'Number of Vehicles',
+                            angle: -90,
                             position: 'insideLeft',
                             style: { fill: '#6b7280', fontSize: 12, fontWeight: 500, textAnchor: 'middle' },
-                            offset: 0
+                            offset: 20
                           }}
                         />
                         <Tooltip 
