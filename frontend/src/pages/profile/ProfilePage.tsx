@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../core/contexts/AuthContext';
 import MainLayout from '../../core/components/Layout/MainLayout';
-import { getUserProfile, updateUserProfile } from '../../core/services/authService';
+import { getUserProfile, updateUserProfile, changePassword } from '../../core/services/authService';
 import { employeeService } from '../../core/services/adminService';
 import { 
   FiUser, FiMail, FiBriefcase, FiShield, 
@@ -72,6 +72,15 @@ const ProfilePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Password change state
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   
   // Profile data from database
   const [profileData, setProfileData] = useState<UserProfile | null>(null);
@@ -336,6 +345,48 @@ const ProfilePage: React.FC = () => {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  // Handle password change
+  const handleChangePassword = async () => {
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      setError('All fields are required');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setError('New password and confirm password do not match');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }
+
+    if (passwordData.newPassword === passwordData.currentPassword) {
+      setError('New password must be different from current password');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    setError(null);
+
+    try {
+      await changePassword(passwordData);
+      setShowPasswordModal(false);
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 5000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to change password');
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   // Get activity icon color
@@ -867,9 +918,12 @@ const ProfilePage: React.FC = () => {
                         <p className="text-sm text-gray-500">Update your account password</p>
                       </div>
                     </div>
-                    <button className="px-4 py-2 text-blue-600 hover:text-blue-700 font-medium border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
-                      Update
-                    </button>
+                     <button
+                       onClick={() => setShowPasswordModal(true)}
+                       className="px-4 py-2 text-blue-600 hover:text-blue-700 font-medium border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                     >
+                       Change Password
+                     </button>
                   </div>
 
                   {/* Account Status */}
@@ -908,6 +962,113 @@ const ProfilePage: React.FC = () => {
           <p>COK Systems • Profile Last Updated: {formatDate(profileData?.created_date)}</p>
         </div>
       </div>
+
+      {/* Password Change Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Change Password</h2>
+                <button
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                    setError(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FiX className="w-6 h-6" />
+                </button>
+              </div>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  {error}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                {/* Current Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Current Password *
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.currentPassword}
+                    onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter your current password"
+                    required
+                  />
+                </div>
+
+                {/* New Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    New Password *
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.newPassword}
+                    onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter new password (min 8 characters)"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Password must contain at least 8 characters, 1 uppercase, 1 lowercase, 1 number, and 1 special character.
+                  </p>
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Confirm New Password *
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Confirm new password"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                    setError(null);
+                  }}
+                  className="flex-1 px-4 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleChangePassword}
+                  disabled={isChangingPassword || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                  className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isChangingPassword ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Changing...
+                    </>
+                  ) : (
+                    'Change Password'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
     </MainLayout>
   );
