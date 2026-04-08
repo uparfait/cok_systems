@@ -332,6 +332,15 @@ export const serviceDeliveryService = {
   update: (id: string, data: any) => put(`/servicedelivery/visitor/${id}`, data),
   // Update service status - uses dedicated endpoint for service status and durations
   updateServiceStatus: (data: any) => post(`/servicedelivery/visitor/service/status`, data),
+
+  // Get active tasks (visitors being served) for Head of Department
+  getActiveTasks: (page: number = 1, limit: number = 10, search?: string) => {
+    let url = `/servicedelivery/visitor/active-tasks?page=${page}&limit=${limit}`;
+    if (search && search.trim()) {
+      url += `&search=${encodeURIComponent(search.trim())}`;
+    }
+    return get(url);
+  },
 };
 
 // ==================== SMART PARKING APIs ====================
