@@ -423,7 +423,7 @@ const DepartmentManagerDashboard: React.FC = () => {
   const departmentName = user?.departmentName || user?.department_name;
   
   const tabParam = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState(tabParam || 'dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'employees' | 'by-department' | 'by-provider' | 'availability' | 'reports' | 'active-tasks'>('dashboard');
 
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [allDepartmentVisitors, setAllDepartmentVisitors] = useState<Visitor[]>([]);
@@ -448,6 +448,10 @@ const DepartmentManagerDashboard: React.FC = () => {
   // MODIFICATION 3: Removed showDeleteEmployeeModal state completely
   const [selectedDeptEmployee, setSelectedDeptEmployee] = useState<Employee | null>(null);
 
+  // Active tasks modal
+  const [showActiveTaskModal, setShowActiveTaskModal] = useState(false);
+  const [selectedActiveTask, setSelectedActiveTask] = useState<any>(null);
+
   const [showServeModal, setShowServeModal] = useState(false);
   const [servingVisitor, setServingVisitor] = useState<Visitor | null>(null);
   const [servingEmployee, setServingEmployee] = useState<Employee | null>(null);
@@ -465,10 +469,22 @@ const DepartmentManagerDashboard: React.FC = () => {
   const [visitorsByProvider, setVisitorsByProvider] = useState<any[]>([]);
   const [loadingByFilters, setLoadingByFilters] = useState(false);
 
+  // Active tasks state (for Head of Department)
+  const [activeTasks, setActiveTasks] = useState<any[]>([]);
+  const [activeTasksLoading, setActiveTasksLoading] = useState(false);
+  const [activeTasksPage, setActiveTasksPage] = useState(1);
+  const [activeTasksTotal, setActiveTasksTotal] = useState(0);
+  const [activeTasksSearch, setActiveTasksSearch] = useState('');
+
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab) setActiveTab(tab);
-    else setActiveTab('dashboard');
+    const validTabs: Array<'dashboard' | 'employees' | 'by-department' | 'by-provider' | 'availability' | 'reports' | 'active-tasks'> =
+      ['dashboard', 'employees', 'by-department', 'by-provider', 'availability', 'reports', 'active-tasks'];
+    if (tab && validTabs.includes(tab as any)) {
+      setActiveTab(tab as any);
+    } else {
+      setActiveTab('dashboard');
+    }
   }, [searchParams]);
 
   useEffect(() => {
@@ -480,6 +496,13 @@ const DepartmentManagerDashboard: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, dashboardStatusFilter]);
+
+  // Fetch active tasks when tab changes to active-tasks
+  useEffect(() => {
+    if (activeTab === 'active-tasks') {
+      fetchActiveTasks(1, activeTasksSearch);
+    }
+  }, [activeTab]);
 
   const handleEmployeeSearch = async () => {
     setIsLoading(true);
@@ -529,16 +552,16 @@ const DepartmentManagerDashboard: React.FC = () => {
       if (response.success && response.data) {
         const allVisitors = response.data as any[];
         const providerMap: Record<string, any> = {};
-        
+
         allVisitors.forEach(v => {
-          const isForThisDept = !departmentId || 
+          const isForThisDept = !departmentId ||
             (v.services_status || []).some((s:any) => String(s.department_id) === String(departmentId)) ||
             (v.departments_assigned || []).some((d:any) => String(d.department_id) === String(departmentId));
-          
+
           if (isForThisDept) {
             const assigned = getAssignedEmployee(v);
             const status = getVisitorStatus(v);
-            
+
             if (assigned) {
               if (!providerMap[assigned.id]) {
                 providerMap[assigned.id] = {
@@ -568,13 +591,34 @@ const DepartmentManagerDashboard: React.FC = () => {
             }
           }
         });
-        
+
         setVisitorsByProvider(Object.values(providerMap));
       }
     } catch (error) {
       console.error('Failed to fetch visitors by provider:', error);
     } finally {
       setLoadingByFilters(false);
+    }
+  };
+
+  const fetchActiveTasks = async (page: number = 1, search: string = '') => {
+    setActiveTasksLoading(true);
+    try {
+      const response = await serviceDeliveryService.getActiveTasks(page, 10, search);
+      if (response.success && response.data) {
+        setActiveTasks(response.data);
+        setActiveTasksTotal(response.total || 0);
+        setActiveTasksPage(page);
+      } else {
+        setActiveTasks([]);
+        setActiveTasksTotal(0);
+      }
+    } catch (error) {
+      console.error('Failed to fetch active tasks:', error);
+      setActiveTasks([]);
+      setActiveTasksTotal(0);
+    } finally {
+      setActiveTasksLoading(false);
     }
   };
 
@@ -1302,9 +1346,27 @@ const DepartmentManagerDashboard: React.FC = () => {
                             }
 
                             if (statusLower === 'inprogress') {
+                              // Head of Department can only transfer, not serve/stop
+                              if (user?.role === 'Head of department') {
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setTransferVisitor(visitor);
+                                      setShowTransferModal(true);
+                                    }}
+                                    className="flex items-center justify-center gap-1 h-8 w-24 bg-[#7b1fa2] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#6a1b9a] transition-colors shadow-sm"
+                                  >
+                                    <FiArrowRightCircle className="w-3 h-3" /> Transfer
+                                  </button>
+                                );
+                              }
+
                               return (
                                 <div className="flex items-center gap-2">
-                                  <button 
+                                  <button
                                     type="button"
                                     onClick={(e) => {
                                       e.preventDefault();
@@ -1320,7 +1382,7 @@ const DepartmentManagerDashboard: React.FC = () => {
                                   >
                                     <FiSquare className="w-3 h-3 fill-current" /> Stop
                                   </button>
-                                  <button 
+                                  <button
                                     type="button"
                                     onClick={(e) => {
                                       e.preventDefault();
@@ -1353,16 +1415,31 @@ const DepartmentManagerDashboard: React.FC = () => {
                             }
 
                             if (isAssignedToSomeoneElseInMyDept) {
+                                // Head of Department can only transfer
+                                if (user?.role === 'Head of department') {
+                                  return (
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault(); e.stopPropagation();
+                                        setTransferVisitor(visitor); setShowTransferModal(true);
+                                      }}
+                                      className="flex items-center justify-center gap-1 h-8 w-24 bg-[#7b1fa2] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#6a1b9a] transition-colors shadow-sm"
+                                    >
+                                      <FiArrowRightCircle className="w-3 h-3" /> Transfer
+                                    </button>
+                                  );
+                                }
+
                                 return (
                                     <div className="flex items-center gap-2">
                                       <span className="text-blue-600 font-bold text-xs uppercase px-3 py-1.5 bg-blue-50 border border-blue-200 rounded shadow-sm">
                                         Assigned
                                       </span>
-                                      <button 
-                                        onClick={(e) => { 
-                                          e.preventDefault(); e.stopPropagation(); 
-                                          setTransferVisitor(visitor); setShowTransferModal(true); 
-                                        }} 
+                                      <button
+                                        onClick={(e) => {
+                                          e.preventDefault(); e.stopPropagation();
+                                          setTransferVisitor(visitor); setShowTransferModal(true);
+                                        }}
                                         className="flex items-center justify-center gap-1 h-8 w-24 bg-[#7b1fa2] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#6a1b9a] transition-colors shadow-sm"
                                       >
                                         <FiArrowRightCircle className="w-3 h-3" /> Transfer
@@ -1371,34 +1448,52 @@ const DepartmentManagerDashboard: React.FC = () => {
                                 );
                             }
 
+                            // Head of Department can only transfer, not serve
+                            if (user?.role === 'Head of department') {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setTransferVisitor(visitor);
+                                    setShowTransferModal(true);
+                                  }}
+                                  className="h-8 w-24 bg-[#7b1fa2] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#6a1b9a] transition-colors flex items-center justify-center gap-1 shadow-sm"
+                                >
+                                  <FiArrowRightCircle className="w-3 h-3" /> Transfer
+                                </button>
+                              );
+                            }
+
                             return (
                               <div className="flex items-center gap-2">
-                                <button 
+                                <button
                                   type="button"
                                   onClick={async (e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
                                     const now = new Date().toISOString();
-                                    
-                                    setVisitors(prev => prev.map(v => 
-                                      (v._id || v.id) === (visitor._id || visitor.id) 
+
+                                    setVisitors(prev => prev.map(v =>
+                                      (v._id || v.id) === (visitor._id || visitor.id)
                                         ? { ...v, services_status: [...(v.services_status || []).filter((s:any)=> String(s.provider_id) !== myId), { provider_id: myId, provider_name: myName, s_type: 'Inprogress' }] }
                                         : v
                                     ));
-                                    
+
                                     await updateBackendStatus('Inprogress', visitor._id || visitor.id || '', visitor, myId, myName, true);
-                                    
+
                                     setServingVisitor(visitor);
                                     setPendingServiceStartTime(now);
                                     setShowServeModal(true);
-                                    
+
                                     loadData(currentPage, searchTerm, true);
                                   }}
                                   className="h-8 w-20 bg-[#1a73e8] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#1558c0] transition-colors flex items-center justify-center gap-1 shadow-sm"
                                 >
                                   Serve
                                 </button>
-                                <button 
+                                <button
                                   type="button"
                                   onClick={(e) => {
                                     e.preventDefault();
@@ -1789,8 +1884,241 @@ const DepartmentManagerDashboard: React.FC = () => {
         </div>
       )}
 
+      {/* ACTIVE TASKS TAB - Only for Head of Department */}
+      {activeTab === 'active-tasks' && user?.role === 'Head of department' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Active Tasks</h1>
+              <p className="text-gray-600 mt-1">Monitor visitors currently being served in your department</p>
+            </div>
+            <button
+              onClick={() => fetchActiveTasks(activeTasksPage, activeTasksSearch)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <FiRefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
+          </div>
+
+          {/* Search */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Search by name, phone, email, or badge number..."
+                  value={activeTasksSearch}
+                  onChange={(e) => setActiveTasksSearch(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && fetchActiveTasks(1, activeTasksSearch)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <button
+                onClick={() => fetchActiveTasks(1, activeTasksSearch)}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <FiSearch className="w-4 h-4" />
+                Search
+              </button>
+            </div>
+          </div>
+
+          {/* Active Tasks List */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            {activeTasksLoading ? (
+              <div className="p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading active tasks...</p>
+              </div>
+            ) : activeTasks.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">
+                <FiClock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-lg font-medium">No Active Tasks</p>
+                <p className="text-sm">There are currently no visitors being served in your department.</p>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visitor</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {activeTasks.map((task: any) => (
+                        <tr key={task._id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-10 w-10">
+                                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                  <span className="text-sm font-medium text-blue-600">
+                                    {task.full_name?.charAt(0)?.toUpperCase() || '?'}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">{task.full_name || 'Unknown'}</div>
+                                <div className="text-sm text-gray-500">{task.telephone || task.email || 'No contact'}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{task.current_service_department || 'Unknown'}</div>
+                            <div className="text-sm text-gray-500">Assigned: {task.assigned_department || 'Unknown'}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{task.current_service_provider || 'Unknown'}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <LiveTimer startTime={task.entry_date} />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button
+                              onClick={() => {
+                                setSelectedActiveTask(task);
+                                setShowActiveTaskModal(true);
+                              }}
+                              className="text-blue-600 hover:text-blue-900 px-3 py-1 rounded-md hover:bg-blue-50 transition-colors"
+                            >
+                              View Details
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                {activeTasksTotal > 10 && (
+                  <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-gray-700">
+                        Showing {((activeTasksPage - 1) * 10) + 1} to {Math.min(activeTasksPage * 10, activeTasksTotal)} of {activeTasksTotal} entries
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => fetchActiveTasks(activeTasksPage - 1, activeTasksSearch)}
+                          disabled={activeTasksPage === 1 || activeTasksLoading}
+                          className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Previous
+                        </button>
+                        <button
+                          onClick={() => fetchActiveTasks(activeTasksPage + 1, activeTasksSearch)}
+                          disabled={activeTasksPage * 10 >= activeTasksTotal || activeTasksLoading}
+                          className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {activeTab === 'availability' && <DepartmentAvailabilityTab departmentId={departmentId} />}
       {activeTab === 'reports' && <ReportsTab departmentId={departmentId} departmentName={departmentName} />}
+
+      {/* Active Task Details Modal */}
+      {showActiveTaskModal && selectedActiveTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Visitor Details</h2>
+                <button
+                  onClick={() => {
+                    setShowActiveTaskModal(false);
+                    setSelectedActiveTask(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FiX className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Visitor Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                      <p className="text-gray-900 font-medium">{selectedActiveTask.full_name || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                      <p className="text-gray-900">{selectedActiveTask.telephone || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <p className="text-gray-900">{selectedActiveTask.email || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Badge Number</label>
+                      <p className="text-gray-900">{selectedActiveTask.badge_number || 'Not assigned'}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Current Service</label>
+                      <p className="text-gray-900 font-medium">{selectedActiveTask.current_service_department || 'Unknown'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Service Provider</label>
+                      <p className="text-gray-900">{selectedActiveTask.current_service_provider || 'Unknown'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Department</label>
+                      <p className="text-gray-900">{selectedActiveTask.assigned_department || 'Unknown'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
+                      <LiveTimer startTime={selectedActiveTask.entry_date} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Service Status */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Service Status</label>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-green-600 font-medium">Currently Being Served</span>
+                  </div>
+                </div>
+
+                {/* Transfer Button */}
+                <div className="flex justify-end pt-4 border-t border-gray-200">
+                  <button
+                    onClick={() => {
+                      setTransferVisitor(selectedActiveTask);
+                      setShowActiveTaskModal(false);
+                      setShowTransferModal(true);
+                    }}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  >
+                    <FiArrowRightCircle className="w-4 h-4" />
+                    Transfer Visitor
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
