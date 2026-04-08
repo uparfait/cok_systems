@@ -4,16 +4,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
-import { statisticsService, feedbackService } from '../../../core/services/adminService';
+import { statisticsService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import { useToast } from '../../../core/contexts/ToastContext';
 import {
-  FiStar, FiFilter, FiRefreshCw, FiSearch, FiThumbsUp, FiThumbsDown,
-  FiMessageSquare, FiCheckCircle
+  FiStar, FiFilter, FiRefreshCw, FiThumbsUp,
+  FiMessageSquare
 } from 'react-icons/fi';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
 } from 'recharts';
 
@@ -271,15 +271,13 @@ const FeedbackPage: React.FC = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={filteredRatings} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                    <XAxis 
-                      dataKey="department" 
+                    <XAxis
+                      dataKey="department"
                       stroke="#9ca3af"
-                      fontSize={11}
-                      angle={-45}
-                      textAnchor="end"
+                      tick={{ fontSize: 11, angle: -45, textAnchor: 'end' }}
                       height={80}
                     />
-                    <YAxis stroke="#9ca3af" fontSize={12} domain={[0, 5]} />
+                    <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} domain={[0, 5]} />
                     <Tooltip 
                       formatter={(value: any) => [value?.toFixed(2) || '0', 'Rating']}
                       contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}

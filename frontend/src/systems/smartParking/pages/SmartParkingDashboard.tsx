@@ -581,15 +581,15 @@ const SmartParkingDashboard: React.FC = () => {
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                     <XAxis
                       dataKey="hour"
-                      tickFormatter={(value) => `${value.toString().padStart(2, '0')}:00`}
+                      tickFormatter={(value: number) => `${value.toString().padStart(2, '0')}:00`}
                       stroke="#9ca3af"
-                      fontSize={12}
+                      tick={{ fontSize: 12 }}
                       axisLine={false}
                       tickLine={false}
                     />
                     <YAxis
                       stroke="#9ca3af"
-                      fontSize={12}
+                      tick={{ fontSize: 12 }}
                       axisLine={false}
                       tickLine={false}
                       label={{
