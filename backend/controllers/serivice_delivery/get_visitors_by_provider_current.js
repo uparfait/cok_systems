@@ -29,25 +29,29 @@ module.exports = async function get_visitors_by_provider_current(
 
     if (user_role_name === "Employee") {
       let departmentIds = [];
-      if (user_department_unit_id) {
-        departmentIds.push(user_department_unit_id);
-        // Find parent department
-        const unitDept = await Department.findById(user_department_unit_id);
-        if (unitDept && unitDept.sub_department_mng?.is_sub_department) {
-          const parentDept = await Department.findOne({
-            department_id: unitDept.sub_department_mng.parent_department_id,
-          });
-          if (parentDept) {
-            departmentIds.push(parentDept._id.toString());
-          }
-        }
-      } else if (user_department_id) {
+
+      if(user_department_id) {
         departmentIds.push(user_department_id);
       }
+
+      if (user_department_unit_id) {
+        departmentIds.push(user_department_unit_id);
+      }
+
       if (departmentIds.length > 0) {
         filter["departments_assigned"] = {
           $elemMatch: { department_id: { $in: departmentIds } },
         };
+      } else {
+       
+        return res.status(200).json({
+          success: true,
+          type: "success",
+          message: "Visitors results",
+          total: 0,
+          page: parseInt(page),
+          data: [],
+        });
       }
     }
 
