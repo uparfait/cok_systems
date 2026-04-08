@@ -921,7 +921,8 @@ const DepartmentManagerDashboard: React.FC = () => {
       }
     }
 
-    await serviceDeliveryService.updateServiceStatus(visitorId, { 
+    await serviceDeliveryService.updateServiceStatus({
+      visitor_id: visitorId,
       services_status: updatedServicesStatus,
       durations: { ...currentDurations, services_durations: updatedServiceDurations }
     });

@@ -8,9 +8,9 @@ import { statisticsService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import { useToast } from '../../../core/contexts/ToastContext';
-import { 
-  FiTrendingUp, FiTrendingDown, FiRefreshCw, FiCalendar, FiUsers, 
-  FiTruck, FiCheckCircle, FiClock, FiBarChart2, FiPieChart
+import {
+  FiTrendingUp, FiRefreshCw, FiUsers,
+  FiTruck, FiCheckCircle, FiBarChart2, FiPieChart
 } from 'react-icons/fi';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,

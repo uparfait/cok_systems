@@ -12,8 +12,8 @@ import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import { 
   FiTruck, FiSearch, FiClock, FiAlertTriangle, FiFlag, FiCheckCircle, FiX,
-  FiArrowRight, FiDownload, FiFilter, FiCalendar, FiRefreshCw, FiEdit2,
-  FiCheck, FiMapPin, FiUser, FiPhone, FiMail, FiFileText
+  FiArrowRight, FiDownload, FiFilter, FiCalendar, FiRefreshCw,
+  FiMapPin, FiFileText
 } from 'react-icons/fi';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
