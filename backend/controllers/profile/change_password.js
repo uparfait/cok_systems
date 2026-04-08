@@ -41,33 +41,17 @@ const validatePassword = (password) => {
 module.exports = async function changePassword(req, res, next) {
     try {
         const { currentPassword, newPassword, confirmPassword } = req.body;
+        const userId = req.user?.id;
 
-        // Extract userId from JWT token directly
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        if (!userId) {
             return res.status(401).json({
                 success: false,
                 type: 'warning',
-                message: 'Authorization token required'
+                message: 'Authorization required'
             });
         }
 
-        const token = authHeader.substring(7);
-        let tokenPayload;
-        try {
-            tokenPayload = jwt.verifyAccessToken(token);
-        } catch (error) {
-            return res.status(401).json({
-                success: false,
-                type: 'warning',
-                message: 'Invalid or expired token'
-            });
-        }
-
-        const userId = tokenPayload.userId;
-
-        console.log('[changePassword] Extracted userId:', userId);
-        console.log('[changePassword] userId type:', typeof userId);
+     
 
         // Validate required fields
         if (!currentPassword || !newPassword || !confirmPassword) {
