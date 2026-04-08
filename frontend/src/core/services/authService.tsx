@@ -15,6 +15,12 @@ export const updateUserProfile = (userId: string, data: {
   title?: string;
 }) => put(`/employee/crud/${userId}`, data);
 
+export const changePassword = (data: {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}) => post('/profile/change-password', data);
+
 // ==================== LOGIN APIs ====================
 
 export const login = (email: string, password: string) => post('/auth/login', { email, password });

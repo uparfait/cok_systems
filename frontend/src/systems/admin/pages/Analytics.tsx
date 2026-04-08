@@ -277,7 +277,7 @@ const Analytics: React.FC = () => {
                       tick={{ fontSize: 12 }}
                     />
                     <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
-                    <Tooltip formatter={(v: any) => [v || 0]} labelFormatter={(l: string | number) => `${l}:00`} />
+                    <Tooltip formatter={(v: any) => [v || 0]} labelFormatter={(l) => `${l}:00`} />
                     <Legend />
                     <Area type="monotone" dataKey="check_in" stroke="#3b82f6" strokeWidth={2} fill="url(#colorCheckIn)" name="Check-Ins" dot={false} activeDot={{ r: 6, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }} />
                     <Area type="monotone" dataKey="check_out" stroke="#ef4444" strokeWidth={2} fill="url(#colorCheckOut)" name="Check-Outs" dot={false} activeDot={{ r: 6, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }} />
@@ -312,7 +312,7 @@ const Analytics: React.FC = () => {
                       tick={{ fontSize: 12 }}
                     />
                     <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
-                    <Tooltip formatter={(v: any) => [v || 0, 'Visitors']} labelFormatter={(l: string | number) => `${l}:00`} />
+                    <Tooltip formatter={(v: any) => [v || 0, 'Visitors']} labelFormatter={(l) => `${l}:00`} />
                     <Area type="monotone" dataKey="visitors_checked_in" stroke="#10b981" strokeWidth={2} fill="url(#colorService)" name="Visitors" dot={false} activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }} />
                   </AreaChart>
                 </ResponsiveContainer>

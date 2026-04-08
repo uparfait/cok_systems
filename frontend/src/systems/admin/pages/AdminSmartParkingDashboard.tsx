@@ -592,7 +592,7 @@ const AdminSmartParkingDashboard: React.FC = () => {
           />
           <Tooltip 
            
-            labelFormatter={(label: string | number) => `${label}:00`}
+            labelFormatter={(label) => `${label}:00`}
             contentStyle={{ 
               backgroundColor: 'rgba(255, 255, 255, 0.95)', 
               border: '1px solid #e5e7eb',

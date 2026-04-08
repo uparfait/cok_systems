@@ -723,8 +723,8 @@ const ReceptionistDashboard: React.FC = () => {
                         borderRadius: "8px",
                         boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                       }}
-                      formatter={(value: string | number | (string | number)[]) => [value, "Visitors"]}
-                      labelFormatter={(label: string | number) => `${label}:00`}
+                      formatter={(value) => [value, "Visitors"]}
+                      labelFormatter={(label) => `${label}:00`}
                     />
                     <Area
                       type="monotone"
