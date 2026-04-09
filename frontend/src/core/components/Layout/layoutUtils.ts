@@ -120,16 +120,27 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
 
   // 👉 DEPT MANAGER INTERCEPTOR: Custom Sidebar
   // IMPORTANT: More specific checks must come BEFORE general ones to avoid "manager" matching "receptionist"
-  if (userRole.includes('department manager') || 
+  if (userRole.includes('department manager') ||
       userRole.includes('department head') ||
       userRole.includes('head of department') ||
       userRole.includes('director')) {
     return [
       { id: 'dashboard', label: 'Dashboard', path: '/service-delivery/department-manager', icon: 'FiGrid' },
-      //{ id: 'status', label: 'Service Status', path: '/service-delivery/department-manager?tab=status', icon: 'FiClock' },
+      {
+        id: 'requests',
+        label: 'Requests',
+        path: '/service-delivery/department-manager?tab=pending-requests',
+        icon: 'FiClipboard',
+        children: [
+          { id: 'pending-requests', label: 'Pending Requests', path: '/service-delivery/department-manager?tab=pending-requests', icon: 'FiAlertCircle' },
+          { id: 'active-tasks', label: 'Active Tasks', path: '/service-delivery/department-manager?tab=active-tasks', icon: 'FiClock' },
+          { id: 'completed-requests', label: 'Completed Requests', path: '/service-delivery/department-manager?tab=completed-requests', icon: 'FiCheckCircle' }
+        ]
+      },
       { id: 'employees', label: 'Employee Management', path: '/service-delivery/department-manager?tab=employees', icon: 'FiUsers' },
-      // { id: 'availability', label: 'Dept. Availability', path: '/service-delivery/department-manager?tab=availability', icon: 'FiCheckCircle' },
-      //{ id: 'reports', label: 'Reports', path: '/service-delivery/department-manager?tab=reports', icon: 'FiFile' }
+      { id: 'departments', label: 'Department Management', path: '/service-delivery/department-manager?tab=departments', icon: 'FiGrid' },
+      { id: 'feedback', label: 'Feedback & Analytics', path: '/service-delivery/department-manager?tab=feedback', icon: 'FiMessageSquare' },
+      { id: 'reports', label: 'Reports & Analytics', path: '/service-delivery/department-manager?tab=reports', icon: 'FiTrendingUp' }
     ];
   }
 

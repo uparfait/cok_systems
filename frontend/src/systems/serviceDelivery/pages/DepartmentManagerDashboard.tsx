@@ -4,8 +4,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  FiSearch, FiUser, FiCheckCircle, FiX,
-  FiClock, FiRefreshCw, FiPlus, FiEye, FiEdit, FiArrowRightCircle, FiSquare
+  FiSearch, FiUser, FiUsers, FiCheckCircle, FiX, FiTrendingUp, FiMessageSquare,
+  FiClock, FiRefreshCw, FiPlus, FiEye, FiEdit, FiArrowRightCircle, FiSquare, FiFileText, FiBriefcase
 } from "react-icons/fi";
 
 // Import API Services
@@ -257,6 +257,778 @@ const AddEmployeeModalContent: React.FC<AddEmployeeModalContentProps> = ({ isOpe
   );
 };
 
+// RequestsTable component for pending/active/completed requests
+interface RequestsTableProps {
+  status: 'pending' | 'active' | 'completed';
+  title: string;
+  departmentId: string;
+  departmentName: string;
+  showError: (msg: string) => void;
+  setSelectedActiveTask: (task: any) => void;
+  setShowActiveTaskModal: (show: boolean) => void;
+  setTransferVisitor: (visitor: any) => void;
+  setShowTransferModal: (show: boolean) => void;
+  showInfo: (msg: string) => void;
+}
+
+const RequestsTable: React.FC<RequestsTableProps> = ({
+  status,
+  title,
+  departmentId,
+  departmentName,
+  showError,
+  setSelectedActiveTask,
+  setShowActiveTaskModal,
+  setTransferVisitor,
+  setShowTransferModal,
+  showInfo
+}) => {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [dateFilter, setDateFilter] = useState<string>('');
+
+  const fetchRequests = async (currentPage: number = 1, filter: string = '') => {
+    setLoading(true);
+    try {
+      const response = await departmentManagerService.getVisitorsByStatus(status, currentPage, 20, filter);
+      if (response.success && response.data) {
+        setRequests(response.data);
+        setTotal(response.total || 0);
+        setPage(currentPage);
+      } else {
+        setRequests([]);
+        setTotal(0);
+      }
+    } catch (error: any) {
+      console.error(`Failed to fetch ${status} requests:`, error);
+      showError(`Failed to load ${status} requests`);
+      setRequests([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests(1, dateFilter);
+  }, [status]);
+
+  const handleDateFilterChange = (filter: string) => {
+    setDateFilter(filter);
+    fetchRequests(1, filter);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-orange-100 text-orange-700';
+      case 'active': return 'bg-blue-100 text-blue-700';
+      case 'completed': return 'bg-green-100 text-green-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+          <p className="text-gray-600 mt-1">Manage {status.toLowerCase()} visitor requests</p>
+        </div>
+        <button
+          onClick={() => fetchRequests(page, dateFilter)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <FiRefreshCw className="w-4 h-4" />
+          Refresh
+        </button>
+      </div>
+
+      {/* Date Filter */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="flex gap-4 items-center">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Date</label>
+            <select
+              value={dateFilter}
+              onChange={(e) => handleDateFilterChange(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Time</option>
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="this_week">This Week</option>
+              <option value="last_week">Last Week</option>
+              <option value="this_month">This Month</option>
+              <option value="last_month">Last Month</option>
+            </select>
+          </div>
+          <div className="text-sm text-gray-600">
+            Total: {total} requests
+          </div>
+        </div>
+      </div>
+
+      {/* Requests Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <div className="min-h-[600px] flex flex-col">
+            {loading ? (
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading {status} requests...</p>
+                </div>
+              </div>
+            ) : requests.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="text-center text-gray-500">
+                  <FiFileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium">No {status} requests found</p>
+                  <p className="text-sm">There are currently no {status.toLowerCase()} visitor requests.</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <table className="w-full min-w-[800px]">
+                  <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visitor</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entry Time</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      {status === 'active' && (
+                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                      )}
+                      {(status === 'pending' || status === 'active') && (
+                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {requests.map((request: any) => (
+                      <tr key={request._id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10">
+                              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                <span className="text-sm font-medium text-blue-600">
+                                  {request.full_name?.charAt(0)?.toUpperCase() || '?'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">{request.full_name || 'Unknown'}</div>
+                              <div className="text-sm text-gray-500">{request.telephone || request.email || 'No contact'}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {request.departments_assigned?.[0]?.department_name || 'Unknown'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {request.departments_assigned?.[0]?.provider_name || 'Unassigned'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">
+                            {request.entry_date ? new Date(request.entry_date).toLocaleString() : 'N/A'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium uppercase ${getStatusColor(status)}`}>
+                            {status === 'pending' ? 'Not Started' : status === 'active' ? 'In Progress' : 'Completed'}
+                          </span>
+                        </td>
+                        {status === 'active' && (
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <LiveTimer startTime={request.entry_date} />
+                          </td>
+                        )}
+                        {(status === 'pending' || status === 'active') && (
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex items-center gap-2">
+                              {status === 'pending' && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedActiveTask(request);
+                                    setShowActiveTaskModal(true);
+                                  }}
+                                  className="text-blue-600 hover:text-blue-900 px-2 py-1 rounded-md hover:bg-blue-50 transition-colors text-xs"
+                                >
+                                  Details
+                                </button>
+                              )}
+                              <button
+                                onClick={() => {
+                                  setTransferVisitor(request);
+                                  setShowTransferModal(true);
+                                  showInfo(`Preparing to transfer ${request.full_name || 'visitor'}...`);
+                                }}
+                                className="text-purple-600 hover:text-purple-900 px-2 py-1 rounded-md hover:bg-purple-50 transition-colors text-xs flex items-center gap-1"
+                              >
+                                <FiArrowRightCircle className="w-3 h-3" />
+                                Transfer
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Fill remaining space to maintain fixed height */}
+                <div className="flex-1 bg-white"></div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Pagination */}
+        {total > 0 && (
+          <div className="bg-white px-6 py-4 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, total)} of {total} entries
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => fetchRequests(page - 1, dateFilter)}
+                  disabled={page === 1 || loading}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+                >
+                  ← Previous
+                </button>
+
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-gray-600">Page</span>
+                  <span className="px-3 py-1 bg-blue-50 text-blue-700 font-medium rounded">{page}</span>
+                </div>
+
+                <button
+                  onClick={() => fetchRequests(page + 1, dateFilter)}
+                  disabled={page * 20 >= total || loading}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Departments Management Tab
+const DepartmentsTab: React.FC<{ showError: (msg: string) => void; showSuccess: (msg: string) => void }> = ({ showError, showSuccess }) => {
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingDepartment, setEditingDepartment] = useState<any>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  const fetchDepartments = async () => {
+    setLoading(true);
+    try {
+      const response = await departmentManagerService.getManagedDepartments();
+      if (response.success && response.data) {
+        setDepartments(response.data);
+      } else {
+        setDepartments([]);
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch departments:', error);
+      showError('Failed to load departments');
+      setDepartments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDepartments();
+  }, []);
+
+  const handleUpdateDepartment = async (departmentId: string, updates: any) => {
+    try {
+      const response = await departmentManagerService.updateDepartment(departmentId, updates);
+      if (response.success) {
+        showSuccess('Department updated successfully');
+        setShowEditModal(false);
+        setEditingDepartment(null);
+        fetchDepartments(); // Refresh the list
+      } else {
+        showError(response.message || 'Failed to update department');
+      }
+    } catch (error: any) {
+      showError(error.message || 'Failed to update department');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Department Management</h1>
+          <p className="text-gray-600 mt-1">Manage departments under your supervision</p>
+        </div>
+        <button
+          onClick={fetchDepartments}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <FiRefreshCw className="w-4 h-4" />
+          Refresh
+        </button>
+      </div>
+
+      {/* Departments Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <div className="min-h-[600px] flex flex-col">
+            {loading ? (
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading departments...</p>
+                </div>
+              </div>
+            ) : departments.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="text-center text-gray-500">
+                  <FiBriefcase className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium">No departments found</p>
+                  <p className="text-sm">You are not assigned as a leader for any departments.</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <table className="w-full min-w-[800px]">
+                  <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department ID</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Response Time</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leader</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {departments.map((dept: any) => (
+                      <tr key={dept._id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{dept.department_name}</div>
+                          <div className="text-sm text-gray-500">
+                            {dept.sub_department_mng?.is_sub_department ? 'Sub-Department' : 'Main Department'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{dept.department_id}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {dept.department_response_time_in_minutes > 0
+                              ? `${dept.department_response_time_in_minutes} minutes`
+                              : 'Not set'
+                            }
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {dept.department_leader?.full_name || 'Not assigned'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button
+                            onClick={() => {
+                              setEditingDepartment(dept);
+                              setShowEditModal(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-900 px-3 py-1.5 rounded-md hover:bg-blue-50 transition-colors text-xs font-medium"
+                          >
+                            Edit Details
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Fill remaining space to maintain fixed height */}
+                <div className="flex-1 bg-white"></div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Edit Department Modal */}
+      {showEditModal && editingDepartment && (
+        <div className="fixed inset-0 bg-transparent backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Edit Department</h2>
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingDepartment(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FiX className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Department Name</label>
+                  <input
+                    type="text"
+                    defaultValue={editingDepartment.department_name}
+                    onChange={(e) => {
+                      editingDepartment.department_name = e.target.value;
+                    }}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter department name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Response Time (minutes)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    defaultValue={editingDepartment.department_response_time_in_minutes || ''}
+                    onChange={(e) => {
+                      editingDepartment.department_response_time_in_minutes = parseInt(e.target.value) || 0;
+                    }}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter response time in minutes"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Set to 0 to disable response time tracking</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingDepartment(null);
+                  }}
+                  className="flex-1 px-4 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleUpdateDepartment(editingDepartment._id, {
+                    department_name: editingDepartment.department_name,
+                    department_response_time_in_minutes: editingDepartment.department_response_time_in_minutes
+                  })}
+                  className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Update Department
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Feedback Management Tab
+const FeedbackTab: React.FC<{ showError: (msg: string) => void }> = ({ showError }) => {
+  const [feedback, setFeedback] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [analytics, setAnalytics] = useState<any>({});
+  const [dateFilter, setDateFilter] = useState<string>('');
+  const [ratingFilter, setRatingFilter] = useState<number | ''>('');
+
+  const fetchFeedback = async (currentPage: number = 1, dateFilter: string = '', rating: number | '' = '') => {
+    setLoading(true);
+    try {
+      const response = await departmentManagerService.getDepartmentFeedback(currentPage, 20, dateFilter, rating || undefined);
+      if (response.success && response.data) {
+        setFeedback(response.data);
+        setTotal(response.total || 0);
+        setAnalytics(response.analytics || {});
+        setPage(currentPage);
+      } else {
+        setFeedback([]);
+        setTotal(0);
+        setAnalytics({});
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch feedback:', error);
+      showError('Failed to load feedback');
+      setFeedback([]);
+      setTotal(0);
+      setAnalytics({});
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFeedback(1, dateFilter, ratingFilter);
+  }, []);
+
+  const handleFiltersChange = () => {
+    fetchFeedback(1, dateFilter, ratingFilter);
+  };
+
+  const getRatingColor = (rating: number) => {
+    if (rating >= 8) return 'text-green-600';
+    if (rating >= 6) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const getRatingStars = (rating: number) => {
+    return '★'.repeat(rating) + '☆'.repeat(10 - rating);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Feedback & Analytics</h1>
+          <p className="text-gray-600 mt-1">Monitor feedback and performance metrics for your departments</p>
+        </div>
+        <button
+          onClick={() => fetchFeedback(page, dateFilter, ratingFilter)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <FiRefreshCw className="w-4 h-4" />
+          Refresh
+        </button>
+      </div>
+
+      {/* Analytics Cards */}
+      {analytics.average_rating && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-2xl font-bold text-gray-800">{analytics.average_rating?.toFixed(1) || '0.0'}</p>
+                <p className="text-sm text-gray-600 mt-1">Average Rating</p>
+              </div>
+              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <FiMessageSquare className="w-6 h-6 text-yellow-500" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-2xl font-bold text-gray-800">{analytics.total_feedback || 0}</p>
+                <p className="text-sm text-gray-600 mt-1">Total Feedback</p>
+              </div>
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <FiTrendingUp className="w-6 h-6 text-blue-500" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-2xl font-bold text-gray-800">
+                  {analytics.average_rating >= 8 ? 'Excellent' :
+                   analytics.average_rating >= 6 ? 'Good' : 'Needs Improvement'}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">Performance Status</p>
+              </div>
+              <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                analytics.average_rating >= 8 ? 'bg-green-100' :
+                analytics.average_rating >= 6 ? 'bg-yellow-100' : 'bg-red-100'
+              }`}>
+                <FiMessageSquare className={`w-6 h-6 ${
+                  analytics.average_rating >= 8 ? 'text-green-500' :
+                  analytics.average_rating >= 6 ? 'text-yellow-500' : 'text-red-500'
+                }`} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="flex gap-4 items-center">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Date</label>
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Time</option>
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="this_week">This Week</option>
+              <option value="last_week">Last Week</option>
+              <option value="this_month">This Month</option>
+              <option value="last_month">Last Month</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Rating</label>
+            <select
+              value={ratingFilter}
+              onChange={(e) => setRatingFilter(e.target.value ? parseInt(e.target.value) : '')}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Ratings</option>
+              <option value="10">5 Stars (Excellent)</option>
+              <option value="8">4 Stars (Good)</option>
+              <option value="6">3 Stars (Average)</option>
+              <option value="4">2 Stars (Poor)</option>
+              <option value="2">1 Star (Very Poor)</option>
+            </select>
+          </div>
+
+          <div className="flex items-end">
+            <button
+              onClick={handleFiltersChange}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Apply Filters
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Feedback Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <div className="min-h-[600px] flex flex-col">
+            {loading ? (
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading feedback...</p>
+                </div>
+              </div>
+            ) : feedback.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="text-center text-gray-500">
+                  <FiMessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium">No feedback found</p>
+                  <p className="text-sm">There is no feedback available for your departments.</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <table className="w-full min-w-[1000px]">
+                  <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visitor</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Feedback</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {feedback.map((item: any) => (
+                      <tr key={item._id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10">
+                              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                <span className="text-sm font-medium text-blue-600">
+                                  {(item.user_name || 'Unknown').charAt(0).toUpperCase()}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">{item.user_name || 'Anonymous'}</div>
+                              <div className="text-sm text-gray-500">{item.telephone || 'No phone'}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{item.department_name || 'Unknown'}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-lg font-bold ${getRatingColor(item.rate)}`}>
+                              {getRatingStars(item.rate)}
+                            </span>
+                            <span className="text-sm text-gray-600">({item.rate}/10)</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900 max-w-xs truncate">
+                            {item.textmessage || 'No feedback message'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">
+                            {item.created_date ? new Date(item.created_date).toLocaleDateString() : 'Unknown'}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Fill remaining space to maintain fixed height */}
+                <div className="flex-1 bg-white"></div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Pagination */}
+        {total > 0 && (
+          <div className="bg-white px-6 py-4 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, total)} of {total} entries
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => fetchFeedback(page - 1, dateFilter, ratingFilter)}
+                  disabled={page === 1 || loading}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+                >
+                  ← Previous
+                </button>
+
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-gray-600">Page</span>
+                  <span className="px-3 py-1 bg-blue-50 text-blue-700 font-medium rounded">{page}</span>
+                </div>
+
+                <button
+                  onClick={() => fetchFeedback(page + 1, dateFilter, ratingFilter)}
+                  disabled={page * 20 >= total || loading}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Wrapper component for Edit Employee Modal
 interface EditEmployeeModalContentProps {
   isOpen: boolean;
@@ -421,11 +1193,17 @@ const DepartmentManagerDashboard: React.FC = () => {
   const { socket, isConnected } = useSocket();
   const { showSuccess, showError, showWarning, showInfo } = useToast();
 
-  const departmentId = user?.departmentId || user?.department_id;
-  const departmentName = user?.departmentName || user?.department_name;
+  const departmentId = user?.departmentId || user?.department_id || '';
+  const departmentName = user?.departmentName || user?.department_name || '';
   
   const tabParam = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'employees' | 'by-department' | 'by-provider' | 'availability' | 'reports' | 'active-tasks'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'employees' | 'departments' | 'feedback' | 'by-department' | 'by-provider' | 'availability' | 'reports' | 'active-tasks' | 'pending-requests' | 'completed-requests'>('dashboard');
+
+  // Function to update both activeTab and URL
+  const navigateToTab = (tab: typeof activeTab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [allDepartmentVisitors, setAllDepartmentVisitors] = useState<Visitor[]>([]);
@@ -502,8 +1280,8 @@ const DepartmentManagerDashboard: React.FC = () => {
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    const validTabs: Array<'dashboard' | 'employees' | 'by-department' | 'by-provider' | 'availability' | 'reports' | 'active-tasks'> =
-      ['dashboard', 'employees', 'by-department', 'by-provider', 'availability', 'reports', 'active-tasks'];
+    const validTabs: Array<'dashboard' | 'employees' | 'departments' | 'feedback' | 'by-department' | 'by-provider' | 'availability' | 'reports' | 'active-tasks' | 'pending-requests' | 'completed-requests'> =
+      ['dashboard', 'employees', 'departments', 'feedback', 'by-department', 'by-provider', 'availability', 'reports', 'active-tasks', 'pending-requests', 'completed-requests'];
     if (tab && validTabs.includes(tab as any)) {
       setActiveTab(tab as any);
     } else {
@@ -1174,6 +1952,12 @@ const DepartmentManagerDashboard: React.FC = () => {
         setEmployeeTotal(response.total || 0);
         setEmployeePage(page);
 
+        // Update dashboard stats with employee count
+        setDashboardStats(prev => ({
+          ...prev,
+          totalEmployees: response.total || 0
+        }));
+
         // Show success toast only if it's not the initial load and not silent
         if (!silent && (page > 1 || search)) {
           showSuccess(`Found ${response.total || 0} employees`);
@@ -1380,16 +2164,19 @@ const DepartmentManagerDashboard: React.FC = () => {
       {activeTab === 'dashboard' && (
         <div className="space-y-6">
           {/* STATISTICS CARDS */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigateToTab('pending-requests')}
+            >
               <div className="flex items-start justify-between">
                 <div>
-                  {(isLoading && firstLoad) ? (
+                  {dashboardLoading ? (
                     <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
                   ) : (
-                    <p className="text-3xl font-bold text-gray-800">{pendingVisitors.length}</p>
+                    <p className="text-3xl font-bold text-gray-800">{dashboardStats.pending}</p>
                   )}
-                  <p className="text-sm text-green-600 mt-1">Pending Requests</p>
+                  <p className="text-sm text-orange-600 mt-1">Pending Requests</p>
                 </div>
                 <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                   <FiClock className="w-6 h-6 text-orange-500" />
@@ -1397,15 +2184,18 @@ const DepartmentManagerDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigateToTab('active-tasks')}
+            >
               <div className="flex items-start justify-between">
                 <div>
-                  {(isLoading && firstLoad) ? (
+                  {dashboardLoading ? (
                     <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
                   ) : (
-                    <p className="text-3xl font-bold text-gray-800">{inProgressVisitors.length}</p>
+                    <p className="text-3xl font-bold text-gray-800">{dashboardStats.active}</p>
                   )}
-                  <p className="text-sm text-gray-500 mt-1">Active tasks</p>
+                  <p className="text-sm text-blue-600 mt-1">Active Tasks</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                   <FiRefreshCw className="w-6 h-6 text-blue-500" />
@@ -1413,15 +2203,18 @@ const DepartmentManagerDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigateToTab('active-tasks')}
+            >
               <div className="flex items-start justify-between">
                 <div>
-                  {(isLoading && firstLoad) ? (
+                  {dashboardLoading ? (
                     <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
                   ) : (
-                    <p className="text-3xl font-bold text-gray-800">{transferredVisitors.length}</p>
+                    <p className="text-3xl font-bold text-gray-800">{dashboardStats.transferred}</p>
                   )}
-                  <p className="text-sm text-gray-500 mt-1">Transferred</p>
+                  <p className="text-sm text-purple-600 mt-1">Transferred</p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                   <FiArrowRightCircle className="w-6 h-6 text-purple-500" />
@@ -1429,18 +2222,90 @@ const DepartmentManagerDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigateToTab('completed-requests')}
+            >
               <div className="flex items-start justify-between">
                 <div>
-                  {(isLoading && firstLoad) ? (
+                  {dashboardLoading ? (
                     <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
                   ) : (
-                    <p className="text-3xl font-bold text-gray-800">{completedVisitors.length}</p>
+                    <p className="text-3xl font-bold text-gray-800">{dashboardStats.completed}</p>
                   )}
-                  <p className="text-sm text-gray-500 mt-1">Completed</p>
+                  <p className="text-sm text-green-600 mt-1">Completed Requests</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                   <FiCheckCircle className="w-6 h-6 text-green-500" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ADDITIONAL METRICS CARDS */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigateToTab('active-tasks')}
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  {dashboardLoading ? (
+                    <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
+                  ) : (
+                    <p className="text-3xl font-bold text-gray-800">{employeeTotal}</p>
+                  )}
+                  <p className="text-sm text-indigo-600 mt-1">Total Employees</p>
+                </div>
+                <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                  <FiUsers className="w-6 h-6 text-indigo-500" />
+                </div>
+              </div>
+            </div>
+
+            <div
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigateToTab('employees')}
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  {dashboardLoading ? (
+                    <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
+                  ) : (
+                    <p className="text-3xl font-bold text-gray-800">{departments.length}</p>
+                  )}
+                  <p className="text-sm text-teal-600 mt-1">Managed Departments</p>
+                </div>
+                <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center">
+                  <FiTrendingUp className="w-6 h-6 text-teal-500" />
+                </div>
+              </div>
+            </div>
+
+            <div
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigateToTab('feedback')}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      {dashboardLoading ? (
+                        <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
+                      ) : (
+                        <p className="text-3xl font-bold text-gray-800">{dashboardStats.totalFeedback}</p>
+                      )}
+                      <p className="text-sm text-pink-600 mt-1">Total Feedback</p>
+                    </div>
+                    <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
+                      <FiMessageSquare className="w-6 h-6 text-pink-500" />
+                    </div>
+                  </div>
+                  {!dashboardLoading && dashboardStats.averageRating > 0 && (
+                    <div className="mt-2 text-xs text-gray-500">
+                      Avg Rating: {dashboardStats.averageRating.toFixed(1)}/10
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1817,6 +2682,48 @@ const DepartmentManagerDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* PENDING REQUESTS TAB - Only for Head of Department */}
+      {activeTab === 'pending-requests' && user?.role === 'Head of department' && (
+        <RequestsTable
+          status="pending"
+          title="Pending Requests"
+          departmentId={departmentId}
+          departmentName={departmentName}
+          showError={showError}
+          setSelectedActiveTask={setSelectedActiveTask}
+          setShowActiveTaskModal={setShowActiveTaskModal}
+          setTransferVisitor={setTransferVisitor}
+          setShowTransferModal={setShowTransferModal}
+          showInfo={showInfo}
+        />
+      )}
+
+      {/* COMPLETED REQUESTS TAB - Only for Head of Department */}
+      {activeTab === 'completed-requests' && user?.role === 'Head of department' && (
+        <RequestsTable
+          status="completed"
+          title="Completed Requests"
+          departmentId={departmentId}
+          departmentName={departmentName}
+          showError={showError}
+          setSelectedActiveTask={setSelectedActiveTask}
+          setShowActiveTaskModal={setShowActiveTaskModal}
+          setTransferVisitor={setTransferVisitor}
+          setShowTransferModal={setShowTransferModal}
+          showInfo={showInfo}
+        />
+      )}
+
+      {/* DEPARTMENTS MANAGEMENT TAB - Only for Head of Department */}
+      {activeTab === 'departments' && user?.role === 'Head of department' && (
+        <DepartmentsTab showError={showError} showSuccess={showSuccess} />
+      )}
+
+      {/* FEEDBACK MANAGEMENT TAB - Only for Head of Department */}
+      {activeTab === 'feedback' && user?.role === 'Head of department' && (
+        <FeedbackTab showError={showError} />
       )}
 
       {/* EMPLOYEE MANAGEMENT TAB */}
