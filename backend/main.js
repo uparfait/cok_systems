@@ -51,7 +51,6 @@ Module.prototype.require = function (path) {
 const db_connection = require("./db_connection/main");
 const WebSocketService = require("./services/reatime_service/web_socket.js");
 const InitialiseAllRealtimeServices = require("./services/reatime_service/initialise_realtime_services.js");
-// 👉 1. Imported my monitor here
 const parkingMonitor = require("./utilities/parkingMonitor.js");
 
 /**
