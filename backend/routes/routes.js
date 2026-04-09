@@ -19,6 +19,7 @@ const roles_managment = require('./roles_managment/routes.js')
 const statistics = require('./statistics/routes.js')
 const create_multiple_employees = require('./create_multiple_employees/routes.js')
 const profile = require('./profile/routes.js')
+const department_manager = require('./department_manager_routes.js')
 
 
 Router.use('/servicedelivery', 
