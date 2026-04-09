@@ -3,10 +3,6 @@ const ServiceDelivery = require('../../models/service_delivery.js');
 const Department = require('../../models/department.js');
 const { getDepartmentIdsForHead, buildDateFilter } = require('./visitors_by_status');
 
-/**
- * GET /department-manager/visitors/provider/:providerId
- * Fetch visitors by provider with pagination
- */
 const getVisitorsByProvider = async (req, res, next) => {
     try {
         const { providerId } = req.params;

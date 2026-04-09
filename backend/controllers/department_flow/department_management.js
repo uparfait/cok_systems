@@ -3,10 +3,6 @@
 const Department = require('../../models/department.js');
 const { getDepartmentIdsForHead } = require('./visitors_by_status');
 
-/**
- * GET /department-manager/departments
- * Get departments managed by head of department
- */
 const getManagedDepartments = async (req, res, next) => {
     try {
         const departmentIds = await getDepartmentIdsForHead(req.user.userId);
@@ -40,10 +36,7 @@ const getManagedDepartments = async (req, res, next) => {
     }
 };
 
-/**
- * PUT /department-manager/departments/:departmentId
- * Update department details (name, response time)
- */
+
 const updateDepartment = async (req, res, next) => {
     try {
         const { departmentId } = req.params;
