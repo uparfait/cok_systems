@@ -268,6 +268,7 @@ interface RequestsTableProps {
   setTransferVisitor: (visitor: any) => void;
   setShowTransferModal: (show: boolean) => void;
   showInfo: (msg: string) => void;
+  getInitials: (name: string) => string;
 }
 
 const RequestsTable: React.FC<RequestsTableProps> = ({
@@ -280,7 +281,8 @@ const RequestsTable: React.FC<RequestsTableProps> = ({
   setShowActiveTaskModal,
   setTransferVisitor,
   setShowTransferModal,
-  showInfo
+  showInfo,
+  getInitials
 }) => {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -329,199 +331,188 @@ const RequestsTable: React.FC<RequestsTableProps> = ({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-          <p className="text-gray-600 mt-1">Manage {status.toLowerCase()} visitor requests</p>
+    <div className="bg-white rounded-[14px] shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+      <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-white">
+        <h2 className="text-[16px] font-bold text-blue-600 uppercase">{title}</h2>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search requests..."
+              className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <button
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 rounded-lg text-white text-sm font-medium hover:bg-green-700"
+          >
+            <FiSearch className="w-4 h-4" /> Search
+          </button>
+          <select
+            value={dateFilter}
+            onChange={(e) => handleDateFilterChange(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All Time</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="this_week">This Week</option>
+            <option value="last_week">Last Week</option>
+            <option value="this_month">This Month</option>
+            <option value="last_month">Last Month</option>
+          </select>
+          <button
+            onClick={() => fetchRequests(page, dateFilter)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#0284C7] rounded-lg text-white text-sm font-medium hover:bg-[#0369A1]"
+          >
+            <FiRefreshCw className="w-4 h-4" /> Refresh
+          </button>
         </div>
-        <button
-          onClick={() => fetchRequests(page, dateFilter)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <FiRefreshCw className="w-4 h-4" />
-          Refresh
-        </button>
       </div>
 
-      {/* Date Filter */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="flex gap-4 items-center">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Date</label>
-            <select
-              value={dateFilter}
-              onChange={(e) => handleDateFilterChange(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">All Time</option>
-              <option value="today">Today</option>
-              <option value="yesterday">Yesterday</option>
-              <option value="this_week">This Week</option>
-              <option value="last_week">Last Week</option>
-              <option value="this_month">This Month</option>
-              <option value="last_month">Last Month</option>
-            </select>
-          </div>
-          <div className="text-sm text-gray-600">
-            Total: {total} requests
-          </div>
-        </div>
-      </div>
-
-      {/* Requests Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <div className="min-h-[600px] flex flex-col">
-            {loading ? (
-              <div className="flex-1 flex items-center justify-center p-8">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Loading {status} requests...</p>
-                </div>
-              </div>
-            ) : requests.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center p-8">
-                <div className="text-center text-gray-500">
-                  <FiFileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  <p className="text-lg font-medium">No {status} requests found</p>
-                  <p className="text-sm">There are currently no {status.toLowerCase()} visitor requests.</p>
-                </div>
-              </div>
-            ) : (
-              <>
-                <table className="w-full min-w-[800px]">
-                  <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
-                    <tr>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visitor</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entry Time</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      {status === 'active' && (
-                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
-                      )}
-                      {(status === 'pending' || status === 'active') && (
-                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {requests.map((request: any) => (
-                      <tr key={request._id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10">
-                              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                <span className="text-sm font-medium text-blue-600">
-                                  {request.full_name?.charAt(0)?.toUpperCase() || '?'}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{request.full_name || 'Unknown'}</div>
-                              <div className="text-sm text-gray-500">{request.telephone || request.email || 'No contact'}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {request.departments_assigned?.[0]?.department_name || 'Unknown'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {request.departments_assigned?.[0]?.provider_name || 'Unassigned'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">
-                            {request.entry_date ? new Date(request.entry_date).toLocaleString() : 'N/A'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium uppercase ${getStatusColor(status)}`}>
-                            {status === 'pending' ? 'Not Started' : status === 'active' ? 'In Progress' : 'Completed'}
-                          </span>
-                        </td>
-                        {status === 'active' && (
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <LiveTimer startTime={request.entry_date} />
-                          </td>
-                        )}
-                        {(status === 'pending' || status === 'active') && (
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="flex items-center gap-2">
-                              {status === 'pending' && (
-                                <button
-                                  onClick={() => {
-                                    setSelectedActiveTask(request);
-                                    setShowActiveTaskModal(true);
-                                  }}
-                                  className="text-blue-600 hover:text-blue-900 px-2 py-1 rounded-md hover:bg-blue-50 transition-colors text-xs"
-                                >
-                                  Details
-                                </button>
-                              )}
-                              <button
-                                onClick={() => {
-                                  setTransferVisitor(request);
-                                  setShowTransferModal(true);
-                                  showInfo(`Preparing to transfer ${request.full_name || 'visitor'}...`);
-                                }}
-                                className="text-purple-600 hover:text-purple-900 px-2 py-1 rounded-md hover:bg-purple-50 transition-colors text-xs flex items-center gap-1"
-                              >
-                                <FiArrowRightCircle className="w-3 h-3" />
-                                Transfer
-                              </button>
-                            </div>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {/* Fill remaining space to maintain fixed height */}
-                <div className="flex-1 bg-white"></div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Pagination */}
-        {total > 0 && (
-          <div className="bg-white px-6 py-4 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-700">
-                Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, total)} of {total} entries
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => fetchRequests(page - 1, dateFilter)}
-                  disabled={page === 1 || loading}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
-                >
-                  ← Previous
-                </button>
-
-                <div className="flex items-center gap-1">
-                  <span className="text-sm text-gray-600">Page</span>
-                  <span className="px-3 py-1 bg-blue-50 text-blue-700 font-medium rounded">{page}</span>
-                </div>
-
-                <button
-                  onClick={() => fetchRequests(page + 1, dateFilter)}
-                  disabled={page * 20 >= total || loading}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
-                >
-                  Next →
-                </button>
-              </div>
+      <div className="overflow-x-auto">
+        {loading ? (
+          <div className="flex items-center justify-center p-8 min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading {status} requests...</p>
             </div>
           </div>
+        ) : requests.length === 0 ? (
+          <div className="flex items-center justify-center p-8 min-h-[400px]">
+            <div className="text-center text-gray-500">
+              <FiFileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium">No {status} requests found</p>
+              <p className="text-sm">There are currently no {status.toLowerCase()} visitor requests.</p>
+            </div>
+          </div>
+        ) : (
+          <table className="w-full min-w-[1000px]">
+            <thead className="bg-[#F8FAFC] sticky top-0 z-10">
+              <tr>
+                <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">VISITOR</th>
+                <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">CONTACT</th>
+                <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">DEPARTMENT</th>
+                <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">PROVIDER</th>
+                <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">ENTRY TIME</th>
+                <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">STATUS</th>
+                {status === 'active' && (
+                  <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">DURATION</th>
+                )}
+                {(status === 'pending' || status === 'active') && (
+                  <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">ACTION</th>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {requests.map((request: any) => (
+                <tr key={request._id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center">
+                      <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs mr-3">
+                        {request.full_name ? getInitials(request.full_name) : '?'}
+                      </div>
+                      <p className="text-sm font-semibold text-gray-800">{request.full_name || 'Unknown'}</p>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="text-sm text-gray-600">{request.telephone || '_____'}</p>
+                    <p className="text-xs text-gray-400">{request.email || ''}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="text-sm text-gray-600">
+                      {request.departments_assigned?.[0]?.department_name || 'Unknown'}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="text-sm text-gray-600">
+                      {request.departments_assigned?.[0]?.provider_name || 'Unassigned'}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="text-sm text-gray-500">
+                      {request.entry_date ? new Date(request.entry_date).toLocaleString() : 'N/A'}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${getStatusColor(status)}`}>
+                      {status === 'pending' ? 'Not Started' : status === 'active' ? 'In Progress' : 'Completed'}
+                    </span>
+                  </td>
+                  {status === 'active' && (
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold bg-[#e3f2fd] text-[#1a73e8]">
+                        <FiClock className="w-3 h-3 animate-pulse" />
+                        <LiveTimer startTime={request.entry_date} />
+                      </span>
+                    </td>
+                  )}
+                  {(status === 'pending' || status === 'active') && (
+                    <td className="px-4 py-3">
+                      {status === 'pending' && (
+                        <button
+                          onClick={() => {
+                            setSelectedActiveTask(request);
+                            setShowActiveTaskModal(true);
+                          }}
+                          className="flex items-center justify-center gap-1 h-8 w-20 bg-blue-600 text-white text-[12px] font-bold rounded-[6px] hover:bg-blue-700 transition-colors shadow-sm"
+                        >
+                          Details
+                        </button>
+                      )}
+                      {status === 'active' && (
+                        <button
+                          onClick={() => {
+                            setTransferVisitor(request);
+                            setShowTransferModal(true);
+                            showInfo(`Preparing to transfer ${request.full_name || 'visitor'}...`);
+                          }}
+                          className="flex items-center justify-center gap-1 h-8 w-24 bg-[#7b1fa2] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#6a1b9a] transition-colors shadow-sm"
+                        >
+                          <FiArrowRightCircle className="w-3 h-3" /> Transfer
+                        </button>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
+
+      {/* Pagination */}
+      {total > 0 && (
+        <div className="bg-white px-6 py-4 border-t border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-700">
+              Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, total)} of {total} entries
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => fetchRequests(page - 1, dateFilter)}
+                disabled={page === 1 || loading}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+              >
+                ← Previous
+              </button>
+
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-gray-600">Page</span>
+                <span className="px-3 py-1 bg-blue-50 text-blue-700 font-medium rounded">{page}</span>
+              </div>
+
+              <button
+                onClick={() => fetchRequests(page + 1, dateFilter)}
+                disabled={page * 20 >= total || loading}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1196,7 +1187,7 @@ const DepartmentManagerDashboard: React.FC = () => {
   const departmentName = user?.departmentName || user?.department_name || '';
   
   const tabParam = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'employees' | 'departments' | 'feedback' | 'by-department' | 'by-provider' | 'availability' | 'active-tasks' | 'pending-requests' | 'completed-requests'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'employees' | 'departments' | 'feedback' | 'by-department' | 'by-provider' | 'availability' | 'active-tasks' | 'completed-requests'>('dashboard');
 
   // Function to update both activeTab and URL
   const navigateToTab = (tab: typeof activeTab) => {
@@ -1279,8 +1270,8 @@ const DepartmentManagerDashboard: React.FC = () => {
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    const validTabs: Array<'dashboard' | 'employees' | 'departments' | 'feedback' | 'by-department' | 'by-provider' | 'availability' | 'active-tasks' | 'pending-requests' | 'completed-requests'> =
-      ['dashboard', 'employees', 'departments', 'feedback', 'by-department', 'by-provider', 'availability', 'active-tasks', 'pending-requests', 'completed-requests'];
+    const validTabs: Array<'dashboard' | 'employees' | 'departments' | 'feedback' | 'by-department' | 'by-provider' | 'availability' | 'active-tasks' | 'completed-requests'> =
+      ['dashboard', 'employees', 'departments', 'feedback', 'by-department', 'by-provider', 'availability', 'active-tasks', 'completed-requests'];
     if (tab && validTabs.includes(tab as any)) {
       setActiveTab(tab as any);
     } else {
@@ -1348,6 +1339,8 @@ const DepartmentManagerDashboard: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'dashboard' && user?.role === 'Head of department') {
       fetchDashboardStats();
+      // Also fetch employee count for the dashboard display
+      fetchEmployees(1, '', true); // true = silent mode, no loading indicators
     }
   }, [activeTab, user]);
 
@@ -2163,25 +2156,8 @@ const DepartmentManagerDashboard: React.FC = () => {
       {activeTab === 'dashboard' && (
         <div className="space-y-6">
           {/* STATISTICS CARDS */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            <div
-              className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => navigateToTab('pending-requests')}
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  {dashboardLoading ? (
-                    <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
-                  ) : (
-                    <p className="text-3xl font-bold text-gray-800">{dashboardStats.pending}</p>
-                  )}
-                  <p className="text-sm text-orange-600 mt-1">Pending Requests</p>
-                </div>
-                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <FiClock className="w-6 h-6 text-orange-500" />
-                </div>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5">
+
 
             <div
               className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
@@ -2202,24 +2178,7 @@ const DepartmentManagerDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div
-              className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => navigateToTab('active-tasks')}
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  {dashboardLoading ? (
-                    <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
-                  ) : (
-                    <p className="text-3xl font-bold text-gray-800">{dashboardStats.transferred}</p>
-                  )}
-                  <p className="text-sm text-purple-600 mt-1">Transferred</p>
-                </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <FiArrowRightCircle className="w-6 h-6 text-purple-500" />
-                </div>
-              </div>
-            </div>
+
 
             <div
               className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
@@ -2242,7 +2201,7 @@ const DepartmentManagerDashboard: React.FC = () => {
           </div>
 
           {/* ADDITIONAL METRICS CARDS */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div
               className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => navigateToTab('active-tasks')}
@@ -2262,24 +2221,7 @@ const DepartmentManagerDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div
-              className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => navigateToTab('employees')}
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  {dashboardLoading ? (
-                    <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
-                  ) : (
-                    <p className="text-3xl font-bold text-gray-800">{departments.length}</p>
-                  )}
-                  <p className="text-sm text-teal-600 mt-1">Managed Departments</p>
-                </div>
-                <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center">
-                  <FiTrendingUp className="w-6 h-6 text-teal-500" />
-                </div>
-              </div>
-            </div>
+
 
             <div
               className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
@@ -2683,21 +2625,7 @@ const DepartmentManagerDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* PENDING REQUESTS TAB - Only for Head of Department */}
-      {activeTab === 'pending-requests' && user?.role === 'Head of department' && (
-        <RequestsTable
-          status="pending"
-          title="Pending Requests"
-          departmentId={departmentId}
-          departmentName={departmentName}
-          showError={showError}
-          setSelectedActiveTask={setSelectedActiveTask}
-          setShowActiveTaskModal={setShowActiveTaskModal}
-          setTransferVisitor={setTransferVisitor}
-          setShowTransferModal={setShowTransferModal}
-          showInfo={showInfo}
-        />
-      )}
+
 
       {/* COMPLETED REQUESTS TAB - Only for Head of Department */}
       {activeTab === 'completed-requests' && user?.role === 'Head of department' && (
@@ -2712,6 +2640,7 @@ const DepartmentManagerDashboard: React.FC = () => {
           setTransferVisitor={setTransferVisitor}
           setShowTransferModal={setShowTransferModal}
           showInfo={showInfo}
+          getInitials={getInitials}
         />
       )}
 
@@ -3040,174 +2969,21 @@ const DepartmentManagerDashboard: React.FC = () => {
 
       {/* ACTIVE TASKS TAB - Only for Head of Department */}
       {activeTab === 'active-tasks' && user?.role === 'Head of department' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Active Tasks</h1>
-              <p className="text-gray-600 mt-1">Monitor visitors currently being served in your department</p>
-            </div>
-            <button
-              onClick={() => fetchActiveTasks(activeTasksPage, activeTasksSearch)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <FiRefreshCw className="w-4 h-4" />
-              Refresh
-            </button>
-          </div>
-
-          {/* Search */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  placeholder="Search by name, phone, email, or badge number..."
-                  value={activeTasksSearch}
-                  onChange={(e) => setActiveTasksSearch(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && fetchActiveTasks(1, activeTasksSearch)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <button
-                onClick={() => fetchActiveTasks(1, activeTasksSearch)}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-              >
-                <FiSearch className="w-4 h-4" />
-                Search
-              </button>
-            </div>
-          </div>
-
-          {/* Active Tasks Table */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="overflow-x-auto">
-              <div className="min-h-[600px] flex flex-col">
-                {activeTasksLoading ? (
-                  <div className="flex-1 flex items-center justify-center p-8">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                      <p className="text-gray-600">Loading active tasks...</p>
-                    </div>
-                  </div>
-                ) : activeTasks.length === 0 ? (
-                  <div className="flex-1 flex items-center justify-center p-8">
-                    <div className="text-center text-gray-500">
-                      <FiClock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                      <p className="text-lg font-medium">No Active Tasks</p>
-                      <p className="text-sm">There are currently no visitors being served in your department.</p>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <table className="w-full min-w-[800px]">
-                      <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
-                        <tr>
-                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visitor</th>
-                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
-                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider</th>
-                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
-                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {activeTasks.map((task: any) => (
-                          <tr key={task._id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div className="flex-shrink-0 h-10 w-10">
-                                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                    <span className="text-sm font-medium text-blue-600">
-                                      {task.full_name?.charAt(0)?.toUpperCase() || '?'}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="ml-4">
-                                  <div className="text-sm font-medium text-gray-900">{task.full_name || 'Unknown'}</div>
-                                  <div className="text-sm text-gray-500">{task.telephone || task.email || 'No contact'}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{task.current_service_department || 'Unknown'}</div>
-                              <div className="text-sm text-gray-500">Assigned: {task.assigned_department || 'Unknown'}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{task.current_service_provider || 'Unknown'}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <LiveTimer startTime={task.entry_date} />
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => {
-                                    setSelectedActiveTask(task);
-                                    setShowActiveTaskModal(true);
-                                  }}
-                                  className="text-blue-600 hover:text-blue-900 px-3 py-1.5 rounded-md hover:bg-blue-50 transition-colors text-xs font-medium"
-                                >
-                                  Details
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setTransferVisitor(task);
-                                    setShowTransferModal(true);
-                                    showInfo(`Preparing to transfer ${task.full_name || 'visitor'}...`);
-                                  }}
-                                  className="text-purple-600 hover:text-purple-900 px-3 py-1.5 rounded-md hover:bg-purple-50 transition-colors text-xs font-medium flex items-center gap-1"
-                                >
-                                  <FiArrowRightCircle className="w-3 h-3" />
-                                  Transfer
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-
-                    {/* Fill remaining space to maintain fixed height */}
-                    <div className="flex-1 bg-white"></div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Pagination - Always visible when there are results */}
-            {activeTasksTotal > 0 && (
-              <div className="bg-white px-6 py-4 border-t border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-700">
-                    Showing {((activeTasksPage - 1) * 10) + 1} to {Math.min(activeTasksPage * 10, activeTasksTotal)} of {activeTasksTotal} entries
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => fetchActiveTasks(activeTasksPage - 1, activeTasksSearch)}
-                      disabled={activeTasksPage === 1 || activeTasksLoading}
-                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
-                    >
-                      ← Previous
-                    </button>
-
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm text-gray-600">Page</span>
-                      <span className="px-3 py-1 bg-blue-50 text-blue-700 font-medium rounded">{activeTasksPage}</span>
-                    </div>
-
-                    <button
-                      onClick={() => fetchActiveTasks(activeTasksPage + 1, activeTasksSearch)}
-                      disabled={activeTasksPage * 10 >= activeTasksTotal || activeTasksLoading}
-                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
-                    >
-                      Next →
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <RequestsTable
+          status="active"
+          title="Active Tasks"
+          departmentId={departmentId}
+          departmentName={departmentName}
+          showError={showError}
+          setSelectedActiveTask={setSelectedActiveTask}
+          setShowActiveTaskModal={setShowActiveTaskModal}
+          setTransferVisitor={setTransferVisitor}
+          setShowTransferModal={setShowTransferModal}
+          showInfo={showInfo}
+          getInitials={getInitials}
+        />
       )}
+
 
       {activeTab === 'availability' && <DepartmentAvailabilityTab departmentId={departmentId} />}
 
