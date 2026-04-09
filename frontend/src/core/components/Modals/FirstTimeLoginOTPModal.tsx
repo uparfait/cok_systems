@@ -104,8 +104,10 @@ const logoImage = '/LOGO_COK.png';
         showError(otpResult.message || otpResult.error || 'Failed to send OTP');
       }
     } catch (err: any) {
+      
       // Show error toast for send OTP
       const errorMessage = err?.message || err?.error || 'Failed to send OTP. Please try again.';
+      
       showError(errorMessage);
     } finally {
       setIsLoading(false);

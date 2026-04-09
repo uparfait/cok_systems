@@ -2,10 +2,7 @@
 const Feedback = require('../../models/feedback_db.js');
 const { getDepartmentIdsForHead, buildDateFilter } = require('./visitors_by_status');
 
-/**
- * GET /department-manager/feedback
- * Get feedback for managed departments
- */
+
 const getDepartmentFeedback = async (req, res, next) => {
     try {
         let { limit = 20, page = 1, dateFilter, rating } = req.query;

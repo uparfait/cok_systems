@@ -370,7 +370,7 @@ const RequestsTable: React.FC<RequestsTableProps> = ({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
         {loading ? (
           <div className="flex items-center justify-center p-8 min-h-[400px]">
             <div className="text-center">
@@ -387,7 +387,7 @@ const RequestsTable: React.FC<RequestsTableProps> = ({
             </div>
           </div>
         ) : (
-          <table className="w-full min-w-[1000px]">
+          <table className="w-full min-w-[1000px] table-fixed">
             <thead className="bg-[#F8FAFC] sticky top-0 z-10">
               <tr>
                 <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">VISITOR</th>
@@ -407,7 +407,7 @@ const RequestsTable: React.FC<RequestsTableProps> = ({
             <tbody className="divide-y divide-gray-100">
               {requests.map((request: any) => (
                 <tr key={request._id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs mr-3">
                         {request.full_name ? getInitials(request.full_name) : '?'}
@@ -415,32 +415,32 @@ const RequestsTable: React.FC<RequestsTableProps> = ({
                       <p className="text-sm font-semibold text-gray-800">{request.full_name || 'Unknown'}</p>
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <p className="text-sm text-gray-600">{request.telephone || '_____'}</p>
                     <p className="text-xs text-gray-400">{request.email || ''}</p>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <p className="text-sm text-gray-600">
                       {request.departments_assigned?.[0]?.department_name || 'Unknown'}
                     </p>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <p className="text-sm text-gray-600">
                       {request.departments_assigned?.[0]?.provider_name || 'Unassigned'}
                     </p>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <p className="text-sm text-gray-500">
                       {request.entry_date ? new Date(request.entry_date).toLocaleString() : 'N/A'}
                     </p>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${getStatusColor(status)}`}>
                       {status === 'pending' ? 'Not Started' : status === 'active' ? 'In Progress' : 'Completed'}
                     </span>
                   </td>
                   {status === 'active' && (
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold bg-[#e3f2fd] text-[#1a73e8]">
                         <FiClock className="w-3 h-3 animate-pulse" />
                         <LiveTimer startTime={request.entry_date} />
@@ -448,7 +448,7 @@ const RequestsTable: React.FC<RequestsTableProps> = ({
                     </td>
                   )}
                   {(status === 'pending' || status === 'active') && (
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       {status === 'pending' && (
                         <button
                           onClick={() => {
@@ -901,9 +901,8 @@ const FeedbackTab: React.FC<{ showError: (msg: string) => void }> = ({ showError
       </div>
 
       {/* Feedback Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <div className="min-h-[600px] flex flex-col">
+      <div className="bg-white rounded-[14px] shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
             {loading ? (
               <div className="flex-1 flex items-center justify-center p-8">
                 <div className="text-center">
@@ -921,38 +920,31 @@ const FeedbackTab: React.FC<{ showError: (msg: string) => void }> = ({ showError
               </div>
             ) : (
               <>
-                <table className="w-full min-w-[1000px]">
-                  <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+                <table className="w-full min-w-[1000px] table-fixed">
+                  <thead className="bg-[#F8FAFC] sticky top-0 z-10">
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visitor</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Feedback</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">VISITOR</th>
+                      <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">DEPARTMENT</th>
+                      <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">RATING</th>
+                      <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">FEEDBACK</th>
+                      <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">DATE</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="divide-y divide-gray-100">
                     {feedback.map((item: any) => (
-                      <tr key={item._id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                      <tr key={item._id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10">
-                              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                <span className="text-sm font-medium text-blue-600">
-                                  {(item.user_name || 'Unknown').charAt(0).toUpperCase()}
-                                </span>
-                              </div>
+                            <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs mr-3">
+                              {(item.user_name || 'Unknown').charAt(0).toUpperCase()}
                             </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{item.user_name || 'Anonymous'}</div>
-                              <div className="text-sm text-gray-500">{item.telephone || 'No phone'}</div>
-                            </div>
+                            <p className="text-sm font-semibold text-gray-800">{item.user_name || 'Anonymous'}</p>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{item.department_name || 'Unknown'}</div>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <p className="text-sm text-gray-600">{item.department_name || 'Unknown'}</p>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <span className={`text-lg font-bold ${getRatingColor(item.rate)}`}>
                               {getRatingStars(item.rate)}
@@ -960,15 +952,20 @@ const FeedbackTab: React.FC<{ showError: (msg: string) => void }> = ({ showError
                             <span className="text-sm text-gray-600">({item.rate}/10)</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900 max-w-xs truncate">
+                        <td className="px-4 py-3">
+                          <div
+                            className="text-sm text-gray-900 max-w-xs truncate cursor-pointer hover:text-blue-600"
+                            onClick={() => {
+                              alert(`Feedback Details:\n\n${item.textmessage || 'No feedback message'}\n\nRating: ${item.rate}/10\nDate: ${item.created_date ? new Date(item.created_date).toLocaleDateString() : 'Unknown'}`);
+                            }}
+                          >
                             {item.textmessage || 'No feedback message'}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <p className="text-sm text-gray-500">
                             {item.created_date ? new Date(item.created_date).toLocaleDateString() : 'Unknown'}
-                          </div>
+                          </p>
                         </td>
                       </tr>
                     ))}
@@ -1015,7 +1012,7 @@ const FeedbackTab: React.FC<{ showError: (msg: string) => void }> = ({ showError
           </div>
         )}
       </div>
-    </div>
+   
   );
 };
 
@@ -2291,8 +2288,8 @@ const DepartmentManagerDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1000px]">
+      <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+        <table className="w-full min-w-[1000px] table-fixed">
                 <thead className="bg-[#F8FAFC] sticky top-0 z-10">
                   <tr>
                     <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">VISITOR</th>
@@ -2312,7 +2309,7 @@ const DepartmentManagerDashboard: React.FC = () => {
                   ) : (
                     paginatedDashboard.map((visitor) => (
                       <tr key={visitor._id || visitor.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs mr-3">
                               {getInitials(getVisitorName(visitor))}
@@ -2320,12 +2317,12 @@ const DepartmentManagerDashboard: React.FC = () => {
                             <p className="text-sm font-semibold text-gray-800">{getVisitorName(visitor)}</p>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <p className="text-sm text-gray-600">{visitor.telephone || '_____'}</p>
                           <p className="text-xs text-gray-400">{visitor.email || ''}</p>
                         </td>
-                        <td className="px-4 py-3"><p className="text-sm text-gray-600">{getIdentification(visitor) || visitor.badge_number || '_____'}</p></td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap"><p className="text-sm text-gray-600">{getIdentification(visitor) || visitor.badge_number || '_____'}</p></td>
+                        <td className="px-4 py-3 whitespace-nowrap">
                           {(() => {
                             const assigned = getAssignedEmployee(visitor);
                             if (assigned) {
@@ -2341,13 +2338,13 @@ const DepartmentManagerDashboard: React.FC = () => {
                             return <span className="text-sm text-gray-400 italic">Not assigned</span>;
                           })()}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           {(() => {
                             const status = getVisitorStatus(visitor);
                             const statusLower = status.toLowerCase();
                             let displayStatus = status;
                             let colorClass = 'bg-gray-100 text-gray-700';
-                            
+
                             if (statusLower === 'not started' || statusLower === 'not_started') {
                               displayStatus = 'Not started';
                               colorClass = 'bg-orange-100 text-orange-700';
@@ -2361,16 +2358,16 @@ const DepartmentManagerDashboard: React.FC = () => {
                               displayStatus = 'Transferred';
                               colorClass = 'bg-purple-100 text-purple-700';
                             }
-                            
+
                             return <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${colorClass}`}>{displayStatus}</span>;
                           })()}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           {(() => {
                             const status = getVisitorStatus(visitor);
                             const waitTime = getWaitTime(visitor);
                             const serviceStartTime = getServiceStartTime(visitor);
-                            
+
                             if ((status === 'Inprogress' || status.toLowerCase() === 'inprogress') && serviceStartTime) {
                               return (
                                 <div className="flex flex-col">
@@ -2381,22 +2378,22 @@ const DepartmentManagerDashboard: React.FC = () => {
                                 </div>
                               );
                             }
-                            
+
                             if (status === 'Completed' || status.toLowerCase() === 'completed') {
                               const duration = visitor.durations?.services_durations?.find((d: any) => d.started_at && d.ended_at);
                               if (duration?.duration) {
                                 return <span className="text-xs text-gray-600 font-medium">{duration.duration}</span>;
                               }
                             }
-                            
+
                             if (status === 'Not started' || status.toLowerCase() === 'not started') {
                               return <span className="text-xs text-orange-600">{waitTime}</span>;
                             }
-                            
+
                             return <span className="text-xs text-gray-500">{waitTime}</span>;
                           })()}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           {(() => {
                             const currentUser = user as any;
                             const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');

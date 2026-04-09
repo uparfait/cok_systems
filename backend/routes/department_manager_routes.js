@@ -8,7 +8,6 @@ const { getVisitorsByStatus } = require('../controllers/department_flow/visitors
 const { getVisitorsByProvider } = require('../controllers/department_flow/visitors_by_provider');
 const { getVisitorsByDepartment } = require('../controllers/department_flow/visitors_by_department');
 const { getManagedDepartments, updateDepartment } = require('../controllers/department_flow/department_management');
-const { getResponseTimeAnalytics } = require('../controllers/department_flow/analytics');
 const { getDepartmentFeedback } = require('../controllers/department_flow/feedback');
 
 const Router = require('express').Router();
@@ -46,12 +45,6 @@ Router.get('/departments', authenticate, getManagedDepartments);
  * Update department details (name, response time)
  */
 Router.put('/departments/:departmentId', authenticate, updateDepartment);
-
-/**
- * GET /department-manager/analytics/response-time
- * Get average response time per provider for department
- */
-Router.get('/analytics/response-time', authenticate, getResponseTimeAnalytics);
 
 /**
  * GET /department-manager/feedback

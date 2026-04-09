@@ -13,6 +13,7 @@ const mongoose = require("mongoose");
 */
 const dns = require('node:dns');
 dns.setServers(['8.8.8.8', '1.1.1.1']);
+require('dotenv').config({quiet: true})
 
 
 
@@ -21,7 +22,15 @@ const conne_user = process.env.conne_user || 'cok_systems';
 const conne_password = process.env.conne_password || 'kigalicity';
 const conne_app_name = process.env.conne_app_name || 'cok_systems';
 const dev_mode_conne_string = `mongodb+srv://${conne_user}:${conne_password}@coksystems.rldhlb3.mongodb.net/cok?appName=coksystems`;
-const conne_string = process.env.conne_string || dev_mode_conne_string;
+let conne_string = process.env.conne_string || dev_mode_conne_string;
+
+let IS_LOCAL_ALLOWED = (process.env.RUNNING_LOCAL_DATABASE_FOR_FASTER_TESTING && parseInt(process.env.RUNNING_LOCAL_DATABASE_FOR_FASTER_TESTING ) === 200)
+
+if(IS_LOCAL_ALLOWED) {
+    conne_string = `mongodb://localhost:27017/cok`;
+    console.log("DATABASE IS RUNNING ON LOCAL")
+}
+
 
 /**
  * Connects to MongoDB and returns a response object

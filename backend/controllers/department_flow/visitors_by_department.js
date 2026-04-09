@@ -4,10 +4,6 @@ const ServiceDelivery = require('../../models/service_delivery.js');
 const Department = require('../../models/department.js');
 const { getDepartmentIdsForHead, buildDateFilter } = require('./visitors_by_status');
 
-/**
- * GET /department-manager/visitors/department/:departmentId
- * Fetch visitors by department with date filtering
- */
 const getVisitorsByDepartment = async (req, res, next) => {
     try {
         const { departmentId } = req.params;
