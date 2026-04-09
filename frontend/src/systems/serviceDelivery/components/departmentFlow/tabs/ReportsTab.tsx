@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { statisticsService, employeeService, serviceDeliveryService } from '../../../../../core/services/adminService';
 import LoadingSpinner from '../../../../../core/components/LoadingSpinner';
+import { FiFilter, FiTrendingUp, FiUsers, FiClock, FiCheckCircle, FiAlertTriangle, FiBarChart, FiPieChart, FiCalendar, FiDownload, FiSearch } from 'react-icons/fi';
 
 // Types for the component
 interface EmployeeData {
@@ -27,6 +28,14 @@ interface ReportsTabProps {
 const ReportsTab: React.FC<ReportsTabProps> = ({ departmentId, departmentName }) => {
   const reportRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Filter states
+  const [dateRange, setDateRange] = useState('this_month');
+  const [selectedEmployee, setSelectedEmployee] = useState('');
+  const [selectedService, setSelectedService] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+
   const [reportData, setReportData] = useState({
     departmentName: departmentName || 'Department',
     currentMonth: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
@@ -48,7 +57,7 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ departmentId, departmentName })
         // Fetch statistics
         const statsRes = await statisticsService.getServiceDeliveryStats();
         const empStatsRes = await statisticsService.getEmployeeStats();
-        
+
         // Fetch department-specific visitors if departmentId is available
         let visitorsData = [];
         if (departmentId) {
@@ -63,22 +72,78 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ departmentId, departmentName })
           }
         }
 
+        // Apply filters to visitorsData
+        let filteredVisitors = [...visitorsData];
+
+        // Date range filter
+        if (dateRange !== 'all') {
+          const now = new Date();
+          let startDate: Date;
+
+          switch (dateRange) {
+            case 'today':
+              startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+              break;
+            case 'this_week':
+              startDate = new Date(now.setDate(now.getDate() - now.getDay()));
+              break;
+            case 'this_month':
+              startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+              break;
+            case 'last_month':
+              startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+              break;
+            default:
+              startDate = new Date(0);
+          }
+
+          filteredVisitors = filteredVisitors.filter(v => {
+            const visitDate = new Date(v.check_in_time || v.entry_date);
+            return visitDate >= startDate;
+          });
+        }
+
+        // Service type filter
+        if (selectedService) {
+          filteredVisitors = filteredVisitors.filter(v =>
+            (v.service || v.purpose || '').toLowerCase().includes(selectedService.toLowerCase())
+          );
+        }
+
+        // Employee filter (if available in data)
+        if (selectedEmployee) {
+          filteredVisitors = filteredVisitors.filter(v =>
+            v.assigned_to === selectedEmployee ||
+            v.provider_id === selectedEmployee ||
+            v.provider_name?.toLowerCase().includes(selectedEmployee.toLowerCase())
+          );
+        }
+
+        // Search filter
+        if (searchTerm) {
+          filteredVisitors = filteredVisitors.filter(v =>
+            v.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            v.identification?.number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            v.service?.toLowerCase().includes(searchTerm.toLowerCase())
+          );
+        }
+
         // Calculate today's date string for comparison
         const today = new Date().toISOString().split('T')[0];
 
-        // Filter visitors checked in today
-        const checkedInToday = visitorsData.filter((v: any) => {
+        // Filter visitors checked in today (from filtered data)
+        const checkedInToday = filteredVisitors.filter((v: any) => {
           const checkInDate = v.check_in_time || v.checkInTime;
           if (!checkInDate) return false;
           return checkInDate.toString().startsWith(today);
         }).length;
 
         // Calculate pending and completed services
-        const pendingServices = visitorsData.filter((v: any) => 
+        const pendingServices = filteredVisitors.filter((v: any) =>
           v.status === 'pending' || v.status === 'Pending'
         ).length;
-        
-        const completedServices = visitorsData.filter((v: any) => 
+
+        const completedServices = filteredVisitors.filter((v: any) =>
           v.status === 'completed' || v.status === 'Completed' || v.is_still_inhouse === false
         ).length;
 
@@ -115,12 +180,12 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ departmentId, departmentName })
 
         // Process service distribution
         const serviceTypes: Record<string, number> = {};
-        visitorsData.forEach((v: any) => {
+        filteredVisitors.forEach((v: any) => {
           const service = v.service || v.purpose || 'General';
           serviceTypes[service] = (serviceTypes[service] || 0) + 1;
         });
 
-        const totalVisits = visitorsData.length || 1;
+        const totalVisits = filteredVisitors.length || 1;
         const colors = ['#1565c0', '#1a73e8', '#64b5f6', '#90caf9', '#bbdefb', '#e3f2fd'];
         const serviceDistribution: ServiceData[] = Object.entries(serviceTypes)
           .sort((a, b) => b[1] - a[1])
@@ -135,7 +200,7 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ departmentId, departmentName })
         setReportData({
           departmentName: departmentName || 'Department',
           currentMonth: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-          totalServices: visitorsData.length,
+          totalServices: filteredVisitors.length,
           employeePerformance,
           overloadedEmployees,
           serviceDistribution,
@@ -152,7 +217,7 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ departmentId, departmentName })
     };
 
     fetchReportData();
-  }, [departmentId, departmentName]);
+  }, [departmentId, departmentName, dateRange, selectedEmployee, selectedService, searchTerm]);
 
   // Use reportData instead of mock data
   const { departmentName: deptName, currentMonth, totalServices, employeePerformance, overloadedEmployees, serviceDistribution, checkedInToday, pendingServices, completedServices, avgWaitTime } = reportData;
@@ -411,13 +476,12 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ departmentId, departmentName })
             alignItems: 'center',
             padding: '0 12px'
           }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35" />
-            </svg>
+            <FiSearch style={{ width: '14px', height: '14px', color: '#888' }} />
             <input
               type="text"
-              placeholder="Search data..."
+              placeholder="Search visitors, services..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               style={{
                 border: 'none',
                 outline: 'none',
@@ -431,24 +495,130 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ departmentId, departmentName })
           </div>
 
           {/* Filter Button */}
-          <button style={{
-            height: '36px',
-            padding: '0 16px',
-            border: '1px solid #e0e0e0',
-            borderRadius: '8px',
-            background: 'white',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            cursor: 'pointer',
-            fontSize: '13px',
-            color: '#333'
-          }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2">
-              <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
-            </svg>
-            Filter
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              style={{
+                height: '36px',
+                padding: '0 16px',
+                border: '1px solid #e0e0e0',
+                borderRadius: '8px',
+                background: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                color: '#333'
+              }}
+            >
+              <FiFilter style={{ width: '14px', height: '14px', color: '#888' }} />
+              Filter
+            </button>
+
+            {/* Filter Dropdown */}
+            {showFilters && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                right: '0',
+                width: '280px',
+                background: 'white',
+                border: '1px solid #e0e0e0',
+                borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                zIndex: 1000,
+                marginTop: '4px',
+                padding: '16px'
+              }}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#333', marginBottom: '6px' }}>
+                    Date Range
+                  </label>
+                  <select
+                    value={dateRange}
+                    onChange={(e) => setDateRange(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontSize: '13px'
+                    }}
+                  >
+                    <option value="all">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="this_week">This Week</option>
+                    <option value="this_month">This Month</option>
+                    <option value="last_month">Last Month</option>
+                  </select>
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#333', marginBottom: '6px' }}>
+                    Service Type
+                  </label>
+                  <select
+                    value={selectedService}
+                    onChange={(e) => setSelectedService(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontSize: '13px'
+                    }}
+                  >
+                    <option value="">All Services</option>
+                    <option value="consultation">Consultation</option>
+                    <option value="registration">Registration</option>
+                    <option value="information">Information</option>
+                    <option value="complaint">Complaint</option>
+                    <option value="payment">Payment</option>
+                  </select>
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#333', marginBottom: '6px' }}>
+                    Employee
+                  </label>
+                  <select
+                    value={selectedEmployee}
+                    onChange={(e) => setSelectedEmployee(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontSize: '13px'
+                    }}
+                  >
+                    <option value="">All Employees</option>
+                    {employeePerformance.map((emp, idx) => (
+                      <option key={idx} value={emp.name}>{emp.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  onClick={() => setShowFilters(false)}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    background: '#1a73e8',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Apply Filters
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Export PDF Button */}
           <button 
@@ -478,59 +648,206 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ departmentId, departmentName })
 
       {/* Content Body */}
       <div style={{ padding: '24px' }}>
-        {/* Row 1 - Two Cards Side by Side */}
-        <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
-          {/* Card 1 - Total Services Completed */}
+        {/* Row 1 - Analytics Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+          {/* Total Services Card */}
           <div style={{
-            width: '280px',
             background: 'white',
             borderRadius: '12px',
             padding: '24px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.07)'
+            boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
+            border: '1px solid #e8eaed'
           }}>
-            <p style={{
-              color: '#888',
-              fontSize: '12px',
-              lineHeight: 1.4,
-              maxWidth: '160px',
-              margin: 0
-            }}>
-              Total Services Completed This Month
-            </p>
-            {/* Sky blue circle with tick */}
-            <div style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-              background: '#e3f2fd',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginTop: '16px'
-            }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" strokeWidth="3">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div>
+                <p style={{
+                  color: '#666',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  margin: '0 0 4px 0'
+                }}>
+                  Total Services
+                </p>
+                <p style={{
+                  color: '#1a2744',
+                  fontSize: '28px',
+                  fontWeight: 'bold',
+                  margin: 0
+                }}>
+                  {totalServices}
+                </p>
+              </div>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <FiBarChart style={{ width: '24px', height: '24px', color: 'white' }} />
+              </div>
             </div>
-            {/* Number */}
-            <span style={{
-              color: '#1a2744',
-              fontSize: '48px',
-              fontWeight: 800,
-              display: 'block',
-              marginTop: '12px'
-            }}>
-              {totalServices}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <FiTrendingUp style={{ width: '12px', height: '12px', color: '#34a853' }} />
+              <span style={{ color: '#34a853', fontSize: '12px', fontWeight: '500' }}>
+                +12% from last month
+              </span>
+            </div>
           </div>
 
-          {/* Card 2 - Employee Performance Metrics with Bar Chart */}
+          {/* Pending Services Card */}
           <div style={{
-            flex: 1,
             background: 'white',
             borderRadius: '12px',
             padding: '24px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.07)'
+            boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
+            border: '1px solid #e8eaed'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div>
+                <p style={{
+                  color: '#666',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  margin: '0 0 4px 0'
+                }}>
+                  Pending Services
+                </p>
+                <p style={{
+                  color: '#1a2744',
+                  fontSize: '28px',
+                  fontWeight: 'bold',
+                  margin: 0
+                }}>
+                  {pendingServices}
+                </p>
+              </div>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <FiClock style={{ width: '24px', height: '24px', color: 'white' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <FiAlertTriangle style={{ width: '12px', height: '12px', color: '#ea4335' }} />
+              <span style={{ color: '#ea4335', fontSize: '12px', fontWeight: '500' }}>
+                Requires attention
+              </span>
+            </div>
+          </div>
+
+          {/* Completed Services Card */}
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '24px',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
+            border: '1px solid #e8eaed'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div>
+                <p style={{
+                  color: '#666',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  margin: '0 0 4px 0'
+                }}>
+                  Completed Services
+                </p>
+                <p style={{
+                  color: '#1a2744',
+                  fontSize: '28px',
+                  fontWeight: 'bold',
+                  margin: 0
+                }}>
+                  {completedServices}
+                </p>
+              </div>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <FiCheckCircle style={{ width: '24px', height: '24px', color: 'white' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <FiTrendingUp style={{ width: '12px', height: '12px', color: '#34a853' }} />
+              <span style={{ color: '#34a853', fontSize: '12px', fontWeight: '500' }}>
+                +8% completion rate
+              </span>
+            </div>
+          </div>
+
+          {/* Today's Check-ins Card */}
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '24px',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
+            border: '1px solid #e8eaed'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div>
+                <p style={{
+                  color: '#666',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  margin: '0 0 4px 0'
+                }}>
+                  Today's Check-ins
+                </p>
+                <p style={{
+                  color: '#1a2744',
+                  fontSize: '28px',
+                  fontWeight: 'bold',
+                  margin: 0
+                }}>
+                  {checkedInToday}
+                </p>
+              </div>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <FiCalendar style={{ width: '24px', height: '24px', color: 'white' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <FiUsers style={{ width: '12px', height: '12px', color: '#666' }} />
+              <span style={{ color: '#666', fontSize: '12px', fontWeight: '500' }}>
+                Active visitors today
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Row 2 - Employee Performance and Workload Analysis */}
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', marginBottom: '16px' }}>
+          {/* Employee Performance Metrics with Bar Chart */}
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '24px',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
+            border: '1px solid #e8eaed'
           }}>
             {/* Header */}
             <div style={{
@@ -610,44 +927,59 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ departmentId, departmentName })
           </div>
         </div>
 
-        {/* Row 2 - Workload Analysis Card */}
-        <div style={{
-          background: 'white',
-          borderRadius: '12px',
-          padding: '24px',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
-          marginBottom: '16px'
-        }}>
-          {/* Card Header */}
+          {/* Workload Analysis Card */}
           <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
+            background: 'white',
+            borderRadius: '12px',
+            padding: '24px',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
+            border: '1px solid #e8eaed',
+            height: 'fit-content'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="#f57c00">
-                <path d="M12 2L2 22h20L12 2zm0 4l7.53 14H4.47L12 6z" />
-              </svg>
-              <h3 style={{
-                color: '#1a2744',
-                fontSize: '15px',
-                fontWeight: 'bold',
-                margin: 0
-              }}>
-                Workload Analysis: Overloaded Employees
-              </h3>
-            </div>
+            {/* Card Header */}
             <div style={{
-              background: '#fce8e6',
-              color: '#ea4335',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              borderRadius: '20px',
-              padding: '6px 14px'
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px'
             }}>
-              &gt; 10 Active Tasks
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #ff6b6b 0%, #ffa500 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <FiAlertTriangle style={{ width: '16px', height: '16px', color: 'white' }} />
+                </div>
+                <div>
+                  <h3 style={{
+                    color: '#1a2744',
+                    fontSize: '15px',
+                    fontWeight: 'bold',
+                    margin: 0
+                  }}>
+                    Workload Analysis
+                  </h3>
+                  <p style={{ color: '#666', fontSize: '12px', margin: '2px 0 0 0' }}>
+                    Overloaded employees
+                  </p>
+                </div>
+              </div>
+              <div style={{
+                background: 'linear-gradient(135deg, #ff6b6b 0%, #ffa500 100%)',
+                color: 'white',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                borderRadius: '16px',
+                padding: '6px 12px'
+              }}>
+                High Priority
+              </div>
             </div>
-          </div>
 
           {/* Table */}
           <table style={{ width: '100%', marginTop: '20px', borderCollapse: 'collapse' }}>
@@ -775,7 +1107,8 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ departmentId, departmentName })
           background: 'white',
           borderRadius: '12px',
           padding: '24px 32px',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.07)'
+          boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
+          border: '1px solid #e8eaed'
         }}>
           {/* Card Header */}
           <div style={{
@@ -784,22 +1117,35 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ departmentId, departmentName })
             alignItems: 'flex-start',
             marginBottom: '20px'
           }}>
-            <div>
-              <h3 style={{
-                color: '#1a2744',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                margin: 0
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}>
-                Service Distribution
-              </h3>
-              <p style={{
-                color: '#888',
-                fontSize: '12px',
-                marginTop: '4px'
-              }}>
-                Categorization of requests this month
-              </p>
+                <FiPieChart style={{ width: '20px', height: '20px', color: '#666' }} />
+              </div>
+              <div>
+                <h3 style={{
+                  color: '#1a2744',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  margin: 0
+                }}>
+                  Service Distribution
+                </h3>
+                <p style={{
+                  color: '#888',
+                  fontSize: '12px',
+                  marginTop: '2px'
+                }}>
+                  Breakdown of service requests
+                </p>
+              </div>
             </div>
             <div style={{ color: '#bbb', fontSize: '16px', cursor: 'pointer' }}>⋯</div>
           </div>
