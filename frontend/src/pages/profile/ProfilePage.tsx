@@ -5,14 +5,15 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../core/contexts/AuthContext';
 import MainLayout from '../../core/components/Layout/MainLayout';
-import { getUserProfile, updateUserProfile } from '../../core/services/authService';
+import { getUserProfile, updateUserProfile, changePassword } from '../../core/services/authService';
 import { employeeService } from '../../core/services/adminService';
-import { 
-  FiUser, FiMail, FiBriefcase, FiShield, 
+import {
+  FiUser, FiMail, FiBriefcase, FiShield,
   FiMapPin, FiPhone, FiCalendar, FiEdit2,
   FiLogOut, FiSettings, FiLock, FiBell,
   FiClock, FiAward, FiTrendingUp, FiActivity,
-  FiCheckCircle, FiAlertCircle, FiInfo, FiX
+  FiCheckCircle, FiAlertCircle, FiInfo, FiX,
+  FiEye, FiEyeOff
 } from 'react-icons/fi';
 import { HiOutlineOfficeBuilding, HiOutlineUserGroup } from 'react-icons/hi';
 
@@ -72,6 +73,21 @@ const ProfilePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Password change state
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordVisibility, setPasswordVisibility] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  });
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   
   // Profile data from database
   const [profileData, setProfileData] = useState<UserProfile | null>(null);
@@ -336,6 +352,82 @@ const ProfilePage: React.FC = () => {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  // Password validation function
+  const validatePassword = (password: string) => {
+    const errors = [];
+
+    if (password.length < 8) {
+      errors.push('At least 8 characters');
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      errors.push('One uppercase letter');
+    }
+
+    if (!/[a-z]/.test(password)) {
+      errors.push('One lowercase letter');
+    }
+
+    if (!/[0-9]/.test(password)) {
+      errors.push('One number');
+    }
+
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      errors.push('One special character');
+    }
+
+    return errors;
+  };
+
+  // Real-time password validation
+  const updatePasswordValidation = (password: string) => {
+    const errors = validatePassword(password);
+    setValidationErrors(errors);
+  };
+
+  // Handle password change
+  const handleChangePassword = async () => {
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      setError('All fields are required');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setError('New password and confirm password do not match');
+      return;
+    }
+
+    if (passwordData.newPassword === passwordData.currentPassword) {
+      setError('New password must be different from current password');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    setError(null);
+    setValidationErrors([]);
+
+    try {
+      await changePassword(passwordData);
+      setShowPasswordModal(false);
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setPasswordVisibility({ current: false, new: false, confirm: false });
+      setValidationErrors([]);
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 5000);
+    } catch (err: any) {
+      // Handle backend validation errors
+      if (err.errors && Array.isArray(err.errors) && err.errors.length > 0) {
+        setValidationErrors(err.errors);
+        setError(err.message || 'Validation failed');
+      } else {
+        setError(err.message || 'Failed to change password');
+        setValidationErrors([]); // Clear any previous validation errors
+      }
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   // Get activity icon color
@@ -867,9 +959,12 @@ const ProfilePage: React.FC = () => {
                         <p className="text-sm text-gray-500">Update your account password</p>
                       </div>
                     </div>
-                    <button className="px-4 py-2 text-blue-600 hover:text-blue-700 font-medium border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
-                      Update
-                    </button>
+                     <button
+                       onClick={() => setShowPasswordModal(true)}
+                       className="px-4 py-2 text-blue-600 hover:text-blue-700 font-medium border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                     >
+                       Change Password
+                     </button>
                   </div>
 
                   {/* Account Status */}
@@ -908,6 +1003,206 @@ const ProfilePage: React.FC = () => {
           <p>COK Systems • Profile Last Updated: {formatDate(profileData?.created_date)}</p>
         </div>
       </div>
+
+      {/* Password Change Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-transparent backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Change Password</h2>
+                <button
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                    setPasswordVisibility({ current: false, new: false, confirm: false });
+                    setValidationErrors([]);
+                    setError(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FiX className="w-6 h-6" />
+                </button>
+              </div>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  <p className="font-medium">{error}</p>
+                  {validationErrors.length > 0 && (
+                    <ul className="mt-2 list-disc list-inside text-xs space-y-1">
+                      {validationErrors.map((validationError, index) => (
+                        <li key={index}>{validationError}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                {/* Current Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Current Password *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={passwordVisibility.current ? "text" : "password"}
+                      value={passwordData.currentPassword}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                      className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Enter your current password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPasswordVisibility(prev => ({ ...prev, current: !prev.current }))}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {passwordVisibility.current ? (
+                        <FiEyeOff className="w-5 h-5" />
+                      ) : (
+                        <FiEye className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* New Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    New Password *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={passwordVisibility.new ? "text" : "password"}
+                      value={passwordData.newPassword}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setPasswordData(prev => ({ ...prev, newPassword: value }));
+                        updatePasswordValidation(value);
+                      }}
+                      className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        passwordData.newPassword && validationErrors.length > 0
+                          ? 'border-red-300 focus:ring-red-500'
+                          : 'border-gray-300'
+                      }`}
+                      placeholder="Enter new password (min 8 characters)"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPasswordVisibility(prev => ({ ...prev, new: !prev.new }))}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {passwordVisibility.new ? (
+                        <FiEyeOff className="w-5 h-5" />
+                      ) : (
+                        <FiEye className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Real-time validation feedback */}
+                  {passwordData.newPassword && (
+                    <div className="mt-2 space-y-1">
+                      {[
+                        { check: passwordData.newPassword.length >= 8, text: 'At least 8 characters' },
+                        { check: /[A-Z]/.test(passwordData.newPassword), text: 'One uppercase letter' },
+                        { check: /[a-z]/.test(passwordData.newPassword), text: 'One lowercase letter' },
+                        { check: /[0-9]/.test(passwordData.newPassword), text: 'One number' },
+                        { check: /[!@#$%^&*(),.?":{}|<>]/.test(passwordData.newPassword), text: 'One special character' }
+                      ].map((requirement, index) => (
+                        <div key={index} className="flex items-center gap-2 text-xs">
+                          <div className={`w-2 h-2 rounded-full ${requirement.check ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                          <span className={requirement.check ? 'text-green-600' : 'text-gray-500'}>
+                            {requirement.text}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Confirm New Password *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={passwordVisibility.confirm ? "text" : "password"}
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                      className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword
+                          ? 'border-red-300 focus:ring-red-500'
+                          : 'border-gray-300'
+                      }`}
+                      placeholder="Confirm new password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPasswordVisibility(prev => ({ ...prev, confirm: !prev.confirm }))}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {passwordVisibility.confirm ? (
+                        <FiEyeOff className="w-5 h-5" />
+                      ) : (
+                        <FiEye className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Password match indicator */}
+                  {passwordData.confirmPassword && passwordData.newPassword && (
+                    <div className="mt-1 flex items-center gap-2 text-xs">
+                      <div className={`w-2 h-2 rounded-full ${
+                        passwordData.newPassword === passwordData.confirmPassword ? 'bg-green-500' : 'bg-red-500'
+                      }`}></div>
+                      <span className={
+                        passwordData.newPassword === passwordData.confirmPassword ? 'text-green-600' : 'text-red-600'
+                      }>
+                        {passwordData.newPassword === passwordData.confirmPassword ? 'Passwords match' : 'Passwords do not match'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                    setPasswordVisibility({ current: false, new: false, confirm: false });
+                    setValidationErrors([]);
+                    setError(null);
+                  }}
+                  className="flex-1 px-4 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleChangePassword}
+                  disabled={isChangingPassword || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                  className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isChangingPassword ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Changing...
+                    </>
+                  ) : (
+                    'Change Password'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
     </MainLayout>
   );

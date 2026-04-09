@@ -19,6 +19,7 @@ const get_visitors_by_department = require('../../controllers/serivice_delivery/
 const get_visitors_by_department_current = require('../../controllers/serivice_delivery/get_visitors_by_department_current.js')
 const get_visitors_by_provider_current = require('../../controllers/serivice_delivery/get_visitors_by_provider_current.js')
 const get_visitors_by_provider = require('../../controllers/serivice_delivery/get_visitors_by_provider_current.js')
+const get_active_tasks = require('../../controllers/serivice_delivery/get_active_tasks.js')
 const multer = require('multer')
 const upload = multer()
 // 👉 FIXED PATH: Matches colleague's exact folder spelling
@@ -91,6 +92,7 @@ Router.delete('/', (req, res, next) => {
 
 Router.get('/visitor',list_vistors)
 Router.get('/visitor/search', search_vistor)
+Router.get('/visitor/active-tasks', get_active_tasks)
 Router.get('/visitor/by-department', get_visitors_by_department)
 Router.get('/visitor/by-department-current/:id', get_visitors_by_department_current)
 Router.get('/visitor/by-provider-current/:id', get_visitors_by_provider_current)

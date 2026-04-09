@@ -12,11 +12,11 @@ module.exports = async function get_employees_by_department(req, res, next) {
             department_name = null,
             is_active = null,
             is_account_activated = null,
-            limit = 1000, 
+            limit = 50, 
             page = 1 
         } = req.query || {};
 
-        const limit_val = Math.min(parseInt(1000), 500);
+        const limit_val = Math.min(parseInt(limit), 50);
         const skip_val = (parseInt(page) - 1) * limit_val;
 
         // Build filter object

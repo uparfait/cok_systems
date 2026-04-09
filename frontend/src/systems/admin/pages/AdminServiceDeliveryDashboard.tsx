@@ -523,7 +523,7 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
                   />
                   <Tooltip 
                     formatter={(value: any) => [value || 0, 'Visitors']}
-                    labelFormatter={(label: string | number) => `${label}:00`}
+                    labelFormatter={(label) => `${label}:00`}
                   />
                   <Area 
                     type="monotone" 
