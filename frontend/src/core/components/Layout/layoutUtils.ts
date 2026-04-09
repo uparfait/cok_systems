@@ -1,6 +1,4 @@
-// Layout Utilities - Dynamic sidebar navigation based on user PERMISSIONS from backend
-// This module filters navigation based on each user's specific permissions from backend
-// NO hardcoded navigation - everything is derived from user's permissions
+
 
 import type { User, Permission } from '../../contexts/AuthContext';
 
@@ -129,16 +127,15 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       {
         id: 'requests',
         label: 'Requests',
-        path: '/service-delivery/department-manager?tab=pending-requests',
+        path: '/service-delivery/department-manager?tab=active-tasks',
         icon: 'FiClipboard',
         children: [
-          { id: 'pending-requests', label: 'Pending Requests', path: '/service-delivery/department-manager?tab=pending-requests', icon: 'FiAlertCircle' },
-          { id: 'active-tasks', label: 'Active Tasks', path: '/service-delivery/department-manager?tab=active-tasks', icon: 'FiClock' },
-          { id: 'completed-requests', label: 'Completed Requests', path: '/service-delivery/department-manager?tab=completed-requests', icon: 'FiCheckCircle' }
+          { id: 'active-tasks', label: 'Active Tasks', path: '/service-delivery/department-manager?tab=active-tasks', icon: 'FiActivity' },
+          { id: 'completed-requests', label: 'Completed Requests', path: '/service-delivery/department-manager?tab=completed-requests', icon: 'FiCheck' }
         ]
       },
       { id: 'employees', label: 'Employee Management', path: '/service-delivery/department-manager?tab=employees', icon: 'FiUsers' },
-      { id: 'departments', label: 'Department Management', path: '/service-delivery/department-manager?tab=departments', icon: 'FiGrid' },
+      { id: 'departments', label: 'Department Management', path: '/service-delivery/department-manager?tab=departments', icon: 'FiLayers' },
       { id: 'feedback', label: 'Feedback & Analytics', path: '/service-delivery/department-manager?tab=feedback', icon: 'FiMessageSquare' }
     ];
   }
