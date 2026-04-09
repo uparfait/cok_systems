@@ -346,6 +346,62 @@ export const serviceDeliveryService = {
   },
 };
 
+// ==================== DEPARTMENT MANAGER APIs ====================
+
+export const departmentManagerService = {
+  // Get visitors by status (pending, active, transferred, completed)
+  getVisitorsByStatus: (status: string, page: number = 1, limit: number = 20, dateFilter?: string) => {
+    let url = `/department-manager/visitors/status/${status}?page=${page}&limit=${limit}`;
+    if (dateFilter) {
+      url += `&dateFilter=${encodeURIComponent(dateFilter)}`;
+    }
+    return get(url);
+  },
+
+  // Get visitors by provider
+  getVisitorsByProvider: (providerId: string, page: number = 1, limit: number = 20, dateFilter?: string) => {
+    let url = `/department-manager/visitors/provider/${providerId}?page=${page}&limit=${limit}`;
+    if (dateFilter) {
+      url += `&dateFilter=${encodeURIComponent(dateFilter)}`;
+    }
+    return get(url);
+  },
+
+  // Get visitors by department
+  getVisitorsByDepartment: (departmentId: string, page: number = 1, limit: number = 20, dateFilter?: string, status?: string) => {
+    let url = `/department-manager/visitors/department/${departmentId}?page=${page}&limit=${limit}`;
+    if (dateFilter) {
+      url += `&dateFilter=${encodeURIComponent(dateFilter)}`;
+    }
+    if (status) {
+      url += `&status=${encodeURIComponent(status)}`;
+    }
+    return get(url);
+  },
+
+  // Get managed departments
+  getManagedDepartments: () => get('/department-manager/departments'),
+
+  // Update department
+  updateDepartment: (departmentId: string, data: { department_name?: string; department_response_time_in_minutes?: number }) =>
+    put(`/department-manager/departments/${departmentId}`, data),
+
+  // Get response time analytics
+  getResponseTimeAnalytics: () => get('/department-manager/analytics/response-time'),
+
+  // Get department feedback
+  getDepartmentFeedback: (page: number = 1, limit: number = 20, dateFilter?: string, rating?: number) => {
+    let url = `/department-manager/feedback?page=${page}&limit=${limit}`;
+    if (dateFilter) {
+      url += `&dateFilter=${encodeURIComponent(dateFilter)}`;
+    }
+    if (rating) {
+      url += `&rating=${rating}`;
+    }
+    return get(url);
+  },
+};
+
 // ==================== SMART PARKING APIs ====================
 
 export const parkingService = {
