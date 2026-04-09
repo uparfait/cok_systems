@@ -1,5 +1,3 @@
-// ReceptionistDashboard Page - MainLayout Compatible + Figma UI Content
-// INTEGRATED WITH BACKEND APIs
 
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -230,6 +228,15 @@ const ReceptionistDashboard: React.FC = () => {
 
       if (visitorRes.status || visitorRes.success) {
         let allVisitors = Array.isArray(visitorRes.data) ? visitorRes.data : [];
+
+        // Sort visitors by check-in time (earliest first)
+        allVisitors.sort((a: any, b: any) => {
+          const getTime = (v: any) => {
+            const time = v.checkInTime || v.check_in_time || v.entry_date;
+            return time ? new Date(time).getTime() : 0;
+          };
+          return getTime(a) - getTime(b);
+        });
 
         // Keep all visitors in state for both assigned and unassigned views
         setVisitors(allVisitors);
