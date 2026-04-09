@@ -9,7 +9,7 @@ import {
 } from "react-icons/fi";
 
 // Import API Services
-import { serviceDeliveryService, employeeService, departmentService } from "../../../core/services/adminService";
+import { serviceDeliveryService, employeeService, departmentService, departmentManagerService } from "../../../core/services/adminService";
 import { useAuth } from "../../../core/contexts/AuthContext";
 import { useSocket } from "../../../core/contexts/SocketContext";
 import { useToast } from "../../../core/contexts/ToastContext";
@@ -476,6 +476,18 @@ const DepartmentManagerDashboard: React.FC = () => {
   const [employeePage, setEmployeePage] = useState(1);
   const [employeeTotal, setEmployeeTotal] = useState(0);
   const [employeeLoading, setEmployeeLoading] = useState(false);
+
+  // Dashboard statistics state
+  const [dashboardStats, setDashboardStats] = useState({
+    pending: 0,
+    active: 0,
+    transferred: 0,
+    completed: 0,
+    totalEmployees: 0,
+    totalFeedback: 0,
+    averageRating: 0
+  });
+  const [dashboardLoading, setDashboardLoading] = useState(false);
   
   const [visitorsByDepartment, setVisitorsByDepartment] = useState<any[]>([]);
   const [visitorsByProvider, setVisitorsByProvider] = useState<any[]>([]);
@@ -524,6 +536,43 @@ const DepartmentManagerDashboard: React.FC = () => {
       fetchEmployees(1, employeeSearch);
     }
   }, [activeTab]);
+
+  // Fetch dashboard statistics
+  const fetchDashboardStats = async () => {
+    setDashboardLoading(true);
+    try {
+      // Fetch statistics from all status endpoints
+      const [pendingRes, activeRes, transferredRes, completedRes, feedbackRes] = await Promise.all([
+        departmentManagerService.getVisitorsByStatus('pending', 1, 1), // Just get count
+        departmentManagerService.getVisitorsByStatus('active', 1, 1),
+        departmentManagerService.getVisitorsByStatus('transferred', 1, 1),
+        departmentManagerService.getVisitorsByStatus('completed', 1, 1),
+        departmentManagerService.getDepartmentFeedback(1, 1)
+      ]);
+
+      setDashboardStats({
+        pending: pendingRes.total || 0,
+        active: activeRes.total || 0,
+        transferred: transferredRes.total || 0,
+        completed: completedRes.total || 0,
+        totalEmployees: employeeTotal, // This will be updated when employees are loaded
+        totalFeedback: feedbackRes.total || 0,
+        averageRating: feedbackRes.analytics?.average_rating || 0
+      });
+    } catch (error) {
+      console.error('Failed to fetch dashboard stats:', error);
+      // Keep existing stats on error
+    } finally {
+      setDashboardLoading(false);
+    }
+  };
+
+  // Fetch dashboard stats when dashboard tab is active
+  useEffect(() => {
+    if (activeTab === 'dashboard' && user?.role === 'Head of department') {
+      fetchDashboardStats();
+    }
+  }, [activeTab, user]);
 
   // WebSocket listeners for real-time employee and visitor updates
   useEffect(() => {
