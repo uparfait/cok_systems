@@ -45,7 +45,10 @@ export const departmentService = {
   
   // Get department by ID
   getById: (id: string) => get(`/department/crud/${id}`),
-  
+
+  // Get sub-departments for a department
+  getSubDepartments: (departmentId: string) => get(`/department/crud/${departmentId}/sub-departments`),
+
   // Get department leader by email
   getLeader: (email: string) => get(`/department/crud/leader/${encodeURIComponent(email)}`),
   
@@ -96,15 +99,15 @@ export const employeeService = {
   getAll: () => get('/employee/crud'),
   
   // Get employees by department (filters by is_active=true by default for only active employees)
-  getByDepartment: (departmentId: string, activeOnly: boolean = true) => {
-    const params = `department_id=${encodeURIComponent(departmentId)}`;
-    return activeOnly 
+  getByDepartment: (departmentId: string, activeOnly: boolean = true, page: number = 1, limit: number = 20) => {
+    const params = `department_id=${encodeURIComponent(departmentId)}&page=${page}&limit=${limit}`;
+    return activeOnly
       ? get(`/employee/crud/by-department?${params}&is_active=true`)
       : get(`/employee/crud/by-department?${params}`);
   },
   
   // Search employees
-  search: (query: string) => get(`/employee/crud/search?query=${encodeURIComponent(query)}`),
+  search: (query: string, page: number = 1, limit: number = 20) => get(`/employee/crud/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`),
   
   // Get employee by ID
   getById: (id: string) => get(`/employee/crud/${id}`),

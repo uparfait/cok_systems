@@ -83,6 +83,8 @@ module.exports = async function toggle_service_status(req, res, next) {
                     reached_in: true
                 });
 
+                visitor.is_being_served = true;
+
                 visitor.services_status.push({
                     department_id: user_department._id.toString(),
                     department_name: user_department.department_name,
@@ -132,6 +134,8 @@ module.exports = async function toggle_service_status(req, res, next) {
                 dept_assign.provider_name = officerName;
             }
             visitor.is_being_served = true;
+
+            visitor.durations.services_durations = []
 
             // Add to durations for real-time tracking
             visitor.durations.services_durations.push({
@@ -222,6 +226,10 @@ module.exports = async function toggle_service_status(req, res, next) {
 
             active_service.s_type = 'Completed';
             visitor.is_being_served = false;
+
+
+            // so remove any other service which is not  completed
+            visitor.services_status = visitor.services_status.filter(s => s.s_type === 'Completed');
 
             
 

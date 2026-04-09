@@ -92,6 +92,9 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
                     provider_id: active_service.provider_id
                 });
 
+                //  first wipe the active service duration to be empty and then push the new duration to the durations array of the visitor
+                 visitor.durations.services_durations =  [];
+
                 visitor.durations.services_durations.push({
                     department_id: active_service.department_id,
                     department_name: active_service.department_name,
