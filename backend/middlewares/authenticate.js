@@ -179,6 +179,7 @@ const authenticate = async (req, res, next) => {
       userId: user._id,
       id: user._id,
       email: user.email,
+      _id: user._id,
       fullName: user.full_name,
       name: user.full_name,
       full_name: user.full_name,

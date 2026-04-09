@@ -12,6 +12,7 @@ import {
 import { serviceDeliveryService, employeeService, departmentService } from "../../../core/services/adminService";
 import { useAuth } from "../../../core/contexts/AuthContext";
 import { useSocket } from "../../../core/contexts/SocketContext";
+import { useToast } from "../../../core/contexts/ToastContext";
 
 // Custom Live Timer Component
 const LiveTimer: React.FC<{ startTime: string }> = ({ startTime }) => {
@@ -418,7 +419,8 @@ const DepartmentManagerDashboard: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const { socket, isConnected } = useSocket();
-  
+  const { showSuccess, showError, showWarning, showInfo } = useToast();
+
   const departmentId = user?.departmentId || user?.department_id;
   const departmentName = user?.departmentName || user?.department_name;
   
@@ -452,6 +454,11 @@ const DepartmentManagerDashboard: React.FC = () => {
   const [showActiveTaskModal, setShowActiveTaskModal] = useState(false);
   const [selectedActiveTask, setSelectedActiveTask] = useState<any>(null);
 
+  // Sub-departments for transfer
+  const [subDepartments, setSubDepartments] = useState<any[]>([]);
+  const [loadingSubDepartments, setLoadingSubDepartments] = useState(false);
+  const [selectedSubDepartment, setSelectedSubDepartment] = useState<string>('');
+
   const [showServeModal, setShowServeModal] = useState(false);
   const [servingVisitor, setServingVisitor] = useState<Visitor | null>(null);
   const [servingEmployee, setServingEmployee] = useState<Employee | null>(null);
@@ -464,6 +471,11 @@ const DepartmentManagerDashboard: React.FC = () => {
   const [transferring, setTransferring] = useState(false);
   const [transferEmployees, setTransferEmployees] = useState<Employee[]>([]);
   const [transferEmployeesLoading, setTransferEmployeesLoading] = useState(false);
+
+  // Employee pagination state
+  const [employeePage, setEmployeePage] = useState(1);
+  const [employeeTotal, setEmployeeTotal] = useState(0);
+  const [employeeLoading, setEmployeeLoading] = useState(false);
   
   const [visitorsByDepartment, setVisitorsByDepartment] = useState<any[]>([]);
   const [visitorsByProvider, setVisitorsByProvider] = useState<any[]>([]);
@@ -500,9 +512,47 @@ const DepartmentManagerDashboard: React.FC = () => {
   // Fetch active tasks when tab changes to active-tasks
   useEffect(() => {
     if (activeTab === 'active-tasks') {
+      showInfo('Loading active tasks...');
       fetchActiveTasks(1, activeTasksSearch);
     }
   }, [activeTab]);
+
+  // Fetch employees when tab changes to employees
+  useEffect(() => {
+    if (activeTab === 'employees') {
+      showInfo('Loading employees...');
+      fetchEmployees(1, employeeSearch);
+    }
+  }, [activeTab]);
+
+  // WebSocket listeners for real-time employee and visitor updates
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    const handleUserStatusUpdate = (data: any) => {
+      if (activeTab === 'employees' && data?.user_id) {
+        // Silently refresh employee data to show updated status
+        fetchEmployees(employeePage, employeeSearch, true); // true = silent mode
+      }
+    };
+
+    const handleNewVisitorAssigned = (data: any) => {
+      if (activeTab === 'employees') {
+        // Silently refresh employee data when visitors are assigned (might affect workload/assignments)
+        fetchEmployees(employeePage, employeeSearch, true); // true = silent mode
+      }
+    };
+
+    socket.on('active_user', handleUserStatusUpdate);
+    socket.on('inactive_user', handleUserStatusUpdate);
+    socket.on('new_visitor_assigned', handleNewVisitorAssigned);
+
+    return () => {
+      socket.off('active_user', handleUserStatusUpdate);
+      socket.off('inactive_user', handleUserStatusUpdate);
+      socket.off('new_visitor_assigned', handleNewVisitorAssigned);
+    };
+  }, [socket, isConnected, activeTab, employeePage, employeeSearch]);
 
   const handleEmployeeSearch = async () => {
     setIsLoading(true);
@@ -609,12 +659,22 @@ const DepartmentManagerDashboard: React.FC = () => {
         setActiveTasks(response.data);
         setActiveTasksTotal(response.total || 0);
         setActiveTasksPage(page);
+
+        // Show success toast only if it's not the initial load
+        if (page > 1 || search) {
+          showSuccess(`Found ${response.total || 0} active tasks`);
+        }
       } else {
         setActiveTasks([]);
         setActiveTasksTotal(0);
+        if (page > 1 || search) {
+          showWarning('No active tasks found');
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch active tasks:', error);
+      const errorMessage = error?.message || 'Failed to load active tasks';
+      showError(errorMessage);
       setActiveTasks([]);
       setActiveTasksTotal(0);
     } finally {
@@ -770,8 +830,18 @@ const DepartmentManagerDashboard: React.FC = () => {
 
     socket.on('new_visitor_assigned_to_your_department', handleNewVisitorAssigned);
 
+    // Also listen for general new_visitor_assigned events
+    const handleNewVisitorAssignedGeneral = (data: any) => {
+      console.log('New visitor assigned (general):', data);
+      // Silently refresh visitor data when any new visitor is assigned
+      loadData(currentPage, searchTerm, true); // true = silent refresh
+    };
+
+    socket.on('new_visitor_assigned', handleNewVisitorAssignedGeneral);
+
     return () => {
       socket.off('new_visitor_assigned_to_your_department', handleNewVisitorAssigned);
+      socket.off('new_visitor_assigned', handleNewVisitorAssignedGeneral);
     };
   }, [socket, isConnected]);
 
@@ -1043,56 +1113,194 @@ const DepartmentManagerDashboard: React.FC = () => {
     }
   };
 
+  // Fetch employees with pagination and search
+  const fetchEmployees = async (page: number = 1, search: string = '', silent: boolean = false) => {
+    if (!silent) setEmployeeLoading(true);
+    try {
+      // Always use backend search API (with empty search for all employees)
+      const searchQuery = search && search.trim() ? search.trim() : '';
+      const response = await employeeService.search(searchQuery, page, 20);
+      if (response.success && response.data) {
+        setEmployees(response.data);
+        setEmployeeTotal(response.total || 0);
+        setEmployeePage(page);
+
+        // Show success toast only if it's not the initial load and not silent
+        if (!silent && (page > 1 || search)) {
+          showSuccess(`Found ${response.total || 0} employees`);
+        }
+      } else {
+        setEmployees([]);
+        setEmployeeTotal(0);
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch employees:', error);
+      if (!silent) {
+        const errorMessage = error?.message || 'Failed to load employees';
+        showError(errorMessage);
+      }
+      setEmployees([]);
+      setEmployeeTotal(0);
+    } finally {
+      if (!silent) setEmployeeLoading(false);
+    }
+  };
+
+  const handleTransferDepartmentChange = async (deptId: string) => {
+    setTransferDepartment(deptId);
+    setTransferEmployee(null);
+    setSelectedSubDepartment('');
+    setSubDepartments([]);
+
+    if (deptId) {
+      try {
+        // Show loading toast
+        showInfo('Loading department details...', 1500);
+
+        // Fetch sub-departments for the selected department
+        setLoadingSubDepartments(true);
+        const subDeptResponse = await departmentService.getSubDepartments(deptId);
+        if (subDeptResponse.success && subDeptResponse.data) {
+          setSubDepartments(Array.isArray(subDeptResponse.data) ? subDeptResponse.data : []);
+        }
+
+        // Fetch employees for the main department initially
+        await loadEmployeesForTarget(deptId);
+
+        // Show success toast
+        showSuccess('Department details loaded successfully');
+      } catch (error: any) {
+        console.error('Failed to fetch department data:', error);
+        const errorMessage = error?.message || 'Failed to load department details';
+        showError(errorMessage);
+        setTransferEmployees([]);
+        setSubDepartments([]);
+      } finally {
+        setLoadingSubDepartments(false);
+      }
+    } else {
+      setTransferEmployees([]);
+      setSubDepartments([]);
+      setTransferEmployeesLoading(false);
+    }
+  };
+
+  // Load employees for either department or sub-department/unit
+  const loadEmployeesForTarget = async (targetId: string) => {
+    setTransferEmployeesLoading(true);
+    try {
+      const empResponse = await employeeService.getByDepartment(targetId, false);
+      if (empResponse.success && empResponse.data) {
+        setTransferEmployees(Array.isArray(empResponse.data) ? empResponse.data : [empResponse.data]);
+      } else {
+        setTransferEmployees([]);
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch employees:', error);
+      showError('Failed to load employees');
+      setTransferEmployees([]);
+    } finally {
+      setTransferEmployeesLoading(false);
+    }
+  };
+
+  // Handle sub-department/unit selection
+  const handleSubDepartmentChange = async (subDeptId: string) => {
+    setSelectedSubDepartment(subDeptId);
+    setTransferEmployee(null);
+
+    if (subDeptId) {
+      // Load employees for the specific sub-department/unit
+      showInfo('Loading unit employees...', 1000);
+      await loadEmployeesForTarget(subDeptId);
+    } else {
+      // Load employees for the main department
+      await loadEmployeesForTarget(transferDepartment);
+    }
+  };
+
   const handleTransferVisitor = async () => {
     if (!transferVisitor || !transferDepartment) return;
     setTransferring(true);
+
+    // Show loading toast
+    showInfo('Transferring visitor...', 2000);
+
     try {
-      const visitorId = transferVisitor._id || transferVisitor.id;
-      const newDept = departments.find(d => d._id === transferDepartment);
-      const newDeptName = newDept?.department_name || newDept?.name || 'Unknown';
-      const providerId = transferEmployee ? (transferEmployee._id || transferEmployee.employee_id) : undefined;
-      const providerName = transferEmployee ? transferEmployee.full_name : undefined;
-      
       const currentUser = user as any;
-      const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
-      const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown');
+      const myId = String(
+        currentUser?.userId ||
+          currentUser?._id ||
+          currentUser?.id ||
+          currentUser?.employee_id ||
+          "",
+      );
 
-      setVisitors(prev => prev.map(v => {
-        if ((v._id || v.id) === visitorId) {
-          const newStatus = [...(v.services_status || [])];
-          const existingDeptStatusIndex = newStatus.findIndex(s => String(s.department_id) === String(departmentId));
-          if (existingDeptStatusIndex !== -1) {
-            newStatus[existingDeptStatusIndex] = { ...newStatus[existingDeptStatusIndex], s_type: 'Transfered' };
-          } else {
-            newStatus.push({ department_id: departmentId, provider_id: myId, provider_name: myName, s_type: 'Transfered' });
-          }
-          return { ...v, services_status: newStatus };
-        }
-        return v;
-      }));
+      // Determine target: sub-department/unit if selected, otherwise main department
+      const targetId = selectedSubDepartment || transferDepartment;
+      const targetInfo = selectedSubDepartment
+        ? subDepartments.find((d) => d._id === selectedSubDepartment) || departments.find((d) => d._id === selectedSubDepartment)
+        : departments.find((d) => d._id === transferDepartment);
+      const targetName = targetInfo?.department_name || targetInfo?.name || "Unknown";
 
-      await updateBackendStatus('Transfered', visitorId as string, transferVisitor, myId, myName, false, '');
+      // Find current department assignment for this visitor
+      const currentDept = transferVisitor.departments_assigned?.find(
+        (d: any) => String(d.provider_id) === myId || String(d.department_id) === departmentId,
+      );
+      const previousDepartmentId = currentDept?.department_id || departmentId;
+
+      // Only assign specific provider if employee selected
+      const providerId = transferEmployee
+        ? String(transferEmployee._id || transferEmployee.employee_id || "")
+        : undefined;
+      const providerName = transferEmployee
+        ? String(transferEmployee.full_name || "")
+        : undefined;
+
+      // Update local state for active tasks (if on active tasks tab)
+      if (activeTab === 'active-tasks') {
+        setActiveTasks(prev => prev.filter(task => task._id !== transferVisitor._id));
+      }
 
       await serviceDeliveryService.assignToDepartment(
-        visitorId as string,
-        transferDepartment,
-        newDeptName,
+        String(transferVisitor._id || transferVisitor.id),
+        targetId,
+        targetName,
         providerId,
         providerName,
-        departmentId 
+        previousDepartmentId,
       );
-      
+
+      // Show success toast
+      showSuccess(`Visitor successfully transferred to ${targetName}${providerName ? ` (${providerName})` : ''}`);
+
       setShowTransferModal(false);
       setTransferVisitor(null);
       setTransferDepartment('');
       setTransferEmployee(null);
       setTransferEmployees([]);
-      
-      loadData(currentPage, searchTerm, true);
-    } catch (error) {
+      setSelectedSubDepartment('');
+      setSubDepartments([]);
+
+      // Refresh data based on current tab
+      if (activeTab === 'active-tasks') {
+        fetchActiveTasks(activeTasksPage, activeTasksSearch);
+      } else {
+        loadData(currentPage, searchTerm, true);
+      }
+    } catch (error: any) {
       console.error('Failed to transfer visitor:', error);
-      alert('Failed to transfer visitor. Please try again.');
-      loadData(currentPage, searchTerm, true); 
+
+      // Show error toast with backend message
+      const errorMessage = error?.message || 'Failed to transfer visitor. Please try again.';
+      showError(errorMessage);
+
+      // Refresh data on error
+      if (activeTab === 'active-tasks') {
+        fetchActiveTasks(activeTasksPage, activeTasksSearch);
+      } else {
+        loadData(currentPage, searchTerm, true);
+      }
     } finally {
       setTransferring(false);
     }
@@ -1567,15 +1775,6 @@ const DepartmentManagerDashboard: React.FC = () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white">
             <h2 className="text-[16px] font-bold text-blue-600 uppercase">Employee Management</h2>
-            <button 
-              onClick={() => {
-                setSelectedDeptEmployee(null);
-                setShowAddEmployeeModal(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-[#0284C7] text-white text-sm font-medium rounded-lg hover:bg-[#0369A1]"
-            >
-              <FiPlus /> Add Employee
-            </button>
           </div>
           <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-lg border border-white/30 p-3 mx-4 mt-2">
             <div className="flex flex-col md:flex-row gap-3 items-center">
@@ -1587,13 +1786,13 @@ const DepartmentManagerDashboard: React.FC = () => {
                     type="text"
                     value={employeeSearch}
                     onChange={(e) => setEmployeeSearch(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleEmployeeSearch()}
+                    onKeyPress={(e) => e.key === 'Enter' && fetchEmployees(1, employeeSearch)}
                     placeholder="Search employees by name, email, or ID number..."
                     className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200/50 rounded-lg bg-white/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
                   />
                 </div>
                 <button
-                  onClick={handleEmployeeSearch}
+                  onClick={() => fetchEmployees(1, employeeSearch)}
                   className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2 shadow-md transition-all"
                 >
                   <FiSearch className="w-4 h-4" />
@@ -1603,7 +1802,7 @@ const DepartmentManagerDashboard: React.FC = () => {
             </div>
           </div>
           <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-lg border border-white/30 overflow-hidden flex flex-col m-4 mt-2">
-            <div className="overflow-auto flex-1">
+            <div className="overflow-x-auto flex flex-col min-h-[600px]">
               <table className="w-full">
                 <thead className="bg-[#F8FAFC]">
                   <tr>
@@ -1613,40 +1812,29 @@ const DepartmentManagerDashboard: React.FC = () => {
                     <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">ROLE/TITLE</th>
                     <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">TELEPHONE</th>
                     <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">STATUS</th>
-                    <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100/50">
-                  {isLoading ? (
+                  {employeeLoading ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-gray-500 text-sm">
+                      <td colSpan={6} className="px-4 py-8 text-center text-gray-500 text-sm">
                         <div className="flex items-center justify-center gap-2">
                           <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                           Loading...
                         </div>
                       </td>
                     </tr>
-                  ) : employees.filter(e => 
-                    (e.full_name || e.name || '').toLowerCase().includes(employeeSearch.toLowerCase()) || 
-                    (e.email || '').toLowerCase().includes(employeeSearch.toLowerCase()) ||
-                    // MODIFICATION 2: Filtering logic includes ID number
-                    (e.identification?.number || '').toLowerCase().includes(employeeSearch.toLowerCase())
-                  ).length === 0 ? (
+                  ) : employees.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-gray-500 text-sm">
+                      <td colSpan={6} className="px-4 py-8 text-center text-gray-500 text-sm">
                         <div className="flex flex-col items-center gap-1">
                           <FiSearch className="w-6 h-6 text-gray-400" />
-                          <span>No employees found matching search</span>
+                          <span>No employees found</span>
                         </div>
                       </td>
                     </tr>
                   ) : (
-                    employees.filter(e => 
-                      (e.full_name || e.name || '').toLowerCase().includes(employeeSearch.toLowerCase()) || 
-                      (e.email || '').toLowerCase().includes(employeeSearch.toLowerCase()) ||
-                      // MODIFICATION 2: Filtering logic includes ID number
-                      (e.identification?.number || '').toLowerCase().includes(employeeSearch.toLowerCase())
-                    ).slice((currentPage - 1) * 20, currentPage * 20).map(emp => (
+                    employees.map(emp => (
                       <tr key={emp._id || emp.employee_id} className="hover:bg-gray-50">
                         <td className="px-4 py-4 font-semibold text-gray-800 flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-full text-white flex items-center justify-center font-bold text-xs ${getAvatarColor(emp.full_name || emp.name || 'U')}`}>
@@ -1669,37 +1857,48 @@ const DepartmentManagerDashboard: React.FC = () => {
                             {emp.is_active !== false ? 'Online' : 'Offline'}
                           </span>
                         </td>
-                        <td className="px-4 py-4">
-                          {/* MODIFICATION 3: Removed Delete, kept View & Edit */}
-                          <div className="flex items-center gap-2">
-                            <button 
-                              onClick={() => {
-                                setSelectedDeptEmployee(emp);
-                                setShowViewEmployeeModal(true);
-                              }}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" 
-                              title="View"
-                            >
-                              <FiEye className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => {
-                                setSelectedDeptEmployee(emp);
-                                setShowEditEmployeeModal(true);
-                              }}
-                              className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg" 
-                              title="Edit"
-                            >
-                              <FiEdit className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
+
+              {/* Fill remaining space to maintain fixed height */}
+              <div className="flex-1 bg-white"></div>
             </div>
+
+            {/* Pagination */}
+            {employeeTotal > 0 && (
+              <div className="bg-white px-6 py-4 border-t border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-700">
+                    Showing {((employeePage - 1) * 20) + 1} to {Math.min(employeePage * 20, employeeTotal)} of {employeeTotal} entries
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => fetchEmployees(employeePage - 1, employeeSearch)}
+                      disabled={employeePage === 1 || employeeLoading}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+                    >
+                      ← Previous
+                    </button>
+
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm text-gray-600">Page</span>
+                      <span className="px-3 py-1 bg-blue-50 text-blue-700 font-medium rounded">{employeePage}</span>
+                    </div>
+
+                    <button
+                      onClick={() => fetchEmployees(employeePage + 1, employeeSearch)}
+                      disabled={employeePage * 20 >= employeeTotal || employeeLoading}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1924,104 +2123,132 @@ const DepartmentManagerDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Active Tasks List */}
+          {/* Active Tasks Table */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            {activeTasksLoading ? (
-              <div className="p-8 text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading active tasks...</p>
-              </div>
-            ) : activeTasks.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
-                <FiClock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-lg font-medium">No Active Tasks</p>
-                <p className="text-sm">There are currently no visitors being served in your department.</p>
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visitor</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {activeTasks.map((task: any) => (
-                        <tr key={task._id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-10 w-10">
-                                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                  <span className="text-sm font-medium text-blue-600">
-                                    {task.full_name?.charAt(0)?.toUpperCase() || '?'}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">{task.full_name || 'Unknown'}</div>
-                                <div className="text-sm text-gray-500">{task.telephone || task.email || 'No contact'}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{task.current_service_department || 'Unknown'}</div>
-                            <div className="text-sm text-gray-500">Assigned: {task.assigned_department || 'Unknown'}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{task.current_service_provider || 'Unknown'}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <LiveTimer startTime={task.entry_date} />
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button
-                              onClick={() => {
-                                setSelectedActiveTask(task);
-                                setShowActiveTaskModal(true);
-                              }}
-                              className="text-blue-600 hover:text-blue-900 px-3 py-1 rounded-md hover:bg-blue-50 transition-colors"
-                            >
-                              View Details
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Pagination */}
-                {activeTasksTotal > 10 && (
-                  <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-gray-700">
-                        Showing {((activeTasksPage - 1) * 10) + 1} to {Math.min(activeTasksPage * 10, activeTasksTotal)} of {activeTasksTotal} entries
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => fetchActiveTasks(activeTasksPage - 1, activeTasksSearch)}
-                          disabled={activeTasksPage === 1 || activeTasksLoading}
-                          className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Previous
-                        </button>
-                        <button
-                          onClick={() => fetchActiveTasks(activeTasksPage + 1, activeTasksSearch)}
-                          disabled={activeTasksPage * 10 >= activeTasksTotal || activeTasksLoading}
-                          className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Next
-                        </button>
-                      </div>
+            <div className="overflow-x-auto">
+              <div className="min-h-[600px] flex flex-col">
+                {activeTasksLoading ? (
+                  <div className="flex-1 flex items-center justify-center p-8">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                      <p className="text-gray-600">Loading active tasks...</p>
                     </div>
                   </div>
+                ) : activeTasks.length === 0 ? (
+                  <div className="flex-1 flex items-center justify-center p-8">
+                    <div className="text-center text-gray-500">
+                      <FiClock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg font-medium">No Active Tasks</p>
+                      <p className="text-sm">There are currently no visitors being served in your department.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <table className="w-full min-w-[800px]">
+                      <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+                        <tr>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visitor</th>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider</th>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {activeTasks.map((task: any) => (
+                          <tr key={task._id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0 h-10 w-10">
+                                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <span className="text-sm font-medium text-blue-600">
+                                      {task.full_name?.charAt(0)?.toUpperCase() || '?'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="ml-4">
+                                  <div className="text-sm font-medium text-gray-900">{task.full_name || 'Unknown'}</div>
+                                  <div className="text-sm text-gray-500">{task.telephone || task.email || 'No contact'}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{task.current_service_department || 'Unknown'}</div>
+                              <div className="text-sm text-gray-500">Assigned: {task.assigned_department || 'Unknown'}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{task.current_service_provider || 'Unknown'}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <LiveTimer startTime={task.entry_date} />
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => {
+                                    setSelectedActiveTask(task);
+                                    setShowActiveTaskModal(true);
+                                  }}
+                                  className="text-blue-600 hover:text-blue-900 px-3 py-1.5 rounded-md hover:bg-blue-50 transition-colors text-xs font-medium"
+                                >
+                                  Details
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setTransferVisitor(task);
+                                    setShowTransferModal(true);
+                                    showInfo(`Preparing to transfer ${task.full_name || 'visitor'}...`);
+                                  }}
+                                  className="text-purple-600 hover:text-purple-900 px-3 py-1.5 rounded-md hover:bg-purple-50 transition-colors text-xs font-medium flex items-center gap-1"
+                                >
+                                  <FiArrowRightCircle className="w-3 h-3" />
+                                  Transfer
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+
+                    {/* Fill remaining space to maintain fixed height */}
+                    <div className="flex-1 bg-white"></div>
+                  </>
                 )}
-              </>
+              </div>
+            </div>
+
+            {/* Pagination - Always visible when there are results */}
+            {activeTasksTotal > 0 && (
+              <div className="bg-white px-6 py-4 border-t border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-700">
+                    Showing {((activeTasksPage - 1) * 10) + 1} to {Math.min(activeTasksPage * 10, activeTasksTotal)} of {activeTasksTotal} entries
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => fetchActiveTasks(activeTasksPage - 1, activeTasksSearch)}
+                      disabled={activeTasksPage === 1 || activeTasksLoading}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+                    >
+                      ← Previous
+                    </button>
+
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm text-gray-600">Page</span>
+                      <span className="px-3 py-1 bg-blue-50 text-blue-700 font-medium rounded">{activeTasksPage}</span>
+                    </div>
+
+                    <button
+                      onClick={() => fetchActiveTasks(activeTasksPage + 1, activeTasksSearch)}
+                      disabled={activeTasksPage * 10 >= activeTasksTotal || activeTasksLoading}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -2099,20 +2326,176 @@ const DepartmentManagerDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Transfer Button */}
-                <div className="flex justify-end pt-4 border-t border-gray-200">
-                  <button
-                    onClick={() => {
-                      setTransferVisitor(selectedActiveTask);
-                      setShowActiveTaskModal(false);
-                      setShowTransferModal(true);
-                    }}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                  >
-                    <FiArrowRightCircle className="w-4 h-4" />
-                    Transfer Visitor
-                  </button>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transfer Modal */}
+      {showTransferModal && transferVisitor && (
+        <div className="fixed inset-0 bg-transparent backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Transfer Visitor</h2>
+                <button
+                  onClick={() => {
+                    setShowTransferModal(false);
+                    setTransferVisitor(null);
+                    setTransferDepartment('');
+                    setTransferEmployee(null);
+                    setTransferEmployees([]);
+                    setSelectedSubDepartment('');
+                    setSubDepartments([]);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FiX className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Visitor Info */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Visitor</label>
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <span className="text-sm font-medium text-blue-600">
+                      {(transferVisitor.full_name || transferVisitor.name || 'Unknown').charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="text-gray-900 font-medium">
+                      {transferVisitor.full_name || transferVisitor.name || 'Unknown'}
+                    </div>
+                    <div className="text-gray-500 text-sm">
+                      {transferVisitor.telephone || transferVisitor.email || 'No contact info'}
+                    </div>
+                  </div>
                 </div>
+              </div>
+
+              {/* Department Selection */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Department
+                </label>
+                <select
+                  value={transferDepartment}
+                  onChange={(e) => handleTransferDepartmentChange(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Choose department...</option>
+                  {departments
+                    .filter(dept => dept._id !== departmentId) // Don't show current department
+                    .map((dept) => (
+                      <option key={dept._id} value={dept._id}>
+                        {dept.department_name || dept.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Sub-Department Selection */}
+              {transferDepartment && subDepartments.length > 0 && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Unit (Optional)
+                  </label>
+                  <select
+                    value={selectedSubDepartment}
+                    onChange={(e) => handleSubDepartmentChange(e.target.value)}
+                    disabled={loadingSubDepartments}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                  >
+                    <option value="">
+                      {loadingSubDepartments ? 'Loading units...' : 'Choose unit...'}
+                    </option>
+                    {subDepartments.map((subDept) => (
+                      <option key={subDept._id} value={subDept._id}>
+                        {subDept.department_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Employee Selection */}
+              {transferDepartment && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Assign to Employee
+                  </label>
+                  <select
+                    value={
+                      transferEmployee?._id ||
+                      transferEmployee?.employee_id ||
+                      ""
+                    }
+                    onChange={(e) => {
+                      const emp = transferEmployees.find(
+                        (em) =>
+                          String(em._id || em.employee_id) ===
+                          e.target.value,
+                      );
+                      setTransferEmployee(emp || null);
+                    }}
+                    disabled={transferEmployeesLoading}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                  >
+                    <option value="">
+                      {transferEmployeesLoading
+                        ? `Loading employees${selectedSubDepartment ? ' for unit' : ''}...`
+                        : 'No specific employee'
+                      }
+                    </option>
+                    {transferEmployees.map((emp) => (
+                      <option
+                        key={emp._id || emp.employee_id}
+                        value={emp._id || emp.employee_id}
+                      >
+                        {emp.full_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowTransferModal(false);
+                    setTransferVisitor(null);
+                    setTransferDepartment('');
+                    setTransferEmployee(null);
+                    setTransferEmployees([]);
+                    setSelectedSubDepartment('');
+                    setSubDepartments([]);
+                  }}
+                  className="flex-1 px-4 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  disabled={transferring}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleTransferVisitor}
+                  disabled={transferring || !transferDepartment}
+                  className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {transferring ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Transferring...
+                    </>
+                  ) : (
+                    <>
+                      <FiArrowRightCircle className="w-4 h-4" />
+                      Transfer
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>
