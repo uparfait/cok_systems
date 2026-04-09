@@ -57,5 +57,6 @@ Router.use('/feedback', feedback)
 Router.use('/statistics', authenticate, statistics)
 Router.use('/multiple',authenticate,  create_multiple_employees)
 Router.use('/profile', authenticate, profile)
+Router.use('/department-manager', authenticate, department_manager)
 
 module.exports = Router

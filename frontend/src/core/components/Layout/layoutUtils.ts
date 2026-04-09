@@ -139,8 +139,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       },
       { id: 'employees', label: 'Employee Management', path: '/service-delivery/department-manager?tab=employees', icon: 'FiUsers' },
       { id: 'departments', label: 'Department Management', path: '/service-delivery/department-manager?tab=departments', icon: 'FiGrid' },
-      { id: 'feedback', label: 'Feedback & Analytics', path: '/service-delivery/department-manager?tab=feedback', icon: 'FiMessageSquare' },
-      { id: 'reports', label: 'Reports & Analytics', path: '/service-delivery/department-manager?tab=reports', icon: 'FiTrendingUp' }
+      { id: 'feedback', label: 'Feedback & Analytics', path: '/service-delivery/department-manager?tab=feedback', icon: 'FiMessageSquare' }
     ];
   }
 

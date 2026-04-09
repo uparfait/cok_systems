@@ -1196,7 +1196,7 @@ const DepartmentManagerDashboard: React.FC = () => {
   const departmentName = user?.departmentName || user?.department_name || '';
   
   const tabParam = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'employees' | 'departments' | 'feedback' | 'by-department' | 'by-provider' | 'availability' | 'reports' | 'active-tasks' | 'pending-requests' | 'completed-requests'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'employees' | 'departments' | 'feedback' | 'by-department' | 'by-provider' | 'availability' | 'active-tasks' | 'pending-requests' | 'completed-requests'>('dashboard');
 
   // Function to update both activeTab and URL
   const navigateToTab = (tab: typeof activeTab) => {
@@ -1279,8 +1279,8 @@ const DepartmentManagerDashboard: React.FC = () => {
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    const validTabs: Array<'dashboard' | 'employees' | 'departments' | 'feedback' | 'by-department' | 'by-provider' | 'availability' | 'reports' | 'active-tasks' | 'pending-requests' | 'completed-requests'> =
-      ['dashboard', 'employees', 'departments', 'feedback', 'by-department', 'by-provider', 'availability', 'reports', 'active-tasks', 'pending-requests', 'completed-requests'];
+    const validTabs: Array<'dashboard' | 'employees' | 'departments' | 'feedback' | 'by-department' | 'by-provider' | 'availability' | 'active-tasks' | 'pending-requests' | 'completed-requests'> =
+      ['dashboard', 'employees', 'departments', 'feedback', 'by-department', 'by-provider', 'availability', 'active-tasks', 'pending-requests', 'completed-requests'];
     if (tab && validTabs.includes(tab as any)) {
       setActiveTab(tab as any);
     } else {
@@ -3210,7 +3210,7 @@ const DepartmentManagerDashboard: React.FC = () => {
       )}
 
       {activeTab === 'availability' && <DepartmentAvailabilityTab departmentId={departmentId} />}
-      {activeTab === 'reports' && <ReportsTab departmentId={departmentId} departmentName={departmentName} />}
+
 
       {/* Active Task Details Modal */}
       {showActiveTaskModal && selectedActiveTask && (
