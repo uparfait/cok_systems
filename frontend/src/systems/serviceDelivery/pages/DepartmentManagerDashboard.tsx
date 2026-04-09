@@ -38,7 +38,6 @@ const LiveTimer: React.FC<{ startTime: string }> = ({ startTime }) => {
 
 // Tab Components
 import DepartmentAvailabilityTab from "../components/departmentFlow/tabs/DepartmentAvailabilityTab";
-import ReportsTab from "../components/departmentFlow/tabs/ReportsTab";
 import { ViewEmployeeModal, EditEmployeeModal } from "../components/departmentFlow/EmployeeModals"; // Removed DeleteEmployeeModal
 import ServeVisitorModal from "../components/employeeFlow/ServeVisitorModal";
 
