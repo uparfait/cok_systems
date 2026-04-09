@@ -42,10 +42,14 @@ module.exports = async function toggle_service_status(req, res, next) {
 
 
 
-        const user_department_id = req.user?.department_unit?.toString() || req.user?.department?._id?.toString();
+        const user_department_id =  req.user?.department?._id?.toString();
+        const user_department_unit_id = req.user?.department_unit?._id?.toString();
        
         // find department in database
-        const user_department = await Department.findById(user_department_id);
+        const user_department_parent = await Department.findById(user_department_id);
+        const user_department_unit = await Department.findById(user_department_unit_id);
+
+        const user_department = user_department_unit || user_department_parent;
 
         if (!user_department) {
             return res.status(404).json({
@@ -85,13 +89,17 @@ module.exports = async function toggle_service_status(req, res, next) {
 
                 visitor.is_being_served = true;
 
-                visitor.services_status.push({
-                    department_id: user_department._id.toString(),
-                    department_name: user_department.department_name,
-                    provider_name: officerName,
-                    provider_id: officerId,
-                    s_type: 'Inprogress'
-                });
+                visitor.services_status.splice(
+                    0,
+                    visitor.services_status.length,
+                    {
+                        department_id: user_department._id.toString(),
+                        department_name: user_department.department_name,
+                        provider_name: officerName,
+                        provider_id: officerId,
+                        s_type: 'Inprogress'
+                    }
+                );
 
                 await visitor.save();
                 return res.status(200).json({
@@ -135,18 +143,19 @@ module.exports = async function toggle_service_status(req, res, next) {
             }
             visitor.is_being_served = true;
 
-            visitor.durations.services_durations = []
-
-            // Add to durations for real-time tracking
-            visitor.durations.services_durations.push({
-                department_id: active_service.department_id,
-                department_name: active_service.department_name,
-                started_at: current_time,
-                ended_at: null,
-                duration: null,
-                provider_name: officerName,
-                provider_id: officerId
-            });
+            visitor.durations.services_durations.splice(
+                0,
+                visitor.durations.services_durations.length,
+                {
+                    department_id: active_service.department_id,
+                    department_name: active_service.department_name,
+                    started_at: current_time,
+                    ended_at: null,
+                    duration: null,
+                    provider_name: officerName,
+                    provider_id: officerId
+                }
+            );
         }
 
 
@@ -184,7 +193,7 @@ module.exports = async function toggle_service_status(req, res, next) {
 
 
             // check if the one who is going to stop the service is the one who started it.
-            if(assigned_dept.provider_id.toString() !== officerId.toString()){
+            if(assigned_dept?.provider_id?.toString() !== officerId?.toString()){
                 return res.status(403).json({
                     success: false,
                     type: 'warning',
