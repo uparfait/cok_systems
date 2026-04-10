@@ -78,63 +78,20 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
 
     const current_time = new Date();
 
-    // ONLY close the previous service if its ID strictly matches the one provided in the request
+    // deny transfer if the visitor is still being served in the previous department
     if (previous_department_id) {
       const active_service_index = visitor.services_status.findIndex(
-        (s) =>
-          s.department_id === previous_department_id &&
-          s.s_type !== "Completed",
+        (s) => s.s_type === "Inprogress",
       );
 
       if (active_service_index !== -1) {
-        const active_service = visitor.services_status[active_service_index];
 
-        const assigned_dept = visitor.departments_assigned.find(
-          (d) => d.department_id === previous_department_id,
-        );
-        const start_time = assigned_dept
-          ? assigned_dept.assigned_time
-          : visitor.entry_date;
 
-        const duration_minutes = Math.round(
-          (current_time - new Date(start_time)) / 60000,
-        );
-        const duration_str = `${duration_minutes} mins`;
-
-        await ServiceTracking.create({
-          department_id: active_service.department_id,
-          department_name: active_service.department_name,
-          duration: duration_str,
-          started_at: start_time,
-          ended_at: current_time,
-          provider_name: active_service.provider_name,
-          provider_id: active_service.provider_id,
+        return res.status(400).json({
+          success: false,
+          type: "warning",
+          message: "Visitor is still being served in the previous department. Please complete the service before transferring.",
         });
-
-        //  first wipe the active service duration to be empty and then push the new duration to the durations array of the visitor
-        visitor.durations.services_durations.splice(
-          0,
-          visitor.durations.services_durations.length,
-          {
-            department_id: active_service.department_id,
-            department_name: active_service.department_name,
-            duration: duration_str,
-            started_at: start_time,
-            ended_at: current_time,
-            provider_name: active_service.provider_name,
-            provider_id: active_service.provider_id,
-          },
-        );
-
-        let transferred = visitor.services_status[active_service_index];
-        transferred.s_type = "Transfered";
-
-        // empty services status to be only the new one
-        visitor.services_status.splice(
-          0,
-          visitor.services_status.length,
-          transferred,
-        );
       }
     }
 

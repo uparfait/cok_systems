@@ -28,8 +28,8 @@ module.exports = async function toggle_service_status(req, res, next) {
             });
         }
 
-        if (!['Inprogress', 'Completed', 'Transfered'].includes(status)) {
-            return res.status(400).json({ success: false, type: 'warning', message: "Status must be 'Inprogress', 'Completed', or 'Transfered'" });
+        if (!['Inprogress', 'Completed'].includes(status)) {
+            return res.status(400).json({ success: false, type: 'warning', message: "Status must be 'Inprogress' or 'Completed'" });
         }
 
         const visitor = await ServiceDelivery.findById(visitor_id);
@@ -46,8 +46,8 @@ module.exports = async function toggle_service_status(req, res, next) {
         const user_department_unit_id = req.user?.department_unit?._id?.toString();
        
         // find department in database
-        const user_department_parent = await Department.findById(user_department_id);
-        const user_department_unit = await Department.findById(user_department_unit_id);
+        const user_department_parent = user_department_id && await Department.findById(user_department_id);
+        const user_department_unit = user_department_unit_id && await Department.findById(user_department_unit_id);
 
         const user_department = user_department_unit || user_department_parent;
 
@@ -78,9 +78,13 @@ module.exports = async function toggle_service_status(req, res, next) {
             // check if no department match this and ASSIGN HIM/HER A DEPARTMENT
             if (!dept_assign) {
 
-                visitor.departments_assigned.push({
-                    department_id: user_department._id.toString(),
-                    department_name: user_department.name,
+
+                visitor.departments_assigned.splice(
+                    0,
+                    visitor.departments_assigned.length,
+                {
+                    department_id: department_id,
+                    department_name: user_department.department_name,
                     assigned_time: current_time,
                     provider_name: officerName,
                     provider_id: officerId,
@@ -93,7 +97,7 @@ module.exports = async function toggle_service_status(req, res, next) {
                     0,
                     visitor.services_status.length,
                     {
-                        department_id: user_department._id.toString(),
+                        department_id: department_id,
                         department_name: user_department.department_name,
                         provider_name: officerName,
                         provider_id: officerId,
@@ -101,7 +105,23 @@ module.exports = async function toggle_service_status(req, res, next) {
                     }
                 );
 
+
+                visitor.durations.services_durations.splice(
+                    0,
+                    visitor.durations.services_durations.length,
+                    {
+                        department_id: department_id,
+                        department_name: user_department.department_name,
+                        started_at: current_time,
+                        ended_at: null,
+                        duration: null,
+                        provider_name: officerName,
+                        provider_id: officerId
+                    }
+                );
+
                 await visitor.save();
+
                 return res.status(200).json({
                     success: true,
                     type: "success",
@@ -116,6 +136,8 @@ module.exports = async function toggle_service_status(req, res, next) {
             const service_index = visitor.services_status.findIndex(
                 s => s.s_type !== 'Completed'
             );
+
+            console.log(visitor.services_status, "services status array")
 
 
             if (service_index === -1) {
@@ -173,7 +195,7 @@ module.exports = async function toggle_service_status(req, res, next) {
 
               //  Find the exact service status to update
             const service_index = visitor.services_status.findIndex(
-                s => s.s_type !== 'Completed'
+                s => s.s_type === 'Inprogress'
             );
 
 
