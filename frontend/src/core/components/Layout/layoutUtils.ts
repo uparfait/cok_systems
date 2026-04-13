@@ -113,6 +113,9 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   if (userRole.includes('employee') || userRole.includes('staff')) {
     return [
       { id: 'dashboard', label: 'Dashboard', path: '/service-delivery/employee', icon: 'FiGrid' },
+      { id: 'performance', label: 'Performance Analytics', path: '/service-delivery/employee?tab=performance', icon: 'FiBarChart2' },
+      { id: 'history', label: 'Service History', path: '/service-delivery/employee?tab=history', icon: 'FiFileText' },
+      { id: 'queue', label: 'Department Queue', path: '/service-delivery/employee?tab=queue', icon: 'FiList' },
     ];
   }
 
