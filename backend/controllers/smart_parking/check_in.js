@@ -2,6 +2,7 @@ const ParkingRecord = require('../../models/parking_record.js')
 const StaffCar = require('../../models/staff_car.js')
 const EmergencyCar = require('../../models/emergency_car.js')
 const ServiceDelivery = require('../../models/service_delivery.js')
+const ParkingSlot = require('../../models/parking_slots.js')
 
 module.exports = async function car_check_in(req, res, next) {
     try {
@@ -155,6 +156,20 @@ module.exports = async function car_check_in(req, res, next) {
         })
 
         await new_parking.save()
+
+        // check this car type and increment the corresponding parking slot count in ParkingSlot model and allow negative  values
+
+        const parkingSlotDoc = await ParkingSlot.findOne({ UnChangedId: "parking_slots" });
+        if (parkingSlotDoc) {
+            if (driver_type.toLowerCase() === 'visitor') {
+                parkingSlotDoc.visitorsAvailableSlots = parkingSlotDoc.visitorsAvailableSlots - 1
+            } else if (driver_type.toLowerCase() === 'staff') {
+                parkingSlotDoc.staffAvailableSlots = parkingSlotDoc.staffAvailableSlots - 1
+            } else if (driver_type.toLowerCase() === 'regular') {
+                parkingSlotDoc.RegularAvailableSlots = parkingSlotDoc.RegularAvailableSlots - 1
+            }
+            await parkingSlotDoc.save()
+        }
 
         // search this car in all parking records and mark it as not flagged if it was flagged before
 
