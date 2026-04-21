@@ -147,7 +147,7 @@ const CheckInVehiclePage: React.FC = () => {
     id_type: 'National ID',
     id_number: '',
     badge_number: '',
-    driver_type: '',
+    driver_type: 'Regular',
   });
 
 // Socket events handled by useParkingEvents hook (universal)
@@ -776,7 +776,7 @@ const CheckInVehiclePage: React.FC = () => {
                   </div>
                 </div>
 
-                <div>
+                {/* <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Visitor Type</label>
                   <div className="flex gap-2 flex-wrap">
                     {['Visitor', 'Regular', 'Staff'].map((type) => (
@@ -785,7 +785,8 @@ const CheckInVehiclePage: React.FC = () => {
                       </button>
                     ))}
                   </div>
-                </div>
+                </div> */}
+                
               </div>
 
               <div className="flex gap-2 pt-4 mt-2">

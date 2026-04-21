@@ -712,33 +712,36 @@ export const permissionService = {
 export const statisticsService = {
   // Get service delivery statistics
   getServiceDeliveryStats: () => get('/statistics/service-delivery'),
-  
+
   // Get hourly service delivery statistics
   getHourlyServiceDeliveryStats: () => get('/statistics/hourly-service-delivery'),
-  
+
   // Get hourly parking statistics
   getHourlyParkingStats: () => get('/statistics/hourly-parking'),
-  
+
   // Get departments with leaders
   getDepartmentsWithLeaders: () => get('/statistics/departments-leaders'),
-  
+
   // Get employee statistics
   getEmployeeStats: () => get('/statistics/employees'),
-  
+
   // Get feedback totals
   getFeedbackTotals: () => get('/statistics/feedback-totals'),
-  
+
   // Get feedback average by department
   getFeedbackAverageByDepartment: () => get('/statistics/feedback-average'),
-  
+
   // Get currently parked statistics
   getCurrentlyParkedStats: () => get('/statistics/currently-parked'),
-  
+
   // Get flagged vehicles statistics
   getFlaggedVehiclesStats: () => get('/statistics/flagged-vehicles'),
-  
+
   // Get emergency cars statistics
   getEmergencyCarsStats: () => get('/statistics/emergency-cars'),
+
+  // Get parking slots information
+  getParkingSlots: () => get('/smartparking/slots'),
 };
 
 export default {

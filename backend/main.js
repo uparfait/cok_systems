@@ -6,6 +6,8 @@
 process.env.WS_NO_BUFFER_UTIL = "true";
 process.env.WS_NO_UTF_8_VALIDATE = "true";
 
+
+
 const Module = require("module");
 const originalRequire = Module.prototype.require;
 
@@ -52,6 +54,8 @@ const db_connection = require("./db_connection/main");
 const WebSocketService = require("./services/reatime_service/web_socket.js");
 const InitialiseAllRealtimeServices = require("./services/reatime_service/initialise_realtime_services.js");
 const parkingMonitor = require("./utilities/parkingMonitor.js");
+
+const ParkingSlot = require("./models/parking_slots.js");
 
 /**
  * Load environment variables from .env file in silent mode
@@ -148,6 +152,25 @@ db_connection()
   .then(async (response) => {
     const websocketInitiated = await web_socket_service.initWebsocket();
     const realtimeServicesInitiated = await InitialiseAllRealtimeServices();
+
+    // check if parking slot document exists, if not create one with default values
+    // default will be 350 total slots, 50 reserved for visitors, 100 reserved for staff, 100 available for visitors, 100 available for staff and 100 regular available slots
+    const parkingSlotDoc = await ParkingSlot.findOne({ UnChangedId: "parking_slots" });
+    if (!parkingSlotDoc) {
+      const newParkingSlot = new ParkingSlot({
+        totalSlots: 350,
+        visitorsReservedSlots: 50,
+        staffReservedSlots: 100,
+        visitorsAvailableSlots: 50,
+        staffAvailableSlots: 100,
+        RegularReservedSlots: 200,
+        RegularAvailableSlots: 200,
+      });
+      await newParkingSlot.save();
+      console.log("Default parking slot document created.");
+    } else {
+      console.log("Parking slot document already exists.");
+    }
 
     /**
      * Only start the server if both the database connection and WebSocket initialization are successful.
