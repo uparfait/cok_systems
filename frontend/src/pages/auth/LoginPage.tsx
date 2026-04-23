@@ -7,6 +7,7 @@ import FirstTimeLoginOTPModal from '../../core/components/Modals/FirstTimeLoginO
 import PasswordSetupModal from '../../core/components/Modals/PasswordSetupModal';
 import OTPVerificationModal from '../../core/components/Modals/OTPVerificationModal';
 import PasswordResetOTPModal from '../../core/components/Modals/PasswordResetOTPModal';
+import FeedbackModal from '../../core/components/Modals/FeedbackModal';
 import { useAuth } from '../../core/contexts/AuthContext';
 import { useToast } from '../../core/contexts/ToastContext';
 import { getDashboardRoute } from '../../core/components/Layout/layoutUtils';
@@ -29,6 +30,7 @@ const LoginPage = () => {
   const [otpVerificationUserId, setOtpVerificationUserId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const navigate = useNavigate();
 
   // Images from public folder
@@ -423,6 +425,20 @@ const LoginPage = () => {
             <p className="text-center text-xs text-gray-400 mt-5 sm:mt-6">
               © {new Date().getFullYear()} City of Kigali. All rights reserved.
             </p>
+
+            {/* Feedback button for visitors */}
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => setShowFeedbackModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 hover:text-yellow-600 hover:underline transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                </svg>
+                Give Feedback
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -467,6 +483,12 @@ const LoginPage = () => {
           onVerified={handlePasswordResetOTPSuccess}
         />
       )}
+
+      {/* Feedback Modal for visitors */}
+      <FeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+      />
     </div>
   );
 };
