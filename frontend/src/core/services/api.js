@@ -72,6 +72,12 @@ export const verifyCar = (plateNumber) => post('/smartparking/verify', { plate_n
 export const listFlaggedCars = () => get('/smartparking/flagged');
 export const searchParkingRecords = (query) => get(`/smartparking/search?q=${query}`);
 
+// ==================== FEEDBACK APIs ====================
+
+export const verifyFeedbackPhone = (telephone) => post('/feedback/verify-phone', { telephone });
+export const submitFeedback = (data) => post('/feedback/submit', data);
+export const getFeedbackByPhone = (telephone) => get(`/feedback/by-phone/${telephone}`);
+
 // ==================== PERMISSIONS APIs ====================
 
 export const getAllPermissions = () => get('/permissions');
@@ -141,4 +147,9 @@ export default {
   createPermission,
   updatePermission,
   deletePermission,
+  
+  // Feedback
+  verifyFeedbackPhone,
+  submitFeedback,
+  getFeedbackByPhone,
 };
