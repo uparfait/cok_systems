@@ -153,7 +153,7 @@ module.exports = async function car_check_out(req, res, next) {
     //  AUTOMATED FLAGGING LOGIC
     // ================================================================
 
-    let allowed_duration_minutes = 480; // 8 hours for visitors
+    let allowed_duration_minutes = 120; // 2 hours for visitors
     let is_flagged = false;
     let final_message = "Vehicle checked out successfully.";
     // Determine if it's staff to override the allowed time
