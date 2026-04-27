@@ -1,6 +1,7 @@
 const Router = require('express').Router();
 const multer = require('multer');
 const create_users_bulk = require('../../controllers/employee_crud/create_multiple_employees.js');
+const download_employee_template = require('../../controllers/employee_crud/download_employee_template.js');
 
 // Configure Multer for file upload
 const upload = multer({ 
@@ -50,5 +51,6 @@ Router.use((error, req, res, next) => {
 });
 
 Router.post('/employees', upload.any(), create_users_bulk);
+Router.get('/employees/template', download_employee_template);
 
 module.exports = Router;
