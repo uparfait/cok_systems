@@ -129,7 +129,25 @@ export const employeeService = {
    },
 
    // Download employee template
-   downloadTemplate: () => get('/multiple/employees/template'),
+   downloadTemplate: async () => {
+     try {
+       const response = await fetch(`${import.meta.env.VITE_API_URL || '/cok/api'}/multiple/employees/template`);
+       if (!response.ok) {
+         throw new Error('Failed to download template');
+       }
+       const blob = await response.blob();
+       return {
+         success: true,
+         data: blob
+       };
+     } catch (error) {
+       console.error('Download template error:', error);
+       return {
+         success: false,
+         error: error instanceof Error ? error.message : 'Unknown error'
+       };
+     }
+   },
 };
 
 // ==================== FEEDBACK APIs ====================
