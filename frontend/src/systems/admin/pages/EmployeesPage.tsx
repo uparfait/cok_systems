@@ -112,6 +112,7 @@ const EmployeesPage: React.FC = () => {
   const [uploadError, setUploadError] = useState('');
   const [uploadErrors, setUploadErrors] = useState<any[]>([]);
   const [uploadSuccess, setUploadSuccess] = useState('');
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorModalTitle, setErrorModalTitle] = useState('');
   const [errorModalMessage, setErrorModalMessage] = useState('');
@@ -470,6 +471,9 @@ const EmployeesPage: React.FC = () => {
   // Download template for multiple employee upload
   const handleDownloadTemplate = async () => {
     try {
+      setDownloadingTemplate(true);
+      setUploadError(''); // Clear any previous errors
+
       const response = await employeeService.downloadTemplate();
       if (response.success && response.data) {
         const blob = response.data as Blob;
@@ -483,11 +487,13 @@ const EmployeesPage: React.FC = () => {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
       } else {
-        throw new Error('Failed to download template');
+        throw new Error(response.error || 'Failed to download template');
       }
     } catch (error) {
       console.error('Error downloading template:', error);
       setUploadError('Failed to download template. Please try again.');
+    } finally {
+      setDownloadingTemplate(false);
     }
   };
 
@@ -1110,10 +1116,20 @@ const EmployeesPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleDownloadTemplate}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg font-medium transition-colors"
+                    disabled={downloadingTemplate}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-xs rounded-lg font-medium transition-colors"
                   >
-                    <FiPlus className="w-3 h-3" />
-                    Download Template
+                    {downloadingTemplate ? (
+                      <>
+                        <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                        Downloading...
+                      </>
+                    ) : (
+                      <>
+                        <FiPlus className="w-3 h-3" />
+                        Download Template
+                      </>
+                    )}
                   </button>
                 </div>
                 <ul className="text-xs text-blue-800 space-y-1">
