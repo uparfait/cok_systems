@@ -5,12 +5,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
-import { employeeService, departmentService, permissionService, roleService } from '../../../core/services/adminService';
+import { employeeService, departmentService, roleService } from '../../../core/services/adminService';
 import { dispatchToast } from '../../../core/services/apiClient';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import ErrorModal from '../../../core/components/Modals/ErrorModal';
 import MainLayout from '../../../core/components/Layout/MainLayout';
-import { 
+import {
   FiPlus, FiSearch, FiEdit2, FiTrash2, FiRefreshCw, FiUsers,
   FiMail, FiPhone, FiBriefcase, FiUser, FiShield, FiCheck, FiX, FiAlertCircle
 } from 'react-icons/fi';
@@ -44,34 +44,7 @@ interface Employee {
   createdAt?: string;
 }
 
-// Interface for employee permissions from backend (with is_enabled)
-type EmployeePermissionBackend = {
-  resource_name: string;
-  actions: Array<{
-    action_type: string;
-    description: string;
-    is_enabled?: string;
-  }>;
-};
 
-// Helper function to convert backend permission format to frontend format
-const convertBackendPermissionsToFrontend = (
-  backendPermissions: EmployeePermissionBackend[]
-): Array<{ resource: string; actions: string[] }> => {
-  if (!backendPermissions || !Array.isArray(backendPermissions)) {
-    return [];
-  }
-
-  return backendPermissions
-    .filter((perm) => perm.actions && Array.isArray(perm.actions))
-    .map((perm) => ({
-      resource: perm.resource_name,
-      actions: perm.actions
-        .filter((action) => action.is_enabled === 'enabled')
-        .map((action) => action.action_type),
-    }))
-    .filter((perm) => perm.actions.length > 0);
-};
 
 // Department interface for dropdown
 interface Department {
@@ -84,15 +57,6 @@ interface Department {
     parent_department_id: string;
   };
 }
-
-// Interface for system permissions from backend
-type SystemPermissionResource = {
-  resource: string;
-  actions: Array<{
-    action_type: string;
-    description: string;
-  }>;
-};
 
 // Interface for role from backend
 interface RoleFromBackend {
@@ -108,6 +72,10 @@ interface RoleFromBackend {
   }>;
 }
 
+
+
+
+
 const EmployeesPage: React.FC = () => {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -115,7 +83,6 @@ const EmployeesPage: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [allDepartments, setAllDepartments] = useState<Department[]>([]); // Full list to map unit IDs to names
-  const [systemPermissions, setSystemPermissions] = useState<SystemPermissionResource[]>([]);
   const [roles, setRoles] = useState<RoleFromBackend[]>([]);
   const [loading, setLoading] = useState(true);
   const [firstLoad, setfirstLoad] = useState(true);
@@ -141,10 +108,6 @@ const EmployeesPage: React.FC = () => {
   // Multiple employee upload state
   const [showMultipleUploadModal, setShowMultipleUploadModal] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadDepartmentId, setUploadDepartmentId] = useState('');
-  const [uploadDepartmentUnit, setUploadDepartmentUnit] = useState('');
-  const [uploadRoleName, setUploadRoleName] = useState('department_employee');
-  const [uploadPermissions, setUploadPermissions] = useState<Array<{ resource: string; actions: string[] }>>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [uploadErrors, setUploadErrors] = useState<any[]>([]);
@@ -180,33 +143,11 @@ const EmployeesPage: React.FC = () => {
     if (showModal) {
       setFormError('');
       setFormSuccess('');
-    }
-  }, [showModal]);
-
-  // Load roles when multiple upload modal opens
-  useEffect(() => {
-    if (showMultipleUploadModal) {
-      setUploadError('');
-      setUploadSuccess('');
       if (roles.length === 0) {
         loadRoles();
       }
     }
-  }, [showMultipleUploadModal, roles.length]);
-
-  // Check if modal is opened and load permissions/roles if needed
-  useEffect(() => {
-    if (showModal) {
-      setFormError('');
-      setFormSuccess('');
-      if (systemPermissions.length === 0) {
-        loadSystemPermissions();
-      }
-      if (roles.length === 0) {
-        loadRoles();
-      }
-    }
-  }, [showModal, systemPermissions.length, roles.length]);
+  }, [showModal, roles.length]);
 
   // Check auth and load employees
   useEffect(() => {
@@ -215,21 +156,11 @@ const EmployeesPage: React.FC = () => {
     } else if (isAuthenticated) {
       loadEmployees();
       loadDepartments();
-      loadSystemPermissions();
+      loadRoles();
     }
   }, [isAuthenticated, authLoading, navigate]);
 
-  // Load system permissions from backend
-  const loadSystemPermissions = async () => {
-    try {
-      const response = await permissionService.getSystemPermissions();
-      if (response.success && response.data) {
-        setSystemPermissions(response.data);
-      }
-    } catch (err) {
-      console.error('Error loading system permissions:', err);
-    }
-  };
+
 
   // Load employees
   const loadEmployees = async () => {
@@ -377,18 +308,14 @@ const EmployeesPage: React.FC = () => {
 
   // Open modal for editing
   const handleEdit = (employee: Employee) => {
-    const convertedPermissions = convertBackendPermissionsToFrontend(
-      employee.roles?.permissions as unknown as EmployeePermissionBackend[] || []
-    );
-    
     // Safely extract department details (ensuring employee.department is not null)
     const hasDeptObj = employee.department && typeof employee.department === 'object';
     const deptName = hasDeptObj ? (employee.department as any)?.department_name : employee.department_name || '';
     const deptId = hasDeptObj ? (employee.department as any)?._id : employee.department_id || '';
-      
+
     // Safely extract unit details
     const unitVal = employee.department_unit || (hasDeptObj && (employee.department as any).department_unit) || '';
-    
+
     setEditingEmployee(employee);
     setFormData({
       full_name: employee.full_name || '',
@@ -403,7 +330,7 @@ const EmployeesPage: React.FC = () => {
       department_unit: unitVal,
       roles: {
         role_name: employee.roles?.role_name || 'department_employee',
-        permissions: convertedPermissions
+        permissions: [] // Permissions will be managed automatically by backend
       }
     });
     
@@ -504,10 +431,6 @@ const EmployeesPage: React.FC = () => {
   // Open multiple upload modal
   const handleOpenMultipleUpload = () => {
     setUploadFile(null);
-    setUploadDepartmentId('');
-    setUploadDepartmentUnit('');
-    setUploadRoleName('department_employee');
-    setUploadPermissions([]);
     setUploadError('');
     setUploadSuccess('');
     setUploadErrors([]);
@@ -559,19 +482,6 @@ const EmployeesPage: React.FC = () => {
 
       const formData = new FormData();
       formData.append('file', uploadFile);
-      
-      if (uploadDepartmentId) {
-        formData.append('department_id', uploadDepartmentId);
-      }
-      
-      if (uploadDepartmentUnit) {
-        formData.append('department_unit', uploadDepartmentUnit);
-      }
-      
-      formData.append('roles', JSON.stringify({
-        role_name: uploadRoleName,
-        permissions: uploadPermissions
-      }));
 
       const response = await employeeService.createMultiple(formData);
 
@@ -616,38 +526,7 @@ const EmployeesPage: React.FC = () => {
     }
   };
 
-  // Load department units for upload modal
-  const loadUploadDepartmentUnits = async (departmentId: string) => {
-    if (!departmentId) {
-      setUploadDepartmentUnit('');
-      return;
-    }
 
-    try {
-      const response = await departmentService.getAll();
-      if (response.success) {
-        const deptData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
-        const units = deptData.filter((dept: any) => {
-          return (dept.sub_department_mng?.is_sub_department === true || dept.sub_department_mng?.is_sub_department === 'true') && 
-                 String(dept.sub_department_mng?.parent_department_id) === String(departmentId);
-        });
-        setDepartmentUnits(units);
-      }
-    } catch (err: any) {
-      console.error('Failed to load department units:', err);
-    }
-  };
-
-  // Handle department change in upload modal
-  const handleUploadDepartmentChange = (departmentId: string) => {
-    setUploadDepartmentId(departmentId);
-    setUploadDepartmentUnit('');
-    if (departmentId) {
-      loadUploadDepartmentUnits(departmentId);
-    } else {
-      setDepartmentUnits([]);
-    }
-  };
 
   // Download template for multiple employee upload
   const handleDownloadTemplate = () => {
@@ -1116,35 +995,20 @@ const EmployeesPage: React.FC = () => {
                     <select
                       value={formData.roles?.role_name || 'department_employee'}
                       onChange={(e) => {
-                        const selectedRole = roles.find(r => r.role_name === e.target.value);
-                        let rolePermissions: Array<{ resource: string; actions: string[] }> = [];
-                        
-                        if (selectedRole?.permissions) {
-                          rolePermissions = selectedRole.permissions
-                            .filter(p => p.actions && Array.isArray(p.actions))
-                            .map(p => ({
-                              resource: p.resource_name,
-                              actions: p.actions
-                                .filter(a => a.is_enabled)
-                                .map(a => a.action)
-                            }))
-                            .filter(p => p.actions.length > 0);
-                        }
-                        
-                        setFormData({ 
-                          ...formData, 
+                        setFormData({
+                          ...formData,
                           roles: {
                             role_name: e.target.value,
-                            permissions: rolePermissions
+                            permissions: [] // Permissions will be set automatically by backend
                           }
                         });
                       }}
                       className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                     >
                       {roles.length > 0 ? (
-                        roles.map((role) => (
+                        roles.map((role: RoleFromBackend) => (
                           <option key={role._id || role.role_name} value={role.role_name}>
-                            {role.role_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            {role.role_name.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
                           </option>
                         ))
                       ) : (
@@ -1155,113 +1019,7 @@ const EmployeesPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Permissions Section */}
-              <div className="bg-purple-50 rounded-xl p-4 space-y-4">
-                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center gap-2">
-                  <FiShield className="w-4 h-4" />
-                  Permissions
-                </h3>
-                
-                <p className="text-xs text-gray-600">
-                  Select the permissions this employee should have for each system resource.
-                </p>
 
-                <div className="space-y-4 max-h-80 overflow-y-auto">
-                  {systemPermissions.length > 0 ? (
-                    systemPermissions.map((resource) => {
-                      const currentPerm = formData.roles?.permissions?.find(
-                        p => p?.resource?.toLowerCase() === resource.resource?.toLowerCase()
-                      );
-                      const selectedActions = currentPerm?.actions || [];
-
-                      return (
-                        <div key={resource.resource} className="border border-gray-200 rounded-lg bg-white p-3">
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="font-medium text-gray-900 capitalize">
-                              {resource.resource}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const allActionTypes = resource.actions.map(a => a.action_type);
-                                const newActions = selectedActions.length === allActionTypes.length 
-                                  ? [] 
-                                  : allActionTypes;
-                                
-                                const newPermissions = (formData.roles?.permissions || []).filter(
-                                  p => p?.resource?.toLowerCase() !== resource.resource?.toLowerCase()
-                                );
-                                
-                                if (newActions.length > 0) {
-                                  newPermissions.push({
-                                    resource: resource.resource,
-                                    actions: newActions
-                                  });
-                                }
-                                
-                                setFormData({
-                                  ...formData,
-                                  roles: {
-                                    role_name: formData.roles?.role_name || 'department_employee',
-                                    permissions: newPermissions
-                                  }
-                                });
-                              }}
-                              className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                            >
-                              {selectedActions.length === resource.actions.length ? 'Deselect All' : 'Select All'}
-                            </button>
-                          </div>
-                          <div className="space-y-2">
-                            {resource.actions.map((action) => {
-                              const isSelected = selectedActions.includes(action.action_type);
-                              return (
-                                <div key={action.action_type} className="flex items-center justify-between">
-                                  <span className="text-sm text-gray-600 flex-1">
-                                    {action.description}
-                                  </span>
-                                  <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={isSelected}
-                                      onChange={(e) => {
-                                        const newPermissions = (formData.roles?.permissions || []).filter(
-                                          p => p?.resource?.toLowerCase() !== resource.resource?.toLowerCase()
-                                        );
-                                        
-                                        if (e.target.checked) {
-                                          newPermissions.push({
-                                            resource: resource.resource,
-                                            actions: [...selectedActions, action.action_type]
-                                          });
-                                        }
-                                        
-                                        setFormData({
-                                          ...formData,
-                                          roles: {
-                                            role_name: formData.roles?.role_name || 'department_employee',
-                                            permissions: newPermissions
-                                          }
-                                        });
-                                      }}
-                                      className="sr-only peer"
-                                    />
-                                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
-                                  </label>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-center py-4 text-gray-500">
-                      Loading permissions...
-                    </div>
-                  )}
-                </div>
-              </div>
               
               <div className="flex gap-3 pt-2">
                 <button
@@ -1349,9 +1107,12 @@ const EmployeesPage: React.FC = () => {
                 </div>
                 <ul className="text-xs text-blue-800 space-y-1">
                   <li>• <strong>Required columns:</strong> fullname, telephone, email, gender</li>
+                  <li>• <strong>Optional columns:</strong> department, department_unit, role</li>
                   <li>• <strong>Gender options:</strong> Male, Female, Other, Not specified</li>
                   <li>• <strong>Email format:</strong> example@domain.com</li>
                   <li>• <strong>Telephone:</strong> At least 10 digits</li>
+                  <li>• <strong>Roles:</strong> Will be automatically validated against system roles</li>
+                  <li>• <strong>Departments:</strong> Must exist in the system and be properly related</li>
                 </ul>
               </div>
               
@@ -1388,174 +1149,13 @@ const EmployeesPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Department Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Department (Optional)
-                </label>
-                <select
-                  value={uploadDepartmentId}
-                  onChange={(e) => handleUploadDepartmentChange(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
-                >
-                  <option value="">Select department</option>
-                  {departments.map((dept) => (
-                    <option key={dept._id || dept.department_id} value={dept._id || dept.department_id}>
-                      {dept.department_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
-              {/* Department Unit Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Department Unit (Optional)
-                </label>
-                <select
-                  value={uploadDepartmentUnit}
-                  onChange={(e) => setUploadDepartmentUnit(e.target.value)}
-                  disabled={!uploadDepartmentId || loadingUnits}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white disabled:bg-gray-200 disabled:text-gray-500"
-                >
-                  {loadingUnits ? (
-                    <option value="">Loading units...</option>
-                  ) : departmentUnits.length === 0 ? (
-                    <option value="">No units available</option>
-                  ) : (
-                    <>
-                      <option value="">Select department unit</option>
-                      {departmentUnits.map((unit) => (
-                        <option key={unit._id || unit.department_id} value={unit._id || unit.department_id}>
-                          {unit.department_name}
-                        </option>
-                      ))}
-                    </>
-                  )}
-                </select>
-                {uploadDepartmentId && departmentUnits.length === 0 && !loadingUnits && (
-                  <p className="text-xs text-gray-500 mt-1">No department units available for this department</p>
-                )}
-              </div>
 
-              {/* Role Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  <span className="flex items-center gap-2">
-                    <FiShield className="w-4 h-4" />
-                    User Role
-                  </span>
-                </label>
-                <select
-                  value={uploadRoleName}
-                  onChange={(e) => setUploadRoleName(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
-                >
-                  {roles.length > 0 ? (
-                    roles.map((role) => (
-                      <option key={role._id || role.role_name} value={role.role_name}>
-                        {role.role_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">No roles available</option>
-                  )}
-                </select>
-              </div>
 
-              {/* Permissions Section */}
-              <div className="bg-purple-50 rounded-xl p-4 space-y-4">
-                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center gap-2">
-                  <FiShield className="w-4 h-4" />
-                  Permissions
-                </h3>
-                
-                <p className="text-xs text-gray-600">
-                  Select the permissions these employees should have for each system resource.
-                </p>
 
-                <div className="space-y-4 max-h-80 overflow-y-auto">
-                  {systemPermissions.length > 0 ? (
-                    systemPermissions.map((resource) => {
-                      const currentPerm = uploadPermissions.find(
-                        p => p?.resource?.toLowerCase() === resource.resource?.toLowerCase()
-                      );
-                      const selectedActions = currentPerm?.actions || [];
 
-                      return (
-                        <div key={resource.resource} className="border border-gray-200 rounded-lg bg-white p-3">
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="font-medium text-gray-900 capitalize">
-                              {resource.resource}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const allActionTypes = resource.actions.map(a => a.action_type);
-                                const newActions = selectedActions.length === allActionTypes.length 
-                                  ? [] 
-                                  : allActionTypes;
-                                
-                                const newPermissions = uploadPermissions.filter(
-                                  p => p?.resource?.toLowerCase() !== resource.resource?.toLowerCase()
-                                );
-                                
-                                if (newActions.length > 0) {
-                                  newPermissions.push({
-                                    resource: resource.resource,
-                                    actions: newActions
-                                  });
-                                }
-                                
-                                setUploadPermissions(newPermissions);
-                              }}
-                              className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                            >
-                              {selectedActions.length === resource.actions.length ? 'Deselect All' : 'Select All'}
-                            </button>
-                          </div>
-                          <div className="space-y-2">
-                            {resource.actions.map((action) => {
-                              const isSelected = selectedActions.includes(action.action_type);
-                              return (
-                                <div key={action.action_type} className="flex items-center justify-between">
-                                  <span className="text-sm text-gray-600 flex-1">
-                                    {action.description}
-                                  </span>
-                                  <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={isSelected}
-                                      onChange={(e) => {
-                                        const newPermissions = uploadPermissions.filter(
-                                          p => p?.resource?.toLowerCase() !== resource.resource?.toLowerCase()
-                                        );
-                                        
-                                        if (e.target.checked) {
-                                          newPermissions.push({
-                                            resource: resource.resource,
-                                            actions: [...selectedActions, action.action_type]
-                                          });
-                                        }
-                                        
-                                        setUploadPermissions(newPermissions);
-                                      }}
-                                      className="sr-only peer"
-                                    />
-                                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-600"></div>
-                                  </label>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <p className="text-sm text-gray-500 text-center py-4">No permissions available</p>
-                  )}
-                </div>
-              </div>
+
+
 
               {/* Action Buttons */}
               <div className="flex gap-3 pt-2">
