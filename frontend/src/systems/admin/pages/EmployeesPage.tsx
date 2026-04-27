@@ -1133,7 +1133,8 @@ const EmployeesPage: React.FC = () => {
                   </button>
                 </div>
                 <ul className="text-xs text-blue-800 space-y-1">
-                  <li>• <strong>Required columns:</strong> fullname, telephone, email, gender</li>
+                  <li>• <strong>Name columns:</strong> Use "fullname" OR both "firstname" + "lastname"</li>
+                  <li>• <strong>Required columns:</strong> telephone, email, gender</li>
                   <li>• <strong>Optional columns:</strong> department, department_unit, role</li>
                   <li>• <strong>Gender options:</strong> Male, Female, Other, Not specified</li>
                   <li>• <strong>Email format:</strong> example@domain.com</li>

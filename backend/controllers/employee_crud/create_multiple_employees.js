@@ -98,6 +98,8 @@ module.exports = async function create_multiple_employees(req, res, next) {
             const rowNumber = index + 2; // +2 because Excel rows start at 1 and header is row 1
             
             // Extract fields with case-insensitive matching
+            const firstname = row['firstname'] || row['firstName'] || row['Firstname'] || row['First Name'] || row['first name'] || null;
+            const lastname = row['lastname'] || row['lastName'] || row['Lastname'] || row['Last Name'] || row['last name'] || null;
             const fullname = row['fullname'] || row['fullName'] || row['FullName'] || row['Full Name'] || row['full name'] || null;
             const telephone = row['telephone'] || row['Telephone'] || row['phone'] || row['Phone'] || null;
             const email = row['email'] || row['Email'] || row['EMAIL'] || null;
@@ -109,8 +111,13 @@ module.exports = async function create_multiple_employees(req, res, next) {
             const rowErrors = [];
             
             // Validate required fields
-            if (!fullname || fullname.toString().trim() === '') {
-                rowErrors.push(`fullname is required and cannot be empty for record ${rowNumber}`);
+            let finalFullName = '';
+            if (fullname && fullname.toString().trim() !== '') {
+                finalFullName = fullname.toString().trim();
+            } else if (firstname && lastname && firstname.toString().trim() !== '' && lastname.toString().trim() !== '') {
+                finalFullName = `${firstname.toString().trim()} ${lastname.toString().trim()}`;
+            } else {
+                rowErrors.push(`Either fullname or both firstname and lastname are required for record ${rowNumber}`);
             }
             
             if (!telephone || telephone.toString().trim() === '') {
@@ -199,7 +206,7 @@ module.exports = async function create_multiple_employees(req, res, next) {
             }
             
             mappedEmployees.push({
-                full_name: fullname.toString().trim(),
+                full_name: finalFullName,
                 telephone: telephone.toString().trim(),
                 email: email.toString().trim().toLowerCase(),
                 gender: gender.toString().trim(),
@@ -219,8 +226,9 @@ module.exports = async function create_multiple_employees(req, res, next) {
                 message: `Validation failed for ${errors.length} row(s) and No employees were created fix and reupload again.`,
                 errors: errors,
                 guidance: {
-                    required_columns: ['fullname', 'telephone', 'email', 'gender'],
-                    optional_columns: ['department', 'department_unit', 'role'],
+                    name_options: ['Use "fullname" column OR both "firstname" and "lastname" columns'],
+                    required_columns: ['telephone', 'email', 'gender'],
+                    optional_columns: ['firstname', 'lastname', 'fullname', 'department', 'department_unit', 'role'],
                     gender_options: ['Male', 'Female', 'Other', 'Not specified'],
                     department_options: validDepartmentNames,
                     department_unit_options: subDepartments.map(sub => sub.department_name),
