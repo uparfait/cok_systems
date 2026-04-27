@@ -467,6 +467,30 @@ const EmployeesPage: React.FC = () => {
     }
   };
 
+  // Download template for multiple employee upload
+  const handleDownloadTemplate = async () => {
+    try {
+      const response = await employeeService.downloadTemplate();
+      if (response.success && response.data) {
+        const blob = response.data as Blob;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'employee_template.xlsx';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        throw new Error('Failed to download template');
+      }
+    } catch (error) {
+      console.error('Error downloading template:', error);
+      setUploadError('Failed to download template. Please try again.');
+    }
+  };
+
   // Handle multiple employee upload
   const handleMultipleUpload = async () => {
     if (!uploadFile) {
@@ -528,20 +552,7 @@ const EmployeesPage: React.FC = () => {
 
 
 
-  // Download template for multiple employee upload
-  const handleDownloadTemplate = () => {
-    const headers = ['fullname', 'telephone', 'email', 'gender'];
-    const csvContent = headers.join(',') + '\n';
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'employee_upload_template.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+
 
   // Helper mapping function to get unit name from ID securely
   const getUnitNameDisplay = (employee: Employee) => {
