@@ -2,7 +2,7 @@
 // Page for managing employees in the COK Systems
 // Updated with inline form errors/success and no close button
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { employeeService, departmentService, roleService } from '../../../core/services/adminService';
@@ -91,6 +91,12 @@ const EmployeesPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageLimit, setPageLimit] = useState(10);
+  const [totalEmployees, setTotalEmployees] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   
   const [departmentUnits, setDepartmentUnits] = useState<Department[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
@@ -117,6 +123,9 @@ const EmployeesPage: React.FC = () => {
   const [errorModalTitle, setErrorModalTitle] = useState('');
   const [errorModalMessage, setErrorModalMessage] = useState('');
   const [errorModalErrors, setErrorModalErrors] = useState<any[]>([]);
+
+  // Debounce timer for dynamic search
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Form state
   const [formData, setFormData] = useState<Partial<Employee>>({
@@ -155,25 +164,28 @@ const EmployeesPage: React.FC = () => {
     if (!authLoading && !isAuthenticated) {
       navigate('/login');
     } else if (isAuthenticated) {
-      loadEmployees();
+      loadEmployees(1, pageLimit);
       loadDepartments();
       loadRoles();
     }
-  }, [isAuthenticated, authLoading, navigate]);
+  }, [isAuthenticated, authLoading, navigate, pageLimit]);
 
 
 
-  // Load employees
-  const loadEmployees = async () => {
+  // Load employees with pagination
+  const loadEmployees = async (page: number = 1, limit: number = pageLimit) => {
     try {
       setLoading(true);
       setfirstLoad(true);
       setError('');
-      const response = await employeeService.getAll();
-      
+      const response = await employeeService.getAll(page, limit);
+
       if (response.success) {
         const empData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
         setEmployees(empData);
+        setTotalEmployees(response.total || empData.length);
+        setTotalPages(Math.ceil((response.total || empData.length) / limit));
+        setCurrentPage(page);
       } else {
         setError(response.message || response.error || 'Failed to load employees');
       }
@@ -257,20 +269,24 @@ const EmployeesPage: React.FC = () => {
     }
   };
 
-  // Search employees
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      loadEmployees();
+  // Dynamic search employees (search doesn't support pagination in current API)
+  const handleSearch = async (query: string = searchQuery) => {
+    if (!query.trim()) {
+      loadEmployees(1, pageLimit);
       return;
     }
 
     try {
       setLoading(true);
-      const response = await employeeService.search(searchQuery);
-      
+      const response = await employeeService.search(query);
+
       if (response.success) {
         const empData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
         setEmployees(empData);
+        // Reset pagination state for search results
+        setTotalEmployees(empData.length);
+        setTotalPages(1);
+        setCurrentPage(1);
       }
     } catch (err: any) {
       setError(err.message || err.error || 'Search failed');
@@ -367,7 +383,7 @@ const EmployeesPage: React.FC = () => {
           setFormSuccess(response.message || 'Employee updated successfully!');
           setTimeout(() => {
             setShowModal(false);
-            loadEmployees();
+            loadEmployees(currentPage, pageLimit);
           }, 1500);
         } else {
           setFormError(response.error || 'Failed to update employee');
@@ -379,7 +395,7 @@ const EmployeesPage: React.FC = () => {
           setFormSuccess(response.message || 'Employee created successfully!');
           setTimeout(() => {
             setShowModal(false);
-            loadEmployees();
+            loadEmployees(currentPage, pageLimit);
           }, 1500);
         } else {
           setFormError(response.error || 'Failed to create employee');
@@ -413,7 +429,7 @@ const EmployeesPage: React.FC = () => {
       setDeleting(true);
       await employeeService.delete(deletingId);
       setShowDeleteConfirm(false);
-      loadEmployees();
+      loadEmployees(currentPage, pageLimit);
     } catch (err: any) {
       setError(err.message || err.error || 'Failed to delete employee');
     } finally {
@@ -520,7 +536,7 @@ const EmployeesPage: React.FC = () => {
         dispatchToast('success', response.message || 'Employees created successfully!');
         setTimeout(() => {
           setShowMultipleUploadModal(false);
-          loadEmployees();
+          loadEmployees(currentPage, pageLimit);
         }, 2000);
       } else {
         // Show error modal instead of toast
@@ -624,21 +640,33 @@ const EmployeesPage: React.FC = () => {
               type="text"
               placeholder="Search employees by name, email, or department..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              onChange={(e) => {
+                const query = e.target.value;
+                setSearchQuery(query);
+
+                // Clear existing timeout
+                if (searchTimeoutRef.current) {
+                  clearTimeout(searchTimeoutRef.current);
+                }
+
+                // Set new timeout for debounced search
+                searchTimeoutRef.current = setTimeout(() => {
+                  handleSearch(query);
+                }, 500); // 500ms debounce
+              }}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <button
-            onClick={handleSearch}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-          >
-            Search
-          </button>
-          <button
-            onClick={loadEmployees}
+            onClick={() => {
+              setSearchQuery('');
+              if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+              }
+              loadEmployees(1, pageLimit);
+            }}
             className="p-2 hover:bg-gray-100 text-gray-600 rounded-lg transition-colors"
-            title="Refresh"
+            title="Clear search and refresh"
           >
             <FiRefreshCw className="w-5 h-5" />
           </button>
@@ -655,7 +683,7 @@ const EmployeesPage: React.FC = () => {
 
       {/* Employees Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-96 overflow-y-auto">
           <table className="w-full min-w-[700px]">
             <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
               <tr>
@@ -767,6 +795,39 @@ const EmployeesPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-2">
+            <div className="text-sm text-gray-600">
+              Showing {((currentPage - 1) * pageLimit) + 1} to {Math.min(currentPage * pageLimit, totalEmployees)} of {totalEmployees} employees
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const newPage = currentPage - 1;
+                  setCurrentPage(newPage);
+                  loadEmployees(newPage, pageLimit);
+                }}
+                disabled={currentPage <= 1}
+                className="px-3 py-1 text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => {
+                  const newPage = currentPage + 1;
+                  setCurrentPage(newPage);
+                  loadEmployees(newPage, pageLimit);
+                }}
+                disabled={currentPage >= totalPages}
+                className="px-3 py-1 text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal - No close button, clicking outside won't close */}
