@@ -17,6 +17,7 @@ export { default as AdminServiceDeliveryDashboard } from './pages/AdminServiceDe
 export { default as AdminCheckInCheckOut } from './pages/AdminCheckInCheckOut';
 export { default as Analytics } from './pages/Analytics';
 export { default as FeedbackPage } from './pages/FeedbackPage';
+export { default as OverviewPage } from './pages/OverviewPage';
 
 // Components
 export * from './components';

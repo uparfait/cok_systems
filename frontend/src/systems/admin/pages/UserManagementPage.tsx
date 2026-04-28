@@ -30,6 +30,15 @@ const UserManagementPage: React.FC = () => {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredUsers, setFilteredUsers] = useState<UserWithLock[]>([]);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageLimit, setPageLimit] = useState(10);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Get paginated users
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * pageLimit, currentPage * pageLimit);
   
   // Modal state
   const [showLockModal, setShowLockModal] = useState(false);
@@ -45,19 +54,22 @@ const UserManagementPage: React.FC = () => {
 
   // Filter users when search query changes
   useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredUsers(users);
-    } else {
+    let filtered = users;
+    if (searchQuery.trim() !== '') {
       const query = searchQuery.toLowerCase();
-      const filtered = users.filter(u => 
+      filtered = users.filter(u =>
         (u.full_name?.toLowerCase().includes(query)) ||
         (u.email?.toLowerCase().includes(query)) ||
         (u.telephone?.toLowerCase().includes(query)) ||
         (u.department_name?.toLowerCase().includes(query))
       );
-      setFilteredUsers(filtered);
     }
-  }, [searchQuery, users]);
+
+    setFilteredUsers(filtered);
+    setTotalUsers(filtered.length);
+    setTotalPages(Math.ceil(filtered.length / pageLimit));
+    setCurrentPage(1); // Reset to first page when search changes
+  }, [searchQuery, users, pageLimit]);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -68,6 +80,9 @@ const UserManagementPage: React.FC = () => {
         const usersData = response.data || [];
         setUsers(usersData);
         setFilteredUsers(usersData);
+        setTotalUsers(usersData.length);
+        setTotalPages(Math.ceil(usersData.length / pageLimit));
+        setCurrentPage(1);
       } else {
         setError(response.message || 'Failed to load users');
       }
@@ -191,25 +206,27 @@ const UserManagementPage: React.FC = () => {
       </div>
 
       {/* Search and Actions Bar */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4 justify-between">
-        <div className="relative flex-1 max-w-md">
-          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by name, email, phone, or department..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
+      <div className="mb-6 flex flex-col sm:flex-row gap-4 justify-end">
+        <div className="flex gap-3 items-center">
+          <div className="relative">
+            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by name, email, phone, or department..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <button
+            onClick={loadUsers}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
         </div>
-        <button
-          onClick={loadUsers}
-          disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-        >
-          <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
       </div>
 
       {/* Error State */}
@@ -222,9 +239,9 @@ const UserManagementPage: React.FC = () => {
 
       {/* Users Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-96 overflow-y-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   User
@@ -245,22 +262,22 @@ const UserManagementPage: React.FC = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {(loading && firstLoad) ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
-                    <div className="flex justify-center items-center gap-2">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                      <span className="text-gray-500">Loading users...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                    {searchQuery ? 'No users found matching your search' : 'No users available'}
-                  </td>
-                </tr>
-              ) : (
-                filteredUsers.map((userItem) => (
+                 <tr>
+                   <td colSpan={5} className="px-6 py-12 text-center">
+                     <div className="flex justify-center items-center gap-2">
+                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                       <span className="text-gray-500">Loading users...</span>
+                     </div>
+                   </td>
+                 </tr>
+                ) : paginatedUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                      {searchQuery ? 'No users found matching your search' : 'No users available'}
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedUsers.map((userItem) => (
                   <tr key={userItem._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -364,9 +381,34 @@ const UserManagementPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-2">
+          <div className="text-sm text-gray-600">
+            Showing {((currentPage - 1) * pageLimit) + 1} to {Math.min(currentPage * pageLimit, totalUsers)} of {totalUsers} users
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage <= 1}
+              className="px-3 py-1 text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage >= totalPages}
+              className="px-3 py-1 text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Summary */}
       <div className="mt-4 text-sm text-gray-500">
-        Showing {filteredUsers.length} of {users.length} users
+        Total: {users.length} users
       </div>
 
       {/* Lock Account Modal with Reason Input */}

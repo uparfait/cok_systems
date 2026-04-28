@@ -180,7 +180,19 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   
   // Build dynamic navigation based on user's actual permissions
   const navigation: NavItem[] = [];
-  
+
+  // Add Overview as first item for admin users
+  if (isAdmin) {
+    navigation.push({
+      id: 'overview',
+      label: 'Overview',
+      path: '/admin/overview',
+      icon: 'FiBarChart2',
+      resource: 'admin',
+      requiredAction: 'read',
+    });
+  }
+
   // Add Dashboard for non-admin users only (admin has Dashboard inside Admin dropdown)
   if (!isAdmin) {
     navigation.push({
