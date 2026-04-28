@@ -3,13 +3,25 @@ const department_model = require('../../models/department.js')
 module.exports = async function list_all_departments(req, res, next) {
     try {
         
-        // 👉 FIX: Increased default limit to 1000 so sub-departments don't hide main departments
+        //  Increased default limit to 1000 so sub-departments don't hide main departments
         let { limit = 1000, page = 1 } = req.query || {}
 
-        const limit_val = parseInt(limit)
-        const skip_val = (parseInt(page) - 1) * limit_val
+        const user_role_name = req.user?.role_name;
 
-        const departments = await department_model.find()
+        const limit_val = parseInt(limit)
+        const skip_val = (parseInt(page) - 1) * limit_val;
+
+        // so filter out the one which is the sub-department of another department and only get the main departments first, then we will loop through each main department and get their sub-departments and attach them to the main department object
+        // filter where subdepartment_mng.is_sub_department is not true, because if it's true then it means it's a sub-department and we don't want to include it in the main departments list, we will get it later when we loop through each main department and get their sub-departments
+        // apply below filter only if user is a head of department
+        let filter = {}
+        if (user_role_name === "Head of department") {
+            filter = {
+                'sub_department_mng.is_sub_department': { $ne: true }
+            }
+        };
+
+        const departments = await department_model.find(filter)
             .limit(limit_val)
             .skip(skip_val)
             .sort({ created_date: -1 })

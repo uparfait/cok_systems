@@ -286,13 +286,12 @@ const AdminCheckInCheckOut: React.FC = () => {
     const pageHeight = doc.internal.pageSize.getHeight();
     let yPosition = 15;
 
-    // Center Logo
-    const logoWidth = 40;
+    // Full-width logo at top
     const logoHeight = 40;
-    const logoX = (pageWidth - logoWidth) / 2;
+    const logoWidth = pageWidth;
     
     try {
-      doc.addImage('/LOGO_COK.png', 'PNG', logoX, yPosition, logoWidth, logoHeight);
+      doc.addImage('/LOGO_COK_report.png', 'PNG', 0, yPosition, logoWidth, logoHeight);
     } catch (e) {
       console.log('Logo not found, continuing without logo');
     }
@@ -454,6 +453,8 @@ const AdminCheckInCheckOut: React.FC = () => {
         margin: { left: 10, right: 10 },
         tableWidth: 'auto'
       });
+
+      yPosition = (doc as any).lastAutoTable.finalY + 10;
     }
 
     doc.save(`visitor-report-${new Date().toISOString().split('T')[0]}.pdf`);

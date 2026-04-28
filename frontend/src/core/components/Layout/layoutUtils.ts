@@ -1,6 +1,4 @@
-// Layout Utilities - Dynamic sidebar navigation based on user PERMISSIONS from backend
-// This module filters navigation based on each user's specific permissions from backend
-// NO hardcoded navigation - everything is derived from user's permissions
+
 
 import type { User, Permission } from '../../contexts/AuthContext';
 
@@ -115,21 +113,33 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   if (userRole.includes('employee') || userRole.includes('staff')) {
     return [
       { id: 'dashboard', label: 'Dashboard', path: '/service-delivery/employee', icon: 'FiGrid' },
+      { id: 'performance', label: 'Performance Analytics', path: '/service-delivery/employee?tab=performance', icon: 'FiBarChart2' },
+      { id: 'history', label: 'Service History', path: '/service-delivery/employee?tab=history', icon: 'FiFileText' },
+      { id: 'queue', label: 'Department Queue', path: '/service-delivery/employee?tab=queue', icon: 'FiList' },
     ];
   }
 
   // 👉 DEPT MANAGER INTERCEPTOR: Custom Sidebar
   // IMPORTANT: More specific checks must come BEFORE general ones to avoid "manager" matching "receptionist"
-  if (userRole.includes('department manager') || 
+  if (userRole.includes('department manager') ||
       userRole.includes('department head') ||
       userRole.includes('head of department') ||
       userRole.includes('director')) {
     return [
       { id: 'dashboard', label: 'Dashboard', path: '/service-delivery/department-manager', icon: 'FiGrid' },
-      //{ id: 'status', label: 'Service Status', path: '/service-delivery/department-manager?tab=status', icon: 'FiClock' },
+      {
+        id: 'requests',
+        label: 'Requests',
+        path: '/service-delivery/department-manager?tab=active-tasks',
+        icon: 'FiClipboard',
+        children: [
+          { id: 'active-tasks', label: 'Active Tasks', path: '/service-delivery/department-manager?tab=active-tasks', icon: 'FiActivity' },
+          { id: 'completed-requests', label: 'Completed Requests', path: '/service-delivery/department-manager?tab=completed-requests', icon: 'FiCheck' }
+        ]
+      },
       { id: 'employees', label: 'Employee Management', path: '/service-delivery/department-manager?tab=employees', icon: 'FiUsers' },
-      // { id: 'availability', label: 'Dept. Availability', path: '/service-delivery/department-manager?tab=availability', icon: 'FiCheckCircle' },
-      //{ id: 'reports', label: 'Reports', path: '/service-delivery/department-manager?tab=reports', icon: 'FiFile' }
+      { id: 'departments', label: 'Department Management', path: '/service-delivery/department-manager?tab=departments', icon: 'FiLayers' },
+      { id: 'feedback', label: 'Feedback & Analytics', path: '/service-delivery/department-manager?tab=feedback', icon: 'FiMessageSquare' }
     ];
   }
 

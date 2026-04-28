@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FiSearch, FiClock, FiCheckCircle, FiRefreshCw } from 'react-icons/fi';
 import { useAuth } from '../../../../../core/contexts/AuthContext';
+import { useSocket } from '../../../../../core/contexts/SocketContext';
 import { serviceDeliveryService } from '../../../../../core/services/adminService';
 import { Pagination } from '../../shared';
 
@@ -28,6 +29,7 @@ const statusStyles = {
 
 const EmployeeDashboardTab: React.FC = () => {
   const { user } = useAuth();
+  const { socket, isConnected } = useSocket();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [serviceRecords, setServiceRecords] = useState<ServiceRecord[]>([]);
@@ -35,18 +37,18 @@ const EmployeeDashboardTab: React.FC = () => {
   const [stats, setStats] = useState({ pending: 0, transfered: 0, completed: 0 });
   const resultsPerPage = 5;
 
-  const fetchAssignedVisitors = useCallback(async () => {
+  const fetchAssignedVisitors = useCallback(async (silent: boolean = false) => {
     const currentUser = user as any;
     const myUserId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
     const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown').trim();
 
     if (!myUserId || myUserId === 'undefined' || myUserId === '') {
-      setLoading(false);
+      if (!silent) setLoading(false);
       return;
     }
-    
+
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       // 👉 NEW: Use the updated backend endpoint that returns ALL visitors (assigned and unassigned)
       const response = await serviceDeliveryService.getCurrentVisitorsByProvider(myUserId) as any;
       
@@ -184,13 +186,30 @@ const EmployeeDashboardTab: React.FC = () => {
     } catch (error) {
       console.error('Error fetching assigned visitors:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
     fetchAssignedVisitors();
   }, [fetchAssignedVisitors]);
+
+  // WebSocket listener for real-time visitor assignment updates
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    const handleNewVisitorAssigned = (data: any) => {
+      console.log('New visitor assigned (employee dashboard):', data);
+      // Silently refresh the service records when visitors are assigned
+      fetchAssignedVisitors(true); // true = silent mode
+    };
+
+    socket.on('new_visitor_assigned', handleNewVisitorAssigned);
+
+    return () => {
+      socket.off('new_visitor_assigned', handleNewVisitorAssigned);
+    };
+  }, [socket, isConnected, fetchAssignedVisitors]);
 
   const filteredRecords = serviceRecords.filter(record => {
     const searchLower = searchTerm.toLowerCase();
@@ -242,7 +261,7 @@ const EmployeeDashboardTab: React.FC = () => {
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input type="text" placeholder="Search visitor or ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-[220px] h-9 border border-[#e0e0e0] rounded-[20px] pl-10 pr-4 text-[12px] focus:ring-2 focus:ring-[#1a73e8]" />
             </div>
-            <button onClick={fetchAssignedVisitors} className="flex items-center gap-2 h-9 px-4 border border-[#e0e0e0] rounded-[8px] bg-white text-[#333] text-[13px] hover:bg-gray-50">
+            <button onClick={() => fetchAssignedVisitors()} className="flex items-center gap-2 h-9 px-4 border border-[#e0e0e0] rounded-[8px] bg-white text-[#333] text-[13px] hover:bg-gray-50">
               <FiRefreshCw className={loading ? 'animate-spin' : ''} /> Refresh
             </button>
           </div>

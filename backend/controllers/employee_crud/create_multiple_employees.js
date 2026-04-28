@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const user_model = require('../../models/user.js');
 const allowed_resources = require('../../resources/resources.js');
 const department_model = require('../../models/department.js');
+const role_model = require('../../models/default_roles.js');
 
 /**
  * Bulk create employees from Excel/CSV file
@@ -12,14 +13,33 @@ const department_model = require('../../models/department.js');
  */
 module.exports = async function create_multiple_employees(req, res, next) {
     let session = null;
-    
+
     try {
-        // Get department details from request body
-        const {
-            department_id = null,
-            department_unit = null,
-            roles = {}
-        } = req.body || {};
+        // Fetch all roles and departments for validation
+        const [allRoles, allDepartments] = await Promise.all([
+            role_model.find({}).sort({ role_name: 1 }),
+            department_model.find({}).sort({ department_name: 1 })
+        ]);
+
+        const validRoleNames = allRoles.map(role => role.role_name);
+        const validDepartmentNames = allDepartments.map(dept => dept.department_name);
+
+        // Separate main departments and sub-departments
+        const mainDepartments = allDepartments.filter(dept => !dept.sub_department_mng?.is_sub_department);
+        const subDepartments = allDepartments.filter(dept => dept.sub_department_mng?.is_sub_department);
+
+        // Group sub-departments by parent ID for validation
+        const subDeptByParent = {};
+        subDepartments.forEach(sub => {
+            const parentId = sub.sub_department_mng.parent_department_id.toString();
+            if (!subDeptByParent[parentId]) {
+                subDeptByParent[parentId] = [];
+            }
+            subDeptByParent[parentId].push(sub);
+        });
+
+
+        
 
         // Check for upload errors from multer
         if (req.UploadError) {
@@ -66,26 +86,8 @@ module.exports = async function create_multiple_employees(req, res, next) {
             });
         }
 
-        // Validate department_id if provided
-        let dpt = null;
-        if (department_id && department_id !== 'Not specified') {
-            if (!mongoose.Types.ObjectId.isValid(department_id)) {
-                return res.status(400).json({
-                    success: false,
-                    type: "warning",
-                    message: `Invalid department_id format: ${department_id}`
-                });
-            }
-            
-            dpt = await department_model.findById(department_id);
-            if (!dpt) {
-                return res.status(404).json({
-                    success: false,
-                    type: "warning",
-                    message: `Department with ID ${department_id} not found. Please create it first or use another department.`
-                });
-            }
-        }
+
+
 
         // Map and validate each row
         const mappedEmployees = [];
@@ -96,16 +98,26 @@ module.exports = async function create_multiple_employees(req, res, next) {
             const rowNumber = index + 2; // +2 because Excel rows start at 1 and header is row 1
             
             // Extract fields with case-insensitive matching
+            const firstname = row['firstname'] || row['firstName'] || row['Firstname'] || row['First Name'] || row['first name'] || null;
+            const lastname = row['lastname'] || row['lastName'] || row['Lastname'] || row['Last Name'] || row['last name'] || null;
             const fullname = row['fullname'] || row['fullName'] || row['FullName'] || row['Full Name'] || row['full name'] || null;
             const telephone = row['telephone'] || row['Telephone'] || row['phone'] || row['Phone'] || null;
             const email = row['email'] || row['Email'] || row['EMAIL'] || null;
             const gender = row['gender'] || row['Gender'] || row['GENDER'] || null;
+            const department = row['department'] || row['Department'] || row['DEPARTMENT'] || null;
+            const department_unit = row['department unit'] || row['department_unit'] || row['Department Unit'] || row['Department_Unit'] || row['DEPARTMENT UNIT'] || null;
+            const role = row['role'] || row['Role'] || row['ROLE'] || null;
             
             const rowErrors = [];
             
             // Validate required fields
-            if (!fullname || fullname.toString().trim() === '') {
-                rowErrors.push(`fullname is required and cannot be empty for record ${rowNumber}`);
+            let finalFullName = '';
+            if (fullname && fullname.toString().trim() !== '') {
+                finalFullName = fullname.toString().trim();
+            } else if (firstname && lastname && firstname.toString().trim() !== '' && lastname.toString().trim() !== '') {
+                finalFullName = `${firstname.toString().trim()} ${lastname.toString().trim()}`;
+            } else {
+                rowErrors.push(`Either fullname or both firstname and lastname are required for record ${rowNumber}`);
             }
             
             if (!telephone || telephone.toString().trim() === '') {
@@ -123,6 +135,48 @@ module.exports = async function create_multiple_employees(req, res, next) {
             // Validate gender value
             if (gender && !['Male', 'Female','male','female','other', 'Other', 'Not specified'].includes(gender.toString().trim())) {
                 rowErrors.push(`gender must be one of: Male, Female, Other, Not specified for record ${rowNumber}`);
+            }
+
+            // Validate department value if provided
+            let selectedDepartment = null;
+            let selectedDepartmentUnit = null;
+
+            if (department && department.toString().trim() !== '') {
+                const deptName = department.toString().trim();
+                selectedDepartment = allDepartments.find(d => d.department_name === deptName);
+
+                if (!selectedDepartment) {
+                    rowErrors.push(`department "${deptName}" does not exist. Available departments: ${validDepartmentNames.join(', ')} for record ${rowNumber}`);
+                } else if (selectedDepartment.sub_department_mng?.is_sub_department) {
+                    rowErrors.push(`department "${deptName}" is a sub-department, not a main department. Please select a main department for record ${rowNumber}`);
+                }
+            }
+
+            // Validate department unit value if provided
+            if (department_unit && department_unit.toString().trim() !== '' && department_unit.toString().trim() !== 'Select') {
+                const unitName = department_unit.toString().trim();
+                selectedDepartmentUnit = allDepartments.find(d => d.department_name === unitName);
+
+                if (!selectedDepartmentUnit) {
+                    rowErrors.push(`department unit "${unitName}" does not exist for record ${rowNumber}`);
+                } else if (!selectedDepartmentUnit.sub_department_mng?.is_sub_department) {
+                    rowErrors.push(`"${unitName}" is a main department, not a sub-department. Department units must be sub-departments for record ${rowNumber}`);
+                } else if (selectedDepartment) {
+                    // Check if the unit belongs to the selected department
+                    const parentId = selectedDepartmentUnit.sub_department_mng.parent_department_id.toString();
+                    if (parentId !== selectedDepartment._id.toString()) {
+                        const parentDept = allDepartments.find(d => d._id.toString() === parentId);
+                        rowErrors.push(`department unit "${unitName}" does not belong to department "${selectedDepartment.department_name}". It belongs to "${parentDept ? parentDept.department_name : 'unknown department'}" for record ${rowNumber}`);
+                    }
+                }
+            }
+
+            // Validate role value if provided
+            if (role && role.toString().trim() !== '') {
+                const roleName = role.toString().trim();
+                if (!validRoleNames.includes(roleName)) {
+                    rowErrors.push(`role "${roleName}" does not exist. Available roles: ${validRoleNames.join(', ')} for record ${rowNumber}`);
+                }
             }
             
             // Validate email format if provided
@@ -152,10 +206,13 @@ module.exports = async function create_multiple_employees(req, res, next) {
             }
             
             mappedEmployees.push({
-                full_name: fullname.toString().trim(),
+                full_name: finalFullName,
                 telephone: telephone.toString().trim(),
                 email: email.toString().trim().toLowerCase(),
                 gender: gender.toString().trim(),
+                department: selectedDepartment ? selectedDepartment._id : null,
+                department_unit: selectedDepartmentUnit ? selectedDepartmentUnit._id : null,
+                role: role && role.toString().trim() !== '' ? role.toString().trim() : (validRoleNames.includes('Basic') ? 'Basic' : validRoleNames[0]),
                 row_number: rowNumber,
                 original_data: row
             });
@@ -169,8 +226,13 @@ module.exports = async function create_multiple_employees(req, res, next) {
                 message: `Validation failed for ${errors.length} row(s) and No employees were created fix and reupload again.`,
                 errors: errors,
                 guidance: {
-                    required_columns: ['fullname', 'telephone', 'email', 'gender'],
+                    name_options: ['Use "fullname" column OR both "firstname" and "lastname" columns'],
+                    required_columns: ['telephone', 'email', 'gender'],
+                    optional_columns: ['firstname', 'lastname', 'fullname', 'department', 'department_unit', 'role'],
                     gender_options: ['Male', 'Female', 'Other', 'Not specified'],
+                    department_options: validDepartmentNames,
+                    department_unit_options: subDepartments.map(sub => sub.department_name),
+                    role_options: validRoleNames,
                     email_format: 'example@domain.com',
                     telephone_format: 'At least 10 digits'
                 }
@@ -257,92 +319,88 @@ module.exports = async function create_multiple_employees(req, res, next) {
             });
         }
         
-        // Build permissions structure
-        const allPermissions = [];
-        const allResources = allowed_resources.map(r => r.resource_name);
-        
-        allResources.forEach(resourceName => {
-            const resourceDef = allowed_resources.find(r => r.resource_name === resourceName);
-            
-            if (resourceDef) {
-                resourceDef.actions.forEach(actionDef => {
-                    allPermissions.push({
-                        resource_name: resourceName,
-                        actions: [{
-                            action_type: actionDef.action_type,
-                            description: actionDef.description,
-                            is_enabled: "disabled"
-                        }]
-                    });
-                });
+        // Function to get permissions based on role from database
+        const getPermissionsByRole = (roleName) => {
+            const role = allRoles.find(r => r.role_name.toLowerCase() === roleName.toLowerCase());
+            if (role) {
+                // Return permissions from the database role
+                return role.permissions.map(perm => ({
+                    resource_name: perm.resource_name,
+                    actions: perm.actions.map(action => ({
+                        action_type: action.action,
+                        description: action.description,
+                        is_enabled: action.is_enabled ? "enabled" : "disabled"
+                    }))
+                }));
             }
-        });
-        
-        // Process incoming permissions if provided
-        if (roles.permissions && Array.isArray(roles.permissions)) {
-            for (const perm of roles.permissions) {
-                const resourceName = perm.resource?.trim() || perm.resource_name?.trim();
-                
-                if (!resourceName) continue;
-                
-                const resourceDef = allowed_resources.find(
-                    r => r.resource_name.toLowerCase() === resourceName.toLowerCase()
-                );
-                
-                if (!resourceDef) {
-                    return res.status(400).json({
-                        success: false,
-                        type: "warning",
-                        message: `Invalid resource: ${resourceName}`
+
+            // Fallback: if role not found, return basic permissions (read-only)
+            const allPermissions = [];
+            const allResources = allowed_resources.map(r => r.resource_name);
+
+            allResources.forEach(resourceName => {
+                const resourceDef = allowed_resources.find(r => r.resource_name === resourceName);
+
+                if (resourceDef) {
+                    resourceDef.actions.forEach(actionDef => {
+                        allPermissions.push({
+                            resource_name: resourceName,
+                            actions: [{
+                                action_type: actionDef.action_type,
+                                description: actionDef.description,
+                                is_enabled: "disabled"
+                            }]
+                        });
                     });
                 }
-                
-                const incomingActions = perm.actions || [];
-                
-                incomingActions.forEach(action => {
-                    const actionType = typeof action === 'string' ? action : action.action_type;
-                    
-                    const targetPermission = allPermissions.find(p => 
-                        p.resource_name.toLowerCase() === resourceName.toLowerCase() &&
-                        p.actions[0].action_type === actionType
-                    );
-                    
-                    if (targetPermission) {
-                        targetPermission.actions[0].is_enabled = "enabled";
+            });
+
+            // Enable only read permissions as fallback
+            allPermissions.forEach(perm => {
+                perm.actions.forEach(action => {
+                    if (action.action_type.includes('read')) {
+                        action.is_enabled = "enabled";
                     }
                 });
-            }
-        }
-        
-        // Group permissions by resource
-        const groupedPermissions = [];
-        const resourceMap = new Map();
-        
-        allPermissions.forEach(perm => {
-            const resourceName = perm.resource_name;
-            if (!resourceMap.has(resourceName)) {
-                resourceMap.set(resourceName, {
-                    resource_name: resourceName,
-                    actions: []
-                });
-                groupedPermissions.push(resourceMap.get(resourceName));
-            }
-            resourceMap.get(resourceName).actions.push(perm.actions[0]);
-        });
+            });
+
+            return allPermissions;
+        };
+
+
         
         // Start transaction
         session = await mongoose.startSession();
         session.startTransaction();
         
         const createdEmployees = [];
-        
+
         try {
             // Create all employees
             for (const emp of mappedEmployees) {
                 const generated_password = crypto.randomBytes(8).toString('hex');
                 const default_picture = 'https://placehold.co/800?text=CoK&font=roboto';
                 const registered_by = req.user ? req.user?.name || req.user?.email || 'System' : 'System';
-                
+
+                // Get permissions based on employee role
+                const employeePermissions = getPermissionsByRole(emp.role);
+
+                // Group permissions by resource for this employee
+                const groupedEmployeePermissions = [];
+                const resourceMap = new Map();
+
+                employeePermissions.forEach(perm => {
+                    const resourceName = perm.resource_name;
+                    if (!resourceMap.has(resourceName)) {
+                        resourceMap.set(resourceName, {
+                            resource_name: resourceName,
+                            actions: []
+                        });
+                        groupedEmployeePermissions.push(resourceMap.get(resourceName));
+                    }
+                    resourceMap.get(resourceName).actions.push(perm.actions[0]);
+                });
+
                 const new_user = new user_model({
                     full_name: emp.full_name,
                     telephone: emp.telephone,
@@ -354,8 +412,8 @@ module.exports = async function create_multiple_employees(req, res, next) {
                     gender: emp.gender,
                     title: 'Not specified',
                     email: emp.email,
-                    department: dpt ? dpt._id : null,
-                    department_unit: department_unit || null,
+                    department: emp.department,
+                    department_unit: emp.department_unit,
                     password: generated_password,
                     access_control: {
                         is_locked: false,
@@ -366,8 +424,8 @@ module.exports = async function create_multiple_employees(req, res, next) {
                         access_token: { token_type: null, token: null }
                     },
                     roles: {
-                        role_name: roles.role_name || 'Not specified',
-                        permissions: groupedPermissions
+                        role_name: emp.role,
+                        permissions: groupedEmployeePermissions
                     },
                     is_active: false,
                     is_account_activated: false,
@@ -382,24 +440,61 @@ module.exports = async function create_multiple_employees(req, res, next) {
                 });
             }
             
-            // Update department total_employees if department exists
-            if (dpt && department_id && department_id !== 'Not specified') {
-                dpt.total_employees = (dpt.total_employees || 0) + mappedEmployees.length;
-                await dpt.save({ session });
+            // Update department total_employees for each department used
+            const departmentUpdateMap = new Map();
+
+            for (const emp of mappedEmployees) {
+                if (emp.department) {
+                    const deptId = emp.department.toString();
+                    if (!departmentUpdateMap.has(deptId)) {
+                        departmentUpdateMap.set(deptId, {
+                            department: await department_model.findById(deptId).session(session),
+                            count: 0
+                        });
+                    }
+                    departmentUpdateMap.get(deptId).count++;
+                }
+
+                if (emp.department_unit) {
+                    const unitId = emp.department_unit.toString();
+                    if (!departmentUpdateMap.has(unitId)) {
+                        departmentUpdateMap.set(unitId, {
+                            department: await department_model.findById(unitId).session(session),
+                            count: 0
+                        });
+                    }
+                    departmentUpdateMap.get(unitId).count++;
+                }
+            }
+
+            // Update all department counts
+            for (const [deptId, updateInfo] of departmentUpdateMap) {
+                if (updateInfo.department) {
+                    updateInfo.department.total_employees = (updateInfo.department.total_employees || 0) + updateInfo.count;
+                    await updateInfo.department.save({ session });
+                }
             }
             
             // Commit transaction
             await session.commitTransaction();
             
+            // Prepare department update summary
+            const departmentUpdates = [];
+            for (const [deptId, updateInfo] of departmentUpdateMap) {
+                if (updateInfo.department) {
+                    departmentUpdates.push({
+                        department_name: updateInfo.department.department_name,
+                        new_total_employees: updateInfo.department.total_employees
+                    });
+                }
+            }
+
             return res.status(201).json({
                 success: true,
                 type: "success",
                 message: `${createdEmployees.length} employee(s) created successfully.`,
                 total_created: createdEmployees.length,
-                department_updated: dpt ? {
-                    department_name: dpt.name,
-                    new_total_employees: dpt.total_employees
-                } : null,
+                departments_updated: departmentUpdates.length > 0 ? departmentUpdates : null,
                 created_employees: createdEmployees,
                 note: "Accounts require activation before employees can log in."
             });

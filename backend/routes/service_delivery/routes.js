@@ -19,6 +19,7 @@ const get_visitors_by_department = require('../../controllers/serivice_delivery/
 const get_visitors_by_department_current = require('../../controllers/serivice_delivery/get_visitors_by_department_current.js')
 const get_visitors_by_provider_current = require('../../controllers/serivice_delivery/get_visitors_by_provider_current.js')
 const get_visitors_by_provider = require('../../controllers/serivice_delivery/get_visitors_by_provider_current.js')
+const get_active_tasks = require('../../controllers/serivice_delivery/get_active_tasks.js')
 const multer = require('multer')
 const upload = multer()
 // 👉 FIXED PATH: Matches colleague's exact folder spelling
@@ -91,6 +92,7 @@ Router.delete('/', (req, res, next) => {
 
 Router.get('/visitor',list_vistors)
 Router.get('/visitor/search', search_vistor)
+Router.get('/visitor/active-tasks', get_active_tasks)
 Router.get('/visitor/by-department', get_visitors_by_department)
 Router.get('/visitor/by-department-current/:id', get_visitors_by_department_current)
 Router.get('/visitor/by-provider-current/:id', get_visitors_by_provider_current)
@@ -102,7 +104,8 @@ Router.post('/visitor/assign', assign_vistor_to_department)
 Router.post('/visitor/checkout', vistor_checkout)
 Router.post('/visitor/service/status', toggle_service_status)
 Router.post('/visitor/emergency/leave-return', toggle_leave_out_side_and_return)
-// Add your new dedicated route
+
+// Below route addeed by Fabrice and from now disabled due to conflicts his message wa `Add your new dedicated route`
 Router.put('/visitor/:id/status', update_service_status)
 
 module.exports = Router

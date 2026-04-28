@@ -2,6 +2,12 @@ const ServiceDelivery = require('../../models/service_delivery.js');
 
 module.exports = async function update_service_status(req, res, next) {
     try {
+
+        return res.status(404).json({
+            success: false,
+            type: 'warning',
+            message: "This endpoint is currently disabled"
+        });
         const { id } = req.params;
         const { services_status, durations, notes } = req.body;
 

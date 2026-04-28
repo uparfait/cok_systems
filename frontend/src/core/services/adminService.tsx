@@ -45,7 +45,10 @@ export const departmentService = {
   
   // Get department by ID
   getById: (id: string) => get(`/department/crud/${id}`),
-  
+
+  // Get sub-departments for a department
+  getSubDepartments: (departmentId: string) => get(`/department/crud/${departmentId}/sub-departments`),
+
   // Get department leader by email
   getLeader: (email: string) => get(`/department/crud/leader/${encodeURIComponent(email)}`),
   
@@ -103,15 +106,15 @@ export const employeeService = {
   },
   
   // Get employees by department (filters by is_active=true by default for only active employees)
-  getByDepartment: (departmentId: string, activeOnly: boolean = true) => {
-    const params = `department_id=${encodeURIComponent(departmentId)}`;
-    return activeOnly 
+  getByDepartment: (departmentId: string, activeOnly: boolean = true, page: number = 1, limit: number = 20) => {
+    const params = `department_id=${encodeURIComponent(departmentId)}&page=${page}&limit=${limit}`;
+    return activeOnly
       ? get(`/employee/crud/by-department?${params}&is_active=true`)
       : get(`/employee/crud/by-department?${params}`);
   },
   
   // Search employees
-  search: (query: string) => get(`/employee/crud/search?query=${encodeURIComponent(query)}`),
+  search: (query: string, page: number = 1, limit: number = 20) => get(`/employee/crud/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`),
   
   // Get employee by ID
   getById: (id: string) => get(`/employee/crud/${id}`),
@@ -125,12 +128,33 @@ export const employeeService = {
   // Delete employee
   delete: (id: string) => del(`/employee/crud/${id}`),
   
-  // Create multiple employees from file upload
-  createMultiple: (formData: FormData) => {
-    return post('/multiple/employees', formData, {
-      'Content-Type': 'multipart/form-data'
-    });
-  },
+   // Create multiple employees from file upload
+   createMultiple: (formData: FormData) => {
+     return post('/multiple/employees', formData, {
+       'Content-Type': 'multipart/form-data'
+     });
+   },
+
+   // Download employee template
+   downloadTemplate: async () => {
+     try {
+       const response = await fetch(`${import.meta.env.VITE_API_URL || '/cok/api'}/multiple/employees/template`);
+       if (!response.ok) {
+         throw new Error('Failed to download template');
+       }
+       const blob = await response.blob();
+       return {
+         success: true,
+         data: blob
+       };
+     } catch (error) {
+       console.error('Download template error:', error);
+       return {
+         success: false,
+         error: error instanceof Error ? error.message : 'Unknown error'
+       };
+     }
+   },
 };
 
 // ==================== FEEDBACK APIs ====================
@@ -332,7 +356,12 @@ export const serviceDeliveryService = {
   getCurrentVisitorsByDepartment: (departmentId: string) => get(`/servicedelivery/visitor/by-department-current/${encodeURIComponent(departmentId)}`),
   
   // Get current visitors count by provider (employee)
-  getCurrentVisitorsByProvider: (providerId: string) => get(`/servicedelivery/visitor/by-provider-current/${encodeURIComponent(providerId)}`),
+  getCurrentVisitorsByProvider: (providerId: string, page?: number, limit?: number) => {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (limit) params.append('limit', limit.toString());
+    return get(`/servicedelivery/visitor/by-provider-current/${encodeURIComponent(providerId)}?${params.toString()}`);
+  },
 
   // Get visitors by provider (employee) - returns actual visitor records
   getVisitorsByProvider: (providerId: string, page?: number, limit?: number) => {
@@ -347,7 +376,72 @@ export const serviceDeliveryService = {
   // 👉 ADD THIS NEW UPDATE FUNCTION:
   update: (id: string, data: any) => put(`/servicedelivery/visitor/${id}`, data),
   // Update service status - uses dedicated endpoint for service status and durations
-  updateServiceStatus: (id: string, data: any) => put(`/servicedelivery/visitor/${id}/status`, data),
+  updateServiceStatus: (data: any) => post(`/servicedelivery/visitor/service/status`, data),
+
+  // Get active tasks (visitors being served) for Head of Department
+  getActiveTasks: (page: number = 1, limit: number = 10, search?: string) => {
+    let url = `/servicedelivery/visitor/active-tasks?page=${page}&limit=${limit}`;
+    if (search && search.trim()) {
+      url += `&search=${encodeURIComponent(search.trim())}`;
+    }
+    return get(url);
+  },
+};
+
+// ==================== DEPARTMENT MANAGER APIs ====================
+
+export const departmentManagerService = {
+  // Get visitors by status (pending, active, transferred, completed)
+  getVisitorsByStatus: (status: string, page: number = 1, limit: number = 20, dateFilter?: string) => {
+    let url = `/department-manager/visitors/status/${status}?page=${page}&limit=${limit}`;
+    if (dateFilter) {
+      url += `&dateFilter=${encodeURIComponent(dateFilter)}`;
+    }
+    return get(url);
+  },
+
+  // Get visitors by provider
+  getVisitorsByProvider: (providerId: string, page: number = 1, limit: number = 20, dateFilter?: string) => {
+    let url = `/department-manager/visitors/provider/${providerId}?page=${page}&limit=${limit}`;
+    if (dateFilter) {
+      url += `&dateFilter=${encodeURIComponent(dateFilter)}`;
+    }
+    return get(url);
+  },
+
+  // Get visitors by department
+  getVisitorsByDepartment: (departmentId: string, page: number = 1, limit: number = 20, dateFilter?: string, status?: string) => {
+    let url = `/department-manager/visitors/department/${departmentId}?page=${page}&limit=${limit}`;
+    if (dateFilter) {
+      url += `&dateFilter=${encodeURIComponent(dateFilter)}`;
+    }
+    if (status) {
+      url += `&status=${encodeURIComponent(status)}`;
+    }
+    return get(url);
+  },
+
+  // Get managed departments
+  getManagedDepartments: () => get('/department-manager/departments'),
+
+  // Update department
+  updateDepartment: (departmentId: string, data: { department_name?: string; department_response_time_in_minutes?: number }) =>
+    put(`/department-manager/departments/${departmentId}`, data),
+
+  // Get response time analytics
+  getResponseTimeAnalytics: () => get('/department-manager/analytics/response-time'),
+
+  // Get department feedback
+  getDepartmentFeedback: (page: number = 1, limit: number = 20, dateFilter?: string, rating?: number) => {
+    let url = `/department-manager/feedback?page=${page}&limit=${limit}`;
+    if (dateFilter) {
+      url += `&dateFilter=${encodeURIComponent(dateFilter)}`;
+    }
+    if (rating) {
+      url += `&rating=${rating}`;
+    }
+    return get(url);
+  },
 };
 
 // ==================== SMART PARKING APIs ====================
@@ -660,33 +754,36 @@ export const permissionService = {
 export const statisticsService = {
   // Get service delivery statistics
   getServiceDeliveryStats: () => get('/statistics/service-delivery'),
-  
+
   // Get hourly service delivery statistics
   getHourlyServiceDeliveryStats: () => get('/statistics/hourly-service-delivery'),
-  
+
   // Get hourly parking statistics
   getHourlyParkingStats: () => get('/statistics/hourly-parking'),
-  
+
   // Get departments with leaders
   getDepartmentsWithLeaders: () => get('/statistics/departments-leaders'),
-  
+
   // Get employee statistics
   getEmployeeStats: () => get('/statistics/employees'),
-  
+
   // Get feedback totals
   getFeedbackTotals: () => get('/statistics/feedback-totals'),
-  
+
   // Get feedback average by department
   getFeedbackAverageByDepartment: () => get('/statistics/feedback-average'),
-  
+
   // Get currently parked statistics
   getCurrentlyParkedStats: () => get('/statistics/currently-parked'),
-  
+
   // Get flagged vehicles statistics
   getFlaggedVehiclesStats: () => get('/statistics/flagged-vehicles'),
-  
+
   // Get emergency cars statistics
   getEmergencyCarsStats: () => get('/statistics/emergency-cars'),
+
+  // Get parking slots information
+  getParkingSlots: () => get('/smartparking/slots'),
 };
 
 export default {

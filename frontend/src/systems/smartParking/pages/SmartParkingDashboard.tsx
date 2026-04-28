@@ -92,7 +92,7 @@ const SmartParkingDashboard: React.FC = () => {
   // Stats data from API
   const [stats, setStats] = useState({
     availableSlots: 0,
-    totalSlots: 200,
+    totalSlots: 350,
     staffVehicles: 0,
     reservedSlots: 0,
     newVisitors: 0,
@@ -101,7 +101,9 @@ const SmartParkingDashboard: React.FC = () => {
     flaggedButInside: 0,
     visitorVehicles: 0,
     visitorReserved: 0,
-    staffReserved: 0
+    staffReserved: 0,
+    regularAvailable: 0,
+    regularReserved: 0
   });
 
   // Flagged vehicles
@@ -158,24 +160,30 @@ const SmartParkingDashboard: React.FC = () => {
     setFlaggedLoading(true);
     try {
       const currentlyParkedResponse = await statisticsService.getCurrentlyParkedStats();
-      
+      const slotsResponse = await statisticsService.getParkingSlots();
+
       if (currentlyParkedResponse.success && currentlyParkedResponse.data) {
         const { total, by_driver_type } = currentlyParkedResponse.data;
-        
+        const slotsData = slotsResponse.success && slotsResponse.data ? slotsResponse.data.available_slots : null;
+
         setStats(prev => ({
           ...prev,
           totalInside: total || 0,
-          availableSlots: Math.max(0, prev.totalSlots - (total || 0)),
+          totalSlots: slotsData?.totalSlots || 350,
+          availableSlots: (slotsData?.visitorsAvailableSlots || 0) + (slotsData?.staffAvailableSlots || 0) + (slotsData?.RegularAvailableSlots || 0),
           visitorVehicles: by_driver_type?.Visitor || 0,
-          staffVehicles: (by_driver_type?.Staff || 0) + (by_driver_type?.Regular || 0)
+          staffVehicles: (by_driver_type?.Staff || 0) + (by_driver_type?.Regular || 0),
+          staffReserved: slotsData?.staffReservedSlots || 0,
+          visitorReserved: slotsData?.visitorsReservedSlots || 0,
+          regularAvailable: slotsData?.RegularAvailableSlots || 0,
+          regularReserved: slotsData?.RegularReservedSlots || 0
         }));
         setStatsLoading(false);
       }
-      
 
 
       await fetchFlaggedVehicles(flaggedPage, false);
-      
+
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -297,6 +305,35 @@ const SmartParkingDashboard: React.FC = () => {
     if (hours >= 9) return 'bg-red-500/20 text-red-600 border border-red-200';
     if (hours >= 5) return 'bg-orange-500/20 text-orange-600 border border-orange-200';
     return 'bg-gray-500/20 text-gray-600 border border-gray-200';
+  };
+
+  // Helper function to get card colors based on occupancy percentage
+  const getOccupancyColors = (occupied: number, total: number) => {
+    const percentage = (occupied / total) * 100;
+    if (percentage >= 100) return {
+      bg: 'bg-gradient-to-br from-red-500/20 to-red-600/20',
+      text: 'text-red-700',
+      border: 'border-red-200',
+      icon: 'text-red-700'
+    };
+    if (percentage >= 90) return {
+      bg: 'bg-gradient-to-br from-orange-500/20 to-orange-600/20',
+      text: 'text-orange-700',
+      border: 'border-orange-200',
+      icon: 'text-orange-700'
+    };
+    if (percentage >= 80) return {
+      bg: 'bg-gradient-to-br from-yellow-500/20 to-yellow-600/20',
+      text: 'text-yellow-700',
+      border: 'border-yellow-200',
+      icon: 'text-yellow-700'
+    };
+    return {
+      bg: 'bg-gradient-to-br from-blue-500/20 to-blue-600/20',
+      text: 'text-blue-700',
+      border: 'border-blue-200',
+      icon: 'text-blue-700'
+    };
   };
 
   const handleVerify = async () => {
@@ -452,32 +489,9 @@ const SmartParkingDashboard: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30 p-2 sm:p-3 md:p-4 lg:p-6">
 
         {/* Main Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-          {/* Total Inside */}
-          <button
-            onClick={() => navigate('/smart-parking/checkout-vehicle')}
-            className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20 w-full text-left"
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-emerald-700 text-sm font-medium mb-1">Total Inside</p>
-                {statsLoading ? (
-                  <div className="h-9 w-16 bg-emerald-200/50 rounded animate-pulse mt-1"></div>
-                ) : (
-                  <h3 className="text-3xl font-bold text-emerald-700">{stats.totalInside}</h3>
-                )}
-                <p className="text-gray-600 text-xs mt-2 flex items-center gap-1">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Currently parked
-                </p>
-              </div>
-              <div className="p-3 bg-gradient-to-br from-gray-100 to-gray-200/50 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
-                <FiTruck className="w-6 h-6 text-emerald-700" />
-              </div>
-            </div>
-          </button>
-
-          {/* Available Slots */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-4">
+          {/* Regular Available */}
+                    {/* Available Slots */}
           <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
             <div className="flex items-start justify-between">
               <div>
@@ -497,6 +511,27 @@ const SmartParkingDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+
+          <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-emerald-700 text-sm font-medium mb-1">Regular Available</p>
+                {statsLoading ? (
+                  <div className="h-9 w-16 bg-emerald-200/50 rounded animate-pulse mt-1"></div>
+                ) : (
+                  <h3 className="text-3xl font-bold text-emerald-700">{stats.regularAvailable}</h3>
+                )}
+                <p className="text-gray-600 text-xs mt-2 flex items-center gap-1">
+                  <FiMapPin className="w-3 h-3" /> {stats.regularReserved} allocated
+                </p>
+              </div>
+              <div className="p-3 bg-white/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
+                <FiTruck className="w-6 h-6 text-emerald-700" />
+              </div>
+            </div>
+          </div>
+
+
 
           {/* Staff Reserved */}
           <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
@@ -581,15 +616,15 @@ const SmartParkingDashboard: React.FC = () => {
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                     <XAxis
                       dataKey="hour"
-                      tickFormatter={(value) => `${value.toString().padStart(2, '0')}:00`}
+                      tickFormatter={(value: number) => `${value.toString().padStart(2, '0')}:00`}
                       stroke="#9ca3af"
-                      fontSize={12}
+                      tick={{ fontSize: 12 }}
                       axisLine={false}
                       tickLine={false}
                     />
                     <YAxis
                       stroke="#9ca3af"
-                      fontSize={12}
+                      tick={{ fontSize: 12 }}
                       axisLine={false}
                       tickLine={false}
                       label={{
@@ -625,9 +660,11 @@ const SmartParkingDashboard: React.FC = () => {
                   <p className="text-2xl font-bold text-red-600">
                     {hourlyParkingData.reduce((sum, d) => sum + d.check_out, 0)}
                   </p>
-                </div>
-              </div>
             </div>
+          </div>
+
+          
+        </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-48 text-gray-400">
               <FiTrendingUp className="w-12 h-12 mb-2 opacity-50" />
