@@ -19,6 +19,7 @@ module.exports = async function create_user(req, res, next) {
         } = req.body || {}
 
         let dpt = null
+        let dpt_to_update = null
 
         // Validate essential required fields
         if (!full_name || !email || !telephone) {
@@ -43,9 +44,39 @@ module.exports = async function create_user(req, res, next) {
                 }
 
                 dpt = dept
+                dpt_to_update = dept // Store the department to update total_employees later
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    type: "warning",
+                    message: `Invalid department_id format.`
+                })
             }
         }
 
+        // check if department unit exists if specified
+        if(department_unit && department_unit !== 'Not specified') { 
+            if(mongoose.Types.ObjectId.isValid(department_unit)) {
+                const deptUnitExists = await department_model.findById(department_unit)
+                if (!deptUnitExists) {
+                    return res.status(404).json({
+                        success: false,
+                        type: "warning",
+                        message: `This department unit not found! create it or use another department unit.`
+                    })
+                }
+
+                dpt_to_update = deptUnitExists // If department unit is specified and valid, update this one instead of the main department
+
+        } else {
+            return res.status(400).json({
+                success: false,
+                type: "warning",
+                message: `Invalid department_unit format.`
+            })
+        }
+
+    }
         // Uniqueness check
         const query_conditions = []
         if (email) query_conditions.push({ email })
@@ -191,6 +222,12 @@ module.exports = async function create_user(req, res, next) {
                 dept.total_employees = (dept.total_employees || 0) + 1
                 await dept.save()
             }
+
+            if(dpt_to_update && dpt_to_update._id.toString() !== department_id) {
+                dpt_to_update.total_employees = (dpt_to_update.total_employees || 0) + 1
+                await dpt_to_update.save()
+            }
+
         }
 
         return res.status(201).json({

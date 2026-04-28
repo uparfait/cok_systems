@@ -2,7 +2,8 @@
 // This component provides consistent sidebar and header for all dashboard pages
 
 import React, { useState, useEffect } from 'react';
-import { FiLogOut, FiHome, FiUsers, FiGrid, FiClock, FiCheckCircle, FiFile } from 'react-icons/fi';
+import { FiLogOut, FiHome, FiUsers, FiGrid, FiClock, FiCheckCircle, FiFile, FiActivity, FiList } from 'react-icons/fi';
+import { HiOutlineClipboardList } from 'react-icons/hi';
 
 // Import shared components
 import { DashboardHeader, NotificationBell, getInitialNotifications, Logout, Profile } from './index';
@@ -49,8 +50,9 @@ const getNavItems = (role: DashboardRole): NavItem[] => {
     case 'employee':
       return [
         { id: 'dashboard', label: 'Dashboard', icon: FiHome },
-        { id: 'services', label: 'Provide Services', icon: FiUsers },
-        { id: 'availability', label: 'Availability', icon: FiGrid },
+        { id: 'performance', label: 'Performance Analytics', icon: FiActivity },
+        { id: 'history', label: 'Service History', icon: FiFile },
+        { id: 'queue', label: 'Department Queue', icon: FiList },
       ];
     default:
       return [];

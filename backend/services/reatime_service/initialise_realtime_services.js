@@ -49,7 +49,6 @@ async function verifySocketToken(token) {
             }
         }
         
-        console.log('Verifying token, extracted:', extractedToken ? 'present' : 'null');
         
         // Verify the token
         const verification = jwt.verifyAccessToken(extractedToken);
@@ -58,7 +57,6 @@ async function verifySocketToken(token) {
             return null;
         }
         
-        console.log('Token verified, userId:', verification.decoded.userId);
         
         // Get user from database
         const user = await User.findById(verification.decoded.userId);
@@ -108,9 +106,6 @@ module.exports = async function InitialiseAllRealtimeServices() {
                           socket.handshake.headers.authorization?.replace('Bearer ', '') ||
                           socket.handshake.query.token;
             
-            console.log('Socket handshake - Auth token:', token ? 'present' : 'missing');
-            console.log('Socket handshake - Headers:', JSON.stringify(socket.handshake.headers));
-            console.log('Socket handshake - Auth:', JSON.stringify(socket.handshake.auth));
             
             // If no token provided, allow connection but mark as unauthenticated
             if (!token) {

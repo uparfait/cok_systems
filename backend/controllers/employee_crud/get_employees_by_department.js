@@ -12,19 +12,26 @@ module.exports = async function get_employees_by_department(req, res, next) {
             department_name = null,
             is_active = null,
             is_account_activated = null,
-            limit = 1000, 
+            limit = 50, 
             page = 1 
         } = req.query || {};
 
-        const limit_val = Math.min(parseInt(1000), 500);
+        const limit_val = Math.min(parseInt(limit), 50);
         const skip_val = (parseInt(page) - 1) * limit_val;
 
         // Build filter object
         let filter = {};
 
-        // If department_id is provided, use it directly
+        // If department_id is provided, use it directly and department_unit
         if (department_id) {
-            filter.department = department_id;
+            
+            
+     // filter where department field matches the provided department_id or department_unit matches the provided department_id (in case department_id is actually a department unit id)
+            filter.$or = [
+                { department: department_id },
+                { department_unit: department_id }
+            ];
+
         } 
         // If department_name is provided, first find the department
         else if (department_name) {
@@ -71,6 +78,8 @@ module.exports = async function get_employees_by_department(req, res, next) {
             .skip(skip_val)
             .sort({ created_date: -1 })
             .populate('department', 'department_name department_id');
+
+            
 
         const total_count = await User.countDocuments(filter);
 

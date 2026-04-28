@@ -146,7 +146,7 @@ function GetAllUsers() {
  */
 async function MarkMessageAsRead(messageId, userId) {
     try {
-        const message = InBoxMessages.find(msg => msg.messageId === messageId);
+        let message = InBoxMessages.find(msg => msg.messageId === messageId);
         
         if (!message) {
             return { success: false, error: 'Message not found' };
@@ -311,9 +311,7 @@ async function DeleteGlobalMessage(messageId, userId) {
     }
     
     // Soft delete
-    Global_Messages[messageIndex].isDeleted = true;
-    Global_Messages[messageIndex].deletedAt = new Date().toISOString();
-    Global_Messages[messageIndex].message = '[Message deleted]';
+    Global_Messages =  Global_Messages.filter((_,i) => i !== messageIndex)
     
     // Also remove from read tracking
     MessagesWithWhoReadIt = MessagesWithWhoReadIt.filter(msg => msg.messageId !== messageId);
@@ -342,9 +340,7 @@ async function DeleteInboxMessage(messageId, userId) {
     }
     
     // Soft delete
-    InBoxMessages[messageIndex].isDeleted = true;
-    InBoxMessages[messageIndex].deletedAt = new Date().toISOString();
-    InBoxMessages[messageIndex].message = '[Message deleted]';
+      InBoxMessages = InBoxMessages.filter((_,i) => i !== messageIndex)
     
     return { success: true, messageId };
 }

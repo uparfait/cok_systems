@@ -1,5 +1,3 @@
-// EmployeeDashboard.tsx - Dashboard content page for Employee
-// No MainLayout here! The Wrapper file handles that.
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { FiClock, FiCheckCircle, FiRefreshCw } from 'react-icons/fi';
@@ -31,22 +29,24 @@ const EmployeeDashboard: React.FC = () => {
       setLoading(true);
       setFirstLoad(true);
       const response = await serviceDeliveryService.getAll() as any;
+
+      // so for now as backend filter vistors automatically no need for frontend to filter my visitors or the one assigned to my department and we must remove the logic to filter
       
       if (response && (response.data || response.success || Array.isArray(response))) {
         const allVisitors = Array.isArray(response.data) ? response.data : Array.isArray(response) ? response : [];
         
-        const myVisitors = allVisitors.filter((v: any) => {
-          if (!v.services_status || !Array.isArray(v.services_status)) return false;
-          return v.services_status.some((status: any) => String(status.provider_id) === myUserId);
-        });
+        // remove all logics to filter my visitors or the one assigned to my department and we must remove the logic to filter
+        const myVisitors = allVisitors; // as backend will filter visitors assigned to me or my department
         
         const records = myVisitors.map((visitor: any) => {
-          const serviceStatus = visitor.services_status?.find((s: any) => String(s.provider_id) === myUserId);
+          const serviceStatus = visitor.services_status?.find((s: any) => true); // no need to filter for specific service as we want to show the overall status of the visitor based on all services
           return { status: (serviceStatus?.s_type || visitor.status || '').toLowerCase() };
         });
+
+        console.log(records);
         
         setStats({
-          pending: records.filter((r: any) => r.status === 'not_started' || r.status === 'inprogress').length,
+          pending: records.filter((r: any) => r.status === 'not started' || r.status === 'inprogress').length,
           transfered: records.filter((r: any) => r.status === 'transfered' || r.status === 'transferred').length,
           completed: records.filter((r: any) => r.status === 'completed').length
         });
@@ -61,8 +61,6 @@ const EmployeeDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchDashboardStats();
-    const interval = setInterval(fetchDashboardStats, 10000); 
-    return () => clearInterval(interval);
   }, [fetchDashboardStats]);
 
   // Listen for new visitor assigned event
@@ -70,12 +68,6 @@ const EmployeeDashboard: React.FC = () => {
     if (!socket || !isConnected) return;
 
     const handleNewVisitorAssigned = (data: any) => {
-      console.log('New visitor assigned to you:', data);
-      // Refresh dashboard stats when a new visitor is assigned
-      if (data?.message) {
-        // Show notification or toast if needed
-        console.log('Notification:', data.message);
-      }
       // Reload dashboard stats
       fetchDashboardStats();
     };

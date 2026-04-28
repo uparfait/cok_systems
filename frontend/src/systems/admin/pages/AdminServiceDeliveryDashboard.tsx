@@ -11,14 +11,13 @@ import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import { useToast } from '../../../core/contexts/ToastContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { 
-  FiUsers, FiUserPlus, FiUserMinus, FiClock, FiCheckCircle, FiX,
-  FiRefreshCw, FiSearch, FiFilter, FiCalendar, FiDownload, FiAlertCircle,
-  FiFileText
+import {
+  FiUsers, FiUserPlus, FiClock, FiCheckCircle,
+  FiRefreshCw, FiSearch, FiDownload
 } from 'react-icons/fi';
 import { HiOutlineClipboardList } from 'react-icons/hi';
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 
 // Types
@@ -501,11 +500,11 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                  <XAxis 
-                    dataKey="hour" 
-                    tickFormatter={(value) => `${value.toString().padStart(2, '0')}:00`}
+                  <XAxis
+                    dataKey="hour"
+                    tickFormatter={(value: number) => `${value.toString().padStart(2, '0')}:00`}
                     stroke="#9ca3af"
-                    fontSize={12}
+                    tick={{ fontSize: 12 }}
                     label={{
                       value: 'Hour of Day',
                       position: 'insideBottom',
@@ -513,7 +512,7 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
                       style: { fill: '#6b7280', fontSize: 11, fontWeight: 500 }
                     }}
                   />
-                  <YAxis stroke="#9ca3af" fontSize={12}
+                  <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }}
                    label={{ 
                     value: 'Number of Visitors', 
                     angle: -90, 

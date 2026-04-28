@@ -3,15 +3,16 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { 
-  FiSearch, FiFilter, FiArrowRight, FiUser, FiCheckCircle, FiX, 
-  FiClock, FiRefreshCw, FiPlus, FiEye, FiEdit, FiTrash2, FiArrowRightCircle, FiPlay, FiSquare
+import {
+  FiSearch, FiUser, FiUsers, FiCheckCircle, FiX, FiTrendingUp, FiMessageSquare,
+  FiClock, FiRefreshCw, FiPlus, FiEye, FiEdit, FiArrowRightCircle, FiSquare, FiFileText, FiBriefcase
 } from "react-icons/fi";
 
 // Import API Services
-import { serviceDeliveryService, employeeService, departmentService } from "../../../core/services/adminService";
+import { serviceDeliveryService, employeeService, departmentService, departmentManagerService } from "../../../core/services/adminService";
 import { useAuth } from "../../../core/contexts/AuthContext";
 import { useSocket } from "../../../core/contexts/SocketContext";
+import { useToast } from "../../../core/contexts/ToastContext";
 
 // Custom Live Timer Component
 const LiveTimer: React.FC<{ startTime: string }> = ({ startTime }) => {
@@ -37,7 +38,6 @@ const LiveTimer: React.FC<{ startTime: string }> = ({ startTime }) => {
 
 // Tab Components
 import DepartmentAvailabilityTab from "../components/departmentFlow/tabs/DepartmentAvailabilityTab";
-import ReportsTab from "../components/departmentFlow/tabs/ReportsTab";
 import { ViewEmployeeModal, EditEmployeeModal } from "../components/departmentFlow/EmployeeModals"; // Removed DeleteEmployeeModal
 import ServeVisitorModal from "../components/employeeFlow/ServeVisitorModal";
 
@@ -256,6 +256,766 @@ const AddEmployeeModalContent: React.FC<AddEmployeeModalContentProps> = ({ isOpe
   );
 };
 
+// RequestsTable component for pending/active/completed requests
+interface RequestsTableProps {
+  status: 'pending' | 'active' | 'completed';
+  title: string;
+  departmentId: string;
+  departmentName: string;
+  showError: (msg: string) => void;
+  setSelectedActiveTask: (task: any) => void;
+  setShowActiveTaskModal: (show: boolean) => void;
+  setTransferVisitor: (visitor: any) => void;
+  setShowTransferModal: (show: boolean) => void;
+  showInfo: (msg: string) => void;
+  getInitials: (name: string) => string;
+}
+
+const RequestsTable: React.FC<RequestsTableProps> = ({
+  status,
+  title,
+  departmentId,
+  departmentName,
+  showError,
+  setSelectedActiveTask,
+  setShowActiveTaskModal,
+  setTransferVisitor,
+  setShowTransferModal,
+  showInfo,
+  getInitials
+}) => {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [dateFilter, setDateFilter] = useState<string>('');
+
+  const fetchRequests = async (currentPage: number = 1, filter: string = '') => {
+    setLoading(true);
+    try {
+      const response = await departmentManagerService.getVisitorsByStatus(status, currentPage, 20, filter);
+      if (response.success && response.data) {
+        setRequests(response.data);
+        setTotal(response.total || 0);
+        setPage(currentPage);
+      } else {
+        setRequests([]);
+        setTotal(0);
+      }
+    } catch (error: any) {
+      console.error(`Failed to fetch ${status} requests:`, error);
+      showError(`Failed to load ${status} requests`);
+      setRequests([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests(1, dateFilter);
+  }, [status]);
+
+  const handleDateFilterChange = (filter: string) => {
+    setDateFilter(filter);
+    fetchRequests(1, filter);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-orange-100 text-orange-700';
+      case 'active': return 'bg-blue-100 text-blue-700';
+      case 'completed': return 'bg-green-100 text-green-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-[14px] shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+      <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-white">
+        <h2 className="text-[16px] font-bold text-blue-600 uppercase">{title}</h2>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search requests..."
+              className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <button
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 rounded-lg text-white text-sm font-medium hover:bg-green-700"
+          >
+            <FiSearch className="w-4 h-4" /> Search
+          </button>
+          <select
+            value={dateFilter}
+            onChange={(e) => handleDateFilterChange(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All Time</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="this_week">This Week</option>
+            <option value="last_week">Last Week</option>
+            <option value="this_month">This Month</option>
+            <option value="last_month">Last Month</option>
+          </select>
+          <button
+            onClick={() => fetchRequests(page, dateFilter)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#0284C7] rounded-lg text-white text-sm font-medium hover:bg-[#0369A1]"
+          >
+            <FiRefreshCw className="w-4 h-4" /> Refresh
+          </button>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+        {loading ? (
+          <div className="flex items-center justify-center p-8 min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading {status} requests...</p>
+            </div>
+          </div>
+        ) : requests.length === 0 ? (
+          <div className="flex items-center justify-center p-8 min-h-[400px]">
+            <div className="text-center text-gray-500">
+              <FiFileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium">No {status} requests found</p>
+              <p className="text-sm">There are currently no {status.toLowerCase()} visitor requests.</p>
+            </div>
+          </div>
+        ) : (
+          <table className="w-full min-w-[1000px] table-fixed">
+            <thead className="bg-[#F8FAFC] sticky top-0 z-10">
+              <tr>
+                <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">VISITOR</th>
+                <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">CONTACT</th>
+                <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">DEPARTMENT</th>
+                <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">PROVIDER</th>
+                <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">ENTRY TIME</th>
+                <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">STATUS</th>
+                {status === 'active' && (
+                  <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">DURATION</th>
+                )}
+                {(status === 'pending' || status === 'active') && (
+                  <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">ACTION</th>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {requests.map((request: any) => (
+                <tr key={request._id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs mr-3">
+                        {request.full_name ? getInitials(request.full_name) : '?'}
+                      </div>
+                      <p className="text-sm font-semibold text-gray-800">{request.full_name || 'Unknown'}</p>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <p className="text-sm text-gray-600">{request.telephone || '_____'}</p>
+                    <p className="text-xs text-gray-400">{request.email || ''}</p>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <p className="text-sm text-gray-600">
+                      {request.departments_assigned?.[0]?.department_name || 'Unknown'}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <p className="text-sm text-gray-600">
+                      {request.departments_assigned?.[0]?.provider_name || 'Unassigned'}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <p className="text-sm text-gray-500">
+                      {request.entry_date ? new Date(request.entry_date).toLocaleString() : 'N/A'}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${getStatusColor(status)}`}>
+                      {status === 'pending' ? 'Not Started' : status === 'active' ? 'In Progress' : 'Completed'}
+                    </span>
+                  </td>
+                  {status === 'active' && (
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold bg-[#e3f2fd] text-[#1a73e8]">
+                        <FiClock className="w-3 h-3 animate-pulse" />
+                        <LiveTimer startTime={request.entry_date} />
+                      </span>
+                    </td>
+                  )}
+                  {(status === 'pending' || status === 'active') && (
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {status === 'pending' && (
+                        <button
+                          onClick={() => {
+                            setSelectedActiveTask(request);
+                            setShowActiveTaskModal(true);
+                          }}
+                          className="flex items-center justify-center gap-1 h-8 w-20 bg-blue-600 text-white text-[12px] font-bold rounded-[6px] hover:bg-blue-700 transition-colors shadow-sm"
+                        >
+                          Details
+                        </button>
+                      )}
+                      {status === 'active' && (
+                        <button
+                          onClick={() => {
+                            setTransferVisitor(request);
+                            setShowTransferModal(true);
+                            showInfo(`Preparing to transfer ${request.full_name || 'visitor'}...`);
+                          }}
+                          className="flex items-center justify-center gap-1 h-8 w-24 bg-[#7b1fa2] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#6a1b9a] transition-colors shadow-sm"
+                        >
+                          <FiArrowRightCircle className="w-3 h-3" /> Transfer
+                        </button>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {total > 0 && (
+        <div className="bg-white px-6 py-4 border-t border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-700">
+              Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, total)} of {total} entries
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => fetchRequests(page - 1, dateFilter)}
+                disabled={page === 1 || loading}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+              >
+                ← Previous
+              </button>
+
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-gray-600">Page</span>
+                <span className="px-3 py-1 bg-blue-50 text-blue-700 font-medium rounded">{page}</span>
+              </div>
+
+              <button
+                onClick={() => fetchRequests(page + 1, dateFilter)}
+                disabled={page * 20 >= total || loading}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Departments Management Tab
+const DepartmentsTab: React.FC<{ showError: (msg: string) => void; showSuccess: (msg: string) => void }> = ({ showError, showSuccess }) => {
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingDepartment, setEditingDepartment] = useState<any>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  const fetchDepartments = async () => {
+    setLoading(true);
+    try {
+      const response = await departmentManagerService.getManagedDepartments();
+      if (response.success && response.data) {
+        setDepartments(response.data);
+      } else {
+        setDepartments([]);
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch departments:', error);
+      showError('Failed to load departments');
+      setDepartments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDepartments();
+  }, []);
+
+  const handleUpdateDepartment = async (departmentId: string, updates: any) => {
+    try {
+      const response = await departmentManagerService.updateDepartment(departmentId, updates);
+      if (response.success) {
+        showSuccess('Department updated successfully');
+        setShowEditModal(false);
+        setEditingDepartment(null);
+        fetchDepartments(); // Refresh the list
+      } else {
+        showError(response.message || 'Failed to update department');
+      }
+    } catch (error: any) {
+      showError(error.message || 'Failed to update department');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Department Management</h1>
+          <p className="text-gray-600 mt-1">Manage departments under your supervision</p>
+        </div>
+        <button
+          onClick={fetchDepartments}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <FiRefreshCw className="w-4 h-4" />
+          Refresh
+        </button>
+      </div>
+
+      {/* Departments Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <div className="min-h-[600px] flex flex-col">
+            {loading ? (
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading departments...</p>
+                </div>
+              </div>
+            ) : departments.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="text-center text-gray-500">
+                  <FiBriefcase className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium">No departments found</p>
+                  <p className="text-sm">You are not assigned as a leader for any departments.</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <table className="w-full min-w-[800px]">
+                  <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department ID</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Response Time</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leader</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {departments.map((dept: any) => (
+                      <tr key={dept._id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{dept.department_name}</div>
+                          <div className="text-sm text-gray-500">
+                            {dept.sub_department_mng?.is_sub_department ? 'Sub-Department' : 'Main Department'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{dept.department_id}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {dept.department_response_time_in_minutes > 0
+                              ? `${dept.department_response_time_in_minutes} minutes`
+                              : 'Not set'
+                            }
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {dept.department_leader?.full_name || 'Not assigned'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button
+                            onClick={() => {
+                              setEditingDepartment(dept);
+                              setShowEditModal(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-900 px-3 py-1.5 rounded-md hover:bg-blue-50 transition-colors text-xs font-medium"
+                          >
+                            Edit Details
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Fill remaining space to maintain fixed height */}
+                <div className="flex-1 bg-white"></div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Edit Department Modal */}
+      {showEditModal && editingDepartment && (
+        <div className="fixed inset-0 bg-transparent backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Edit Department</h2>
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingDepartment(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FiX className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Department Name</label>
+                  <input
+                    type="text"
+                    defaultValue={editingDepartment.department_name}
+                    onChange={(e) => {
+                      editingDepartment.department_name = e.target.value;
+                    }}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter department name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Response Time (minutes)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    defaultValue={editingDepartment.department_response_time_in_minutes || ''}
+                    onChange={(e) => {
+                      editingDepartment.department_response_time_in_minutes = parseInt(e.target.value) || 0;
+                    }}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter response time in minutes"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Set to 0 to disable response time tracking</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingDepartment(null);
+                  }}
+                  className="flex-1 px-4 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleUpdateDepartment(editingDepartment._id, {
+                    department_name: editingDepartment.department_name,
+                    department_response_time_in_minutes: editingDepartment.department_response_time_in_minutes
+                  })}
+                  className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Update Department
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Feedback Management Tab
+const FeedbackTab: React.FC<{ showError: (msg: string) => void }> = ({ showError }) => {
+  const [feedback, setFeedback] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [analytics, setAnalytics] = useState<any>({});
+  const [dateFilter, setDateFilter] = useState<string>('');
+  const [ratingFilter, setRatingFilter] = useState<number | ''>('');
+
+  const fetchFeedback = async (currentPage: number = 1, dateFilter: string = '', rating: number | '' = '') => {
+    setLoading(true);
+    try {
+      const response = await departmentManagerService.getDepartmentFeedback(currentPage, 20, dateFilter, rating || undefined);
+      if (response.success && response.data) {
+        setFeedback(response.data);
+        setTotal(response.total || 0);
+        setAnalytics(response.analytics || {});
+        setPage(currentPage);
+      } else {
+        setFeedback([]);
+        setTotal(0);
+        setAnalytics({});
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch feedback:', error);
+      showError('Failed to load feedback');
+      setFeedback([]);
+      setTotal(0);
+      setAnalytics({});
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFeedback(1, dateFilter, ratingFilter);
+  }, []);
+
+  const handleFiltersChange = () => {
+    fetchFeedback(1, dateFilter, ratingFilter);
+  };
+
+  const getRatingColor = (rating: number) => {
+    if (rating >= 8) return 'text-green-600';
+    if (rating >= 6) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const getRatingStars = (rating: number) => {
+    return '★'.repeat(rating) + '☆'.repeat(10 - rating);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Feedback & Analytics</h1>
+          <p className="text-gray-600 mt-1">Monitor feedback and performance metrics for your departments</p>
+        </div>
+        <button
+          onClick={() => fetchFeedback(page, dateFilter, ratingFilter)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <FiRefreshCw className="w-4 h-4" />
+          Refresh
+        </button>
+      </div>
+
+      {/* Analytics Cards */}
+      {analytics.average_rating && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-2xl font-bold text-gray-800">{analytics.average_rating?.toFixed(1) || '0.0'}</p>
+                <p className="text-sm text-gray-600 mt-1">Average Rating</p>
+              </div>
+              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <FiMessageSquare className="w-6 h-6 text-yellow-500" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-2xl font-bold text-gray-800">{analytics.total_feedback || 0}</p>
+                <p className="text-sm text-gray-600 mt-1">Total Feedback</p>
+              </div>
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <FiTrendingUp className="w-6 h-6 text-blue-500" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-2xl font-bold text-gray-800">
+                  {analytics.average_rating >= 8 ? 'Excellent' :
+                   analytics.average_rating >= 6 ? 'Good' : 'Needs Improvement'}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">Performance Status</p>
+              </div>
+              <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                analytics.average_rating >= 8 ? 'bg-green-100' :
+                analytics.average_rating >= 6 ? 'bg-yellow-100' : 'bg-red-100'
+              }`}>
+                <FiMessageSquare className={`w-6 h-6 ${
+                  analytics.average_rating >= 8 ? 'text-green-500' :
+                  analytics.average_rating >= 6 ? 'text-yellow-500' : 'text-red-500'
+                }`} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="flex gap-4 items-center">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Date</label>
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Time</option>
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="this_week">This Week</option>
+              <option value="last_week">Last Week</option>
+              <option value="this_month">This Month</option>
+              <option value="last_month">Last Month</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Rating</label>
+            <select
+              value={ratingFilter}
+              onChange={(e) => setRatingFilter(e.target.value ? parseInt(e.target.value) : '')}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Ratings</option>
+              <option value="10">5 Stars (Excellent)</option>
+              <option value="8">4 Stars (Good)</option>
+              <option value="6">3 Stars (Average)</option>
+              <option value="4">2 Stars (Poor)</option>
+              <option value="2">1 Star (Very Poor)</option>
+            </select>
+          </div>
+
+          <div className="flex items-end">
+            <button
+              onClick={handleFiltersChange}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Apply Filters
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Feedback Table */}
+      <div className="bg-white rounded-[14px] shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            {loading ? (
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading feedback...</p>
+                </div>
+              </div>
+            ) : feedback.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="text-center text-gray-500">
+                  <FiMessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium">No feedback found</p>
+                  <p className="text-sm">There is no feedback available for your departments.</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <table className="w-full min-w-[1000px] table-fixed">
+                  <thead className="bg-[#F8FAFC] sticky top-0 z-10">
+                    <tr>
+                      <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">VISITOR</th>
+                      <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">DEPARTMENT</th>
+                      <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">RATING</th>
+                      <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">FEEDBACK</th>
+                      <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">DATE</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {feedback.map((item: any) => (
+                      <tr key={item._id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs mr-3">
+                              {(item.user_name || 'Unknown').charAt(0).toUpperCase()}
+                            </div>
+                            <p className="text-sm font-semibold text-gray-800">{item.user_name || 'Anonymous'}</p>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <p className="text-sm text-gray-600">{item.department_name || 'Unknown'}</p>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-lg font-bold ${getRatingColor(item.rate)}`}>
+                              {getRatingStars(item.rate)}
+                            </span>
+                            <span className="text-sm text-gray-600">({item.rate}/10)</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div
+                            className="text-sm text-gray-900 max-w-xs truncate cursor-pointer hover:text-blue-600"
+                            onClick={() => {
+                              alert(`Feedback Details:\n\n${item.textmessage || 'No feedback message'}\n\nRating: ${item.rate}/10\nDate: ${item.created_date ? new Date(item.created_date).toLocaleDateString() : 'Unknown'}`);
+                            }}
+                          >
+                            {item.textmessage || 'No feedback message'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <p className="text-sm text-gray-500">
+                            {item.created_date ? new Date(item.created_date).toLocaleDateString() : 'Unknown'}
+                          </p>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Fill remaining space to maintain fixed height */}
+                <div className="flex-1 bg-white"></div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Pagination */}
+        {total > 0 && (
+          <div className="bg-white px-6 py-4 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, total)} of {total} entries
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => fetchFeedback(page - 1, dateFilter, ratingFilter)}
+                  disabled={page === 1 || loading}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+                >
+                  ← Previous
+                </button>
+
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-gray-600">Page</span>
+                  <span className="px-3 py-1 bg-blue-50 text-blue-700 font-medium rounded">{page}</span>
+                </div>
+
+                <button
+                  onClick={() => fetchFeedback(page + 1, dateFilter, ratingFilter)}
+                  disabled={page * 20 >= total || loading}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+   
+  );
+};
+
 // Wrapper component for Edit Employee Modal
 interface EditEmployeeModalContentProps {
   isOpen: boolean;
@@ -418,12 +1178,19 @@ const DepartmentManagerDashboard: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const { socket, isConnected } = useSocket();
-  
-  const departmentId = user?.departmentId || user?.department_id;
-  const departmentName = user?.departmentName || user?.department_name;
+  const { showSuccess, showError, showWarning, showInfo } = useToast();
+
+  const departmentId = user?.departmentId || user?.department_id || '';
+  const departmentName = user?.departmentName || user?.department_name || '';
   
   const tabParam = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState(tabParam || 'dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'employees' | 'departments' | 'feedback' | 'by-department' | 'by-provider' | 'availability' | 'active-tasks' | 'completed-requests'>('dashboard');
+
+  // Function to update both activeTab and URL
+  const navigateToTab = (tab: typeof activeTab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [allDepartmentVisitors, setAllDepartmentVisitors] = useState<Visitor[]>([]);
@@ -448,6 +1215,15 @@ const DepartmentManagerDashboard: React.FC = () => {
   // MODIFICATION 3: Removed showDeleteEmployeeModal state completely
   const [selectedDeptEmployee, setSelectedDeptEmployee] = useState<Employee | null>(null);
 
+  // Active tasks modal
+  const [showActiveTaskModal, setShowActiveTaskModal] = useState(false);
+  const [selectedActiveTask, setSelectedActiveTask] = useState<any>(null);
+
+  // Sub-departments for transfer
+  const [subDepartments, setSubDepartments] = useState<any[]>([]);
+  const [loadingSubDepartments, setLoadingSubDepartments] = useState(false);
+  const [selectedSubDepartment, setSelectedSubDepartment] = useState<string>('');
+
   const [showServeModal, setShowServeModal] = useState(false);
   const [servingVisitor, setServingVisitor] = useState<Visitor | null>(null);
   const [servingEmployee, setServingEmployee] = useState<Employee | null>(null);
@@ -460,15 +1236,44 @@ const DepartmentManagerDashboard: React.FC = () => {
   const [transferring, setTransferring] = useState(false);
   const [transferEmployees, setTransferEmployees] = useState<Employee[]>([]);
   const [transferEmployeesLoading, setTransferEmployeesLoading] = useState(false);
+
+  // Employee pagination state
+  const [employeePage, setEmployeePage] = useState(1);
+  const [employeeTotal, setEmployeeTotal] = useState(0);
+  const [employeeLoading, setEmployeeLoading] = useState(false);
+
+  // Dashboard statistics state
+  const [dashboardStats, setDashboardStats] = useState({
+    pending: 0,
+    active: 0,
+    transferred: 0,
+    completed: 0,
+    totalEmployees: 0,
+    totalFeedback: 0,
+    averageRating: 0
+  });
+  const [dashboardLoading, setDashboardLoading] = useState(false);
   
   const [visitorsByDepartment, setVisitorsByDepartment] = useState<any[]>([]);
   const [visitorsByProvider, setVisitorsByProvider] = useState<any[]>([]);
   const [loadingByFilters, setLoadingByFilters] = useState(false);
 
+  // Active tasks state (for Head of Department)
+  const [activeTasks, setActiveTasks] = useState<any[]>([]);
+  const [activeTasksLoading, setActiveTasksLoading] = useState(false);
+  const [activeTasksPage, setActiveTasksPage] = useState(1);
+  const [activeTasksTotal, setActiveTasksTotal] = useState(0);
+  const [activeTasksSearch, setActiveTasksSearch] = useState('');
+
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab) setActiveTab(tab);
-    else setActiveTab('dashboard');
+    const validTabs: Array<'dashboard' | 'employees' | 'departments' | 'feedback' | 'by-department' | 'by-provider' | 'availability' | 'active-tasks' | 'completed-requests'> =
+      ['dashboard', 'employees', 'departments', 'feedback', 'by-department', 'by-provider', 'availability', 'active-tasks', 'completed-requests'];
+    if (tab && validTabs.includes(tab as any)) {
+      setActiveTab(tab as any);
+    } else {
+      setActiveTab('dashboard');
+    }
   }, [searchParams]);
 
   useEffect(() => {
@@ -480,6 +1285,90 @@ const DepartmentManagerDashboard: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, dashboardStatusFilter]);
+
+  // Fetch active tasks when tab changes to active-tasks
+  useEffect(() => {
+    if (activeTab === 'active-tasks') {
+      showInfo('Loading active tasks...');
+      fetchActiveTasks(1, activeTasksSearch);
+    }
+  }, [activeTab]);
+
+  // Fetch employees when tab changes to employees
+  useEffect(() => {
+    if (activeTab === 'employees') {
+      showInfo('Loading employees...');
+      fetchEmployees(1, employeeSearch);
+    }
+  }, [activeTab]);
+
+  // Fetch dashboard statistics
+  const fetchDashboardStats = async () => {
+    setDashboardLoading(true);
+    try {
+      // Fetch statistics from all status endpoints
+      const [pendingRes, activeRes, transferredRes, completedRes, feedbackRes] = await Promise.all([
+        departmentManagerService.getVisitorsByStatus('pending', 1, 1), // Just get count
+        departmentManagerService.getVisitorsByStatus('active', 1, 1),
+        departmentManagerService.getVisitorsByStatus('transferred', 1, 1),
+        departmentManagerService.getVisitorsByStatus('completed', 1, 1),
+        departmentManagerService.getDepartmentFeedback(1, 1)
+      ]);
+
+      setDashboardStats({
+        pending: pendingRes.total || 0,
+        active: activeRes.total || 0,
+        transferred: transferredRes.total || 0,
+        completed: completedRes.total || 0,
+        totalEmployees: employeeTotal, // This will be updated when employees are loaded
+        totalFeedback: feedbackRes.total || 0,
+        averageRating: feedbackRes.analytics?.average_rating || 0
+      });
+    } catch (error) {
+      console.error('Failed to fetch dashboard stats:', error);
+      // Keep existing stats on error
+    } finally {
+      setDashboardLoading(false);
+    }
+  };
+
+  // Fetch dashboard stats when dashboard tab is active
+  useEffect(() => {
+    if (activeTab === 'dashboard' && user?.role === 'Head of department') {
+      fetchDashboardStats();
+      // Also fetch employee count for the dashboard display
+      fetchEmployees(1, '', true); // true = silent mode, no loading indicators
+    }
+  }, [activeTab, user]);
+
+  // WebSocket listeners for real-time employee and visitor updates
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    const handleUserStatusUpdate = (data: any) => {
+      if (activeTab === 'employees' && data?.user_id) {
+        // Silently refresh employee data to show updated status
+        fetchEmployees(employeePage, employeeSearch, true); // true = silent mode
+      }
+    };
+
+    const handleNewVisitorAssigned = (data: any) => {
+      if (activeTab === 'employees') {
+        // Silently refresh employee data when visitors are assigned (might affect workload/assignments)
+        fetchEmployees(employeePage, employeeSearch, true); // true = silent mode
+      }
+    };
+
+    socket.on('active_user', handleUserStatusUpdate);
+    socket.on('inactive_user', handleUserStatusUpdate);
+    socket.on('new_visitor_assigned', handleNewVisitorAssigned);
+
+    return () => {
+      socket.off('active_user', handleUserStatusUpdate);
+      socket.off('inactive_user', handleUserStatusUpdate);
+      socket.off('new_visitor_assigned', handleNewVisitorAssigned);
+    };
+  }, [socket, isConnected, activeTab, employeePage, employeeSearch]);
 
   const handleEmployeeSearch = async () => {
     setIsLoading(true);
@@ -529,16 +1418,16 @@ const DepartmentManagerDashboard: React.FC = () => {
       if (response.success && response.data) {
         const allVisitors = response.data as any[];
         const providerMap: Record<string, any> = {};
-        
+
         allVisitors.forEach(v => {
-          const isForThisDept = !departmentId || 
+          const isForThisDept = !departmentId ||
             (v.services_status || []).some((s:any) => String(s.department_id) === String(departmentId)) ||
             (v.departments_assigned || []).some((d:any) => String(d.department_id) === String(departmentId));
-          
+
           if (isForThisDept) {
             const assigned = getAssignedEmployee(v);
             const status = getVisitorStatus(v);
-            
+
             if (assigned) {
               if (!providerMap[assigned.id]) {
                 providerMap[assigned.id] = {
@@ -568,13 +1457,44 @@ const DepartmentManagerDashboard: React.FC = () => {
             }
           }
         });
-        
+
         setVisitorsByProvider(Object.values(providerMap));
       }
     } catch (error) {
       console.error('Failed to fetch visitors by provider:', error);
     } finally {
       setLoadingByFilters(false);
+    }
+  };
+
+  const fetchActiveTasks = async (page: number = 1, search: string = '') => {
+    setActiveTasksLoading(true);
+    try {
+      const response = await serviceDeliveryService.getActiveTasks(page, 10, search);
+      if (response.success && response.data) {
+        setActiveTasks(response.data);
+        setActiveTasksTotal(response.total || 0);
+        setActiveTasksPage(page);
+
+        // Show success toast only if it's not the initial load
+        if (page > 1 || search) {
+          showSuccess(`Found ${response.total || 0} active tasks`);
+        }
+      } else {
+        setActiveTasks([]);
+        setActiveTasksTotal(0);
+        if (page > 1 || search) {
+          showWarning('No active tasks found');
+        }
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch active tasks:', error);
+      const errorMessage = error?.message || 'Failed to load active tasks';
+      showError(errorMessage);
+      setActiveTasks([]);
+      setActiveTasksTotal(0);
+    } finally {
+      setActiveTasksLoading(false);
     }
   };
 
@@ -726,8 +1646,18 @@ const DepartmentManagerDashboard: React.FC = () => {
 
     socket.on('new_visitor_assigned_to_your_department', handleNewVisitorAssigned);
 
+    // Also listen for general new_visitor_assigned events
+    const handleNewVisitorAssignedGeneral = (data: any) => {
+      console.log('New visitor assigned (general):', data);
+      // Silently refresh visitor data when any new visitor is assigned
+      loadData(currentPage, searchTerm, true); // true = silent refresh
+    };
+
+    socket.on('new_visitor_assigned', handleNewVisitorAssignedGeneral);
+
     return () => {
       socket.off('new_visitor_assigned_to_your_department', handleNewVisitorAssigned);
+      socket.off('new_visitor_assigned', handleNewVisitorAssignedGeneral);
     };
   }, [socket, isConnected]);
 
@@ -921,7 +1851,8 @@ const DepartmentManagerDashboard: React.FC = () => {
       }
     }
 
-    await serviceDeliveryService.updateServiceStatus(visitorId, { 
+    await serviceDeliveryService.updateServiceStatus({
+      visitor_id: visitorId,
       services_status: updatedServicesStatus,
       durations: { ...currentDurations, services_durations: updatedServiceDurations }
     });
@@ -998,56 +1929,200 @@ const DepartmentManagerDashboard: React.FC = () => {
     }
   };
 
+  // Fetch employees with pagination and search
+  const fetchEmployees = async (page: number = 1, search: string = '', silent: boolean = false) => {
+    if (!silent) setEmployeeLoading(true);
+    try {
+      // Always use backend search API (with empty search for all employees)
+      const searchQuery = search && search.trim() ? search.trim() : '';
+      const response = await employeeService.search(searchQuery, page, 20);
+      if (response.success && response.data) {
+        setEmployees(response.data);
+        setEmployeeTotal(response.total || 0);
+        setEmployeePage(page);
+
+        // Update dashboard stats with employee count
+        setDashboardStats(prev => ({
+          ...prev,
+          totalEmployees: response.total || 0
+        }));
+
+        // Show success toast only if it's not the initial load and not silent
+        if (!silent && (page > 1 || search)) {
+          showSuccess(`Found ${response.total || 0} employees`);
+        }
+      } else {
+        setEmployees([]);
+        setEmployeeTotal(0);
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch employees:', error);
+      if (!silent) {
+        const errorMessage = error?.message || 'Failed to load employees';
+        showError(errorMessage);
+      }
+      setEmployees([]);
+      setEmployeeTotal(0);
+    } finally {
+      if (!silent) setEmployeeLoading(false);
+    }
+  };
+
+  const handleTransferDepartmentChange = async (deptId: string) => {
+    setTransferDepartment(deptId);
+    setTransferEmployee(null);
+    setSelectedSubDepartment('');
+    setSubDepartments([]);
+
+    if (deptId) {
+      try {
+        // Show loading toast
+        showInfo('Loading department details...', 1500);
+
+        // Fetch sub-departments for the selected department
+        setLoadingSubDepartments(true);
+        const subDeptResponse = await departmentService.getSubDepartments(deptId);
+        if (subDeptResponse.success && subDeptResponse.data) {
+          setSubDepartments(Array.isArray(subDeptResponse.data) ? subDeptResponse.data : []);
+        }
+
+        // Fetch employees for the main department initially
+        await loadEmployeesForTarget(deptId);
+
+        // Show success toast
+        showSuccess('Department details loaded successfully');
+      } catch (error: any) {
+        console.error('Failed to fetch department data:', error);
+        const errorMessage = error?.message || 'Failed to load department details';
+        showError(errorMessage);
+        setTransferEmployees([]);
+        setSubDepartments([]);
+      } finally {
+        setLoadingSubDepartments(false);
+      }
+    } else {
+      setTransferEmployees([]);
+      setSubDepartments([]);
+      setTransferEmployeesLoading(false);
+    }
+  };
+
+  // Load employees for either department or sub-department/unit
+  const loadEmployeesForTarget = async (targetId: string) => {
+    setTransferEmployeesLoading(true);
+    try {
+      const empResponse = await employeeService.getByDepartment(targetId, false);
+      if (empResponse.success && empResponse.data) {
+        setTransferEmployees(Array.isArray(empResponse.data) ? empResponse.data : [empResponse.data]);
+      } else {
+        setTransferEmployees([]);
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch employees:', error);
+      showError('Failed to load employees');
+      setTransferEmployees([]);
+    } finally {
+      setTransferEmployeesLoading(false);
+    }
+  };
+
+  // Handle sub-department/unit selection
+  const handleSubDepartmentChange = async (subDeptId: string) => {
+    setSelectedSubDepartment(subDeptId);
+    setTransferEmployee(null);
+
+    if (subDeptId) {
+      // Load employees for the specific sub-department/unit
+      showInfo('Loading unit employees...', 1000);
+      await loadEmployeesForTarget(subDeptId);
+    } else {
+      // Load employees for the main department
+      await loadEmployeesForTarget(transferDepartment);
+    }
+  };
+
   const handleTransferVisitor = async () => {
     if (!transferVisitor || !transferDepartment) return;
     setTransferring(true);
+
+    // Show loading toast
+    showInfo('Transferring visitor...', 2000);
+
     try {
-      const visitorId = transferVisitor._id || transferVisitor.id;
-      const newDept = departments.find(d => d._id === transferDepartment);
-      const newDeptName = newDept?.department_name || newDept?.name || 'Unknown';
-      const providerId = transferEmployee ? (transferEmployee._id || transferEmployee.employee_id) : undefined;
-      const providerName = transferEmployee ? transferEmployee.full_name : undefined;
-      
       const currentUser = user as any;
-      const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
-      const myName = String(currentUser?.full_name || currentUser?.fullName || currentUser?.name || 'Unknown');
+      const myId = String(
+        currentUser?.userId ||
+          currentUser?._id ||
+          currentUser?.id ||
+          currentUser?.employee_id ||
+          "",
+      );
 
-      setVisitors(prev => prev.map(v => {
-        if ((v._id || v.id) === visitorId) {
-          const newStatus = [...(v.services_status || [])];
-          const existingDeptStatusIndex = newStatus.findIndex(s => String(s.department_id) === String(departmentId));
-          if (existingDeptStatusIndex !== -1) {
-            newStatus[existingDeptStatusIndex] = { ...newStatus[existingDeptStatusIndex], s_type: 'Transfered' };
-          } else {
-            newStatus.push({ department_id: departmentId, provider_id: myId, provider_name: myName, s_type: 'Transfered' });
-          }
-          return { ...v, services_status: newStatus };
-        }
-        return v;
-      }));
+      // Determine target: sub-department/unit if selected, otherwise main department
+      const targetId = selectedSubDepartment || transferDepartment;
+      const targetInfo = selectedSubDepartment
+        ? subDepartments.find((d) => d._id === selectedSubDepartment) || departments.find((d) => d._id === selectedSubDepartment)
+        : departments.find((d) => d._id === transferDepartment);
+      const targetName = targetInfo?.department_name || targetInfo?.name || "Unknown";
 
-      await updateBackendStatus('Transfered', visitorId as string, transferVisitor, myId, myName, false, '');
+      // Find current department assignment for this visitor
+      const currentDept = transferVisitor.departments_assigned?.find(
+        (d: any) => String(d.provider_id) === myId || String(d.department_id) === departmentId,
+      );
+      const previousDepartmentId = currentDept?.department_id || departmentId;
+
+      // Only assign specific provider if employee selected
+      const providerId = transferEmployee
+        ? String(transferEmployee._id || transferEmployee.employee_id || "")
+        : undefined;
+      const providerName = transferEmployee
+        ? String(transferEmployee.full_name || "")
+        : undefined;
+
+      // Update local state for active tasks (if on active tasks tab)
+      if (activeTab === 'active-tasks') {
+        setActiveTasks(prev => prev.filter(task => task._id !== transferVisitor._id));
+      }
 
       await serviceDeliveryService.assignToDepartment(
-        visitorId as string,
-        transferDepartment,
-        newDeptName,
+        String(transferVisitor._id || transferVisitor.id),
+        targetId,
+        targetName,
         providerId,
         providerName,
-        departmentId 
+        previousDepartmentId,
       );
-      
+
+      // Show success toast
+      showSuccess(`Visitor successfully transferred to ${targetName}${providerName ? ` (${providerName})` : ''}`);
+
       setShowTransferModal(false);
       setTransferVisitor(null);
       setTransferDepartment('');
       setTransferEmployee(null);
       setTransferEmployees([]);
-      
-      loadData(currentPage, searchTerm, true);
-    } catch (error) {
+      setSelectedSubDepartment('');
+      setSubDepartments([]);
+
+      // Refresh data based on current tab
+      if (activeTab === 'active-tasks') {
+        fetchActiveTasks(activeTasksPage, activeTasksSearch);
+      } else {
+        loadData(currentPage, searchTerm, true);
+      }
+    } catch (error: any) {
       console.error('Failed to transfer visitor:', error);
-      alert('Failed to transfer visitor. Please try again.');
-      loadData(currentPage, searchTerm, true); 
+
+      // Show error toast with backend message
+      const errorMessage = error?.message || 'Failed to transfer visitor. Please try again.';
+      showError(errorMessage);
+
+      // Refresh data on error
+      if (activeTab === 'active-tasks') {
+        fetchActiveTasks(activeTasksPage, activeTasksSearch);
+      } else {
+        loadData(currentPage, searchTerm, true);
+      }
     } finally {
       setTransferring(false);
     }
@@ -1078,32 +2153,21 @@ const DepartmentManagerDashboard: React.FC = () => {
       {activeTab === 'dashboard' && (
         <div className="space-y-6">
           {/* STATISTICS CARDS */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="flex items-start justify-between">
-                <div>
-                  {(isLoading && firstLoad) ? (
-                    <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
-                  ) : (
-                    <p className="text-3xl font-bold text-gray-800">{pendingVisitors.length}</p>
-                  )}
-                  <p className="text-sm text-green-600 mt-1">Pending Requests</p>
-                </div>
-                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <FiClock className="w-6 h-6 text-orange-500" />
-                </div>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5">
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+
+            <div
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigateToTab('active-tasks')}
+            >
               <div className="flex items-start justify-between">
                 <div>
-                  {(isLoading && firstLoad) ? (
+                  {dashboardLoading ? (
                     <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
                   ) : (
-                    <p className="text-3xl font-bold text-gray-800">{inProgressVisitors.length}</p>
+                    <p className="text-3xl font-bold text-gray-800">{dashboardStats.active}</p>
                   )}
-                  <p className="text-sm text-gray-500 mt-1">Active tasks</p>
+                  <p className="text-sm text-blue-600 mt-1">Active Tasks</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                   <FiRefreshCw className="w-6 h-6 text-blue-500" />
@@ -1111,34 +2175,75 @@ const DepartmentManagerDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+
+
+            <div
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigateToTab('completed-requests')}
+            >
               <div className="flex items-start justify-between">
                 <div>
-                  {(isLoading && firstLoad) ? (
+                  {dashboardLoading ? (
                     <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
                   ) : (
-                    <p className="text-3xl font-bold text-gray-800">{transferredVisitors.length}</p>
+                    <p className="text-3xl font-bold text-gray-800">{dashboardStats.completed}</p>
                   )}
-                  <p className="text-sm text-gray-500 mt-1">Transferred</p>
+                  <p className="text-sm text-green-600 mt-1">Completed Requests</p>
                 </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <FiArrowRightCircle className="w-6 h-6 text-purple-500" />
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <FiCheckCircle className="w-6 h-6 text-green-500" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ADDITIONAL METRICS CARDS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigateToTab('active-tasks')}
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  {dashboardLoading ? (
+                    <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
+                  ) : (
+                    <p className="text-3xl font-bold text-gray-800">{employeeTotal}</p>
+                  )}
+                  <p className="text-sm text-indigo-600 mt-1">Total Employees</p>
+                </div>
+                <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                  <FiUsers className="w-6 h-6 text-indigo-500" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+
+
+            <div
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigateToTab('feedback')}
+            >
               <div className="flex items-start justify-between">
-                <div>
-                  {(isLoading && firstLoad) ? (
-                    <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
-                  ) : (
-                    <p className="text-3xl font-bold text-gray-800">{completedVisitors.length}</p>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      {dashboardLoading ? (
+                        <div className="h-9 w-16 bg-gray-200 rounded animate-pulse mt-2"></div>
+                      ) : (
+                        <p className="text-3xl font-bold text-gray-800">{dashboardStats.totalFeedback}</p>
+                      )}
+                      <p className="text-sm text-pink-600 mt-1">Total Feedback</p>
+                    </div>
+                    <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
+                      <FiMessageSquare className="w-6 h-6 text-pink-500" />
+                    </div>
+                  </div>
+                  {!dashboardLoading && dashboardStats.averageRating > 0 && (
+                    <div className="mt-2 text-xs text-gray-500">
+                      Avg Rating: {dashboardStats.averageRating.toFixed(1)}/10
+                    </div>
                   )}
-                  <p className="text-sm text-gray-500 mt-1">Completed</p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                  <FiCheckCircle className="w-6 h-6 text-green-500" />
                 </div>
               </div>
             </div>
@@ -1183,8 +2288,8 @@ const DepartmentManagerDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1000px]">
+      <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+        <table className="w-full min-w-[1000px] table-fixed">
                 <thead className="bg-[#F8FAFC] sticky top-0 z-10">
                   <tr>
                     <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">VISITOR</th>
@@ -1204,7 +2309,7 @@ const DepartmentManagerDashboard: React.FC = () => {
                   ) : (
                     paginatedDashboard.map((visitor) => (
                       <tr key={visitor._id || visitor.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs mr-3">
                               {getInitials(getVisitorName(visitor))}
@@ -1212,12 +2317,12 @@ const DepartmentManagerDashboard: React.FC = () => {
                             <p className="text-sm font-semibold text-gray-800">{getVisitorName(visitor)}</p>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <p className="text-sm text-gray-600">{visitor.telephone || '_____'}</p>
                           <p className="text-xs text-gray-400">{visitor.email || ''}</p>
                         </td>
-                        <td className="px-4 py-3"><p className="text-sm text-gray-600">{getIdentification(visitor) || visitor.badge_number || '_____'}</p></td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap"><p className="text-sm text-gray-600">{getIdentification(visitor) || visitor.badge_number || '_____'}</p></td>
+                        <td className="px-4 py-3 whitespace-nowrap">
                           {(() => {
                             const assigned = getAssignedEmployee(visitor);
                             if (assigned) {
@@ -1233,13 +2338,13 @@ const DepartmentManagerDashboard: React.FC = () => {
                             return <span className="text-sm text-gray-400 italic">Not assigned</span>;
                           })()}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           {(() => {
                             const status = getVisitorStatus(visitor);
                             const statusLower = status.toLowerCase();
                             let displayStatus = status;
                             let colorClass = 'bg-gray-100 text-gray-700';
-                            
+
                             if (statusLower === 'not started' || statusLower === 'not_started') {
                               displayStatus = 'Not started';
                               colorClass = 'bg-orange-100 text-orange-700';
@@ -1253,16 +2358,16 @@ const DepartmentManagerDashboard: React.FC = () => {
                               displayStatus = 'Transferred';
                               colorClass = 'bg-purple-100 text-purple-700';
                             }
-                            
+
                             return <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${colorClass}`}>{displayStatus}</span>;
                           })()}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           {(() => {
                             const status = getVisitorStatus(visitor);
                             const waitTime = getWaitTime(visitor);
                             const serviceStartTime = getServiceStartTime(visitor);
-                            
+
                             if ((status === 'Inprogress' || status.toLowerCase() === 'inprogress') && serviceStartTime) {
                               return (
                                 <div className="flex flex-col">
@@ -1273,22 +2378,22 @@ const DepartmentManagerDashboard: React.FC = () => {
                                 </div>
                               );
                             }
-                            
+
                             if (status === 'Completed' || status.toLowerCase() === 'completed') {
                               const duration = visitor.durations?.services_durations?.find((d: any) => d.started_at && d.ended_at);
                               if (duration?.duration) {
                                 return <span className="text-xs text-gray-600 font-medium">{duration.duration}</span>;
                               }
                             }
-                            
+
                             if (status === 'Not started' || status.toLowerCase() === 'not started') {
                               return <span className="text-xs text-orange-600">{waitTime}</span>;
                             }
-                            
+
                             return <span className="text-xs text-gray-500">{waitTime}</span>;
                           })()}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           {(() => {
                             const currentUser = user as any;
                             const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
@@ -1301,9 +2406,27 @@ const DepartmentManagerDashboard: React.FC = () => {
                             }
 
                             if (statusLower === 'inprogress') {
+                              // Head of Department can only transfer, not serve/stop
+                              if (user?.role === 'Head of department') {
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setTransferVisitor(visitor);
+                                      setShowTransferModal(true);
+                                    }}
+                                    className="flex items-center justify-center gap-1 h-8 w-24 bg-[#7b1fa2] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#6a1b9a] transition-colors shadow-sm"
+                                  >
+                                    <FiArrowRightCircle className="w-3 h-3" /> Transfer
+                                  </button>
+                                );
+                              }
+
                               return (
                                 <div className="flex items-center gap-2">
-                                  <button 
+                                  <button
                                     type="button"
                                     onClick={(e) => {
                                       e.preventDefault();
@@ -1319,7 +2442,7 @@ const DepartmentManagerDashboard: React.FC = () => {
                                   >
                                     <FiSquare className="w-3 h-3 fill-current" /> Stop
                                   </button>
-                                  <button 
+                                  <button
                                     type="button"
                                     onClick={(e) => {
                                       e.preventDefault();
@@ -1352,16 +2475,31 @@ const DepartmentManagerDashboard: React.FC = () => {
                             }
 
                             if (isAssignedToSomeoneElseInMyDept) {
+                                // Head of Department can only transfer
+                                if (user?.role === 'Head of department') {
+                                  return (
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault(); e.stopPropagation();
+                                        setTransferVisitor(visitor); setShowTransferModal(true);
+                                      }}
+                                      className="flex items-center justify-center gap-1 h-8 w-24 bg-[#7b1fa2] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#6a1b9a] transition-colors shadow-sm"
+                                    >
+                                      <FiArrowRightCircle className="w-3 h-3" /> Transfer
+                                    </button>
+                                  );
+                                }
+
                                 return (
                                     <div className="flex items-center gap-2">
                                       <span className="text-blue-600 font-bold text-xs uppercase px-3 py-1.5 bg-blue-50 border border-blue-200 rounded shadow-sm">
                                         Assigned
                                       </span>
-                                      <button 
-                                        onClick={(e) => { 
-                                          e.preventDefault(); e.stopPropagation(); 
-                                          setTransferVisitor(visitor); setShowTransferModal(true); 
-                                        }} 
+                                      <button
+                                        onClick={(e) => {
+                                          e.preventDefault(); e.stopPropagation();
+                                          setTransferVisitor(visitor); setShowTransferModal(true);
+                                        }}
                                         className="flex items-center justify-center gap-1 h-8 w-24 bg-[#7b1fa2] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#6a1b9a] transition-colors shadow-sm"
                                       >
                                         <FiArrowRightCircle className="w-3 h-3" /> Transfer
@@ -1370,34 +2508,52 @@ const DepartmentManagerDashboard: React.FC = () => {
                                 );
                             }
 
+                            // Head of Department can only transfer, not serve
+                            if (user?.role === 'Head of department') {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setTransferVisitor(visitor);
+                                    setShowTransferModal(true);
+                                  }}
+                                  className="h-8 w-24 bg-[#7b1fa2] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#6a1b9a] transition-colors flex items-center justify-center gap-1 shadow-sm"
+                                >
+                                  <FiArrowRightCircle className="w-3 h-3" /> Transfer
+                                </button>
+                              );
+                            }
+
                             return (
                               <div className="flex items-center gap-2">
-                                <button 
+                                <button
                                   type="button"
                                   onClick={async (e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
                                     const now = new Date().toISOString();
-                                    
-                                    setVisitors(prev => prev.map(v => 
-                                      (v._id || v.id) === (visitor._id || visitor.id) 
+
+                                    setVisitors(prev => prev.map(v =>
+                                      (v._id || v.id) === (visitor._id || visitor.id)
                                         ? { ...v, services_status: [...(v.services_status || []).filter((s:any)=> String(s.provider_id) !== myId), { provider_id: myId, provider_name: myName, s_type: 'Inprogress' }] }
                                         : v
                                     ));
-                                    
+
                                     await updateBackendStatus('Inprogress', visitor._id || visitor.id || '', visitor, myId, myName, true);
-                                    
+
                                     setServingVisitor(visitor);
                                     setPendingServiceStartTime(now);
                                     setShowServeModal(true);
-                                    
+
                                     loadData(currentPage, searchTerm, true);
                                   }}
                                   className="h-8 w-20 bg-[#1a73e8] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#1558c0] transition-colors flex items-center justify-center gap-1 shadow-sm"
                                 >
                                   Serve
                                 </button>
-                                <button 
+                                <button
                                   type="button"
                                   onClick={(e) => {
                                     e.preventDefault();
@@ -1466,20 +2622,40 @@ const DepartmentManagerDashboard: React.FC = () => {
         </div>
       )}
 
+
+
+      {/* COMPLETED REQUESTS TAB - Only for Head of Department */}
+      {activeTab === 'completed-requests' && user?.role === 'Head of department' && (
+        <RequestsTable
+          status="completed"
+          title="Completed Requests"
+          departmentId={departmentId}
+          departmentName={departmentName}
+          showError={showError}
+          setSelectedActiveTask={setSelectedActiveTask}
+          setShowActiveTaskModal={setShowActiveTaskModal}
+          setTransferVisitor={setTransferVisitor}
+          setShowTransferModal={setShowTransferModal}
+          showInfo={showInfo}
+          getInitials={getInitials}
+        />
+      )}
+
+      {/* DEPARTMENTS MANAGEMENT TAB - Only for Head of Department */}
+      {activeTab === 'departments' && user?.role === 'Head of department' && (
+        <DepartmentsTab showError={showError} showSuccess={showSuccess} />
+      )}
+
+      {/* FEEDBACK MANAGEMENT TAB - Only for Head of Department */}
+      {activeTab === 'feedback' && user?.role === 'Head of department' && (
+        <FeedbackTab showError={showError} />
+      )}
+
       {/* EMPLOYEE MANAGEMENT TAB */}
       {activeTab === 'employees' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white">
             <h2 className="text-[16px] font-bold text-blue-600 uppercase">Employee Management</h2>
-            <button 
-              onClick={() => {
-                setSelectedDeptEmployee(null);
-                setShowAddEmployeeModal(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-[#0284C7] text-white text-sm font-medium rounded-lg hover:bg-[#0369A1]"
-            >
-              <FiPlus /> Add Employee
-            </button>
           </div>
           <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-lg border border-white/30 p-3 mx-4 mt-2">
             <div className="flex flex-col md:flex-row gap-3 items-center">
@@ -1491,13 +2667,13 @@ const DepartmentManagerDashboard: React.FC = () => {
                     type="text"
                     value={employeeSearch}
                     onChange={(e) => setEmployeeSearch(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleEmployeeSearch()}
+                    onKeyPress={(e) => e.key === 'Enter' && fetchEmployees(1, employeeSearch)}
                     placeholder="Search employees by name, email, or ID number..."
                     className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200/50 rounded-lg bg-white/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm"
                   />
                 </div>
                 <button
-                  onClick={handleEmployeeSearch}
+                  onClick={() => fetchEmployees(1, employeeSearch)}
                   className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2 shadow-md transition-all"
                 >
                   <FiSearch className="w-4 h-4" />
@@ -1507,7 +2683,7 @@ const DepartmentManagerDashboard: React.FC = () => {
             </div>
           </div>
           <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-lg border border-white/30 overflow-hidden flex flex-col m-4 mt-2">
-            <div className="overflow-auto flex-1">
+            <div className="overflow-x-auto flex flex-col min-h-[600px]">
               <table className="w-full">
                 <thead className="bg-[#F8FAFC]">
                   <tr>
@@ -1517,40 +2693,29 @@ const DepartmentManagerDashboard: React.FC = () => {
                     <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">ROLE/TITLE</th>
                     <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">TELEPHONE</th>
                     <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">STATUS</th>
-                    <th className="text-left text-xs font-bold text-gray-500 uppercase px-6 py-4">ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100/50">
-                  {isLoading ? (
+                  {employeeLoading ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-gray-500 text-sm">
+                      <td colSpan={6} className="px-4 py-8 text-center text-gray-500 text-sm">
                         <div className="flex items-center justify-center gap-2">
                           <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                           Loading...
                         </div>
                       </td>
                     </tr>
-                  ) : employees.filter(e => 
-                    (e.full_name || e.name || '').toLowerCase().includes(employeeSearch.toLowerCase()) || 
-                    (e.email || '').toLowerCase().includes(employeeSearch.toLowerCase()) ||
-                    // MODIFICATION 2: Filtering logic includes ID number
-                    (e.identification?.number || '').toLowerCase().includes(employeeSearch.toLowerCase())
-                  ).length === 0 ? (
+                  ) : employees.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-gray-500 text-sm">
+                      <td colSpan={6} className="px-4 py-8 text-center text-gray-500 text-sm">
                         <div className="flex flex-col items-center gap-1">
                           <FiSearch className="w-6 h-6 text-gray-400" />
-                          <span>No employees found matching search</span>
+                          <span>No employees found</span>
                         </div>
                       </td>
                     </tr>
                   ) : (
-                    employees.filter(e => 
-                      (e.full_name || e.name || '').toLowerCase().includes(employeeSearch.toLowerCase()) || 
-                      (e.email || '').toLowerCase().includes(employeeSearch.toLowerCase()) ||
-                      // MODIFICATION 2: Filtering logic includes ID number
-                      (e.identification?.number || '').toLowerCase().includes(employeeSearch.toLowerCase())
-                    ).slice((currentPage - 1) * 20, currentPage * 20).map(emp => (
+                    employees.map(emp => (
                       <tr key={emp._id || emp.employee_id} className="hover:bg-gray-50">
                         <td className="px-4 py-4 font-semibold text-gray-800 flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-full text-white flex items-center justify-center font-bold text-xs ${getAvatarColor(emp.full_name || emp.name || 'U')}`}>
@@ -1573,37 +2738,48 @@ const DepartmentManagerDashboard: React.FC = () => {
                             {emp.is_active !== false ? 'Online' : 'Offline'}
                           </span>
                         </td>
-                        <td className="px-4 py-4">
-                          {/* MODIFICATION 3: Removed Delete, kept View & Edit */}
-                          <div className="flex items-center gap-2">
-                            <button 
-                              onClick={() => {
-                                setSelectedDeptEmployee(emp);
-                                setShowViewEmployeeModal(true);
-                              }}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" 
-                              title="View"
-                            >
-                              <FiEye className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => {
-                                setSelectedDeptEmployee(emp);
-                                setShowEditEmployeeModal(true);
-                              }}
-                              className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg" 
-                              title="Edit"
-                            >
-                              <FiEdit className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
+
+              {/* Fill remaining space to maintain fixed height */}
+              <div className="flex-1 bg-white"></div>
             </div>
+
+            {/* Pagination */}
+            {employeeTotal > 0 && (
+              <div className="bg-white px-6 py-4 border-t border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-700">
+                    Showing {((employeePage - 1) * 20) + 1} to {Math.min(employeePage * 20, employeeTotal)} of {employeeTotal} entries
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => fetchEmployees(employeePage - 1, employeeSearch)}
+                      disabled={employeePage === 1 || employeeLoading}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+                    >
+                      ← Previous
+                    </button>
+
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm text-gray-600">Page</span>
+                      <span className="px-3 py-1 bg-blue-50 text-blue-700 font-medium rounded">{employeePage}</span>
+                    </div>
+
+                    <button
+                      onClick={() => fetchEmployees(employeePage + 1, employeeSearch)}
+                      disabled={employeePage * 20 >= employeeTotal || employeeLoading}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1788,8 +2964,272 @@ const DepartmentManagerDashboard: React.FC = () => {
         </div>
       )}
 
+      {/* ACTIVE TASKS TAB - Only for Head of Department */}
+      {activeTab === 'active-tasks' && user?.role === 'Head of department' && (
+        <RequestsTable
+          status="active"
+          title="Active Tasks"
+          departmentId={departmentId}
+          departmentName={departmentName}
+          showError={showError}
+          setSelectedActiveTask={setSelectedActiveTask}
+          setShowActiveTaskModal={setShowActiveTaskModal}
+          setTransferVisitor={setTransferVisitor}
+          setShowTransferModal={setShowTransferModal}
+          showInfo={showInfo}
+          getInitials={getInitials}
+        />
+      )}
+
+
       {activeTab === 'availability' && <DepartmentAvailabilityTab departmentId={departmentId} />}
-      {activeTab === 'reports' && <ReportsTab departmentId={departmentId} departmentName={departmentName} />}
+
+
+      {/* Active Task Details Modal */}
+      {showActiveTaskModal && selectedActiveTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Visitor Details</h2>
+                <button
+                  onClick={() => {
+                    setShowActiveTaskModal(false);
+                    setSelectedActiveTask(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FiX className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Visitor Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                      <p className="text-gray-900 font-medium">{selectedActiveTask.full_name || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                      <p className="text-gray-900">{selectedActiveTask.telephone || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <p className="text-gray-900">{selectedActiveTask.email || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Badge Number</label>
+                      <p className="text-gray-900">{selectedActiveTask.badge_number || 'Not assigned'}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Current Service</label>
+                      <p className="text-gray-900 font-medium">{selectedActiveTask.current_service_department || 'Unknown'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Service Provider</label>
+                      <p className="text-gray-900">{selectedActiveTask.current_service_provider || 'Unknown'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Department</label>
+                      <p className="text-gray-900">{selectedActiveTask.assigned_department || 'Unknown'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
+                      <LiveTimer startTime={selectedActiveTask.entry_date} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Service Status */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Service Status</label>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-green-600 font-medium">Currently Being Served</span>
+                  </div>
+                </div>
+
+
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transfer Modal */}
+      {showTransferModal && transferVisitor && (
+        <div className="fixed inset-0 bg-transparent backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Transfer Visitor</h2>
+                <button
+                  onClick={() => {
+                    setShowTransferModal(false);
+                    setTransferVisitor(null);
+                    setTransferDepartment('');
+                    setTransferEmployee(null);
+                    setTransferEmployees([]);
+                    setSelectedSubDepartment('');
+                    setSubDepartments([]);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FiX className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Visitor Info */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Visitor</label>
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <span className="text-sm font-medium text-blue-600">
+                      {(transferVisitor.full_name || transferVisitor.name || 'Unknown').charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="text-gray-900 font-medium">
+                      {transferVisitor.full_name || transferVisitor.name || 'Unknown'}
+                    </div>
+                    <div className="text-gray-500 text-sm">
+                      {transferVisitor.telephone || transferVisitor.email || 'No contact info'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Department Selection */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Department
+                </label>
+                <select
+                  value={transferDepartment}
+                  onChange={(e) => handleTransferDepartmentChange(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Choose department...</option>
+                  {departments
+                    .filter(dept => dept._id !== departmentId) // Don't show current department
+                    .map((dept) => (
+                      <option key={dept._id} value={dept._id}>
+                        {dept.department_name || dept.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Sub-Department Selection */}
+              {transferDepartment && subDepartments.length > 0 && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Unit (Optional)
+                  </label>
+                  <select
+                    value={selectedSubDepartment}
+                    onChange={(e) => handleSubDepartmentChange(e.target.value)}
+                    disabled={loadingSubDepartments}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                  >
+                    <option value="">
+                      {loadingSubDepartments ? 'Loading units...' : 'Choose unit...'}
+                    </option>
+                    {subDepartments.map((subDept) => (
+                      <option key={subDept._id} value={subDept._id}>
+                        {subDept.department_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Employee Selection */}
+              {transferDepartment && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Assign to Employee
+                  </label>
+                  <select
+                    value={
+                      transferEmployee?._id ||
+                      transferEmployee?.employee_id ||
+                      ""
+                    }
+                    onChange={(e) => {
+                      const emp = transferEmployees.find(
+                        (em) =>
+                          String(em._id || em.employee_id) ===
+                          e.target.value,
+                      );
+                      setTransferEmployee(emp || null);
+                    }}
+                    disabled={transferEmployeesLoading}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                  >
+                    <option value="">
+                      {transferEmployeesLoading
+                        ? `Loading employees${selectedSubDepartment ? ' for unit' : ''}...`
+                        : 'No specific employee'
+                      }
+                    </option>
+                    {transferEmployees.map((emp) => (
+                      <option
+                        key={emp._id || emp.employee_id}
+                        value={emp._id || emp.employee_id}
+                      >
+                        {emp.full_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowTransferModal(false);
+                    setTransferVisitor(null);
+                    setTransferDepartment('');
+                    setTransferEmployee(null);
+                    setTransferEmployees([]);
+                    setSelectedSubDepartment('');
+                    setSubDepartments([]);
+                  }}
+                  className="flex-1 px-4 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  disabled={transferring}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleTransferVisitor}
+                  disabled={transferring || !transferDepartment}
+                  className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {transferring ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Transferring...
+                    </>
+                  ) : (
+                    <>
+                      <FiArrowRightCircle className="w-4 h-4" />
+                      Transfer
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

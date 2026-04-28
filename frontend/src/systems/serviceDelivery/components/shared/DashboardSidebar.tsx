@@ -38,8 +38,9 @@ const getNavItemsByRole = (role: DashboardRole): { id: string; label: string }[]
     case 'employee':
       return [
         { id: 'dashboard', label: 'Dashboard' },
-        { id: 'services', label: 'Provide Services' },
-        { id: 'availability', label: 'Availability' },
+        { id: 'performance', label: 'Performance Analytics' },
+        { id: 'history', label: 'Service History' },
+        { id: 'queue', label: 'Department Queue' },
       ];
     default:
       return [];

@@ -49,6 +49,27 @@ module.exports = async function update_department(req, res, next) {
             }
 
             department.department_leader = leader_user._id 
+        } else {
+            // decrement total employees in the current leader's department if leader is being removed and they have a department assigned
+            if(department.department_leader) {
+                const current_leader = await user_model.findById(department.department_leader)
+                if(current_leader) {
+                    const dept = department
+                    if(dept) {
+                        dept.number_of_employees = Math.max(0, (dept.number_of_employees || 1) - 1)
+                        await dept.save()
+                    }
+
+                    // check if it is a sub_deparment and have a different parent department and decrement employee in that parent department as well
+                    if(department.sub_department_mng && department.sub_department_mng.is_sub_department && department.sub_department_mng.parent_department_id && department.sub_department_mng.parent_department_id !== department._id.toString()) {
+                        const parentDept = await department_model.findById(department.sub_department_mng.parent_department_id)
+                        if(parentDept) {
+                            parentDept.number_of_employees = Math.max(0, (parentDept.number_of_employees || 1) - 1)
+                            await parentDept.save()
+                        }
+                    }
+                }
+            }
         }
 
         // check if department_name or department_id is being updated and if they are unique and not used by other department
