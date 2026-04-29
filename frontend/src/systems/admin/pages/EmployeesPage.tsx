@@ -2,15 +2,15 @@
 // Page for managing employees in the COK Systems
 // Updated with inline form errors/success and no close button
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
-import { employeeService, departmentService, permissionService, roleService } from '../../../core/services/adminService';
+import { employeeService, departmentService, roleService } from '../../../core/services/adminService';
 import { dispatchToast } from '../../../core/services/apiClient';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import ErrorModal from '../../../core/components/Modals/ErrorModal';
 import MainLayout from '../../../core/components/Layout/MainLayout';
-import { 
+import {
   FiPlus, FiSearch, FiEdit2, FiTrash2, FiRefreshCw, FiUsers,
   FiMail, FiPhone, FiBriefcase, FiUser, FiShield, FiCheck, FiX, FiAlertCircle
 } from 'react-icons/fi';
@@ -44,34 +44,7 @@ interface Employee {
   createdAt?: string;
 }
 
-// Interface for employee permissions from backend (with is_enabled)
-type EmployeePermissionBackend = {
-  resource_name: string;
-  actions: Array<{
-    action_type: string;
-    description: string;
-    is_enabled?: string;
-  }>;
-};
 
-// Helper function to convert backend permission format to frontend format
-const convertBackendPermissionsToFrontend = (
-  backendPermissions: EmployeePermissionBackend[]
-): Array<{ resource: string; actions: string[] }> => {
-  if (!backendPermissions || !Array.isArray(backendPermissions)) {
-    return [];
-  }
-
-  return backendPermissions
-    .filter((perm) => perm.actions && Array.isArray(perm.actions))
-    .map((perm) => ({
-      resource: perm.resource_name,
-      actions: perm.actions
-        .filter((action) => action.is_enabled === 'enabled')
-        .map((action) => action.action_type),
-    }))
-    .filter((perm) => perm.actions.length > 0);
-};
 
 // Department interface for dropdown
 interface Department {
@@ -84,15 +57,6 @@ interface Department {
     parent_department_id: string;
   };
 }
-
-// Interface for system permissions from backend
-type SystemPermissionResource = {
-  resource: string;
-  actions: Array<{
-    action_type: string;
-    description: string;
-  }>;
-};
 
 // Interface for role from backend
 interface RoleFromBackend {
@@ -108,6 +72,10 @@ interface RoleFromBackend {
   }>;
 }
 
+
+
+
+
 const EmployeesPage: React.FC = () => {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -115,7 +83,6 @@ const EmployeesPage: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [allDepartments, setAllDepartments] = useState<Department[]>([]); // Full list to map unit IDs to names
-  const [systemPermissions, setSystemPermissions] = useState<SystemPermissionResource[]>([]);
   const [roles, setRoles] = useState<RoleFromBackend[]>([]);
   const [loading, setLoading] = useState(true);
   const [firstLoad, setfirstLoad] = useState(true);
@@ -124,6 +91,12 @@ const EmployeesPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageLimit, setPageLimit] = useState(10);
+  const [totalEmployees, setTotalEmployees] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   
   const [departmentUnits, setDepartmentUnits] = useState<Department[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
@@ -141,18 +114,18 @@ const EmployeesPage: React.FC = () => {
   // Multiple employee upload state
   const [showMultipleUploadModal, setShowMultipleUploadModal] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadDepartmentId, setUploadDepartmentId] = useState('');
-  const [uploadDepartmentUnit, setUploadDepartmentUnit] = useState('');
-  const [uploadRoleName, setUploadRoleName] = useState('department_employee');
-  const [uploadPermissions, setUploadPermissions] = useState<Array<{ resource: string; actions: string[] }>>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [uploadErrors, setUploadErrors] = useState<any[]>([]);
   const [uploadSuccess, setUploadSuccess] = useState('');
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorModalTitle, setErrorModalTitle] = useState('');
   const [errorModalMessage, setErrorModalMessage] = useState('');
   const [errorModalErrors, setErrorModalErrors] = useState<any[]>([]);
+
+  // Debounce timer for dynamic search
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Form state
   const [formData, setFormData] = useState<Partial<Employee>>({
@@ -180,68 +153,39 @@ const EmployeesPage: React.FC = () => {
     if (showModal) {
       setFormError('');
       setFormSuccess('');
-    }
-  }, [showModal]);
-
-  // Load roles when multiple upload modal opens
-  useEffect(() => {
-    if (showMultipleUploadModal) {
-      setUploadError('');
-      setUploadSuccess('');
       if (roles.length === 0) {
         loadRoles();
       }
     }
-  }, [showMultipleUploadModal, roles.length]);
-
-  // Check if modal is opened and load permissions/roles if needed
-  useEffect(() => {
-    if (showModal) {
-      setFormError('');
-      setFormSuccess('');
-      if (systemPermissions.length === 0) {
-        loadSystemPermissions();
-      }
-      if (roles.length === 0) {
-        loadRoles();
-      }
-    }
-  }, [showModal, systemPermissions.length, roles.length]);
+  }, [showModal, roles.length]);
 
   // Check auth and load employees
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       navigate('/login');
     } else if (isAuthenticated) {
-      loadEmployees();
+      loadEmployees(1, pageLimit);
       loadDepartments();
-      loadSystemPermissions();
+      loadRoles();
     }
-  }, [isAuthenticated, authLoading, navigate]);
+  }, [isAuthenticated, authLoading, navigate, pageLimit]);
 
-  // Load system permissions from backend
-  const loadSystemPermissions = async () => {
-    try {
-      const response = await permissionService.getSystemPermissions();
-      if (response.success && response.data) {
-        setSystemPermissions(response.data);
-      }
-    } catch (err) {
-      console.error('Error loading system permissions:', err);
-    }
-  };
 
-  // Load employees
-  const loadEmployees = async () => {
+
+  // Load employees with pagination
+  const loadEmployees = async (page: number = 1, limit: number = pageLimit) => {
     try {
       setLoading(true);
       setfirstLoad(true);
       setError('');
-      const response = await employeeService.getAll();
-      
+      const response = await employeeService.getAll(page, limit);
+
       if (response.success) {
         const empData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
         setEmployees(empData);
+        setTotalEmployees(response.total || empData.length);
+        setTotalPages(Math.ceil((response.total || empData.length) / limit));
+        setCurrentPage(page);
       } else {
         setError(response.message || response.error || 'Failed to load employees');
       }
@@ -325,20 +269,24 @@ const EmployeesPage: React.FC = () => {
     }
   };
 
-  // Search employees
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      loadEmployees();
+  // Dynamic search employees (search doesn't support pagination in current API)
+  const handleSearch = async (query: string = searchQuery) => {
+    if (!query.trim()) {
+      loadEmployees(1, pageLimit);
       return;
     }
 
     try {
       setLoading(true);
-      const response = await employeeService.search(searchQuery);
-      
+      const response = await employeeService.search(query);
+
       if (response.success) {
         const empData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
         setEmployees(empData);
+        // Reset pagination state for search results
+        setTotalEmployees(empData.length);
+        setTotalPages(1);
+        setCurrentPage(1);
       }
     } catch (err: any) {
       setError(err.message || err.error || 'Search failed');
@@ -377,18 +325,14 @@ const EmployeesPage: React.FC = () => {
 
   // Open modal for editing
   const handleEdit = (employee: Employee) => {
-    const convertedPermissions = convertBackendPermissionsToFrontend(
-      employee.roles?.permissions as unknown as EmployeePermissionBackend[] || []
-    );
-    
     // Safely extract department details (ensuring employee.department is not null)
     const hasDeptObj = employee.department && typeof employee.department === 'object';
     const deptName = hasDeptObj ? (employee.department as any)?.department_name : employee.department_name || '';
     const deptId = hasDeptObj ? (employee.department as any)?._id : employee.department_id || '';
-      
+
     // Safely extract unit details
     const unitVal = employee.department_unit || (hasDeptObj && (employee.department as any).department_unit) || '';
-    
+
     setEditingEmployee(employee);
     setFormData({
       full_name: employee.full_name || '',
@@ -403,7 +347,7 @@ const EmployeesPage: React.FC = () => {
       department_unit: unitVal,
       roles: {
         role_name: employee.roles?.role_name || 'department_employee',
-        permissions: convertedPermissions
+        permissions: [] // Permissions will be managed automatically by backend
       }
     });
     
@@ -439,7 +383,7 @@ const EmployeesPage: React.FC = () => {
           setFormSuccess(response.message || 'Employee updated successfully!');
           setTimeout(() => {
             setShowModal(false);
-            loadEmployees();
+            loadEmployees(currentPage, pageLimit);
           }, 1500);
         } else {
           setFormError(response.error || 'Failed to update employee');
@@ -451,7 +395,7 @@ const EmployeesPage: React.FC = () => {
           setFormSuccess(response.message || 'Employee created successfully!');
           setTimeout(() => {
             setShowModal(false);
-            loadEmployees();
+            loadEmployees(currentPage, pageLimit);
           }, 1500);
         } else {
           setFormError(response.error || 'Failed to create employee');
@@ -485,7 +429,7 @@ const EmployeesPage: React.FC = () => {
       setDeleting(true);
       await employeeService.delete(deletingId);
       setShowDeleteConfirm(false);
-      loadEmployees();
+      loadEmployees(currentPage, pageLimit);
     } catch (err: any) {
       setError(err.message || err.error || 'Failed to delete employee');
     } finally {
@@ -504,10 +448,6 @@ const EmployeesPage: React.FC = () => {
   // Open multiple upload modal
   const handleOpenMultipleUpload = () => {
     setUploadFile(null);
-    setUploadDepartmentId('');
-    setUploadDepartmentUnit('');
-    setUploadRoleName('department_employee');
-    setUploadPermissions([]);
     setUploadError('');
     setUploadSuccess('');
     setUploadErrors([]);
@@ -544,6 +484,35 @@ const EmployeesPage: React.FC = () => {
     }
   };
 
+  // Download template for multiple employee upload
+  const handleDownloadTemplate = async () => {
+    try {
+      setDownloadingTemplate(true);
+      setUploadError(''); // Clear any previous errors
+
+      const response = await employeeService.downloadTemplate();
+      if (response.success && response.data) {
+        const blob = response.data as Blob;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'employee_template.xlsx';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        throw new Error(response.error || 'Failed to download template');
+      }
+    } catch (error) {
+      console.error('Error downloading template:', error);
+      setUploadError('Failed to download template. Please try again.');
+    } finally {
+      setDownloadingTemplate(false);
+    }
+  };
+
   // Handle multiple employee upload
   const handleMultipleUpload = async () => {
     if (!uploadFile) {
@@ -559,19 +528,6 @@ const EmployeesPage: React.FC = () => {
 
       const formData = new FormData();
       formData.append('file', uploadFile);
-      
-      if (uploadDepartmentId) {
-        formData.append('department_id', uploadDepartmentId);
-      }
-      
-      if (uploadDepartmentUnit) {
-        formData.append('department_unit', uploadDepartmentUnit);
-      }
-      
-      formData.append('roles', JSON.stringify({
-        role_name: uploadRoleName,
-        permissions: uploadPermissions
-      }));
 
       const response = await employeeService.createMultiple(formData);
 
@@ -580,7 +536,7 @@ const EmployeesPage: React.FC = () => {
         dispatchToast('success', response.message || 'Employees created successfully!');
         setTimeout(() => {
           setShowMultipleUploadModal(false);
-          loadEmployees();
+          loadEmployees(currentPage, pageLimit);
         }, 2000);
       } else {
         // Show error modal instead of toast
@@ -616,53 +572,9 @@ const EmployeesPage: React.FC = () => {
     }
   };
 
-  // Load department units for upload modal
-  const loadUploadDepartmentUnits = async (departmentId: string) => {
-    if (!departmentId) {
-      setUploadDepartmentUnit('');
-      return;
-    }
 
-    try {
-      const response = await departmentService.getAll();
-      if (response.success) {
-        const deptData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
-        const units = deptData.filter((dept: any) => {
-          return (dept.sub_department_mng?.is_sub_department === true || dept.sub_department_mng?.is_sub_department === 'true') && 
-                 String(dept.sub_department_mng?.parent_department_id) === String(departmentId);
-        });
-        setDepartmentUnits(units);
-      }
-    } catch (err: any) {
-      console.error('Failed to load department units:', err);
-    }
-  };
 
-  // Handle department change in upload modal
-  const handleUploadDepartmentChange = (departmentId: string) => {
-    setUploadDepartmentId(departmentId);
-    setUploadDepartmentUnit('');
-    if (departmentId) {
-      loadUploadDepartmentUnits(departmentId);
-    } else {
-      setDepartmentUnits([]);
-    }
-  };
 
-  // Download template for multiple employee upload
-  const handleDownloadTemplate = () => {
-    const headers = ['fullname', 'telephone', 'email', 'gender'];
-    const csvContent = headers.join(',') + '\n';
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'employee_upload_template.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   // Helper mapping function to get unit name from ID securely
   const getUnitNameDisplay = (employee: Employee) => {
@@ -728,21 +640,33 @@ const EmployeesPage: React.FC = () => {
               type="text"
               placeholder="Search employees by name, email, or department..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              onChange={(e) => {
+                const query = e.target.value;
+                setSearchQuery(query);
+
+                // Clear existing timeout
+                if (searchTimeoutRef.current) {
+                  clearTimeout(searchTimeoutRef.current);
+                }
+
+                // Set new timeout for debounced search
+                searchTimeoutRef.current = setTimeout(() => {
+                  handleSearch(query);
+                }, 500); // 500ms debounce
+              }}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <button
-            onClick={handleSearch}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-          >
-            Search
-          </button>
-          <button
-            onClick={loadEmployees}
+            onClick={() => {
+              setSearchQuery('');
+              if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+              }
+              loadEmployees(1, pageLimit);
+            }}
             className="p-2 hover:bg-gray-100 text-gray-600 rounded-lg transition-colors"
-            title="Refresh"
+            title="Clear search and refresh"
           >
             <FiRefreshCw className="w-5 h-5" />
           </button>
@@ -759,7 +683,7 @@ const EmployeesPage: React.FC = () => {
 
       {/* Employees Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-96 overflow-y-auto">
           <table className="w-full min-w-[700px]">
             <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
               <tr>
@@ -871,6 +795,39 @@ const EmployeesPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-2">
+            <div className="text-sm text-gray-600">
+              Showing {((currentPage - 1) * pageLimit) + 1} to {Math.min(currentPage * pageLimit, totalEmployees)} of {totalEmployees} employees
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const newPage = currentPage - 1;
+                  setCurrentPage(newPage);
+                  loadEmployees(newPage, pageLimit);
+                }}
+                disabled={currentPage <= 1}
+                className="px-3 py-1 text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => {
+                  const newPage = currentPage + 1;
+                  setCurrentPage(newPage);
+                  loadEmployees(newPage, pageLimit);
+                }}
+                disabled={currentPage >= totalPages}
+                className="px-3 py-1 text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal - No close button, clicking outside won't close */}
@@ -1116,35 +1073,20 @@ const EmployeesPage: React.FC = () => {
                     <select
                       value={formData.roles?.role_name || 'department_employee'}
                       onChange={(e) => {
-                        const selectedRole = roles.find(r => r.role_name === e.target.value);
-                        let rolePermissions: Array<{ resource: string; actions: string[] }> = [];
-                        
-                        if (selectedRole?.permissions) {
-                          rolePermissions = selectedRole.permissions
-                            .filter(p => p.actions && Array.isArray(p.actions))
-                            .map(p => ({
-                              resource: p.resource_name,
-                              actions: p.actions
-                                .filter(a => a.is_enabled)
-                                .map(a => a.action)
-                            }))
-                            .filter(p => p.actions.length > 0);
-                        }
-                        
-                        setFormData({ 
-                          ...formData, 
+                        setFormData({
+                          ...formData,
                           roles: {
                             role_name: e.target.value,
-                            permissions: rolePermissions
+                            permissions: [] // Permissions will be set automatically by backend
                           }
                         });
                       }}
                       className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                     >
                       {roles.length > 0 ? (
-                        roles.map((role) => (
+                        roles.map((role: RoleFromBackend) => (
                           <option key={role._id || role.role_name} value={role.role_name}>
-                            {role.role_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            {role.role_name.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
                           </option>
                         ))
                       ) : (
@@ -1155,113 +1097,7 @@ const EmployeesPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Permissions Section */}
-              <div className="bg-purple-50 rounded-xl p-4 space-y-4">
-                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center gap-2">
-                  <FiShield className="w-4 h-4" />
-                  Permissions
-                </h3>
-                
-                <p className="text-xs text-gray-600">
-                  Select the permissions this employee should have for each system resource.
-                </p>
 
-                <div className="space-y-4 max-h-80 overflow-y-auto">
-                  {systemPermissions.length > 0 ? (
-                    systemPermissions.map((resource) => {
-                      const currentPerm = formData.roles?.permissions?.find(
-                        p => p?.resource?.toLowerCase() === resource.resource?.toLowerCase()
-                      );
-                      const selectedActions = currentPerm?.actions || [];
-
-                      return (
-                        <div key={resource.resource} className="border border-gray-200 rounded-lg bg-white p-3">
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="font-medium text-gray-900 capitalize">
-                              {resource.resource}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const allActionTypes = resource.actions.map(a => a.action_type);
-                                const newActions = selectedActions.length === allActionTypes.length 
-                                  ? [] 
-                                  : allActionTypes;
-                                
-                                const newPermissions = (formData.roles?.permissions || []).filter(
-                                  p => p?.resource?.toLowerCase() !== resource.resource?.toLowerCase()
-                                );
-                                
-                                if (newActions.length > 0) {
-                                  newPermissions.push({
-                                    resource: resource.resource,
-                                    actions: newActions
-                                  });
-                                }
-                                
-                                setFormData({
-                                  ...formData,
-                                  roles: {
-                                    role_name: formData.roles?.role_name || 'department_employee',
-                                    permissions: newPermissions
-                                  }
-                                });
-                              }}
-                              className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                            >
-                              {selectedActions.length === resource.actions.length ? 'Deselect All' : 'Select All'}
-                            </button>
-                          </div>
-                          <div className="space-y-2">
-                            {resource.actions.map((action) => {
-                              const isSelected = selectedActions.includes(action.action_type);
-                              return (
-                                <div key={action.action_type} className="flex items-center justify-between">
-                                  <span className="text-sm text-gray-600 flex-1">
-                                    {action.description}
-                                  </span>
-                                  <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={isSelected}
-                                      onChange={(e) => {
-                                        const newPermissions = (formData.roles?.permissions || []).filter(
-                                          p => p?.resource?.toLowerCase() !== resource.resource?.toLowerCase()
-                                        );
-                                        
-                                        if (e.target.checked) {
-                                          newPermissions.push({
-                                            resource: resource.resource,
-                                            actions: [...selectedActions, action.action_type]
-                                          });
-                                        }
-                                        
-                                        setFormData({
-                                          ...formData,
-                                          roles: {
-                                            role_name: formData.roles?.role_name || 'department_employee',
-                                            permissions: newPermissions
-                                          }
-                                        });
-                                      }}
-                                      className="sr-only peer"
-                                    />
-                                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
-                                  </label>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-center py-4 text-gray-500">
-                      Loading permissions...
-                    </div>
-                  )}
-                </div>
-              </div>
               
               <div className="flex gap-3 pt-2">
                 <button
@@ -1341,17 +1177,31 @@ const EmployeesPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleDownloadTemplate}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg font-medium transition-colors"
+                    disabled={downloadingTemplate}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-xs rounded-lg font-medium transition-colors"
                   >
-                    <FiPlus className="w-3 h-3" />
-                    Download Template
+                    {downloadingTemplate ? (
+                      <>
+                        <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                        Downloading...
+                      </>
+                    ) : (
+                      <>
+                        <FiPlus className="w-3 h-3" />
+                        Download Template
+                      </>
+                    )}
                   </button>
                 </div>
                 <ul className="text-xs text-blue-800 space-y-1">
-                  <li>• <strong>Required columns:</strong> fullname, telephone, email, gender</li>
+                  <li>• <strong>Name columns:</strong> Use "fullname" OR both "firstname" + "lastname"</li>
+                  <li>• <strong>Required columns:</strong> telephone, email, gender</li>
+                  <li>• <strong>Optional columns:</strong> department, department_unit, role</li>
                   <li>• <strong>Gender options:</strong> Male, Female, Other, Not specified</li>
                   <li>• <strong>Email format:</strong> example@domain.com</li>
                   <li>• <strong>Telephone:</strong> At least 10 digits</li>
+                  <li>• <strong>Roles:</strong> Will be automatically validated against system roles</li>
+                  <li>• <strong>Departments:</strong> Must exist in the system and be properly related</li>
                 </ul>
               </div>
               
@@ -1388,174 +1238,13 @@ const EmployeesPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Department Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Department (Optional)
-                </label>
-                <select
-                  value={uploadDepartmentId}
-                  onChange={(e) => handleUploadDepartmentChange(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
-                >
-                  <option value="">Select department</option>
-                  {departments.map((dept) => (
-                    <option key={dept._id || dept.department_id} value={dept._id || dept.department_id}>
-                      {dept.department_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
-              {/* Department Unit Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Department Unit (Optional)
-                </label>
-                <select
-                  value={uploadDepartmentUnit}
-                  onChange={(e) => setUploadDepartmentUnit(e.target.value)}
-                  disabled={!uploadDepartmentId || loadingUnits}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white disabled:bg-gray-200 disabled:text-gray-500"
-                >
-                  {loadingUnits ? (
-                    <option value="">Loading units...</option>
-                  ) : departmentUnits.length === 0 ? (
-                    <option value="">No units available</option>
-                  ) : (
-                    <>
-                      <option value="">Select department unit</option>
-                      {departmentUnits.map((unit) => (
-                        <option key={unit._id || unit.department_id} value={unit._id || unit.department_id}>
-                          {unit.department_name}
-                        </option>
-                      ))}
-                    </>
-                  )}
-                </select>
-                {uploadDepartmentId && departmentUnits.length === 0 && !loadingUnits && (
-                  <p className="text-xs text-gray-500 mt-1">No department units available for this department</p>
-                )}
-              </div>
 
-              {/* Role Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  <span className="flex items-center gap-2">
-                    <FiShield className="w-4 h-4" />
-                    User Role
-                  </span>
-                </label>
-                <select
-                  value={uploadRoleName}
-                  onChange={(e) => setUploadRoleName(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
-                >
-                  {roles.length > 0 ? (
-                    roles.map((role) => (
-                      <option key={role._id || role.role_name} value={role.role_name}>
-                        {role.role_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">No roles available</option>
-                  )}
-                </select>
-              </div>
 
-              {/* Permissions Section */}
-              <div className="bg-purple-50 rounded-xl p-4 space-y-4">
-                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center gap-2">
-                  <FiShield className="w-4 h-4" />
-                  Permissions
-                </h3>
-                
-                <p className="text-xs text-gray-600">
-                  Select the permissions these employees should have for each system resource.
-                </p>
 
-                <div className="space-y-4 max-h-80 overflow-y-auto">
-                  {systemPermissions.length > 0 ? (
-                    systemPermissions.map((resource) => {
-                      const currentPerm = uploadPermissions.find(
-                        p => p?.resource?.toLowerCase() === resource.resource?.toLowerCase()
-                      );
-                      const selectedActions = currentPerm?.actions || [];
 
-                      return (
-                        <div key={resource.resource} className="border border-gray-200 rounded-lg bg-white p-3">
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="font-medium text-gray-900 capitalize">
-                              {resource.resource}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const allActionTypes = resource.actions.map(a => a.action_type);
-                                const newActions = selectedActions.length === allActionTypes.length 
-                                  ? [] 
-                                  : allActionTypes;
-                                
-                                const newPermissions = uploadPermissions.filter(
-                                  p => p?.resource?.toLowerCase() !== resource.resource?.toLowerCase()
-                                );
-                                
-                                if (newActions.length > 0) {
-                                  newPermissions.push({
-                                    resource: resource.resource,
-                                    actions: newActions
-                                  });
-                                }
-                                
-                                setUploadPermissions(newPermissions);
-                              }}
-                              className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                            >
-                              {selectedActions.length === resource.actions.length ? 'Deselect All' : 'Select All'}
-                            </button>
-                          </div>
-                          <div className="space-y-2">
-                            {resource.actions.map((action) => {
-                              const isSelected = selectedActions.includes(action.action_type);
-                              return (
-                                <div key={action.action_type} className="flex items-center justify-between">
-                                  <span className="text-sm text-gray-600 flex-1">
-                                    {action.description}
-                                  </span>
-                                  <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={isSelected}
-                                      onChange={(e) => {
-                                        const newPermissions = uploadPermissions.filter(
-                                          p => p?.resource?.toLowerCase() !== resource.resource?.toLowerCase()
-                                        );
-                                        
-                                        if (e.target.checked) {
-                                          newPermissions.push({
-                                            resource: resource.resource,
-                                            actions: [...selectedActions, action.action_type]
-                                          });
-                                        }
-                                        
-                                        setUploadPermissions(newPermissions);
-                                      }}
-                                      className="sr-only peer"
-                                    />
-                                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-600"></div>
-                                  </label>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <p className="text-sm text-gray-500 text-center py-4">No permissions available</p>
-                  )}
-                </div>
-              </div>
+
+
 
               {/* Action Buttons */}
               <div className="flex gap-3 pt-2">

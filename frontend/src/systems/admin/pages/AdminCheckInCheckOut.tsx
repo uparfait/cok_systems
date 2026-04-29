@@ -4,13 +4,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
-import { serviceDeliveryService, statisticsService } from '../../../core/services/adminService';
+import { serviceDeliveryService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import { useToast } from '../../../core/contexts/ToastContext';
-import { 
+import {
   FiUserPlus, FiUserMinus, FiSearch, FiRefreshCw, FiCheckCircle, FiX,
-  FiClock, FiPhone, FiMail, FiCalendar, FiEdit2, FiTrash2, FiEye, FiDownload
+  FiClock, FiPhone, FiMail, FiDownload
 } from 'react-icons/fi';
 import { HiOutlineClipboardList } from 'react-icons/hi';
 import { jsPDF } from 'jspdf';
@@ -72,12 +72,7 @@ interface Visitor {
   }>;
 }
 
-interface PaginationInfo {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
+
 
 // ==================== CONSTANTS ====================
 const DEFAULT_PAGE_SIZE = 50;
@@ -97,13 +92,7 @@ const AdminCheckInCheckOut: React.FC = () => {
   const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
   const [firstLoad, setFirstLoad] = useState(true);
   
-  // Pagination state
-  const [pagination, setPagination] = useState<PaginationInfo>({
-    page: 1,
-    limit: DEFAULT_PAGE_SIZE,
-    total: 0,
-    totalPages: 0
-  });
+
 
   // ==================== DERIVED STATE ====================
   // Calculate statistics from visitors data (used for stats cards and tabs)
@@ -145,28 +134,19 @@ const AdminCheckInCheckOut: React.FC = () => {
     }
   }, []);
 
-  const fetchVisitors = useCallback(async (page: number = 1) => {
+  const fetchVisitors = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch all visitors without in_house filter to get complete list
-      const response = await serviceDeliveryService.getAll(page, DEFAULT_PAGE_SIZE);
+      // Fetch all visitors without pagination
+      const response = await serviceDeliveryService.getAll(1, 1000); // Get a large number to get all records
       const data = response?.data || [];
-      const total = response?.total || 0;
-      
+
       const visitorsData = Array.isArray(data) ? data : [];
       setVisitors(visitorsData);
-      
+
       // Calculate pending exit count from fetched data
       const pendingCount = visitorsData.filter(v => v.is_still_inhouse && v.marked_as_out).length;
       setRealPendingExitCount(pendingCount);
-      
-      setPagination(prev => ({ 
-        ...prev, 
-        total: total,
-        totalPages: Math.ceil(total / DEFAULT_PAGE_SIZE),
-        page: page,
-        limit: DEFAULT_PAGE_SIZE
-      }));
     } catch (error) {
       console.error('Error fetching visitors:', error);
       showError('Failed to load visitors');
@@ -179,28 +159,21 @@ const AdminCheckInCheckOut: React.FC = () => {
   // ==================== SEARCH HANDLERS ====================
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) {
-      fetchVisitors(1);
+      fetchVisitors();
       return;
     }
-    
+
     setLoading(true);
     try {
       // Search visitors without in_house filter (pass 'all' to search all)
-      const response = await serviceDeliveryService.searchVisitors(searchQuery, 1, 100, 'all' as any);
+      const response = await serviceDeliveryService.searchVisitors(searchQuery, 1, 1000, 'all' as any);
       const data = response?.data || [];
       const visitorsData = Array.isArray(data) ? data : [];
       setVisitors(visitorsData);
-      
+
       // Calculate pending exit count from search results
       const pendingCount = visitorsData.filter(v => v.is_still_inhouse && v.marked_as_out).length;
       setRealPendingExitCount(pendingCount);
-      
-      setPagination(prev => ({ 
-        ...prev, 
-        total: visitorsData.length, 
-        totalPages: 1,
-        page: 1
-      }));
     } catch (error) {
       console.error('Error searching visitors:', error);
       showError('Failed to search visitors');
@@ -210,7 +183,6 @@ const AdminCheckInCheckOut: React.FC = () => {
   }, [searchQuery, fetchVisitors, showError]);
 
   // ==================== FILTER VISITORS ====================
-  // Filter visitors first, then paginate
   useEffect(() => {
     let filtered = [...visitors];
 
@@ -228,7 +200,7 @@ const AdminCheckInCheckOut: React.FC = () => {
 
     // Filter by search
     if (searchQuery) {
-      filtered = filtered.filter(v => 
+      filtered = filtered.filter(v =>
         (v.full_name || v.name || v.visitorName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (v.telephone || v.phone || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (v.badge_number || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -236,19 +208,8 @@ const AdminCheckInCheckOut: React.FC = () => {
       );
     }
 
-    // Update pagination total based on filtered results
-    setPagination(prev => ({
-      ...prev,
-      total: filtered.length,
-      totalPages: Math.ceil(filtered.length / prev.limit)
-    }));
-
-    // Apply pagination to filtered results
-    const startIndex = (pagination.page - 1) * pagination.limit;
-    const endIndex = startIndex + pagination.limit;
-    const paginatedFiltered = filtered.slice(startIndex, endIndex);
-    setFilteredVisitors(paginatedFiltered);
-  }, [visitors, searchQuery, activeTab, pagination.page, pagination.limit]);
+    setFilteredVisitors(filtered);
+  }, [visitors, searchQuery, activeTab]);
 
   // ==================== CHECK-IN/OUT HANDLERS ====================
   const handleCheckIn = async (visitor: Visitor) => {
@@ -262,7 +223,7 @@ const AdminCheckInCheckOut: React.FC = () => {
       
       if (response?.success) {
         showSuccess('Visitor checked in successfully');
-        fetchVisitors(pagination.page);
+        fetchVisitors();
         fetchRealCounts();
       } else {
         showError(response?.message || 'Failed to check in visitor');
@@ -279,7 +240,7 @@ const AdminCheckInCheckOut: React.FC = () => {
       
       if (response?.success) {
         showSuccess('Visitor checked out successfully');
-        fetchVisitors(pagination.page);
+        fetchVisitors();
         fetchRealCounts();
       } else {
         showError(response?.message || 'Failed to check out visitor');
@@ -290,12 +251,7 @@ const AdminCheckInCheckOut: React.FC = () => {
     }
   };
 
-  // ==================== PAGINATION ====================
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= pagination.totalPages) {
-      setPagination(prev => ({ ...prev, page: newPage }));
-    }
-  };
+
 
   // ==================== UTILITY FUNCTIONS ====================
   const formatDuration = (visitor: Visitor) => {
@@ -514,10 +470,10 @@ const AdminCheckInCheckOut: React.FC = () => {
 
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
-      fetchVisitors(pagination.page);
+      fetchVisitors();
       fetchRealCounts();
     }
-  }, [isAuthenticated, authLoading, pagination.page, fetchVisitors, fetchRealCounts]);
+  }, [isAuthenticated, authLoading, fetchVisitors, fetchRealCounts]);
 
   // ==================== RENDER ====================
   if (authLoading) {
@@ -547,8 +503,8 @@ const AdminCheckInCheckOut: React.FC = () => {
               <FiDownload className="w-4 h-4" />
               Download Report
             </button>
-            <button 
-              onClick={() => fetchVisitors(pagination.page)}
+            <button
+              onClick={() => fetchVisitors()}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
               <FiRefreshCw className="w-4 h-4" />
@@ -614,7 +570,7 @@ const AdminCheckInCheckOut: React.FC = () => {
                 {(loading && firstLoad) ? (
                   <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1" />
                 ) : (
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{pagination.total}</p>
+                   <p className="text-2xl font-bold text-gray-900 mt-1">{visitors.length}</p>
                 )}
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -625,14 +581,11 @@ const AdminCheckInCheckOut: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 max-h-[600px] flex flex-col">
           <div className="border-b border-gray-100">
             <nav className="flex -mb-px">
               <button
-                onClick={() => {
-                  setActiveTab('inside');
-                  setPagination(prev => ({ ...prev, page: 1 }));
-                }}
+                onClick={() => setActiveTab('inside')}
                 className={`py-4 px-6 text-sm font-medium border-b-2 ${
                   activeTab === 'inside'
                     ? 'border-green-500 text-green-600'
@@ -643,10 +596,7 @@ const AdminCheckInCheckOut: React.FC = () => {
                 Currently Inside ({realInsideCount})
               </button>
               <button
-                onClick={() => {
-                  setActiveTab('pending');
-                  setPagination(prev => ({ ...prev, page: 1 }));
-                }}
+                onClick={() => setActiveTab('pending')}
                 className={`py-4 px-6 text-sm font-medium border-b-2 ${
                   activeTab === 'pending'
                     ? 'border-orange-500 text-orange-600'
@@ -657,10 +607,7 @@ const AdminCheckInCheckOut: React.FC = () => {
                 Pending Exit ({pendingExitCount})
               </button>
               <button
-                onClick={() => {
-                  setActiveTab('left');
-                  setPagination(prev => ({ ...prev, page: 1 }));
-                }}
+                onClick={() => setActiveTab('left')}
                 className={`py-4 px-6 text-sm font-medium border-b-2 ${
                   activeTab === 'left'
                     ? 'border-gray-500 text-gray-600'
@@ -697,10 +644,10 @@ const AdminCheckInCheckOut: React.FC = () => {
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
             <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
+            <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
+              <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Visitor Name</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">ID Number</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Badge</th>
@@ -777,30 +724,7 @@ const AdminCheckInCheckOut: React.FC = () => {
             </table>
           </div>
 
-          {/* Pagination */}
-          {pagination.totalPages > 1 && (
-            <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-              <div className="text-sm text-gray-500">
-                Showing page {pagination.page} of {pagination.totalPages} ({pagination.total} total records)
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handlePageChange(pagination.page - 1)}
-                  disabled={pagination.page === 1}
-                  className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => handlePageChange(pagination.page + 1)}
-                  disabled={pagination.page === pagination.totalPages}
-                  className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
+
         </div>
       </div>
     </MainLayout>

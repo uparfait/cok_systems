@@ -16,10 +16,10 @@ import { ToastProvider } from './core/contexts/ToastContext';
 import ChatWidget from './core/components/ChatWidget';
 
 // Import from new systems folder (wrappers with MainLayout built-in)
-import { 
-  AdminDashboard, 
-  DepartmentsPage, 
-  EmployeesPage, 
+import {
+  AdminDashboard,
+  DepartmentsPage,
+  EmployeesPage,
   UserManagementPage,
   RolesManagementPage,
   AdminSmartParkingDashboard,
@@ -28,6 +28,7 @@ import {
   AdminCheckInCheckOut,
   Analytics,
   FeedbackPage,
+  OverviewPage,
 } from './systems/admin';
 
 // 👉 COLLEAGUE'S IMPORTS (Smart Parking) - Cleaned to match new index.ts!
@@ -67,6 +68,7 @@ function App() {
               {/* Protected Routes - Using new systems with MainLayout */}
               
               {/* ==================== ADMIN SYSTEM ==================== */}
+              <Route path="/admin/overview" element={<ProtectedRoute><OverviewPage /></ProtectedRoute>} />
               <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
               <Route path="/admin/departments" element={<ProtectedRoute><DepartmentsPage /></ProtectedRoute>} />
               <Route path="/admin/employees" element={<ProtectedRoute><EmployeesPage /></ProtectedRoute>} />
