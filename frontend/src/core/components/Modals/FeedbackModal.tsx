@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { FiX, FiPhone, FiCheckCircle, FiAlertCircle, FiStar, FiMessageSquare, FiEye } from 'react-icons/fi';
-import { verifyPhone, submitFeedback } from '../../services/feedbackService';
+import { verifyPhone, submitFeedback, getFeedbackByPhone } from '../../services/feedbackService';
 import { useToast } from '../../contexts/ToastContext';
 
 interface AssignedDepartment {
@@ -34,6 +34,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
   const [selectedDepartment, setSelectedDepartment] = useState<AssignedDepartment | null>(null);
   const [rating, setRating] = useState(5);
   const [message, setMessage] = useState('');
+  const [existingFeedback, setExistingFeedback] = useState<Record<string, { rate: number; department_name: string; department_id: string }>>({});
   
   // Loading states
   const [isVerifying, setIsVerifying] = useState(false);
@@ -51,6 +52,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
     setRating(5);
     setMessage('');
     setErrorMessage('');
+    setExistingFeedback({});
   };
 
   const handleClose = () => {
@@ -75,24 +77,17 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
       if (response.assigned_departments.length === 0) {
         setErrorMessage('No departments assigned to this phone number');
         setStep('error');
-      } else {
-        setStep('department');
-      }
-    } catch (error: any) {
-      setErrorMessage(error.message || 'No service record found for this phone number');
+    } else {
+      // Load existing feedback for all assigned departments
+      loadExistingFeedback(phone.trim());
+      setStep('department');
+    }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : typeof error === 'object' && error !== null && 'message' in error ? String((error as {message?: string}).message) : 'Phone number not found');
       setStep('error');
     } finally {
       setIsVerifying(false);
     }
-  };
-
-  const handleSelectDepartment = (dept: AssignedDepartment) => {
-    setSelectedDepartment(dept);
-    setStep('rate');
-  };
-
-  const handlePreview = () => {
-    setStep('preview');
   };
 
   const handleSubmit = async () => {
@@ -107,13 +102,37 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
         rate: rating,
         textmessage: message.trim() || undefined
       });
+      // Update existing feedback map
+      setExistingFeedback(prev => ({
+        ...prev,
+        [selectedDepartment.department_id]: {
+          rate: rating,
+          department_name: selectedDepartment.department_name,
+          department_id: selectedDepartment.department_id
+        }
+      }));
       setStep('success');
       showSuccess('Thank you! Your feedback has been submitted successfully.');
-    } catch (error: any) {
-      setErrorMessage(error.message || 'Failed to submit feedback');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : typeof error === 'object' && error !== null && 'message' in error ? String((error as {message?: string}).message) : 'Failed to submit feedback');
       setStep('error');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const loadExistingFeedback = async (telephone: string) => {
+    try {
+      const result = await getFeedbackByPhone(telephone);
+      // Build a map of department_id -> existing feedback
+      const feedbackMap: Record<string, { rate: number; department_name: string; department_id: string }> = {};
+      result.feedback.forEach((fb) => {
+        feedbackMap[fb.department_id] = fb;
+      });
+      setExistingFeedback(feedbackMap);
+    } catch {
+      // No existing feedback is fine
+      setExistingFeedback({});
     }
   };
 
@@ -122,6 +141,22 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
     else if (step === 'rate') setStep('department');
     else if (step === 'preview') setStep('rate');
     else if (step === 'error') setStep('phone');
+  };
+
+  const handleSelectDepartment = (dept: AssignedDepartment) => {
+    // Check if feedback already exists for this department
+    if (existingFeedback[dept.department_id]) {
+      const fb = existingFeedback[dept.department_id];
+      setErrorMessage(`Feedback already submitted for ${dept.department_name}. Rating: ${fb.rate}/10. You can only provide feedback once per department.`);
+      setStep('error');
+      return;
+    }
+    setSelectedDepartment(dept);
+    setStep('rate');
+  };
+
+  const handlePreview = () => {
+    setStep('preview');
   };
 
   if (!isOpen) return null;
@@ -207,18 +242,32 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {departments.map((dept) => (
-                    <button
-                      key={dept.department_id}
-                      onClick={() => handleSelectDepartment(dept)}
-                      className="w-full p-3 rounded-lg border border-gray-200 hover:border-yellow-400 hover:bg-yellow-50 transition-all text-left"
-                    >
-                      <p className="font-medium text-gray-900 text-sm">{dept.department_name}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Provider: {dept.provider_name}
-                      </p>
-                    </button>
-                  ))}
+                  {departments.map((dept) => {
+                    const hasFeedback = existingFeedback[dept.department_id];
+                    return (
+                      <button
+                        key={dept.department_id}
+                        onClick={() => handleSelectDepartment(dept)}
+                        disabled={!!hasFeedback}
+                        className={`w-full p-3 rounded-lg border transition-all text-left ${hasFeedback ? 'border-green-200 bg-green-50 cursor-not-allowed' : 'border-gray-200 hover:border-yellow-400 hover:bg-yellow-50'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className={`font-medium ${hasFeedback ? 'text-green-700' : 'text-gray-900'} text-sm`}>{dept.department_name}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              Provider: {dept.provider_name}
+                            </p>
+                          </div>
+                          {hasFeedback && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                              <FiCheckCircle className="w-3 h-3" />
+                              Done
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
 
                 <button
@@ -418,10 +467,10 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                   <FiAlertCircle className="w-8 h-8 text-red-600" />
                 </div>
                 <div>
-                  <p className="text-lg font-semibold text-gray-900">Unable to Submit</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {errorMessage || 'Something went wrong. Please try again.'}
-                  </p>
+                  <p className="text-lg font-semibold text-gray-900">{errorMessage || 'Unable to Submit'}</p>
+                  {/* <p className="text-sm text-gray-500 mt-1">
+                    Please try again or contact support if the issue persists.
+                  </p> */}
                   <p className="text-xs text-gray-400 mt-2">
                     Note: You can only submit feedback for departments you were assigned to during your visit.
                   </p>
