@@ -426,19 +426,19 @@ const LoginPage = () => {
               © {new Date().getFullYear()} City of Kigali. All rights reserved.
             </p>
 
-            {/* Feedback button for visitors */}
-            <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={() => setShowFeedbackModal(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 hover:text-yellow-600 hover:underline transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                </svg>
-                Give Feedback
-              </button>
-            </div>
+ {/* Feedback button for visitors */}
+<div className="mt-4 text-center">
+  <button
+    type="button"
+    onClick={() => setShowFeedbackModal(true)}
+    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-blue-800 bg-blue-100/80 hover:bg-blue-200 hover:text-blue-900 rounded-full transition-all duration-200 border border-blue-200 shadow-sm"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+    </svg>
+    Give Feedback
+  </button>
+</div>
           </div>
         </div>
       </div>
