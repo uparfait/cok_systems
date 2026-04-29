@@ -60,6 +60,21 @@ async function submitFeedback(req, res) {
             });
         }
 
+        // Check if feedback already exists for this phone number and department
+        // This ensures customers can only provide feedback ONCE per department
+        const existingFeedback = await Feedback.findOne({
+            telephone: telephone,
+            department_id: department_id
+        });
+
+        if (existingFeedback) {
+            return res.status(409).json({
+                success: false,
+                error: 'Feedback already submitted',
+                message: 'You have already submitted feedback for this department. You can only provide feedback once per department.'
+            });
+        }
+
         // Get department name from assigned departments
         const assignedDept = serviceRecord.departments_assigned.find(
             dept => dept.department_id === department_id
