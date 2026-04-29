@@ -14,7 +14,7 @@ module.exports = async function getByPhone(req, res, next) {
             return res.status(400).json({
                 success: false,
                 type: "warning",
-                message: "Phone number is required"
+                message: "Please Enter a phone number"
             });
         }
 
@@ -29,6 +29,24 @@ module.exports = async function getByPhone(req, res, next) {
                 message: "No feedback found for this phone number"
             });
         }
+
+        // Get service record to find all assigned departments
+        const ServiceDelivery = require('../../models/service_delivery');
+        const serviceRecord = await ServiceDelivery.findOne({ telephone: telephone });
+
+        // Determine which assigned departments have feedback and which are pending
+        const assignedDepartments = serviceRecord ? serviceRecord.departments_assigned.map(dept => ({
+            department_id: dept.department_id,
+            department_name: dept.department_name,
+            assigned_time: dept.assigned_time,
+            reached_in: dept.reached_in,
+            provider_name: dept.provider_name
+        })) : [];
+
+        const feedbackDepartmentIds = new Set(feedback.map(f => f.department_id));
+
+        const departmentsWithFeedback = assignedDepartments.filter(d => feedbackDepartmentIds.has(d.department_id));
+        const pendingFeedbackDepartments = assignedDepartments.filter(d => !feedbackDepartmentIds.has(d.department_id));
 
         // Format the response
         const formattedFeedback = feedback.map(item => ({
@@ -47,7 +65,22 @@ module.exports = async function getByPhone(req, res, next) {
             type: "success",
             message: "Feedback retrieved successfully",
             total: feedback.length,
-            data: formattedFeedback
+            data: formattedFeedback,
+            summary: {
+                total_assigned_departments: assignedDepartments.length,
+                completed_feedback: departmentsWithFeedback.length,
+                pending_feedback: pendingFeedbackDepartments.length,
+                departments_with_feedback: departmentsWithFeedback.map(d => ({
+                    department_id: d.department_id,
+                    department_name: d.department_name,
+                    provider_name: d.provider_name
+                })),
+                pending_departments: pendingFeedbackDepartments.map(d => ({
+                    department_id: d.department_id,
+                    department_name: d.department_name,
+                    provider_name: d.provider_name
+                }))
+            }
         });
 
     } catch (error) {
