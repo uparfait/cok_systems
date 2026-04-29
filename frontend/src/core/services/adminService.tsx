@@ -96,7 +96,14 @@ export interface Employee {
 
 export const employeeService = {
   // Get all employees
-  getAll: () => get('/employee/crud'),
+  getAll: (page?: number, limit?: number) => {
+    let url = '/employee/crud';
+    const params = [];
+    if (page) params.push(`page=${page}`);
+    if (limit) params.push(`limit=${limit}`);
+    if (params.length > 0) url += '?' + params.join('&');
+    return get(url);
+  },
   
   // Get employees by department (filters by is_active=true by default for only active employees)
   getByDepartment: (departmentId: string, activeOnly: boolean = true, page: number = 1, limit: number = 20) => {
@@ -121,29 +128,64 @@ export const employeeService = {
   // Delete employee
   delete: (id: string) => del(`/employee/crud/${id}`),
   
-  // Create multiple employees from file upload
-  createMultiple: (formData: FormData) => {
-    return post('/multiple/employees', formData, {
-      'Content-Type': 'multipart/form-data'
-    });
-  },
+   // Create multiple employees from file upload
+   createMultiple: (formData: FormData) => {
+     return post('/multiple/employees', formData, {
+       'Content-Type': 'multipart/form-data'
+     });
+   },
+
+   // Download employee template
+   downloadTemplate: async () => {
+     try {
+       const response = await fetch(`${import.meta.env.VITE_API_URL || '/cok/api'}/multiple/employees/template`);
+       if (!response.ok) {
+         throw new Error('Failed to download template');
+       }
+       const blob = await response.blob();
+       return {
+         success: true,
+         data: blob
+       };
+     } catch (error) {
+       console.error('Download template error:', error);
+       return {
+         success: false,
+         error: error instanceof Error ? error.message : 'Unknown error'
+       };
+     }
+   },
 };
 
 // ==================== FEEDBACK APIs ====================
 
 export const feedbackService = {
   // Get all feedback
-  getAll: () => get('/feedback/search?limit=50&page=1'),
-  
+  getAll: (page?: number, limit?: number) => {
+    const pageNum = page || 1;
+    const limitNum = limit || 50;
+    return get(`/feedback/search?limit=${limitNum}&page=${pageNum}`);
+  },
+
   // Search feedback
   search: (query: string) => get(`/feedback/search?limit=${encodeURIComponent(query)}`),
-  
+
+  // Search feedback by department
+  searchByDepartment: (department: string, page?: number, limit?: number, from?: string, to?: string) => {
+    let url = `/feedback/search-by-department?department_id=${encodeURIComponent(department)}`;
+    if (page) url += `&page=${page}`;
+    if (limit) url += `&limit=${limit}`;
+    if (from) url += `&from=${from}`;
+    if (to) url += `&to=${to}`;
+    return get(url);
+  },
+
   // Get feedback by ID
   getById: (id: string) => get(`/feedback/${id}`),
-  
+
   // Submit feedback
   submit: (data: any) => post('/feedback/submit', data),
-  
+
   // Delete feedback
   delete: (id: string) => del(`/feedback/${id}`),
 };
@@ -427,7 +469,7 @@ export const parkingService = {
   },
   
   // Get parking records with pagination
-  getAllPaginated: (page: number = 1, limit: number = 50) => get(`/smartparking/vehicle?status=all&page=${page}&limit=${limit}`),
+  getAllPaginated: (page: number = 1, limit: number = 50, status: string = 'all') => get(`/smartparking/vehicle?status=${status}&page=${page}&limit=${limit}`),
   
 
   
