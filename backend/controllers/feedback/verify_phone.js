@@ -22,8 +22,8 @@ async function verifyPhone(req, res) {
         if (!serviceRecord) {
             return res.status(404).json({
                 success: false,
-                error: 'No service record found for this phone number',
-                message: 'You must have received service to provide feedback'
+                error: 'Phone number not found',
+                message: 'No service record linked to this phone number'
             });
         }
 

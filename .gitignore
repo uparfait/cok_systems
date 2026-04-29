@@ -32,3 +32,5 @@ temp/
 # Database
 *.db
 *.sqlite
+# TypeScript build cache
+tsconfig.tsbuildinfo

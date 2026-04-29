@@ -29,6 +29,9 @@ const feedbackSchema = new Schema({
     }
 });
 
+// Unique compound index to ensure one feedback per phone number per department
+feedbackSchema.index({ telephone: 1, department_id: 1 }, { unique: true });
+
 const Feedback = mongoose.model("feedback_db", feedbackSchema);
 
 module.exports = Feedback;

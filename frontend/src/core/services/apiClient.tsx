@@ -230,10 +230,11 @@ apiClient.interceptors.response.use(
     let errorMessage = 'An error occurred';
     let errorField = 'Error';
     
-    // Handle 404 specifically with cleaner message
+    // Handle 404 using backend error message directly
     if (statusCode === 404) {
-      errorMessage = 'Service not found. Please check your connection.';
-      errorField = 'Not Found';
+      const backendError = errorData?.error || errorData?.message || 'Resource not found';
+      errorMessage = backendError;
+      errorField = backendError;
     } else if (errorData) {
       // Check for 'message' field first (used by backend like { success: false, message: "..." })
       if ('message' in errorData && errorData.message) {

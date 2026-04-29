@@ -44,6 +44,32 @@ interface FeedbackItem {
   created_date: string;
 }
 
+interface FeedbackDepartmentSummary {
+  department_id: string;
+  department_name: string;
+  provider_name: string;
+  assigned_time?: string;
+}
+
+interface FeedbackSummary {
+  total_assigned_departments: number;
+  completed_feedback: number;
+  pending_feedback: number;
+  departments_with_feedback: FeedbackDepartmentSummary[];
+  pending_departments: FeedbackDepartmentSummary[];
+}
+
+// GetFeedbackByPhoneResponse - response type for getFeedbackByPhone endpoint
+// interface GetFeedbackByPhoneResponse {
+//   success: boolean;
+//   type: string;
+//   message: string;
+//   total: number;
+//   data: FeedbackItem[];
+//   summary?: FeedbackSummary;
+// }
+
+
 // API Functions
 
 /**
@@ -84,12 +110,43 @@ export const submitFeedback = async (data: SubmitFeedbackRequest): Promise<Submi
  * Get feedback submitted by a phone number
  * GET /feedback/by-phone/:telephone
  */
-export const getFeedbackByPhone = async (telephone: string): Promise<FeedbackItem[]> => {
+export const getFeedbackByPhone = async (telephone: string): Promise<{feedback: FeedbackItem[], summary: FeedbackSummary}> => {
   const response = await get(`/feedback/by-phone/${telephone}`);
   if (response.success && response.data) {
-    return response.data;
+    return {
+      feedback: response.data || [],
+      summary: response.summary || {
+        total_assigned_departments: 0,
+        completed_feedback: 0,
+        pending_feedback: 0,
+        departments_with_feedback: [],
+        pending_departments: []
+      }
+    };
   }
-  return [];
+  // If no feedback exists yet, return empty with summary based on phone lookup
+  if (response.status === false && response.type === 'warning') {
+    return {
+      feedback: [],
+      summary: {
+        total_assigned_departments: 0,
+        completed_feedback: 0,
+        pending_feedback: 0,
+        departments_with_feedback: [],
+        pending_departments: []
+      }
+    };
+  }
+  return {
+    feedback: [],
+    summary: {
+      total_assigned_departments: 0,
+      completed_feedback: 0,
+      pending_feedback: 0,
+      departments_with_feedback: [],
+      pending_departments: []
+    }
+  };
 };
 
 export default {
