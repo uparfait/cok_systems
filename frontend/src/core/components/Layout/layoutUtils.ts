@@ -591,7 +591,7 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
   // Receptionist role check - redirect to receptionist dashboard
   if (normalizedRole.includes('receptionist')) {
     console.log('[getDashboardRoute] Matched receptionist');
-    return `/${getRoleUrlPrefix(role)}/dashboard`;
+    return '/service-delivery/receptionist';
   }
 
   // Employee role check - redirect to employee dashboard
@@ -601,7 +601,7 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
       normalizedRole.includes('officer') ||
       normalizedRole.includes('clerk')) {
     console.log('[getDashboardRoute] Matched employee/staff/officer/clerk');
-    return `/${getRoleUrlPrefix(role)}/dashboard`;
+    return '/service-delivery/employee';
   }
 
   // 👉 ADDED THIS MANAGER CHECK RIGHT HERE:
@@ -611,20 +611,20 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
       normalizedRole.includes('head of department') ||
       normalizedRole.includes('director')) {
     console.log('[getDashboardRoute] Matched department manager/head/director');
-    return `/${getRoleUrlPrefix(role)}/dashboard`;
+    return '/service-delivery/department-manager';
   }
 
   // Generic "manager" or "head" checks should come AFTER receptionist check
   // But we need to exclude receptionist from these generic checks
   if ((normalizedRole.includes('manager') || normalizedRole.includes('head')) && !normalizedRole.includes('receptionist')) {
     console.log('[getDashboardRoute] Matched manager/head (not receptionist)');
-    return `/${getRoleUrlPrefix(role)}/dashboard`;
+    return '/service-delivery/department-manager';
   }
 
   // If admin/system role, go to admin dashboard
   if (normalizedRole.includes('admin') || normalizedRole.includes('system')) {
     console.log('[getDashboardRoute] Matched admin/system');
-    return `/${getRoleUrlPrefix(role)}/dashboard`;
+    return '/admin/dashboard';
   }
   
   // Check department name for department-specific routing
@@ -633,50 +633,40 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
 
     if (dept.includes('it') || dept.includes('finance') || dept.includes('operations')) {
       console.log('[getDashboardRoute] Matched IT/Finance/Ops department');
-      return `/${getRoleUrlPrefix(role)}/dashboard`;
+      return '/smart-parking/dashboard';
     }
     if (dept.includes('hr') || dept.includes('human') || dept.includes('legal')) {
       console.log('[getDashboardRoute] Matched HR/Legal department');
-      return `/${getRoleUrlPrefix(role)}/dashboard`;
+      return '/service-delivery/dashboard';
     }
   }
 
   // Default - try to determine from role
   // Check for Gate and Vehicle Registrar role (parking/security related)
   if (normalizedRole.includes('gate') && normalizedRole.includes('vehicle')) {
-    console.log('[getDashboardRoute] Role matched gate+vehicle, routing to role dashboard');
-    return `/${getRoleUrlPrefix(role)}/dashboard`;
+    console.log('[getDashboardRoute] Role matched gate+vehicle, routing to smart-parking');
+    return '/smart-parking/dashboard';
   }
   if (normalizedRole.includes('Gate and Vehicle Registrar')) {
-    console.log('[getDashboardRoute] Role matched Gate and Vehicle Registrar, routing to role dashboard');
-    return `/${getRoleUrlPrefix(role)}/dashboard`;
+    console.log('[getDashboardRoute] Role matched Gate and Vehicle Registrar, routing to smart-parking');
+    return '/smart-parking/dashboard';
   }
   if (normalizedRole.includes('parking') || normalizedRole.includes('it')) {
     console.log('[getDashboardRoute] Matched parking/IT');
-    return `/${getRoleUrlPrefix(role)}/dashboard`;
+    return '/smart-parking/dashboard';
   }
 
   // Service delivery staff (not manager/receptionist) should go to employee dashboard
   if (normalizedRole.includes('service')) {
-    console.log('[getDashboardRoute] Matched service (going to role dashboard)');
-    return `/${getRoleUrlPrefix(role)}/dashboard`;
+    console.log('[getDashboardRoute] Matched service (going to employee dashboard)');
+    return '/service-delivery/employee';
   }
 
-  if (normalizedRole.includes('hr')) {
-    console.log('[getDashboardRoute] Matched HR');
-    return `/${getRoleUrlPrefix(role)}/dashboard`;
-  }
-
-  // Fallback to role-based dashboard
-  console.log('[getDashboardRoute] No match found, defaulting to role dashboard');
-  return `/${getRoleUrlPrefix(role)}/dashboard`;
-  }
-  
   if (normalizedRole.includes('hr')) {
     console.log('[getDashboardRoute] Matched HR');
     return '/service-delivery/dashboard';
   }
-  
+
   // Fallback to employee dashboard as default, but sidebar will show all role options
   console.log('[getDashboardRoute] No match found, defaulting to employee dashboard');
   return '/service-delivery/employee';
@@ -688,63 +678,7 @@ export const getUserDepartment = (user: any): string => {
   return user.departmentName || user.department_name || '';
 };
 
-// Get role-based URL prefix for routing
-export const getRoleUrlPrefix = (role: string | undefined): string => {
-  if (!role) return 'unknown-role';
 
-  const normalizedRole = role.toLowerCase().trim();
-
-  // Map roles to URL segments
-  if (normalizedRole.includes('administrator') || normalizedRole.includes('admin') || normalizedRole.includes('system')) {
-    return 'administrator';
-  }
-  if (normalizedRole.includes('gate') && normalizedRole.includes('officer')) {
-    return 'gate-officer';
-  }
-  if (normalizedRole.includes('gate') && normalizedRole.includes('vehicle')) {
-    return 'gate-officer';
-  }
-  if (normalizedRole.includes('receptionist')) {
-    return 'receptionist';
-  }
-  if (normalizedRole.includes('department manager') ||
-      normalizedRole.includes('department head') ||
-      normalizedRole.includes('head of department') ||
-      normalizedRole.includes('director') ||
-      normalizedRole.includes('manager')) {
-    return 'department-manager';
-  }
-  if (normalizedRole.includes('employee') || normalizedRole.includes('staff') || normalizedRole.includes('officer') || normalizedRole.includes('clerk')) {
-    return 'employee';
-  }
-
-  // Default fallback
-  return normalizedRole.replace(/\s+/g, '-').toLowerCase();
-};
-
-// Convert legacy system paths to role-based paths
-export const convertToRoleBasedPath = (legacyPath: string, role: string | undefined): string => {
-  const prefix = getRoleUrlPrefix(role);
-
-  // Handle different legacy path patterns
-  if (legacyPath.startsWith('/admin/')) {
-    return legacyPath.replace('/admin/', `/${prefix}/`);
-  }
-  if (legacyPath.startsWith('/service-delivery/')) {
-    return legacyPath.replace('/service-delivery/', `/${prefix}/`);
-  }
-  if (legacyPath.startsWith('/smart-parking/')) {
-    return legacyPath.replace('/smart-parking/', `/${prefix}/`);
-  }
-
-  // If already has role prefix or is a special route, return as-is
-  if (legacyPath.startsWith(`/${prefix}/`) || legacyPath.startsWith('/login') || legacyPath.startsWith('/forgot-password') || legacyPath.startsWith('/reset-password') || legacyPath.startsWith('/profile') || legacyPath.startsWith('/under-development')) {
-    return legacyPath;
-  }
-
-  // For other paths, prepend role prefix
-  return `/${prefix}${legacyPath}`;
-};
 
 // Get user's available systems based on role (for SystemSelector page)
 // Returns list of systems user can access
