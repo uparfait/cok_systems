@@ -1,6 +1,6 @@
 // Pagination - Reusable pagination component with multiple style options
 import React from 'react';
-import { FiArrowLeft, FiArrowRight } from 'react-icons/fi';
+import { FiArrowLeft, FiArrowRight, FiLoader } from 'react-icons/fi';
 
 export type PaginationStyle = 'arrows-only' | 'arrows-with-numbers' | 'prev-next';
 
@@ -9,6 +9,8 @@ export interface PaginationProps {
   totalPages: number;
   onPageChange: (page: number) => void;
   style?: PaginationStyle;
+  // Loading state
+  isLoading?: boolean;
   // Display options
   showPageInfo?: boolean;
   itemsPerPage?: number;
@@ -27,6 +29,7 @@ const Pagination: React.FC<PaginationProps> = ({
   totalPages,
   onPageChange,
   style = 'arrows-with-numbers',
+  isLoading = false,
   showPageInfo = true,
   itemsPerPage = 5,
   totalItems,
@@ -79,19 +82,27 @@ const Pagination: React.FC<PaginationProps> = ({
         <div className="flex gap-2">
           <button
             onClick={handlePrevClick}
-            disabled={currentPage === 1}
-            className={`flex items-center gap-1 h-8 px-3 rounded-[6px] text-[12px] ${getButtonClasses(false, currentPage === 1)}`}
+            disabled={currentPage === 1 || isLoading}
+            className={`flex items-center gap-1 h-8 px-3 rounded-[6px] text-[12px] ${getButtonClasses(false, currentPage === 1 || isLoading)}`}
           >
-            <FiArrowLeft className="w-3 h-3" />
+            {isLoading ? (
+              <FiLoader className="w-3 h-3 animate-spin" />
+            ) : (
+              <FiArrowLeft className="w-3 h-3" />
+            )}
             {prevLabel}
           </button>
           <button
             onClick={handleNextClick}
-            disabled={currentPage === totalPages}
-            className={`flex items-center gap-1 h-8 px-3 rounded-[6px] text-[12px] ${getButtonClasses(false, currentPage === totalPages)}`}
+            disabled={currentPage === totalPages || isLoading}
+            className={`flex items-center gap-1 h-8 px-3 rounded-[6px] text-[12px] ${getButtonClasses(false, currentPage === totalPages || isLoading)}`}
           >
             {nextLabel}
-            <FiArrowRight className="w-3 h-3" />
+            {isLoading ? (
+              <FiLoader className="w-3 h-3 animate-spin" />
+            ) : (
+              <FiArrowRight className="w-3 h-3" />
+            )}
           </button>
         </div>
       </div>
@@ -149,10 +160,14 @@ const Pagination: React.FC<PaginationProps> = ({
         <div className="flex items-center gap-1">
           <button
             onClick={handlePrevClick}
-            disabled={currentPage === 1}
-            className={`w-8 h-8 rounded-[6px] ${getButtonClasses(false, currentPage === 1)}`}
+            disabled={currentPage === 1 || isLoading}
+            className={`w-8 h-8 rounded-[6px] ${getButtonClasses(false, currentPage === 1 || isLoading)}`}
           >
-            <FiArrowLeft className="w-4 h-4" />
+            {isLoading ? (
+              <FiLoader className="w-4 h-4 animate-spin" />
+            ) : (
+              <FiArrowLeft className="w-4 h-4" />
+            )}
           </button>
           
           {visiblePages.map((page, index) => {
@@ -180,10 +195,14 @@ const Pagination: React.FC<PaginationProps> = ({
           
           <button
             onClick={handleNextClick}
-            disabled={currentPage === totalPages}
-            className={`w-8 h-8 rounded-[6px] ${getButtonClasses(false, currentPage === totalPages)}`}
+            disabled={currentPage === totalPages || isLoading}
+            className={`w-8 h-8 rounded-[6px] ${getButtonClasses(false, currentPage === totalPages || isLoading)}`}
           >
-            <FiArrowRight className="w-4 h-4" />
+            {isLoading ? (
+              <FiLoader className="w-4 h-4 animate-spin" />
+            ) : (
+              <FiArrowRight className="w-4 h-4" />
+            )}
           </button>
         </div>
       </div>
@@ -205,10 +224,14 @@ const Pagination: React.FC<PaginationProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={handlePrevClick}
-            disabled={currentPage === 1}
-            className={`w-7 h-7 rounded-[4px] ${getButtonClasses(false, currentPage === 1)}`}
+            disabled={currentPage === 1 || isLoading}
+            className={`w-7 h-7 rounded-[4px] ${getButtonClasses(false, currentPage === 1 || isLoading)}`}
           >
-            <FiArrowRight className="w-4 h-4 text-[#475569] rotate-180" />
+            {isLoading ? (
+              <FiLoader className="w-4 h-4 animate-spin" />
+            ) : (
+              <FiArrowRight className="w-4 h-4 text-[#475569] rotate-180" />
+            )}
           </button>
           
           {pageButtons.map((page) => (
@@ -227,10 +250,14 @@ const Pagination: React.FC<PaginationProps> = ({
           
           <button
             onClick={handleNextClick}
-            disabled={currentPage === totalPages}
-            className={`w-7 h-7 rounded-[4px] ${getButtonClasses(false, currentPage === totalPages)}`}
+            disabled={currentPage === totalPages || isLoading}
+            className={`w-7 h-7 rounded-[4px] ${getButtonClasses(false, currentPage === totalPages || isLoading)}`}
           >
-            <FiArrowRight className="w-4 h-4 text-[#475569]" />
+            {isLoading ? (
+              <FiLoader className="w-4 h-4 animate-spin" />
+            ) : (
+              <FiArrowRight className="w-4 h-4 text-[#475569]" />
+            )}
           </button>
         </div>
       </div>
