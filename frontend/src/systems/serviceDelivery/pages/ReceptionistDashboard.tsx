@@ -206,10 +206,9 @@ const ReceptionistDashboard: React.FC = () => {
   // FETCH LIVE DATA
   const loadData = async () => {
     const isSearch = searchTerm && searchTerm.trim();
-    if(firstLoadVisitors) {
-      setIsLoading(true);
-    }
-    if (isSearch && firstLoadVisitors) {
+    // Show loading on initial load or pagination changes
+    setIsLoading(true);
+    if (isSearch) {
       setSearchLoading(true);
     }
     try {
@@ -951,9 +950,15 @@ const ReceptionistDashboard: React.FC = () => {
                   onClick={() =>
                     setCurrentPage((prev) => Math.max(1, prev - 1))
                   }
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  disabled={currentPage === 1 || isLoading}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-1"
                 >
+                  {isLoading && (
+                    <svg className="animate-spin h-3 w-3 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  )}
                   Previous
                 </button>
                 <span className="text-sm text-gray-600 py-1 px-3">
@@ -963,10 +968,16 @@ const ReceptionistDashboard: React.FC = () => {
                   onClick={() =>
                     setCurrentPage((prev) => Math.min(totalPages, prev + 1))
                   }
-                  disabled={currentPage === totalPages || totalPages === 0}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  disabled={currentPage === totalPages || totalPages === 0 || isLoading}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-1"
                 >
                   Next
+                  {isLoading && (
+                    <svg className="animate-spin h-3 w-3 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>
