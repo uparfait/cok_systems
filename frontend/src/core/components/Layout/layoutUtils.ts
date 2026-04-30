@@ -630,36 +630,46 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
   // Check department name for department-specific routing
   if (departmentName) {
     const dept = departmentName.toLowerCase();
-    
+
     if (dept.includes('it') || dept.includes('finance') || dept.includes('operations')) {
       console.log('[getDashboardRoute] Matched IT/Finance/Ops department');
-      return '/smart-parking/dashboard';
+      return `/${getRoleUrlPrefix(role)}/dashboard`;
     }
     if (dept.includes('hr') || dept.includes('human') || dept.includes('legal')) {
       console.log('[getDashboardRoute] Matched HR/Legal department');
-      return '/service-delivery/dashboard';
+      return `/${getRoleUrlPrefix(role)}/dashboard`;
     }
   }
-  
+
   // Default - try to determine from role
   // Check for Gate and Vehicle Registrar role (parking/security related)
   if (normalizedRole.includes('gate') && normalizedRole.includes('vehicle')) {
-    console.log('[getDashboardRoute] Role matched gate+vehicle, routing to smart-parking');
-    return '/smart-parking/dashboard';
+    console.log('[getDashboardRoute] Role matched gate+vehicle, routing to role dashboard');
+    return `/${getRoleUrlPrefix(role)}/dashboard`;
   }
   if (normalizedRole.includes('Gate and Vehicle Registrar')) {
-    console.log('[getDashboardRoute] Role matched Gate and Vehicle Registrar, routing to smart-parking');
-    return '/smart-parking/dashboard';
+    console.log('[getDashboardRoute] Role matched Gate and Vehicle Registrar, routing to role dashboard');
+    return `/${getRoleUrlPrefix(role)}/dashboard`;
   }
   if (normalizedRole.includes('parking') || normalizedRole.includes('it')) {
     console.log('[getDashboardRoute] Matched parking/IT');
-    return '/smart-parking/dashboard';
+    return `/${getRoleUrlPrefix(role)}/dashboard`;
   }
-  
+
   // Service delivery staff (not manager/receptionist) should go to employee dashboard
   if (normalizedRole.includes('service')) {
-    console.log('[getDashboardRoute] Matched service (going to employee dashboard)');
-    return '/service-delivery/employee';
+    console.log('[getDashboardRoute] Matched service (going to role dashboard)');
+    return `/${getRoleUrlPrefix(role)}/dashboard`;
+  }
+
+  if (normalizedRole.includes('hr')) {
+    console.log('[getDashboardRoute] Matched HR');
+    return `/${getRoleUrlPrefix(role)}/dashboard`;
+  }
+
+  // Fallback to role-based dashboard
+  console.log('[getDashboardRoute] No match found, defaulting to role dashboard');
+  return `/${getRoleUrlPrefix(role)}/dashboard`;
   }
   
   if (normalizedRole.includes('hr')) {
