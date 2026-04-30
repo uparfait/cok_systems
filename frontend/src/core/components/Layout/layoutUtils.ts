@@ -515,6 +515,62 @@ const getRoleSelectionNavigation = (role: string): NavItem[] => {
         },
       ]
     },
+
+    // Smart Parking dropdown
+    {
+      id: 'smart-parking',
+      label: 'Smart Parking',
+      path: '/admin/smart-parking',
+      icon: 'FiTruck',
+      children: [
+        {
+          id: 'parking-dashboard',
+          label: 'Dashboard',
+          path: '/admin/smart-parking',
+          icon: 'FiHome',
+        },
+        {
+          id: 'parking-reservation',
+          label: 'Reservation',
+          path: '/admin/smart-parking/reservation',
+          icon: 'FiCalendar',
+        },
+      ]
+    },
+
+    // Service Delivery dropdown
+    {
+      id: 'service-delivery',
+      label: 'Service Delivery',
+      path: '/admin/service-delivery/dashboard',
+      icon: 'FiClipboard',
+      children: [
+        {
+          id: 'service-dashboard',
+          label: 'Dashboard',
+          path: '/admin/service-delivery/dashboard',
+          icon: 'FiHome',
+        },
+        {
+          id: 'service-checkin-checkout',
+          label: 'Check-In/Check-Out',
+          path: '/admin/service-delivery/checkin-checkout',
+          icon: 'FiLogIn',
+        },
+        {
+          id: 'service-analytics',
+          label: 'Analytics',
+          path: '/admin/service-delivery/analytics',
+          icon: 'FiBarChart2',
+        },
+        {
+          id: 'service-feedback',
+          label: 'Feedback',
+          path: '/admin/service-delivery/feedback',
+          icon: 'FiMessageSquare',
+        },
+      ]
+    },
   ];
 };
 
