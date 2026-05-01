@@ -31,6 +31,7 @@ import {
   Analytics,
   FeedbackPage,
   OverviewPage,
+  SystemAuditPage,
 } from './systems/admin';
 
 // 👉 COLLEAGUE'S IMPORTS (Smart Parking) - Cleaned to match new index.ts!
@@ -105,12 +106,13 @@ const App: React.FC = () => {
               {/* Protected Routes - Using new systems with MainLayout */}
               
               {/* ==================== ADMIN SYSTEM ==================== */}
-              <Route path="/admin/overview" element={<ProtectedRoute><OverviewPage /></ProtectedRoute>} />
-              <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-              <Route path="/admin/departments" element={<ProtectedRoute><DepartmentsPage /></ProtectedRoute>} />
-              <Route path="/admin/employees" element={<ProtectedRoute><EmployeesPage /></ProtectedRoute>} />
-              <Route path="/admin/user-management" element={<ProtectedRoute><UserManagementPage /></ProtectedRoute>} />
-              <Route path="/admin/roles-management" element={<ProtectedRoute><RolesManagementPage /></ProtectedRoute>} />
+               <Route path="/admin/overview" element={<ProtectedRoute><OverviewPage /></ProtectedRoute>} />
+               <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+               <Route path="/admin/departments" element={<ProtectedRoute><DepartmentsPage /></ProtectedRoute>} />
+               <Route path="/admin/employees" element={<ProtectedRoute><EmployeesPage /></ProtectedRoute>} />
+               <Route path="/admin/user-management" element={<ProtectedRoute><UserManagementPage /></ProtectedRoute>} />
+               <Route path="/admin/roles-management" element={<ProtectedRoute><RolesManagementPage /></ProtectedRoute>} />
+               <Route path="/admin/system-audit" element={<ProtectedRoute><SystemAuditPage /></ProtectedRoute>} />
               <Route path="/admin/smart-parking" element={<ProtectedRoute><AdminSmartParkingDashboard /></ProtectedRoute>} />
               <Route path="/admin/smart-parking/reservation" element={<ProtectedRoute><ReservationsPage /></ProtectedRoute>} />
               

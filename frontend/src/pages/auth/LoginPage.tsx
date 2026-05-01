@@ -259,9 +259,6 @@ const LoginPage = () => {
                 <p className="text-base sm:text-lg font-bold text-[#0D141C]">
                   Authenticating...
                 </p>
-                <p className="mt-0.5 text-xs sm:text-sm text-gray-600">
-                  Please wait while we verify your session.
-                </p>
               </div>
 
               {/* Loading spinner */}
@@ -271,14 +268,10 @@ const LoginPage = () => {
                   
                 </div>
                 <p className="mt-4 text-sm text-gray-600 font-medium">
-                  Checking your authentication status...
+                  waiting...
                 </p>
               </div>
 
-              {/* Footer copyright */}
-              <p className="text-center text-xs text-gray-400 mt-5 sm:mt-6">
-                © {new Date().getFullYear()} City of Kigali. All rights reserved.
-              </p>
             </div>
           </div>
         </div>
