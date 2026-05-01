@@ -7,6 +7,7 @@ const Router = require('express').Router()
 const service_delivery = require("./service_delivery/routes.js")
 const smartparking = require("./smartparking/routes.js")
 const auth = require("./auth/routes.js")
+const audit = require("./audit/routes.js")
 const department = require('./department_crud/routes.js')
 const employee = require("./employee_crud/routes.js")
 const parfaits_api_docs = require("./parfaits_api_docs/routes.js")
@@ -22,15 +23,20 @@ const profile = require('./profile/routes.js')
 const department_manager = require('./department_manager_routes.js')
 
 
-Router.use('/servicedelivery', 
-           authenticate,
-     // 
-    service_delivery)
+Router.use('/servicedelivery',
+            authenticate,
+      //
+     service_delivery)
 
-Router.use("/smartparking", 
-           authenticate,
-     //
-    smartparking)
+Router.use("/smartparking",
+            authenticate,
+      //
+     smartparking)
+
+Router.use('/audit',
+            authenticate,
+      //
+     audit)
 
 Router.use('/department/crud', 
            authenticate,
