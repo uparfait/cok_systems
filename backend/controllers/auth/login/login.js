@@ -10,6 +10,9 @@ const tokenUtil = require("../../../utilities/token");
 const bcrypt = require("bcrypt");
 const User = require("../../../models/user");
 
+// Import audit logging
+const { logAuditEvent } = require("../../../middlewares/audit");
+
 const SALT_ROUNDS = 10;
 
 // Configuration for login attempts
@@ -55,12 +58,31 @@ async function login(req, res, next) {
     if (!user || !(await bcrypt.compare(password.trim(), user.password))) {
       let loginAttempts = 0;
 
+      // Log failed login attempt
+      await logAuditEvent('LOGIN', `Failed login attempt for email: ${userEmail}`, { ip: req.ip, userAgent: req.get('User-Agent') }, {
+        resource: 'auth',
+        status_code: 401,
+        error_message: 'Invalid credentials',
+        metadata: { email: userEmail }
+      });
+
       // check if user email exists to track login attempts and lock account if necessary
       const userByEmail = await User.findOne({ email: userEmail });
       if (userByEmail) {
         // check if account is locked
 
         if (userByEmail.access_control?.is_locked) {
+          // Log access attempt on locked account
+          await logAuditEvent('SYSTEM', `Access attempt on locked account: ${userEmail}`, req, {
+            resource: 'users',
+            resource_id: userByEmail._id.toString(),
+            status_code: 403,
+            metadata: {
+              reason: userByEmail.access_control.reason,
+              email: userEmail
+            }
+          });
+
           return res.status(403).json({
             status: false,
             error: LOCK_MESSAGE,
@@ -92,6 +114,17 @@ async function login(req, res, next) {
           if (last_attempt >= MAX_LOGIN_ATTEMPTS) {
             userByEmail.access_control.is_locked = true;
             userByEmail.access_control.reason = `Account locked after ${MAX_LOGIN_ATTEMPTS} failed login attempts`;
+
+            // Log account lock event
+            await logAuditEvent('SYSTEM', `Account locked due to ${MAX_LOGIN_ATTEMPTS} failed login attempts`, req, {
+              resource: 'users',
+              resource_id: userByEmail._id.toString(),
+              metadata: {
+                reason: 'too_many_failed_attempts',
+                attempts: last_attempt,
+                email: userEmail
+              }
+            });
           }
           await userByEmail.save();
         }
@@ -148,6 +181,18 @@ async function login(req, res, next) {
             "access_control.reason":
               "Account locked due to too many failed login attempts",
           },
+        });
+
+        // Log account lock
+        await logAuditEvent('SYSTEM', `Account locked due to ${maxAttempts} failed login attempts: ${userEmail}`, req, {
+          resource: 'users',
+          resource_id: user._id.toString(),
+          status_code: 403,
+          metadata: {
+            reason: 'too_many_failed_attempts',
+            attempts: attempts,
+            email: userEmail
+          }
         });
 
         return res.status(403).json({
@@ -225,6 +270,17 @@ async function login(req, res, next) {
     //const sent = await email.sendOTPEmail(userEmail,  otpCode || 20261, "login");
 
     const sent = await email.sendOTPEmail(userEmail,  "Due to development mode otp verification disabled on backend-side for fatser testing enter any numbers you want and it will works", "login");
+
+    // Log successful OTP send
+    await logAuditEvent('SYSTEM', `OTP sent for login to user: ${userEmail}`, req, {
+      resource: 'auth',
+      resource_id: user._id.toString(),
+      status_code: 200,
+      metadata: {
+        email: userEmail,
+        purpose: 'login_verification'
+      }
+    });
 
     return res.status(200).json({
       status: true,

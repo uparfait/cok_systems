@@ -8,6 +8,9 @@ const email = require("../../../utilities/email");
 const tokenUtil = require("../../../utilities/token");
 const User = require("../../../models/user");
 
+// Import audit logging
+const { logAuditEvent } = require("../../../middlewares/audit");
+
 // Lock message
 const LOCK_MESSAGE = "Account is locked. Please contact administrator.";
 
@@ -16,6 +19,12 @@ async function requestReset(req, res, next) {
     const { email: userEmail } = req.body;
 
     if (!userEmail) {
+      await logAuditEvent('SYSTEM', 'Password reset request failed: Email required', req, {
+        resource: 'auth',
+        status_code: 400,
+        error_message: 'Email parameter missing'
+      });
+
       return res.status(400).json({
         status: false,
         error: "Email is required",
@@ -28,6 +37,13 @@ async function requestReset(req, res, next) {
     const user = await User.findOne({ email: userEmail });
 
     if (!user) {
+      // Log failed attempt for non-existent user
+      await logAuditEvent('SYSTEM', `Password reset request for non-existent user: ${userEmail}`, req, {
+        resource: 'auth',
+        status_code: 404,
+        metadata: { email: userEmail }
+      });
+
       // Don't reveal if email exists or not
       return res.status(404).json({
         status: false,
@@ -39,6 +55,16 @@ async function requestReset(req, res, next) {
 
     // Check if account is locked
     if (user.access_control?.is_locked) {
+      await logAuditEvent('SYSTEM', `Password reset attempt on locked account: ${userEmail}`, req, {
+        resource: 'auth',
+        resource_id: user._id.toString(),
+        status_code: 403,
+        metadata: {
+          email: userEmail,
+          reason: user.access_control?.reason
+        }
+      });
+
       return res.status(403).json({
         status: false,
         error: "Account is locked",
@@ -51,8 +77,15 @@ async function requestReset(req, res, next) {
       });
     }
 
-    // chek if account is activated   
-      if (!user.is_account_activated) {
+    // Check if account is activated
+    if (!user.is_account_activated) {
+      await logAuditEvent('SYSTEM', `Password reset attempt on inactive account: ${userEmail}`, req, {
+        resource: 'auth',
+        resource_id: user._id.toString(),
+        status_code: 403,
+        metadata: { email: userEmail }
+      });
+
       return res.status(403).json({
         status: false,
         error: "Account not activated",
@@ -63,7 +96,6 @@ async function requestReset(req, res, next) {
         }
       });
     }
-  
 
     // Generate 5-digit OTP
     const { otp: otpCode, expiresAt } = otp.generateOTPWithExpiry();
@@ -96,6 +128,17 @@ async function requestReset(req, res, next) {
     // Send OTP via email
     await email.sendOTPEmail(userEmail, otpCode, "password_reset");
 
+    // Log successful password reset request
+    await logAuditEvent('SYSTEM', `Password reset OTP sent to: ${userEmail}`, req, {
+      resource: 'auth',
+      resource_id: user._id.toString(),
+      status_code: 200,
+      metadata: {
+        email: userEmail,
+        purpose: 'password_reset'
+      }
+    });
+
     const updatedUser = await User.findOne({ email: userEmail });
     console.log("Updated user:", updatedUser);
 
@@ -109,6 +152,17 @@ async function requestReset(req, res, next) {
       },
     });
   } catch (error) {
+    // Log system error
+    await logAuditEvent('ERROR', `Password reset request failed: ${error.message}`, req, {
+      resource: 'auth',
+      status_code: 500,
+      error_message: error.message,
+      metadata: {
+        stack: error.stack,
+        email: req.body?.email
+      }
+    });
+
     next(error);
   }
 }

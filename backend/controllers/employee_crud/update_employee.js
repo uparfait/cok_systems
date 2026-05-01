@@ -3,11 +3,20 @@ const user_model = require("../../models/user.js");
 const allowed_resources = require("../../resources/resources.js");
 const department_model = require("../../models/department.js");
 
+// Import audit logging
+const { logAuditEvent } = require("../../middlewares/audit");
+
 module.exports = async function update_user(req, res, next) {
   try {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
+      await logAuditEvent('SYSTEM', `Employee update failed: Invalid user ID format (${id})`, req, {
+        resource: 'users',
+        status_code: 400,
+        metadata: { invalid_id: id }
+      });
+
       return res.status(400).json({
         success: false,
         type: "warning",
