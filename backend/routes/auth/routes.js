@@ -10,6 +10,8 @@ const lockUnlock = require("./lock_unlock/routes.js")
 const multer = require('multer')
 const upload = multer()
 
+// Import middleware
+const authenticate = require('../../middlewares/authenticate')
 
 Router.use(upload.any())
 
@@ -40,5 +42,17 @@ Router.use('/logout', logout)
 Router.use('/password-reset', passwordReset)
 Router.use('/first-login', firstLogin)
 Router.use('/lock-unlock', lockUnlock)
+
+// Token validation endpoint
+Router.get('/validate-token', authenticate, (req, res) => {
+  res.status(200).json({
+    status: true,
+    message: 'Token is valid',
+    data: {
+      user: req.user,
+      timestamp: new Date().toISOString()
+    }
+  });
+});
 
 module.exports = Router
