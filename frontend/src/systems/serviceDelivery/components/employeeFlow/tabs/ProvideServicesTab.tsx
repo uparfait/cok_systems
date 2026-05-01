@@ -1392,6 +1392,7 @@
 // NOW REUSABLE: Can be embedded in the Dashboard or viewed standalone.
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FiSearch,
   FiClock,
@@ -1406,6 +1407,7 @@ import {
 
 // ===== MODIFICATION: Import icons for new pagination buttons =====
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { useToast } from "../../../../../core/contexts/ToastContext";
 
 // ===== NEW: SearchableSelect Component =====
 interface SearchableSelectProps {
@@ -1624,6 +1626,8 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
   isDashboardView = false,
 }) => {
   const { user } = useAuth();
+  const { showSuccess, showError } = useToast();
+  const navigate = useNavigate();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -1658,9 +1662,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
   const [units, setUnits] = useState<any[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<string>("");
 
-  // ===== Visitor Details Modal State =====
-  const [showVisitorDetails, setShowVisitorDetails] = useState(false);
-  const [detailsVisitor, setDetailsVisitor] = useState<ServiceRequest | null>(null);
+
 
   const fetchAssignedVisitors = useCallback(
     async (silent: boolean = false, page: number = currentPage, query: string = searchTerm) => {
@@ -2051,15 +2053,14 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
 
   const handleVisitorClick = (request: ServiceRequest) => {
     console.log("[DEBUG] handleVisitorClick called with:", request.visitorName);
-    setDetailsVisitor(request);
-    setShowVisitorDetails(true);
-    console.log("[DEBUG] showVisitorDetails set to true");
+    // Navigate to the dedicated visitor details page
+    navigate(`/service-delivery/visitors/${request.rawVisitor?._id || request.visitorId}`);
   };
+
+
 
   const handleTransferClick = (request: ServiceRequest) => {
     // Close details popup if open before opening transfer modal
-    setShowVisitorDetails(false);
-    setDetailsVisitor(null);
     if (request.status === "completed") return;
     setTransferVisitor(request);
     setTransferDepartment("");
@@ -2330,7 +2331,14 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
               </tr>
             ) : requests.length > 0 ? (
               requests.map((request) => (
-                <tr key={request.id} className="border-b border-[#f8f8f8] h-14">
+                <tr
+                  key={request.id}
+                  className="border-b border-[#f8f8f8] h-14 cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => {
+                    console.log("[CLICK] Table row clicked for visitor:", request.visitorName);
+                    handleVisitorClick(request);
+                  }}
+                >
                   <td className="py-3 px-2">
                     <div className="flex items-center gap-3">
                       <div
@@ -2339,21 +2347,11 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
                         {request.initials}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div 
-                          className="text-[#333] text-[13px] font-medium truncate cursor-pointer hover:text-[#1a73e8] hover:underline inline-flex items-center gap-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            console.log("[CLICK] Visitor name clicked:", request.visitorName);
-                            handleVisitorClick(request);
-                          }}
-                          title="Click to view visitor details"
+                        <div
+                          className="text-[#333] text-[13px] font-medium truncate"
+                          title="Click row to view visitor details"
                         >
                           {request.visitorName}
-                          <span className="inline-block w-4 h-4 text-gray-400" title="Click for details">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </span>
                         </div>
                         <div className="text-[#888] text-[11px] truncate">
                           {request.telephone !== "____"
@@ -2678,201 +2676,6 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
                     "Transfer Visitor"
                   )}
                 </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===== Visitor Details Popup Modal ===== */}
-      {showVisitorDetails && detailsVisitor && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[16px] shadow-[0px_10px_30px_rgba(0,0,0,0.1)] w-full max-w-lg overflow-hidden">
-            {/* Modal Header */}
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex justify-between items-center">
-                <h2 className="text-[#2C3E50] text-[20px] font-semibold">
-                  Visitor Details
-                </h2>
-                <button
-                  onClick={() => {
-                    setShowVisitorDetails(false);
-                    setDetailsVisitor(null);
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <FiX className="w-6 h-6" />
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Body - Visitor Information */}
-            <div className="p-6">
-              {/* Visitor Basic Info */}
-              <div className="flex items-center gap-4 mb-6">
-                <div
-                  className={`w-14 h-14 rounded-full ${detailsVisitor.avatarColor} flex items-center justify-center text-white text-xl font-bold flex-shrink-0`}
-                >
-                  {detailsVisitor.initials}
-                </div>
-                <div>
-                  <div className="text-[#2C3E50] text-[18px] font-semibold">
-                    {detailsVisitor.visitorName}
-                  </div>
-                  <div className="text-[#8A94A6] text-[13px]">
-                    {detailsVisitor.telephone !== "____" ? detailsVisitor.telephone : "No phone"}
-                  </div>
-                </div>
-              </div>
-
-              {/* Visitor Details Grid */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                {/* Badge Number */}
-                <div className="bg-[#F7F9FB] rounded-lg p-3">
-                  <div className="text-[#8A94A6] text-[11px] uppercase tracking-wider mb-1">
-                    Badge Number
-                  </div>
-                  <div className="text-[#2C3E50] text-[14px] font-medium">
-                    {detailsVisitor.badgeNumber || "N/A"}
-                  </div>
-                </div>
-
-                {/* Visitor ID */}
-                <div className="bg-[#F7F9FB] rounded-lg p-3">
-                  <div className="text-[#8A94A6] text-[11px] uppercase tracking-wider mb-1">
-                    Visitor ID
-                  </div>
-                  <div className="text-[#2C3E50] text-[14px] font-medium">
-                    {detailsVisitor.visitorId}
-                  </div>
-                </div>
-
-                {/* Unity Assigned by Receptionist */}
-                <div className="bg-[#F7F9FB] rounded-lg p-3">
-                  <div className="text-[#8A94A6] text-[11px] uppercase tracking-wider mb-1">
-                    Unity (Receptionist)
-                  </div>
-                  <div className="text-[#2C3E50] text-[14px] font-medium">
-                    {detailsVisitor.rawVisitor?.departments_assigned?.[0]?.department_name || 
-                     detailsVisitor.rawVisitor?._departmentGroup || 
-                     "General Service"}
-                  </div>
-                </div>
-
-                {/* Assigned To (Current Provider) */}
-                <div className="bg-[#F7F9FB] rounded-lg p-3">
-                  <div className="text-[#8A94A6] text-[11px] uppercase tracking-wider mb-1">
-                    Assigned To
-                  </div>
-                  <div className="text-[#2C3E50] text-[14px] font-medium">
-                    {detailsVisitor.assignedTo}
-                  </div>
-                </div>
-
-                {/* Wait Time */}
-                <div className="bg-[#F7F9FB] rounded-lg p-3">
-                  <div className="text-[#8A94A6] text-[11px] uppercase tracking-wider mb-1">
-                    Wait Time
-                  </div>
-                  <div className="text-[#2C3E50] text-[14px] font-medium">
-                    {detailsVisitor.waitTime}
-                  </div>
-                </div>
-
-                {/* Status */}
-                <div className="bg-[#F7F9FB] rounded-lg p-3">
-                  <div className="text-[#8A94A6] text-[11px] uppercase tracking-wider mb-1">
-                    Status
-                  </div>
-                  <div className="text-[14px] font-medium">
-                    {detailsVisitor.status === "Not started" && (
-                      <span className="text-[#f57c00]">Not Started</span>
-                    )}
-                    {detailsVisitor.status === "inprogress" && (
-                      <span className="text-[#1a73e8] flex items-center gap-1">
-                        <FiClock className="w-3 h-3 animate-pulse" />
-                        In Progress
-                      </span>
-                    )}
-                    {detailsVisitor.status === "completed" && (
-                      <span className="text-[#2e7d32]">Completed</span>
-                    )}
-                    {detailsVisitor.status === "transfered" && (
-                      <span className="text-[#7b1fa2]">Transferred</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Check-in Time */}
-                <div className="bg-[#F7F9FB] rounded-lg p-3 col-span-2">
-                  <div className="text-[#8A94A6] text-[11px] uppercase tracking-wider mb-1">
-                    Check-in Time
-                  </div>
-                  <div className="text-[#2C3E50] text-[14px] font-medium">
-                    {detailsVisitor.checkInRaw 
-                      ? new Date(detailsVisitor.checkInRaw).toLocaleString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "N/A"}
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons in Popup */}
-              <div className="flex gap-3 mt-6">
-                {detailsVisitor.status === "completed" ? (
-                  <div className="flex-1 px-4 py-3 bg-[#e8f5e9] text-[#2e7d32] rounded-[8px] font-medium text-center">
-                    ✓ Service Completed
-                  </div>
-                ) : detailsVisitor.status === "inprogress" ? (
-                  <>
-                    <button
-                      onClick={() => {
-                        setShowVisitorDetails(false);
-                        handleServeClick(detailsVisitor);
-                      }}
-                      disabled={isServing}
-                      className="flex-1 px-4 py-3 bg-[#e53935] text-white rounded-[8px] font-medium hover:bg-[#c62828] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      <FiSquare className="w-4 h-4 fill-current" />
-                      Stop Service
-                    </button>
-                    <button
-                      onClick={() => handleTransferClick(detailsVisitor)}
-                      disabled={isServing}
-                      className="flex-1 px-4 py-3 bg-[#7b1fa2] text-white rounded-[8px] font-medium hover:bg-[#6a1b9a] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      <FiArrowRightCircle className="w-4 h-4" />
-                      Transfer
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => {
-                        setShowVisitorDetails(false);
-                        handleServeClick(detailsVisitor);
-                      }}
-                      disabled={isServing}
-                      className="flex-1 px-4 py-3 bg-[#1a73e8] text-white rounded-[8px] font-medium hover:bg-[#1558c0] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      <FiCheckCircle className="w-4 h-4" />
-                      Serve
-                    </button>
-                    <button
-                      onClick={() => handleTransferClick(detailsVisitor)}
-                      disabled={isServing}
-                      className="flex-1 px-4 py-3 bg-[#7b1fa2] text-white rounded-[8px] font-medium hover:bg-[#6a1b9a] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      <FiArrowRightCircle className="w-4 h-4" />
-                      Transfer
-                    </button>
-                  </>
-                )}
               </div>
             </div>
           </div>

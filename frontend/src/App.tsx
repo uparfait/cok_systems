@@ -42,11 +42,12 @@ import {
 } from './systems/smartParking';
 
 // 👉 YOUR IMPORTS (Service Delivery)
-import { 
-  ServiceDashboard, 
-  ReceptionistDashboard, 
-  DepartmentManagerDashboard, 
-  EmployeeDashboard 
+import {
+  ServiceDashboard,
+  ReceptionistDashboard,
+  DepartmentManagerDashboard,
+  EmployeeDashboard,
+  VisitorDetailsPage
 } from './systems/serviceDelivery';
 
 function App() {
@@ -102,8 +103,8 @@ function App() {
               <Route path="/service-delivery/employee" element={<ProtectedRoute><EmployeeDashboard /></ProtectedRoute>} />
               <Route path="/service-delivery/dashboard" element={<ProtectedRoute><ServiceDashboard /></ProtectedRoute>} />
               
-              {/* Pending Service Delivery Sub-pages */}
-              <Route path="/service-delivery/visitors" element={<ProtectedRoute><UnderDevelopment /></ProtectedRoute>} />
+              {/* Service Delivery Sub-pages */}
+              <Route path="/service-delivery/visitors/:visitorId" element={<ProtectedRoute><VisitorDetailsPage /></ProtectedRoute>} />
               <Route path="/service-delivery/check-in" element={<ProtectedRoute><UnderDevelopment /></ProtectedRoute>} />
               <Route path="/service-delivery/check-out" element={<ProtectedRoute><UnderDevelopment /></ProtectedRoute>} />
               <Route path="/service-delivery/department-flow" element={<ProtectedRoute><UnderDevelopment /></ProtectedRoute>} />
