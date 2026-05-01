@@ -14,6 +14,10 @@ import { useAuth } from "../../../core/contexts/AuthContext";
 import { useSocket } from "../../../core/contexts/SocketContext";
 import { useToast } from "../../../core/contexts/ToastContext";
 
+// Import components
+import Table from "../../../core/components/Table";
+import type { TableHeader, TablePagination } from "../../../core/components/Table";
+
 // Custom Live Timer Component
 const LiveTimer: React.FC<{ startTime: string }> = ({ startTime }) => {
   const [elapsed, setElapsed] = useState(0);

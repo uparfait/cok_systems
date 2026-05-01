@@ -1408,6 +1408,8 @@ import {
 // ===== MODIFICATION: Import icons for new pagination buttons =====
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { useToast } from "../../../../../core/contexts/ToastContext";
+import Table from "../../../../../core/components/Table";
+import type { TableHeader, TablePagination } from "../../../../../core/components/Table";
 
 // ===== NEW: SearchableSelect Component =====
 interface SearchableSelectProps {
@@ -2299,70 +2301,49 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
       </div>
 
       <div className="bg-white rounded-[14px] p-6 mt-4 shadow-[0_1px_4px_rgba(0,0,0,0.07)] overflow-x-auto">
-        <table className="w-full min-w-[800px]">
-          <thead>
-            <tr className="border-b border-[#f0f0f0]">
-              <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[25%]">
-                VISITOR
-              </th>
-              <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[20%]">
-                BADGE & ID
-              </th>
-              <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[15%]">
-                ASSIGNED TO
-              </th>
-              <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[15%]">
-                WAIT TIME
-              </th>
-              <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[15%]">
-                STATUS
-              </th>
-              <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[10%]">
-                ACTION
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && requests.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="py-8 text-center text-gray-500">
-                  Loading requests...
-                </td>
-              </tr>
-            ) : requests.length > 0 ? (
-              requests.map((request) => (
-                <tr
-                  key={request.id}
-                  className="border-b border-[#f8f8f8] h-14 cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => {
-                    console.log("[CLICK] Table row clicked for visitor:", request.visitorName);
-                    handleVisitorClick(request);
-                  }}
-                >
-                  <td className="py-3 px-2">
-                    <div className="flex items-center gap-3">
+        <Table
+          headers={[
+            { key: 'visitor', label: 'VISITOR' },
+            { key: 'badge_id', label: 'BADGE & ID' },
+            { key: 'assigned_to', label: 'ASSIGNED TO' },
+            { key: 'wait_time', label: 'WAIT TIME' },
+            { key: 'status', label: 'STATUS' },
+            { key: 'action', label: 'ACTION' }
+          ]}
+          data={requests}
+          loading={loading && requests.length === 0}
+          emptyMessage={searchTerm ? "No visitors found matching your search." : "No visitors found for your department."}
+          maxHeight="500px"
+          minWidth="1000px"
+          onRowClick={(request) => handleVisitorClick(request)}
+          renderCell={(header, request, index) => {
+            switch (header.key) {
+              case 'visitor':
+                return (
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-9 h-9 rounded-full ${request.avatarColor} flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0`}
+                    >
+                      {request.initials}
+                    </div>
+                    <div className="min-w-0 flex-1">
                       <div
-                        className={`w-9 h-9 rounded-full ${request.avatarColor} flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0`}
+                        className="text-[#333] text-[13px] font-medium truncate"
+                        title="Click row to view visitor details"
                       >
-                        {request.initials}
+                        {request.visitorName}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div
-                          className="text-[#333] text-[13px] font-medium truncate"
-                          title="Click row to view visitor details"
-                        >
-                          {request.visitorName}
-                        </div>
-                        <div className="text-[#888] text-[11px] truncate">
-                          {request.telephone !== "____"
-                            ? request.telephone
-                            : "No phone"}
-                        </div>
+                      <div className="text-[#888] text-[11px] truncate">
+                        {request.telephone !== "____"
+                          ? request.telephone
+                          : "No phone"}
                       </div>
                     </div>
-                  </td>
-
-                  <td className="py-3 px-2">
+                  </div>
+                );
+              case 'badge_id':
+                return (
+                  <div>
                     <div className="text-[#333] text-[13px] font-medium">
                       {request.badgeNumber
                         ? `Badge: ${request.badgeNumber}`
@@ -2371,138 +2352,123 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
                     <div className="text-[#888] text-[11px]">
                       ID: {request.visitorId}
                     </div>
-                  </td>
-
-                  <td className="py-3 px-2 text-[#333] text-[13px] font-medium">
-                    {request.assignedTo}
-                  </td>
-                  <td className="py-3 px-2 text-[#666] text-[13px] font-medium">
-                    {request.waitTime}
-                  </td>
-                  <td className="py-3 px-2">
-                    {request.status === "Not started" && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide bg-[#fff3e0] text-[#f57c00]">
-                        Not Started
-                      </span>
-                    )}
-                    {request.status === "inprogress" && (
-                      <span className="inline-flex items-center gap-2 px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide bg-[#e3f2fd] text-[#1a73e8]">
-                        <FiClock className="w-3 h-3 animate-pulse" />
-                        <LiveTimer startTime={request.serviceStartTime} />
-                      </span>
-                    )}
-                    {request.status === "completed" && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide bg-[#e8f5e9] text-[#2e7d32]">
-                        Completed
-                      </span>
-                    )}
-                    {request.status === "transfered" && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide bg-[#f3e5f5] text-[#7b1fa2]">
-                        Transferred
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-3 px-2">
-                    {request.status === "completed" ? (
-                      <span className="text-[#34a853] text-[12px] font-medium">
-                        ✓ Served
-                      </span>
-                    ) : request.not_transferred_to_me === true ? (
+                  </div>
+                );
+              case 'assigned_to':
+                return <span className="text-[#333] text-[13px] font-medium">{request.assignedTo}</span>;
+              case 'wait_time':
+                return <span className="text-[#666] text-[13px] font-medium">{request.waitTime}</span>;
+              case 'status':
+                if (request.status === "Not started") {
+                  return (
+                    <span className="inline-flex items-center px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide bg-[#fff3e0] text-[#f57c00]">
+                      Not Started
+                    </span>
+                  );
+                }
+                if (request.status === "inprogress") {
+                  return (
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide bg-[#e3f2fd] text-[#1a73e8]">
+                      <FiClock className="w-3 h-3 animate-pulse" />
+                      <LiveTimer startTime={request.serviceStartTime} />
+                    </span>
+                  );
+                }
+                if (request.status === "completed") {
+                  return (
+                    <span className="inline-flex items-center px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide bg-[#e8f5e9] text-[#2e7d32]">
+                      Completed
+                    </span>
+                  );
+                }
+                if (request.status === "transfered") {
+                  return (
+                    <span className="inline-flex items-center px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide bg-[#f3e5f5] text-[#7b1fa2]">
+                      Transferred
+                    </span>
+                  );
+                }
+                return <span>{request.status || '-'}</span>;
+              case 'action':
+                if (request.status === "completed") {
+                  return (
+                    <span className="text-[#34a853] text-[12px] font-medium">
+                      ✓ Served
+                    </span>
+                  );
+                }
+                if (request.not_transferred_to_me === true) {
+                  return (
+                    <div className="flex items-center gap-2">
                       <span className="text-[#7b1fa2] text-[12px] font-medium">
                         ⇄ Transferred Away
                       </span>
-                    ) : request.status === "inprogress" ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleServeClick(request)}
-                          disabled={isServing}
-                          className="h-8 w-20 bg-[#e53935] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#c62828] transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
-                        >
-                          <FiSquare className="w-3 h-3 fill-current" /> Stop
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleServeClick(request)}
-                          disabled={isServing}
-                          className="h-8 w-16 bg-[#1a73e8] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#1558c0] transition-colors disabled:opacity-50"
-                        >
-                          Serve
-                        </button>
-                        <button
-                          onClick={() => handleTransferClick(request)}
-                          disabled={isServing}
-                          className="h-8 w-20 bg-[#7b1fa2] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#6a1b9a] transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
-                        >
-                          <FiArrowRightCircle className="w-3 h-3" /> Transfer
-                        </button>
-                      </div>
-                    )}
-
-                    {request.not_transferred_to_me === true && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleTransferClick(request)}
-                          disabled={isServing}
-                          className="h-8 w-20 bg-[#7b1fa2] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#6a1b9a] transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
-                        >
-                          <FiArrowRightCircle className="w-3 h-3" /> Transfer
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={7} className="text-center py-8 text-gray-500">
-                  {searchTerm ? "No visitors found matching your search." : "No visitors found for your department."}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-
-        {totalCount > 0 && (
-          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
-            <p className="text-xs text-gray-600">
-              Showing{" "}
-              {requests.length > 0
-                ? (currentPage - 1) * 20 + 1
-                : 0}{" "}
-              to {Math.min(currentPage * 20, totalCount)} of{" "}
-              {totalCount} results
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  const newPage = Math.max(1, currentPage - 1);
-                  setCurrentPage(newPage);
-                  fetchAssignedVisitors(false, newPage, searchTerm);
-                }}
-                disabled={currentPage === 1}
-                className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                Previous
-              </button>
-              <span className="text-sm text-gray-600 py-1 px-3">
-                Page {currentPage} of {totalPages || 1}
-              </span>
-              <button
-                onClick={() => {
-                  const newPage = Math.min(totalPages, currentPage + 1);
-                  setCurrentPage(newPage);
-                  fetchAssignedVisitors(false, newPage, searchTerm);
-                }}
-                disabled={currentPage === totalPages || totalPages === 0}
-                className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTransferClick(request);
+                        }}
+                        disabled={isServing}
+                        className="h-8 w-20 bg-[#7b1fa2] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#6a1b9a] transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                      >
+                        <FiArrowRightCircle className="w-3 h-3" /> Transfer
+                      </button>
+                    </div>
+                  );
+                }
+                if (request.status === "inprogress") {
+                  return (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleServeClick(request);
+                        }}
+                        disabled={isServing}
+                        className="h-8 w-20 bg-[#e53935] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#c62828] transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                      >
+                        <FiSquare className="w-3 h-3 fill-current" /> Stop
+                      </button>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleServeClick(request);
+                      }}
+                      disabled={isServing}
+                      className="h-8 w-16 bg-[#1a73e8] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#1558c0] transition-colors disabled:opacity-50"
+                    >
+                      Serve
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTransferClick(request);
+                      }}
+                      disabled={isServing}
+                      className="h-8 w-20 bg-[#7b1fa2] text-white text-[12px] font-bold rounded-[6px] hover:bg-[#6a1b9a] transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                    >
+                      <FiArrowRightCircle className="w-3 h-3" /> Transfer
+                    </button>
+                  </div>
+                );
+              default:
+                return <span>{request[header.key] || '-'}</span>;
+            }
+          }}
+          pagination={{
+            currentPage,
+            totalPages: Math.ceil(totalCount / 20),
+            totalCount,
+            itemsPerPage: 20,
+            onPageChange: setCurrentPage,
+            loading
+          }}
+        />
       </div>
 
       <ServeVisitorModal

@@ -24,11 +24,12 @@ const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
   const { showSuccess, showError, showWarning } = useToast();
   const [email, setEmail] = useState(initialEmail);
   const [otp, setOtp] = useState(['', '', '', '', '']); // 5 digits
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(300); // 1 minute in seconds
   const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [timeLeftExpriry, setTimeLeftExpriry] = useState(60); // 5 minutes for expiry OTP
   
   // Use a ref to store the userId - this ensures we always have access to the latest value
   const userIdRef = useRef(initialUserId);
@@ -54,23 +55,34 @@ const logoImage = '/LOGO_COK.png';
         setEmail(initialEmail);
         setOtp(['', '', '', '', '']);
         setTimeLeft(300);
+        setTimeLeftExpriry(60);
         setError('');
         setIsSuccess(false);
       }, 300);
     }
   }, [isOpen]);
 
-  // Timer effect - 5 minutes
+  // Timer effect - 1 minute countdown
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isOpen && timeLeft > 0 && !isSuccess) {
       timer = setInterval(() => {
+
         setTimeLeft((prev) => {
           if (prev <= 0) {
-            clearInterval(timer);
+             clearInterval(timer);
             return 0;
+            
           }
           return prev - 1;
+        });
+
+        setTimeLeftExpriry((prev) => {
+          if (prev <= 0) {
+           
+            return 0;
+          }
+           return prev - 1;
         });
       }, 1000);
     }
@@ -80,10 +92,17 @@ const logoImage = '/LOGO_COK.png';
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) return;
 
+    if (isNaN(Number(value))) {
+      showWarning('Please enter digits only');
+      return;
+    }
+
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
     setError('');
+
+
 
     // Auto-focus next input
     if (value && index < 4) {
@@ -105,6 +124,11 @@ const logoImage = '/LOGO_COK.png';
     const pastedData = e.clipboardData.getData('text').slice(0, 5).split('');
     const newOtp = [...otp];
     pastedData.forEach((value, index) => {
+      // check if value is not a number
+      if(isNaN(Number(value))) {
+        showWarning('Detected non-numeric character in pasted OTP. Please enter digits only.');
+        return;
+      }
       if (index < 5) newOtp[index] = value;
     });
     setOtp(newOtp);
@@ -123,7 +147,6 @@ const logoImage = '/LOGO_COK.png';
     }
     
     if (otpString.length !== 5) {
-      setError('Please enter all 5 digits');
       showWarning('Please enter all 5 digits');
       return;
     }
@@ -220,6 +243,7 @@ const logoImage = '/LOGO_COK.png';
     try {
       await resendOTP(uid, email);
       setTimeLeft(300);
+      setTimeLeftExpriry(60);
       showSuccess('OTP resent successfully! Please check your email.');
     } catch (err: any) {
       setError(err?.error || 'Failed to resend OTP');
@@ -313,7 +337,12 @@ const logoImage = '/LOGO_COK.png';
               </p>
 
               {/* OTP Input Fields */}
-              <div className="flex justify-center gap-2 mb-4" onPaste={handlePaste}>
+              {/* when enter placed also submit */}
+              <div className="flex justify-center gap-2 mb-4" onPaste={handlePaste} onKeyUp={(e) => {
+                if (e.key === 'Enter') {
+                  handleVerify();
+                }
+              }}>
                 {otp.map((digit, index) => (
                   <input
                     key={index}
@@ -323,7 +352,7 @@ const logoImage = '/LOGO_COK.png';
                     pattern="[0-9]*"
                     maxLength={1}
                     value={digit}
-                    onChange={(e) => handleOtpChange(index, e.target.value.replace(/\D/g, ''))}
+                    onChange={(e) => handleOtpChange(index, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(index, e)}
                     className="w-12 h-12 text-center text-lg font-semibold border-2 border-gray-300 rounded-md focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 text-gray-800 bg-white"
                     autoFocus={index === 0}
@@ -355,10 +384,10 @@ const logoImage = '/LOGO_COK.png';
                 <span className="text-gray-600">Didn't receive the code? </span>
                 <button
                   onClick={handleResend}
-                  disabled={timeLeft > 0 || isResending || !currentUserId}
+                  disabled={timeLeftExpriry > 0 || isResending || !currentUserId}
                   className="text-blue-600 hover:text-blue-700 font-semibold transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isResending ? 'Resending...' : timeLeft > 0 ? `Resend OTP (${formatTime(timeLeft)})` : 'Resend OTP'}
+                  {isResending ? 'Resending...' : timeLeftExpriry > 0 ? `Resend OTP (${formatTime(timeLeftExpriry)})` : 'Resend OTP'}
                 </button>
               </div>
 
