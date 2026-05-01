@@ -6,6 +6,7 @@ export { default as AdminDashboard } from './pages/AdminDashboard';
 export { default as DepartmentsPage } from './pages/DepartmentsPage';
 export { default as EmployeesPage } from './pages/EmployeesPage';
 export { default as UserManagementPage } from './pages/UserManagementPage';
+export { default as SystemAuditPage } from './pages/SystemAuditPage';
 
 // Smart Parking Admin Pages
 export { default as RolesManagementPage } from './pages/RolesManagementPage';

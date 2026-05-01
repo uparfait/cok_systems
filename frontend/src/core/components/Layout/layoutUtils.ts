@@ -245,6 +245,9 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     if ((hasPermission(user, 'admin') || isAdmin) && (hasPermission(user, 'user_management') || isAdmin)) {
       adminChildren.push({ id: 'user-mgmt', label: 'User Management', path: '/admin/user-management', icon: 'FiUser', resource: 'user_management', requiredAction: 'read:user_management' });
     }
+    if (hasPermission(user, 'admin') || isAdmin) {
+      adminChildren.push({ id: 'system-audit', label: 'System Audit', path: '/admin/system-audit', icon: 'FiActivity', resource: 'admin', requiredAction: 'read' });
+    }
     
     if (adminChildren.length > 0) {
       navigation.push({
