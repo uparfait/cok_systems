@@ -6,7 +6,8 @@ import { FiSearch, FiClock, FiCheckCircle, FiRefreshCw } from 'react-icons/fi';
 import { useAuth } from '../../../../../core/contexts/AuthContext';
 import { useSocket } from '../../../../../core/contexts/SocketContext';
 import { serviceDeliveryService } from '../../../../../core/services/adminService';
-import { Pagination } from '../../shared';
+import Table from '../../../../../core/components/Table';
+import type { TableHeader, TablePagination } from '../../../../../core/components/Table';
 
 interface ServiceRecord {
   id: string;
@@ -267,52 +268,62 @@ const EmployeeDashboardTab: React.FC = () => {
           </div>
         </div>
 
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-[#f0f0f0]">
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">VISITOR ↕</th>
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">ID</th>
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">BADGE</th>
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">ASSIGNED TO ↕</th>
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">WAIT TIME ↕</th>
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">STATUS ↕</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && serviceRecords.length === 0 ? (
-              <tr><td colSpan={6} className="py-8 text-center text-gray-500">Loading your assignments...</td></tr>
-            ) : paginatedRecords.length > 0 ? paginatedRecords.map((record) => {
-              const status = statusStyles[record.status];
-              return (
-                <tr key={record.id} className="border-b border-[#f8f8f8] h-14">
-                  <td className="py-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full ${record.avatarColor} flex items-center justify-center text-white text-[12px] font-bold`}>{record.initials}</div>
-                      <div>
-                        <div className="text-[#333] text-[13px] font-medium">{record.visitorName}</div>
-                      </div>
+        <Table
+          headers={[
+            { key: 'visitor', label: 'VISITOR' },
+            { key: 'id', label: 'ID' },
+            { key: 'badge', label: 'BADGE' },
+            { key: 'assigned_to', label: 'ASSIGNED TO' },
+            { key: 'wait_time', label: 'WAIT TIME' },
+            { key: 'status', label: 'STATUS' }
+          ]}
+          data={paginatedRecords}
+          loading={loading && serviceRecords.length === 0}
+          emptyMessage="No active visitors waiting in queue."
+          maxHeight="400px"
+          minWidth="800px"
+          renderCell={(header, record, index) => {
+            switch (header.key) {
+              case 'visitor':
+                return (
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full ${record.avatarColor} flex items-center justify-center text-white text-[12px] font-bold`}>
+                      {record.initials}
                     </div>
-                  </td>
-                  <td className="py-3 text-[#333] text-[13px]">{record.visitorId}</td>
-                  <td className="py-3 text-[#333] text-[13px]">{record.badgeNumber || '-'}</td>
-                  <td className="py-3 text-[#333] text-[13px] font-medium">{record.assignedTo}</td>
-                  <td className="py-3 text-[#666] text-[13px] font-medium">{record.waitTime}</td>
-                  <td className="py-3">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide ${status.bg} ${status.text}`}>
-                      {status.label}
-                    </span>
-                  </td>
-                </tr>
-              );
-            }) : (
-              <tr><td colSpan={6} className="py-8 text-center text-[#888]">No active visitors waiting in queue.</td></tr>
-            )}
-          </tbody>
-        </table>
-        
-        {filteredRecords.length > 0 && (
-          <Pagination currentPage={currentPage} totalPages={Math.ceil(filteredRecords.length / resultsPerPage)} onPageChange={setCurrentPage} style="arrows-with-numbers" showPageInfo={true} totalItems={filteredRecords.length} itemsPerPage={resultsPerPage} />
-        )}
+                    <div>
+                      <div className="text-[#333] text-[13px] font-medium">{record.visitorName}</div>
+                    </div>
+                  </div>
+                );
+              case 'id':
+                return <span className="text-[#333] text-[13px]">{record.visitorId}</span>;
+              case 'badge':
+                return <span className="text-[#333] text-[13px]">{record.badgeNumber || '-'}</span>;
+              case 'assigned_to':
+                return <span className="text-[#333] text-[13px] font-medium">{record.assignedTo}</span>;
+              case 'wait_time':
+                return <span className="text-[#666] text-[13px] font-medium">{record.waitTime}</span>;
+              case 'status':
+                const statusKey = record.status as keyof typeof statusStyles;
+                const status = statusStyles[statusKey];
+                return (
+                  <span className={`inline-flex items-center px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide ${status.bg} ${status.text}`}>
+                    {status.label}
+                  </span>
+                );
+              default:
+                return <span>{record[header.key] || '-'}</span>;
+            }
+          }}
+          pagination={{
+            currentPage,
+            totalPages: Math.ceil(filteredRecords.length / resultsPerPage),
+            totalCount: filteredRecords.length,
+            itemsPerPage: resultsPerPage,
+            onPageChange: setCurrentPage,
+            loading
+          }}
+        />
       </div>
     </div>
   );
