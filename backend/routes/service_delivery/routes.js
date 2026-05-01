@@ -4,6 +4,9 @@
 
 const Router = require('express').Router()
 
+// Import audit logging middleware
+const { auditSuccess, auditError, auditUserActions } = require('../../middlewares/audit')
+
 // Parfait's controllers
 
 const assign_vistor_to_department = require('../../controllers/serivice_delivery/assign_vistor_to_department.js')
@@ -90,22 +93,46 @@ Router.delete('/', (req, res, next) => {
 
 // Parfait's routes
 
-Router.get('/visitor',list_vistors)
-Router.get('/visitor/search', search_vistor)
-Router.get('/visitor/active-tasks', get_active_tasks)
-Router.get('/visitor/by-department', get_visitors_by_department)
-Router.get('/visitor/by-department-current/:id', get_visitors_by_department_current)
-Router.get('/visitor/by-provider-current/:id', get_visitors_by_provider_current)
-Router.get('/visitor/by-provider', get_visitors_by_provider)
-Router.get('/visitor/:id', get_vistor_by_id)
-Router.put('/visitor/:id', update_vistor_data)
-Router.post('/visitor/checkin', vistor_checkin)
-Router.post('/visitor/assign', assign_vistor_to_department)
-Router.post('/visitor/checkout', vistor_checkout)
-Router.post('/visitor/service/status', toggle_service_status)
-Router.post('/visitor/emergency/leave-return', toggle_leave_out_side_and_return)
+Router.get('/visitor', auditSuccess('READ', 'visitors'), list_vistors)
+Router.get('/visitor/search', auditSuccess('READ', 'visitors'), search_vistor)
+Router.get('/visitor/active-tasks', auditSuccess('READ', 'visitors'), get_active_tasks)
+Router.get('/visitor/by-department', auditSuccess('READ', 'visitors'), get_visitors_by_department)
+Router.get('/visitor/by-department-current/:id', auditSuccess('READ', 'visitors'), get_visitors_by_department_current)
+Router.get('/visitor/by-provider-current/:id', auditSuccess('READ', 'visitors'), get_visitors_by_provider_current)
+Router.get('/visitor/by-provider', auditSuccess('READ', 'visitors'), get_visitors_by_provider)
+Router.get('/visitor/:id', auditSuccess('READ', 'visitors'), get_vistor_by_id)
+Router.put('/visitor/:id',
+  auditSuccess('UPDATE', 'visitors', auditUserActions.updateVisitor),
+  update_vistor_data
+)
+Router.post('/visitor/checkin',
+  auditSuccess('CREATE', 'visitors', auditUserActions.createVisitor),
+  vistor_checkin
+)
+Router.post('/visitor/assign',
+  auditSuccess('UPDATE', 'visitors', (req, res, data) => `Assigned visitor ${req.body.visitorId || 'unknown'} to department`),
+  assign_vistor_to_department
+)
+Router.post('/visitor/checkout',
+  auditSuccess('UPDATE', 'visitors', (req, res, data) => `Checked out visitor ${req.body.visitorId || 'unknown'}`),
+  vistor_checkout
+)
+Router.post('/visitor/service/status',
+  auditSuccess('UPDATE', 'visitors', (req, res, data) => `Updated service status for visitor ${req.body.visitorId || 'unknown'}`),
+  toggle_service_status
+)
+Router.post('/visitor/emergency/leave-return',
+  auditSuccess('UPDATE', 'visitors', (req, res, data) => `Emergency leave/return for visitor ${req.body.visitorId || 'unknown'}`),
+  toggle_leave_out_side_and_return
+)
 
 // Below route addeed by Fabrice and from now disabled due to conflicts his message wa `Add your new dedicated route`
-Router.put('/visitor/:id/status', update_service_status)
+Router.put('/visitor/:id/status',
+  auditSuccess('UPDATE', 'visitors', (req, res, data) => `Updated service status for visitor ${req.params.id}`),
+  update_service_status
+)
+
+// Add error logging middleware
+Router.use(auditError('service_delivery'))
 
 module.exports = Router
