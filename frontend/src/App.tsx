@@ -2,6 +2,7 @@
 // Entry point for the COK Systems frontend application
 // Safely merged Smart Parking and Service Delivery Routes
 
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/auth/LoginPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
@@ -14,6 +15,7 @@ import { SocketProvider } from './core/contexts/SocketContext';
 import { NotificationProvider } from './core/contexts/NotificationContext';
 import { ToastProvider } from './core/contexts/ToastContext';
 import ChatWidget from './core/components/ChatWidget';
+import PWAInstallPrompt from './core/components/PWAInstallPrompt';
 
 // Import from new systems folder (wrappers with MainLayout built-in)
 import {
@@ -32,7 +34,7 @@ import {
 } from './systems/admin';
 
 // 👉 COLLEAGUE'S IMPORTS (Smart Parking) - Cleaned to match new index.ts!
-import { 
+import {
   SmartParkingDashboard,
   CheckInVehiclePage,
   CheckInPersonPage,
@@ -50,7 +52,41 @@ import {
   VisitorDetailsPage
 } from './systems/serviceDelivery';
 
-function App() {
+
+
+// PWA Install Prompt Wrapper Component
+const PWAInstallPromptWrapper: React.FC = () => {
+  const [showPrompt, setShowPrompt] = useState(false);
+
+  useEffect(() => {
+    const handleInstallAvailable = () => {
+      // Only show if user is authenticated (not on login page)
+      const isOnLoginPage = window.location.pathname === '/login' || window.location.pathname === '/';
+      if (!isOnLoginPage) {
+        setShowPrompt(true);
+      }
+    };
+
+    const handleInstalled = () => {
+      setShowPrompt(false);
+    };
+
+    window.addEventListener('pwa-install-available', handleInstallAvailable);
+    window.addEventListener('pwa-installed', handleInstalled);
+
+    return () => {
+      window.removeEventListener('pwa-install-available', handleInstallAvailable);
+      window.removeEventListener('pwa-installed', handleInstalled);
+    };
+  }, []);
+
+  return showPrompt ? (
+    <PWAInstallPrompt onClose={() => setShowPrompt(false)} />
+  ) : null;
+};
+
+// Main App Component
+const App: React.FC = () => {
   return (
     <AuthProvider>
       <SocketProvider>
@@ -117,9 +153,9 @@ function App() {
               {/* ==================== LEGACY ROUTES SUPPORT ==================== */}
               <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
               <Route path="/" element={<Navigate to="/login" replace />} />
-              <Route path="*" element={<Navigate to="/login" replace />} />
-            </Routes>
-          </Router>
+               <Route path="*" element={<Navigate to="/login" replace />} />
+             </Routes>
+           </Router>
           </ToastProvider>
         </NotificationProvider>
       </SocketProvider>
@@ -127,4 +163,14 @@ function App() {
   );
 }
 
-export default App;
+// Main App with PWA Wrapper
+function AppWithPWA() {
+  return (
+    <>
+      <App />
+      <PWAInstallPromptWrapper />
+    </>
+  );
+};
+
+export default AppWithPWA;
