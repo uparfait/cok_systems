@@ -7,8 +7,8 @@ const updateTask = async (req, res) => {
         const updateData = req.body
 
         // Validate status and priority if provided
-        const validStatuses = ['Under-review', 'In-progress', 'Completed']
-        const validPriorities = ['Low', 'Medium', 'High']
+        const validStatuses = ['To Do', 'In Progress', 'Review', 'Done']
+        const validPriorities = ['Low', 'Medium', 'High', 'Urgent']
 
         if (updateData.status && !validStatuses.includes(updateData.status)) {
             return res.status(StatusCodes.BAD_REQUEST).json({
@@ -37,9 +37,16 @@ const updateTask = async (req, res) => {
             updateData,
             { new: true, runValidators: true }
         )
+            .populate('board', 'name')
+            .populate('list', 'name')
             .populate('incharge', 'full_name email')
+            .populate('members', 'full_name email')
+            .populate('watchers', 'full_name email')
+            .populate('createdBy', 'full_name email')
             .populate('belongs.itBelongsTo', 'full_name email')
             .populate('comments.commenter', 'full_name email')
+            .populate('attachments.uploadedBy', 'full_name email')
+            .populate('activities.user', 'full_name email')
 
         if (!updatedTask) {
             return res.status(StatusCodes.NOT_FOUND).json({

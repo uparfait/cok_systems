@@ -16,27 +16,33 @@ const createTask = async (req, res) => {
 
         const {
             belongs,
+            board,
+            list,
             incharge,
+            members = [],
+            watchers = [],
             title,
             description,
-            status = 'Under-review',
+            status = 'To Do',
             priority = 'Medium',
+            labels = [],
             dueDate,
+            startDate,
             taskConfig,
-            subtasks = []
+            checklists = []
         } = taskData
 
         // Validate required fields
-        if (!incharge || !title || !dueDate) {
+        if (!incharge || !title) {
             return res.status(StatusCodes.BAD_REQUEST).json({
                 status: false,
-                message: 'Incharge, title, and dueDate are required'
+                message: 'Incharge and title are required'
             })
         }
 
         // Validate status and priority
-        const validStatuses = ['Under-review', 'In-progress', 'Completed']
-        const validPriorities = ['Low', 'Medium', 'High']
+        const validStatuses = ['To Do', 'In Progress', 'Review', 'Done']
+        const validPriorities = ['Low', 'Medium', 'High', 'Urgent']
 
         if (!validStatuses.includes(status)) {
             return res.status(StatusCodes.BAD_REQUEST).json({
@@ -52,20 +58,24 @@ const createTask = async (req, res) => {
             })
         }
 
-        // Validate subtasks if provided
-        if (subtasks && subtasks.length > 0) {
-            for (const subtask of subtasks) {
-                if (!subtask.title) {
+        // Validate checklists if provided
+        if (taskData.checklists && taskData.checklists.length > 0) {
+            for (const checklist of taskData.checklists) {
+                if (!checklist.title) {
                     return res.status(StatusCodes.BAD_REQUEST).json({
                         status: false,
-                        message: 'All subtasks must have a title'
+                        message: 'All checklists must have a title'
                     })
                 }
-                if (subtask.status && !validStatuses.includes(subtask.status)) {
-                    return res.status(StatusCodes.BAD_REQUEST).json({
-                        status: false,
-                        message: 'Invalid subtask status: ' + subtask.status
-                    })
+                if (checklist.items && checklist.items.length > 0) {
+                    for (const item of checklist.items) {
+                        if (!item.text) {
+                            return res.status(StatusCodes.BAD_REQUEST).json({
+                                status: false,
+                                message: 'All checklist items must have text'
+                            })
+                        }
+                    }
                 }
             }
         }
@@ -103,20 +113,42 @@ const createTask = async (req, res) => {
 
         const newTask = new Task({
             belongs: belongs || { isBelongsTo: false },
+            board,
+            list,
             incharge,
+            members,
+            watchers,
             title,
             description,
             status: initialStatus,
-            dueDate: new Date(dueDate),
+            priority,
+            labels,
+            dueDate: dueDate ? new Date(dueDate) : undefined,
+            startDate: startDate ? new Date(startDate) : undefined,
             taskConfig: {
                 ...taskConfig,
                 coverImage: coverImageUrl
             },
-            subtasks: subtasks.map(subtask => ({
-                ...subtask,
-                status: subtask.status || 'Under-review'
+            checklists: checklists.map((checklist, index) => ({
+                ...checklist,
+                position: checklist.position || index,
+                items: checklist.items ? checklist.items.map((item, itemIndex) => ({
+                    ...item,
+                    position: item.position || itemIndex
+                })) : []
             })),
-            attachmentsFile: processedAttachments
+            attachments: processedAttachments.map(attachment => ({
+                ...attachment,
+                uploadedBy: incharge, // Creator is the uploader
+                type: attachment.filename.match(/\.(jpg|jpeg|png|gif)$/i) ? 'image' : 'document'
+            })),
+            createdBy: incharge, // Creator is the incharge
+            activities: [{
+                user: incharge,
+                action: 'created',
+                details: { title },
+                timestamp: new Date()
+            }]
         })
 
         const savedTask = await newTask.save()

@@ -4,6 +4,8 @@
  */
 
 const Task = require('../../../models/task')
+const Board = require('../../../models/board')
+const List = require('../../../models/list')
 const Notification = require('../../../models/notification')
 
 function taskRealtime(socket) {
@@ -49,10 +51,15 @@ function taskRealtime(socket) {
             })
 
             // Emit to user's private room for notifications
-            socket.to(`PRIVATE_ROOM_${updatedTask.incharge._id}`).emit('task_updated', {
-                task: updatedTask,
-                action: 'status_changed',
-                newStatus: status
+            const notifyUsers = [updatedTask.incharge, ...updatedTask.members, ...updatedTask.watchers]
+                .filter((user, index, arr) => arr.indexOf(user) === index) // Remove duplicates
+
+            notifyUsers.forEach(userId => {
+                socket.to(`PRIVATE_ROOM_${userId}`).emit('task_updated', {
+                    task: updatedTask,
+                    action: 'status_changed',
+                    newStatus: status
+                })
             })
 
         } catch (error) {
@@ -200,8 +207,9 @@ function taskRealtime(socket) {
             }
 
             const activeTasks = await Task.find({
-                incharge: userId,
-                status: { $in: ['Under-review', 'In-progress'] }
+                $or: [{ incharge: userId }, { members: userId }],
+                status: { $in: ['To Do', 'In Progress', 'Review'] },
+                archived: false
             }).sort({ dueDate: 1 })
 
             socket.emit('active_tasks', { tasks: activeTasks })
@@ -209,6 +217,123 @@ function taskRealtime(socket) {
         } catch (error) {
             console.error('Error getting active tasks:', error)
             socket.emit('task_error', { message: 'Failed to get active tasks' })
+        }
+    })
+
+    // Board room management
+    socket.on('join_board_room', (boardId) => {
+        socket.join(`BOARD_ROOM_${boardId}`)
+        console.log(`User ${socket.user?.email || socket.id} joined board room: BOARD_ROOM_${boardId}`)
+    })
+
+    socket.on('leave_board_room', (boardId) => {
+        socket.leave(`BOARD_ROOM_${boardId}`)
+        console.log(`User ${socket.user?.email || socket.id} left board room: BOARD_ROOM_${boardId}`)
+    })
+
+    // Move task between lists
+    socket.on('move_task', async (data) => {
+        try {
+            const { taskId, fromListId, toListId, newPosition, userId } = data
+
+            if (!socket.user || socket.user.userId !== userId) {
+                socket.emit('task_error', { message: 'Unauthorized' })
+                return
+            }
+
+            // Update task position and list
+            const updateData = {
+                list: toListId,
+                position: newPosition,
+                updatedAt: new Date(),
+                $push: {
+                    activities: {
+                        user: userId,
+                        action: 'moved',
+                        details: { fromList: fromListId, toList: toListId },
+                        timestamp: new Date()
+                    }
+                }
+            }
+
+            const updatedTask = await Task.findByIdAndUpdate(taskId, updateData, { new: true })
+                .populate('incharge', 'full_name email')
+                .populate('list', 'name')
+
+            if (!updatedTask) {
+                socket.emit('task_error', { message: 'Task not found' })
+                return
+            }
+
+            // Emit to board room
+            socket.to(`BOARD_ROOM_${updatedTask.board}`).emit('task_moved', {
+                taskId,
+                fromListId,
+                toListId,
+                newPosition,
+                updatedTask,
+                movedBy: socket.user,
+                timestamp: new Date()
+            })
+
+        } catch (error) {
+            console.error('Error moving task:', error)
+            socket.emit('task_error', { message: 'Failed to move task' })
+        }
+    })
+
+    // Update checklist item
+    socket.on('update_checklist_item', async (data) => {
+        try {
+            const { taskId, checklistId, itemId, updates, userId } = data
+
+            if (!socket.user || socket.user.userId !== userId) {
+                socket.emit('task_error', { message: 'Unauthorized' })
+                return
+            }
+
+            const updateQuery = {}
+            Object.keys(updates).forEach(key => {
+                updateQuery[`checklists.$[checklist].items.$[item].${key}`] = updates[key]
+            })
+
+            const updatedTask = await Task.findOneAndUpdate(
+                {
+                    _id: taskId,
+                    'checklists._id': checklistId,
+                    'checklists.items._id': itemId
+                },
+                {
+                    $set: updateQuery,
+                    updatedAt: new Date()
+                },
+                {
+                    new: true,
+                    arrayFilters: [
+                        { 'checklist._id': checklistId },
+                        { 'item._id': itemId }
+                    ]
+                }
+            ).populate('incharge', 'full_name email')
+
+            if (!updatedTask) {
+                socket.emit('task_error', { message: 'Task or checklist item not found' })
+                return
+            }
+
+            // Emit to task room
+            socket.to(`TASK_ROOM_${taskId}`).emit('checklist_item_updated', {
+                taskId,
+                checklistId,
+                itemId,
+                updates,
+                updatedBy: socket.user,
+                timestamp: new Date()
+            })
+
+        } catch (error) {
+            console.error('Error updating checklist item:', error)
+            socket.emit('task_error', { message: 'Failed to update checklist item' })
         }
     })
 }
