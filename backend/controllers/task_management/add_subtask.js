@@ -4,7 +4,7 @@ const { StatusCodes } = require('http-status-codes')
 const addSubtask = async (req, res) => {
     try {
         const { id } = req.params
-        const { title, description, status = 'Under-review', priority = 'Medium', dueDate } = req.body
+        const { title, description, status = 'Under-review', dueDate } = req.body
 
         if (!title) {
             return res.status(StatusCodes.BAD_REQUEST).json({
@@ -13,9 +13,8 @@ const addSubtask = async (req, res) => {
             })
         }
 
-        // Validate status and priority
+        // Validate status
         const validStatuses = ['Under-review', 'In-progress', 'Completed']
-        const validPriorities = ['Low', 'Medium', 'High']
 
         if (!validStatuses.includes(status)) {
             return res.status(StatusCodes.BAD_REQUEST).json({
@@ -24,18 +23,10 @@ const addSubtask = async (req, res) => {
             })
         }
 
-        if (!validPriorities.includes(priority)) {
-            return res.status(StatusCodes.BAD_REQUEST).json({
-                status: false,
-                message: 'Invalid subtask priority'
-            })
-        }
-
         const newSubtask = {
             title,
             description: description || '',
             status,
-            priority,
             dueDate: dueDate ? new Date(dueDate) : null,
             createdAt: new Date(),
             updatedAt: new Date()

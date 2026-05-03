@@ -13,11 +13,7 @@ const taskSchema = new mongoose.Schema({
         enum: ['Under-review', 'In-progress', 'Completed'],
         default: 'Under-review'
     },
-    priority: {
-        type: String,
-        enum: ['Low', 'Medium', 'High'],
-        default: 'Medium'
-    },
+
     dueDate: { type: Date, required: true },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
@@ -42,11 +38,6 @@ const taskSchema = new mongoose.Schema({
             type: String,
             enum: ['Under-review', 'In-progress', 'Completed'],
             default: 'Under-review'
-        },
-        priority: {
-            type: String,
-            enum: ['Low', 'Medium', 'High'],
-            default: 'Medium'
         },
         dueDate: { type: Date },
         createdAt: { type: Date, default: Date.now },

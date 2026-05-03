@@ -67,12 +67,6 @@ const createTask = async (req, res) => {
                         message: 'Invalid subtask status: ' + subtask.status
                     })
                 }
-                if (subtask.priority && !validPriorities.includes(subtask.priority)) {
-                    return res.status(StatusCodes.BAD_REQUEST).json({
-                        status: false,
-                        message: 'Invalid subtask priority: ' + subtask.priority
-                    })
-                }
             }
         }
 
@@ -82,10 +76,7 @@ const createTask = async (req, res) => {
         let coverImageUrl = null;
         if (req.files && req.files.coverImage && req.files.coverImage.length > 0) {
             const coverImage = req.files.coverImage[0];
-            // In a real implementation, you would upload to cloud storage (AWS S3, etc.)
-            // For now, we'll store the file path or base64
-            coverImageUrl = `/uploads/tasks/${Date.now()}_${coverImage.originalname}`;
-            // TODO: Implement actual file upload to cloud storage
+            coverImageUrl = `/uploads/tasks/covers/${coverImage.filename}`;
         }
 
         // Handle attachments
@@ -94,7 +85,7 @@ const createTask = async (req, res) => {
             for (const file of attachments) {
                 processedAttachments.push({
                     filename: file.originalname,
-                    url: `/uploads/tasks/attachments/${Date.now()}_${file.originalname}`, // TODO: Implement actual upload
+                    url: `/uploads/tasks/attachments/${file.filename}`,
                     description: ''
                 });
             }
@@ -114,8 +105,7 @@ const createTask = async (req, res) => {
             },
             subtasks: subtasks.map(subtask => ({
                 ...subtask,
-                status: subtask.status || 'Under-review',
-                priority: subtask.priority || 'Medium'
+                status: subtask.status || 'Under-review'
             })),
             attachmentsFile: processedAttachments
         })
