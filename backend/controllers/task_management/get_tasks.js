@@ -16,8 +16,16 @@ const getTasks = async (req, res) => {
 
         // Build query
         const query = {}
-        if (status) query.status = status
-        if (priority) query.priority = priority
+        if (status) {
+            query.status = status
+            // For completed tasks, only show current month
+            if (status === 'Completed') {
+                const now = new Date()
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+                const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+                query.updatedAt = { $gte: startOfMonth, $lte: endOfMonth }
+            }
+        }
         if (incharge) query.incharge = incharge
         if (title) {
             query.title = { $regex: title, $options: 'i' } // Case-insensitive search
