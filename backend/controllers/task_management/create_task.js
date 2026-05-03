@@ -3,6 +3,17 @@ const { StatusCodes } = require('http-status-codes')
 
 const createTask = async (req, res) => {
     try {
+        let taskData;
+
+        // Check if it's FormData (multipart) or JSON
+        if (req.body.taskData) {
+            // FormData request
+            taskData = JSON.parse(req.body.taskData);
+        } else {
+            // JSON request
+            taskData = req.body;
+        }
+
         const {
             belongs,
             incharge,
@@ -13,7 +24,7 @@ const createTask = async (req, res) => {
             dueDate,
             taskConfig,
             subtasks = []
-        } = req.body
+        } = taskData
 
         // Validate required fields
         if (!incharge || !title || !dueDate) {
@@ -65,6 +76,30 @@ const createTask = async (req, res) => {
             }
         }
 
+        const processedAttachments = [];
+
+        // Handle cover image upload
+        let coverImageUrl = null;
+        if (req.files && req.files.coverImage && req.files.coverImage.length > 0) {
+            const coverImage = req.files.coverImage[0];
+            // In a real implementation, you would upload to cloud storage (AWS S3, etc.)
+            // For now, we'll store the file path or base64
+            coverImageUrl = `/uploads/tasks/${Date.now()}_${coverImage.originalname}`;
+            // TODO: Implement actual file upload to cloud storage
+        }
+
+        // Handle attachments
+        if (req.files && req.files.attachments) {
+            const attachments = Array.isArray(req.files.attachments) ? req.files.attachments : [req.files.attachments];
+            for (const file of attachments) {
+                processedAttachments.push({
+                    filename: file.originalname,
+                    url: `/uploads/tasks/attachments/${Date.now()}_${file.originalname}`, // TODO: Implement actual upload
+                    description: ''
+                });
+            }
+        }
+
         const newTask = new Task({
             belongs: belongs || { isBelongsTo: false },
             incharge,
@@ -73,12 +108,16 @@ const createTask = async (req, res) => {
             status,
             priority,
             dueDate: new Date(dueDate),
-            taskConfig: taskConfig || {},
+            taskConfig: {
+                ...taskConfig,
+                coverImage: coverImageUrl
+            },
             subtasks: subtasks.map(subtask => ({
                 ...subtask,
                 status: subtask.status || 'Under-review',
                 priority: subtask.priority || 'Medium'
-            }))
+            })),
+            attachmentsFile: processedAttachments
         })
 
         const savedTask = await newTask.save()
