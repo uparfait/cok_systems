@@ -3,8 +3,8 @@
  * Handles WebSocket events for task updates, notifications, and live collaboration
  */
 
-const Task = require('../../models/task')
-const Notification = require('../../models/notification')
+const Task = require('../../../models/task')
+const Notification = require('../../../models/notification')
 
 function taskRealtime(socket) {
     // Join task-specific rooms
