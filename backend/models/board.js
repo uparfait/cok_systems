@@ -23,8 +23,7 @@ const boardSchema = new mongoose.Schema({
     labels: [{
         name: { type: String, required: true },
         color: { type: String, required: true },
-        uses: { type: Number, default: 0 },
-        _id: true
+        uses: { type: Number, default: 0 }
     }],
     starred: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Users who starred this board
     archived: { type: Boolean, default: false },
