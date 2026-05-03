@@ -7,6 +7,7 @@ const getTasks = async (req, res) => {
             status,
             priority,
             incharge,
+            title,
             limit = 50,
             skip = 0,
             sortBy = 'createdAt',
@@ -18,6 +19,9 @@ const getTasks = async (req, res) => {
         if (status) query.status = status
         if (priority) query.priority = priority
         if (incharge) query.incharge = incharge
+        if (title) {
+            query.title = { $regex: title, $options: 'i' } // Case-insensitive search
+        }
 
         // Build sort object
         const sort = {}

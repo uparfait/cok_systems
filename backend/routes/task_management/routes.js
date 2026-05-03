@@ -27,11 +27,17 @@ const multer = require('multer')
 const upload = multer({
     storage: multer.memoryStorage(), // Store files in memory for processing
     limits: {
-        fileSize: 10 * 1024 * 1024 // 10MB limit
+        fileSize: 10 * 1024 * 1024 // 10MB limit per file
     }
 })
 
-Router.use(upload.any())
+// Handle both single and multiple file uploads
+const multiUpload = upload.fields([
+    { name: 'coverImage', maxCount: 1 },
+    { name: 'attachments', maxCount: 10 } // Allow up to 10 attachments
+])
+
+Router.use(multiUpload)
 
 /**
  * Global Interceptor for Multer Errors
