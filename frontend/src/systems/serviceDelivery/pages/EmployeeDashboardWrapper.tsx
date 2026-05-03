@@ -3,8 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import EmployeeDashboard from './EmployeeDashboard';
 import { PerformanceAnalyticsTab, ServiceHistoryTab, DepartmentQueueTab } from '../components/employeeFlow/tabs';
+import { TaskManager } from '../../../systems/taskManagement';
 
-type EmployeeTab = 'dashboard' | 'services' | 'performance' | 'history' | 'queue' | 'availability';
+type EmployeeTab = 'dashboard' | 'services' | 'performance' | 'history' | 'queue' | 'availability' | 'tasks';
 
 const EmployeeDashboardWrapper: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -17,6 +18,7 @@ const EmployeeDashboardWrapper: React.FC = () => {
   else if (tabParam === 'history') activeTab = 'history';
   else if (tabParam === 'queue') activeTab = 'queue';
   else if (tabParam === 'availability') activeTab = 'availability';
+  else if (tabParam === 'tasks') activeTab = 'tasks';
 
   // Render the appropriate tab content
   const renderTabContent = () => {
@@ -27,6 +29,8 @@ const EmployeeDashboardWrapper: React.FC = () => {
         return <ServiceHistoryTab />;
       case 'queue':
         return <DepartmentQueueTab />;
+      case 'tasks':
+        return <TaskManager />;
       case 'services':
       case 'availability':
       case 'dashboard':
