@@ -21,6 +21,8 @@ const statistics = require('./statistics/routes.js')
 const create_multiple_employees = require('./create_multiple_employees/routes.js')
 const profile = require('./profile/routes.js')
 const department_manager = require('./department_manager_routes.js')
+const task_management = require('./task_management/routes.js')
+const notifications = require('./notifications/routes.js')
 
 
 Router.use('/servicedelivery',
@@ -66,5 +68,7 @@ Router.use('/multiple',
       create_multiple_employees)
 Router.use('/profile', authenticate, profile)
 Router.use('/department-manager', authenticate, department_manager)
+Router.use('/tasks', authenticate, task_management)
+Router.use('/notifications', authenticate, notifications)
 
 module.exports = Router

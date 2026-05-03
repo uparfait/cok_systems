@@ -53,6 +53,7 @@ Module.prototype.require = function (path) {
 const db_connection = require("./db_connection/main");
 const WebSocketService = require("./services/reatime_service/web_socket.js");
 const InitialiseAllRealtimeServices = require("./services/reatime_service/initialise_realtime_services.js");
+const taskNotificationScheduler = require("./services/task_notification_scheduler.js");
 const parkingMonitor = require("./utilities/parkingMonitor.js");
 
 const ParkingSlot = require("./models/parking_slots.js");
@@ -170,6 +171,14 @@ db_connection()
       console.log("Default parking slot document created.");
     } else {
       console.log("Parking slot document already exists.");
+    }
+
+    // Start task notification scheduler
+    try {
+      taskNotificationScheduler.start();
+      console.log("Task notification scheduler started successfully.");
+    } catch (schedulerError) {
+      console.error("⚠️ Failed to start task notification scheduler:", schedulerError);
     }
 
     /**

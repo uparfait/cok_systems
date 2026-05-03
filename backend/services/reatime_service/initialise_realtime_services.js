@@ -8,6 +8,7 @@
 
 const smart_park_realtime = require('./smartparking/smartpark.js')
 const service_delivery_realtime = require('./service_delivery/service_delivery.js')
+const task_realtime = require('./tasks/task_realtime.js')
 const department = require('../../models/department.js')
 const chat_realtime = require('./chatting/chat.js')
 const jwt = require('../../utilities/jwt.js')
@@ -233,6 +234,7 @@ module.exports = async function InitialiseAllRealtimeServices() {
             // Initialize individual real-time handlers
             smart_park_realtime(socket)
             service_delivery_realtime(socket)
+            task_realtime(socket)
             chat_realtime(socket)
             // All other real-time handlers can be added here in the future as needed
 
