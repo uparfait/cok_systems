@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const taskSchema = new mongoose.Schema({
     belongs: {
         isBelongsTo: { type: Boolean, default: false },
-        itBelongsTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+        itBelongsTo: { type: mongoose.Schema.Types.ObjectId, ref: 'ServiceDelivery' }
     },
     incharge: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     title: { type: String, required: true },
