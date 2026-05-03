@@ -118,7 +118,7 @@ class TaskNotificationScheduler {
             // Auto-transition Under-review tasks to In-progress when start date is reached
             const tasksToStart = await Task.find({
                 status: 'Under-review',
-                dueDate: { $lte: now }
+                'taskConfig.startDate': { $lte: now }
             })
 
             for (const task of tasksToStart) {
