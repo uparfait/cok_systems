@@ -71,4 +71,9 @@ Router.use('/department-manager', authenticate, department_manager)
 Router.use('/tasks', authenticate, task_management)
 Router.use('/notifications', authenticate, notifications)
 
+// Serve uploaded files
+const path = require('path')
+const express = require('express')
+Router.use('/uploads', express.static(path.join(__dirname, '../uploads')))
+
 module.exports = Router
