@@ -14,7 +14,7 @@ const taskSchema = new mongoose.Schema({
     members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Additional assignees
     watchers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Users watching this task
 
-    title: { type: String, required: true, trim: true },
+    title: { type: String, required: true},
     description: { type: String },
     status: {
         type: String,
@@ -56,11 +56,9 @@ const taskSchema = new mongoose.Schema({
             completed: { type: Boolean, default: false },
             assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
             dueDate: { type: Date },
-            position: { type: Number, default: 0 },
-            _id: true
+            position: { type: Number, default: 0 }
         }],
-        position: { type: Number, default: 0 },
-        _id: true
+        position: { type: Number, default: 0 }
     }],
 
     comments: [{
@@ -69,8 +67,7 @@ const taskSchema = new mongoose.Schema({
         mentions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Users mentioned
         edited: { type: Boolean, default: false },
         createdAt: { type: Date, default: Date.now },
-        updatedAt: { type: Date, default: Date.now },
-        _id: true
+        updatedAt: { type: Date, default: Date.now }
     }],
 
     attachments: [{
@@ -80,8 +77,7 @@ const taskSchema = new mongoose.Schema({
         type: { type: String, enum: ['image', 'document', 'link', 'other'], default: 'other' },
         size: { type: Number }, // File size in bytes
         uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-        uploadedAt: { type: Date, default: Date.now },
-        _id: true
+        uploadedAt: { type: Date, default: Date.now }
     }],
 
     // Activity log for tracking all changes
@@ -89,8 +85,7 @@ const taskSchema = new mongoose.Schema({
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
         action: { type: String, required: true }, // 'created', 'updated', 'commented', 'moved', etc.
         details: { type: mongoose.Schema.Types.Mixed }, // Flexible object for action details
-        timestamp: { type: Date, default: Date.now },
-        _id: true
+        timestamp: { type: Date, default: Date.now }
     }]
 }, {
     versionKey: false,
