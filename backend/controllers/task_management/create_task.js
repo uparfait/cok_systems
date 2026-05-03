@@ -91,13 +91,22 @@ const createTask = async (req, res) => {
             }
         }
 
+        // Determine initial status based on dates
+        let initialStatus = status
+        if (status === 'Under-review' && taskConfig?.startDate) {
+            const startDate = new Date(taskConfig.startDate)
+            const now = new Date()
+            if (startDate <= now) {
+                initialStatus = 'In-progress'
+            }
+        }
+
         const newTask = new Task({
             belongs: belongs || { isBelongsTo: false },
             incharge,
             title,
             description,
-            status,
-            priority,
+            status: initialStatus,
             dueDate: new Date(dueDate),
             taskConfig: {
                 ...taskConfig,
