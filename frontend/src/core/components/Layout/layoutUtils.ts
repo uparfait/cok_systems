@@ -120,6 +120,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     roleInterceptorMatched = true;
     return [
       { id: 'dashboard', label: 'Dashboard', path: '/service-delivery/employee', icon: 'FiGrid' },
+      { id: 'tasks', label: 'Task Manager', path: '/service-delivery/employee?tab=tasks', icon: 'FiClipboard' },
       { id: 'performance', label: 'Performance Analytics', path: '/service-delivery/employee?tab=performance', icon: 'FiBarChart2' },
       { id: 'history', label: 'Service History', path: '/service-delivery/employee?tab=history', icon: 'FiFileText' },
       { id: 'queue', label: 'Department Queue', path: '/service-delivery/employee?tab=queue', icon: 'FiList' },
