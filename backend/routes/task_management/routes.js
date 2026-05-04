@@ -19,9 +19,9 @@ const deleteTask = require('../../controllers/task_management/delete_task')
 const addComment = require('../../controllers/task_management/add_comment')
 const addAttachment = require('../../controllers/task_management/add_attachment')
 const deleteAttachment = require('../../controllers/task_management/delete_attachment')
-const addSubtask = require('../../controllers/task_management/add_subtask')
-const updateSubtask = require('../../controllers/task_management/update_subtask')
-const deleteSubtask = require('../../controllers/task_management/delete_subtask')
+const addChecklist = require('../../controllers/task_management/add_subtask')
+const updateChecklist = require('../../controllers/task_management/update_subtask')
+const deleteChecklist = require('../../controllers/task_management/delete_subtask')
 
 const multer = require('multer')
 const path = require('path')
@@ -32,18 +32,13 @@ const uploadsDir = path.join(__dirname, '../../uploads/tasks')
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true })
 }
-if (!fs.existsSync(path.join(uploadsDir, 'covers'))) {
-    fs.mkdirSync(path.join(uploadsDir, 'covers'), { recursive: true })
-}
 if (!fs.existsSync(path.join(uploadsDir, 'attachments'))) {
     fs.mkdirSync(path.join(uploadsDir, 'attachments'), { recursive: true })
 }
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        if (file.fieldname === 'coverImage') {
-            cb(null, path.join(uploadsDir, 'covers'))
-        } else if (file.fieldname === 'attachments') {
+        if (file.fieldname === 'attachments') {
             cb(null, path.join(uploadsDir, 'attachments'))
         } else {
             cb(null, uploadsDir)
@@ -81,7 +76,6 @@ const upload = multer({
 
 // Handle both single and multiple file uploads
 const multiUpload = upload.fields([
-    { name: 'coverImage', maxCount: 1 },
     { name: 'attachments', maxCount: 10 } // Allow up to 10 attachments
 ])
 
@@ -114,10 +108,10 @@ Router.post('/:id/comments', auditSuccess('CREATE', 'task_comments', (req, res, 
 Router.post('/:id/attachments', auditSuccess('CREATE', 'task_attachments', (req, res, data) => `Added attachment to task: ${req.params.id}`), addAttachment)
 Router.delete('/:id/attachments/:attachmentId', auditSuccess('DELETE', 'task_attachments', (req, res, data) => `Deleted attachment from task: ${req.params.id}`), deleteAttachment)
 
-// Subtask management
-Router.post('/:id/subtasks', auditSuccess('CREATE', 'task_subtasks', (req, res, data) => `Added subtask to task: ${req.params.id}`), addSubtask)
-Router.put('/:id/subtasks/:subtaskId', auditSuccess('UPDATE', 'task_subtasks', (req, res, data) => `Updated subtask: ${req.params.id}/${req.params.subtaskId}`), updateSubtask)
-Router.delete('/:id/subtasks/:subtaskId', auditSuccess('DELETE', 'task_subtasks', (req, res, data) => `Deleted subtask: ${req.params.id}/${req.params.subtaskId}`), deleteSubtask)
+// Checklist management
+Router.post('/:id/checklists', auditSuccess('CREATE', 'task_checklists', (req, res, data) => `Added checklist to task: ${req.params.id}`), addChecklist)
+Router.put('/:id/checklists/:checklistId', auditSuccess('UPDATE', 'task_checklists', (req, res, data) => `Updated checklist: ${req.params.id}/${req.params.checklistId}`), updateChecklist)
+Router.delete('/:id/checklists/:checklistId', auditSuccess('DELETE', 'task_checklists', (req, res, data) => `Deleted checklist: ${req.params.id}/${req.params.checklistId}`), deleteChecklist)
 
 // Add error logging middleware
 Router.use(auditError('tasks'))

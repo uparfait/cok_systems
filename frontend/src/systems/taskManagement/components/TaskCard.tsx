@@ -1,7 +1,7 @@
 // TaskCard - Individual task card component with progress bar and status indicators
 
 import React, { useState } from 'react'
-import { FiClock, FiFlag, FiMessageSquare, FiPaperclip, FiMoreVertical, FiEdit, FiTrash2, FiMove } from 'react-icons/fi'
+import { FiClock, FiMessageSquare, FiPaperclip, FiMoreVertical, FiEdit, FiTrash2, FiMove } from 'react-icons/fi'
 import { useToast } from '../../../core/contexts/ToastContext'
 import { updateTaskStatus, deleteTask } from '../../../core/services/taskService'
 import type { Task, TaskStatus } from '../../../core/services/taskService'
@@ -48,8 +48,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
       await updateTaskStatus(task._id!, newStatus)
       showSuccess(`Task moved to ${newStatus.replace('-', ' ')}`)
       onMove?.(newStatus)
-    } catch (error: any) {
-      showError(error?.message || 'Failed to move task')
+    } catch (error: unknown) {
+      showError((error as Error)?.message || 'Failed to move task')
     } finally {
       setLoading(false)
       setShowDropdown(false)
@@ -64,8 +64,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
       await deleteTask(task._id!)
       showSuccess('Task deleted successfully')
       onDelete?.()
-    } catch (error: any) {
-      showError(error?.message || 'Failed to delete task')
+    } catch (error: unknown) {
+      showError((error as Error)?.message || 'Failed to delete task')
     } finally {
       setLoading(false)
       setShowDropdown(false)
@@ -95,7 +95,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
   return (
     <div
-      className="task-card bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 max-h-48 overflow-y-auto"
+      className="task-card bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 max-h-48 overflow-hidden"
       onClick={onClick}
     >
       {/* Top Dropdown Menu */}
@@ -133,33 +133,33 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
                   <div className="border-t border-gray-100 my-1"></div>
 
-                  {task.status !== 'Under-review' && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleMoveTask('Under-review')
-                      }}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      <FiMove className="w-4 h-4 mr-2" />
-                      Move to Under Review
-                    </button>
+                  {task.status === 'Under-review' && (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleMoveTask('In-progress')
+                        }}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <FiMove className="w-4 h-4 mr-2" />
+                        Move to In Progress
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleMoveTask('Completed')
+                        }}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <FiMove className="w-4 h-4 mr-2" />
+                        Move to Completed
+                      </button>
+                    </>
                   )}
 
-                  {task.status !== 'In-progress' && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleMoveTask('In-progress')
-                      }}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      <FiMove className="w-4 h-4 mr-2" />
-                      Move to In Progress
-                    </button>
-                  )}
-
-                  {task.status !== 'Completed' && (
+                  {task.status === 'In-progress' && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -190,6 +190,14 @@ const TaskCard: React.FC<TaskCardProps> = ({
           </div>
         </div>
 
+      {/* Title */}
+      <h3 className="font-semibold text-gray-900 mb-2 truncate" title={task.title}>{task.title.trim()}</h3>
+
+      {/* Description */}
+      {task.description && (
+        <p className="text-sm text-gray-600 mb-3 line-clamp-2" title={task.description}>{task.description.trim()}</p>
+      )}
+
       {/* Status Indicator */}
       <div className="flex items-center mb-2">
         <div className={`status-indicator status-${task.status.toLowerCase().replace('-', '-')}`}></div>
@@ -198,13 +206,23 @@ const TaskCard: React.FC<TaskCardProps> = ({
         </span>
       </div>
 
-      {/* Progress Bar - Show for all tasks with subtasks */}
-      {task.subtasks && task.subtasks.length > 0 && (
+      {/* Progress Bar - Show for all tasks with checklists */}
+      {task.checklists && task.checklists.length > 0 && (
         <div className="mb-3">
           <div className="flex justify-between items-center mb-1">
             <span className="text-xs text-gray-600">Progress</span>
             <span className="text-xs text-gray-600">
-              {task.subtasks.filter(st => st.status === 'Completed').length}/{task.subtasks.length} ({progress}%)
+              {(() => {
+                let total = 0
+                let completed = 0
+                task.checklists.forEach(c => {
+                  if (c.items) {
+                    total += c.items.length
+                    completed += c.items.filter(i => i.completed).length
+                  }
+                })
+                return `${completed}/${total}`
+              })()} ({progress}%)
             </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -217,10 +235,12 @@ const TaskCard: React.FC<TaskCardProps> = ({
       )}
 
       {/* Due Date */}
-      <div className="flex items-center text-xs text-gray-500 mb-2">
-        <FiClock className="w-3 h-3 mr-1" />
-        <span>Due: {formatDate(task.dueDate)}</span>
-      </div>
+      {task.dueDate && (
+        <div className="flex items-center text-xs text-gray-500 mb-2">
+          <FiClock className="w-3 h-3 mr-1" />
+          <span>Due: {formatDate(task.dueDate)}</span>
+        </div>
+      )}
 
       {/* Footer with counts */}
       <div className="flex items-center justify-between text-xs text-gray-500">
@@ -237,13 +257,23 @@ const TaskCard: React.FC<TaskCardProps> = ({
               <span>{task.attachmentsFile.length}</span>
             </div>
           )}
-          {task.subtasks.length > 0 && (
-            <div className="flex items-center">
-              <span className="font-medium">
-                {task.subtasks.filter(st => st.status === 'Completed').length}/{task.subtasks.length}
-              </span>
-            </div>
-          )}
+           {task.checklists && task.checklists.length > 0 && (
+             <div className="flex items-center">
+               <span className="font-medium">
+                 {(() => {
+                   let total = 0
+                   let completed = 0
+                   task.checklists.forEach(c => {
+                     if (c.items) {
+                       total += c.items.length
+                       completed += c.items.filter(i => i.completed).length
+                     }
+                   })
+                   return `${completed}/${total}`
+                 })()}
+               </span>
+             </div>
+           )}
         </div>
 
         {/* Time remaining indicator - Only show for non-completed tasks */}
@@ -255,10 +285,12 @@ const TaskCard: React.FC<TaskCardProps> = ({
             'text-green-600'
           }`}>
             {(() => {
+              if (!task.dueDate) return ''
               const now = new Date()
-              const dueDate = new Date(task.dueDate)
-              const diffTime = dueDate.getTime() - now.getTime()
-              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+              const due = new Date(task.dueDate)
+              due.setHours(0, 0, 0, 0)
+              now.setHours(0, 0, 0, 0)
+              const diffDays = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
               if (diffDays < 0) return `${Math.abs(diffDays)}d overdue`
               if (diffDays === 0) return 'Due today'

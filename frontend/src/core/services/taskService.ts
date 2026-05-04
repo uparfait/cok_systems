@@ -13,18 +13,27 @@ export interface Task {
     itBelongsTo?: string
   }
   incharge: string
+  members: string[]
+  watchers: string[]
   title: string
   description?: string
   status: TaskStatus
-  dueDate: string
-  createdAt?: string
-  updatedAt?: string
-  taskConfig: {
-    coverImage?: string
-    startDate?: string
-    notifyBeforeHours?: number
-    notifyBeforeDays?: number
-  }
+  priority: string
+  labels: Array<{
+    name: string
+    color: string
+    _id?: string
+  }>
+  attachmentsFile: Array<Attachment>
+  checklists: Array<{
+    title: string
+    items: Array<{
+      text: string
+      completed: boolean
+      _id?: string
+    }>
+    _id?: string
+  }>
   comments: Array<{
     commenter: string
     comment: string
@@ -32,28 +41,35 @@ export interface Task {
     updatedAt: string
     _id?: string
   }>
-  attachmentsFile: Array<{
-    filename: string
-    url: string
-    description?: string
-    _id?: string
-  }>
-  subtasks: Array<{
-    title: string
-    description?: string
-    status: TaskStatus
-    dueDate?: string
-    createdAt?: string
-    updatedAt?: string
-    _id?: string
-  }>
+  dueDate?: string
+  startDate?: string
+  completedAt?: string
+  createdAt?: string
+  taskConfig?: {
+    coverImage?: string
+    coverColor?: string
+    estimatedTime?: number
+    actualTime?: number
+  }
+}
+
+export interface Attachment {
+  _id?: string
+  filename: string
+  originalName: string
+  url: string
+  type: string
+  size?: number
+  uploadedBy: string
+  uploadedAt: string
+  description?: string
 }
 
 export interface Notification {
   _id?: string
   user: string
   task: string
-  type: 'deadline_reminder' | 'task_completed' | 'subtask_completed'
+  type: 'deadline_reminder' | 'task_completed' | 'checklist_item_completed'
   title: string
   message: string
   isRead: boolean
@@ -101,26 +117,31 @@ export const addComment = (taskId: string, commenter: string, comment: string) =
   post(`/tasks/${taskId}/comments`, { commenter, comment })
 
 // Attachment operations
-export const addAttachment = (taskId: string, filename: string, url: string, description?: string) =>
-  post(`/tasks/${taskId}/attachments`, { filename, url, description })
+export const addAttachment = (taskId: string, formData: FormData) =>
+  post(`/tasks/${taskId}/attachments`, formData, {
+    'Content-Type': 'multipart/form-data'
+  })
 
 export const deleteAttachment = (taskId: string, attachmentId: string) =>
   del(`/tasks/${taskId}/attachments/${attachmentId}`)
 
 // Subtask operations
-export const addSubtask = (taskId: string, subtask: {
+export const addChecklist = (taskId: string, checklist: {
   title: string
-  description?: string
-  status?: TaskStatus
-  dueDate?: string
+  items: Array<{ text: string; completed?: boolean }>
 }) =>
-  post(`/tasks/${taskId}/subtasks`, subtask)
+  post(`/tasks/${taskId}/checklists`, checklist)
 
-export const updateSubtask = (taskId: string, subtaskId: string, updates: Partial<Task['subtasks'][0]>) =>
-  put(`/tasks/${taskId}/subtasks/${subtaskId}`, updates)
+export const updateChecklist = (taskId: string, checklistId: string, updates: {
+  itemIndex?: number
+  completed?: boolean
+  title?: string
+  items?: Array<{ text: string; completed?: boolean }>
+}) =>
+  put(`/tasks/${taskId}/checklists/${checklistId}`, updates)
 
-export const deleteSubtask = (taskId: string, subtaskId: string) =>
-  del(`/tasks/${taskId}/subtasks/${subtaskId}`)
+export const deleteChecklist = (taskId: string, checklistId: string) =>
+  del(`/tasks/${taskId}/checklists/${checklistId}`)
 
 // Notification operations
 export const getNotifications = (params?: {
@@ -145,17 +166,28 @@ export const deleteNotification = (notificationId: string) =>
 
 // Utility functions
 export const getTaskProgress = (task: Task): number => {
-  if (task.subtasks.length === 0) return 0
+  if (!task.checklists || task.checklists.length === 0) return 0
 
-  const completedSubtasks = task.subtasks.filter(subtask => subtask.status === 'Completed').length
-  return Math.round((completedSubtasks / task.subtasks.length) * 100)
+  let totalItems = 0
+  let completedItems = 0
+
+  task.checklists.forEach(checklist => {
+    if (checklist.items) {
+      totalItems += checklist.items.length
+      completedItems += checklist.items.filter(item => item.completed).length
+    }
+  })
+
+  if (totalItems === 0) return 0
+  return Math.round((completedItems / totalItems) * 100)
 }
 
 export const getTaskStatusColor = (task: Task): string => {
+  if (task.status === 'Completed') return 'green'
+  if (!task.dueDate) return 'green'
+
   const now = new Date()
   const dueDate = new Date(task.dueDate)
-
-  if (task.status === 'Completed') return 'green'
 
   const timeDiff = dueDate.getTime() - now.getTime()
   const hoursDiff = timeDiff / (1000 * 60 * 60)

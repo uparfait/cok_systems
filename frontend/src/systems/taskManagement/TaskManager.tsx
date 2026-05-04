@@ -2,7 +2,7 @@
 // Provides a Trello-like interface for managing tasks across three columns
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { FiPlus, FiSearch, FiFilter } from 'react-icons/fi'
+import { FiPlus } from 'react-icons/fi'
 import { useAuth } from '../../core/contexts/AuthContext'
 import { useToast } from '../../core/contexts/ToastContext'
 import {
@@ -11,7 +11,7 @@ import {
   getTaskProgress,
   getTaskStatusColor
 } from '../../core/services/taskService'
-import type { Task, TaskStatus } from '../../core/services/taskService'
+import type { Task } from '../../core/services/taskService'
 import useTaskRealtime from '../../core/hooks/useTaskRealtime'
 import TaskCard from './components/TaskCard'
 import TaskDetailModal from './components/TaskDetailModal'
@@ -56,7 +56,6 @@ const TaskManager: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
-  const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState({
     tasks: false,
     columns: false
@@ -70,12 +69,11 @@ const TaskManager: React.FC = () => {
       if (showLoader) setLoading(prev => ({ ...prev, tasks: true }))
       const response = await getTasks({
         incharge: user.userId,
-        ...(searchTerm && { title: searchTerm }),
         limit: 100
       })
 
       if (response.status) {
-        const tasks = response.data.tasks || []
+        const tasks = (response as any).data.tasks || []
 
         // Group tasks by status
         const groupedTasks = {
@@ -96,7 +94,7 @@ const TaskManager: React.FC = () => {
     } finally {
       if (showLoader) setLoading(prev => ({ ...prev, tasks: false }))
     }
-  }, [user?.userId, searchTerm, showError])
+  }, [user?.userId, showError])
 
   // Load tasks on mount and when user changes
   useEffect(() => {
@@ -197,8 +195,8 @@ const TaskManager: React.FC = () => {
           return column
         })
       )
-    } catch (error: any) {
-      showError(error?.message || 'Failed to update task status')
+    } catch (error: unknown) {
+      showError((error as Error)?.message || 'Failed to update task status')
       // Reload tasks to revert optimistic update
       loadTasks(false)
     } finally {
@@ -206,17 +204,7 @@ const TaskManager: React.FC = () => {
     }
   }
 
-  // Filter tasks based on search
-  const getFilteredTasks = (tasks: Task[]) => {
-    if (!searchTerm) return tasks
 
-    return tasks.filter(task => {
-      const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.description?.toLowerCase().includes(searchTerm.toLowerCase())
-
-      return matchesSearch
-    })
-  }
 
   // Handle task click
   const handleTaskClick = (task: Task) => {
@@ -242,7 +230,7 @@ const TaskManager: React.FC = () => {
     <div className="task-manager-container min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-center items-center">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setShowCreateModal(true)}
@@ -253,43 +241,18 @@ const TaskManager: React.FC = () => {
             </button>
           </div>
 
-          {/* Search */}
-          <div className="flex gap-2">
-            <div className="relative">
-              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search tasks..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                disabled={loading.tasks}
-                className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-              />
-            </div>
-            <button
-              onClick={() => loadTasks(false)}
-              disabled={loading.tasks}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
-            >
-              {loading.tasks ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : (
-                'Search'
-              )}
-            </button>
-          </div>
+
         </div>
       </div>
 
       {/* Task Columns */}
       <div className="task-columns-grid grid grid-cols-1 lg:grid-cols-3 gap-6">
         {columns.map((column) => {
-          const filteredTasks = getFilteredTasks(column.tasks)
 
           return (
             <div
               key={column.id}
-              className={`${column.color} rounded-xl p-6 shadow-sm border border-gray-200 min-w-[320px] ${
+              className={`${column.color} rounded-xl p-6 shadow-sm border border-gray-200 min-w-[320px] h-[80vh] flex flex-col ${
                 draggedOverColumn === column.id ? 'ring-2 ring-blue-400 ring-opacity-50' : ''
               } ${loading.tasks ? 'opacity-75' : ''}`}
               onDragOver={(e) => handleDragOver(e, column.id)}
@@ -300,7 +263,7 @@ const TaskManager: React.FC = () => {
                 <h2 className="text-lg font-semibold text-gray-900">{column.title}</h2>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded-full">
-                    {filteredTasks.length}
+                    {column.tasks.length}
                   </span>
                   {/* Add task dropdown */}
                   <div className="relative">
@@ -317,13 +280,13 @@ const TaskManager: React.FC = () => {
                 </div>
               </div>
 
-              <div className="space-y-3 min-h-[400px]">
+              <div className="space-y-3 flex-1 overflow-y-auto">
                 {loading.tasks ? (
                   <div className="flex justify-center items-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
                   </div>
                 ) : (
-                  filteredTasks.map((task) => (
+                  column.tasks.map((task) => (
                     <div
                       key={task._id}
                       draggable
@@ -339,9 +302,9 @@ const TaskManager: React.FC = () => {
                         onDelete={() => {
                           loadTasks(false)
                         }}
-                        onMove={(newStatus) => {
-                          loadTasks(false)
-                        }}
+                         onMove={() => {
+                           loadTasks(false)
+                         }}
                       />
                     </div>
                   ))

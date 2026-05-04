@@ -18,8 +18,8 @@ const taskSchema = new mongoose.Schema({
     description: { type: String },
     status: {
         type: String,
-        enum: ['To Do', 'In Progress', 'Review', 'Done'],
-        default: 'To Do'
+        enum: ['Under-review', 'In-progress', 'Completed'],
+        default: 'Under-review'
     },
     priority: {
         type: String,
@@ -48,17 +48,16 @@ const taskSchema = new mongoose.Schema({
         estimatedTime: { type: Number }, // In hours
         actualTime: { type: Number } // In hours
     },
-    // Checklists (replaces subtasks with more structure)
+    // Checklists
     checklists: [{
         title: { type: String, required: true },
         items: [{
             text: { type: String, required: true },
             completed: { type: Boolean, default: false },
-            assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-            dueDate: { type: Date },
-            position: { type: Number, default: 0 }
+            _id: false
         }],
-        position: { type: Number, default: 0 }
+        createdAt: { type: Date, default: Date.now },
+        updatedAt: { type: Date, default: Date.now }
     }],
 
     comments: [{
@@ -70,7 +69,7 @@ const taskSchema = new mongoose.Schema({
         updatedAt: { type: Date, default: Date.now }
     }],
 
-    attachments: [{
+    attachmentsFile: [{
         filename: { type: String, required: true },
         originalName: { type: String, required: true },
         url: { type: String, required: true },

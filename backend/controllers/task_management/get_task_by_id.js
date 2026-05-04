@@ -10,6 +10,7 @@ const getTaskById = async (req, res) => {
             .populate('belongs.itBelongsTo', 'full_name email')
             .populate('comments.commenter', 'full_name email')
             .populate('subtasks', '-__v')
+            .populate('attachmentsFile.uploadedBy', 'full_name email')
 
         if (!task) {
             return res.status(StatusCodes.NOT_FOUND).json({
