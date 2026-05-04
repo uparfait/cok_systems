@@ -1,19 +1,48 @@
 // TaskDetailModal - Detailed task view with editing capabilities
 
-import React, { useState } from 'react'
-import { FiX, FiEdit, FiPlus, FiPaperclip, FiMessageSquare, FiClock, FiSave, FiTrash2, FiImage, FiDownload } from 'react-icons/fi'
+import React, { useState, useRef } from 'react'
+import { FiX, FiEdit, FiPaperclip, FiMessageSquare, FiClock, FiTrash2, FiDownload, FiEye, FiUpload, FiCalendar } from 'react-icons/fi'
+import AttachmentViewer from './AttachmentViewer'
+import TaskDetails from './TaskDetails'
+import Checklists from './Checklists'
+import Comments from './Comments'
+import Attachments from './Attachments'
 import { useAuth } from '../../../core/contexts/AuthContext'
 import { useToast } from '../../../core/contexts/ToastContext'
 import {
   updateTask,
   addComment,
-  addSubtask,
-  updateSubtask,
-  deleteSubtask,
+  updateChecklist,
+  deleteChecklist,
+  addAttachment,
+  deleteAttachment,
+  addChecklist,
   getTaskProgress,
   getTaskStatusColor
 } from '../../../core/services/taskService'
-import type { Task } from '../../../core/services/taskService'
+import type { Task, TaskStatus, Attachment } from '../../../core/services/taskService'
+
+interface ChecklistItem {
+  text: string
+  completed: boolean
+  _id?: string
+}
+
+interface Checklist {
+  _id?: string
+  title: string
+  items: ChecklistItem[]
+}
+
+interface Comment {
+  _id?: string
+  commenter: string
+  comment: string
+  createdAt: string
+  updatedAt: string
+}
+
+
 
 interface TaskDetailModalProps {
   task: Task
@@ -24,34 +53,51 @@ interface TaskDetailModalProps {
 const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, onClose, onUpdate }) => {
   const { user } = useAuth()
   const { showSuccess, showError } = useToast()
-  const [task, setTask] = useState<Task>(initialTask)
+  const [task] = useState<Task>(initialTask)
   const [loadingStates, setLoadingStates] = useState({
     task: false,
-    subtasks: false,
-    comments: false
+    checklists: false,
+    comments: false,
+    attachments: false
   })
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({
     title: initialTask.title,
-    dueDate: initialTask.dueDate.split('T')[0],
-    dueTime: initialTask.dueDate.includes('T') ? initialTask.dueDate.split('T')[1].substring(0, 5) : '12:00'
+    dueDate: initialTask.dueDate ? initialTask.dueDate.split('T')[0] : '',
+    dueTime: initialTask.dueDate && initialTask.dueDate.includes('T') ? initialTask.dueDate.split('T')[1].substring(0, 5) : '12:00'
   })
 
-  // Subtask form
-  const [showSubtaskForm, setShowSubtaskForm] = useState(false)
-  const [subtaskForm, setSubtaskForm] = useState({
-    title: '',
-    description: ''
-  })
+
 
   // Comment form
   const [commentText, setCommentText] = useState('')
 
-  // File viewer
-  const [fileViewer, setFileViewer] = useState<{
-    isOpen: boolean
-    file: any
-  }>({ isOpen: false, file: null })
+  // Attachment viewer
+  const [viewingAttachment, setViewingAttachment] = useState<Attachment | null>(null)
+
+  // Checklist editing
+  const [editingChecklist, setEditingChecklist] = useState<string | null>(null)
+  const [checklistTitle, setChecklistTitle] = useState('')
+  const [showAddChecklistForm, setShowAddChecklistForm] = useState(false)
+  const [addChecklistForm, setAddChecklistForm] = useState({ title: '', items: [''] })
+
+  // Task editing
+  const [isEditingTask, setIsEditingTask] = useState(false)
+  const [editTaskForm, setEditTaskForm] = useState({
+    title: '',
+    description: '',
+    status: 'Under-review' as TaskStatus,
+    startDate: '',
+    startTime: '12:00',
+    dueDate: '',
+    dueTime: '12:00'
+  })
+
+  // New attachments
+  const [newAttachments, setNewAttachments] = useState<File[]>([])
+  const newAttachmentsRef = useRef<HTMLInputElement>(null)
+
+
 
   const handleTaskUpdate = async () => {
     setLoadingStates(prev => ({ ...prev, task: true }))
@@ -66,62 +112,202 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
       setEditing(false)
       onUpdate()
       showSuccess('Task updated successfully')
-    } catch (error: any) {
-      showError(error?.message || 'Failed to update task')
+    } catch (error: unknown) {
+      showError((error as Error)?.message || 'Failed to update task')
     } finally {
       setLoadingStates(prev => ({ ...prev, task: false }))
     }
   }
 
-  const handleAddSubtask = async () => {
-    if (!subtaskForm.title.trim()) {
-      showError('Subtask title is required')
+
+
+  const handleUpdateChecklistItem = async (checklistId: string, itemIndex: number, completed: boolean) => {
+    setLoadingStates(prev => ({ ...prev, checklists: true }))
+    try {
+      await updateChecklist(task._id!, checklistId, { itemIndex, completed })
+      showSuccess('Checklist item updated successfully')
+      onUpdate()
+    } catch (error: unknown) {
+      showError((error as Error)?.message || 'Failed to update checklist item')
+    } finally {
+      setLoadingStates(prev => ({ ...prev, checklists: false }))
+    }
+  }
+
+  const handleDeleteChecklist = async (checklistId: string) => {
+    if (!confirm('Are you sure you want to delete this checklist?')) return
+
+    setLoadingStates(prev => ({ ...prev, checklists: true }))
+    try {
+      await deleteChecklist(task._id!, checklistId)
+      showSuccess('Checklist deleted successfully')
+      onUpdate()
+    } catch (error: unknown) {
+      showError((error as Error)?.message || 'Failed to delete checklist')
+    } finally {
+      setLoadingStates(prev => ({ ...prev, checklists: false }))
+    }
+  }
+
+  const handleEditChecklistTitle = (checklistId: string, currentTitle: string) => {
+    setEditingChecklist(checklistId)
+    setChecklistTitle(currentTitle)
+  }
+
+  const handleSaveChecklistTitle = async () => {
+    if (!editingChecklist || !checklistTitle.trim()) return
+
+    setLoadingStates(prev => ({ ...prev, checklists: true }))
+    try {
+      await updateChecklist(task._id!, editingChecklist, { title: checklistTitle.trim() })
+      showSuccess('Checklist title updated successfully')
+      setEditingChecklist(null)
+      setChecklistTitle('')
+      onUpdate()
+    } catch (error: unknown) {
+      showError((error as Error)?.message || 'Failed to update checklist title')
+    } finally {
+      setLoadingStates(prev => ({ ...prev, checklists: false }))
+    }
+  }
+
+  const handleCancelEditChecklist = () => {
+    setEditingChecklist(null)
+    setChecklistTitle('')
+  }
+
+  const handleAddChecklistItem = () => {
+    setAddChecklistForm(prev => ({ ...prev, items: [...prev.items, ''] }))
+  }
+
+  const handleUpdateAddChecklistItem = (index: number, text: string) => {
+    setAddChecklistForm(prev => ({
+      ...prev,
+      items: prev.items.map((item, i) => i === index ? text : item)
+    }))
+  }
+
+  const handleRemoveAddChecklistItem = (index: number) => {
+    setAddChecklistForm(prev => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index)
+    }))
+  }
+
+  const handleAddNewChecklist = async () => {
+    if (!addChecklistForm.title.trim() || addChecklistForm.items.some(item => !item.trim())) {
+      showError('Please fill all checklist fields')
       return
     }
 
-    setLoadingStates(prev => ({ ...prev, subtasks: true }))
+    setLoadingStates(prev => ({ ...prev, checklists: true }))
     try {
-      await addSubtask(task._id!, {
-        title: subtaskForm.title,
-        description: subtaskForm.description
+      await addChecklist(task._id!, {
+        title: addChecklistForm.title.trim(),
+        items: addChecklistForm.items.filter(item => item.trim()).map(text => ({ text: text.trim() }))
+      })
+      showSuccess('Checklist added successfully')
+      setAddChecklistForm({ title: '', items: [''] })
+      setShowAddChecklistForm(false)
+      onUpdate()
+    } catch (error: unknown) {
+      showError((error as Error)?.message || 'Failed to add checklist')
+    } finally {
+      setLoadingStates(prev => ({ ...prev, checklists: false }))
+    }
+  }
+
+  const handleEditTask = () => {
+    setIsEditingTask(true)
+    setEditTaskForm({
+      title: task.title,
+      description: task.description || '',
+      status: task.status,
+      startDate: task.startDate ? new Date(task.startDate).toISOString().split('T')[0] : '',
+      startTime: task.startDate ? new Date(task.startDate).toTimeString().slice(0, 5) : '12:00',
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
+      dueTime: task.dueDate ? new Date(task.dueDate).toTimeString().slice(0, 5) : '12:00'
+    })
+  }
+
+  const handleSaveTask = async () => {
+    if (!editTaskForm.title.trim()) {
+      showError('Title is required')
+      return
+    }
+
+    setLoadingStates(prev => ({ ...prev, task: true }))
+    try {
+      const updateData: any = {
+        title: editTaskForm.title.trim(),
+        description: editTaskForm.description.trim(),
+        status: editTaskForm.status
+      }
+
+      if (editTaskForm.status === 'Under-review') {
+        if (editTaskForm.startDate && editTaskForm.dueDate) {
+          updateData.startDate = new Date(`${editTaskForm.startDate}T${editTaskForm.startTime}`).toISOString()
+          updateData.dueDate = new Date(`${editTaskForm.dueDate}T${editTaskForm.dueTime}`).toISOString()
+        }
+      } else if (editTaskForm.status === 'In-progress') {
+        if (editTaskForm.dueDate) {
+          updateData.dueDate = new Date(`${editTaskForm.dueDate}T${editTaskForm.dueTime}`).toISOString()
+        }
+      } else if (editTaskForm.status === 'Completed') {
+        if (editTaskForm.startDate && editTaskForm.dueDate) {
+          updateData.startDate = new Date(`${editTaskForm.startDate}T${editTaskForm.startTime}`).toISOString()
+          updateData.dueDate = new Date(`${editTaskForm.dueDate}T${editTaskForm.dueTime}`).toISOString()
+        }
+      }
+
+      await updateTask(task._id!, updateData)
+      showSuccess('Task updated successfully')
+      setIsEditingTask(false)
+      onUpdate()
+    } catch (error: unknown) {
+      showError((error as Error)?.message || 'Failed to update task')
+    } finally {
+      setLoadingStates(prev => ({ ...prev, task: false }))
+    }
+  }
+
+  const handleCancelEditTask = () => {
+    setIsEditingTask(false)
+  }
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    if (!confirm('Are you sure you want to delete this attachment?')) return
+
+    setLoadingStates(prev => ({ ...prev, attachments: true }))
+    try {
+      await deleteAttachment(task._id!, attachmentId)
+      showSuccess('Attachment deleted successfully')
+      onUpdate()
+    } catch (error: unknown) {
+      showError((error as Error)?.message || 'Failed to delete attachment')
+    } finally {
+      setLoadingStates(prev => ({ ...prev, attachments: false }))
+    }
+  }
+
+  const handleUploadAttachments = async () => {
+    if (newAttachments.length === 0) return
+
+    setLoadingStates(prev => ({ ...prev, attachments: true }))
+    try {
+      const formData = new FormData()
+      newAttachments.forEach((file) => {
+        formData.append('attachments', file)
       })
 
-      setSubtaskForm({ title: '', description: '' })
-      setShowSubtaskForm(false)
-      showSuccess('Subtask added successfully')
+      await addAttachment(task._id!, formData)
+      setNewAttachments([])
+      showSuccess('Attachments uploaded successfully')
       onUpdate()
-    } catch (error: any) {
-      showError(error?.message || 'Failed to add subtask')
+    } catch (error: unknown) {
+      showError((error as Error)?.message || 'Failed to upload attachments')
     } finally {
-      setLoadingStates(prev => ({ ...prev, subtasks: false }))
-    }
-  }
-
-  const handleUpdateSubtask = async (subtaskId: string, updates: any) => {
-    setLoadingStates(prev => ({ ...prev, subtasks: true }))
-    try {
-      await updateSubtask(task._id!, subtaskId, updates)
-      showSuccess('Subtask updated successfully')
-      onUpdate()
-    } catch (error: any) {
-      showError(error?.message || 'Failed to update subtask')
-    } finally {
-      setLoadingStates(prev => ({ ...prev, subtasks: false }))
-    }
-  }
-
-  const handleDeleteSubtask = async (subtaskId: string) => {
-    if (!confirm('Are you sure you want to delete this subtask?')) return
-
-    setLoadingStates(prev => ({ ...prev, subtasks: true }))
-    try {
-      await deleteSubtask(task._id!, subtaskId)
-      showSuccess('Subtask deleted successfully')
-      onUpdate()
-    } catch (error: any) {
-      showError(error?.message || 'Failed to delete subtask')
-    } finally {
-      setLoadingStates(prev => ({ ...prev, subtasks: false }))
+      setLoadingStates(prev => ({ ...prev, attachments: false }))
     }
   }
 
@@ -134,8 +320,8 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
       setCommentText('')
       showSuccess('Comment added successfully')
       onUpdate()
-    } catch (error: any) {
-      showError(error?.message || 'Failed to add comment')
+    } catch (error: unknown) {
+      showError((error as Error)?.message || 'Failed to add comment')
     } finally {
       setLoadingStates(prev => ({ ...prev, comments: false }))
     }
@@ -153,340 +339,155 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
     })
   }
 
-  const progress = getTaskProgress(task)
-  const statusColor = getTaskStatusColor(task)
-
-  const getFileType = (filename: string) => {
-    const ext = filename.toLowerCase().split('.').pop()
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext || '')) return 'image'
-    if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'].includes(ext || '')) return 'video'
-    if (['pdf'].includes(ext || '')) return 'pdf'
-    if (['txt', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext || '')) return 'document'
-    return 'other'
-  }
-
-  const handleFileClick = (attachment: any) => {
-    const fileType = getFileType(attachment.filename)
-    if (['image', 'video', 'pdf'].includes(fileType)) {
-      setFileViewer({ isOpen: true, file: attachment })
-    } else {
-      // For documents and other files, download
-      window.open(attachment.url, '_blank')
+  const getStatusClass = (status: string) => {
+    switch (status) {
+      case 'Completed': return 'bg-green-100 text-green-800'
+      case 'In-progress': return 'bg-blue-100 text-blue-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
+  const progress = getTaskProgress(task)
+  const statusColor = getTaskStatusColor(task)
+
+
+
+
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-[90vw] max-w-7xl h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className={`w-3 h-3 rounded-full ${
-                task.status === 'Under-review' ? 'bg-gray-400' :
-                task.status === 'In-progress' ? 'bg-blue-500' :
-                'bg-green-500'
-              }`}></div>
-              {!editing ? (
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {task.title}
-                </h2>
+            <div>
+              {isEditingTask ? (
+                <div>
+                  <input
+                    type="text"
+                    value={editTaskForm.title}
+                    onChange={(e) => setEditTaskForm(prev => ({ ...prev, title: e.target.value }))}
+                    className="text-2xl font-bold text-gray-900 bg-transparent border-b-2 border-blue-500 focus:outline-none"
+                    disabled={loadingStates.task}
+                  />
+                </div>
               ) : (
-                <input
-                  type="text"
-                  value={editForm.title}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
-                  className="text-xl font-semibold text-gray-900 border border-gray-300 rounded px-2 py-1"
-                  placeholder="Task title"
-                />
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">{task.title}</h2>
+                  {task.description && (
+                    <p className="text-sm text-gray-700 mt-2 max-w-2xl">{task.description}</p>
+                  )}
+                   <p className="text-sm text-gray-600 mt-1">Created {formatDate(task.createdAt!)}</p>
+                </div>
               )}
             </div>
-            <div className="flex items-center space-x-2">
-              {!editing ? (
-                <button
-                  onClick={() => setEditing(true)}
-                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <FiEdit className="w-4 h-4" />
-                </button>
-              ) : (
+            <div className="flex items-center space-x-3">
+              {isEditingTask ? (
                 <div className="flex space-x-2">
                   <button
-                    onClick={() => setEditing(false)}
-                    className="px-3 py-1 text-sm text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleTaskUpdate}
+                    onClick={handleSaveTask}
                     disabled={loadingStates.task}
-                    className="px-3 py-1 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                    className="px-3 py-1 text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                   >
                     {loadingStates.task && (
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                     )}
-                    {loadingStates.task ? 'Saving...' : 'Save'}
+                    Save
+                  </button>
+                  <button
+                    onClick={handleCancelEditTask}
+                    disabled={loadingStates.task}
+                    className="px-3 py-1 text-gray-600 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50"
+                  >
+                    Cancel
                   </button>
                 </div>
-              )}
-              <button
-                onClick={onClose}
-                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
+      ) : (
+        <div className="contents">
+          <div className={'px-3 py-1 rounded-full text-sm font-medium ' + getStatusClass(task.status)}>
+            {task.status.replace('-', ' ')}
+          </div>
+          {task.status !== 'Completed' && (
+            <button
+              onClick={handleEditTask}
+              className="px-3 py-1 text-blue-600 hover:text-blue-700 border border-blue-200 rounded hover:bg-blue-50"
+            >
+              Edit Task
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <FiX className="w-6 h-6" />
+          </button>
+        </div>
+      )}
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="flex-1 overflow-y-auto p-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Cover Image */}
-              {task.taskConfig?.coverImage && (
-                <div className="bg-gray-50 rounded-lg overflow-hidden">
-                  <img
-                    src={task.taskConfig.coverImage}
-                    alt="Task cover"
-                    className="w-full h-48 object-cover"
-                  />
-                </div>
-              )}
+              <TaskDetails
+                task={task}
+                isEditing={isEditingTask}
+                editForm={editTaskForm}
+                onEditFormChange={(field, value) => setEditTaskForm(prev => ({ ...prev, [field]: value }))}
+                loading={loadingStates.task}
+              />
 
-              {/* Subtasks */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-medium text-gray-700">Subtasks ({task.subtasks?.length || 0})</h3>
-                  <button
-                    onClick={() => setShowSubtaskForm(!showSubtaskForm)}
-                    className="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-700"
-                  >
-                    <FiPlus className="w-4 h-4" />
-                    <span>Add Subtask</span>
-                  </button>
-                </div>
-
-                {/* Subtask Form */}
-                {showSubtaskForm && (
-                  <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                    <div className="space-y-3">
-                      <input
-                        type="text"
-                        placeholder="Subtask title"
-                        value={subtaskForm.title}
-                        onChange={(e) => setSubtaskForm(prev => ({ ...prev, title: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <textarea
-                        placeholder="Description (optional)"
-                        value={subtaskForm.description}
-                        onChange={(e) => setSubtaskForm(prev => ({ ...prev, description: e.target.value }))}
-                        rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={handleAddSubtask}
-                          disabled={loadingStates.subtasks}
-                          className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                        >
-                          {loadingStates.subtasks && (
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          )}
-                          Add
-                        </button>
-                        <button
-                          onClick={() => setShowSubtaskForm(false)}
-                          disabled={loadingStates.subtasks}
-                          className="px-4 py-2 text-gray-600 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Subtask List */}
-                <div className="space-y-2">
-                  {task.subtasks?.map((subtask: any) => (
-                    <div key={subtask._id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                      <input
-                        type="checkbox"
-                        checked={subtask.status === 'Completed'}
-                        onChange={(e) => handleUpdateSubtask(subtask._id!, { status: e.target.checked ? 'Completed' : 'Under-review' })}
-                        disabled={loadingStates.subtasks}
-                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 disabled:opacity-50"
-                      />
-                      <div className="flex-1">
-                        <span className={`${subtask.status === 'Completed' ? 'line-through text-gray-500' : 'text-gray-900'}`}>
-                          {subtask.title}
-                        </span>
-                        {subtask.description && (
-                          <p className="text-xs text-gray-600 mt-1">{subtask.description}</p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleDeleteSubtask(subtask._id!)}
-                        disabled={loadingStates.subtasks}
-                        className="text-gray-400 hover:text-red-600 disabled:opacity-50"
-                      >
-                        <FiTrash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                  {(!task.subtasks || task.subtasks.length === 0) && (
-                    <div className="text-center py-6 text-gray-500">
-                      <p className="text-sm">No subtasks yet</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Comments */}
-              <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-3">Comments ({task.comments?.length || 0})</h3>
-                <div className="space-y-4">
-                  {task.comments?.map((comment: any) => (
-                    <div key={comment._id} className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-sm text-gray-900">{comment.comment}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formatDate(comment.createdAt)}
-                      </p>
-                    </div>
-                  ))}
-                  {(!task.comments || task.comments.length === 0) && (
-                    <div className="text-center py-4 text-gray-500">
-                      <p className="text-sm">No comments yet</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Add Comment */}
-                <div className="mt-4">
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      placeholder="Add a comment..."
-                      value={commentText}
-                      onChange={(e) => setCommentText(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleAddComment()}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <button
-                      onClick={handleAddComment}
-                      disabled={!commentText.trim() || loadingStates.comments}
-                      className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                    >
-                      {loadingStates.comments ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      ) : (
-                        <FiMessageSquare className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <Checklists
+                checklists={task.checklists || []}
+                editingChecklist={editingChecklist}
+                checklistTitle={checklistTitle}
+                showAddChecklistForm={showAddChecklistForm}
+                addChecklistForm={addChecklistForm}
+                loading={loadingStates.checklists}
+                taskStatus={task.status}
+                onEditChecklistTitle={handleEditChecklistTitle}
+                onSaveChecklistTitle={handleSaveChecklistTitle}
+                onCancelEditChecklist={handleCancelEditChecklist}
+                onDeleteChecklist={handleDeleteChecklist}
+                onUpdateChecklistItem={handleUpdateChecklistItem}
+                onShowAddChecklistForm={() => setShowAddChecklistForm(true)}
+                onAddChecklistItem={handleAddChecklistItem}
+                onUpdateAddChecklistItem={handleUpdateAddChecklistItem}
+                onRemoveAddChecklistItem={handleRemoveAddChecklistItem}
+                onAddNewChecklist={handleAddNewChecklist}
+                onCancelAddChecklist={() => {
+                  setShowAddChecklistForm(false)
+                  setAddChecklistForm({ title: '', items: [''] })
+                }}
+                onChecklistTitleChange={setChecklistTitle}
+                onAddChecklistFormChange={(field, value) => setAddChecklistForm(prev => ({ ...prev, [field]: value }))}
+              />
             </div>
 
             {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Task Details */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-sm font-medium text-gray-700 mb-3">Details</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <FiClock className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-gray-600">Due:</span>
-                    {!editing ? (
-                      <span className="text-sm text-gray-900">{formatDate(task.dueDate)}</span>
-                    ) : (
-                      <div className="flex space-x-2">
-                        <input
-                          type="date"
-                          value={editForm.dueDate}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, dueDate: e.target.value }))}
-                          className="text-sm border border-gray-300 rounded px-2 py-1"
-                        />
-                        <input
-                          type="time"
-                          value={editForm.dueTime}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, dueTime: e.target.value }))}
-                          className="text-sm border border-gray-300 rounded px-2 py-1"
-                        />
-                      </div>
-                    )}
-                  </div>
+            <div className="lg:col-span-1">
+              <Comments
+                comments={task.comments || []}
+                formatDate={formatDate}
+              />
 
-                  {/* Progress Bar - Show for all tasks with subtasks */}
-                  {task.subtasks && task.subtasks.length > 0 && (
-                    <div>
-                      <span className="text-sm text-gray-600">Progress:</span>
-                      <div className="mt-2">
-                        <div className="flex justify-between text-xs text-gray-600 mb-1">
-                          <span>{progress}%</span>
-                          <span>{task.subtasks.filter((st: any) => st.status === 'Completed').length}/{task.subtasks.length}</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full ${
-                              statusColor === 'red' ? 'bg-red-500' :
-                              statusColor === 'orange' ? 'bg-orange-500' :
-                              statusColor === 'yellow' ? 'bg-yellow-500' :
-                              'bg-green-500'
-                            }`}
-                            style={{ width: `${progress}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Attachments */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-sm font-medium text-gray-700 mb-3">Attachments ({task.attachmentsFile?.length || 0})</h3>
-                <div className="space-y-3">
-                  {task.attachmentsFile?.map((attachment: any) => (
-                    <div key={attachment._id} className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-3 flex-1 min-w-0">
-                          <div className="p-2 bg-blue-50 rounded-lg">
-                            <FiPaperclip className="w-5 h-5 text-blue-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <a
-                              href={attachment.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm font-medium text-blue-600 hover:text-blue-700 truncate block"
-                            >
-                              {attachment.filename}
-                            </a>
-                            {attachment.description && (
-                              <p className="text-xs text-gray-500 mt-1">{attachment.description}</p>
-                            )}
-                            <p className="text-xs text-gray-400 mt-1">Click to download</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {(!task.attachmentsFile || task.attachmentsFile.length === 0) && (
-                    <div className="text-center py-6 text-gray-500">
-                      <FiPaperclip className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No attachments yet</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+              <Attachments
+                attachments={task.attachmentsFile || []}
+                loading={loadingStates.attachments}
+                onViewAttachment={(attachment) => setViewingAttachment(attachment)}
+                onDeleteAttachment={handleDeleteAttachment}
+              />
         </div>
       </div>
+    </div>
+
+    {viewingAttachment && <AttachmentViewer attachment={viewingAttachment} onClose={() => setViewingAttachment(null)} />}
+  </div>
+      </div>
+
+      {viewingAttachment && <AttachmentViewer attachment={viewingAttachment} onClose={() => setViewingAttachment(null)} />}
     </div>
   )
 }

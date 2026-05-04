@@ -7,7 +7,7 @@ const updateTask = async (req, res) => {
         const updateData = req.body
 
         // Validate status and priority if provided
-        const validStatuses = ['To Do', 'In Progress', 'Review', 'Done']
+        const validStatuses = ['Under-review', 'In-progress', 'Completed']
         const validPriorities = ['Low', 'Medium', 'High', 'Urgent']
 
         if (updateData.status && !validStatuses.includes(updateData.status)) {

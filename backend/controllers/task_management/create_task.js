@@ -40,8 +40,34 @@ const createTask = async (req, res) => {
             })
         }
 
+        // Validate checklists if provided
+        if (taskData.checklists && Array.isArray(taskData.checklists)) {
+            for (const checklist of taskData.checklists) {
+                if (!checklist.title || checklist.title.trim() === '') {
+                    return res.status(StatusCodes.BAD_REQUEST).json({
+                        status: false,
+                        message: 'All checklists must have a title'
+                    })
+                }
+                if (!checklist.items || !Array.isArray(checklist.items) || checklist.items.length === 0) {
+                    return res.status(StatusCodes.BAD_REQUEST).json({
+                        status: false,
+                        message: 'Each checklist must have at least one item'
+                    })
+                }
+                for (const item of checklist.items) {
+                    if (!item.text || item.text.trim() === '') {
+                        return res.status(StatusCodes.BAD_REQUEST).json({
+                            status: false,
+                            message: 'All checklist items must have text'
+                        })
+                    }
+                }
+            }
+        }
+
         // Validate status and priority
-        const validStatuses = ['To Do', 'In Progress', 'Review', 'Done']
+        const validStatuses = ['Under-review', 'In-progress', 'Completed']
         const validPriorities = ['Low', 'Medium', 'High', 'Urgent']
 
         if (!validStatuses.includes(status)) {
@@ -82,21 +108,16 @@ const createTask = async (req, res) => {
 
         const processedAttachments = [];
 
-        // Handle cover image upload
-        let coverImageUrl = null;
-        if (req.files && req.files.coverImage && req.files.coverImage.length > 0) {
-            const coverImage = req.files.coverImage[0];
-            coverImageUrl = `/uploads/tasks/covers/${coverImage.filename}`;
-        }
-
         // Handle attachments
         if (req.files && req.files.attachments) {
             const attachments = Array.isArray(req.files.attachments) ? req.files.attachments : [req.files.attachments];
             for (const file of attachments) {
                 processedAttachments.push({
-                    filename: file.originalname,
-                    url: `/uploads/tasks/attachments/${file.filename}`,
-                    description: ''
+                    filename: file.filename,
+                    originalName: file.originalname,
+                    url: `${process.env.TASK_ATTACHMENTS_URL || 'http://localhost:2026'}/uploads/tasks/attachments/${file.filename}`,
+                    uploadedBy: incharge,
+                    type: file.mimetype.startsWith('image/') ? 'image' : 'document'
                 });
             }
         }
@@ -126,8 +147,7 @@ const createTask = async (req, res) => {
             dueDate: dueDate ? new Date(dueDate) : undefined,
             startDate: startDate ? new Date(startDate) : undefined,
             taskConfig: {
-                ...taskConfig,
-                coverImage: coverImageUrl
+                ...taskConfig
             },
             checklists: checklists.map((checklist, index) => ({
                 ...checklist,
@@ -137,7 +157,7 @@ const createTask = async (req, res) => {
                     position: item.position || itemIndex
                 })) : []
             })),
-            attachments: processedAttachments.map(attachment => ({
+            attachmentsFile: processedAttachments.map(attachment => ({
                 ...attachment,
                 uploadedBy: incharge, // Creator is the uploader
                 type: attachment.filename.match(/\.(jpg|jpeg|png|gif)$/i) ? 'image' : 'document'

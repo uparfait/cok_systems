@@ -4,31 +4,39 @@ const { StatusCodes } = require('http-status-codes')
 const addAttachment = async (req, res) => {
     try {
         const { id } = req.params
-        const { filename, url, description } = req.body
 
-        if (!filename || !url) {
+        const processedAttachments = []
+
+        // Handle attachments
+        if (req.files && req.files.attachments) {
+            const attachments = Array.isArray(req.files.attachments) ? req.files.attachments : [req.files.attachments]
+            for (const file of attachments) {
+                processedAttachments.push({
+                    filename: file.filename,
+                    originalName: file.originalname,
+                    url: `${process.env.TASK_ATTACHMENTS_URL || 'http://localhost:2026'}/uploads/tasks/attachments/${file.filename}`,
+                    uploadedBy: req.user?.id || req.body.incharge, // Assuming auth middleware sets req.user
+                    type: file.mimetype
+                })
+            }
+        } else {
             return res.status(StatusCodes.BAD_REQUEST).json({
                 status: false,
-                message: 'Filename and URL are required'
+                message: 'No attachments provided'
             })
-        }
-
-        const newAttachment = {
-            filename,
-            url,
-            description: description || ''
         }
 
         const updatedTask = await Task.findByIdAndUpdate(
             id,
             {
-                $push: { attachmentsFile: newAttachment },
+                $push: { attachmentsFile: { $each: processedAttachments } },
                 updatedAt: new Date()
             },
             { new: true, runValidators: true }
         )
             .populate('incharge', 'full_name email')
             .populate('comments.commenter', 'full_name email')
+            .populate('attachmentsFile.uploadedBy', 'full_name email')
 
         if (!updatedTask) {
             return res.status(StatusCodes.NOT_FOUND).json({
@@ -39,7 +47,7 @@ const addAttachment = async (req, res) => {
 
         res.status(StatusCodes.OK).json({
             status: true,
-            message: 'Attachment added successfully',
+            message: 'Attachments added successfully',
             data: updatedTask
         })
 

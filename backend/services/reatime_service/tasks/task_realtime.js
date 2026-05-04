@@ -69,24 +69,25 @@ function taskRealtime(socket) {
     })
 
     // Subtask updates
-    socket.on('update_subtask', async (data) => {
+    socket.on('update_checklist_item', async (data) => {
         try {
-            const { taskId, subtaskId, updates, userId } = data
+            const { taskId, checklistId, updates, userId } = data
 
             if (!socket.user || socket.user.userId !== userId) {
                 socket.emit('task_error', { message: 'Unauthorized' })
                 return
             }
 
-            // Update subtask
+            // Update checklist item
+            const { itemIndex, completed } = updates
             const updateQuery = {}
-            Object.keys(updates).forEach(key => {
-                updateQuery[`subtasks.$.${key}`] = updates[key]
-            })
-            updateQuery[`subtasks.$.updatedAt`] = new Date()
+            if (typeof itemIndex === 'number' && typeof completed === 'boolean') {
+                updateQuery[`checklists.$.items.${itemIndex}.completed`] = completed
+                updateQuery[`checklists.$.updatedAt`] = new Date()
+            }
 
             const updatedTask = await Task.findOneAndUpdate(
-                { _id: taskId, 'subtasks._id': subtaskId },
+                { _id: taskId, 'checklists._id': checklistId },
                 { $set: updateQuery, updatedAt: new Date() },
                 { new: true }
             ).populate('incharge', 'full_name email')
@@ -208,7 +209,7 @@ function taskRealtime(socket) {
 
             const activeTasks = await Task.find({
                 $or: [{ incharge: userId }, { members: userId }],
-                status: { $in: ['To Do', 'In Progress', 'Review'] },
+                status: { $in: ['Under-review', 'In-progress'] },
                 archived: false
             }).sort({ dueDate: 1 })
 

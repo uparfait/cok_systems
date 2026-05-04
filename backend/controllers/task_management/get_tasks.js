@@ -39,6 +39,7 @@ const getTasks = async (req, res) => {
             .populate('incharge', 'full_name email')
             .populate('belongs.itBelongsTo', 'full_name email')
             .populate('comments.commenter', 'full_name email')
+            .populate('attachmentsFile.uploadedBy', 'full_name email')
             .sort(sort)
             .limit(parseInt(limit))
             .skip(parseInt(skip))

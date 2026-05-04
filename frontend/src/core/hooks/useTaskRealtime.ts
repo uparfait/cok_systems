@@ -7,7 +7,7 @@ import type { Task, TaskStatus } from '../services/taskService'
 
 export interface TaskRealtimeCallbacks {
   onTaskStatusUpdated?: (data: { taskId: string; status: TaskStatus; updatedBy: any; timestamp: Date }) => void
-  onSubtaskUpdated?: (data: { taskId: string; subtaskId: string; updates: any; updatedBy: any; timestamp: Date }) => void
+  onChecklistItemUpdated?: (data: { taskId: string; checklistId: string; updates: any; updatedBy: any; timestamp: Date }) => void
   onCommentAdded?: (data: { taskId: string; comment: any; commenter: any; timestamp: Date }) => void
   onTaskDeadlineNotification?: (data: { task: Task; notification: any; type: string }) => void
   onTaskUpdated?: (data: { task: Task; action: string; newStatus?: TaskStatus }) => void
@@ -41,8 +41,8 @@ export const useTaskRealtime = (
       callbacks.onTaskStatusUpdated?.(data)
     }
 
-    const handleSubtaskUpdated = (data: any) => {
-      callbacks.onSubtaskUpdated?.(data)
+    const handleChecklistItemUpdated = (data: any) => {
+      callbacks.onChecklistItemUpdated?.(data)
     }
 
     const handleCommentAdded = (data: any) => {
@@ -63,7 +63,7 @@ export const useTaskRealtime = (
 
     // Register listeners
     socket.on('task_status_updated', handleTaskStatusUpdated)
-    socket.on('subtask_updated', handleSubtaskUpdated)
+    socket.on('update_checklist_item', handleChecklistItemUpdated)
     socket.on('comment_added', handleCommentAdded)
     socket.on('task_deadline_notification', handleTaskDeadlineNotification)
     socket.on('task_updated', handleTaskUpdated)
@@ -72,7 +72,7 @@ export const useTaskRealtime = (
     // Cleanup
     return () => {
       socket.off('task_status_updated', handleTaskStatusUpdated)
-      socket.off('subtask_updated', handleSubtaskUpdated)
+      socket.off('update_checklist_item', handleChecklistItemUpdated)
       socket.off('comment_added', handleCommentAdded)
       socket.off('task_deadline_notification', handleTaskDeadlineNotification)
       socket.off('task_updated', handleTaskUpdated)
@@ -87,9 +87,9 @@ export const useTaskRealtime = (
     }
   }, [socket, isConnected])
 
-  const emitUpdateSubtask = useCallback((taskId: string, subtaskId: string, updates: any, userId: string) => {
+  const emitUpdateChecklistItem = useCallback((taskId: string, checklistId: string, updates: any, userId: string) => {
     if (socket && isConnected) {
-      socket.emit('update_subtask', { taskId, subtaskId, updates, userId })
+      socket.emit('update_checklist_item', { taskId, checklistId, updates, userId })
     }
   }, [socket, isConnected])
 
@@ -114,7 +114,7 @@ export const useTaskRealtime = (
   return {
     isConnected,
     emitUpdateTaskStatus,
-    emitUpdateSubtask,
+    emitUpdateChecklistItem,
     emitAddComment,
     emitScheduleDeadlineReminder,
     emitGetActiveTasks

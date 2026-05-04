@@ -1,33 +1,41 @@
 const Task = require('../../models/task')
 const { StatusCodes } = require('http-status-codes')
 
-const addSubtask = async (req, res) => {
+const addChecklist = async (req, res) => {
     try {
         const { id } = req.params
-        const { title, description, status = 'Under-review', dueDate } = req.body
+        const { title, items = [] } = req.body
 
         if (!title) {
             return res.status(StatusCodes.BAD_REQUEST).json({
                 status: false,
-                message: 'Title is required for subtask'
+                message: 'Title is required for checklist'
             })
         }
 
-        // Validate status
-        const validStatuses = ['Under-review', 'In-progress', 'Completed']
-
-        if (!validStatuses.includes(status)) {
+        // Validate items
+        if (!Array.isArray(items)) {
             return res.status(StatusCodes.BAD_REQUEST).json({
                 status: false,
-                message: 'Invalid subtask status'
+                message: 'Items must be an array'
             })
         }
 
-        const newSubtask = {
+        for (const item of items) {
+            if (!item.text || typeof item.text !== 'string') {
+                return res.status(StatusCodes.BAD_REQUEST).json({
+                    status: false,
+                    message: 'Each item must have a text field'
+                })
+            }
+        }
+
+        const newChecklist = {
             title,
-            description: description || '',
-            status,
-            dueDate: dueDate ? new Date(dueDate) : null,
+            items: items.map(item => ({
+                text: item.text.trim(),
+                completed: item.completed || false
+            })),
             createdAt: new Date(),
             updatedAt: new Date()
         }
@@ -35,13 +43,14 @@ const addSubtask = async (req, res) => {
         const updatedTask = await Task.findByIdAndUpdate(
             id,
             {
-                $push: { subtasks: newSubtask },
+                $push: { checklists: newChecklist },
                 updatedAt: new Date()
             },
             { new: true, runValidators: true }
         )
             .populate('incharge', 'full_name email')
             .populate('comments.commenter', 'full_name email')
+            .populate('attachmentsFile.uploadedBy', 'full_name email')
 
         if (!updatedTask) {
             return res.status(StatusCodes.NOT_FOUND).json({
@@ -52,18 +61,18 @@ const addSubtask = async (req, res) => {
 
         res.status(StatusCodes.OK).json({
             status: true,
-            message: 'Subtask added successfully',
+            message: 'Checklist added successfully',
             data: updatedTask
         })
 
     } catch (error) {
-        console.error('Error adding subtask:', error)
+        console.error('Error adding checklist:', error)
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
             status: false,
-            message: 'Failed to add subtask',
+            message: 'Failed to add checklist',
             error: error.message
         })
     }
 }
 
-module.exports = addSubtask
+module.exports = addChecklist
