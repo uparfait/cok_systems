@@ -95,7 +95,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
   return (
     <div
-      className="task-card bg-white rounded-lg p-4 shadow-sm border border-gray-200  hover:shadow-md transition-all duration-200 max-h-52 overflow-hidden"
+      className="task-card bg-white rounded-lg p-4 shadow-sm border border-gray-200  hover:shadow-md transition-all duration-200 max-h-52 overflow-show"
       onClick={onClick}
     >
       {/* Top Dropdown Menu */}

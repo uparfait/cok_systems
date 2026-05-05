@@ -32,7 +32,7 @@ const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachment, onClose
           <div className="flex justify-center">
             <img
               src={attachment.url}
-              alt={attachment.originalName}
+              alt={attachment.filename}
               className="max-w-full max-h-[70vh] object-contain"
             />
           </div>
@@ -43,7 +43,7 @@ const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachment, onClose
             <iframe
               src={attachment.url}
               className="w-full h-full border-0"
-              title={attachment.originalName}
+              title={attachment.filename}
             />
           </div>
         )
@@ -53,7 +53,7 @@ const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachment, onClose
             <iframe
               src={attachment.url}
               className="w-full h-full border-0"
-              title={attachment.originalName}
+              title={attachment.filename}
             />
           </div>
         )
@@ -69,7 +69,7 @@ const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachment, onClose
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
       <div className="bg-white rounded-lg shadow-2xl w-[90vw] max-w-7xl max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
@@ -79,7 +79,7 @@ const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachment, onClose
             {fileType === 'text' && <FiFileText className="w-5 h-5 text-blue-600" />}
             {fileType === 'other' && <FiFile className="w-5 h-5 text-gray-600" />}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 truncate">{attachment.originalName}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 truncate">{attachment.filename}</h3>
               {attachment.description && (
                 <p className="text-sm text-gray-600">{attachment.description}</p>
               )}

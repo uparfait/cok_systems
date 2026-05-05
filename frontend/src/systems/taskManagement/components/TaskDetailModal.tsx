@@ -1,7 +1,6 @@
-// TaskDetailModal - Detailed task view with editing capabilities
-
+// TaskDetailModal.tsx
 import React, { useState, useRef } from 'react'
-import { FiX, FiEdit, FiPaperclip, FiMessageSquare, FiClock, FiTrash2, FiDownload, FiEye, FiUpload, FiCalendar } from 'react-icons/fi'
+import { FiX, FiEdit, FiPaperclip, FiMessageSquare, FiClock, FiTrash2, FiDownload, FiEye, FiUpload, FiCalendar, FiCheckCircle, FiList, FiImage } from 'react-icons/fi'
 import AttachmentViewer from './AttachmentViewer'
 import TaskDetails from './TaskDetails'
 import Checklists from './Checklists'
@@ -42,8 +41,6 @@ interface Comment {
   updatedAt: string
 }
 
-
-
 interface TaskDetailModalProps {
   task: Task
   onClose: () => void
@@ -66,8 +63,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
     dueDate: initialTask.dueDate ? initialTask.dueDate.split('T')[0] : '',
     dueTime: initialTask.dueDate && initialTask.dueDate.includes('T') ? initialTask.dueDate.split('T')[1].substring(0, 5) : '12:00'
   })
-
-
 
   // Comment form
   const [commentText, setCommentText] = useState('')
@@ -97,8 +92,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
   const [newAttachments, setNewAttachments] = useState<File[]>([])
   const newAttachmentsRef = useRef<HTMLInputElement>(null)
 
-
-
   const handleTaskUpdate = async () => {
     setLoadingStates(prev => ({ ...prev, task: true }))
     try {
@@ -118,8 +111,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
       setLoadingStates(prev => ({ ...prev, task: false }))
     }
   }
-
-
 
   const handleUpdateChecklistItem = async (checklistId: string, itemIndex: number, completed: boolean) => {
     setLoadingStates(prev => ({ ...prev, checklists: true }))
@@ -339,141 +330,244 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
     })
   }
 
-  const getStatusClass = (status: string) => {
-    switch (status) {
-      case 'Completed': return 'bg-green-100 text-green-800'
-      case 'In-progress': return 'bg-blue-100 text-blue-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
   const progress = getTaskProgress(task)
   const statusColor = getTaskStatusColor(task)
 
-
-
-
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-[95vw] md:w-[90vw] max-w-7xl max-h-[95vh] md:max-h-[90vh] overflow-y-auto flex flex-col">
-        {/* Header */}
-        <div className="p-4 md:p-6 border-b border-gray-200 flex-shrink-0 sticky top-0 bg-white z-10">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-            <div>
-             
-                <div>
-                   <h2 className="text-2xl font-bold text-gray-900 break-words">{task.title}</h2>
-                 </div>
-            
-            </div>
-            <div className="flex items-center space-x-3">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[95vh] md:max-h-[90vh] flex flex-col overflow-hidden">
+        {/* -style Header */}
+        <div className="px-4 md:px-6 py-3 bg-white border-b border-gray-100 flex-shrink-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
               {isEditingTask ? (
-                <div className="flex space-x-2">
-                  <button
-                    onClick={handleSaveTask}
-                    disabled={loadingStates.task}
-                    className="px-3 py-1 text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                  >
-                    {loadingStates.task && (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    )}
-                    Save
-                  </button>
-                  <button
-                    onClick={handleCancelEditTask}
-                    disabled={loadingStates.task}
-                    className="px-3 py-1 text-gray-600 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={editTaskForm.title}
+                    onChange={(e) => setEditTaskForm(prev => ({ ...prev, title: e.target.value }))}
+                    className="w-full text-xl font-semibold text-gray-900 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    autoFocus
+                    placeholder="Task title"
+                  />
                 </div>
-      ) : (
-        <div className="contents">
-          <div className={'px-3 py-1 rounded-full text-sm font-medium ' + getStatusClass(task.status)}>
-            {task.status.replace('-', ' ')}
-          </div>
-          {task.status !== 'Completed' && (
-            <button
-              onClick={handleEditTask}
-              className="px-3 py-1 text-blue-600 hover:text-blue-700 border border-blue-200 rounded hover:bg-blue-50"
-            >
-              Edit Task
-            </button>
-          )}
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <FiX className="w-6 h-6" />
-          </button>
-        </div>
-      )}
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-6">
-              <TaskDetails
-                task={task}
-                isEditing={isEditingTask}
-                editForm={editTaskForm}
-                onEditFormChange={(field, value) => setEditTaskForm(prev => ({ ...prev, [field]: value }))}
-                loading={loadingStates.task}
-              />
-
-              <Checklists
-                checklists={task.checklists || []}
-                editingChecklist={editingChecklist}
-                checklistTitle={checklistTitle}
-                showAddChecklistForm={showAddChecklistForm}
-                addChecklistForm={addChecklistForm}
-                loading={loadingStates.checklists}
-                taskStatus={task.status}
-                onEditChecklistTitle={handleEditChecklistTitle}
-                onSaveChecklistTitle={handleSaveChecklistTitle}
-                onCancelEditChecklist={handleCancelEditChecklist}
-                onDeleteChecklist={handleDeleteChecklist}
-                onUpdateChecklistItem={handleUpdateChecklistItem}
-                onShowAddChecklistForm={() => setShowAddChecklistForm(true)}
-                onAddChecklistItem={handleAddChecklistItem}
-                onUpdateAddChecklistItem={handleUpdateAddChecklistItem}
-                onRemoveAddChecklistItem={handleRemoveAddChecklistItem}
-                onAddNewChecklist={handleAddNewChecklist}
-                onCancelAddChecklist={() => {
-                  setShowAddChecklistForm(false)
-                  setAddChecklistForm({ title: '', items: [''] })
-                }}
-                onChecklistTitleChange={setChecklistTitle}
-                onAddChecklistFormChange={(field, value) => setAddChecklistForm(prev => ({ ...prev, [field]: value }))}
-              />
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  
+                  <h2 className="text-xl md:text-2xl font-semibold text-gray-900 break-words">
+                    {task.title}
+                  </h2>
+                  {task.status !== 'Completed' && !isEditingTask && (
+                    <button
+                      onClick={handleEditTask}
+                      className="ml-2 p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
+                      title="Edit task"
+                    >
+                      <FiEdit className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
+            <button
+              onClick={onClose}
+              className="flex-shrink-0 p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+          </div>
 
-            {/* Sidebar */}
-            <div className="lg:col-span-1">
-              <Comments
-                comments={task.comments || []}
-                formatDate={formatDate}
-              />
-
-              <Attachments
-                attachments={task.attachmentsFile || []}
-                loading={loadingStates.attachments}
-                onViewAttachment={(attachment) => setViewingAttachment(attachment)}
-                onDeleteAttachment={handleDeleteAttachment}
-              />
+          {/* Progress Bar */}
+          {progress > 0 && progress < 100 && (
+            <div className="mt-3 flex items-center gap-2">
+              <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div 
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%`, backgroundColor: statusColor }}
+                />
+              </div>
+              <span className="text-xs text-gray-500 flex-shrink-0">{Math.round(progress)}%</span>
+            </div>
+          )}
         </div>
-      </div>
-    </div>
 
-    {viewingAttachment && <AttachmentViewer attachment={viewingAttachment} onClose={() => setViewingAttachment(null)} />}
-  </div>
+        {/* Content area with clean  layout */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-4 md:p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+              {/* Main Content - Left Column */}
+              <div className="lg:col-span-2 space-y-5">
+                {/* Task Details Section */}
+                <div className="bg-white border border-gray-100 rounded-lg overflow-hidden">
+                  <div className="px-4 py-2 bg-gray-50/50 border-b border-gray-100 flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                    <h3 className="text-sm font-medium text-gray-700">Details</h3>
+                  </div>
+                  <div className="p-4">
+                    <TaskDetails
+                      task={task}
+                      isEditing={isEditingTask}
+                      editForm={editTaskForm}
+                      onEditFormChange={(field, value) => setEditTaskForm(prev => ({ ...prev, [field]: value }))}
+                      loading={loadingStates.task}
+                    />
+                  </div>
+                </div>
+
+                {/* Checklists Section */}
+                <Checklists
+                  checklists={task.checklists || []}
+                  editingChecklist={editingChecklist}
+                  checklistTitle={checklistTitle}
+                  showAddChecklistForm={showAddChecklistForm}
+                  addChecklistForm={addChecklistForm}
+                  loading={loadingStates.checklists}
+                  taskStatus={task.status}
+                  onEditChecklistTitle={handleEditChecklistTitle}
+                  onSaveChecklistTitle={handleSaveChecklistTitle}
+                  onCancelEditChecklist={handleCancelEditChecklist}
+                  onDeleteChecklist={handleDeleteChecklist}
+                  onUpdateChecklistItem={handleUpdateChecklistItem}
+                  onShowAddChecklistForm={() => setShowAddChecklistForm(true)}
+                  onAddChecklistItem={handleAddChecklistItem}
+                  onUpdateAddChecklistItem={handleUpdateAddChecklistItem}
+                  onRemoveAddChecklistItem={handleRemoveAddChecklistItem}
+                  onAddNewChecklist={handleAddNewChecklist}
+                  onCancelAddChecklist={() => {
+                    setShowAddChecklistForm(false)
+                    setAddChecklistForm({ title: '', items: [''] })
+                  }}
+                  onChecklistTitleChange={setChecklistTitle}
+                  onAddChecklistFormChange={(field, value) => setAddChecklistForm(prev => ({ ...prev, [field]: value }))}
+                />
+              </div>
+
+              {/* Sidebar - Right Column */}
+              <div className="lg:col-span-1 space-y-5">
+                {/* Comments Section -  style */}
+                <div className="bg-white border border-gray-100 rounded-lg overflow-hidden">
+                  <div className="px-4 py-2 bg-gray-50/50 border-b border-gray-100 flex items-center gap-2">
+                    <FiMessageSquare className="w-3.5 h-3.5 text-gray-500" />
+                    <h3 className="text-sm font-medium text-gray-700">Activity</h3>
+                  </div>
+                  <div className="p-3 max-h-[300px] overflow-y-auto custom-scrollbar">
+                    <Comments
+                      comments={task.comments || []}
+                      formatDate={formatDate}
+                    />
+                    {/* Add Comment Input */}
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                          placeholder="Write a comment..."
+                          className="flex-1 px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        <button
+                          onClick={handleAddComment}
+                          disabled={!commentText.trim() || loadingStates.comments}
+                          className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Send
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Attachments Section */}
+                <div className="bg-white border border-gray-100 rounded-lg overflow-hidden">
+                  <div className="px-4 py-2 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FiPaperclip className="w-3.5 h-3.5 text-gray-500" />
+                      <h3 className="text-sm font-medium text-gray-700">Attachments</h3>
+                      <span className="text-xs text-gray-400">({(task.attachmentsFile || []).length})</span>
+                    </div>
+                    {/* Upload button -  style inline */}
+                    <label className="cursor-pointer text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                      <FiUpload className="w-3 h-3" />
+                      <span>Add</span>
+                      <input
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files) {
+                            setNewAttachments(Array.from(e.target.files))
+                            handleUploadAttachments()
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <div className="p-3 max-h-[250px] overflow-y-auto custom-scrollbar">
+                    <Attachments
+                      attachments={task.attachmentsFile || []}
+                      loading={loadingStates.attachments}
+                      onViewAttachment={(attachment) => setViewingAttachment(attachment)}
+                      onDeleteAttachment={handleDeleteAttachment}
+                    />
+                    {newAttachments.length > 0 && !loadingStates.attachments && (
+                      <div className="mt-2 flex items-center justify-between text-xs text-gray-500 bg-gray-50 p-2 rounded-lg">
+                        <span>{newAttachments.length} file(s) selected</span>
+                        <button onClick={handleUploadAttachments} className="text-blue-600 hover:text-blue-700">
+                          Upload
+                        </button>
+                      </div>
+                    )}
+                    {loadingStates.attachments && (
+                      <div className="flex items-center justify-center py-3">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Metadata - Due date, etc */}
+                {task.dueDate && (
+                  <div className="bg-white border border-gray-100 rounded-lg overflow-hidden">
+                    <div className="px-4 py-2 bg-gray-50/50 border-b border-gray-100 flex items-center gap-2">
+                      <FiClock className="w-3.5 h-3.5 text-gray-500" />
+                      <h3 className="text-sm font-medium text-gray-700">Timeline</h3>
+                    </div>
+                    <div className="p-3 text-sm text-gray-600">
+                      <div className="flex items-center justify-between">
+                        <span>Due Date:</span>
+                        <span className="font-medium">
+                          {new Date(task.dueDate).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                      {task.startDate && (
+                        <div className="flex items-center justify-between mt-1">
+                          <span>Start Date:</span>
+                          <span className="font-medium">
+                            {new Date(task.startDate).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {viewingAttachment && <AttachmentViewer attachment={viewingAttachment} onClose={() => setViewingAttachment(null)} />}
       </div>
 
-      {viewingAttachment && <AttachmentViewer attachment={viewingAttachment} onClose={() => setViewingAttachment(null)} />}
+     
     </div>
   )
 }
