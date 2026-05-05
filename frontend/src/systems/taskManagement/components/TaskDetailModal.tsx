@@ -356,30 +356,16 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-[90vw] max-w-7xl h-[90vh] flex flex-col">
+      <div className="bg-white rounded-xl shadow-2xl w-[95vw] md:w-[90vw] max-w-7xl max-h-[95vh] md:max-h-[90vh] overflow-y-auto flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200 flex-shrink-0">
-          <div className="flex items-center justify-between">
+        <div className="p-4 md:p-6 border-b border-gray-200 flex-shrink-0 sticky top-0 bg-white z-10">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
             <div>
-              {isEditingTask ? (
+             
                 <div>
-                  <input
-                    type="text"
-                    value={editTaskForm.title}
-                    onChange={(e) => setEditTaskForm(prev => ({ ...prev, title: e.target.value }))}
-                    className="text-2xl font-bold text-gray-900 bg-transparent border-b-2 border-blue-500 focus:outline-none"
-                    disabled={loadingStates.task}
-                  />
-                </div>
-              ) : (
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">{task.title}</h2>
-                  {task.description && (
-                    <p className="text-sm text-gray-700 mt-2 max-w-2xl">{task.description}</p>
-                  )}
-                   <p className="text-sm text-gray-600 mt-1">Created {formatDate(task.createdAt!)}</p>
-                </div>
-              )}
+                   <h2 className="text-2xl font-bold text-gray-900 break-words">{task.title}</h2>
+                 </div>
+            
             </div>
             <div className="flex items-center space-x-3">
               {isEditingTask ? (
@@ -427,7 +413,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">

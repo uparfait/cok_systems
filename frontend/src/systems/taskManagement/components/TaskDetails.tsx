@@ -20,7 +20,7 @@ const TaskDetails: React.FC<TaskDetailsProps> = ({
 }) => {
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">Task Details</h3>
+     
       <div className="space-y-4">
         {/* Description */}
         <div>
@@ -34,13 +34,14 @@ const TaskDetails: React.FC<TaskDetailsProps> = ({
               disabled={loading}
             />
           ) : (
-            <p className="text-gray-700">{task.description || 'No description'}</p>
+             <div className="text-gray-700 break-words max-h-32 overflow-y-auto">
+               {task.description || 'No description'}
+             </div>
           )}
         </div>
 
         {/* Status */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
           {isEditing ? (
             <select
               value={editForm.status}

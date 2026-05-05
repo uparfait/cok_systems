@@ -32,7 +32,7 @@ const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachment, onClose
           <div className="flex justify-center">
             <img
               src={attachment.url}
-              alt={attachment.filename}
+              alt={attachment.originalName}
               className="max-w-full max-h-[70vh] object-contain"
             />
           </div>
@@ -43,7 +43,7 @@ const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachment, onClose
             <iframe
               src={attachment.url}
               className="w-full h-full border-0"
-              title={attachment.filename}
+              title={attachment.originalName}
             />
           </div>
         )
@@ -53,7 +53,7 @@ const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachment, onClose
             <iframe
               src={attachment.url}
               className="w-full h-full border-0"
-              title={attachment.filename}
+              title={attachment.originalName}
             />
           </div>
         )
@@ -79,7 +79,7 @@ const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachment, onClose
             {fileType === 'text' && <FiFileText className="w-5 h-5 text-blue-600" />}
             {fileType === 'other' && <FiFile className="w-5 h-5 text-gray-600" />}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 truncate">{attachment.filename}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 truncate">{attachment.originalName}</h3>
               {attachment.description && (
                 <p className="text-sm text-gray-600">{attachment.description}</p>
               )}

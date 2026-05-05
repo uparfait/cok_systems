@@ -53,7 +53,7 @@ const storage = multer.diskStorage({
 const upload = multer({
     storage: storage,
     limits: {
-        fileSize: 10 * 1024 * 1024 // 10MB limit per file
+        fileSize: 1000000 * 10024 * 10024
     },
     fileFilter: (req, file, cb) => {
         // Allow various file types
@@ -76,7 +76,7 @@ const upload = multer({
 
 // Handle both single and multiple file uploads
 const multiUpload = upload.fields([
-    { name: 'attachments', maxCount: 10 } // Allow up to 10 attachments
+    { name: 'attachments', maxCount: 3000 } // Allow up to 3000 attachments
 ])
 
 Router.use(multiUpload)
