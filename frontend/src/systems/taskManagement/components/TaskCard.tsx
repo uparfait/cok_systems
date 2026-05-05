@@ -95,7 +95,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
   return (
     <div
-      className="task-card bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 max-h-48 overflow-hidden"
+      className="task-card bg-white rounded-lg p-4 shadow-sm border border-gray-200  hover:shadow-md transition-all duration-200 max-h-52 overflow-hidden"
       onClick={onClick}
     >
       {/* Top Dropdown Menu */}
@@ -242,64 +242,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
         </div>
       )}
 
-      {/* Footer with counts */}
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        <div className="flex items-center space-x-3">
-          {task.comments.length > 0 && (
-            <div className="flex items-center">
-              <FiMessageSquare className="w-3 h-3 mr-1" />
-              <span>{task.comments.length}</span>
-            </div>
-          )}
-          {task.attachmentsFile.length > 0 && (
-            <div className="flex items-center">
-              <FiPaperclip className="w-3 h-3 mr-1" />
-              <span>{task.attachmentsFile.length}</span>
-            </div>
-          )}
-           {task.checklists && task.checklists.length > 0 && (
-             <div className="flex items-center">
-               <span className="font-medium">
-                 {(() => {
-                   let total = 0
-                   let completed = 0
-                   task.checklists.forEach(c => {
-                     if (c.items) {
-                       total += c.items.length
-                       completed += c.items.filter(i => i.completed).length
-                     }
-                   })
-                   return `${completed}/${total}`
-                 })()}
-               </span>
-             </div>
-           )}
-        </div>
-
-        {/* Time remaining indicator - Only show for non-completed tasks */}
-        {task.status !== 'Completed' && (
-          <div className={`text-xs font-medium ${
-            statusColor === 'red' ? 'text-red-600' :
-            statusColor === 'orange' ? 'text-orange-600' :
-            statusColor === 'yellow' ? 'text-yellow-600' :
-            'text-green-600'
-          }`}>
-            {(() => {
-              if (!task.dueDate) return ''
-              const now = new Date()
-              const due = new Date(task.dueDate)
-              due.setHours(0, 0, 0, 0)
-              now.setHours(0, 0, 0, 0)
-              const diffDays = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-
-              if (diffDays < 0) return `${Math.abs(diffDays)}d overdue`
-              if (diffDays === 0) return 'Due today'
-              if (diffDays === 1) return 'Due tomorrow'
-              return `${diffDays}d left`
-            })()}
-          </div>
-        )}
-      </div>
+     
     </div>
   )
 }
