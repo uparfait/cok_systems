@@ -1,6 +1,7 @@
 const xlsx = require('xlsx');
 const mongoose = require('mongoose');
 const EmergencyCar = require('../models/emergency_car');
+const ParkingSlot = require('../models/parking_slots');
 
 /**
  * OPTION A: Single Visitor Reservation
@@ -41,6 +42,13 @@ const registerSingleReservation = async (req, res) => {
 
         await newReservation.save();
 
+        // Increment visitor reservation count
+        const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+        if (parkingSlot) {
+            parkingSlot.visitorReservationCount = (parkingSlot.visitorReservationCount || 0) + 1;
+            await parkingSlot.save();
+        }
+
         res.status(201).json({
             success: true,
             message: `Successfully registered visitor reservation for ${driver_name}.`,
@@ -53,6 +61,10 @@ const registerSingleReservation = async (req, res) => {
     }
 };
 
+/**
+ * OPTION B: Bulk Excel Upload for Visitors
+ * Used when Admin uploads an Excel file with multiple guest reservations.
+ */
 const bulkUploadReservations = async (req, res) => {
     try {
 
@@ -61,18 +73,7 @@ const bulkUploadReservations = async (req, res) => {
             return res.status(400).json({ success: false, message: req.UploadError.message });
         }
 
-        // Filter our where fieldname is a file when using any and update req.file to this or to null
-
-
-        // const files = req.files;
-
-        // const File = files?.filter(file => file.fieldname === 'file')
-
-        // req.file = File !== undefined ? File[0] : null
-
-       
-
-      // 1. OPTIONAL HANDLING: Accept 1 file or Many files gracefully
+        // 1. OPTIONAL HANDLING: Accept 1 file or Many files gracefully
         let uploadedFiles = [];
         
         // If Multer processed multiple files (or one file via upload.any / upload.array)
@@ -116,7 +117,7 @@ const bulkUploadReservations = async (req, res) => {
             driver_type: 'visitor',
             driver_identification: {
                 id_type: row['ID Type'] || row['ID type'] || 'NID',
-                number: String(row['ID Number'] || row['ID number'] || '')
+                number: String(row['ID Number'] || row['id_number'] || '')
             },
             telephone_number: String(row['Phone'] || row['phone'] || ''),
             slot_number: String(row['Slot Number'] || row['slot number'] || ''), 
@@ -144,8 +145,12 @@ const bulkUploadReservations = async (req, res) => {
             // B. Do the database work, explicitly passing the { session }
             await newReservationBatch.save({ session });
 
-            // If we had to update parking slots later, we would do it here inside the try block:
-            // await ParkingSlot.updateMany(..., { session });
+            // Increment visitor reservation count
+            const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' }).session(session);
+            if (parkingSlot) {
+                parkingSlot.visitorReservationCount = (parkingSlot.visitorReservationCount || 0) + mappedVisitors.length;
+                await parkingSlot.save({ session });
+            }
 
             // C. If nothing crashed, make it permanent!
             await session.commitTransaction();

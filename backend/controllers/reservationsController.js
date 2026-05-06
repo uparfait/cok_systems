@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const EmergencyCar = require('../models/emergency_car');
 const EmergencyCarHistory = require('../models/emergency_car_history');
 const StaffCar = require('../models/staff_car');
+const ParkingSlot = require('../models/parking_slots');
 
 /**
  * Get all reservations (both visitor and staff)
@@ -148,6 +149,13 @@ const createStaffBooking = async (req, res) => {
 
         await newStaffBooking.save();
 
+        // Increment reservation count (reservation does NOT occupy physical slot)
+        const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+        if (parkingSlot) {
+            parkingSlot.staffReservationCount = (parkingSlot.staffReservationCount || 0) + 1;
+            await parkingSlot.save();
+        }
+
         res.status(201).json({
             success: true,
             message: `Staff slot allocated for ${staff_name}`,
@@ -183,6 +191,21 @@ const cancelReservation = async (req, res) => {
                     success: false,
                     message: 'Staff reservation not found'
                 });
+            }
+
+            // Only restore the slot if not already checked in
+            const ParkingRecord = require('../models/parking_record');
+            const activeCheckIn = await ParkingRecord.findOne({ 
+                plate_number: staffReservation.plate_number, 
+                status: 'active' 
+            });
+            
+            if (!activeCheckIn) {
+                const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+                if (parkingSlot) {
+                    parkingSlot.staffReservationCount = Math.max(0, (parkingSlot.staffReservationCount || 0) - 1);
+                    await parkingSlot.save();
+                }
             }
 
             staffReservation.is_active = false;
@@ -261,7 +284,27 @@ const reactivateReservation = async (req, res) => {
             });
         }
 
+        // Check if currently checked in (occupied)
+        const ParkingRecord = require('../models/parking_record');
+        const activeCheckIn = await ParkingRecord.findOne({ 
+            plate_number: staffReservation.plate_number, 
+            status: 'active' 
+        });
+        
+        if (activeCheckIn) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot reactivate reservation while staff is checked in'
+            });
+        }
+
         // Reactivate the reservation
+        const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+        if (parkingSlot) {
+            parkingSlot.staffReservationCount = (parkingSlot.staffReservationCount || 0) + 1;
+            await parkingSlot.save();
+        }
+
         staffReservation.is_active = true;
         await staffReservation.save();
 
@@ -341,6 +384,13 @@ const bulkUploadStaff = async (req, res) => {
 
         // Insert all staff bookings
         await StaffCar.insertMany(staffBookings);
+
+        // Increment reservation count (reservations do NOT occupy physical slots)
+        const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+        if (parkingSlot) {
+            parkingSlot.staffReservationCount = (parkingSlot.staffReservationCount || 0) + staffBookings.length;
+            await parkingSlot.save();
+        }
 
         res.status(201).json({
             success: true,
