@@ -24,6 +24,31 @@ const parkingSlotSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    staffReservationCount: {
+        type: Number,
+        required: true,
+        default: 0
+    },
+    staffOccupiedCount: {
+        type: Number,
+        required: true,
+        default: 0
+    },
+    visitorReservationCount: {
+        type: Number,
+        required: true,
+        default: 0
+    },
+    visitorOccupiedCount: {
+        type: Number,
+        required: true,
+        default: 0
+    },
+    regularOccupiedCount: {
+        type: Number,
+        required: true,
+        default: 0
+    },
 
     RegularReservedSlots: {
         type: Number,
