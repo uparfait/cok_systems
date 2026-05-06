@@ -1853,7 +1853,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
         request.badgeNumber.toLowerCase().includes(searchLower) ||
         request.telephone?.toLowerCase().includes(searchLower);
 
-      let normalizedStatus = request.status.replace("_", "-");
+      let normalizedStatus = request.status.replace(/[\s_]+/g, "-").toLowerCase();
       if (normalizedStatus === "transfered") normalizedStatus = "transferred";
       const matchesStatus =
         statusFilter === "all" ||
@@ -1862,16 +1862,16 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
       return matchesSearch && matchesStatus;
     })
     .sort((a, b) => {
+      const getStatusKey = (status: string) => status.replace(/[\s_]+/g, "-").toLowerCase();
       const statusOrder: Record<string, number> = {
         inprogress: 1,
         transfered: 2,
         transferred: 2,
-        "Not started": 3,
         "not-started": 3,
         completed: 4,
       };
-      const orderA = statusOrder[a.status] ?? 99;
-      const orderB = statusOrder[b.status] ?? 99;
+      const orderA = statusOrder[getStatusKey(a.status)] ?? 99;
+      const orderB = statusOrder[getStatusKey(b.status)] ?? 99;
       return orderA - orderB;
     });
 
@@ -2328,8 +2328,8 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
                   Loading requests...
                 </td>
               </tr>
-            ) : requests.length > 0 ? (
-              requests.map((request) => (
+            ) : filteredRequests.length > 0 ? (
+              filteredRequests.map((request) => (
                 <tr key={request.id} className="border-b border-[#f8f8f8] h-14">
                   <td className="py-3 px-2">
                     <div className="flex items-center gap-3">
