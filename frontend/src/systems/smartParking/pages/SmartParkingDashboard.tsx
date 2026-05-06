@@ -173,8 +173,8 @@ const SmartParkingDashboard: React.FC = () => {
           availableSlots: (slotsData?.visitorsAvailableSlots || 0) + (slotsData?.staffAvailableSlots || 0) + (slotsData?.RegularAvailableSlots || 0),
           visitorVehicles: by_driver_type?.Visitor || 0,
           staffVehicles: (by_driver_type?.Staff || 0) + (by_driver_type?.Regular || 0),
-          staffReserved: slotsData?.staffReservedSlots || 0,
-          visitorReserved: slotsData?.visitorsReservedSlots || 0,
+          staffReserved: slotsData?.staffReservationCount || 0,
+          visitorReserved: slotsData?.visitorReservationCount || 0,
           regularAvailable: slotsData?.RegularAvailableSlots || 0,
           regularReserved: slotsData?.RegularReservedSlots || 0
         }));
