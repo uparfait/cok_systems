@@ -10,6 +10,8 @@ import { dispatchToast } from '../../../core/services/apiClient';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import ErrorModal from '../../../core/components/Modals/ErrorModal';
 import MainLayout from '../../../core/components/Layout/MainLayout';
+import Table from '../../../core/components/Table';
+import type { TableHeader, TablePagination } from '../../../core/components/Table';
 import {
   FiPlus, FiSearch, FiEdit2, FiTrash2, FiRefreshCw, FiUsers,
   FiMail, FiPhone, FiBriefcase, FiUser, FiShield, FiCheck, FiX, FiAlertCircle
@@ -682,153 +684,106 @@ const EmployeesPage: React.FC = () => {
       )}
 
       {/* Employees Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto max-h-96 overflow-y-auto">
-          <table className="w-full min-w-[700px]">
-            <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Employee
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Contact
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Department
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Unit
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Position
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {(loading && firstLoad) ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
-                    <div className="flex justify-center items-center gap-2">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                      <span className="text-gray-500">Loading employees...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : employees.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                    No employees found
-                  </td>
-                </tr>
-              ) : (
-                employees.map((employee) => (
-                  <tr key={employee._id || employee.employee_id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <span className="text-blue-600 font-semibold">
-                            {(employee.full_name || 'E').charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {employee.full_name || '-'}
-                          </p>
-                          <p className="text-sm text-gray-500">{employee.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        {employee.telephone && (
-                          <p className="text-sm text-gray-600 flex items-center gap-2">
-                            <FiPhone className="w-4 h-4" />
-                            {employee.telephone}
-                          </p>
-                        )}
-                        <p className="text-sm text-gray-500 flex items-center gap-2">
-                          <FiMail className="w-4 h-4" />
-                          {employee.email}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-gray-900">
-                        {employee.department_name || (employee.department && typeof employee.department === 'object' && (employee.department as any)?.department_name) || '-'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-gray-900 font-medium">
-                        {/* 👉 FIX: Calls the robust mapper function */}
-                        {getUnitNameDisplay(employee)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-gray-900">
-                        {employee.roles?.role_name ? employee.roles.role_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleEdit(employee)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <FiEdit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClick(employee._id || employee.employee_id || '', employee.full_name || 'this employee')}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <FiTrash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-2">
-            <div className="text-sm text-gray-600">
-              Showing {((currentPage - 1) * pageLimit) + 1} to {Math.min(currentPage * pageLimit, totalEmployees)} of {totalEmployees} employees
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  const newPage = currentPage - 1;
-                  setCurrentPage(newPage);
-                  loadEmployees(newPage, pageLimit);
-                }}
-                disabled={currentPage <= 1}
-                className="px-3 py-1 text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => {
-                  const newPage = currentPage + 1;
-                  setCurrentPage(newPage);
-                  loadEmployees(newPage, pageLimit);
-                }}
-                disabled={currentPage >= totalPages}
-                className="px-3 py-1 text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <Table
+        headers={[
+          { key: 'employee', label: 'Employee' },
+          { key: 'contact', label: 'Contact' },
+          { key: 'department', label: 'Department' },
+          { key: 'unit', label: 'Unit' },
+          { key: 'position', label: 'Position' },
+          { key: 'actions', label: 'Actions' }
+        ]}
+        data={employees}
+        loading={loading && firstLoad}
+        emptyMessage="No employees found"
+        maxHeight="400px"
+        minWidth="700px"
+        renderCell={(header, employee, index) => {
+          switch (header.key) {
+            case 'employee':
+              return (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-blue-600 font-semibold">
+                      {(employee.full_name || 'E').charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {employee.full_name || '-'}
+                    </p>
+                    <p className="text-sm text-gray-500">{employee.email}</p>
+                  </div>
+                </div>
+              );
+            case 'contact':
+              return (
+                <div className="space-y-1">
+                  {employee.telephone && (
+                    <p className="text-sm text-gray-600 flex items-center gap-2">
+                      <FiPhone className="w-4 h-4" />
+                      {employee.telephone}
+                    </p>
+                  )}
+                  <p className="text-sm text-gray-500 flex items-center gap-2">
+                    <FiMail className="w-4 h-4" />
+                    {employee.email}
+                  </p>
+                </div>
+              );
+            case 'department':
+              return (
+                <span className="text-sm text-gray-900">
+                  {employee.department_name || (employee.department && typeof employee.department === 'object' && (employee.department as any)?.department_name) || '-'}
+                </span>
+              );
+            case 'unit':
+              return (
+                <span className="text-sm text-gray-900 font-medium">
+                  {getUnitNameDisplay(employee)}
+                </span>
+              );
+            case 'position':
+              return (
+                <span className="text-sm text-gray-900">
+                  {employee.roles?.role_name ? employee.roles.role_name.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : '-'}
+                </span>
+              );
+            case 'actions':
+              return (
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => handleEdit(employee)}
+                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Edit"
+                  >
+                    <FiEdit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteClick(employee._id || employee.employee_id || '', employee.full_name || 'this employee')}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete"
+                  >
+                    <FiTrash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              );
+            default:
+              return <span>{employee[header.key] || '-'}</span>;
+          }
+        }}
+        pagination={totalPages > 1 ? {
+          currentPage,
+          totalPages,
+          totalCount: totalEmployees,
+          itemsPerPage: pageLimit,
+          onPageChange: (page) => {
+            setCurrentPage(page);
+            loadEmployees(page, pageLimit);
+          },
+          loading
+        } : undefined}
+      />
 
       {/* Modal - No close button, clicking outside won't close */}
       {showModal && (

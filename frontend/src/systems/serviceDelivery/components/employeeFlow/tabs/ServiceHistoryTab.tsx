@@ -3,6 +3,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FiPhone, FiClock, FiCheckCircle, FiArrowRight, FiList, FiMapPin } from 'react-icons/fi';
 import { useAuth } from '../../../../../core/contexts/AuthContext';
 import { serviceDeliveryService } from '../../../../../core/services/adminService';
+import Table from '../../../../../core/components/Table';
+import type { TableHeader } from '../../../../../core/components/Table';
 
 const ServiceHistoryTab: React.FC = () => {
   const { user } = useAuth();
@@ -53,32 +55,39 @@ const ServiceHistoryTab: React.FC = () => {
         <div className="text-blue-600 bg-blue-50 px-4 py-2 rounded-lg font-bold">{serviceRecords.length} Records</div>
       </div>
 
-      <div className="bg-white rounded-[14px] shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase">Visitor</th>
-              <th className="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase">Service</th>
-              <th className="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase">Status</th>
-              <th className="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase">Arrival</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {serviceRecords.map((record) => (
-              <tr key={record.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-5 py-4 font-bold text-[#1a2744]">{record.visitorName}</td>
-                <td className="px-5 py-4 text-gray-600 text-sm">{record.serviceType}</td>
-                <td className="px-5 py-4">
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${record.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                    {record.status}
-                  </span>
-                </td>
-                <td className="px-5 py-4 text-xs text-gray-400">{new Date(record.entryDate).toLocaleTimeString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Table
+        headers={[
+          { key: 'visitor', label: 'Visitor' },
+          { key: 'service', label: 'Service' },
+          { key: 'status', label: 'Status' },
+          { key: 'arrival', label: 'Arrival' }
+        ]}
+        data={serviceRecords}
+        loading={loading && serviceRecords.length === 0}
+        emptyMessage="No service history found."
+        maxHeight="500px"
+        minWidth="600px"
+        renderCell={(header, record, index) => {
+          switch (header.key) {
+            case 'visitor':
+              return <span className="font-bold text-[#1a2744]">{record.visitorName}</span>;
+            case 'service':
+              return <span className="text-gray-600 text-sm">{record.serviceType}</span>;
+            case 'status':
+              return (
+                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${
+                  record.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                }`}>
+                  {record.status}
+                </span>
+              );
+            case 'arrival':
+              return <span className="text-xs text-gray-400">{new Date(record.entryDate).toLocaleTimeString()}</span>;
+            default:
+              return <span>{record[header.key] || '-'}</span>;
+          }
+        }}
+      />
     </div>
   );
 };

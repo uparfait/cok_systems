@@ -9,6 +9,9 @@ const tokenUtil = require("../../../utilities/token");
 const User = require("../../../models/user");
 const department = require("../../../models/department");
 
+// Import audit logging
+const { logAuditEvent } = require("../../../middlewares/audit");
+
 async function verifyLogin(req, res, next) {
     try {
 
@@ -148,6 +151,7 @@ async function verifyLogin(req, res, next) {
 
         const accessToken = jwt.generateAccessToken(payload);
         const refreshToken = jwt.generateRefreshToken({ userId: user._id.toString() });
+
 
         // Return verification success with tokens
         return res.status(200).json({

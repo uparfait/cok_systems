@@ -1,0 +1,99 @@
+{
+  "name": "COK Systems - City of Kigali Service Delivery & Parking Monitoring",
+  "short_name": "COK Systems",
+  "description": "Smart Entry & Service Management portal for the City of Kigali. Manage administrative tasks, visitor services, and parking monitoring efficiently.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a73e8",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/LOGO_COK.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/LOGO_COK.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/LOGO_COK.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/LOGO_COK.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/LOGO_COK.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/LOGO_COK.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Access your main dashboard",
+      "url": "/admin/dashboard",
+      "icons": [
+        {
+          "src": "/LOGO_COK.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Service Delivery",
+      "short_name": "Services",
+      "description": "Manage visitor services",
+      "url": "/service-delivery/receptionist",
+      "icons": [
+        {
+          "src": "/LOGO_COK.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Smart Parking",
+      "short_name": "Parking",
+      "description": "Monitor parking activities",
+      "url": "/smart-parking/dashboard",
+      "icons": [
+        {
+          "src": "/LOGO_COK.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/cok_hall.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "City of Kigali Service Management Dashboard"
+    }
+  ]
+}

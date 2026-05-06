@@ -27,7 +27,6 @@ module.exports = async function visitor_update(req, res, next) {
             'identification', // Optional
             'gender',
             'vehicle_storage',
-            'items_entered_with',
             'badge_number'
         ]
 

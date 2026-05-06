@@ -166,3 +166,61 @@ export const refreshToken = async () => {
     throw error;
   }
 };
+
+// ==================== TOKEN VALIDATION API ====================
+
+/**
+ * Validate if the stored access token is still valid with the backend
+ * This checks if the token hasn't expired and the user session is still active
+ */
+export const validateToken = async (): Promise<{ isValid: boolean; user?: any }> => {
+  try {
+    const token = getAccessToken();
+    if (!token) {
+      console.log('[validateToken] No token found');
+      return { isValid: false };
+    }
+
+    console.log('[validateToken] Validating token with backend...');
+
+    // Make a request to the validation endpoint
+    const response = await get('/auth/validate-token');
+
+    console.log('[validateToken] Backend response:', response);
+
+    if (response.status || response.success) {
+      // Token is valid, return user data from response or stored data
+      const userData = response.data?.user || getStoredUser();
+      console.log('[validateToken] Token is valid for user:', userData?.email);
+      return {
+        isValid: true,
+        user: userData
+      };
+    }
+
+    console.log('[validateToken] Token validation failed - invalid response');
+    return { isValid: false };
+  } catch (error: any) {
+    console.log('[validateToken] Token validation error:', error.message);
+
+    // If 401 Unauthorized, token is invalid
+    if (error.response?.status === 401) {
+      console.log('[validateToken] Token unauthorized - clearing auth data');
+      clearAuthData();
+      return { isValid: false };
+    }
+
+    // For network errors, server errors, or timeouts, be more lenient
+    // If we have stored user data and a token, assume valid (offline mode)
+    const userData = getStoredUser();
+    const token = getAccessToken();
+
+    if (userData && token) {
+      console.log('[validateToken] Network/server error but stored data exists, assuming valid for offline mode');
+      return { isValid: true, user: userData };
+    }
+
+    console.log('[validateToken] No valid stored data, token invalid');
+    return { isValid: false };
+  }
+};

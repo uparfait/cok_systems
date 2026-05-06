@@ -51,9 +51,12 @@ export const hasPermission = (user: User | null, resource: string, action?: stri
 
 // Check if user has admin access (based on role from backend)
 export const isAdminRole = (role: string | undefined): boolean => {
+ 
   if (!role) return false;
   const normalized = role.toLowerCase().trim();
-  return normalized.includes('admin') || normalized.includes('system');
+  
+  return normalized === "system admin";
+  
 };
 
 // ==================== Dynamic Navigation ====================
@@ -90,7 +93,10 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   // Check if user is admin (from backend role)
   const isAdmin = isAdminRole(userRole);
   const hasPermissions = userPermissions && userPermissions.length > 0;
-  
+
+  // Track if any role interceptor matched
+  let roleInterceptorMatched = false;
+
   // 👉 RECEPTIONIST INTERCEPTOR: Return ONLY the Receptionist sidebar
   if (userRole.includes('receptionist')) {
     return [
@@ -111,8 +117,10 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
 
   // 👉 EMPLOYEE INTERCEPTOR: Return Employee sidebar
   if (userRole.includes('employee') || userRole.includes('staff')) {
+    roleInterceptorMatched = true;
     return [
       { id: 'dashboard', label: 'Dashboard', path: '/service-delivery/employee', icon: 'FiGrid' },
+      { id: 'tasks', label: 'Task Manager', path: '/service-delivery/employee?tab=tasks', icon: 'FiClipboard' },
       { id: 'performance', label: 'Performance Analytics', path: '/service-delivery/employee?tab=performance', icon: 'FiBarChart2' },
       { id: 'history', label: 'Service History', path: '/service-delivery/employee?tab=history', icon: 'FiFileText' },
       { id: 'queue', label: 'Department Queue', path: '/service-delivery/employee?tab=queue', icon: 'FiList' },
@@ -181,11 +189,15 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       { id: 'reports', label: 'Reports', path: '/service-delivery/department-manager?tab=reports', icon: 'FiFile' }
     ];
   }
-  
-  // If no permissions set yet, return minimal navigation
-  if (!hasPermissions) {
-    console.log('[Layout] No permissions from backend, showing minimal nav');
-    return getMinimalNavigation(userRole);
+
+  // For admin roles, continue to permission-based navigation as before
+  if (isAdmin) {
+    console.log('[Layout] Admin role detected, continuing to permission-based navigation');
+    // Continue to permission-based logic below
+  } else {
+    // If we reach here and it's not admin, the role is unrecognized, so show role selection navigation
+    console.log('[Layout] Unrecognized non-admin role, showing role selection navigation');
+    return getRoleSelectionNavigation(userRole);
   }
   
   // Build dynamic navigation based on user's actual permissions
@@ -208,7 +220,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     navigation.push({
       id: 'dashboard',
       label: 'Dashboard',
-      path: getDashboardRoute(userRole, user.departmentName || user.department_name),
+      path: getDashboardRoute(userRole, user!.departmentName || user!.department_name),
       icon: 'FiHome',
     });
   }
@@ -233,6 +245,9 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     } 
     if ((hasPermission(user, 'admin') || isAdmin) && (hasPermission(user, 'user_management') || isAdmin)) {
       adminChildren.push({ id: 'user-mgmt', label: 'User Management', path: '/admin/user-management', icon: 'FiUser', resource: 'user_management', requiredAction: 'read:user_management' });
+    }
+    if (hasPermission(user, 'admin') || isAdmin) {
+      adminChildren.push({ id: 'system-audit', label: 'System Audit', path: '/admin/system-audit', icon: 'FiActivity', resource: 'admin', requiredAction: 'read' });
     }
     
     if (adminChildren.length > 0) {
@@ -307,32 +322,260 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     }
   }
   
+  // This should never be reached for unrecognized roles, but keep as fallback
   console.log('[Layout] Generated dynamic navigation for role:', userRole, 'Items:', navigation.length);
   return navigation;
 };
 
-// Get minimal navigation for users without permissions yet
-const getMinimalNavigation = (role: string): NavItem[] => {
-  const nav: NavItem[] = [
+// Get role selection navigation for new/unrecognized roles - organized as dropdowns by role
+const getRoleSelectionNavigation = (role: string): NavItem[] => {
+  return [
+    // Overview - top level item above all dropdowns
     {
-      id: 'dashboard',
-      label: 'Dashboard',
-      path: '/under-development',
-      icon: 'FiHome',
+      id: 'overview',
+      label: 'Overview',
+      path: '/admin/overview',
+      icon: 'FiBarChart2',
     },
-  ];
-  
-  // If admin, show admin link
-  if (isAdminRole(role)) {
-    nav.splice(1, 0, {
+
+    // Receptionist dropdown
+    {
+      id: 'receptionist',
+      label: 'Receptionist',
+      path: '/service-delivery/receptionist',
+      icon: 'FiHome',
+      children: [
+        {
+          id: 'receptionist-dashboard',
+          label: 'Dashboard',
+          path: '/service-delivery/receptionist',
+          icon: 'FiHome',
+        },
+        {
+          id: 'receptionist-assigned-visitors',
+          label: 'Assigned Visitors',
+          path: '/service-delivery/receptionist?tab=visitors',
+          icon: 'FiUsers',
+        },
+      ]
+    },
+
+    // Employee dropdown
+    {
+      id: 'employee',
+      label: 'Employee',
+      path: '/service-delivery/employee',
+      icon: 'FiUsers',
+      children: [
+        {
+          id: 'employee-dashboard',
+          label: 'Dashboard',
+          path: '/service-delivery/employee',
+          icon: 'FiGrid',
+        },
+        {
+          id: 'employee-performance',
+          label: 'Performance Analytics',
+          path: '/service-delivery/employee?tab=performance',
+          icon: 'FiBarChart2',
+        },
+        {
+          id: 'employee-history',
+          label: 'Service History',
+          path: '/service-delivery/employee?tab=history',
+          icon: 'FiFileText',
+        },
+        {
+          id: 'employee-queue',
+          label: 'Department Queue',
+          path: '/service-delivery/employee?tab=queue',
+          icon: 'FiList',
+        },
+      ]
+    },
+
+    // Department Manager dropdown
+    {
+      id: 'department-manager',
+      label: 'Department Manager',
+      path: '/service-delivery/department-manager',
+      icon: 'HiOutlineOfficeBuilding',
+      children: [
+        {
+          id: 'dept-manager-dashboard',
+          label: 'Dashboard',
+          path: '/service-delivery/department-manager',
+          icon: 'FiGrid',
+        },
+        {
+          id: 'dept-manager-active-tasks',
+          label: 'Active Tasks',
+          path: '/service-delivery/department-manager?tab=active-tasks',
+          icon: 'FiActivity',
+        },
+        {
+          id: 'dept-manager-completed-requests',
+          label: 'Completed Requests',
+          path: '/service-delivery/department-manager?tab=completed-requests',
+          icon: 'FiCheck',
+        },
+        {
+          id: 'dept-manager-employees',
+          label: 'Employee Management',
+          path: '/service-delivery/department-manager?tab=employees',
+          icon: 'FiUsers',
+        },
+        {
+          id: 'dept-manager-departments',
+          label: 'Department Management',
+          path: '/service-delivery/department-manager?tab=departments',
+          icon: 'FiLayers',
+        },
+        {
+          id: 'dept-manager-feedback',
+          label: 'Feedback & Analytics',
+          path: '/service-delivery/department-manager?tab=feedback',
+          icon: 'FiMessageSquare',
+        },
+      ]
+    },
+
+    // Gate Officer dropdown
+    {
+      id: 'gate-officer',
+      label: 'Gate Officer',
+      path: '/smart-parking/dashboard',
+      icon: 'FiTruck',
+      children: [
+        {
+          id: 'gate-overview',
+          label: 'Overview',
+          path: '/smart-parking/dashboard',
+          icon: 'FiHome',
+        },
+        {
+          id: 'gate-checkin-vehicle',
+          label: 'Check-in Vehicle',
+          path: '/smart-parking/checkin-vehicle',
+          icon: 'FiTruck',
+        },
+        {
+          id: 'gate-checkin-person',
+          label: 'Check-in Person',
+          path: '/smart-parking/checkin-person',
+          icon: 'FiUser',
+        },
+        {
+          id: 'gate-checkout-vehicle',
+          label: 'Check-out Vehicle',
+          path: '/smart-parking/checkout-vehicle',
+          icon: 'FiTruck',
+        },
+        {
+          id: 'gate-checkout-person',
+          label: 'Check-out Person',
+          path: '/smart-parking/checkout-person',
+          icon: 'FiUser',
+        },
+      ]
+    },
+
+    // Admin dropdown
+    {
       id: 'admin',
       label: 'Admin',
       path: '/admin/dashboard',
       icon: 'FiSettings',
-    });
-  }
-  
-  return nav;
+      children: [
+        {
+          id: 'admin-dashboard',
+          label: 'Dashboard',
+          path: '/admin/dashboard',
+          icon: 'FiHome',
+        },
+        {
+          id: 'admin-departments',
+          label: 'Departments',
+          path: '/admin/departments',
+          icon: 'FiGrid',
+        },
+        {
+          id: 'admin-employees',
+          label: 'Employees',
+          path: '/admin/employees',
+          icon: 'FiUsers',
+        },
+        {
+          id: 'admin-user-management',
+          label: 'User Management',
+          path: '/admin/user-management',
+          icon: 'FiUser',
+        },
+        {
+          id: 'admin-roles-management',
+          label: 'Roles Management',
+          path: '/admin/roles-management',
+          icon: 'FiShield',
+        },
+      ]
+    },
+
+    // Smart Parking dropdown
+    {
+      id: 'smart-parking',
+      label: 'Smart Parking',
+      path: '/admin/smart-parking',
+      icon: 'FiTruck',
+      children: [
+        {
+          id: 'parking-dashboard',
+          label: 'Dashboard',
+          path: '/admin/smart-parking',
+          icon: 'FiHome',
+        },
+        {
+          id: 'parking-reservation',
+          label: 'Reservation',
+          path: '/admin/smart-parking/reservation',
+          icon: 'FiCalendar',
+        },
+      ]
+    },
+
+    // Service Delivery dropdown
+    {
+      id: 'service-delivery',
+      label: 'Service Delivery',
+      path: '/admin/service-delivery/dashboard',
+      icon: 'FiClipboard',
+      children: [
+        {
+          id: 'service-dashboard',
+          label: 'Dashboard',
+          path: '/admin/service-delivery/dashboard',
+          icon: 'FiHome',
+        },
+        {
+          id: 'service-checkin-checkout',
+          label: 'Check-In/Check-Out',
+          path: '/admin/service-delivery/checkin-checkout',
+          icon: 'FiLogIn',
+        },
+        {
+          id: 'service-analytics',
+          label: 'Analytics',
+          path: '/admin/service-delivery/analytics',
+          icon: 'FiBarChart2',
+        },
+        {
+          id: 'service-feedback',
+          label: 'Feedback',
+          path: '/admin/service-delivery/feedback',
+          icon: 'FiMessageSquare',
+        },
+      ]
+    },
+  ];
 };
 
 // ==================== Sidebar Link Conversion ====================
@@ -413,7 +656,7 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
 
   // Employee role check - redirect to employee dashboard
   // More flexible matching to catch various role formats
-  if (normalizedRole.includes('employee') || 
+  if (normalizedRole.includes('employee') ||
       normalizedRole.includes('staff') ||
       normalizedRole.includes('officer') ||
       normalizedRole.includes('clerk')) {
@@ -423,21 +666,21 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
 
   // 👉 ADDED THIS MANAGER CHECK RIGHT HERE:
   // IMPORTANT: More specific checks must come BEFORE general ones to avoid "manager" matching "receptionist"
-  if (normalizedRole.includes('department manager') || 
+  if (normalizedRole.includes('department manager') ||
       normalizedRole.includes('department head') ||
       normalizedRole.includes('head of department') ||
       normalizedRole.includes('director')) {
     console.log('[getDashboardRoute] Matched department manager/head/director');
     return '/service-delivery/department-manager';
   }
-  
+
   // Generic "manager" or "head" checks should come AFTER receptionist check
   // But we need to exclude receptionist from these generic checks
   if ((normalizedRole.includes('manager') || normalizedRole.includes('head')) && !normalizedRole.includes('receptionist')) {
     console.log('[getDashboardRoute] Matched manager/head (not receptionist)');
     return '/service-delivery/department-manager';
   }
-  
+
   // If admin/system role, go to admin dashboard
   if (normalizedRole.includes('admin') || normalizedRole.includes('system')) {
     console.log('[getDashboardRoute] Matched admin/system');
@@ -447,7 +690,7 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
   // Check department name for department-specific routing
   if (departmentName) {
     const dept = departmentName.toLowerCase();
-    
+
     if (dept.includes('it') || dept.includes('finance') || dept.includes('operations')) {
       console.log('[getDashboardRoute] Matched IT/Finance/Ops department');
       return '/smart-parking/dashboard';
@@ -457,7 +700,7 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
       return '/service-delivery/dashboard';
     }
   }
-  
+
   // Default - try to determine from role
   // Check for Gate and Vehicle Registrar role (parking/security related)
   if (normalizedRole.includes('gate') && normalizedRole.includes('vehicle')) {
@@ -472,21 +715,21 @@ export const getDashboardRoute = (role: string | undefined, departmentName?: str
     console.log('[getDashboardRoute] Matched parking/IT');
     return '/smart-parking/dashboard';
   }
-  
+
   // Service delivery staff (not manager/receptionist) should go to employee dashboard
   if (normalizedRole.includes('service')) {
     console.log('[getDashboardRoute] Matched service (going to employee dashboard)');
     return '/service-delivery/employee';
   }
-  
+
   if (normalizedRole.includes('hr')) {
     console.log('[getDashboardRoute] Matched HR');
     return '/service-delivery/dashboard';
   }
-  
-  // Fallback to under-development
-  console.log('[getDashboardRoute] No match found, going to under-development');
-  return '/under-development';
+
+  // Fallback to employee dashboard as default, but sidebar will show all role options
+  console.log('[getDashboardRoute] No match found, defaulting to employee dashboard');
+  return '/service-delivery/employee';
 };
 
 // Get user department (supports both departmentName and department_name from backend)
@@ -494,6 +737,8 @@ export const getUserDepartment = (user: any): string => {
   if (!user) return '';
   return user.departmentName || user.department_name || '';
 };
+
+
 
 // Get user's available systems based on role (for SystemSelector page)
 // Returns list of systems user can access
@@ -516,7 +761,7 @@ export const getUserSystems = (user: any): Array<{ id: string; name: string; pat
   // If no permissions yet, return minimal
   if (!hasPermissions) {
     return [
-      { id: 'dashboard', name: 'Dashboard', path: '/under-development', icon: 'FiHome' },
+      { id: 'dashboard', name: 'Dashboard', path: '/service-delivery/employee', icon: 'FiHome' },
     ];
   }
   
@@ -541,7 +786,7 @@ export const getUserSystems = (user: any): Array<{ id: string; name: string; pat
     systems.push({ id: 'service', name: 'Service Delivery', path: '/service-delivery/dashboard', icon: 'FiClipboard' });
   }
   
-  return systems.length > 0 ? systems : [{ id: 'dashboard', name: 'Dashboard', path: '/under-development', icon: 'FiHome' }];
+  return systems.length > 0 ? systems : [{ id: 'dashboard', name: 'Dashboard', path: '/service-delivery/employee', icon: 'FiHome' }];
 };
 
 // Check if department has a dedicated dashboard

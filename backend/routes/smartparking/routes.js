@@ -5,6 +5,9 @@
 const Router = require('express').Router()
 const multer = require('multer');
 
+// Import audit logging middleware
+const { auditSuccess, auditError, auditUserActions } = require('../../middlewares/audit');
+
 const { bulkUploadReservations, registerSingleReservation } = require('../../controllers/reservationController');
 const { getAllReservations, createStaffBooking, cancelReservation, reactivateReservation, bulkUploadStaff } = require('../../controllers/reservationsController');
 
@@ -114,24 +117,50 @@ Router.use((error, req, res, next) => {
 })
 
 // Reservation endpoints - must be before /vehicle/:id to avoid conflicts
-Router.get('/reservations', getAllReservations);
-Router.post('/staff-booking', createStaffBooking);
-Router.put('/reservations/:id/cancel', cancelReservation);
-Router.put('/reservations/:id/reactivate', reactivateReservation);
-Router.post('/bulk-staff-upload', upload.any(), bulkUploadStaff);
+Router.get('/reservations', auditSuccess('READ', 'reservations'), getAllReservations);
+Router.post('/staff-booking',
+  auditSuccess('CREATE', 'reservations', (req, res, data) => `Created staff parking reservation for ${req.body.userId || 'unknown user'}`),
+  createStaffBooking
+);
+Router.put('/reservations/:id/cancel',
+  auditSuccess('UPDATE', 'reservations', (req, res, data) => `Cancelled reservation ${req.params.id}`),
+  cancelReservation
+);
+Router.put('/reservations/:id/reactivate',
+  auditSuccess('UPDATE', 'reservations', (req, res, data) => `Reactivated reservation ${req.params.id}`),
+  reactivateReservation
+);
+Router.post('/bulk-staff-upload',
+  auditSuccess('CREATE', 'reservations', (req, res, data) => `Bulk uploaded staff reservations`),
+  upload.any(), bulkUploadStaff
+);
 
-Router.get('/vehicle', list_parking)
-Router.get('/vehicle/search', search_inparking_records)
-Router.get('/vehicle/flagged', list_flagged_cars)
-Router.get('/vehicle/:id', get_parking_record_by_id)
-Router.post('/vehicle/verify', verify_acar)
-Router.post('/vehicle/checkin', check_in)
-Router.post('/vehicle/checkout', check_out)
+Router.get('/vehicle', auditSuccess('READ', 'vehicles'), list_parking)
+Router.get('/vehicle/search', auditSuccess('READ', 'vehicles'), search_inparking_records)
+Router.get('/vehicle/flagged', auditSuccess('READ', 'vehicles'), list_flagged_cars)
+Router.get('/vehicle/:id', auditSuccess('READ', 'vehicles'), get_parking_record_by_id)
+Router.post('/vehicle/verify', auditSuccess('READ', 'vehicles'), verify_acar)
+Router.post('/vehicle/checkin',
+  auditSuccess('CREATE', 'vehicles', auditUserActions.checkIn),
+  check_in
+)
+Router.post('/vehicle/checkout',
+  auditSuccess('UPDATE', 'vehicles', auditUserActions.checkOut),
+  check_out
+)
 // Option A: Single Visitor (Raw JSON)
-Router.post('/register-single', registerSingleReservation);
+Router.post('/register-single',
+  auditSuccess('CREATE', 'reservations', (req, res, data) => `Created single visitor reservation`),
+  registerSingleReservation
+);
 
 // Option B: Bulk Excel Upload (Files)
-Router.post('/bulk-upload', upload.any(), bulkUploadReservations);
+Router.post('/bulk-upload',
+  auditSuccess('CREATE', 'reservations', (req, res, data) => `Bulk uploaded visitor reservations`),
+  upload.any(), bulkUploadReservations
+);
 
+// Add error logging middleware
+Router.use(auditError('smart_parking'))
 
 module.exports = Router
