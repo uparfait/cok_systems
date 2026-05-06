@@ -3,10 +3,10 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { 
-  login as authLogin, 
-  logout as authLogout, 
-  getCurrentUser, 
+import {
+  login as authLogin,
+  logout as authLogout,
+  getCurrentUser,
   verifyLoginOTP,
   resendLoginOTP,
   requestPasswordReset,
@@ -18,7 +18,8 @@ import {
   verifyFirstLoginOTP,
   activateAccount,
   resendFirstLoginOTP,
-  getToken
+  getToken,
+  validateToken
 } from '../services/authService';
 
 // User interface
@@ -89,46 +90,69 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
   const [token, setToken] = useState<string | null>(null);
 
-  // Check authentication on mount
-  const checkAuth = useCallback(() => {
-    const currentUser = getCurrentUser();
-    const currentToken = getToken();
-    
-    console.log('[AuthContext checkAuth] getCurrentUser():', currentUser ? 'present' : 'null');
-    console.log('[AuthContext checkAuth] getToken():', currentToken ? 'present' : 'null');
-    
-    if (currentUser && currentToken) {
-      console.log('[AuthContext checkAuth] Setting user from token:', currentUser.email);
-      setUser(currentUser);
-      setPermissions(currentUser.permissions || []);
-      setToken(currentToken);
-    } else {
-      // Check if tokens exist in localStorage from OTP verification
+  // Check authentication on mount - now validates tokens with backend
+  const checkAuth = useCallback(async () => {
+    console.log('[AuthContext checkAuth] Starting authentication check...');
+
+    try {
+      // First check if we have stored tokens
       const storedUserData = localStorage.getItem('userData');
       const storedAccessToken = localStorage.getItem('accessToken');
-      
+
       console.log('[AuthContext checkAuth] storedUserData:', !!storedUserData, 'accessToken:', !!storedAccessToken);
-      
+
       if (storedUserData && storedAccessToken) {
         try {
           const parsedUser = JSON.parse(storedUserData);
-          console.log('[AuthContext checkAuth] Setting user from localStorage:', parsedUser.email);
-          setUser(parsedUser);
-          setPermissions(parsedUser.permissions || []);
-          setToken(storedAccessToken);
-        } catch (e) {
-          console.log('[AuthContext checkAuth] Failed to parse stored user data');
+          console.log('[AuthContext checkAuth] Found stored user data for:', parsedUser.email);
+
+          // Validate the token with the backend
+          console.log('[AuthContext checkAuth] Validating token with backend...');
+          const validationResult = await validateToken();
+
+          if (validationResult.isValid) {
+            console.log('[AuthContext checkAuth] Token is valid, setting authenticated user');
+            setUser(parsedUser);
+            setPermissions(parsedUser.permissions || []);
+            setToken(storedAccessToken);
+          } else {
+            console.log('[AuthContext checkAuth] Token is invalid, clearing stored data');
+            // Token is invalid, clear stored data
+            localStorage.removeItem('userData');
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            setUser(null);
+            setPermissions([]);
+            setToken(null);
+          }
+        } catch (parseError) {
+          console.log('[AuthContext checkAuth] Failed to parse stored user data:', parseError);
+          // Clear corrupted data
+          localStorage.removeItem('userData');
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
           setUser(null);
           setPermissions([]);
           setToken(null);
         }
       } else {
-        console.log('[AuthContext checkAuth] No user found, setting null');
+        console.log('[AuthContext checkAuth] No stored authentication data found');
         setUser(null);
         setPermissions([]);
+        setToken(null);
       }
+    } catch (error) {
+      console.error('[AuthContext checkAuth] Error during authentication check:', error);
+      // On error, clear any potentially corrupted data and set unauthenticated
+      localStorage.removeItem('userData');
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      setUser(null);
+      setPermissions([]);
+      setToken(null);
     }
-    
+
+    console.log('[AuthContext checkAuth] Authentication check complete');
     setIsLoading(false);
   }, []);
 

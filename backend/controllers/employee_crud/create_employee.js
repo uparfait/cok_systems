@@ -4,6 +4,9 @@ const allowed_resources = require('../../resources/resources.js')
 const department_model = require('../../models/department.js')
 const mongoose = require('mongoose')
 
+// Import audit logging
+const { logAuditEvent } = require('../../middlewares/audit')
+
 module.exports = async function create_user(req, res, next) {
     try {
         let {
@@ -23,6 +26,16 @@ module.exports = async function create_user(req, res, next) {
 
         // Validate essential required fields
         if (!full_name || !email || !telephone) {
+            await logAuditEvent('SYSTEM', 'Employee creation failed: Missing required fields', req, {
+                resource: 'users',
+                status_code: 400,
+                metadata: {
+                    hasFullName: !!full_name,
+                    hasEmail: !!email,
+                    hasTelephone: !!telephone
+                }
+            });
+
             return res.status(400).json({
                 success: false,
                 type: "warning",
@@ -36,6 +49,13 @@ module.exports = async function create_user(req, res, next) {
                 const dept = await department_model.findById(department_id)
 
                 if (!dept) {
+                    await logAuditEvent('SYSTEM', `Employee creation failed: Department not found (${department_id})`, req, {
+                        resource: 'departments',
+                        resource_id: department_id,
+                        status_code: 404,
+                        metadata: { department_id }
+                    });
+
                     return res.status(404).json({
                         success: false,
                         type: "warning",
@@ -46,6 +66,12 @@ module.exports = async function create_user(req, res, next) {
                 dpt = dept
                 dpt_to_update = dept // Store the department to update total_employees later
             } else {
+                await logAuditEvent('SYSTEM', `Employee creation failed: Invalid department ID format (${department_id})`, req, {
+                    resource: 'departments',
+                    status_code: 400,
+                    metadata: { department_id }
+                });
+
                 return res.status(400).json({
                     success: false,
                     type: "warning",
@@ -59,6 +85,13 @@ module.exports = async function create_user(req, res, next) {
             if(mongoose.Types.ObjectId.isValid(department_unit)) {
                 const deptUnitExists = await department_model.findById(department_unit)
                 if (!deptUnitExists) {
+                    await logAuditEvent('SYSTEM', `Employee creation failed: Department unit not found (${department_unit})`, req, {
+                        resource: 'departments',
+                        resource_id: department_unit,
+                        status_code: 404,
+                        metadata: { department_unit }
+                    });
+
                     return res.status(404).json({
                         success: false,
                         type: "warning",
@@ -69,6 +102,12 @@ module.exports = async function create_user(req, res, next) {
                 dpt_to_update = deptUnitExists // If department unit is specified and valid, update this one instead of the main department
 
         } else {
+            await logAuditEvent('SYSTEM', `Employee creation failed: Invalid department unit format (${department_unit})`, req, {
+                resource: 'departments',
+                status_code: 400,
+                metadata: { department_unit }
+            });
+
             return res.status(400).json({
                 success: false,
                 type: "warning",
@@ -86,6 +125,16 @@ module.exports = async function create_user(req, res, next) {
             const existing_user = await user_model.findOne({ $or: query_conditions })
             if (existing_user) {
                 const conflict_field = existing_user.email === email ? 'Email' : 'Telephone'
+                await logAuditEvent('SYSTEM', `Employee creation failed: ${conflict_field} already exists (${email || telephone})`, req, {
+                    resource: 'users',
+                    status_code: 409,
+                    metadata: {
+                        conflict_field: conflict_field.toLowerCase(),
+                        email,
+                        telephone
+                    }
+                });
+
                 return res.status(409).json({
                     success: false,
                     type: "warning",
@@ -133,6 +182,12 @@ module.exports = async function create_user(req, res, next) {
                 )
                 
                 if (!resourceDef) {
+                    await logAuditEvent('SYSTEM', `Employee creation failed: Invalid resource (${resourceName})`, req, {
+                        resource: 'permissions',
+                        status_code: 400,
+                        metadata: { invalid_resource: resourceName }
+                    });
+
                     return res.status(400).json({
                         success: false,
                         type: "warning",
@@ -215,20 +270,34 @@ module.exports = async function create_user(req, res, next) {
 
         await new_user.save()
 
+        // Log successful employee creation
+        await logAuditEvent('CREATE', `Employee account created: ${full_name} (${email})`, req, {
+            resource: 'users',
+            resource_id: new_user._id.toString(),
+            status_code: 201,
+            metadata: {
+                full_name,
+                email,
+                department_id,
+                department_unit,
+                role: roles.role_name
+            }
+        });
+
        // FIXED: Safely increment total_employees using the exact MongoDB _id
-        if(department_id && department_id !== 'Not specified' && mongoose.Types.ObjectId.isValid(department_id)) {
-            const dept = await department_model.findById(department_id)
-            if (dept) {
-                dept.total_employees = (dept.total_employees || 0) + 1
-                await dept.save()
-            }
+         if(department_id && department_id !== 'Not specified' && mongoose.Types.ObjectId.isValid(department_id)) {
+             const dept = await department_model.findById(department_id)
+             if (dept) {
+                 dept.total_employees = (dept.total_employees || 0) + 1
+                 await dept.save()
+             }
 
-            if(dpt_to_update && dpt_to_update._id.toString() !== department_id) {
-                dpt_to_update.total_employees = (dpt_to_update.total_employees || 0) + 1
-                await dpt_to_update.save()
-            }
+             if(dpt_to_update && dpt_to_update._id.toString() !== department_id) {
+                 dpt_to_update.total_employees = (dpt_to_update.total_employees || 0) + 1
+                 await dpt_to_update.save()
+             }
 
-        }
+         }
 
         return res.status(201).json({
             success: true,
@@ -237,6 +306,18 @@ module.exports = async function create_user(req, res, next) {
         })
 
     } catch (error) {
+        // Log system error
+        await logAuditEvent('ERROR', `Employee creation system error: ${error.message}`, req, {
+            resource: 'users',
+            status_code: 500,
+            error_message: error.message,
+            metadata: {
+                stack: error.stack,
+                email: req.body?.email,
+                full_name: req.body?.full_name
+            }
+        });
+
         console.error("Error in create_user controller:", error)
         return res.status(500).json({
             success: false,

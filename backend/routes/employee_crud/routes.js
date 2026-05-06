@@ -4,6 +4,8 @@
 
 const Router = require('express').Router()
 
+// Import audit logging middleware
+const { auditSuccess, auditError } = require('../../middlewares/audit')
 
 /**
  * import all routes
@@ -48,17 +50,20 @@ Router.use((error, req, res, next) => {
     next()
 })
 
-Router.get('/', list_all_employees)
-Router.get('/search', search_employees)
-Router.get('/by-department', get_employees_by_department)
-Router.get('/:id', get_employee_by_id)
-Router.post('/', create_employee)
+Router.get('/', auditSuccess('READ', 'employees'), list_all_employees)
+Router.get('/search', auditSuccess('READ', 'employees'), search_employees)
+Router.get('/by-department', auditSuccess('READ', 'employees'), get_employees_by_department)
+Router.get('/:id', auditSuccess('READ', 'employees'), get_employee_by_id)
+Router.post('/', auditSuccess('CREATE', 'employees', (req, res, data) => `Created new employee: ${data?.data?.full_name || req.body.full_name || 'unknown'}`), create_employee)
 // 👉 2. ADDED MY NEW VEHICLE ROUTES HERE
-Router.post('/register-car', registerSingleStaffCar)
-Router.post('/bulk-upload-cars', bulkUploadStaffCars)
+Router.post('/register-car', auditSuccess('CREATE', 'vehicles', (req, res, data) => `Registered staff vehicle: ${req.body.plate_number || 'unknown'}`), registerSingleStaffCar)
+Router.post('/bulk-upload-cars', auditSuccess('CREATE', 'vehicles', (req, res, data) => `Bulk uploaded staff vehicles`), bulkUploadStaffCars)
 
-Router.put('/:id', update_employee)
-Router.delete('/:id', delete_employee)
+Router.put('/:id', auditSuccess('UPDATE', 'employees', (req, res, data) => `Updated employee: ${req.params.id}`), update_employee)
+Router.delete('/:id', auditSuccess('DELETE', 'employees', (req, res, data) => `Deleted employee: ${req.params.id}`), delete_employee)
+
+// Add error logging middleware
+Router.use(auditError('employees'))
 
 
 module.exports = Router

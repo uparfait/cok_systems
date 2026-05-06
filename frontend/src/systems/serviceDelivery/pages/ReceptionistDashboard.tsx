@@ -32,6 +32,8 @@ import { useToast } from "../../../core/contexts/ToastContext";
 // Import components
 import AssignedVisitorsList from "../components/departmentFlow/AssignedVisitorsList";
 import AssignVisitorModal from "../components/departmentFlow/AssignVisitorModal";
+import Table from "../../../core/components/Table";
+import type { TableHeader, TablePagination } from "../../../core/components/Table";
 
 
 // Types - Matching your backend structure
@@ -206,10 +208,9 @@ const ReceptionistDashboard: React.FC = () => {
   // FETCH LIVE DATA
   const loadData = async () => {
     const isSearch = searchTerm && searchTerm.trim();
-    if(firstLoadVisitors) {
-      setIsLoading(true);
-    }
-    if (isSearch && firstLoadVisitors) {
+    // Show loading on initial load or pagination changes
+    setIsLoading(true);
+    if (isSearch) {
       setSearchLoading(true);
     }
     try {
@@ -826,150 +827,98 @@ const ReceptionistDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="overflow-x-auto min-h-[300px] max-h-[500px] overflow-y-auto">
-              <table className="w-full">
-                <thead className="sticky top-0 bg-white z-10">
-                  <tr className="border-b border-gray-100">
-                    <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider px-6 py-4">
-                      BADGE NUMBER
-                    </th>
-                    <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider px-6 py-4">
-                      VISITOR NAME
-                    </th>
-                    <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider px-6 py-4">
-                      ID NUMBER
-                    </th>
-                    <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider px-6 py-4">
-                      STATUS
-                    </th>
-                    <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider px-6 py-4">
-                      CHECK-IN TIME
-                    </th>
-                    <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider px-6 py-4">
-                      PHONE
-                    </th>
-                    <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider px-6 py-4">
-                      ACTIONS
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading && firstLoad ? (
-                    <>
-                      <SkeletonTableRow />
-                      <SkeletonTableRow />
-                      <SkeletonTableRow />
-                      <SkeletonTableRow />
-                      <SkeletonTableRow />
-                    </>
-                  ) : paginatedVisitors.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={7}
-                        className="text-center py-8 text-sm text-gray-500"
+            <Table
+              headers={[
+                { key: 'badge_number', label: 'BADGE NUMBER' },
+                { key: 'full_name', label: 'VISITOR NAME' },
+                { key: 'identification', label: 'ID NUMBER' },
+                { key: 'status', label: 'STATUS' },
+                { key: 'check_in_time', label: 'CHECK-IN TIME' },
+                { key: 'telephone', label: 'PHONE' },
+                { key: 'actions', label: 'ACTIONS' }
+              ]}
+              data={paginatedVisitors}
+              loading={isLoading && firstLoad}
+              emptyMessage="No visitors found."
+              maxHeight="500px"
+              minWidth="1000px"
+              renderCell={(header, visitor, index) => {
+                switch (header.key) {
+                  case 'badge_number':
+                    return (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                        {visitor.badge_number || visitor.badge || "---"}
+                      </span>
+                    );
+                  case 'full_name':
+                    return (
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
+                          {getVisitorName(visitor).substring(0, 2).toUpperCase()}
+                        </div>
+                        <p className="text-sm font-semibold text-gray-800">
+                          {getVisitorName(visitor)}
+                        </p>
+                      </div>
+                    );
+                  case 'identification':
+                    return (
+                      <p className="text-xs text-gray-600 font-medium">
+                        {getIdentification(visitor)}
+                      </p>
+                    );
+                  case 'status':
+                    return (
+                      <span
+                        className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide ${
+                          visitor.status === "In_progress" || visitor.status === "Inside"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-orange-100 text-orange-600"
+                        }`}
                       >
-                        No visitors found.
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedVisitors.map((visitor) => (
-                      <tr
-                        key={visitor._id || visitor.id}
-                        className="border-b border-gray-50 hover:bg-gray-50 transition-colors"
+                        {visitor.status || "Pending"}
+                      </span>
+                    );
+                  case 'check_in_time':
+                    return (
+                      <p className="text-xs font-semibold text-gray-800">
+                        {getCheckInTime(visitor)}
+                      </p>
+                    );
+                  case 'telephone':
+                    return (
+                      <p className="text-xs text-gray-600">
+                        {visitor.telephone || "---"}
+                      </p>
+                    );
+                  case 'actions':
+                    return visitor.status === "In_progress" || visitor.status === "Inside" ? (
+                      <button className="p-2 text-gray-400 hover:text-blue-600 cursor-not-allowed">
+                        <FiMoreVertical className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleAssignClick(visitor)}
+                        className="px-5 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-md transition-colors shadow-sm"
                       >
-                        <td className="px-6 py-4">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                            {visitor.badge_number || visitor.badge || "---"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
-                            {getVisitorName(visitor)
-                              .substring(0, 2)
-                              .toUpperCase()}
-                          </div>
-                          <p className="text-sm font-semibold text-gray-800">
-                            {getVisitorName(visitor)}
-                          </p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="text-xs text-gray-600 font-medium">
-                            {getIdentification(visitor)}
-                          </p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide ${visitor.status === "In_progress" || visitor.status === "Inside" ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-600"}`}
-                          >
-                            {visitor.status || "Pending"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="text-xs font-semibold text-gray-800">
-                            {getCheckInTime(visitor)}
-                          </p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="text-xs text-gray-600">
-                            {visitor.telephone || "---"}
-                          </p>
-                        </td>
-                        <td className="px-6 py-4">
-                          {visitor.status === "In_progress" ||
-                          visitor.status === "Inside" ? (
-                            <button className="p-2 text-gray-400 hover:text-blue-600 cursor-not-allowed">
-                              <FiMoreVertical className="w-4 h-4" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleAssignClick(visitor)}
-                              className="px-5 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-md transition-colors shadow-sm"
-                            >
-                              Assign
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                        Assign
+                      </button>
+                    );
+                  default:
+                    return <span>{visitor[header.key] || '-'}</span>;
+                }
+              }}
+              pagination={{
+                currentPage,
+                totalPages: Math.ceil(totalCount / itemsPerPage),
+                totalCount,
+                itemsPerPage,
+                onPageChange: (page) => setCurrentPage(page),
+                loading: isLoading
+              }}
+            />
 
-            {/* Pagination Footer */}
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
-              <p className="text-xs text-gray-600">
-                Showing{" "}
-                {paginatedVisitors.length > 0
-                  ? (currentPage - 1) * itemsPerPage + 1
-                  : 0}{" "}
-                to {Math.min(currentPage * itemsPerPage, totalCount)} of{" "}
-                {totalCount} results
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(1, prev - 1))
-                  }
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  Previous
-                </button>
-                <span className="text-sm text-gray-600 py-1 px-3">
-                  Page {currentPage} of {totalPages || 1}
-                </span>
-                <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                  }
-                  disabled={currentPage === totalPages || totalPages === 0}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+
           </div>
         </div>
       )}

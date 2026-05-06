@@ -1,9 +1,59 @@
 @import "tailwindcss";
 
 * {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif  
+}
+/* Base: make scrolling smooth */
+* {
+  scroll-behavior: smooth;
 }
 
+/* === Chrome, Edge, Safari (WebKit-based browsers) === */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #1e3a8a, #3b82f6);
+  border-radius: 10px;
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Hover effect */
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #1e40af, #60a5fa);
+}
+
+
+/* === Firefox === */
+* {
+  scrollbar-width: thin; /* makes it small */
+  scrollbar-color: #3b82f6 transparent; /* thumb + track */
+}
+
+
+/* === Hide scrollbar on tablets & smaller devices === */
+@media (max-width: 1024px) {
+  /* Chrome, Safari, Edge */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-width: none;
+  }
+
+  /* IE/old Edge fallback */
+  body {
+    -ms-overflow-style: none;
+  }
+}
 :root {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   line-height: 1.5;

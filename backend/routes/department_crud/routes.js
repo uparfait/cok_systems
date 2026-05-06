@@ -4,6 +4,8 @@
 
 const Router = require('express').Router()
 
+// Import audit logging middleware
+const { auditSuccess, auditError } = require('../../middlewares/audit')
 
 /**
  * import all routes
@@ -44,14 +46,17 @@ Router.use((error, req, res, next) => {
     next()
 })
 
-Router.get('/', list_all_departments)
-Router.get('/search', search_department)
-Router.get('/leader/:email', get_department_leader)
-Router.get('/:department_id', get_department_by_id)
-Router.get('/:departmentId/sub-departments', get_department_sub_departments)
-Router.post('/', create_department)
-Router.put('/:id', update_department)
-Router.delete('/:id', delete_department)
+Router.get('/', auditSuccess('READ', 'departments'), list_all_departments)
+Router.get('/search', auditSuccess('READ', 'departments'), search_department)
+Router.get('/leader/:email', auditSuccess('READ', 'departments'), get_department_leader)
+Router.get('/:department_id', auditSuccess('READ', 'departments'), get_department_by_id)
+Router.get('/:departmentId/sub-departments', auditSuccess('READ', 'departments'), get_department_sub_departments)
+Router.post('/', auditSuccess('CREATE', 'departments', (req, res, data) => `Created new department: ${data?.data?.department_name || req.body.department_name || 'unknown'}`), create_department)
+Router.put('/:id', auditSuccess('UPDATE', 'departments', (req, res, data) => `Updated department: ${req.params.id}`), update_department)
+Router.delete('/:id', auditSuccess('DELETE', 'departments', (req, res, data) => `Deleted department: ${req.params.id}`), delete_department)
+
+// Add error logging middleware
+Router.use(auditError('departments'))
 
 
 module.exports = Router

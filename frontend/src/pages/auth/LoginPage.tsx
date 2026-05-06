@@ -1,7 +1,7 @@
 // LoginPage - User login page with proper auth integration
 
-import React, { useState } from 'react';
-import { FiLogIn } from 'react-icons/fi';
+import React, { useState, useEffect } from 'react';
+import { FiLogIn, FiLoader } from 'react-icons/fi';
 import {  useNavigate } from 'react-router-dom';
 import FirstTimeLoginOTPModal from '../../core/components/Modals/FirstTimeLoginOTPModal';
 import PasswordSetupModal from '../../core/components/Modals/PasswordSetupModal';
@@ -11,6 +11,8 @@ import FeedbackModal from '../../core/components/Modals/FeedbackModal';
 import { useAuth } from '../../core/contexts/AuthContext';
 import { useToast } from '../../core/contexts/ToastContext';
 import { getDashboardRoute } from '../../core/components/Layout/layoutUtils';
+import { validateToken } from '../../core/services/authService';
+import { getStoredUser } from '../../core/services/apiClient';
 
 const LoginPage = () => {
   const { login } = useAuth();
@@ -31,11 +33,68 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const navigate = useNavigate();
 
   // Images from public folder
   const cityHallImage = '/cok_hall.jpg';
   const logoImage = '/LOGO_COK.png';
+
+  // Check for existing authentication on component mount
+  useEffect(() => {
+    const checkExistingAuth = async () => {
+      try {
+        console.log('[LoginPage] Checking for existing authentication...');
+
+        // Check if we have stored tokens
+        const storedUser = getStoredUser();
+        const storedToken = localStorage.getItem('accessToken');
+
+        if (!storedToken || !storedUser) {
+          console.log('[LoginPage] No stored authentication found, showing login form');
+          setIsCheckingAuth(false);
+          return;
+        }
+
+        console.log('[LoginPage] Found stored authentication, validating token...');
+
+        // Validate the token with the backend
+        const validationResult = await validateToken();
+
+        if (validationResult.isValid && validationResult.user) {
+          console.log('[LoginPage] Token is valid, redirecting to dashboard...');
+
+          // Token is valid, redirect to appropriate dashboard
+          const userRole = validationResult.user.role || '';
+          const userDepartment = validationResult.user.department_name ||
+                               validationResult.user.departmentName ||
+                               validationResult.user.department || '';
+
+          const redirectPath = await getDashboardRoute(userRole, userDepartment);
+          console.log('[LoginPage] Redirecting to:', redirectPath);
+          navigate(redirectPath);
+          return;
+        } else {
+          console.log('[LoginPage] Token is invalid or expired, showing login form');
+          // Token is invalid, clear stored data and show login form
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('userData');
+          localStorage.removeItem('refreshToken');
+          setIsCheckingAuth(false);
+          return;
+        }
+      } catch (error) {
+        console.error('[LoginPage] Error checking authentication:', error);
+        // On error, clear any potentially corrupted data and show login form
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('userData');
+        localStorage.removeItem('refreshToken');
+        setIsCheckingAuth(false);
+      }
+    };
+
+    checkExistingAuth();
+  }, [navigate]);
 
   // Track if form is being submitted to prevent multiple submissions
 
@@ -148,6 +207,77 @@ const LoginPage = () => {
     // Navigate to reset password page with userId
     navigate(`/reset-password?userId=${userId}`);
   };
+
+  // Show authenticating component while checking for existing auth
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen flex bg-white">
+        {/* Left side - City Hall image with dark overlay and text */}
+        <div className="hidden lg:flex lg:w-1/2 relative">
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${cityHallImage})` }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
+          </div>
+
+          <div className="relative z-10 flex flex-col justify-end p-7 lg:p-14  text-white w-full h-full">
+            {/* COK OFFICIAL PORTAL pill */}
+            <div className="inline-flex  items-center px-3 py-1.5 mb-6 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 text-xs font-semibold tracking-wide uppercase w-max cok-badge-animated">
+              <span className="mr-1.5 inline-flex h-3 w-3 items-center justify-center rounded-full border border-white/60">
+                <span className="h-1.5 w-1.5 rounded-full bg-white" />
+              </span>
+              <span className="font-bold">COK Official Portal</span>
+            </div>
+
+            {/* Main heading and description */}
+            <div className="space-y-2 max-w-xl ">
+              <h1 className="poetsen-one-regular text-2xl md:text-3xl lg:text-4xl tracking-tight leading-snug">
+                Smart Entry & <br/> Service Management
+              </h1>
+              <p className="public-sans-regular text-xs md:text-sm text-[#EFF6FF] font-semibold">
+                Serving the City of Kigali with efficiency and security.
+              </p>
+              <p className="public-sans-regular text-xs text-[#EFF6FF] font-semibold max-w-md">
+                Access the KSESM portal to manage administrative tasks and secure entry logs.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right side - Authenticating component */}
+        <div className="w-full md:w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-white">
+          <div className="w-full max-w-lg px-2 sm:px-4">
+            <div className="bg-white">
+              {/* Logo and authenticating text */}
+              <div className="text-center mb-4 sm:mb-5">
+                <img
+                  src={logoImage}
+                  alt="City of Kigali"
+                  className="h-16 sm:h-20 md:h-24 w-auto mx-auto mb-2"
+                />
+                <p className="text-base sm:text-lg font-bold text-[#0D141C]">
+                  Authenticating...
+                </p>
+              </div>
+
+              {/* Loading spinner */}
+              <div className="flex flex-col items-center justify-center py-8">
+                <div className="relative">
+                  <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                  
+                </div>
+                <p className="mt-4 text-sm text-gray-600 font-medium">
+                  waiting...
+                </p>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex bg-white">

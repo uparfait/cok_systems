@@ -14,7 +14,7 @@
 
 ### Phase 3: Testing
 - [x] Verify all forms work correctly
-- [x] Test responsiveness
+- [x] Test responsiveness.
 
 ---
 

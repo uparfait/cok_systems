@@ -7,6 +7,7 @@ const Router = require('express').Router()
 const service_delivery = require("./service_delivery/routes.js")
 const smartparking = require("./smartparking/routes.js")
 const auth = require("./auth/routes.js")
+const audit = require("./audit/routes.js")
 const department = require('./department_crud/routes.js')
 const employee = require("./employee_crud/routes.js")
 const parfaits_api_docs = require("./parfaits_api_docs/routes.js")
@@ -20,17 +21,24 @@ const statistics = require('./statistics/routes.js')
 const create_multiple_employees = require('./create_multiple_employees/routes.js')
 const profile = require('./profile/routes.js')
 const department_manager = require('./department_manager_routes.js')
+const task_management = require('./task_management/routes.js')
+const notifications = require('./notifications/routes.js')
 
 
-Router.use('/servicedelivery', 
-           authenticate,
-     // 
-    service_delivery)
+Router.use('/servicedelivery',
+            authenticate,
+      //
+     service_delivery)
 
-Router.use("/smartparking", 
-           authenticate,
-     //
-    smartparking)
+Router.use("/smartparking",
+            authenticate,
+      //
+     smartparking)
+
+Router.use('/audit',
+            authenticate,
+      //
+     audit)
 
 Router.use('/department/crud', 
            authenticate,
@@ -60,5 +68,12 @@ Router.use('/multiple',
       create_multiple_employees)
 Router.use('/profile', authenticate, profile)
 Router.use('/department-manager', authenticate, department_manager)
+Router.use('/tasks', authenticate, task_management)
+Router.use('/notifications', authenticate, notifications)
+
+// Serve uploaded files
+const path = require('path')
+const express = require('express')
+Router.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 
 module.exports = Router
