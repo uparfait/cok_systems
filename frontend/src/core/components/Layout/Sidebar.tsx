@@ -178,11 +178,16 @@ const Sidebar: React.FC<SidebarProps> = ({
     const currentPathname = location.pathname;
     const currentSearch = location.search;
     const currentFullPath = currentPathname + currentSearch;
+
+    if(path === '/service-delivery/employee' && currentPathname?.includes('/service-delivery/visitors')) {
+      return true;
+    }
     
     const linkPathname = path.split('?')[0];
     const linkSearch = path.includes('?') ? '?' + path.split('?')[1] : '';
 
     // 1. Exact match including query string
+    //if()
     if (currentFullPath === path) return true;
 
     // 2. Base path match handling tabs
