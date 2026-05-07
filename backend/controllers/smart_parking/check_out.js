@@ -217,23 +217,23 @@ module.exports = async function car_check_out(req, res, next) {
         : `Vehicle ${plate_number} checked out.`,
     });
 
-    // check car type and update the parking slot availability accordingly
+    // Update slot counts: increment available slots back AND decrement occupied
 
     try {
       if (parking_session.driver_type.toLowerCase() === "visitor") {
         await ParkingSlot.findOneAndUpdate(
           { UnChangedId: "parking_slots" },
-          { $inc: { visitorsAvailableSlots: 1 } },
+          { $inc: { visitorsAvailableSlots: 1, visitorOccupiedCount: -1 } },
         );
       } else if (parking_session.driver_type.toLowerCase() === "staff") {
         await ParkingSlot.findOneAndUpdate(
           { UnChangedId: "parking_slots" },
-          { $inc: { staffAvailableSlots: 1 } },
+          { $inc: { staffAvailableSlots: 1, staffOccupiedCount: -1 } },
         );
       } else if (parking_session.driver_type.toLowerCase() === "regular") {
         await ParkingSlot.findOneAndUpdate(
           { UnChangedId: "parking_slots" },
-          { $inc: { RegularAvailableSlots: 1 } },
+          { $inc: { RegularAvailableSlots: 1, regularOccupiedCount: -1 } },
         );
       }
     } catch (error) {
