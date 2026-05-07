@@ -24,9 +24,29 @@ const updateTask = async (req, res) => {
             })
         }
 
-        // Convert dueDate to Date object if provided
+        // Convert dates to Date objects if provided
         if (updateData.dueDate) {
             updateData.dueDate = new Date(updateData.dueDate)
+        }
+        if (updateData.startDate) {
+            updateData.startDate = new Date(updateData.startDate)
+        }
+
+        // Auto-update status based on start date
+        if (updateData.startDate && (!updateData.status || updateData.status === 'Under-review')) {
+            const startDate = new Date(updateData.startDate)
+            const today = new Date()
+            const yesterday = new Date(today)
+            yesterday.setDate(today.getDate() - 1)
+
+            // Set to In-progress if start date is today or yesterday
+            const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+            const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+            const yesterdayOnly = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate())
+
+            if (startDateOnly.getTime() <= todayOnly.getTime() && startDateOnly.getTime() >= yesterdayOnly.getTime()) {
+                updateData.status = 'In-progress'
+            }
         }
 
         // Add updatedAt timestamp
@@ -45,7 +65,7 @@ const updateTask = async (req, res) => {
             .populate('createdBy', 'full_name email')
             .populate('belongs.itBelongsTo', 'full_name email')
             .populate('comments.commenter', 'full_name email')
-            .populate('attachments.uploadedBy', 'full_name email')
+            .populate('attachmentsFile.uploadedBy', 'full_name email')
             .populate('activities.user', 'full_name email')
 
         if (!updatedTask) {
