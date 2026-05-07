@@ -135,6 +135,8 @@ export const addChecklist = (taskId: string, checklist: {
 export const updateChecklist = (taskId: string, checklistId: string, updates: {
   itemIndex?: number
   completed?: boolean
+  itemText?: string
+  deleteItemIndex?: number
   title?: string
   items?: Array<{ text: string; completed?: boolean }>
 }) =>

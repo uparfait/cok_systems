@@ -1,7 +1,9 @@
 // CreateTaskModal - Modal for creating new tasks
 
 import React, { useState, useRef, useEffect } from 'react'
-import { FiX, FiCalendar, FiUpload, FiBell } from 'react-icons/fi'
+import { FiX, FiCalendar, FiUpload, FiBell, FiEye } from 'react-icons/fi'
+import AttachmentViewer from './AttachmentViewer'
+import type { Attachment } from '../../../core/services/taskService'
 import { useAuth } from '../../../core/contexts/AuthContext'
 import { useToast } from '../../../core/contexts/ToastContext'
 import { createTask } from '../../../core/services/taskService'
@@ -32,6 +34,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
 
   const [attachments, setAttachments] = useState<File[]>([])
   const attachmentsRef = useRef<HTMLInputElement>(null)
+  const [viewingAttachment, setViewingAttachment] = useState<Attachment | null>(null)
 
   // Update form data when TaskStatus prop changes
   useEffect(() => {
@@ -444,19 +447,65 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
                 <span>Add Attachments</span>
               </button>
               {attachments.length > 0 && (
-                <div className="space-y-2">
-                  {attachments.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <span className="text-sm text-gray-700">{file.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeAttachment(index)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <FiX className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-gray-700">
+                      Ready to upload ({attachments.length} file{attachments.length !== 1 ? 's' : ''})
+                    </h4>
+                  </div>
+
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {attachments.map((file, index) => (
+                      <div key={index} className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start space-x-3 flex-1 min-w-0">
+                            <div className="p-2 bg-orange-50 rounded-lg">
+                              <FiUpload className="w-4 h-4 text-orange-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate" title={file.name}>
+                                {file.name}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {(file.size / 1024).toFixed(1)} KB • {file.type || 'Unknown type'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <button
+                              onClick={() => {
+                                // Create a temporary attachment object for viewing
+                                const tempUrl = URL.createObjectURL(file)
+                                const tempAttachment = {
+                                  _id: `temp-${index}`,
+                                  filename: file.name,
+                                  originalName: file.name,
+                                  url: tempUrl,
+                                  type: file.type,
+                                  size: file.size,
+                                  uploadedBy: '',
+                                  uploadedAt: new Date().toISOString(),
+                                  description: ''
+                                } as Attachment
+                                setViewingAttachment(tempAttachment)
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-50 transition-colors"
+                              title="Preview file"
+                            >
+                              <FiEye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => removeAttachment(index)}
+                              className="p-1.5 text-red-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors"
+                              title="Remove file"
+                            >
+                              <FiX className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -668,6 +717,19 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
           </div>
         </form>
       </div>
+
+      {viewingAttachment && (
+        <AttachmentViewer
+          attachment={viewingAttachment}
+          onClose={() => {
+            // Clean up blob URL if it's a temporary attachment
+            if (viewingAttachment._id?.startsWith('temp-')) {
+              URL.revokeObjectURL(viewingAttachment.url)
+            }
+            setViewingAttachment(null)
+          }}
+        />
+      )}
     </div>
   )
 }

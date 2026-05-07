@@ -1,6 +1,6 @@
 // Attachments - Component for attachments display
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState } from 'react'
 import { FiPaperclip, FiEye, FiDownload, FiTrash2, FiMoreVertical } from 'react-icons/fi'
 import type { Attachment } from '../../../core/services/taskService'
 
@@ -18,22 +18,9 @@ const Attachments: React.FC<AttachmentsProps> = ({
   onDeleteAttachment
 }) => {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setOpenDropdown(null)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
   return (
     <div className="bg-gray-50 rounded-lg p-4 mt-6">
-      <h3 className="text-sm font-medium text-gray-700 mb-3">Attachments ({attachments?.length || 0})</h3>
-      <div className="space-y-3 max-h-64 overflow-y-auto">
+      <div className="space-y-3 ">
         {attachments?.map((attachment: Attachment) => (
           <div key={attachment._id} className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow" title={attachment.originalName}>
             <div className="flex items-start justify-between">
@@ -50,7 +37,7 @@ const Attachments: React.FC<AttachmentsProps> = ({
                   )}
                 </div>
               </div>
-              <div className="relative" ref={dropdownRef}>
+              <div className="relative">
                 <button
                   onClick={() => setOpenDropdown(openDropdown === attachment._id ? null : attachment._id!)}
                   className="p-2 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-50 transition-colors"
@@ -63,9 +50,7 @@ const Attachments: React.FC<AttachmentsProps> = ({
                       <p className="text-sm font-medium text-gray-900 truncate" title={attachment.originalName}>
                         {attachment.originalName}
                       </p>
-                      {attachment.size && (
-                        <p className="text-xs text-gray-500">{(attachment.size / 1024).toFixed(1)} KB</p>
-                      )}
+                      
                     </div>
                     <div className="py-1">
                       <button
@@ -105,12 +90,14 @@ const Attachments: React.FC<AttachmentsProps> = ({
             </div>
           </div>
         ))}
+
         {(!attachments || attachments.length === 0) && (
           <div className="text-center py-6 text-gray-500">
             <FiPaperclip className="w-8 h-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm">No attachments yet</p>
           </div>
         )}
+        
       </div>
     </div>
   )

@@ -73,6 +73,8 @@ const TaskManager: React.FC = () => {
     columns: false
   })
 
+  const [firstLoad, setFirstLoad] = useState(true);
+
   // Load tasks
   const loadTasks = useCallback(async (showLoader = true) => {
     if (!user?.userId) return
@@ -104,6 +106,7 @@ const TaskManager: React.FC = () => {
     } catch (error: any) {
       showError(error?.message || 'Failed to load tasks')
     } finally {
+      setFirstLoad(false);
       if (showLoader) setLoading(prev => ({ ...prev, tasks: false }))
     }
   }, [user?.userId, showError])
@@ -215,10 +218,22 @@ const TaskManager: React.FC = () => {
     showSuccess('Task created successfully')
   }
 
-  const handleTaskUpdated = () => {
+  const handleTaskUpdated = (updatedTask?: Task) => {
+    // Update the task in the columns state with the provided updated task data
+    if (updatedTask && selectedTask) {
+      setColumns(prevColumns =>
+        prevColumns.map(column => ({
+          ...column,
+          tasks: column.tasks.map(task =>
+            task._id === selectedTask._id ? updatedTask : task
+          )
+        }))
+      )
+    }
+    // Always reload tasks to ensure consistency
+    loadTasks(false)
     setShowDetailModal(false)
     setSelectedTask(null)
-    loadTasks()
   }
 
   // Horizontal scroll with drag
@@ -334,7 +349,7 @@ const TaskManager: React.FC = () => {
 
               {/* Tasks Container */}
               <div className="p-4 space-y-3 min-h-[500px] max-h-[calc(80vh-100px)] overflow-y-auto custom-scrollbar">
-                {loading.tasks ? (
+                {loading.tasks && firstLoad ? (
                   <div className="flex justify-center items-center py-12">
                     <div className="relative">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400"></div>
@@ -379,9 +394,6 @@ const TaskManager: React.FC = () => {
                         progress={getTaskProgress(task)}
                         statusColor={getTaskStatusColor(task)}
                         onUpdate={() => handleTaskClick(task)}
-                        onDelete={() => {
-                          loadTasks(false)
-                        }}
                         onMove={() => {
                           loadTasks(false)
                         }}
@@ -418,6 +430,9 @@ const TaskManager: React.FC = () => {
             setSelectedTask(null)
           }}
           onUpdate={handleTaskUpdated}
+          onDelete={() => {
+            loadTasks(false)
+          }}
         />
       )}
 

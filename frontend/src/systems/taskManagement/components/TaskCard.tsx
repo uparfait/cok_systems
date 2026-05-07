@@ -1,10 +1,11 @@
 // TaskCard - Individual task card component with progress bar and status indicators
 
 import React, { useState } from 'react'
-import { FiClock, FiMessageSquare, FiPaperclip, FiMoreVertical, FiEdit, FiTrash2, FiMove } from 'react-icons/fi'
+import { FiClock, FiMessageSquare, FiPaperclip, FiMoreVertical, FiEdit, FiMove } from 'react-icons/fi'
 import { useToast } from '../../../core/contexts/ToastContext'
 import { updateTaskStatus, deleteTask } from '../../../core/services/taskService'
 import type { Task, TaskStatus } from '../../../core/services/taskService'
+import { searchDepartment } from '../../../core/services/api'
 
 interface TaskCardProps {
   task: Task
@@ -56,21 +57,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
     }
   }
 
-  const handleDeleteTask = async () => {
-    if (!confirm('Are you sure you want to delete this task?')) return
 
-    setLoading(true)
-    try {
-      await deleteTask(task._id!)
-      showSuccess('Task deleted successfully')
-      onDelete?.()
-    } catch (error: unknown) {
-      showError((error as Error)?.message || 'Failed to delete task')
-    } finally {
-      setLoading(false)
-      setShowDropdown(false)
-    }
-  }
 
   const getProgressBarColor = () => {
     switch (statusColor) {
@@ -94,9 +81,14 @@ const TaskCard: React.FC<TaskCardProps> = ({
   }, [showDropdown])
 
   return (
+    <>
     <div
-      className="task-card bg-white rounded-lg p-4 shadow-sm border border-gray-200  hover:shadow-md transition-all duration-200 max-h-52 overflow-show"
+      className="task-card bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 max-h-[500px] overflow-show"
       onClick={onClick}
+      onContextMenu={(e)=> {
+        e.preventDefault()
+        setShowDropdown(!showDropdown)
+      }}
     >
       {/* Top Dropdown Menu */}
       <div className="flex justify-end mb-2">
@@ -172,18 +164,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
                     </button>
                   )}
 
-                  <div className="border-t border-gray-100 my-1"></div>
 
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDeleteTask()
-                    }}
-                    className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                  >
-                    <FiTrash2 className="w-4 h-4 mr-2" />
-                    Delete Task
-                  </button>
                 </div>
               </div>
             )}
@@ -242,8 +223,14 @@ const TaskCard: React.FC<TaskCardProps> = ({
         </div>
       )}
 
-     
+      
+
+
     </div>
+  
+  </>
+
+    
   )
 }
 
