@@ -62,27 +62,19 @@ const createTask = async (req, res) => {
                             message: 'All checklist items must have text'
                         })
                     }
+                    if (typeof item.completed !== 'boolean') {
+                        return res.status(StatusCodes.BAD_REQUEST).json({
+                            status: false,
+                            message: 'Checklist item completed status must be a boolean'
+                        })
+                    }
                 }
             }
         }
 
         // Validate status and priority
         const validStatuses = ['Under-review', 'In-progress', 'Completed']
-        const validPriorities = ['Low', 'Medium', 'High', 'Urgent']
-
-        if (!validStatuses.includes(status)) {
-            return res.status(StatusCodes.BAD_REQUEST).json({
-                status: false,
-                message: 'Invalid status. Must be one of: ' + validStatuses.join(', ')
-            })
-        }
-
-        if (!validPriorities.includes(priority)) {
-            return res.status(StatusCodes.BAD_REQUEST).json({
-                status: false,
-                message: 'Invalid priority. Must be one of: ' + validPriorities.join(', ')
-            })
-        }
+  
 
         // Validate checklists if provided
         if (taskData.checklists && taskData.checklists.length > 0) {
@@ -99,6 +91,12 @@ const createTask = async (req, res) => {
                             return res.status(StatusCodes.BAD_REQUEST).json({
                                 status: false,
                                 message: 'All checklist items must have text'
+                            })
+                        }
+                        if (typeof item.completed !== 'boolean') {
+                            return res.status(StatusCodes.BAD_REQUEST).json({
+                                status: false,
+                                message: 'Checklist item completed status must be a boolean'
                             })
                         }
                     }

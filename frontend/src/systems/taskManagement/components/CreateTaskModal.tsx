@@ -1,6 +1,6 @@
 // CreateTaskModal - Modal for creating new tasks
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { FiX, FiCalendar, FiUpload, FiBell } from 'react-icons/fi'
 import { useAuth } from '../../../core/contexts/AuthContext'
 import { useToast } from '../../../core/contexts/ToastContext'
@@ -16,7 +16,6 @@ interface CreateTaskModalProps {
 const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, TaskStatus }) => {
   const { user } = useAuth()
   const { showError } = useToast()
-  alert(TaskStatus)
 
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -33,9 +32,18 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
 
   const [attachments, setAttachments] = useState<File[]>([])
   const attachmentsRef = useRef<HTMLInputElement>(null)
-  const [checklists, setChecklists] = useState<Array<{ title: string; items: Array<{ text: string }> }>>([])
+
+  // Update form data when TaskStatus prop changes
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      status: TaskStatus as TaskStatus
+    }))
+  }, [TaskStatus])
+  const [checklists, setChecklists] = useState<Array<{ title: string; items: Array<{ text: string; completed: boolean }> }>>([])
   const [showChecklistForm, setShowChecklistForm] = useState(false)
-  const [checklistForm, setChecklistForm] = useState({ title: '', items: [''] })
+  const [editingChecklistIndex, setEditingChecklistIndex] = useState<number | null>(null)
+  const [checklistForm, setChecklistForm] = useState({ title: '', items: [{ text: '', completed: false }] })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -95,7 +103,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
             ? new Date(`${formData.notifyDate}T${formData.notifyTime}`).toISOString()
             : null
         },
-        checklists: checklists.map(c => ({ title: c.title, items: c.items.map(item => ({ text: item.text.trim(), completed: false })) })),
+        checklists: checklists.map(c => ({ title: c.title, items: c.items.map(item => ({ text: item.text.trim(), completed: item.completed })) })),
         comments: [],
         attachmentsFile: []
       }
@@ -150,13 +158,20 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
   }
 
   const addChecklistItem = () => {
-    setChecklistForm(prev => ({ ...prev, items: [...prev.items, ''] }))
+    setChecklistForm(prev => ({ ...prev, items: [...prev.items, { text: '', completed: false }] }))
   }
 
   const updateChecklistItem = (index: number, text: string) => {
     setChecklistForm(prev => ({
       ...prev,
-      items: prev.items.map((item, i) => i === index ? text : item)
+      items: prev.items.map((item, i) => i === index ? { ...item, text } : item)
+    }))
+  }
+
+  const toggleChecklistItemCompleted = (index: number) => {
+    setChecklistForm(prev => ({
+      ...prev,
+      items: prev.items.map((item, i) => i === index ? { ...item, completed: !item.completed } : item)
     }))
   }
 
@@ -168,20 +183,46 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
   }
 
   const handleAddChecklist = () => {
-    if (!checklistForm.title.trim() || checklistForm.items.some(item => !item.trim())) {
+    if (!checklistForm.title.trim() || checklistForm.items.some(item => !item.text.trim())) {
       showError('Please fill all checklist fields')
       return
     }
-    setChecklists(prev => [...prev, {
+
+    const newChecklist = {
       title: checklistForm.title.trim(),
-      items: checklistForm.items.filter(item => item.trim()).map(text => ({ text: text.trim() }))
-    }])
-    setChecklistForm({ title: '', items: [''] })
+      items: checklistForm.items.filter(item => item.text.trim()).map(item => ({
+        text: item.text.trim(),
+        completed: item.completed
+      }))
+    }
+
+    if (editingChecklistIndex !== null) {
+      // Edit existing checklist
+      setChecklists(prev => prev.map((checklist, index) =>
+        index === editingChecklistIndex ? newChecklist : checklist
+      ))
+    } else {
+      // Add new checklist
+      setChecklists(prev => [...prev, newChecklist])
+    }
+
+    setChecklistForm({ title: '', items: [{ text: '', completed: false }] })
     setShowChecklistForm(false)
+    setEditingChecklistIndex(null)
   }
 
   const removeChecklist = (index: number) => {
     setChecklists(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const editChecklist = (index: number) => {
+    const checklist = checklists[index]
+    setChecklistForm({
+      title: checklist.title,
+      items: checklist.items.map(item => ({ text: item.text, completed: item.completed }))
+    })
+    setEditingChecklistIndex(index)
+    setShowChecklistForm(true)
   }
 
   // Set minimum date to today
@@ -434,20 +475,62 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
               </button>
             </div>
             {checklists.length > 0 && (
-              <div className="space-y-2 mb-2">
+              <div className="space-y-3 mb-4">
                 {checklists.map((checklist, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <div>
-                      <span className="font-medium">{checklist.title}</span>
-                      <span className="text-sm text-gray-500 ml-2">({checklist.items.length} items)</span>
+                  <div key={index} className="bg-white border border-gray-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium text-gray-900">{checklist.title}</h4>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs text-gray-500">
+                          {checklist.items.filter(item => item.completed).length}/{checklist.items.length} completed
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => editChecklist(index)}
+                          className="text-blue-600 hover:text-blue-700 p-1"
+                          title="Edit checklist"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeChecklist(index)}
+                          className="text-red-500 hover:text-red-700 p-1"
+                          title="Remove checklist"
+                        >
+                          <FiX className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeChecklist(index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <FiX className="w-4 h-4" />
-                    </button>
+                    <div className="space-y-1">
+                      {checklist.items.map((item, itemIndex) => (
+                        <div key={itemIndex} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={item.completed}
+                            onChange={() => {
+                              // Update the checklist item completion status directly
+                              setChecklists(prev => prev.map((cl, clIndex) =>
+                                clIndex === index
+                                  ? {
+                                      ...cl,
+                                      items: cl.items.map((it, itIndex) =>
+                                        itIndex === itemIndex ? { ...it, completed: !it.completed } : it
+                                      )
+                                    }
+                                  : cl
+                              ))
+                            }}
+                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                          />
+                          <span className={`text-sm ${item.completed ? 'line-through text-gray-500' : 'text-gray-700'}`}>
+                            {item.text}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -455,57 +538,76 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
 
             {/* Checklist Form */}
             {showChecklistForm && (
-              <div className="bg-gray-50 rounded-lg p-4 mt-2">
-                <div className="space-y-3">
-                  <input
-                    type="text"
-                    placeholder="Checklist title"
-                    value={checklistForm.title}
-                    onChange={(e) => setChecklistForm(prev => ({ ...prev, title: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  {checklistForm.items.map((item, index) => (
-                    <div key={index} className="flex space-x-2">
-                      <input
-                        type="text"
-                        placeholder="Item text"
-                        value={item}
-                        onChange={(e) => updateChecklistItem(index, e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      {checklistForm.items.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeChecklistItem(index)}
-                          className="px-2 py-2 text-red-500 hover:text-red-700"
-                        >
-                          <FiX className="w-4 h-4" />
-                        </button>
-                      )}
+              <div className="bg-gray-50 rounded-lg p-4 mt-2 border border-gray-200">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Checklist Title</label>
+                    <input
+                      type="text"
+                      placeholder="Enter checklist title"
+                      value={checklistForm.title}
+                      onChange={(e) => setChecklistForm(prev => ({ ...prev, title: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Items</label>
+                    <div className="space-y-2">
+                      {checklistForm.items.map((item, index) => (
+                        <div key={index} className="flex items-center space-x-3 bg-white p-3 rounded-lg border border-gray-200">
+                          <input
+                            type="checkbox"
+                            checked={item.completed}
+                            onChange={() => toggleChecklistItemCompleted(index)}
+                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Enter item text"
+                            value={item.text}
+                            onChange={(e) => updateChecklistItem(index, e.target.value)}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                          {checklistForm.items.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeChecklistItem(index)}
+                              className="text-red-500 hover:text-red-700 p-1"
+                              title="Remove item"
+                            >
+                              <FiX className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={addChecklistItem}
-                    className="text-sm text-blue-600 hover:text-blue-700"
-                  >
-                    + Add Item
-                  </button>
-                  <div className="flex space-x-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={addChecklistItem}
+                      className="mt-2 text-sm text-blue-600 hover:text-blue-700 flex items-center space-x-1"
+                    >
+                      <span>+</span>
+                      <span>Add Item</span>
+                    </button>
+                  </div>
+
+                  <div className="flex space-x-2 pt-2 border-t border-gray-200">
                     <button
                       type="button"
                       onClick={handleAddChecklist}
-                      className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
+                      className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
                     >
-                      Add Checklist
+                      {editingChecklistIndex !== null ? 'Update Checklist' : 'Add Checklist'}
                     </button>
                     <button
                       type="button"
                       onClick={() => {
                         setShowChecklistForm(false)
-                        setChecklistForm({ title: '', items: [''] })
+                        setChecklistForm({ title: '', items: [{ text: '', completed: false }] })
+                        setEditingChecklistIndex(null)
                       }}
-                      className="px-4 py-2 text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
+                      className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                     >
                       Cancel
                     </button>
