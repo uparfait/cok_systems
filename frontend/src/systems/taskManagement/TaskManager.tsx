@@ -33,7 +33,7 @@ const TaskManager: React.FC = () => {
   const [isDraggingScroll, setIsDraggingScroll] = useState(false)
   const [startX, setStartX] = useState(0)
   const [scrollLeft, setScrollLeft] = useState(0)
-  const [SelectedColumnStatus, setSelectedColumnStatus] = useState('Under review')
+  const [SelectedColumnStatus, setSelectedColumnStatus] = useState('Under-review')
 
   const [columns, setColumns] = useState<TaskColumn[]>([
     {
@@ -315,7 +315,10 @@ const TaskManager: React.FC = () => {
                       {column.tasks.length}
                     </span>
                     <button
-                      onClick={() => setShowCreateModal(true)}
+                      onClick={() => {
+                        setSelectedColumnStatus(column.status)
+                        setShowCreateModal(true)
+                      }}
                       className="text-white/80 hover:text-white p-1 rounded-full hover:bg-white/20 transition-colors"
                       title={`Add task to ${column.title}`}
                     >
@@ -348,7 +351,7 @@ const TaskManager: React.FC = () => {
                     <p className="text-sm text-slate-500">No tasks</p>
                     <button
                       onClick={() => {
-                        setSelectedColumnStatus("3232323");
+                        setSelectedColumnStatus(column.status);
                         setShowCreateModal(true)
                       }
                       }

@@ -452,7 +452,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                   </div>
                   <div className="p-3 max-h-[300px] overflow-y-auto custom-scrollbar">
                     <Comments
-                      comments={task.comments || []}
+                      comments={task.comments  || []}
                       formatDate={formatDate}
                     />
                     {/* Add Comment Input */}
@@ -471,7 +471,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                           disabled={!commentText.trim() || loadingStates.comments}
                           className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
-                          Send
+                          Add
                         </button>
                       </div>
                     </div>

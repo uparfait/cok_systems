@@ -21,7 +21,7 @@ const Comments: React.FC<CommentsProps> = ({ comments, formatDate }) => {
     <div className="bg-gray-50 rounded-lg p-4">
       <h3 className="text-sm font-medium text-gray-700 mb-3">Comments ({comments?.length || 0})</h3>
       <div className="space-y-4">
-        {comments?.map((comment: Comment) => (
+        {comments?.reverse().map((comment: Comment) => (
           <div key={comment._id} className="bg-white border border-gray-200 rounded-lg p-3">
             <p className="text-sm text-gray-900">{comment.comment}</p>
             <p className="text-xs text-gray-500 mt-1">{formatDate(comment.createdAt)}</p>
