@@ -800,7 +800,8 @@ const FeedbackTab: React.FC<{ showError: (msg: string) => void }> = ({ showError
   };
 
   const getRatingStars = (rating: number) => {
-    return '★'.repeat(rating) + '☆'.repeat(10 - rating);
+    const stars = Math.round(rating / 2);
+    return '★'.repeat(stars) + '☆'.repeat(5 - stars);
   };
 
   return (
@@ -936,51 +937,51 @@ const FeedbackTab: React.FC<{ showError: (msg: string) => void }> = ({ showError
               </div>
             ) : (
               <>
-                <table className="w-full min-w-[1000px] table-fixed">
-                  <thead className="bg-[#F8FAFC] sticky top-0 z-10">
-                    <tr>
-                      <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">VISITOR</th>
-                      <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">DEPARTMENT</th>
-                      <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">RATING</th>
-                      <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">FEEDBACK</th>
-                      <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3">DATE</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {feedback.map((item: any) => (
-                      <tr key={item._id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs mr-3">
-                              {(item.user_name || 'Unknown').charAt(0).toUpperCase()}
-                            </div>
-                            <p className="text-sm font-semibold text-gray-800">{item.user_name || 'Anonymous'}</p>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <p className="text-sm text-gray-600">{item.department_name || 'Unknown'}</p>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <span className={`text-lg font-bold ${getRatingColor(item.rate)}`}>
-                              {getRatingStars(item.rate)}
-                            </span>
-                            <span className="text-sm text-gray-600">({item.rate}/10)</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div
-                            className="text-sm text-gray-900 max-w-xs truncate cursor-pointer hover:text-blue-600"
-                            onClick={() => {
-                              alert(`Feedback Details:\n\n${item.textmessage || 'No feedback message'}\n\nRating: ${item.rate}/10\nDate: ${item.created_date ? new Date(item.created_date).toLocaleDateString() : 'Unknown'}`);
-                            }}
-                          >
-                            {item.textmessage || 'No feedback message'}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <p className="text-sm text-gray-500">
-                            {item.created_date ? new Date(item.created_date).toLocaleDateString() : 'Unknown'}
+<table className="w-full min-w-[1000px] table-fixed">
+                   <thead className="bg-[#F8FAFC] sticky top-0 z-10">
+                     <tr>
+                       <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3 w-[20%]">VISITOR</th>
+                       <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3 w-[20%]">DEPARTMENT</th>
+                       <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3 w-[15%]">RATING</th>
+                       <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3 w-[40%]">FEEDBACK</th>
+                       <th className="text-left text-xs font-bold text-gray-500 uppercase px-4 py-3 w-[15%]">DATE</th>
+                     </tr>
+                   </thead>
+<tbody className="divide-y divide-gray-100">
+                     {feedback.map((item: any) => (
+                       <tr key={item._id} className="hover:bg-gray-50 transition-colors">
+                         <td className="px-4 py-3 whitespace-nowrap w-[20%]">
+                           <div className="flex items-center">
+                             <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs mr-3">
+                               {(item.user_name || 'Unknown').charAt(0).toUpperCase()}
+                             </div>
+                             <p className="text-sm font-semibold text-gray-800">{item.user_name || 'Anonymous'}</p>
+                           </div>
+                         </td>
+                         <td className="px-4 py-3 whitespace-nowrap w-[20%]">
+                           <p className="text-sm text-gray-600 truncate">{item.department_name || 'Unknown'}</p>
+                         </td>
+                         <td className="px-4 py-3 whitespace-nowrap w-[15%]">
+                           <div className="flex items-center gap-2">
+                             <span className={`text-lg font-bold ${getRatingColor(item.rate)}`}>
+                               {getRatingStars(item.rate)}
+                             </span>
+                             <span className="text-sm text-gray-600">({item.rate}/10)</span>
+                           </div>
+                         </td>
+                         <td className="px-4 py-3 w-[40%]">
+                           <div
+                             className="text-sm text-gray-900 max-w-xs truncate cursor-pointer hover:text-blue-600"
+                             onClick={() => {
+                               alert(`Feedback Details:\n\n${item.textmessage || 'No feedback message'}\n\nRating: ${item.rate}/10\nDate: ${item.created_date ? new Date(item.created_date).toLocaleDateString() : 'Unknown'}`);
+                             }}
+                           >
+                             {item.textmessage || 'No feedback message'}
+                           </div>
+                         </td>
+                         <td className="px-4 py-3 whitespace-nowrap w-[15%]">
+                           <p className="text-sm text-gray-500">
+                             {item.created_date ? new Date(item.created_date).toLocaleDateString() : 'Unknown'}
                           </p>
                         </td>
                       </tr>
