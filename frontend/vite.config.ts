@@ -28,6 +28,11 @@ export default defineConfig({
         secure: process.env.VITE_API_URL ? true : false,
         // Don't rewrite the path - keep /cok/api
       },
+      '/uploads': {
+        target: process.env.VITE_API_URL || 'http://localhost:2026',
+        changeOrigin: true,
+        secure: process.env.VITE_API_URL ? true : false,
+      },
     },
   },
 })

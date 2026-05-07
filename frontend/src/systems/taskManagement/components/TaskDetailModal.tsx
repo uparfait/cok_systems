@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react'
 import { FiX, FiEdit, FiPaperclip, FiMessageSquare, FiClock, FiTrash2, FiDownload, FiEye, FiUpload, FiCalendar, FiCheckCircle, FiList, FiImage } from 'react-icons/fi'
 import AttachmentViewer from './AttachmentViewer'
+import ConfirmationModal from './ConfirmationModal'
 import TaskDetails from './TaskDetails'
 import Checklists from './Checklists'
 import Comments from './Comments'
@@ -10,6 +11,7 @@ import { useAuth } from '../../../core/contexts/AuthContext'
 import { useToast } from '../../../core/contexts/ToastContext'
 import {
   updateTask,
+  deleteTask,
   addComment,
   updateChecklist,
   deleteChecklist,
@@ -44,24 +46,35 @@ interface Comment {
 interface TaskDetailModalProps {
   task: Task
   onClose: () => void
-  onUpdate: () => void
+  onUpdate: (updatedTask?: Task) => void
+  onDelete?: () => void
 }
 
-const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, onClose, onUpdate }) => {
+const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, onClose, onUpdate, onDelete }) => {
   const { user } = useAuth()
   const { showSuccess, showError } = useToast()
-  const [task] = useState<Task>(initialTask)
+  const [task, setTask] = useState<Task>(initialTask)
   const [loadingStates, setLoadingStates] = useState({
     task: false,
+    title: false,
+    description: false,
+    dates: false,
     checklists: false,
     comments: false,
     attachments: false
   })
-  const [editing, setEditing] = useState(false)
-  const [editForm, setEditForm] = useState({
+  const [editingSections, setEditingSections] = useState({
+    title: false,
+    description: false,
+    dates: false
+  })
+  const [editForms, setEditForms] = useState({
     title: initialTask.title,
-    dueDate: initialTask.dueDate ? initialTask.dueDate.split('T')[0] : '',
-    dueTime: initialTask.dueDate && initialTask.dueDate.includes('T') ? initialTask.dueDate.split('T')[1].substring(0, 5) : '12:00'
+    description: initialTask.description || '',
+    startDate: initialTask.startDate ? new Date(initialTask.startDate).toISOString().split('T')[0] : '',
+    startTime: initialTask.startDate ? new Date(initialTask.startDate).toTimeString().slice(0, 5) : '12:00',
+    dueDate: initialTask.dueDate ? new Date(initialTask.dueDate).toISOString().split('T')[0] : '',
+    dueTime: initialTask.dueDate ? new Date(initialTask.dueDate).toTimeString().slice(0, 5) : '12:00'
   })
 
   // Comment form
@@ -76,48 +89,99 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
   const [showAddChecklistForm, setShowAddChecklistForm] = useState(false)
   const [addChecklistForm, setAddChecklistForm] = useState({ title: '', items: [''] })
 
-  // Task editing
-  const [isEditingTask, setIsEditingTask] = useState(false)
-  const [editTaskForm, setEditTaskForm] = useState({
-    title: '',
-    description: '',
-    status: 'Under-review' as TaskStatus,
-    startDate: '',
-    startTime: '12:00',
-    dueDate: '',
-    dueTime: '12:00'
-  })
+
 
   // New attachments
   const [newAttachments, setNewAttachments] = useState<File[]>([])
   const newAttachmentsRef = useRef<HTMLInputElement>(null)
 
-  const handleTaskUpdate = async () => {
-    setLoadingStates(prev => ({ ...prev, task: true }))
+  // Confirmation modal
+  const [confirmationModal, setConfirmationModal] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    onConfirm: () => void
+    type?: 'danger' | 'warning' | 'info'
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    type: 'danger'
+  })
+
+  // Individual update functions
+  const handleTitleUpdate = async () => {
+    if (!editForms.title.trim()) {
+      showError('Title cannot be empty')
+      return
+    }
+
+    setLoadingStates(prev => ({ ...prev, title: true }))
     try {
-      const dueDateTime = new Date(`${editForm.dueDate}T${editForm.dueTime}`)
-      const updateData = {
-        title: editForm.title,
-        dueDate: dueDateTime.toISOString()
+      const updatedTask = await updateTask(task._id!, { title: editForms.title.trim() })
+      setTask(updatedTask.data)
+      setEditingSections(prev => ({ ...prev, title: false }))
+      onUpdate(updatedTask.data)
+      showSuccess('Title updated successfully')
+    } catch (error: unknown) {
+      showError((error as Error)?.message || 'Failed to update title')
+    } finally {
+      setLoadingStates(prev => ({ ...prev, title: false }))
+    }
+  }
+
+  const handleDescriptionUpdate = async () => {
+    setLoadingStates(prev => ({ ...prev, description: true }))
+    try {
+      const updatedTask = await updateTask(task._id!, { description: editForms.description.trim() })
+      setTask(updatedTask.data)
+      setEditingSections(prev => ({ ...prev, description: false }))
+      onUpdate(updatedTask.data)
+      showSuccess('Description updated successfully')
+    } catch (error: unknown) {
+      showError((error as Error)?.message || 'Failed to update description')
+    } finally {
+      setLoadingStates(prev => ({ ...prev, description: false }))
+    }
+  }
+
+
+
+  const handleDatesUpdate = async () => {
+    setLoadingStates(prev => ({ ...prev, dates: true }))
+    try {
+      const updateData: any = {}
+
+      if (editForms.startDate && editForms.startTime) {
+        updateData.startDate = new Date(`${editForms.startDate}T${editForms.startTime}`).toISOString()
       }
 
-      await updateTask(task._id!, updateData)
-      setEditing(false)
-      onUpdate()
-      showSuccess('Task updated successfully')
+      if (editForms.dueDate && editForms.dueTime) {
+        updateData.dueDate = new Date(`${editForms.dueDate}T${editForms.dueTime}`).toISOString()
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        const updatedTask = await updateTask(task._id!, updateData)
+        setTask(updatedTask.data)
+        setEditingSections(prev => ({ ...prev, dates: false }))
+        onUpdate(updatedTask.data)
+        showSuccess('Dates updated successfully')
+      }
     } catch (error: unknown) {
-      showError((error as Error)?.message || 'Failed to update task')
+      showError((error as Error)?.message || 'Failed to update dates')
     } finally {
-      setLoadingStates(prev => ({ ...prev, task: false }))
+      setLoadingStates(prev => ({ ...prev, dates: false }))
     }
   }
 
   const handleUpdateChecklistItem = async (checklistId: string, itemIndex: number, completed: boolean) => {
     setLoadingStates(prev => ({ ...prev, checklists: true }))
     try {
-      await updateChecklist(task._id!, checklistId, { itemIndex, completed })
+      const updatedTask = await updateChecklist(task._id!, checklistId, { itemIndex, completed })
+      setTask(updatedTask.data)
+      onUpdate(updatedTask.data)
       showSuccess('Checklist item updated successfully')
-      onUpdate()
     } catch (error: unknown) {
       showError((error as Error)?.message || 'Failed to update checklist item')
     } finally {
@@ -125,19 +189,56 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
     }
   }
 
-  const handleDeleteChecklist = async (checklistId: string) => {
-    if (!confirm('Are you sure you want to delete this checklist?')) return
-
+  const handleUpdateChecklistItemText = async (checklistId: string, itemIndex: number, text: string) => {
     setLoadingStates(prev => ({ ...prev, checklists: true }))
     try {
-      await deleteChecklist(task._id!, checklistId)
-      showSuccess('Checklist deleted successfully')
-      onUpdate()
+      const updatedTask = await updateChecklist(task._id!, checklistId, { itemIndex, itemText: text })
+      setTask(updatedTask.data)
+      onUpdate(updatedTask.data)
+      showSuccess('Checklist item updated successfully')
     } catch (error: unknown) {
-      showError((error as Error)?.message || 'Failed to delete checklist')
+      showError((error as Error)?.message || 'Failed to update checklist item')
     } finally {
       setLoadingStates(prev => ({ ...prev, checklists: false }))
     }
+  }
+
+  const handleDeleteChecklistItem = async (checklistId: string, itemIndex: number) => {
+    setLoadingStates(prev => ({ ...prev, checklists: true }))
+    try {
+      const updatedTask = await updateChecklist(task._id!, checklistId, { deleteItemIndex: itemIndex })
+      setTask(updatedTask.data)
+      onUpdate(updatedTask.data)
+      showSuccess('Checklist item deleted successfully')
+    } catch (error: unknown) {
+      showError((error as Error)?.message || 'Failed to delete checklist item')
+    } finally {
+      setLoadingStates(prev => ({ ...prev, checklists: false }))
+    }
+  }
+
+  const handleDeleteChecklist = async (checklistId: string) => {
+    const checklist = task.checklists?.find(c => c._id === checklistId)
+    setConfirmationModal({
+      isOpen: true,
+      title: 'Delete Checklist',
+      message: `Are you sure you want to delete the checklist "${checklist?.title || 'this checklist'}"? This action cannot be undone.`,
+      onConfirm: async () => {
+        setConfirmationModal(prev => ({ ...prev, isOpen: false }))
+        setLoadingStates(prev => ({ ...prev, checklists: true }))
+        try {
+      const updatedTask = await deleteChecklist(task._id!, checklistId)
+      setTask(updatedTask.data)
+      onUpdate(updatedTask.data)
+      showSuccess('Checklist deleted successfully')
+        } catch (error: unknown) {
+          showError((error as Error)?.message || 'Failed to delete checklist')
+        } finally {
+          setLoadingStates(prev => ({ ...prev, checklists: false }))
+        }
+      },
+      type: 'danger'
+    })
   }
 
   const handleEditChecklistTitle = (checklistId: string, currentTitle: string) => {
@@ -150,11 +251,12 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
 
     setLoadingStates(prev => ({ ...prev, checklists: true }))
     try {
-      await updateChecklist(task._id!, editingChecklist, { title: checklistTitle.trim() })
+      const updatedTask = await updateChecklist(task._id!, editingChecklist, { title: checklistTitle.trim() })
+      setTask(updatedTask.data)
+      onUpdate(updatedTask.data)
       showSuccess('Checklist title updated successfully')
       setEditingChecklist(null)
       setChecklistTitle('')
-      onUpdate()
     } catch (error: unknown) {
       showError((error as Error)?.message || 'Failed to update checklist title')
     } finally {
@@ -193,14 +295,15 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
 
     setLoadingStates(prev => ({ ...prev, checklists: true }))
     try {
-      await addChecklist(task._id!, {
+      const updatedTask = await addChecklist(task._id!, {
         title: addChecklistForm.title.trim(),
         items: addChecklistForm.items.filter(item => item.trim()).map(text => ({ text: text.trim() }))
       })
+      setTask(updatedTask.data)
+      onUpdate(updatedTask.data)
       showSuccess('Checklist added successfully')
       setAddChecklistForm({ title: '', items: [''] })
       setShowAddChecklistForm(false)
-      onUpdate()
     } catch (error: unknown) {
       showError((error as Error)?.message || 'Failed to add checklist')
     } finally {
@@ -208,77 +311,30 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
     }
   }
 
-  const handleEditTask = () => {
-    setIsEditingTask(true)
-    setEditTaskForm({
-      title: task.title,
-      description: task.description || '',
-      status: task.status,
-      startDate: task.startDate ? new Date(task.startDate).toISOString().split('T')[0] : '',
-      startTime: task.startDate ? new Date(task.startDate).toTimeString().slice(0, 5) : '12:00',
-      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
-      dueTime: task.dueDate ? new Date(task.dueDate).toTimeString().slice(0, 5) : '12:00'
-    })
-  }
 
-  const handleSaveTask = async () => {
-    if (!editTaskForm.title.trim()) {
-      showError('Title is required')
-      return
-    }
-
-    setLoadingStates(prev => ({ ...prev, task: true }))
-    try {
-      const updateData: any = {
-        title: editTaskForm.title.trim(),
-        description: editTaskForm.description.trim(),
-        status: editTaskForm.status
-      }
-
-      if (editTaskForm.status === 'Under-review') {
-        if (editTaskForm.startDate && editTaskForm.dueDate) {
-          updateData.startDate = new Date(`${editTaskForm.startDate}T${editTaskForm.startTime}`).toISOString()
-          updateData.dueDate = new Date(`${editTaskForm.dueDate}T${editTaskForm.dueTime}`).toISOString()
-        }
-      } else if (editTaskForm.status === 'In-progress') {
-        if (editTaskForm.dueDate) {
-          updateData.dueDate = new Date(`${editTaskForm.dueDate}T${editTaskForm.dueTime}`).toISOString()
-        }
-      } else if (editTaskForm.status === 'Completed') {
-        if (editTaskForm.startDate && editTaskForm.dueDate) {
-          updateData.startDate = new Date(`${editTaskForm.startDate}T${editTaskForm.startTime}`).toISOString()
-          updateData.dueDate = new Date(`${editTaskForm.dueDate}T${editTaskForm.dueTime}`).toISOString()
-        }
-      }
-
-      await updateTask(task._id!, updateData)
-      showSuccess('Task updated successfully')
-      setIsEditingTask(false)
-      onUpdate()
-    } catch (error: unknown) {
-      showError((error as Error)?.message || 'Failed to update task')
-    } finally {
-      setLoadingStates(prev => ({ ...prev, task: false }))
-    }
-  }
-
-  const handleCancelEditTask = () => {
-    setIsEditingTask(false)
-  }
 
   const handleDeleteAttachment = async (attachmentId: string) => {
-    if (!confirm('Are you sure you want to delete this attachment?')) return
-
-    setLoadingStates(prev => ({ ...prev, attachments: true }))
-    try {
-      await deleteAttachment(task._id!, attachmentId)
+    const attachment = task.attachmentsFile?.find(a => a._id === attachmentId)
+    setConfirmationModal({
+      isOpen: true,
+      title: 'Delete Attachment',
+      message: `Are you sure you want to delete the attachment "${attachment?.originalName || 'this file'}"? This action cannot be undone.`,
+      onConfirm: async () => {
+        setConfirmationModal(prev => ({ ...prev, isOpen: false }))
+        setLoadingStates(prev => ({ ...prev, attachments: true }))
+        try {
+      const updatedTask = await deleteAttachment(task._id!, attachmentId)
+      setTask(updatedTask.data)
+      onUpdate(updatedTask.data)
       showSuccess('Attachment deleted successfully')
-      onUpdate()
-    } catch (error: unknown) {
-      showError((error as Error)?.message || 'Failed to delete attachment')
-    } finally {
-      setLoadingStates(prev => ({ ...prev, attachments: false }))
-    }
+        } catch (error: unknown) {
+          showError((error as Error)?.message || 'Failed to delete attachment')
+        } finally {
+          setLoadingStates(prev => ({ ...prev, attachments: false }))
+        }
+      },
+      type: 'danger'
+    })
   }
 
   const handleUploadAttachments = async () => {
@@ -291,10 +347,11 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
         formData.append('attachments', file)
       })
 
-      await addAttachment(task._id!, formData)
+      const updatedTask = await addAttachment(task._id!, formData)
+      setTask(updatedTask.data)
+      onUpdate(updatedTask.data)
       setNewAttachments([])
       showSuccess('Attachments uploaded successfully')
-      onUpdate()
     } catch (error: unknown) {
       showError((error as Error)?.message || 'Failed to upload attachments')
     } finally {
@@ -307,10 +364,11 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
 
     setLoadingStates(prev => ({ ...prev, comments: true }))
     try {
-      await addComment(task._id!, user.userId, commentText.trim())
+      const updatedTask = await addComment(task._id!, user.userId, commentText.trim())
+      setTask(updatedTask.data)
+      onUpdate(updatedTask.data)
       setCommentText('')
       showSuccess('Comment added successfully')
-      onUpdate()
     } catch (error: unknown) {
       showError((error as Error)?.message || 'Failed to add comment')
     } finally {
@@ -337,31 +395,50 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[95vh] md:max-h-[90vh] flex flex-col overflow-hidden">
         {/* -style Header */}
-        <div className="px-4 md:px-6 py-3 bg-white border-b border-gray-100 flex-shrink-0">
-          <div className="flex items-start justify-between gap-3">
+        <div className="px-4 md:px-6 py-3 bg-white border-b border-gray-100 flex-shrink-0 relative">
+          <div className="flex items-start gap-3">
             <div className="flex-1 min-w-0">
-              {isEditingTask ? (
+              {editingSections.title ? (
                 <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={editTaskForm.title}
-                    onChange={(e) => setEditTaskForm(prev => ({ ...prev, title: e.target.value }))}
-                    className="w-full text-xl font-semibold text-gray-900 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    autoFocus
-                    placeholder="Task title"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={editForms.title}
+                      onChange={(e) => setEditForms(prev => ({ ...prev, title: e.target.value }))}
+                      className="flex-1 text-xl font-semibold text-gray-900 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      autoFocus
+                      placeholder="Task title"
+                      disabled={loadingStates.title}
+                    />
+                    <button
+                      onClick={handleTitleUpdate}
+                      disabled={loadingStates.title || !editForms.title.trim()}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      {loadingStates.title ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditForms(prev => ({ ...prev, title: task.title }))
+                        setEditingSections(prev => ({ ...prev, title: false }))
+                      }}
+                      disabled={loadingStates.title}
+                      className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-wrap items-center gap-2">
-                  
                   <h2 className="text-xl md:text-2xl font-semibold text-gray-900 break-words">
                     {task.title}
                   </h2>
-                  {task.status !== 'Completed' && !isEditingTask && (
+                  {task.status !== 'Completed' && (
                     <button
-                      onClick={handleEditTask}
+                      onClick={() => setEditingSections(prev => ({ ...prev, title: true }))}
                       className="ml-2 p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
-                      title="Edit task"
+                      title="Edit title"
                     >
                       <FiEdit className="w-4 h-4" />
                     </button>
@@ -369,16 +446,46 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                 </div>
               )}
             </div>
-            <button
-              onClick={onClose}
-              className="flex-shrink-0 p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <FiX className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setConfirmationModal({
+                    isOpen: true,
+                    title: 'Delete Task',
+                    message: `Are you sure you want to delete the task "${task.title}"? This action cannot be undone and will permanently remove the task and all its data including attachments, comments, and checklists.`,
+                    onConfirm: async () => {
+                      setConfirmationModal(prev => ({ ...prev, isOpen: false }))
+                      // Perform the delete operation
+                      try {
+                        await deleteTask(task._id!)
+                        showSuccess('Task deleted successfully')
+                        if (onDelete) {
+                          onDelete()
+                        }
+                      } catch (error: unknown) {
+                        showError((error as Error)?.message || 'Failed to delete task')
+                      }
+                      onClose()
+                    },
+                    type: 'danger'
+                  })
+                }}
+                className="flex-shrink-0 p-1.5 text-red-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                title="Delete task"
+              >
+                <FiTrash2 className="w-5 h-5" />
+              </button>
+              <button
+                onClick={onClose}
+                className="flex-shrink-0 p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Progress Bar */}
-          {progress > 0 && progress < 100 && (
+          {(
             <div className="mt-3 flex items-center gap-2">
               <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                 <div 
@@ -400,16 +507,18 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                 {/* Task Details Section */}
                 <div className="bg-white border border-gray-100 rounded-lg overflow-hidden">
                   <div className="px-4 py-2 bg-gray-50/50 border-b border-gray-100 flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                    <h3 className="text-sm font-medium text-gray-700">Details</h3>
+                    <h3 className="text-sm font-medium text-gray-700">Description</h3>
                   </div>
                   <div className="p-4">
                     <TaskDetails
                       task={task}
-                      isEditing={isEditingTask}
-                      editForm={editTaskForm}
-                      onEditFormChange={(field, value) => setEditTaskForm(prev => ({ ...prev, [field]: value }))}
-                      loading={loadingStates.task}
+                      editingSections={editingSections}
+                      editForms={editForms}
+                      loadingStates={loadingStates}
+                      onEditSection={(section, value) => setEditingSections(prev => ({ ...prev, [section]: value }))}
+                      onEditFormChange={(field, value) => setEditForms(prev => ({ ...prev, [field]: value }))}
+                      onSaveDescription={handleDescriptionUpdate}
+                      onSaveDates={handleDatesUpdate}
                     />
                   </div>
                 </div>
@@ -428,6 +537,20 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                   onCancelEditChecklist={handleCancelEditChecklist}
                   onDeleteChecklist={handleDeleteChecklist}
                   onUpdateChecklistItem={handleUpdateChecklistItem}
+                  onUpdateChecklistItemText={handleUpdateChecklistItemText}
+                  onDeleteChecklistItem={handleDeleteChecklistItem}
+                  onConfirmDeleteItem={(checklistId, itemIndex, itemText) => {
+                    setConfirmationModal({
+                      isOpen: true,
+                      title: 'Delete Checklist Item',
+                      message: `Are you sure you want to delete the item "${itemText}"? This action cannot be undone.`,
+                      onConfirm: () => {
+                        setConfirmationModal(prev => ({ ...prev, isOpen: false }))
+                        handleDeleteChecklistItem(checklistId, itemIndex)
+                      },
+                      type: 'danger'
+                    })
+                  }}
                   onShowAddChecklistForm={() => setShowAddChecklistForm(true)}
                   onAddChecklistItem={handleAddChecklistItem}
                   onUpdateAddChecklistItem={handleUpdateAddChecklistItem}
@@ -450,30 +573,33 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                     <FiMessageSquare className="w-3.5 h-3.5 text-gray-500" />
                     <h3 className="text-sm font-medium text-gray-700">Activity</h3>
                   </div>
-                  <div className="p-3 max-h-[300px] overflow-y-auto custom-scrollbar">
-                    <Comments
-                      comments={task.comments  || []}
-                      formatDate={formatDate}
-                    />
-                    {/* Add Comment Input */}
-                    <div className="mt-3 pt-3 border-t border-gray-100">
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={commentText}
-                          onChange={(e) => setCommentText(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-                          placeholder="Write a comment..."
-                          className="flex-1 px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        <button
-                          onClick={handleAddComment}
-                          disabled={!commentText.trim() || loadingStates.comments}
-                          className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                          Add
-                        </button>
-                      </div>
+                  {/* Comments List - Scrollable */}
+                  <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
+                    <div className="p-3">
+                      <Comments
+                        comments={task.comments  || []}
+                        formatDate={formatDate}
+                      />
+                    </div>
+                  </div>
+                  {/* Add Comment Input - Fixed at bottom */}
+                  <div className="px-3 pb-3 border-t border-gray-100 bg-white">
+                    <div className="flex gap-2 pt-3">
+                      <input
+                        type="text"
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                        placeholder="Write a comment..."
+                        className="flex-1 px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <button
+                        onClick={handleAddComment}
+                        disabled={!commentText.trim() || loadingStates.comments}
+                        className="px-3 sm:px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                      >
+                        {loadingStates.comments ? 'Adding...' : 'Add'}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -486,85 +612,147 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                       <h3 className="text-sm font-medium text-gray-700">Attachments</h3>
                       <span className="text-xs text-gray-400">({(task.attachmentsFile || []).length})</span>
                     </div>
-                    {/* Upload button -  style inline */}
-                    <label className="cursor-pointer text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
-                      <FiUpload className="w-3 h-3" />
-                      <span>Add</span>
-                      <input
-                        type="file"
-                        multiple
-                        className="hidden"
-                        onChange={(e) => {
-                          if (e.target.files) {
-                            setNewAttachments(Array.from(e.target.files))
-                            handleUploadAttachments()
-                          }
-                        }}
-                      />
-                    </label>
                   </div>
-                  <div className="p-3 max-h-[250px] overflow-y-auto custom-scrollbar">
-                    <Attachments
-                      attachments={task.attachmentsFile || []}
-                      loading={loadingStates.attachments}
-                      onViewAttachment={(attachment) => setViewingAttachment(attachment)}
-                      onDeleteAttachment={handleDeleteAttachment}
-                    />
-                    {newAttachments.length > 0 && !loadingStates.attachments && (
-                      <div className="mt-2 flex items-center justify-between text-xs text-gray-500 bg-gray-50 p-2 rounded-lg">
-                        <span>{newAttachments.length} file(s) selected</span>
-                        <button onClick={handleUploadAttachments} className="text-blue-600 hover:text-blue-700">
-                          Upload
-                        </button>
+
+                  {/* Upload Area */}
+                  <div className="p-3 border-b border-gray-100">
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
+                      <FiUpload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600 mb-2">Drop files here or click to upload</p>
+                      <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors">
+                        <FiUpload className="w-3 h-3" />
+                        <span>Choose Files</span>
+                        <input
+                          ref={newAttachmentsRef}
+                          type="file"
+                          multiple
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files) {
+                              setNewAttachments(prev => [...prev, ...Array.from(e.target.files!)])
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+
+                    {/* New Attachments Preview */}
+                    {newAttachments.length > 0 && (
+                      <div className="mt-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-gray-700">
+                            Ready to upload ({newAttachments.length} file{newAttachments.length !== 1 ? 's' : ''})
+                          </h4>
+                          <button
+                            onClick={handleUploadAttachments}
+                            disabled={loadingStates.attachments}
+                            className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {loadingStates.attachments ? 'Uploading...' : 'Upload All'}
+                          </button>
+                        </div>
+
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {newAttachments.map((file, index) => (
+                            <div key={index} className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow">
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-start space-x-3 flex-1 min-w-0">
+                                  <div className="p-2 bg-orange-50 rounded-lg">
+                                    <FiPaperclip className="w-4 h-4 text-orange-600" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-gray-900 truncate" title={file.name}>
+                                      {file.name}
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      {(file.size / 1024).toFixed(1)} KB • {file.type || 'Unknown type'}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <button
+                                    onClick={() => {
+                                      // Create a temporary attachment object for viewing
+                                      const tempUrl = URL.createObjectURL(file)
+                                      const tempAttachment = {
+                                        _id: `temp-${index}`,
+                                        filename: file.name,
+                                        originalName: file.name,
+                                        url: tempUrl,
+                                        type: file.type,
+                                        size: file.size,
+                                        uploadedBy: '',
+                                        uploadedAt: new Date().toISOString(),
+                                        description: ''
+                                      }
+                                      setViewingAttachment(tempAttachment)
+                                    }}
+                                    className="p-1.5 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-50 transition-colors"
+                                    title="Preview file"
+                                  >
+                                    <FiEye className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setNewAttachments(prev => prev.filter((_, i) => i !== index))
+                                    }}
+                                    className="p-1.5 text-red-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors"
+                                    title="Remove file"
+                                  >
+                                    <FiTrash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
+
                     {loadingStates.attachments && (
                       <div className="flex items-center justify-center py-3">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                       </div>
                     )}
                   </div>
+                  <div className="p-3 max-h-[250px] overflow-y-auto custom-scrollbar">
+
+
+                    <Attachments
+                      attachments={task.attachmentsFile || []}
+                      loading={loadingStates.attachments}
+                      onViewAttachment={(attachment) => setViewingAttachment(attachment)}
+                      onDeleteAttachment={handleDeleteAttachment}
+                    />
+                  </div>
                 </div>
 
-                {/* Metadata - Due date, etc */}
-                {task.dueDate && (
-                  <div className="bg-white border border-gray-100 rounded-lg overflow-hidden">
-                    <div className="px-4 py-2 bg-gray-50/50 border-b border-gray-100 flex items-center gap-2">
-                      <FiClock className="w-3.5 h-3.5 text-gray-500" />
-                      <h3 className="text-sm font-medium text-gray-700">Timeline</h3>
-                    </div>
-                    <div className="p-3 text-sm text-gray-600">
-                      <div className="flex items-center justify-between">
-                        <span>Due Date:</span>
-                        <span className="font-medium">
-                          {new Date(task.dueDate).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}
-                        </span>
-                      </div>
-                      {task.startDate && (
-                        <div className="flex items-center justify-between mt-1">
-                          <span>Start Date:</span>
-                          <span className="font-medium">
-                            {new Date(task.startDate).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric'
-                            })}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>
         </div>
 
-        {viewingAttachment && <AttachmentViewer attachment={viewingAttachment} onClose={() => setViewingAttachment(null)} />}
+        {viewingAttachment && (
+          <AttachmentViewer
+            attachment={viewingAttachment}
+            onClose={() => {
+              // Clean up blob URL if it's a temporary attachment
+              if (viewingAttachment._id?.startsWith('temp-')) {
+                URL.revokeObjectURL(viewingAttachment.url)
+              }
+              setViewingAttachment(null)
+            }}
+          />
+        )}
+
+        <ConfirmationModal
+          isOpen={confirmationModal.isOpen}
+          onClose={() => setConfirmationModal(prev => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmationModal.onConfirm}
+          title={confirmationModal.title}
+          message={confirmationModal.message}
+          type={confirmationModal.type}
+        />
       </div>
 
      
