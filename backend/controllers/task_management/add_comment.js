@@ -20,6 +20,8 @@ const addComment = async (req, res) => {
             updatedAt: new Date()
         }
 
+
+
         const updatedTask = await Task.findByIdAndUpdate(
             id,
             {

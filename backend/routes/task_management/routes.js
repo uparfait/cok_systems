@@ -56,21 +56,22 @@ const upload = multer({
         fileSize: 1000000 * 10024 * 10024
     },
     fileFilter: (req, file, cb) => {
-        // Allow various file types
-        const allowedTypes = [
-            'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-            'application/pdf',
-            'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'text/plain', 'text/csv',
-            'video/mp4', 'video/avi', 'video/mov'
-        ]
+        cb(null, true)
+        // // Allow various file types
+        // const allowedTypes = [
+        //     'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+        //     'application/pdf',
+        //     'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        //     'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        //     'text/plain', 'text/csv',
+        //     'video/mp4', 'video/avi', 'video/mov'
+        // ]
 
-        if (allowedTypes.includes(file.mimetype)) {
-            cb(null, true)
-        } else {
-            cb(new Error('Invalid file type'), false)
-        }
+        // if (allowedTypes.includes(file.mimetype)) {
+        //     cb(null, true)
+        // } else {
+        //     cb(new Error('Invalid file type'), false)
+        // }
     }
 })
 
