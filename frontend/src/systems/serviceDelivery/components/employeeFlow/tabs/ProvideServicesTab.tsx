@@ -1630,9 +1630,274 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
   const { user } = useAuth();
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchSuggestions, setSearchSuggestions] = useState<any[]>([]);
+  const [showSearchPreview, setShowSearchPreview] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
+
+  const currentUser = user as any;
+  const myId = String(
+    currentUser?.userId ||
+      currentUser?._id ||
+      currentUser?.id ||
+      currentUser?.employee_id ||
+      "",
+  );
+
+  const myName = String(
+    currentUser?.full_name ||
+      currentUser?.fullName ||
+      currentUser?.name ||
+      "Unknown",
+  ).trim();
+
+  // Debounced search for preview suggestions
+  const fetchSearchSuggestions = useCallback(async (query: string) => {
+    if (!query || query.trim().length < 2) {
+      setSearchSuggestions([]);
+      setShowSearchPreview(false);
+      return;
+    }
+
+    try {
+      const currentUser = user as any;
+      const myId = String(
+        currentUser?.userId ||
+          currentUser?._id ||
+          currentUser?.id ||
+          currentUser?.employee_id ||
+          "",
+      );
+
+      const response = await serviceDeliveryService.search(query, 1, 5);
+      if (response && response.success) {
+        const allVisitors: any[] = response.data || [];
+
+        const formattedSuggestions = allVisitors
+          .map((v: any) => {
+            const colors = [
+              "bg-purple-500",
+              "bg-pink-500",
+              "bg-yellow-400",
+              "bg-teal-500",
+              "bg-lavender-400",
+              "bg-blue-500",
+            ];
+            const visitorName =
+              v.full_name || v.name || v.visitorName || "Unknown";
+            const colorIndex = visitorName.charCodeAt(0) % colors.length;
+            const initials = visitorName
+              .split(" ")
+              .map((n: string) => n[0])
+              .join("")
+              .substring(0, 2)
+              .toUpperCase();
+
+            let identification = "N/A";
+            if (typeof v.identification === "string")
+              identification = v.identification;
+            else if (v.identification?.number)
+              identification = v.identification.number;
+
+            let badgeNumber = "";
+            if (v.badge_number) badgeNumber = v.badge_number;
+
+            const myAssignment = v.departments_assigned?.find(
+              (d: any) => String(d.provider_id) === myId,
+            );
+
+            const checkInTime = myAssignment?.assigned_time || v.entry_date || new Date().toISOString();
+
+            const serviceDuration = v.durations?.services_durations?.find(
+              (d: any) => String(d.provider_id) === myId && d.ended_at === null,
+            );
+            const serviceStartTimeVal = serviceDuration?.started_at || "";
+
+            let myServiceStatus = null;
+            if (Array.isArray(v.services_status)) {
+              myServiceStatus = v.services_status.find(
+                (s: any) => String(s.provider_id) === myId
+              );
+            } else if (v.services_status && typeof v.services_status === "object") {
+              if (String(v.services_status.provider_id) === myId) {
+                myServiceStatus = v.services_status;
+              }
+            }
+
+            let status = (myServiceStatus?.s_type || v.status || "Not started").toLowerCase();
+            if (status === "not started") status = "Not started";
+            if (status === "inprogress") status = "inprogress";
+            if (status === "completed") status = "completed";
+            if (status === "transfered" || status === "transferred") status = "transfered";
+
+            const waitTimeEndStamp =
+              (status === "inprogress" || status === "completed" || status === "transfered") && serviceStartTimeVal
+                ? new Date(serviceStartTimeVal).getTime()
+                : new Date().getTime();
+
+            let waitTimeString = "Just now";
+            if (checkInTime) {
+              const diffMins = Math.floor(
+                (waitTimeEndStamp - new Date(checkInTime).getTime()) / 60000,
+              );
+              if (diffMins > 0) {
+                const hours = Math.floor(diffMins / 60);
+                const mins = diffMins % 60;
+                waitTimeString = hours > 0 ? `${hours}h ${mins}m` : `${mins} mins`;
+              }
+            }
+
+            const assignedToDisplay = myAssignment?.provider_name || myAssignment?.department_name || "Unassigned";
+
+            return {
+              id: v._id || v.id,
+              visitorName: visitorName,
+              visitorId: identification,
+              badgeNumber: badgeNumber,
+              assignedTo: assignedToDisplay,
+              serviceType: myAssignment?.department_name || v._departmentGroup || "General Service",
+              waitTime: waitTimeString,
+              avatarColor: colors[colorIndex],
+              initials: initials,
+              status: status,
+              serviceStartTime: serviceStartTimeVal,
+              telephone: v.telephone || "N/A",
+              checkInRaw: checkInTime,
+              rawVisitor: v,
+              not_transferred_to_me: myServiceStatus
+                ? String(myServiceStatus.provider_id) !== myId &&
+                  myServiceStatus.s_type?.toLowerCase() === "transferred"
+                : false,
+            };
+          })
+          .reverse();
+
+        setSearchSuggestions(formattedSuggestions);
+        setShowSearchPreview(true);
+      }
+    } catch (error) {
+      console.error("Error fetching search suggestions:", error);
+    }
+  }, [user]);
+
+  // Handle suggestion click - populate table with selected visitor
+  const handleSuggestionClick = async (suggestion: any) => {
+    setSearchTerm(suggestion.visitorName);
+    setShowSearchPreview(false);
+    setSearchSuggestions([]);
+    setCurrentPage(1);
+    
+    // Clear any pending search timeouts
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    try {
+      const response = await serviceDeliveryService.search(suggestion.visitorName, 1, 20);
+      if (response && response.success) {
+        const allVisitors: any[] = response.data || [];
+        const formattedRequests = allVisitors.map((v: any) => {
+          const colors = [
+            "bg-purple-500",
+            "bg-pink-500",
+            "bg-yellow-400",
+            "bg-teal-500",
+            "bg-lavender-400",
+            "bg-blue-500",
+          ];
+          const visitorName = v.full_name || v.name || v.visitorName || "Unknown";
+          const colorIndex = visitorName.charCodeAt(0) % colors.length;
+          const initials = visitorName.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase();
+
+          let identification = "N/A";
+          if (typeof v.identification === "string") identification = v.identification;
+          else if (v.identification?.number) identification = v.identification.number;
+
+          let badgeNumber = "";
+          if (v.badge_number) badgeNumber = v.badge_number;
+
+          const myAssignment = v.departments_assigned?.find((d: any) => String(d.provider_id) === myId);
+          const checkInTime = myAssignment?.assigned_time || v.entry_date || new Date().toISOString();
+
+          const serviceDuration = v.durations?.services_durations?.find((d: any) => String(d.provider_id) === myId && d.ended_at === null);
+          const serviceStartTimeVal = serviceDuration?.started_at || "";
+
+          let myServiceStatus = null;
+          if (Array.isArray(v.services_status)) {
+            myServiceStatus = v.services_status.find((s: any) => String(s.provider_id) === myId);
+          } else if (v.services_status && typeof v.services_status === "object") {
+            if (String(v.services_status.provider_id) === myId) myServiceStatus = v.services_status;
+          }
+
+          let status = (myServiceStatus?.s_type || v.status || "Not started").toLowerCase();
+          if (status === "not started") status = "Not started";
+          if (status === "inprogress") status = "inprogress";
+          if (status === "completed") status = "completed";
+          if (status === "transfered" || status === "transferred") status = "transfered";
+
+          const waitTimeEndStamp = (status === "inprogress" || status === "completed" || status === "transfered") && serviceStartTimeVal
+            ? new Date(serviceStartTimeVal).getTime()
+            : new Date().getTime();
+
+          let waitTimeString = "Just now";
+          if (checkInTime) {
+            const diffMins = Math.floor((waitTimeEndStamp - new Date(checkInTime).getTime()) / 60000);
+            if (diffMins > 0) {
+              const hours = Math.floor(diffMins / 60);
+              const mins = diffMins % 60;
+              waitTimeString = hours > 0 ? `${hours}h ${mins}m` : `${mins} mins`;
+            }
+          }
+
+          const assignedToDisplay = myAssignment?.provider_name || myAssignment?.department_name || "Unassigned";
+
+          return {
+            id: v._id || v.id,
+            visitorName: visitorName,
+            visitorId: identification,
+            badgeNumber: badgeNumber,
+            assignedTo: assignedToDisplay,
+            serviceType: myAssignment?.department_name || v._departmentGroup || "General Service",
+            waitTime: waitTimeString,
+            avatarColor: colors[colorIndex],
+            initials: initials,
+            status: status,
+            serviceStartTime: serviceStartTimeVal,
+            telephone: v.telephone || "N/A",
+            checkInRaw: checkInTime,
+            rawVisitor: v,
+            not_transferred_to_me: myServiceStatus
+              ? String(myServiceStatus.provider_id) !== myId && myServiceStatus.s_type?.toLowerCase() === "transferred"
+              : false,
+          };
+        });
+        formattedRequests.reverse();
+        setRequests(formattedRequests);
+        setTotalCount(formattedRequests.length);
+        setTotalPages(Math.ceil(formattedRequests.length / 20));
+      }
+    } catch (error) {
+      console.error("Error fetching search result:", error);
+    }
+  };
+
+  // Debounced search typing handler
+  const handleSearchTyping = useCallback((value: string) => {
+    setSearchTerm(value);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    if (value && value.trim().length >= 2) {
+      searchTimeoutRef.current = setTimeout(() => {
+        fetchSearchSuggestions(value);
+      }, 300);
+    } else {
+      setSearchSuggestions([]);
+      setShowSearchPreview(false);
+    }
+  }, [fetchSearchSuggestions]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -1679,6 +1944,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
           currentUser?.employee_id ||
           "",
       );
+
       const myName = String(
         currentUser?.full_name ||
           currentUser?.fullName ||
@@ -1702,9 +1968,6 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
 
         if (response && response.success) {
           const allVisitors: any[] = response.data || [];
-
-          setTotalCount(response.total || 0);
-          setTotalPages(Math.ceil((response.total || 0) / 20));
 
           const formattedRequests = allVisitors.map((v: any) => {
             const colors = [
@@ -1736,7 +1999,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
 
             // Find assignment for current provider
             const myAssignment = v.departments_assigned?.find(
-              (d: any) => String(d.provider_id) === myId
+              (d: any) => String(d.provider_id) === myId,
             );
 
             const checkInTime = myAssignment?.assigned_time || v.entry_date || new Date().toISOString();
@@ -1805,22 +2068,11 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
                 : false,
             };
           });
-
+ 
           formattedRequests.reverse();
           setRequests(formattedRequests);
-
-          const completedCount = formattedRequests.filter(
-            (r) => r.status === "completed",
-          ).length;
-          const waitingCount = formattedRequests.filter(
-            (r) => r.status === "Not started",
-          ).length;
-
-          setStats({
-            waitAvg: "12m 30s",
-            waiting: waitingCount,
-            completed: completedCount,
-          });
+          setTotalCount(response.total || 0);
+          setTotalPages(Math.ceil((response.total || 0) / 20));
         }
       } catch (error) {
         console.error("Error fetching assigned visitors:", error);
@@ -1828,12 +2080,21 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
         if (!silent) setLoading(false);
       }
     },
-    [user, currentPage, searchTerm],
+    [user, currentPage], // REMOVED searchTerm dependency to prevent auto-search
   );
 
   useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     fetchAssignedVisitors(false);
-  }, [fetchAssignedVisitors]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchDepartments = async () => {
     try {
@@ -1890,38 +2151,27 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
     durationStr: string = "",
     notes: string = "",
   ) => {
-    const currentUser = user as any;
-    const myId = String(
-      currentUser?.userId ||
-        currentUser?._id ||
-        currentUser?.id ||
-        currentUser?.employee_id ||
-        "",
-    );
-    const myName = String(
-      currentUser?.full_name ||
-        currentUser?.fullName ||
-        currentUser?.name ||
-        "Unknown",
-    );
+  const currentUser = user as any;
+  const myId = String(
+    currentUser?.userId ||
+      currentUser?._id ||
+      currentUser?.id ||
+      currentUser?.employee_id ||
+      "",
+  );
 
-    // Try to find exact assignment first
-    let deptInfo = rawVisitor.departments_assigned?.find(
-      (d: any) => String(d.provider_id) === myId,
-    );
+  const myName = String(
+    currentUser?.full_name ||
+      currentUser?.fullName ||
+      currentUser?.name ||
+      "Unknown",
+  ).trim();
 
-    // If no exact assignment, find the unit assignment
-    if (!deptInfo) {
-      deptInfo = rawVisitor.departments_assigned?.find((d: any) => {
-        return String(d.department_id) === String(currentUser?.department_id);
-      });
-    }
-
-    await serviceDeliveryService.updateServiceStatus({
-      visitor_id: visitorId,
-      status: targetStatus,
-      notes: notes
-    });
+  await serviceDeliveryService.updateServiceStatus({
+    visitor_id: visitorId,
+    status: targetStatus,
+    notes: notes
+  });
   };
 
   const handleTransferVisitor = async () => {
@@ -2252,32 +2502,88 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
         </>
       )}
 
-      <div
+       <div
         className={`bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(0,0,0,0.07)] ${!isDashboardView ? "mt-6" : ""}`}
       >
         <div className="flex items-center gap-3">
-          <div className="flex">
-            <div className="flex-1 relative">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search by visitor name, ID, or badge..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full h-11 pl-10 pr-4 border border-[#e0e0e0] rounded-l-[8px] text-[13px] focus:ring-2 focus:ring-[#1a73e8]"
-              />
+           <div className="flex-1 min-w-0">
+            <div className="flex">
+              <div className="flex-1 relative min-w-0">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Search by visitor name, ID, or badge..."
+                  value={searchTerm}
+                  onChange={(e) => handleSearchTyping(e.target.value)}
+                  className="w-full h-11 pl-10 pr-4 border border-[#e0e0e0] rounded-l-[8px] text-[13px] focus:ring-2 focus:ring-[#1a73e8]"
+                  onFocus={() => searchTerm && searchTerm.length >= 2 && setShowSearchPreview(true)}
+                />
+                {/* Search Preview Dropdown */}
+                {showSearchPreview && searchSuggestions.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-[#e0e0e0] rounded-[8px] shadow-lg max-h-60 overflow-y-auto" style={{ minWidth: '400px' }}>
+                    <div className="py-1">
+                      {searchSuggestions.map((suggestion) => (
+                        <div
+                          key={suggestion.id}
+                          onClick={() => handleSuggestionClick(suggestion)}
+                          className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-[#e8f4fe] transition-colors"
+                        >
+                          <div
+                            className={`w-8 h-8 rounded-full ${suggestion.avatarColor} flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0`}
+                          >
+                            {suggestion.initials}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[#2C3E50] text-[13px] font-medium truncate">
+                              {suggestion.visitorName}
+                            </div>
+                            <div className="text-[#888] text-[11px] truncate">
+                              ID: {suggestion.visitorId}
+                            </div>
+                          </div>
+                          <div className="text-[#666] text-[11px] whitespace-nowrap">
+                            {suggestion.status === "Not started" && (
+                              <span className="text-[#f57c00]">Not started</span>
+                            )}
+                            {suggestion.status === "inprogress" && (
+                              <span className="text-[#1a73e8]">In progress</span>
+                            )}
+                            {suggestion.status === "completed" && (
+                              <span className="text-[#2e7d32]">Completed</span>
+                            )}
+                            {suggestion.status === "transfered" && (
+                              <span className="text-[#7b1fa2]">Transferred</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Click outside handler */}
+                {showSearchPreview && (
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => {
+                      setShowSearchPreview(false);
+                    }}
+                  />
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setCurrentPage(1);
+                  setShowSearchPreview(false);
+                  setSearchSuggestions([]);
+                  fetchAssignedVisitors(false, 1, searchTerm);
+                }}
+                disabled={loading}
+                className="h-11 px-5 bg-[#1a73e8] text-white rounded-r-[8px] hover:bg-[#1557b0] focus:ring-2 focus:ring-[#1a73e8] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-[13px] font-medium min-w-[100px] justify-center"
+              >
+                {loading && searchTerm ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : null}
+                {loading && searchTerm ? 'Searching...' : 'Search'}
+              </button>
             </div>
-            <button
-              onClick={() => {
-                setCurrentPage(1);
-                fetchAssignedVisitors(false, 1, searchTerm);
-              }}
-              disabled={loading}
-              className="px-4 py-2 bg-[#1a73e8] text-white rounded-r-[8px] hover:bg-[#1557b0] focus:ring-2 focus:ring-[#1a73e8] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 h-11"
-            >
-              {loading && searchTerm ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : null}
-              {loading && searchTerm ? 'Searching...' : 'Search'}
-            </button>
           </div>
           <select
             value={statusFilter}
@@ -2285,7 +2591,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
               setStatusFilter(e.target.value);
               setCurrentPage(1);
             }}
-            className="h-11 px-4 border border-[#e0e0e0] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#1a73e8] bg-white"
+            className="h-11 px-4 border border-[#e0e0e0] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#1a73e8] bg-white min-w-[140px] flex-shrink-0"
           >
             <option value="all">All Status</option>
             <option value="not-started">Not Started</option>
@@ -2294,8 +2600,15 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
           </select>
           {isDashboardView && (
             <button
-              onClick={() => fetchAssignedVisitors(false)}
-              className="flex items-center gap-2 h-11 px-4 border border-[#e0e0e0] rounded-[8px] bg-white text-[#333] text-[13px] hover:bg-gray-50"
+              onClick={() => {
+                setShowSearchPreview(false);
+                setSearchSuggestions([]);
+                if (searchTimeoutRef.current) {
+                  clearTimeout(searchTimeoutRef.current);
+                }
+                fetchAssignedVisitors(false);
+              }}
+              className="flex items-center gap-2 h-11 px-4 border border-[#e0e0e0] rounded-[8px] bg-white text-[#333] text-[13px] hover:bg-gray-50 min-w-[100px] justify-center"
             >
               <FiRefreshCw className={loading ? "animate-spin" : ""} /> Refresh
             </button>
