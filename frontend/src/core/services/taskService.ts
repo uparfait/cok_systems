@@ -10,7 +10,12 @@ export interface Task {
   _id?: string
   belongs: {
     isBelongsTo: boolean
-    itBelongsTo?: string
+    itBelongsTo?:  {
+      _id: string
+      full_name: string
+      email?: string
+      telephone?: string
+    }
   }
   incharge: string
   members: string[]

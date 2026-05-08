@@ -13,9 +13,16 @@ interface CreateTaskModalProps {
   onClose: () => void
   onSuccess: () => void
   TaskStatus: string
+  belongs?: {
+    isBelongsTo: boolean
+    itBelongsTo?: string
+  }
+  belongsToName?: string
+  belongsToEmail?: string,
+  belongstoTelephone?: string
 }
 
-const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, TaskStatus }) => {
+const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, TaskStatus, belongs, belongsToName, belongsToEmail, belongstoTelephone }) => {
   const { user } = useAuth()
   const { showError } = useToast()
 
@@ -96,7 +103,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
 
     try {
       const taskData: any = {
-        belongs: { isBelongsTo: false },
+        belongs: belongs || { isBelongsTo: false },
         incharge: user.userId,
         title: formData.title.trim(),
         description: formData.description.trim(),
@@ -244,6 +251,28 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
             <FiX className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Belongs to note */}
+        {belongs?.isBelongsTo && belongsToName && (
+          <div className="px-6 py-2 bg-blue-50 border-b border-blue-200">
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-blue-700 font-medium">
+                This task belongs to:
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                  {belongsToName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-gray-900">{belongsToName}</div>
+                  {belongsToEmail  || belongstoTelephone && (
+                    <div className="text-xs text-gray-600">{belongsToEmail || ''}, {belongstoTelephone || ''}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
