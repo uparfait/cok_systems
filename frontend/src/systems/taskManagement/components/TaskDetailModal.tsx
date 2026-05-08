@@ -567,6 +567,33 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
 
               {/* Sidebar - Right Column */}
               <div className="lg:col-span-1 space-y-5">
+                {/* Belongs To Section */}
+                {task.belongs?.isBelongsTo && task.belongs.itBelongsTo && (
+                  <div className="bg-white border border-gray-100 rounded-lg overflow-hidden">
+                    <div className="px-4 py-2 bg-gray-50/50 border-b border-gray-100 flex items-center gap-2">
+                      <FiEye className="w-3.5 h-3.5 text-gray-500" />
+                      <h3 className="text-sm font-medium text-gray-700">Belongs To</h3>
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                          {task.belongs.itBelongsTo.full_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium text-gray-900 truncate">
+                            {task.belongs.itBelongsTo.full_name}
+                          </div>
+                          {task.belongs.itBelongsTo.email || task.belongs.itBelongsTo.telephone && (
+                            <div className="text-xs text-gray-500 truncate">
+                              {task.belongs.itBelongsTo.email || ''}, {task.belongs.itBelongsTo.telephone || ''}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Comments Section -  style */}
                 <div className="bg-white border border-gray-100 rounded-lg overflow-hidden">
                   <div className="px-4 py-2 bg-gray-50/50 border-b border-gray-100 flex items-center gap-2">

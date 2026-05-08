@@ -37,7 +37,7 @@ const getTasks = async (req, res) => {
 
         const tasks = await Task.find(query)
             .populate('incharge', 'full_name email')
-            .populate('belongs.itBelongsTo', 'full_name email')
+            .populate('belongs.itBelongsTo', 'full_name email telephone')
             .populate('comments.commenter', 'full_name email')
             .populate('attachmentsFile.uploadedBy', 'full_name email')
             .sort(sort)

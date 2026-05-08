@@ -1,11 +1,13 @@
 // VisitorDetailsPage - Comprehensive visitor details and editing page
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiArrowLeft, FiUser, FiRefreshCw, FiCheckCircle, FiClock, FiX, FiLoader, FiSave, FiEdit3 } from 'react-icons/fi';
+import { FiArrowLeft, FiUser, FiRefreshCw, FiCheckCircle, FiClock, FiX, FiLoader, FiSave, FiEdit3, FiPlus } from 'react-icons/fi';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
 import { serviceDeliveryService } from '../../../core/services/adminService';
+import { getTasks } from '../../../core/services/taskService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
+import CreateTaskModal from '../../taskManagement/components/CreateTaskModal';
 
 // Validation helper functions (from CheckInPersonPage)
 const validateIdNumber = (idType: string, idNumber: string): string | null => {
@@ -108,6 +110,8 @@ const VisitorDetailsPage: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [idError, setIdError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
+  const [visitorTasks, setVisitorTasks] = useState<any[]>([]);
 
   // Load visitor data
   useEffect(() => {
@@ -125,6 +129,19 @@ const VisitorDetailsPage: React.FC = () => {
         if (response.success && response.data) {
           setVisitor(response.data);
           setEditingVisitor({ ...response.data });
+
+          // Fetch tasks that belong to this visitor
+          try {
+            const tasksResponse = await getTasks();
+            if (tasksResponse.success) {
+              const tasks = tasksResponse.data.tasks.filter((task: any) =>
+                task.belongs?.isBelongsTo && task.belongs.itBelongsTo === visitorId
+              );
+              setVisitorTasks(tasks);
+            }
+          } catch (error) {
+            console.error('Error fetching visitor tasks:', error);
+          }
         } else {
           showError(response.message || 'Failed to load visitor details');
           navigate('/service-delivery/employee');
@@ -250,17 +267,63 @@ const VisitorDetailsPage: React.FC = () => {
             </button>
             <h1 className="text-lg font-semibold text-[#1a2744]">Visitor Details</h1>
           </div>
-          <button
-            onClick={() => setIsEditMode(!isEditMode)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <FiEdit3 className="w-4 h-4" />
-            {isEditMode ? 'Cancel' : 'Edit'}
-          </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowCreateTaskModal(true)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+              >
+                <FiPlus className="w-4 h-4" />
+                Create Task
+              </button>
+              <button
+                onClick={() => setIsEditMode(!isEditMode)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <FiEdit3 className="w-4 h-4" />
+                {isEditMode ? 'Cancel' : 'Edit'}
+              </button>
+            </div>
         </div>
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
+
+          {/* Belongs To Tasks Section */}
+          {visitorTasks.length > 0 && (
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-6 border border-purple-100">
+              <h3 className="text-lg font-bold text-[#1a2744] mb-4 flex items-center gap-2">
+                <FiCheckCircle className="w-5 h-5 text-purple-600" />
+                Related Tasks ({visitorTasks.length})
+              </h3>
+              <div className="space-y-3">
+                {visitorTasks.map((task: any) => (
+                  <div key={task._id} className="bg-white rounded-lg p-4 border border-purple-200">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium text-gray-900">{task.title}</h4>
+                        <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                            task.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                            task.status === 'In-progress' ? 'bg-blue-100 text-blue-800' :
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {task.status}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            Priority: {task.priority}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right text-xs text-gray-500">
+                        {task.dueDate && `Due: ${new Date(task.dueDate).toLocaleDateString()}`}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Personal Information Section */}
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
@@ -624,6 +687,25 @@ const VisitorDetailsPage: React.FC = () => {
               )}
             </button>
           </div>
+        )}
+
+        {/* Create Task Modal */}
+        {showCreateTaskModal && (
+          <CreateTaskModal
+            onClose={() => setShowCreateTaskModal(false)}
+            onSuccess={() => {
+              setShowCreateTaskModal(false);
+              showSuccess('Task created successfully');
+            }}
+            TaskStatus="Under-review"
+            belongs={{
+              isBelongsTo: true,
+              itBelongsTo: visitorId
+            }}
+            belongsToName={visitor?.full_name}
+            belongsToEmail={visitor?.email}
+            belongstoTelephone={visitor?.telephone}
+          />
         )}
       </div>
     </MainLayout>
