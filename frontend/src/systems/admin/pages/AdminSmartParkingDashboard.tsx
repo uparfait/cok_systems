@@ -11,10 +11,10 @@ import { smartParkingService, statisticsService } from '../../../core/services/a
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import {
-  FiTruck, FiSearch, FiFlag, FiCheckCircle, FiX,
-  FiArrowRight, FiDownload, FiFilter, FiCalendar, FiRefreshCw,
-  FiMapPin, FiFileText
-} from 'react-icons/fi';
+   FiTruck, FiSearch, FiFlag, FiCheckCircle, FiX,
+   FiArrowRight, FiDownload, FiFilter, FiCalendar, FiRefreshCw,
+   FiMapPin, FiFileText, FiEdit
+ } from 'react-icons/fi';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
@@ -65,15 +65,23 @@ const AdminSmartParkingDashboard: React.FC = () => {
   const [hourlyData, setHourlyData] = useState<HourlyData[]>([]);
   const [recentRecords, setRecentRecords] = useState<ParkingRecord[]>([]);
   
-  // Modal states
-  const [showRecordsModal, setShowRecordsModal] = useState(false);
-  const [allRecords, setAllRecords] = useState<ParkingRecord[]>([]);
-  const [modalLoading, setModalLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [realtimeUpdate, setRealtimeUpdate] = useState<string | null>(null);
+   // Modal states
+   const [showRecordsModal, setShowRecordsModal] = useState(false);
+   const [allRecords, setAllRecords] = useState<ParkingRecord[]>([]);
+   const [modalLoading, setModalLoading] = useState(false);
+   const [searchQuery, setSearchQuery] = useState('');
+   const [statusFilter, setStatusFilter] = useState('all');
+   const [dateFrom, setDateFrom] = useState('');
+   const [dateTo, setDateTo] = useState('');
+   const [realtimeUpdate, setRealtimeUpdate] = useState<string | null>(null);
+   const [showSlotConfigModal, setShowSlotConfigModal] = useState(false);
+
+// Slot configuration - will be loaded from backend
+    const [slotConfig, setSlotConfig] = useState({
+      totalSlots: 0,
+      staffReservedSlots: 0,
+      visitorReservedSlots: 0
+    });
   
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -81,11 +89,11 @@ const AdminSmartParkingDashboard: React.FC = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const PAGE_SIZE = 20;
 
-  // Total parking capacity - constant value
-  const TOTAL_CAPACITY = 200;
+// Total parking capacity - loaded from backend
+   const TOTAL_CAPACITY = stats.totalCapacity || 200;
 
-  // Fetch dashboard data
-  const fetchDashboardData = useCallback(async () => {
+// Fetch dashboard data
+   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch hourly parking stats
@@ -108,13 +116,24 @@ const AdminSmartParkingDashboard: React.FC = () => {
       const flaggedData = flaggedResponse?.data;
       const flaggedInside = flaggedData?.currently_flagged?.count || 0;
       
+      // Fetch parking slots configuration
+      const slotsResponse = await statisticsService.getParkingSlots();
+      const slotsData = slotsResponse?.data?.available_slots || {};
+      const totalCapacity = slotsData?.totalSlots || 200;
+
+      // Update slot config for modal display
+      setSlotConfig({
+        totalSlots: slotsData?.totalSlots || 0,
+        staffReservedSlots: slotsData?.staffReservedSlots || 0,
+        visitorReservedSlots: slotsData?.visitorsReservedSlots || 0
+      });
 
       setStats({
         todayVehicles: todayCheckIns,
         currentlyParked: currentlyParked,
-        availableSlots: Math.max(0, TOTAL_CAPACITY - currentlyParked),
+        availableSlots: Math.max(0, totalCapacity - currentlyParked),
         flaggedInside: flaggedInside,
-        totalCapacity: TOTAL_CAPACITY
+        totalCapacity: totalCapacity
       });
 
       // Fetch recent parking records
@@ -262,15 +281,25 @@ const AdminSmartParkingDashboard: React.FC = () => {
     };
   }, [socket, isConnected, fetchDashboardData, showRecordsModal]);
 
-  // Clear real-time update notification after 3 seconds
-  useEffect(() => {
-    if (realtimeUpdate) {
-      const timer = setTimeout(() => {
-        setRealtimeUpdate(null);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [realtimeUpdate]);
+   // Clear real-time update notification after 3 seconds
+   useEffect(() => {
+     if (realtimeUpdate) {
+       const timer = setTimeout(() => {
+         setRealtimeUpdate(null);
+       }, 3000);
+       return () => clearTimeout(timer);
+     }
+   }, [realtimeUpdate]);
+
+   // Slot configuration change handler
+   const handleSlotConfigChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+     const { name, value } = e.target;
+     setSlotConfig(prev => ({ ...prev, [name]: parseInt(value) || 0 }));
+   };
+
+   const calculateRegularSlots = () => {
+     return Math.max(0, slotConfig.totalSlots - slotConfig.staffReservedSlots - slotConfig.visitorReservedSlots);
+   };
 
   // Open records modal
   const handleOpenRecordsModal = useCallback(() => {
@@ -541,10 +570,25 @@ const AdminSmartParkingDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+         </div>
 
-     {/* Parking Usage Chart */}
-<div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+         {/* Slot Configuration Button */}
+         <div className="flex justify-center">
+           <button
+             onClick={() => setShowSlotConfigModal(true)}
+             className="w-full max-w-xs group backdrop-blur-xl bg-gradient-to-br from-indigo-500/20 to-blue-500/20 hover:from-indigo-500/30 hover:to-blue-500/30 rounded-2xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-indigo-200/30"
+           >
+             <div className="flex items-center justify-center gap-2 flex-col h-full">
+               <div className="p-2 bg-white/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
+                 <FiEdit className="w-5 h-5 text-indigo-700" />
+               </div>
+               <p className="text-indigo-700 text-sm font-medium text-center">Slot Configuration</p>
+             </div>
+           </button>
+</div>
+
+        {/* Parking Usage Chart */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
   <div className="flex items-center justify-between mb-4">
     <h2 className="text-lg font-semibold text-gray-900">Parking Usage Trends</h2>
     <span className="text-sm text-gray-500">Today's hourly activity</span>
@@ -623,276 +667,122 @@ const AdminSmartParkingDashboard: React.FC = () => {
             dot={false}
             activeDot={{ r: 6, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
           />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  )}
-</div>
-
-        {/* See All Parking Records Button */}
-        <div className="flex justify-center">
-          <button 
-            onClick={handleOpenRecordsModal}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600  text-white rounded-xl font-medium hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl"
-          >
-            <FiFileText className="w-5 h-5" />
-            View All Parking Records
-            <FiArrowRight className="w-5 h-5" />
-          </button>
-        </div>
+</AreaChart>
+       </ResponsiveContainer>
       </div>
+     )}
+  </div>
 
-      {/* Parking Records Management Modal */}
-      {showRecordsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowRecordsModal(false)}></div>
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Parking Records Management</h2>
-                  <p className="text-sm text-gray-500 mt-1">Comprehensive view of all vehicle entries and exits</p>
-                </div>
-                <button 
-                  onClick={() => setShowRecordsModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+         {/* Slot Configuration Modal */}
+        {showSlotConfigModal && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+            <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-md mx-2 sm:mx-auto overflow-hidden border border-white/50 animate-scaleIn">
+              <div className="px-6 py-4 flex items-center justify-between border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-blue-50">
+                <h3 className="text-xl font-bold text-gray-900">Parking Slot Configuration</h3>
+                <button
+                  onClick={() => setShowSlotConfigModal(false)}
+                  className="p-2 hover:bg-white/20 rounded-full transition-colors"
                 >
-                  <FiX className="w-5 h-5 text-gray-500" />
+                  <FiX className="w-5 h-5 text-gray-600" />
                 </button>
               </div>
-            </div>
 
-            {/* Filters */}
-            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
-              <div className="flex flex-wrap gap-4 items-end">
-                {/* Search */}
-                <div className="flex-1 min-w-[200px]">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-                  <div className="relative">
-                    <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search by plate, driver name, or phone..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && fetchAllRecords()}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Date From */}
+              <div className="p-6 space-y-6">
+                {/* Total Slots */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
-                  <div className="relative">
-                    <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="date"
-                      value={dateFrom}
-                      onChange={(e) => setDateFrom(e.target.value)}
-                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Total Slots</label>
+                  <input
+                    type="number"
+                    name="totalSlots"
+                    value={slotConfig.totalSlots}
+                    onChange={handleSlotConfigChange}
+                    className="w-full px-4 py-3 bg-white/50 backdrop-blur border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+                    min="0"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Total parking capacity</p>
                 </div>
 
-                {/* Date To */}
+                {/* Staff Reserved Slots */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
-                  <div className="relative">
-                    <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="date"
-                      value={dateTo}
-                      onChange={(e) => setDateTo(e.target.value)}
-                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Staff Reserved Slots</label>
+                  <input
+                    type="number"
+                    name="staffReservedSlots"
+                    value={slotConfig.staffReservedSlots}
+                    onChange={handleSlotConfigChange}
+                    className="w-full px-4 py-3 bg-white/50 backdrop-blur border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+                    min="0"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Slots reserved for staff vehicles</p>
                 </div>
 
-                {/* Status Filter */}
+                {/* Visitor Reserved Slots */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="completed">Completed</option>
-                  </select>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Visitor Reserved Slots</label>
+                  <input
+                    type="number"
+                    name="visitorReservedSlots"
+                    value={slotConfig.visitorReservedSlots}
+                    onChange={handleSlotConfigChange}
+                    className="w-full px-4 py-3 bg-white/50 backdrop-blur border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+                    min="0"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Slots reserved for visitor vehicles</p>
                 </div>
 
-                {/* Apply Button */}
-                <button 
+                {/* Computed Regular Slots */}
+                <div className="p-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 rounded-xl border border-blue-100">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-700">Regular Available Slots:</span>
+                    <span className="text-xl font-bold text-blue-600">{calculateRegularSlots()}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Automatically calculated: Total - Staff Reserved - Visitor Reserved
+                  </p>
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex gap-3">
+                <button
+                  onClick={() => setShowSlotConfigModal(false)}
+                  className="flex-1 py-3 px-4 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
                   onClick={() => {
-                    setCurrentPage(1);
-                    fetchAllRecords(1);
+                    // TODO: Save slot configuration to backend
+                    console.log('Saving slot config:', slotConfig);
+                    setShowSlotConfigModal(false);
                   }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-500 to-blue-500 text-white rounded-xl font-medium hover:from-indigo-600 hover:to-blue-600 shadow-lg transition-all"
                 >
-                  <FiFilter className="w-4 h-4" />
-                  Apply Filters
+                  Save Configuration
                 </button>
-
-                {/* Download Button */}
-                <button 
-                  onClick={handleDownloadReport}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-                >
-                  <FiDownload className="w-4 h-4" />
-                  Export PDF
-                </button>
-              </div>
-            </div>
-
-            {/* Table */}
-            <div className="overflow-auto max-h-[calc(90vh-280px)]">
-              {modalLoading ? (
-                <div className="flex items-center justify-center h-64">
-                  <LoadingSpinner message="Loading records..." />
-                </div>
-              ) : allRecords.length > 0 ? (
-                <table className="w-full">
-                  <thead className="bg-gray-50 sticky top-0">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Plate Number</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Driver Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Phone</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Driver Type</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Check-in Time</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Check-out Time</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {allRecords.map((record, index) => (
-                      <tr key={record._id} className={`hover:bg-gray-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                        <td className="px-4 py-3">
-                          <span className="font-medium text-gray-900">
-                            {record.plate_number || '—'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {record.driver_name || '—'}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {record.driver_telephone || '—'}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex px-2.5 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
-                            {record.driver_type || '—'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
-                            record.status === 'active' ? 'bg-green-100 text-green-700' : 
-                            record.status === 'completed' ? 'bg-blue-100 text-blue-700' : 
-                            'bg-gray-100 text-gray-600'
-                          }`}>
-                            {record.status === 'active' ? 'Active' : record.status === 'completed' ? 'Completed' : record.status || 'Unknown'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-gray-600 text-sm">
-                          {record.check_in ? new Date(record.check_in).toLocaleString() : '—'}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600 text-sm">
-                          {record.check_out ? new Date(record.check_out).toLocaleString() : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-                  <FiTruck className="w-12 h-12 mb-2 opacity-50" />
-                  <p className="text-lg font-medium">No parking records found</p>
-                  <p className="text-sm mt-1">Try adjusting your filters or check back later</p>
-                </div>
-              )}
-            </div>
-            
-            {/* Modal Footer with Pagination */}
-            <div className="px-6 py-3 border-t border-gray-100 bg-gray-50">
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-                <p className="text-sm text-gray-600">
-                  Showing <span className="font-semibold">{allRecords.length}</span> of <span className="font-semibold">{totalRecords}</span> records
-                </p>
-                
-                {/* Pagination Controls */}
-                {totalPages > 1 && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => fetchAllRecords(currentPage - 1)}
-                      disabled={currentPage === 1 || modalLoading}
-                      className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-                    >
-                      {modalLoading && (
-                        <svg className="animate-spin h-3 w-3 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                      )}
-                      Previous
-                    </button>
-                    
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        let pageNum;
-                        if (totalPages <= 5) {
-                          pageNum = i + 1;
-                        } else if (currentPage <= 3) {
-                          pageNum = i + 1;
-                        } else if (currentPage >= totalPages - 2) {
-                          pageNum = totalPages - 4 + i;
-                        } else {
-                          pageNum = currentPage - 2 + i;
-                        }
-                        
-                        return (
-                          <button
-                            key={pageNum}
-                            onClick={() => fetchAllRecords(pageNum)}
-                            disabled={modalLoading}
-                            className={`w-8 h-8 text-sm font-medium rounded-lg transition-colors ${
-                              currentPage === pageNum
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                            } disabled:opacity-50 disabled:cursor-not-allowed`}
-                          >
-                            {pageNum}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    
-                    <button
-                      onClick={() => fetchAllRecords(currentPage + 1)}
-                      disabled={currentPage === totalPages || modalLoading}
-                      className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-                    >
-                      Next
-                      {modalLoading && (
-                        <svg className="animate-spin h-3 w-3 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                )}
-                
-                <p className="text-xs text-gray-500">
-                  Last updated: {new Date().toLocaleString()}
-                </p>
               </div>
             </div>
           </div>
+        )}
+          {/* Global Styles for Animations */}
+          <style>{`
+            @keyframes scaleIn {
+              from {
+                opacity: 0;
+                transform: scale(0.9);
+              }
+              to {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+
+            .animate-scaleIn {
+              animation: scaleIn 0.2s ease-out;
+            }
+          `}</style>
         </div>
-      )}
-    </MainLayout>
-  );
-};
+        </MainLayout>
+     );
+   };
 
 export default AdminSmartParkingDashboard;
