@@ -74,12 +74,12 @@ const SmartParkingDashboard: React.FC = () => {
   const [flaggedLoading, setFlaggedLoading] = useState(true);
   const [modalFlaggedLoading, setModalFlaggedLoading] = useState(false);
 
-  // Modal states
-  const [showFoundModal, setShowFoundModal] = useState(false);
-  const [showFlaggedModal, setShowFlaggedModal] = useState(false);
-  const [showCheckoutConfirmModal, setShowCheckoutConfirmModal] = useState(false);
-  const [checkoutVehicle, setCheckoutVehicle] = useState<FlaggedVehicle | null>(null);
-  const [isEditingDriver, setIsEditingDriver] = useState(false);
+   // Modal states
+   const [showFoundModal, setShowFoundModal] = useState(false);
+   const [showFlaggedModal, setShowFlaggedModal] = useState(false);
+   const [showCheckoutConfirmModal, setShowCheckoutConfirmModal] = useState(false);
+   const [checkoutVehicle, setCheckoutVehicle] = useState<FlaggedVehicle | null>(null);
+   const [isEditingDriver, setIsEditingDriver] = useState(false);
   const [driverInfo, setDriverInfo] = useState({
     name: '',
     telephone: '',
@@ -89,22 +89,25 @@ const SmartParkingDashboard: React.FC = () => {
   // Data states
   const [verifiedData, setVerifiedData] = useState<VehicleData | null>(null);
 
-  // Stats data from API
-  const [stats, setStats] = useState({
-    availableSlots: 0,
-    totalSlots: 350,
-    staffVehicles: 0,
-    reservedSlots: 0,
-    newVisitors: 0,
-    totalInside: 0,
-    totalOutside: 0,
-    flaggedButInside: 0,
-    visitorVehicles: 0,
-    visitorReserved: 0,
-    staffReserved: 0,
-    regularAvailable: 0,
-    regularReserved: 0
-  });
+   // Stats data from API
+   const [stats, setStats] = useState({
+     availableSlots: 0,
+     totalSlots: 0,
+     staffVehicles: 0,
+     visitorVehicles: 0,
+     reservedSlots: 0,
+     newVisitors: 0,
+     totalInside: 0,
+     totalOutside: 0,
+     flaggedButInside: 0,
+     staffReserved: 0,
+     visitorReserved: 0,
+     staffReservedSlots: 0,
+     visitorReservedSlots: 0,
+     regularAvailable: 0,
+     regularReserved: 0,
+     regularTotal: 0
+   });
 
   // Flagged vehicles
   const [flaggedVehicles, setFlaggedVehicles] = useState<FlaggedVehicle[]>([]);
@@ -162,24 +165,34 @@ const SmartParkingDashboard: React.FC = () => {
       const currentlyParkedResponse = await statisticsService.getCurrentlyParkedStats();
       const slotsResponse = await statisticsService.getParkingSlots();
 
-      if (currentlyParkedResponse.success && currentlyParkedResponse.data) {
-        const { total, by_driver_type } = currentlyParkedResponse.data;
-        const slotsData = slotsResponse.success && slotsResponse.data ? slotsResponse.data.available_slots : null;
+  if (currentlyParkedResponse.success && currentlyParkedResponse.data) {
+         const { total, by_driver_type } = currentlyParkedResponse.data;
+         const slotsData = slotsResponse.success && slotsResponse.data ? slotsResponse.data.available_slots : null;
 
-        setStats(prev => ({
-          ...prev,
-          totalInside: total || 0,
-          totalSlots: slotsData?.totalSlots || 350,
-          availableSlots: (slotsData?.visitorsAvailableSlots || 0) + (slotsData?.staffAvailableSlots || 0) + (slotsData?.RegularAvailableSlots || 0),
-          visitorVehicles: by_driver_type?.Visitor || 0,
-          staffVehicles: (by_driver_type?.Staff || 0) + (by_driver_type?.Regular || 0),
-          staffReserved: slotsData?.staffReservationCount || 0,
-          visitorReserved: slotsData?.visitorReservationCount || 0,
-          regularAvailable: slotsData?.RegularAvailableSlots || 0,
-          regularReserved: slotsData?.RegularReservedSlots || 0
-        }));
-        setStatsLoading(false);
-      }
+         const totalSlots = slotsData?.totalSlots || 0;
+         const staffReservedSlots = slotsData?.staffReservedSlots || 0;
+         const visitorReservedSlots = slotsData?.visitorsReservedSlots || 0;
+         const regularAvailableSlots = slotsData?.RegularAvailableSlots || 0;
+         // Regular total = total slots minus staff reserved slots minus visitor reserved slots (auto-calculated)
+         const regularTotal = Math.max(0, totalSlots - staffReservedSlots - visitorReservedSlots);
+
+         setStats(prev => ({
+           ...prev,
+           totalInside: total || 0,
+           totalSlots: totalSlots,
+           availableSlots: (slotsData?.visitorsAvailableSlots || 0) + (slotsData?.staffAvailableSlots || 0) + regularAvailableSlots,
+           visitorVehicles: by_driver_type?.Visitor || 0,
+           staffVehicles: (by_driver_type?.Staff || 0) + (by_driver_type?.Regular || 0),
+           staffReserved: slotsData?.staffReservationCount || 0,
+           staffReservedSlots: staffReservedSlots,
+           visitorReserved: slotsData?.visitorReservationCount || 0,
+           visitorReservedSlots: visitorReservedSlots,
+           regularAvailable: regularAvailableSlots,
+           regularReserved: slotsData?.RegularReservedSlots || 0,
+           regularTotal: regularTotal
+         }));
+         setStatsLoading(false);
+       }
 
 
       await fetchFlaggedVehicles(flaggedPage, false);
@@ -490,8 +503,6 @@ const SmartParkingDashboard: React.FC = () => {
 
         {/* Main Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-4">
-          {/* Regular Available */}
-                    {/* Available Slots */}
           <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
             <div className="flex items-start justify-between">
               <div>
@@ -510,7 +521,7 @@ const SmartParkingDashboard: React.FC = () => {
                 <MdOutlineLocalParking className="w-6 h-6 text-blue-700" />
               </div>
             </div>
-          </div>
+</div>
 
           <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
             <div className="flex items-start justify-between">
@@ -522,7 +533,7 @@ const SmartParkingDashboard: React.FC = () => {
                   <h3 className="text-3xl font-bold text-emerald-700">{stats.regularAvailable}</h3>
                 )}
                 <p className="text-gray-600 text-xs mt-2 flex items-center gap-1">
-                  <FiMapPin className="w-3 h-3" /> {stats.regularReserved} allocated
+                  <FiMapPin className="w-3 h-3" /> {stats.regularAvailable}/{stats.regularTotal} allocated
                 </p>
               </div>
               <div className="p-3 bg-white/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
@@ -532,22 +543,21 @@ const SmartParkingDashboard: React.FC = () => {
           </div>
 
 
-
           {/* Staff Reserved */}
           <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-purple-700 text-sm font-medium mb-1">Staff Reserved</p>
-                {statsLoading ? (
-                  <div className="h-9 w-16 bg-purple-200/50 rounded animate-pulse mt-1"></div>
-                ) : (
-                  <h3 className="text-3xl font-bold text-purple-700">{stats.staffReserved}</h3>
-                )}
-                <p className="text-gray-700 text-xs mt-2 flex items-center gap-1">
-                  <FiUsers className="w-3 h-3" />
-                  /100 allocated
-                </p>
-              </div>
+{statsLoading ? (
+                   <div className="h-9 w-16 bg-purple-200/50 rounded animate-pulse mt-1"></div>
+                 ) : (
+                   <h3 className="text-3xl font-bold text-purple-700">{stats.staffReserved}</h3>
+                 )}
+                 <p className="text-gray-700 text-xs mt-2 flex items-center gap-1">
+                    <FiUsers className="w-3 h-3" />
+                    {stats.staffReserved}/{stats.staffReservedSlots} allocated
+                  </p>
+               </div>
               <div className="p-3 bg-white/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
                 <FiShield className="w-6 h-6 text-purple-700" />
               </div>
@@ -559,16 +569,16 @@ const SmartParkingDashboard: React.FC = () => {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-amber-700 text-sm font-medium mb-1">Visitor Reserved</p>
-                {statsLoading ? (
-                  <div className="h-9 w-16 bg-amber-200/50 rounded animate-pulse mt-1"></div>
-                ) : (
-                  <h3 className="text-3xl font-bold text-amber-700">{stats.visitorReserved}</h3>
-                )}
-                <p className="text-gray-700 text-xs mt-2 flex items-center gap-1">
-                  <FiTrendingUp className="w-3 h-3" />
-                  /50 allocated
-                </p>
-              </div>
+{statsLoading ? (
+                   <div className="h-9 w-16 bg-amber-200/50 rounded animate-pulse mt-1"></div>
+                 ) : (
+                   <h3 className="text-3xl font-bold text-amber-700">{stats.visitorReserved}</h3>
+                 )}
+                  <p className="text-gray-700 text-xs mt-2 flex items-center gap-1">
+                    <FiTrendingUp className="w-3 h-3" />
+                    {stats.visitorReserved}/{stats.visitorReservedSlots} allocated
+                  </p>
+               </div>
               <div className="p-3 bg-white/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
                 <FiUserPlus className="w-6 h-6 text-amber-700" />
               </div>
@@ -1176,7 +1186,7 @@ const SmartParkingDashboard: React.FC = () => {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+</table>
                   </div>
                   
                   {/* Pagination Controls */}
@@ -1207,26 +1217,8 @@ const SmartParkingDashboard: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Global Styles for Animations */}
-      <style>{`
-        @keyframes scaleIn {
-          from {
-            opacity: 0;
-            transform: scale(0.9);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-        
-        .animate-scaleIn {
-          animation: scaleIn 0.2s ease-out;
-        }
-      `}</style>
-    </MainLayout>
-  );
-};
+      </MainLayout>
+    );
+  };
 
 export default SmartParkingDashboard;

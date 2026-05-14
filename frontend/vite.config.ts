@@ -22,8 +22,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/cok/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:2026' //'https://cok-bc.onrender.com',
-        ,
+        target: process.env.VITE_API_URL || 'http://localhost:2026',
         changeOrigin: true,
         secure: process.env.VITE_API_URL ? true : false,
         // Don't rewrite the path - keep /cok/api

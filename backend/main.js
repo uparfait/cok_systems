@@ -162,16 +162,17 @@ db_connection()
     // check if parking slot document exists, if not create one with default values
     // default will be 350 total slots, 50 reserved for visitors, 100 reserved for staff, 100 available for visitors, 100 available for staff and 100 regular available slots
     const parkingSlotDoc = await ParkingSlot.findOne({ UnChangedId: "parking_slots" });
-    if (!parkingSlotDoc) {
+  
+    if (!!parkingSlotDoc?.unChangedId) {
       const newParkingSlot = new ParkingSlot({
-        totalSlots: 350,
-        visitorsReservedSlots: 50,
-        staffReservedSlots: 100,
-        visitorsAvailableSlots: 50,
-        staffAvailableSlots: 100,
-        RegularReservedSlots: 200,
-        RegularAvailableSlots: 200,
-      });
+        totalSlots: 0,
+        visitorsReservedSlots: 0,
+        staffReservedSlots: 0,
+        visitorsAvailableSlots: 0,
+        staffAvailableSlots: 0,
+        RegularReservedSlots: 0,
+        RegularAvailableSlots: 0,
+      });// commenting haardcoded values 
       await newParkingSlot.save();
       console.log("Default parking slot document created.");
     } else {
@@ -183,7 +184,7 @@ db_connection()
       taskNotificationScheduler.start();
       console.log("Task notification scheduler started successfully.");
     } catch (schedulerError) {
-      console.error("⚠️ Failed to start task notification scheduler:", schedulerError);
+      console.error("Failed to start task notification scheduler:", schedulerError);
     }
 
     /**
@@ -201,10 +202,10 @@ db_connection()
             "Parking Monitor background service started successfully.",
           );
         } else {
-          console.log("⚠️ Parking Monitor imported, but it is not a function.");
+          console.log(" Parking Monitor imported, but it is not a function.");
         }
       } catch (monitorError) {
-        console.error("⚠️ Failed to start Parking Monitor:", monitorError);
+        console.error(" Failed to start Parking Monitor:", monitorError);
       }
 
       server.listen(PORT, () => {
@@ -213,8 +214,8 @@ db_connection()
         if (IS_ANY_MISSED_MODULES) {
           console.log(`
                     
-                    APPLICATION IS RUNNING BUT ${missed_modules} MODULES MISSED WHICH MIGHT CAUSE AN ERROR IN FUTURE
-                    =============================================================================================
+      APPLICATION IS RUNNING BUT ${missed_modules} MODULES MISSED WHICH MIGHT CAUSE AN ERROR IN FUTURE
+    =============================================================================================
                     
                     `);
           console.log(
