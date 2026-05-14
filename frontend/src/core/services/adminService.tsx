@@ -685,6 +685,10 @@ export const parkingService = {
   
   // Flag vehicle
   flagVehicle: (plateNumber: string, reason: string) => post('/smartparking/vehicle/flag', { plate_number: plateNumber, reason }),
+
+  // Update slot configuration
+  updateSlotConfig: (config: { totalSlots: number; staffReservedSlots: number; visitorReservedSlots: number }) =>
+    put('/smartparking/slots', config),
 };
 
 // Alias for smartParkingService (used by DashboardPage)
