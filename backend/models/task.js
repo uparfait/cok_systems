@@ -73,7 +73,7 @@ const taskSchema = new mongoose.Schema({
         filename: { type: String, required: true },
         originalName: { type: String, required: true },
         url: { type: String, required: true },
-        type: { type: String, enum: ['image', 'document', 'link', 'other'], default: 'other' },
+        type: { type: String, default: 'other' },
         size: { type: Number }, // File size in bytes
         uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
         uploadedAt: { type: Date, default: Date.now }

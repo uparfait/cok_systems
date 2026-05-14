@@ -1,7 +1,7 @@
 // Attachments - Component for attachments display
 
-import React from 'react'
-import { FiPaperclip, FiEye, FiDownload, FiTrash2 } from 'react-icons/fi'
+import React, { useState } from 'react'
+import { FiPaperclip, FiEye, FiDownload, FiTrash2, FiMoreVertical } from 'react-icons/fi'
 import type { Attachment } from '../../../core/services/taskService'
 
 interface AttachmentsProps {
@@ -17,58 +17,87 @@ const Attachments: React.FC<AttachmentsProps> = ({
   onViewAttachment,
   onDeleteAttachment
 }) => {
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   return (
     <div className="bg-gray-50 rounded-lg p-4 mt-6">
-      <h3 className="text-sm font-medium text-gray-700 mb-3">Attachments ({attachments?.length || 0})</h3>
-      <div className="space-y-3">
+      <div className="space-y-3 ">
         {attachments?.map((attachment: Attachment) => (
-          <div key={attachment._id} className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow">
+          <div key={attachment._id} className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow" title={attachment.originalName}>
             <div className="flex items-start justify-between">
               <div className="flex items-start space-x-3 flex-1 min-w-0">
                 <div className="p-2 bg-blue-50 rounded-lg">
                   <FiPaperclip className="w-5 h-5 text-blue-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{attachment.filename}</p>
+                  <p className="text-sm font-medium text-gray-900 truncate" title={attachment.originalName}>
+                    {attachment.originalName}
+                  </p>
                   {attachment.size && (
                     <p className="text-xs text-gray-500 mt-1">{(attachment.size / 1024).toFixed(1)} KB</p>
                   )}
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="relative">
                 <button
-                  onClick={() => onViewAttachment(attachment)}
-                  className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 border border-blue-200 rounded hover:bg-blue-50 transition-colors"
+                  onClick={() => setOpenDropdown(openDropdown === attachment._id ? null : attachment._id!)}
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-50 transition-colors"
                 >
-                  <FiEye className="w-4 h-4" />
-                  <span>View</span>
+                  <FiMoreVertical className="w-5 h-5" />
                 </button>
-                <a
-                  href={attachment.url}
-                  download={attachment.filename}
-                  className="flex items-center space-x-1 px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-200 rounded hover:bg-gray-50 transition-colors"
-                >
-                  <FiDownload className="w-4 h-4" />
-                  <span>Download</span>
-                </a>
-                <button
-                  onClick={() => onDeleteAttachment(attachment._id!)}
-                  disabled={loading}
-                  className="flex items-center space-x-1 px-3 py-1 text-sm text-red-600 hover:text-red-700 border border-red-200 rounded hover:bg-red-50 transition-colors disabled:opacity-50"
-                >
-                  <FiTrash2 className="w-4 h-4" />
-                  <span>Delete</span>
-                </button>
+                {openDropdown === attachment._id && (
+                  <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                    <div className="px-4 py-2 border-b border-gray-200">
+                      <p className="text-sm font-medium text-gray-900 truncate" title={attachment.originalName}>
+                        {attachment.originalName}
+                      </p>
+                      
+                    </div>
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          onViewAttachment(attachment)
+                          setOpenDropdown(null)
+                        }}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <FiEye className="w-4 h-4 mr-2" />
+                        View
+                      </button>
+                      <a
+                        href={attachment.url}
+                        download={attachment.originalName}
+                        onClick={() => setOpenDropdown(null)}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <FiDownload className="w-4 h-4 mr-2" />
+                        Download
+                      </a>
+                      <button
+                        onClick={() => {
+                          onDeleteAttachment(attachment._id!)
+                          setOpenDropdown(null)
+                        }}
+                        disabled={loading}
+                        className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        <FiTrash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         ))}
+
         {(!attachments || attachments.length === 0) && (
           <div className="text-center py-6 text-gray-500">
             <FiPaperclip className="w-8 h-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm">No attachments yet</p>
           </div>
         )}
+        
       </div>
     </div>
   )

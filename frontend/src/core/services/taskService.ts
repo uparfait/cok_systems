@@ -10,7 +10,12 @@ export interface Task {
   _id?: string
   belongs: {
     isBelongsTo: boolean
-    itBelongsTo?: string
+    itBelongsTo?:  {
+      _id: string
+      full_name: string
+      email?: string
+      telephone?: string
+    }
   }
   incharge: string
   members: string[]
@@ -135,6 +140,8 @@ export const addChecklist = (taskId: string, checklist: {
 export const updateChecklist = (taskId: string, checklistId: string, updates: {
   itemIndex?: number
   completed?: boolean
+  itemText?: string
+  deleteItemIndex?: number
   title?: string
   items?: Array<{ text: string; completed?: boolean }>
 }) =>

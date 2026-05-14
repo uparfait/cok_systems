@@ -44,7 +44,7 @@ const LiveTimer: React.FC<{ startTime: string }> = ({ startTime }) => {
 import DepartmentAvailabilityTab from "../components/departmentFlow/tabs/DepartmentAvailabilityTab";
 import { ViewEmployeeModal, EditEmployeeModal } from "../components/departmentFlow/EmployeeModals"; // Removed DeleteEmployeeModal
 import ServeVisitorModal from "../components/employeeFlow/ServeVisitorModal";
-import FeedbackDetailModal from "../../../core/components/Modals/FeedbackDetailModal";
+
 
 // Types matching Backend Structure
 interface ServiceStatus {
