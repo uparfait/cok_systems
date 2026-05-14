@@ -1,7 +1,9 @@
 // CreateTaskModal - Modal for creating new tasks
 
-import React, { useState, useRef } from 'react'
-import { FiX, FiCalendar, FiUpload, FiBell } from 'react-icons/fi'
+import React, { useState, useRef, useEffect } from 'react'
+import { FiX, FiCalendar, FiUpload, FiBell, FiEye } from 'react-icons/fi'
+import AttachmentViewer from './AttachmentViewer'
+import type { Attachment } from '../../../core/services/taskService'
 import { useAuth } from '../../../core/contexts/AuthContext'
 import { useToast } from '../../../core/contexts/ToastContext'
 import { createTask } from '../../../core/services/taskService'
@@ -10,9 +12,17 @@ import type { TaskStatus } from '../../../core/services/taskService'
 interface CreateTaskModalProps {
   onClose: () => void
   onSuccess: () => void
+  TaskStatus: string
+  belongs?: {
+    isBelongsTo: boolean
+    itBelongsTo?: string
+  }
+  belongsToName?: string
+  belongsToEmail?: string,
+  belongstoTelephone?: string
 }
 
-const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess }) => {
+const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, TaskStatus, belongs, belongsToName, belongsToEmail, belongstoTelephone }) => {
   const { user } = useAuth()
   const { showError } = useToast()
 
@@ -20,7 +30,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess })
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    status: 'Under-review' as TaskStatus,
+    status: TaskStatus as TaskStatus,
     startDate: '',
     startTime: '12:00',
     dueDate: '',
@@ -31,9 +41,19 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess })
 
   const [attachments, setAttachments] = useState<File[]>([])
   const attachmentsRef = useRef<HTMLInputElement>(null)
-  const [checklists, setChecklists] = useState<Array<{ title: string; items: Array<{ text: string }> }>>([])
+  const [viewingAttachment, setViewingAttachment] = useState<Attachment | null>(null)
+
+  // Update form data when TaskStatus prop changes
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      status: TaskStatus as TaskStatus
+    }))
+  }, [TaskStatus])
+  const [checklists, setChecklists] = useState<Array<{ title: string; items: Array<{ text: string; completed: boolean }> }>>([])
   const [showChecklistForm, setShowChecklistForm] = useState(false)
-  const [checklistForm, setChecklistForm] = useState({ title: '', items: [''] })
+  const [editingChecklistIndex, setEditingChecklistIndex] = useState<number | null>(null)
+  const [checklistForm, setChecklistForm] = useState({ title: '', items: [{ text: '', completed: false }] })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -83,7 +103,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess })
 
     try {
       const taskData: any = {
-        belongs: { isBelongsTo: false },
+        belongs: belongs || { isBelongsTo: false },
         incharge: user.userId,
         title: formData.title.trim(),
         description: formData.description.trim(),
@@ -93,7 +113,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess })
             ? new Date(`${formData.notifyDate}T${formData.notifyTime}`).toISOString()
             : null
         },
-        checklists: checklists.map(c => ({ title: c.title, items: c.items.map(item => ({ text: item.text.trim(), completed: false })) })),
+        checklists: checklists.map(c => ({ title: c.title, items: c.items.map(item => ({ text: item.text.trim(), completed: item.completed })) })),
         comments: [],
         attachmentsFile: []
       }
@@ -148,13 +168,20 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess })
   }
 
   const addChecklistItem = () => {
-    setChecklistForm(prev => ({ ...prev, items: [...prev.items, ''] }))
+    setChecklistForm(prev => ({ ...prev, items: [...prev.items, { text: '', completed: false }] }))
   }
 
   const updateChecklistItem = (index: number, text: string) => {
     setChecklistForm(prev => ({
       ...prev,
-      items: prev.items.map((item, i) => i === index ? text : item)
+      items: prev.items.map((item, i) => i === index ? { ...item, text } : item)
+    }))
+  }
+
+  const toggleChecklistItemCompleted = (index: number) => {
+    setChecklistForm(prev => ({
+      ...prev,
+      items: prev.items.map((item, i) => i === index ? { ...item, completed: !item.completed } : item)
     }))
   }
 
@@ -166,27 +193,53 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess })
   }
 
   const handleAddChecklist = () => {
-    if (!checklistForm.title.trim() || checklistForm.items.some(item => !item.trim())) {
+    if (!checklistForm.title.trim() || checklistForm.items.some(item => !item.text.trim())) {
       showError('Please fill all checklist fields')
       return
     }
-    setChecklists(prev => [...prev, {
+
+    const newChecklist = {
       title: checklistForm.title.trim(),
-      items: checklistForm.items.filter(item => item.trim()).map(text => ({ text: text.trim() }))
-    }])
-    setChecklistForm({ title: '', items: [''] })
+      items: checklistForm.items.filter(item => item.text.trim()).map(item => ({
+        text: item.text.trim(),
+        completed: item.completed
+      }))
+    }
+
+    if (editingChecklistIndex !== null) {
+      // Edit existing checklist
+      setChecklists(prev => prev.map((checklist, index) =>
+        index === editingChecklistIndex ? newChecklist : checklist
+      ))
+    } else {
+      // Add new checklist
+      setChecklists(prev => [...prev, newChecklist])
+    }
+
+    setChecklistForm({ title: '', items: [{ text: '', completed: false }] })
     setShowChecklistForm(false)
+    setEditingChecklistIndex(null)
   }
 
   const removeChecklist = (index: number) => {
     setChecklists(prev => prev.filter((_, i) => i !== index))
   }
 
+  const editChecklist = (index: number) => {
+    const checklist = checklists[index]
+    setChecklistForm({
+      title: checklist.title,
+      items: checklist.items.map(item => ({ text: item.text, completed: item.completed }))
+    })
+    setEditingChecklistIndex(index)
+    setShowChecklistForm(true)
+  }
+
   // Set minimum date to today
   const today = new Date().toISOString().split('T')[0]
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
       <div className="bg-white rounded-xl shadow-2xl w-[90vw] max-w-7xl h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
@@ -198,6 +251,28 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess })
             <FiX className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Belongs to note */}
+        {belongs?.isBelongsTo && belongsToName && (
+          <div className="px-6 py-2 bg-blue-50 border-b border-blue-200">
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-blue-700 font-medium">
+                This task belongs to:
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                  {belongsToName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-gray-900">{belongsToName}</div>
+                  {belongsToEmail  || belongstoTelephone && (
+                    <div className="text-xs text-gray-600">{belongsToEmail || ''}, {belongstoTelephone || ''}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -401,19 +476,65 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess })
                 <span>Add Attachments</span>
               </button>
               {attachments.length > 0 && (
-                <div className="space-y-2">
-                  {attachments.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <span className="text-sm text-gray-700">{file.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeAttachment(index)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <FiX className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-gray-700">
+                      Ready to upload ({attachments.length} file{attachments.length !== 1 ? 's' : ''})
+                    </h4>
+                  </div>
+
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {attachments.map((file, index) => (
+                      <div key={index} className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start space-x-3 flex-1 min-w-0">
+                            <div className="p-2 bg-orange-50 rounded-lg">
+                              <FiUpload className="w-4 h-4 text-orange-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate" title={file.name}>
+                                {file.name}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {(file.size / 1024).toFixed(1)} KB • {file.type || 'Unknown type'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <button
+                              onClick={() => {
+                                // Create a temporary attachment object for viewing
+                                const tempUrl = URL.createObjectURL(file)
+                                const tempAttachment = {
+                                  _id: `temp-${index}`,
+                                  filename: file.name,
+                                  originalName: file.name,
+                                  url: tempUrl,
+                                  type: file.type,
+                                  size: file.size,
+                                  uploadedBy: '',
+                                  uploadedAt: new Date().toISOString(),
+                                  description: ''
+                                } as Attachment
+                                setViewingAttachment(tempAttachment)
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-50 transition-colors"
+                              title="Preview file"
+                            >
+                              <FiEye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => removeAttachment(index)}
+                              className="p-1.5 text-red-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors"
+                              title="Remove file"
+                            >
+                              <FiX className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -432,20 +553,62 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess })
               </button>
             </div>
             {checklists.length > 0 && (
-              <div className="space-y-2 mb-2">
+              <div className="space-y-3 mb-4">
                 {checklists.map((checklist, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <div>
-                      <span className="font-medium">{checklist.title}</span>
-                      <span className="text-sm text-gray-500 ml-2">({checklist.items.length} items)</span>
+                  <div key={index} className="bg-white border border-gray-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium text-gray-900">{checklist.title}</h4>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs text-gray-500">
+                          {checklist.items.filter(item => item.completed).length}/{checklist.items.length} completed
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => editChecklist(index)}
+                          className="text-blue-600 hover:text-blue-700 p-1"
+                          title="Edit checklist"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeChecklist(index)}
+                          className="text-red-500 hover:text-red-700 p-1"
+                          title="Remove checklist"
+                        >
+                          <FiX className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeChecklist(index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <FiX className="w-4 h-4" />
-                    </button>
+                    <div className="space-y-1">
+                      {checklist.items.map((item, itemIndex) => (
+                        <div key={itemIndex} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={item.completed}
+                            onChange={() => {
+                              // Update the checklist item completion status directly
+                              setChecklists(prev => prev.map((cl, clIndex) =>
+                                clIndex === index
+                                  ? {
+                                      ...cl,
+                                      items: cl.items.map((it, itIndex) =>
+                                        itIndex === itemIndex ? { ...it, completed: !it.completed } : it
+                                      )
+                                    }
+                                  : cl
+                              ))
+                            }}
+                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                          />
+                          <span className={`text-sm ${item.completed ? 'line-through text-gray-500' : 'text-gray-700'}`}>
+                            {item.text}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -453,57 +616,76 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess })
 
             {/* Checklist Form */}
             {showChecklistForm && (
-              <div className="bg-gray-50 rounded-lg p-4 mt-2">
-                <div className="space-y-3">
-                  <input
-                    type="text"
-                    placeholder="Checklist title"
-                    value={checklistForm.title}
-                    onChange={(e) => setChecklistForm(prev => ({ ...prev, title: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  {checklistForm.items.map((item, index) => (
-                    <div key={index} className="flex space-x-2">
-                      <input
-                        type="text"
-                        placeholder="Item text"
-                        value={item}
-                        onChange={(e) => updateChecklistItem(index, e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      {checklistForm.items.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeChecklistItem(index)}
-                          className="px-2 py-2 text-red-500 hover:text-red-700"
-                        >
-                          <FiX className="w-4 h-4" />
-                        </button>
-                      )}
+              <div className="bg-gray-50 rounded-lg p-4 mt-2 border border-gray-200">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Checklist Title</label>
+                    <input
+                      type="text"
+                      placeholder="Enter checklist title"
+                      value={checklistForm.title}
+                      onChange={(e) => setChecklistForm(prev => ({ ...prev, title: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Items</label>
+                    <div className="space-y-2">
+                      {checklistForm.items.map((item, index) => (
+                        <div key={index} className="flex items-center space-x-3 bg-white p-3 rounded-lg border border-gray-200">
+                          <input
+                            type="checkbox"
+                            checked={item.completed}
+                            onChange={() => toggleChecklistItemCompleted(index)}
+                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Enter item text"
+                            value={item.text}
+                            onChange={(e) => updateChecklistItem(index, e.target.value)}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                          {checklistForm.items.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeChecklistItem(index)}
+                              className="text-red-500 hover:text-red-700 p-1"
+                              title="Remove item"
+                            >
+                              <FiX className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={addChecklistItem}
-                    className="text-sm text-blue-600 hover:text-blue-700"
-                  >
-                    + Add Item
-                  </button>
-                  <div className="flex space-x-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={addChecklistItem}
+                      className="mt-2 text-sm text-blue-600 hover:text-blue-700 flex items-center space-x-1"
+                    >
+                      <span>+</span>
+                      <span>Add Item</span>
+                    </button>
+                  </div>
+
+                  <div className="flex space-x-2 pt-2 border-t border-gray-200">
                     <button
                       type="button"
                       onClick={handleAddChecklist}
-                      className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
+                      className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
                     >
-                      Add Checklist
+                      {editingChecklistIndex !== null ? 'Update Checklist' : 'Add Checklist'}
                     </button>
                     <button
                       type="button"
                       onClick={() => {
                         setShowChecklistForm(false)
-                        setChecklistForm({ title: '', items: [''] })
+                        setChecklistForm({ title: '', items: [{ text: '', completed: false }] })
+                        setEditingChecklistIndex(null)
                       }}
-                      className="px-4 py-2 text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
+                      className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                     >
                       Cancel
                     </button>
@@ -564,6 +746,19 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess })
           </div>
         </form>
       </div>
+
+      {viewingAttachment && (
+        <AttachmentViewer
+          attachment={viewingAttachment}
+          onClose={() => {
+            // Clean up blob URL if it's a temporary attachment
+            if (viewingAttachment._id?.startsWith('temp-')) {
+              URL.revokeObjectURL(viewingAttachment.url)
+            }
+            setViewingAttachment(null)
+          }}
+        />
+      )}
     </div>
   )
 }

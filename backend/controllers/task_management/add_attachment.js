@@ -1,6 +1,34 @@
 const Task = require('../../models/task')
 const { StatusCodes } = require('http-status-codes')
 
+// Helper function to map MIME types to attachment types
+const getAttachmentType = (mimeType) => {
+  if (!mimeType) return "other";
+
+  // General categories
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.startsWith("video/")) return "video";
+  if (mimeType.startsWith("audio/")) return "audio";
+  if (mimeType.startsWith("text/")) return "document";
+
+  // Specific document types
+  if (
+    mimeType === "application/pdf" ||
+    mimeType.includes("word") ||
+    mimeType.includes("excel") ||
+    mimeType.includes("spreadsheetml") ||
+    mimeType.includes("powerpoint") ||
+    mimeType.includes("presentationml") ||
+    mimeType.includes("officedocument")
+  ) {
+    return "document";
+  }
+
+  // Fallback for everything else
+  return "other";
+};
+
+
 const addAttachment = async (req, res) => {
     try {
         const { id } = req.params
@@ -14,9 +42,9 @@ const addAttachment = async (req, res) => {
                 processedAttachments.push({
                     filename: file.filename,
                     originalName: file.originalname,
-                    url: `${process.env.TASK_ATTACHMENTS_URL || 'http://localhost:2026'}/uploads/tasks/attachments/${file.filename}`,
+                    url: process.env.TASK_ATTACHMENTS_URL ?  process.env.TASK_ATTACHMENTS_URL + `/uploads/tasks/attachments/${file.filename}` : `/uploads/tasks/attachments/${file.filename}`,
                     uploadedBy: req.user?.id || req.body.incharge, // Assuming auth middleware sets req.user
-                    type: file.mimetype
+                    type: getAttachmentType(file.mimetype)
                 })
             }
         } else {

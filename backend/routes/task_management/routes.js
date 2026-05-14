@@ -53,30 +53,31 @@ const storage = multer.diskStorage({
 const upload = multer({
     storage: storage,
     limits: {
-        fileSize: 10 * 1024 * 1024 // 10MB limit per file
+        fileSize: 1000000 * 10024 * 10024
     },
     fileFilter: (req, file, cb) => {
-        // Allow various file types
-        const allowedTypes = [
-            'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-            'application/pdf',
-            'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'text/plain', 'text/csv',
-            'video/mp4', 'video/avi', 'video/mov'
-        ]
+        cb(null, true)
+        // // Allow various file types
+        // const allowedTypes = [
+        //     'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+        //     'application/pdf',
+        //     'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        //     'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        //     'text/plain', 'text/csv',
+        //     'video/mp4', 'video/avi', 'video/mov'
+        // ]
 
-        if (allowedTypes.includes(file.mimetype)) {
-            cb(null, true)
-        } else {
-            cb(new Error('Invalid file type'), false)
-        }
+        // if (allowedTypes.includes(file.mimetype)) {
+        //     cb(null, true)
+        // } else {
+        //     cb(new Error('Invalid file type'), false)
+        // }
     }
 })
 
 // Handle both single and multiple file uploads
 const multiUpload = upload.fields([
-    { name: 'attachments', maxCount: 10 } // Allow up to 10 attachments
+    { name: 'attachments', maxCount: 3000 } // Allow up to 3000 attachments
 ])
 
 Router.use(multiUpload)

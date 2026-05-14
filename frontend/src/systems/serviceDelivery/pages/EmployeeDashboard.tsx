@@ -122,7 +122,7 @@ const EmployeeDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* 👉 CALLING THE REUSABLE TABLE COMPONENT HERE */}
+        {/* CALLING THE REUSABLE TABLE COMPONENT HERE */}
         <ProvideServicesTab isDashboardView={true} />
       </div>
     </div>
