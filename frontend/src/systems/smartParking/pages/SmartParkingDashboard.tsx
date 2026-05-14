@@ -92,7 +92,7 @@ const SmartParkingDashboard: React.FC = () => {
    // Stats data from API
    const [stats, setStats] = useState({
      availableSlots: 0,
-     totalSlots: 350,
+     totalSlots: 0,
      staffVehicles: 0,
      visitorVehicles: 0,
      reservedSlots: 0,
@@ -102,11 +102,11 @@ const SmartParkingDashboard: React.FC = () => {
      flaggedButInside: 0,
      staffReserved: 0,
      visitorReserved: 0,
-     staffReservedSlots: 100,
-     visitorReservedSlots: 50,
+     staffReservedSlots: 0,
+     visitorReservedSlots: 0,
      regularAvailable: 0,
      regularReserved: 0,
-     regularTotal: 200
+     regularTotal: 0
    });
 
   // Flagged vehicles
@@ -165,25 +165,32 @@ const SmartParkingDashboard: React.FC = () => {
       const currentlyParkedResponse = await statisticsService.getCurrentlyParkedStats();
       const slotsResponse = await statisticsService.getParkingSlots();
 
- if (currentlyParkedResponse.success && currentlyParkedResponse.data) {
+  if (currentlyParkedResponse.success && currentlyParkedResponse.data) {
          const { total, by_driver_type } = currentlyParkedResponse.data;
          const slotsData = slotsResponse.success && slotsResponse.data ? slotsResponse.data.available_slots : null;
 
-setStats(prev => ({
-            ...prev,
-            totalInside: total || 0,
-            totalSlots: slotsData?.totalSlots || 0,
-            availableSlots: (slotsData?.visitorsAvailableSlots || 0) + (slotsData?.staffAvailableSlots || 0) + (slotsData?.RegularAvailableSlots || 0),
-            visitorVehicles: by_driver_type?.Visitor || 0,
-            staffVehicles: (by_driver_type?.Staff || 0) + (by_driver_type?.Regular || 0),
-            staffReserved: slotsData?.staffReservationCount || 0,
-            staffReservedSlots: slotsData?.staffReservedSlots || 0,
-            visitorReserved: slotsData?.visitorReservationCount || 0,
-            visitorReservedSlots: slotsData?.visitorsReservedSlots || 0,
-            regularAvailable: slotsData?.RegularAvailableSlots || 0,
-            regularReserved: slotsData?.RegularReservedSlots || 0,
-            regularTotal: (slotsData?.RegularAvailableSlots || 0) + (slotsData?.RegularReservedSlots || 0)
-          }));
+         const totalSlots = slotsData?.totalSlots || 0;
+         const staffReservedSlots = slotsData?.staffReservedSlots || 0;
+         const visitorReservedSlots = slotsData?.visitorsReservedSlots || 0;
+         const regularAvailableSlots = slotsData?.RegularAvailableSlots || 0;
+         // Regular total = total slots minus staff reserved slots minus visitor reserved slots (auto-calculated)
+         const regularTotal = Math.max(0, totalSlots - staffReservedSlots - visitorReservedSlots);
+
+         setStats(prev => ({
+           ...prev,
+           totalInside: total || 0,
+           totalSlots: totalSlots,
+           availableSlots: (slotsData?.visitorsAvailableSlots || 0) + (slotsData?.staffAvailableSlots || 0) + regularAvailableSlots,
+           visitorVehicles: by_driver_type?.Visitor || 0,
+           staffVehicles: (by_driver_type?.Staff || 0) + (by_driver_type?.Regular || 0),
+           staffReserved: slotsData?.staffReservationCount || 0,
+           staffReservedSlots: staffReservedSlots,
+           visitorReserved: slotsData?.visitorReservationCount || 0,
+           visitorReservedSlots: visitorReservedSlots,
+           regularAvailable: regularAvailableSlots,
+           regularReserved: slotsData?.RegularReservedSlots || 0,
+           regularTotal: regularTotal
+         }));
          setStatsLoading(false);
        }
 
