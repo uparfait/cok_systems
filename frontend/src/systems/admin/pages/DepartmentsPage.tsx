@@ -1119,7 +1119,7 @@ const DepartmentsPage: React.FC = () => {
                   */}
                   <div className="border-t border-gray-100 pt-6">
                     
-                    {/* 👉 FIX: Filter Main Department Employees securely by verifying they have NO unit */}
+                    {/*  FIX: Filter Main Department Employees securely by verifying they have NO unit */}
                     {renderEmployeeTable(
                       departmentEmployees.filter((emp: any) => {
                         const empUnit = String(emp.department_unit || (typeof emp.department === 'object' ? emp.department?.department_unit : '') || '').trim();
@@ -1131,7 +1131,7 @@ const DepartmentsPage: React.FC = () => {
                       'main-employees'
                     )}
 
-                    {/* 👉 FIX: Filter Unit Employees securely by matching their unit ID to the mapped unit */}
+                    {/* FIX: Filter Unit Employees securely by matching their unit ID to the mapped unit */}
                     {departmentUnits.map((unit) => {
                       const unitEmps = departmentEmployees.filter((emp: any) => {
                         const empUnit = String(emp.department_unit || (typeof emp.department === 'object' ? emp.department?.department_unit : '') || '').trim();
