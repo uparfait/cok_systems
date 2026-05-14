@@ -8,6 +8,7 @@ const FlaggedVehicle = require('../../models/flagged_vehicle.js');
 const ParkingRecord = require('../../models/parking_record.js');
 const ServiceDelivery = require('../../models/service_delivery.js');
 const Feedback = require('../../models/feedback_db.js');
+const Task = require('../../models/task.js');
 
 /**
  * Get all available roles along with their permissions
@@ -130,7 +131,9 @@ const getEmergencyCarsStats = async (req, res) => {
         });
 
         // Get expired emergency cars from history
-        const expiredEmergencyCars = await EmergencyCarHistory.countDocuments({});
+        const expiredEmergencyCars = await EmergencyCar.countDocuments({
+            'validity.to': { $lt: now }
+        });
 
         // Total across both
         const totalEmergencyCars = activeEmergencyCars + expiredEmergencyCars;
@@ -143,7 +146,8 @@ const getEmergencyCarsStats = async (req, res) => {
         ]);
 
         // Get additional details - count of unique plates in history
-        const historyPlates = await EmergencyCarHistory.aggregate([
+        const historyPlates = await EmergencyCar.aggregate([
+            { $match: { 'validity.to': { $lt: now } } },
             { $unwind: '$visitor_info' },
             { $count: 'total_vehicles' }
         ]);
@@ -178,22 +182,34 @@ const getEmergencyCarsStats = async (req, res) => {
 const getFlaggedVehiclesStats = async (req, res) => {
     try {
         // Currently flagged vehicles (check_in_time exists but no check_out_time)
-        const currentlyFlagged = await FlaggedVehicle.find({
-            check_out_time: { $exists: false }
+        const currentlyFlagged = await ParkingRecord.find({
+            is_flagged: true
         });
 
         // Historical flagged vehicles (have check_out_time)
-        const historyFlagged = await FlaggedVehicle.find({
-            check_out_time: { $exists: true }
-        });
+        const historyFlagged = await FlaggedVehicle.find({});
 
-        // Calculate min and max minutes for currently flagged
+        // Calculate min and max minutes for currently flagged it might be hours or minutes
         let minMinutesCurrent = 0;
         let maxMinutesCurrent = 0;
         if (currentlyFlagged.length > 0) {
-            const currentMinutes = currentlyFlagged.map(v => v.flagged_duration_minutes || 0);
-            minMinutesCurrent = Math.min(...currentMinutes);
-            maxMinutesCurrent = Math.max(...currentMinutes);
+            const currentMinutes = currentlyFlagged.map(v => v.duration || 0);
+            // check if includers min,mins,hour,hours and calculate accordingly
+            const currentMinutesInMins = currentMinutes.map(d => {
+                if (typeof d === 'string') {
+                    const lower = d.toLowerCase();
+                    if (lower.includes('hour')) {
+                        const num = parseFloat(lower.replace('hours', '').replace('hour', '').trim());
+                        return num * 60;
+                    } else if (lower.includes('min')) {
+                        const num = parseFloat(lower.replace('mins', '').replace('min', '').trim());
+                        return num;
+                    }
+                }
+                return 0;
+            });
+            minMinutesCurrent = Math.min(...currentMinutesInMins);
+            maxMinutesCurrent = Math.max(...currentMinutesInMins);
         }
 
         // Calculate min and max minutes for history
@@ -612,6 +628,502 @@ const getHourlyServiceDeliveryStats = async (req, res) => {
     }
 };
 
+/**
+ * Get employee performance based on tasks completed
+ * Returns: employee name, total tasks completed, average service time, rating
+ */
+const getEmployeePerformanceByTasks = async (req, res) => {
+    try {
+        // Get all service delivery records to calculate employee performance
+        const serviceRecords = await ServiceDelivery.find({ is_still_inhouse: false }); // Only completed tasks
+        
+        // Group by provider (employee)
+        const employeePerformance = {};
+        
+        serviceRecords.forEach(record => {
+            record.departments_assigned.forEach(dept => {
+                const providerName = dept.provider_name || 'Unknown';
+                const providerId = dept.provider_id || 'unknown';
+                
+                if (!employeePerformance[providerId]) {
+                    employeePerformance[providerId] = {
+                        employee_name: providerName,
+                        total_tasks: 0,
+                        total_service_time: 0,
+                        ratings: []
+                    };
+                }
+                
+                employeePerformance[providerId].total_tasks += 1;
+                
+                // Calculate service time from durations
+                record.durations.services_durations.forEach(duration => {
+                    if (duration.department_id === dept.department_id && duration.provider_id === dept.provider_id) {
+                        // Parse duration string (e.g., "30 mins", "2 hours")
+                        let minutes = 0;
+                        if (typeof duration.duration === 'string') {
+                            const lower = duration.duration.toLowerCase();
+                            if (lower.includes('hour')) {
+                                const num = parseFloat(lower.replace('hours', '').replace('hour', '').trim());
+                                minutes = num * 60;
+                            } else if (lower.includes('min')) {
+                                const num = parseFloat(lower.replace('mins', '').replace('min', '').trim());
+                                minutes = num;
+                            }
+                        }
+                        employeePerformance[providerId].total_service_time += minutes;
+                        
+                        // Add rating based on service time (excellent < 15min, good 15-30min, slow > 30min)
+                        if (minutes < 15) {
+                            employeePerformance[providerId].ratings.push('Excellent');
+                        } else if (minutes <= 30) {
+                            employeePerformance[providerId].ratings.push('Good');
+                        } else {
+                            employeePerformance[providerId].ratings.push('Slow');
+                        }
+                    }
+                });
+            });
+        });
+        
+        // Format results
+        const formattedPerformance = Object.values(employeePerformance).map(emp => {
+            const avgServiceTime = emp.total_tasks > 0 ? Math.round(emp.total_service_time / emp.total_tasks) : 0;
+            
+            // Determine overall rating based on average
+            let rating = 'Slow';
+            if (emp.ratings.length > 0) {
+                const excellentCount = emp.ratings.filter(r => r === 'Excellent').length;
+                const goodCount = emp.ratings.filter(r => r === 'Good').length;
+                const slowCount = emp.ratings.filter(r => r === 'Slow').length;
+                
+                if (excellentCount >= goodCount && excellentCount >= slowCount) {
+                    rating = 'Excellent';
+                } else if (goodCount >= excellentCount && goodCount >= slowCount) {
+                    rating = 'Good';
+                } else {
+                    rating = 'Slow';
+                }
+            }
+            
+            return {
+                employee_name: emp.employee_name,
+                total_tasks: emp.total_tasks,
+                avg_service_time: `${avgServiceTime} mins`,
+                rating: rating
+            };
+        });
+        
+        // Sort by total tasks descending
+        formattedPerformance.sort((a, b) => b.total_tasks - a.total_tasks);
+        
+        return res.status(200).json({
+            success: true,
+            type: 'success',
+            message: 'Employee performance by tasks retrieved successfully',
+            data: formattedPerformance
+        });
+    } catch (error) {
+        console.error("Error in getEmployeePerformanceByTasks:", error);
+        return res.status(500).json({
+            success: false,
+            type: "error",
+            message: "Something went wrong while fetching employee performance by tasks",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Get waiting time analytics for each department
+ * Returns: waiting time data categorized by Critical/Moderate/Normal
+ */
+const getWaitingTimeAnalytics = async (req, res) => {
+    try {
+        // Get all service delivery records
+        const serviceRecords = await ServiceDelivery.find({});
+        
+        // Group by department
+        const departmentWaitingTimes = {};
+        
+        serviceRecords.forEach(record => {
+            record.departments_assigned.forEach(dept => {
+                const deptId = dept.department_id || 'unknown';
+                const deptName = dept.department_name || 'Unknown';
+                
+                if (!departmentWaitingTimes[deptId]) {
+                    departmentWaitingTimes[deptId] = {
+                        department_name: deptName,
+                        waiting_times: [],
+                        assigned_times: []
+                    };
+                }
+                
+                // Calculate waiting time from assigned_time to reached_in
+                if (dept.assigned_time) {
+                    const assignedTime = new Date(dept.assigned_time);
+                    let reachedTime = null;
+                    
+                    // If reached_in is true, use entry_date or current time
+                    if (dept.reached_in) {
+                        reachedTime = new Date(record.entry_date);
+                    } else {
+                        // Still waiting, use current time
+                        reachedTime = new Date();
+                    }
+                    
+                    const waitTimeMs = reachedTime - assignedTime;
+                    const waitTimeMinutes = Math.round(waitTimeMs / (1000 * 60));
+                    
+                    departmentWaitingTimes[deptId].waiting_times.push(waitTimeMinutes);
+                    departmentWaitingTimes[deptId].assigned_times.push(assignedTime);
+                }
+            });
+            
+            // Also calculate from durations services_durations
+            record.durations.services_durations.forEach(duration => {
+                const deptId = duration.department_id || 'unknown';
+                const deptName = duration.department_name || 'Unknown';
+                
+                if (!departmentWaitingTimes[deptId]) {
+                    departmentWaitingTimes[deptId] = {
+                        department_name: deptName,
+                        waiting_times: [],
+                        assigned_times: []
+                    };
+                }
+                
+                // Parse duration from services_durations
+                if (duration.started_at && duration.ended_at) {
+                    const startedAt = new Date(duration.started_at);
+                    const endedAt = new Date(duration.ended_at);
+                    const waitTimeMs = endedAt - startedAt;
+                    const waitTimeMinutes = Math.round(waitTimeMs / (1000 * 60));
+                    
+                    departmentWaitingTimes[deptId].waiting_times.push(waitTimeMinutes);
+                    departmentWaitingTimes[deptId].assigned_times.push(startedAt);
+                }
+            });
+        });
+        
+        // Format results with status categorization
+        const formattedAnalytics = Object.values(departmentWaitingTimes).map(dept => {
+            const waitingTimes = dept.waiting_times.filter(t => t > 0); // Filter out zero or negative times
+            
+            if (waitingTimes.length === 0) {
+                return {
+                    department_name: dept.department_name,
+                    avg_wait_time: 0,
+                    max_wait_time: 0,
+                    min_wait_time: 0,
+                    status: 'Normal',
+                    total_cases: 0
+                };
+            }
+            
+            const avgWaitTime = Math.round(waitingTimes.reduce((sum, t) => sum + t, 0) / waitingTimes.length);
+            const maxWaitTime = Math.max(...waitingTimes);
+            const minWaitTime = Math.min(...waitingTimes);
+            
+            // Categorize status based on average wait time
+            let status = 'Normal';
+            if (avgWaitTime > 60) { // More than 1 hour
+                status = 'Critical';
+            } else if (avgWaitTime > 30) { // More than 30 minutes
+                status = 'Moderate';
+            } else {
+                status = 'Normal';
+            }
+            
+            return {
+                department_name: dept.department_name,
+                avg_wait_time: `${avgWaitTime} mins`,
+                max_wait_time: `${maxWaitTime} mins`,
+                min_wait_time: `${minWaitTime} mins`,
+                status: status,
+                total_cases: waitingTimes.length
+            };
+        });
+        
+        // Sort by average wait time descending
+        formattedAnalytics.sort((a, b) => 
+            parseFloat(b.avg_wait_time) - parseFloat(a.avg_wait_time)
+        );
+        
+        return res.status(200).json({
+            success: true,
+            type: 'success',
+            message: 'Waiting time analytics retrieved successfully',
+            data: formattedAnalytics
+        });
+    } catch (error) {
+        console.error("Error in getWaitingTimeAnalytics:", error);
+        return res.status(500).json({
+            success: false,
+            type: "error",
+            message: "Something went wrong while fetching waiting time analytics",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Get employee performance based on service
+ * Returns: employee name, citizens served, avg service time, rating based on department response time
+ */
+const getEmployeePerformanceByService = async (req, res) => {
+    try {
+        // Get all departments to get their response times
+        const departments = await Department.find({});
+        const deptResponseTimes = {};
+        
+        departments.forEach(dept => {
+            let responseTime = dept.department_response_time_in_minutes || 10; // Default 10 mins if 0
+            if (responseTime === 0) {
+                responseTime = 10; // Default to 10 minutes above as requested
+            }
+            deptResponseTimes[dept.department_id] = {
+                department_name: dept.department_name,
+                response_time: responseTime
+            };
+        });
+        
+        // Get all service delivery records
+        const serviceRecords = await ServiceDelivery.find({ is_still_inhouse: false }); // Only completed tasks
+        
+        // Group by provider (employee)
+        const employeePerformance = {};
+        
+        serviceRecords.forEach(record => {
+            record.departments_assigned.forEach(dept => {
+                const providerName = dept.provider_name || 'Unknown';
+                const providerId = dept.provider_id || 'unknown';
+                const deptId = dept.department_id;
+                
+                if (!employeePerformance[providerId]) {
+                    employeePerformance[providerId] = {
+                        employee_name: providerName,
+                        citizens_served: 0,
+                        total_service_time: 0,
+                        department_ratings: []
+                    };
+                }
+                
+                employeePerformance[providerId].citizens_served += 1;
+                
+                // Get department response time for rating
+                const deptInfo = deptResponseTimes[deptId] || { response_time: 10 };
+                const expectedTime = deptInfo.response_time;
+                
+                // Calculate actual service time from durations
+                record.durations.services_durations.forEach(duration => {
+                    if (duration.department_id === dept.department_id && duration.provider_id === dept.provider_id) {
+                        // Parse duration string
+                        let minutes = 0;
+                        if (typeof duration.duration === 'string') {
+                            const lower = duration.duration.toLowerCase();
+                            if (lower.includes('hour')) {
+                                const num = parseFloat(lower.replace('hours', '').replace('hour', '').trim());
+                                minutes = num * 60;
+                            } else if (lower.includes('min')) {
+                                const num = parseFloat(lower.replace('mins', '').replace('min', '').trim());
+                                minutes = num;
+                            }
+                        }
+                        employeePerformance[providerId].total_service_time += minutes;
+                        
+                        // Rate based on comparison with expected time
+                        const timeRatio = minutes / expectedTime;
+                        if (timeRatio <= 0.8) { // 20% faster than expected
+                            employeePerformance[providerId].department_ratings.push('Excellent');
+                        } else if (timeRatio <= 1.2) { // Within 20% of expected
+                            employeePerformance[providerId].department_ratings.push('Good');
+                        } else { // More than 20% slower than expected
+                            employeePerformance[providerId].department_ratings.push('Slow');
+                        }
+                    }
+                });
+            });
+        });
+        
+        // Format results
+        const formattedPerformance = Object.values(employeePerformance).map(emp => {
+            const avgServiceTime = emp.citizens_served > 0 ? 
+                Math.round(emp.total_service_time / emp.citizens_served) : 0;
+            
+            // Determine overall rating based on department ratings
+            let rating = 'Slow';
+            if (emp.department_ratings.length > 0) {
+                const excellentCount = emp.department_ratings.filter(r => r === 'Excellent').length;
+                const goodCount = emp.department_ratings.filter(r => r === 'Good').length;
+                const slowCount = emp.department_ratings.filter(r => r === 'Slow').length;
+                
+                if (excellentCount >= goodCount && excellentCount >= slowCount) {
+                    rating = 'Excellent';
+                } else if (goodCount >= excellentCount && goodCount >= slowCount) {
+                    rating = 'Good';
+                } else {
+                    rating = 'Slow';
+                }
+            }
+            
+            return {
+                employee_name: emp.employee_name,
+                citizens_served: emp.citizens_served,
+                avg_service_time: `${avgServiceTime} mins`,
+                rating: rating
+            };
+        });
+        
+        // Sort by citizens served descending
+        formattedPerformance.sort((a, b) => b.citizens_served - a.citizens_served);
+        
+        return res.status(200).json({
+            success: true,
+            type: 'success',
+            message: 'Employee performance by service retrieved successfully',
+            data: formattedPerformance
+        });
+    } catch (error) {
+        console.error("Error in getEmployeePerformanceByService:", error);
+        return res.status(500).json({
+            success: false,
+            type: "error",
+            message: "Something went wrong while fetching employee performance by service",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Get employee performance based on completed tasks
+ * Uses the Task model to calculate performance metrics based on startDate, dueDate, and completion time
+ * Returns: employee name, total tasks completed, expected completion time, actual completion time, rating
+ */
+const getEmployeePerformanceByTasksDone = async (req, res) => {
+    try {
+        // Get all completed tasks
+        const completedTasks = await Task.find({ status: 'Completed' });
+
+       // console.log(completedTasks)
+        
+        // Group by incharge (employee responsible for the task)
+        const employeePerformance = {};
+        
+        completedTasks.forEach(task => {
+            // Get the employee name from incharge (we'll need to populate this)
+            const inchargeId = task.incharge;
+            
+            if (!employeePerformance[inchargeId]) {
+                employeePerformance[inchargeId] = {
+                    employee_name: 'Unknown', // Will be populated after we fetch user details
+                    total_tasks: 0,
+                    total_expected_time: 0,
+                    total_actual_time: 0,
+                    tasks_with_expected: 0,
+                    tasks_with_actual: 0
+                };
+            }
+            
+            employeePerformance[inchargeId].total_tasks += 1;
+            
+            // Calculate expected completion time (dueDate - startDate)
+            if ((task.dueDate || task.completedAt || task.updatedAt) && (task.startDate || task.createdAt)) {
+                const expectedTimeMs = (task.dueDate?.getTime() || task.completedAt?.getTime() || task.updatedAt?.getTime()) - (task.startDate?.getTime() || task.createdAt?.getTime());
+                const expectedTimeHours = (expectedTimeMs / (1000 * 60 * 60)).toFixed(2); // Convert to hours
+                
+                if (expectedTimeHours >= 0) { // Only count positive time differences
+                    employeePerformance[inchargeId].total_expected_time += parseFloat(expectedTimeHours);
+                    employeePerformance[inchargeId].tasks_with_expected += 1;
+                }
+            }
+            
+            // Calculate actual completion time (completedAt/updatedAt - startDate)
+            const completionDate = task.completedAt || task.updatedAt;
+            if (completionDate && (task.startDate || task.createdAt)) {
+                console.log(completionDate, (task.startDate || task.createdAt))
+                const actualTimeMs = completionDate?.getTime() - (task.startDate?.getTime() || task.createdAt?.getTime());
+                const actualTimeHours = (actualTimeMs / (1000 * 60 * 60)).toFixed(2); // Convert to hours
+                
+                if (actualTimeHours >= 0) { // Only count positive time differences
+                    employeePerformance[inchargeId].total_actual_time += parseFloat(actualTimeHours);
+                    employeePerformance[inchargeId].tasks_with_actual += 1;
+                }
+            }
+        });
+        
+        // Now populate employee names by fetching user details
+        const employeeIds = Object.keys(employeePerformance).filter(id => id !== undefined && id !== null);
+        if (employeeIds.length > 0) {
+            const users = await User.find({ '_id': { $in: employeeIds } });
+            
+            users.forEach(user => {
+                const userId = user._id.toString();
+                if (employeePerformance[userId]) {
+                    employeePerformance[userId].employee_name = user.full_name || 'Unknown';
+                }
+            });
+        }
+        
+        // Format results
+        const formattedPerformance = Object.values(employeePerformance).map(emp => {
+            // Skip entries without valid employee names
+            if (!emp.employee_name || emp.employee_name === 'Unknown') {
+                return null;
+            }
+            
+            const avgExpectedTime = emp.tasks_with_expected > 0 ? 
+                (emp.total_expected_time / emp.tasks_with_expected) : 0;
+            
+            const avgActualTime = emp.tasks_with_actual > 0 ? 
+                (emp.total_actual_time / emp.tasks_with_actual) : 0;
+            
+            // Determine rating based on comparison of actual vs expected time
+            // Excellent: actual <= expected * 0.8 (20% faster than expected)
+            // Good: actual <= expected * 1.2 (within 20% of expected)
+            // Slow: actual > expected * 1.2 (more than 20% slower than expected)
+            let rating = 'Slow';
+            if (emp.tasks_with_expected > 0 && emp.tasks_with_actual > 0) {
+                const timeRatio = emp.total_actual_time / emp.total_expected_time;
+                if (timeRatio <= 0.8) { // 20% faster than expected
+                    rating = 'Excellent';
+                } else if (timeRatio <= 1.2) { // Within 20% of expected
+                    rating = 'Good';
+                }
+            } else if (emp.tasks_with_actual > 0) {
+                // If we have actual time but no expected time, just check if tasks are completing
+                rating = emp.total_actual_time > 0 ? 'Good' : 'Slow';
+            }
+            
+            return {
+                employee_name: emp.employee_name,
+                total_tasks: emp.total_tasks,
+                avg_expected_time: `${avgExpectedTime.toFixed(2)} hours`,
+                avg_actual_time: `${avgActualTime.toFixed(2)} hours`,
+                rating: rating
+            };
+        }).filter(Boolean); // Remove null entries
+        
+        // Sort by total tasks descending
+        formattedPerformance.sort((a, b) => b.total_tasks - a.total_tasks);
+        
+        return res.status(200).json({
+            success: true,
+            type: 'success',
+            message: 'Employee performance by completed tasks retrieved successfully',
+            data: formattedPerformance
+        });
+    } catch (error) {
+        console.error("Error in getEmployeePerformanceByTasksDone:", error);
+        return res.status(500).json({
+            success: false,
+            type: "error",
+            message: "Something went wrong while fetching employee performance by completed tasks",
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     getRolesWithPermissions,
     getDepartmentsWithLeaders,
@@ -623,5 +1135,9 @@ module.exports = {
     getFeedbackTotals,
     getFeedbackAverageByDepartment,
     getHourlyParkingStats,
-    getHourlyServiceDeliveryStats
+    getHourlyServiceDeliveryStats,
+    getEmployeePerformanceByTasks,
+    getWaitingTimeAnalytics,
+    getEmployeePerformanceByService,
+    getEmployeePerformanceByTasksDone
 };

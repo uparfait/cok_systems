@@ -1,4 +1,3 @@
-// Overview.tsx - Fixed Y-axis to show whole numbers only
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
@@ -24,6 +23,10 @@ interface DashboardData {
   hourlyParking: { hour: number; check_in: number; check_out: number }[];
   hourlyService: { hour: number; visitors_checked_in: number }[];
   departments: Array<{ name: string; leader: string; staff: number; rating: number; feedback: number }>;
+  // New data structures for requested features
+  employeePerformanceTasksDone: Array<{ employee_name: string; total_tasks: number; avg_expected_time: string; avg_actual_time: string; rating: string }>;
+  waitingTimeAnalytics: Array<{ department_name: string; avg_wait_time: string; max_wait_time: string; min_wait_time: string; status: string; total_cases: number }>;
+  employeePerformanceService: Array<{ employee_name: string; citizens_served: number; avg_service_time: string; rating: string }>;
 }
 
 // ==================== CONSTANTS ====================
@@ -129,8 +132,19 @@ const Overview: React.FC = () => {
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [showAllDepartments, setShowAllDepartments] = useState(false);
   const [showAllRatings, setShowAllRatings] = useState(false);
+  
+  // Employee Performance pagination states
+  const [showAllTasksDone, setShowAllTasksDone] = useState(false);
+  const [showAllWaitingTime, setShowAllWaitingTime] = useState(false);
+  const [showAllServicePerf, setShowAllServicePerf] = useState(false);
+  
   const [departmentPage, setDepartmentPage] = useState(1);
+  const [tasksDonePage, setTasksDonePage] = useState(1);
+  const [waitingTimePage, setWaitingTimePage] = useState(1);
+  const [servicePerfPage, setServicePerfPage] = useState(1);
+  
   const departmentLimit = 5;
+  const performanceLimit = 5;
 
   // Pagination states for modals
   const [modalData, setModalData] = useState<any[]>([]);
@@ -144,105 +158,115 @@ const Overview: React.FC = () => {
   
   const chartsRef = useRef<Map<string, Chart>>(new Map());
   
-  // Fetch real data
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [
-        employeesRes, parkingRes, servicesRes, flaggedStatsRes, emergencyRes,
-        feedbackTotalsRes, feedbackAvgRes, hourlyParkingRes, hourlyServiceRes, departmentsRes,
-        flaggedCountRes
-      ] = await Promise.all([
-        statisticsService.getEmployeeStats(),
-        statisticsService.getCurrentlyParkedStats(),
-        statisticsService.getServiceDeliveryStats(),
-        statisticsService.getFlaggedVehiclesStats(),
-        statisticsService.getEmergencyCarsStats(),
-        statisticsService.getFeedbackTotals(),
-        statisticsService.getFeedbackAverageByDepartment(),
-        statisticsService.getHourlyParkingStats(),
-        statisticsService.getHourlyServiceDeliveryStats(),
-        statisticsService.getDepartmentsWithLeaders(),
-        parkingService.getFlaggedActiveVehicles(1, 1000), // Get count for KPI
-      ]);
-      
-      const employees = (employeesRes as any)?.data || employeesRes;
-      const parking = (parkingRes as any)?.data || parkingRes;
-      const services = (servicesRes as any)?.data || servicesRes;
-      const flaggedStats = (flaggedStatsRes as any)?.data || flaggedStatsRes;
-      const emergency = (emergencyRes as any)?.data || emergencyRes;
-      const feedbackTotals = (feedbackTotalsRes as any)?.data || feedbackTotalsRes;
-      const flaggedCount = flaggedCountRes;
-      const feedbackAvg = (feedbackAvgRes as any)?.data || feedbackAvgRes;
-      const hourlyParkingRaw = (hourlyParkingRes as any)?.data?.hourly || (hourlyParkingRes as any) || [];
-      const hourlyServiceRaw = (hourlyServiceRes as any)?.data?.hourly || (hourlyServiceRes as any) || [];
-      const departmentsRaw = (departmentsRes as any)?.data?.departments || (departmentsRes as any)?.departments || [];
-      
-      const departments = departmentsRaw.map((dept: any) => ({
-        name: dept.department_name,
-        leader: dept.department_leader?.full_name || 'Not assigned',
-        staff: dept.total_employees,
-        rating: Math.round((feedbackAvg?.by_department?.[dept.department_name]?.average_rating || 0)),
-        feedback: feedbackTotals?.by_department?.[dept.department_name] || 0,
-      }));
-      
-      setData({
-        employeeStats: {
-          total: employees?.total || 0,
-          active: employees?.active || 0,
-          inactive: employees?.inactive || 0,
-          locked: employees?.locked || 0,
-        },
-        parkingStats: {
-          total: parking?.total || 0,
-          by_driver_type: {
-            staff: Number(parking?.by_driver_type?.staff || 0),
-            visitor: Number(parking?.by_driver_type?.visitor || 0),
-            regular: Number(parking?.by_driver_type?.regular || 0),
-          },
-        },
-        serviceStats: {
-          total: services?.total || 0,
-          completed: services?.completed || 0,
-          inhouse: services?.inhouse || 0,
-          by_department: services?.by_department || {},
-        },
-        flaggedVehicles: {
-          currently_flagged: {
-            count: flaggedCount?.total || 0,
-            min_minutes: flaggedStats?.currently_flagged?.min_minutes || 0,
-            max_minutes: flaggedStats?.currently_flagged?.max_minutes || 0
-          },
-          history: flaggedStats?.history || { count: 0, min_minutes: 0, max_minutes: 0 },
-        },
-        emergencyCars: {
-          total: emergency?.total || 0,
-          active: emergency?.active || 0,
-          expired: emergency?.expired || 0,
-          active_vehicles_count: emergency?.active_vehicles_count || 0,
-          history_vehicles_count: emergency?.history_vehicles_count || 0,
-        },
-        feedbackTotals: {
-          total: feedbackTotals?.total || 0,
-          by_department: feedbackTotals?.by_department || {},
-        },
-        feedbackAvg: {
-          overall_average: feedbackAvg?.overall_average || { average_rating: 0 },
-          by_department: feedbackAvg?.by_department || {},
-        },
-        hourlyParking: Array.isArray(hourlyParkingRaw) ? hourlyParkingRaw : [],
-        hourlyService: Array.isArray(hourlyServiceRaw) ? hourlyServiceRaw : [],
-        departments,
-      });
-      
-      setLastRefresh(new Date());
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      showError('Failed to load dashboard data');
-    } finally {
-      setLoading(false);
-    }
-  }, [showError]);
+   // Fetch real data
+   const fetchData = useCallback(async () => {
+     setLoading(true);
+     try {
+       const [
+         employeesRes, parkingRes, servicesRes, flaggedStatsRes, emergencyRes,
+         feedbackTotalsRes, feedbackAvgRes, hourlyParkingRes, hourlyServiceRes, departmentsRes,
+         flaggedCountRes, employeePerfTasksDoneRes, waitingTimeAnalyticsRes, employeePerfServiceRes
+       ] = await Promise.all([
+         statisticsService.getEmployeeStats(),
+         statisticsService.getCurrentlyParkedStats(),
+         statisticsService.getServiceDeliveryStats(),
+         statisticsService.getFlaggedVehiclesStats(),
+         statisticsService.getEmergencyCarsStats(),
+         statisticsService.getFeedbackTotals(),
+         statisticsService.getFeedbackAverageByDepartment(),
+         statisticsService.getHourlyParkingStats(),
+         statisticsService.getHourlyServiceDeliveryStats(),
+         statisticsService.getDepartmentsWithLeaders(),
+         parkingService.getFlaggedActiveVehicles(1, 1000), // Get count for KPI
+         statisticsService.getEmployeePerformanceByTasksDone(),
+         statisticsService.getWaitingTimeAnalytics(),
+         statisticsService.getEmployeePerformanceByService()
+       ]);
+       
+       const employees = (employeesRes as any)?.data || employeesRes;
+       const parking = (parkingRes as any)?.data || parkingRes;
+       const services = (servicesRes as any)?.data || servicesRes;
+       const flaggedStats = (flaggedStatsRes as any)?.data || flaggedStatsRes;
+       const emergency = (emergencyRes as any)?.data || emergencyRes;
+       const feedbackTotals = (feedbackTotalsRes as any)?.data || feedbackTotalsRes;
+       const flaggedCount = flaggedCountRes;
+       const feedbackAvg = (feedbackAvgRes as any)?.data || feedbackAvgRes;
+       const employeePerfTasksDone = (employeePerfTasksDoneRes as any)?.data || employeePerfTasksDoneRes;
+       const waitingTimeAnalytics = (waitingTimeAnalyticsRes as any)?.data || waitingTimeAnalyticsRes;
+       const employeePerfService = (employeePerfServiceRes as any)?.data || employeePerfServiceRes;
+       const hourlyParkingRaw = (hourlyParkingRes as any)?.data?.hourly || (hourlyParkingRes as any) || [];
+       const hourlyServiceRaw = (hourlyServiceRes as any)?.data?.hourly || (hourlyServiceRes as any) || [];
+       const departmentsRaw = (departmentsRes as any)?.data?.departments || (departmentsRes as any)?.departments || [];
+       
+       const departments = departmentsRaw.map((dept: any) => ({
+         name: dept.department_name,
+         leader: dept.department_leader?.full_name || 'Not assigned',
+         staff: dept.total_employees,
+         rating: Math.round((feedbackAvg?.by_department?.[dept.department_name]?.average_rating || 0)),
+         feedback: feedbackTotals?.by_department?.[dept.department_name] || 0,
+       }));
+       
+       setData({
+         employeeStats: {
+           total: employees?.total || 0,
+           active: employees?.active || 0,
+           inactive: employees?.inactive || 0,
+           locked: employees?.locked || 0,
+         },
+         parkingStats: {
+           total: parking?.total || 0,
+           by_driver_type: {
+             staff: Number(parking?.by_driver_type?.staff || parking?.by_driver_type?.Staff || 0),
+             visitor: Number(parking?.by_driver_type?.visitor || parking?.by_driver_type?.Visitor || parking?.by_driver_type?.regular || 0),
+             regular: Number(parking?.by_driver_type?.Regular || 0),
+           },
+         },
+         serviceStats: {
+           total: services?.total || 0,
+           completed: services?.completed || 0,
+           inhouse: services?.inhouse || 0,
+           by_department: services?.by_department || {},
+         },
+         flaggedVehicles: {
+           currently_flagged: {
+             count: flaggedCount?.total || 0,
+             min_minutes: flaggedStats?.currently_flagged?.min_minutes || 0,
+             max_minutes: flaggedStats?.currently_flagged?.max_minutes || 0
+           },
+           history: flaggedStats?.history || { count: 0, min_minutes: 0, max_minutes: 0 }
+         },
+         emergencyCars: {
+           total: emergency?.total || 0,
+           active: emergency?.active || 0,
+           expired: emergency?.expired || 0,
+           active_vehicles_count: emergency?.active_vehicles_count || 0,
+           history_vehicles_count: emergency?.history_vehicles_count || 0,
+         },
+         feedbackTotals: {
+           total: feedbackTotals?.total || 0,
+           by_department: feedbackTotals?.by_department || {},
+         },
+         feedbackAvg: {
+           overall_average: feedbackAvg?.overall_average || { average_rating: 0 },
+           by_department: feedbackAvg?.by_department || {},
+         },
+         hourlyParking: Array.isArray(hourlyParkingRaw) ? hourlyParkingRaw : [],
+         hourlyService: Array.isArray(hourlyServiceRaw) ? hourlyServiceRaw : [],
+         departments,
+         // New data fields
+         employeePerformanceTasksDone: employeePerfTasksDone,
+         waitingTimeAnalytics: waitingTimeAnalytics,
+         employeePerformanceService: employeePerfService
+       });
+       
+       setLastRefresh(new Date());
+     } catch (error) {
+       console.error('Error fetching data:', error);
+       showError('Failed to load dashboard data');
+     } finally {
+       setLoading(false);
+     }
+   }, [showError]);
   
   // Create all charts with whole number Y-axis
   const createCharts = useCallback(() => {
@@ -305,7 +329,7 @@ const Overview: React.FC = () => {
     const svcCanvas = document.getElementById('chart-services') as HTMLCanvasElement;
     if (svcCanvas && deptNames.length) {
       const svcTotal = deptNames.map(name => data.serviceStats.by_department[name] || 0);
-      // For now, show total services per department (we don't have inhouse vs completed breakdown)
+      // For now, show Total Visitors per department (we don't have inhouse vs completed breakdown)
       const svcData = svcTotal;
       const maxSvc = Math.max(...svcTotal, 1);
       
@@ -314,7 +338,7 @@ const Overview: React.FC = () => {
         data: {
           labels: deptNames,
           datasets: [
-            { label: 'Total Services', data: svcData, backgroundColor: '#0078d4', barPercentage: 0.6, categoryPercentage: 0.8 }
+            { label: 'Total Visitors', data: svcData, backgroundColor: '#0078d4', barPercentage: 0.6, categoryPercentage: 0.8 }
           ]
         },
         options: {
@@ -402,7 +426,7 @@ const Overview: React.FC = () => {
       chartsRef.current.set('feedback', new Chart(fbCanvas, {
         type: 'bar',
         data: { 
-          labels: deptNames, 
+          labels: deptNames?.map(name => name.length > 15 ? name.slice(0, 15) + '...' : name),
           datasets: [{ 
             data: fbData, 
             backgroundColor: '#5c2d91', 
@@ -494,163 +518,216 @@ const Overview: React.FC = () => {
     if (!authLoading && !isAuthenticated) navigate('/login');
   }, [isAuthenticated, authLoading, navigate]);
   
-  // Fetch paginated data for modals
-  const fetchModalData = useCallback(async (cardType: string, page: number = 1, limit: number = 8) => {
-    setModalLoading(true);
-    try {
-      let response: any;
-      console.log(`Fetching ${cardType} data for page ${page}, limit ${limit}`);
+// Fetch paginated data for modals
+   const fetchModalData = useCallback(async (cardType: string, page: number = 1, limit: number = 8) => {
+     setModalLoading(true);
+     try {
+       let response: any;
+       console.log(`Fetching ${cardType} data for page ${page}, limit ${limit}`);
 
-      switch (cardType) {
-        case 'employees':
-          // For employees, get detailed list with pagination
-          response = await employeeService.getAll(page, limit);
-          console.log('Employee response:', response);
-          if (response && response.success && response.data) {
-            setModalData(response.data);
-            setModalPagination({
-              currentPage: response.page || page,
-              totalPages: Math.ceil((response.total || 0) / limit),
-              totalItems: response.total || 0,
-              limit
-            });
-          } else {
-            setModalData([]);
-            setModalPagination({ currentPage: page, totalPages: 1, totalItems: 0, limit });
-          }
-          break;
+       switch (cardType) {
+         case 'employees':
+           // For employees, get detailed list with pagination
+           response = await employeeService.getAll(page, limit);
+           console.log('Employee response:', response);
+           if (response && response.success && response.data) {
+             setModalData(response.data);
+             setModalPagination({
+               currentPage: response.page || page,
+               totalPages: Math.ceil((response.total || 0) / limit),
+               totalItems: response.total || 0,
+               limit
+             });
+           } else {
+             setModalData([]);
+             setModalPagination({ currentPage: page, totalPages: 1, totalItems: 0, limit });
+           }
+           break;
 
-        case 'parking':
-          // For parking modal, show only active records
-          response = await parkingService.getAllPaginated(page, limit, 'active');
-          console.log('Parking response:', response);
-          if (response && response.success && response.data) {
-            setModalData(response.data);
-            setModalPagination({
-              currentPage: page,
-              totalPages: Math.ceil((response.total || 0) / limit),
-              totalItems: response.total || 0,
-              limit
-            });
-          } else {
-            setModalData([]);
-            setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
-          }
-          break;
+         case 'parking':
+           // For parking modal, show only active records
+           response = await parkingService.getAllPaginated(page, limit, 'active');
+           console.log('Parking response:', response);
+           if (response && response.success && response.data) {
+             setModalData(response.data);
+             setModalPagination({
+               currentPage: page,
+               totalPages: Math.ceil((response.total || 0) / limit),
+               totalItems: response.total || 0,
+               limit
+             });
+           } else {
+             setModalData([]);
+             setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
+           }
+           break;
 
-        case 'services':
-          // Show all visitors (not just in-house) to match KPI total
-          response = await serviceDeliveryService.getAll(page, limit);
-          console.log('Services response:', response);
-          if (response && response.success && response.data) {
-            setModalData(response.data);
-            setModalPagination({
-              currentPage: page,
-              totalPages: Math.ceil((response.total || 0) / limit),
-              totalItems: response.total || 0,
-              limit
-            });
-          } else {
-            setModalData([]);
-            setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
-          }
-          break;
+         case 'services':
+           // Show all visitors (not just in-house) to match KPI total
+           response = await serviceDeliveryService.getAll(page, limit);
+           console.log('Services response:', response);
+           if (response && response.success && response.data) {
+             setModalData(response.data);
+             setModalPagination({
+               currentPage: page,
+               totalPages: Math.ceil((response.total || 0) / limit),
+               totalItems: response.total || 0,
+               limit
+             });
+           } else {
+             setModalData([]);
+             setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
+           }
+           break;
 
-        case 'flagged':
-          response = await parkingService.getFlaggedActiveVehicles(page, limit);
-          console.log('Flagged response:', response);
-          if (response && response.success && response.data) {
-            setModalData(response.data);
-            setModalPagination({
-              currentPage: page,
-              totalPages: Math.ceil((response.total || 0) / limit),
-              totalItems: response.total || 0,
-              limit
-            });
-          } else {
-            setModalData([]);
-            setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
-          }
-          break;
+         case 'flagged':
+           response = await parkingService.getFlaggedActiveVehicles(page, limit);
+           console.log('Flagged response:', response);
+           if (response && response.success && response.data) {
+             setModalData(response.data);
+             setModalPagination({
+               currentPage: page,
+               totalPages: Math.ceil((response.total || 0) / limit),
+               totalItems: response.total || 0,
+               limit
+             });
+           } else {
+             setModalData([]);
+             setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
+           }
+           break;
 
-        case 'feedback':
-          response = await feedbackService.getAll(page, limit);
-          console.log('Feedback response:', response);
+         case 'feedback':
+           response = await feedbackService.getAll(page, limit);
+           console.log('Feedback response:', response);
 
-          if (response && (response as any).success && (response as any).data) {
-            const data = (response as any).data;
-            console.log('Feedback data found:', data.length, 'records, total:', (response as any).total);
+           if (response && (response as any).success && (response as any).data) {
+             const data = (response as any).data;
+             console.log('Feedback data found:', data.length, 'records, total:', (response as any).total);
 
-            setModalData(data);
-            setModalPagination({
-              currentPage: (response as any).page || page,
-              totalPages: Math.ceil(((response as any).total || 0) / limit),
-              totalItems: (response as any).total || 0,
-              limit
-            });
-          } else {
-            console.log('No feedback data found. Response:', response);
-            setModalData([]);
-            setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
-          }
-          break;
-          break;
+             setModalData(data);
+             setModalPagination({
+               currentPage: (response as any).page || page,
+               totalPages: Math.ceil(((response as any).total || 0) / limit),
+               totalItems: (response as any).total || 0,
+               limit
+             });
+           } else {
+             console.log('No feedback data found. Response:', response);
+             setModalData([]);
+             setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
+           }
+           break;
+           
+         case 'employee-performance-tasks-done':
+           // Employee performance based on completed tasks (using Task model)
+           response = await statisticsService.getEmployeePerformanceByTasksDone();
+           console.log('Employee performance tasks done response:', response);
+           if (response && response.success && response.data) {
+             setModalData(response.data);
+             setModalPagination({
+               currentPage: 1,
+               totalPages: 1,
+               totalItems: response.data.length,
+               limit: response.data.length
+             });
+           } else {
+             setModalData([]);
+             setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
+           }
+           break;
+           
+         case 'waiting-time-analytics':
+           // Waiting time analytics
+           response = await statisticsService.getWaitingTimeAnalytics();
+           console.log('Waiting time analytics response:', response);
+           if (response && response.success && response.data) {
+             setModalData(response.data);
+             setModalPagination({
+               currentPage: 1,
+               totalPages: 1,
+               totalItems: response.data.length,
+               limit: response.data.length
+             });
+           } else {
+             setModalData([]);
+             setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
+           }
+           break;
+           
+         case 'employee-performance-service':
+           // Employee performance based on service
+           response = await statisticsService.getEmployeePerformanceByService();
+           console.log('Employee performance service response:', response);
+           if (response && response.success && response.data) {
+             setModalData(response.data);
+             setModalPagination({
+               currentPage: 1,
+               totalPages: 1,
+               totalItems: response.data.length,
+               limit: response.data.length
+             });
+           } else {
+             setModalData([]);
+             setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
+           }
+           break;
 
-        case 'services-detail':
-          // Services by department detailed view
-          response = await statisticsService.getServiceDeliveryStats();
-          console.log('Services detail response:', response);
-          if (response && response.success && response.data) {
-            // Transform department data for display
-            const deptData = Object.entries(response.data.by_department || {}).map(([dept, count]) => ({
-              department: dept,
-              count: count as number
-            }));
-            setModalData(deptData);
-            setModalPagination({ currentPage: 1, totalPages: 1, totalItems: deptData.length, limit });
-          } else {
-            setModalData([]);
-            setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
-          }
-          break;
+         case 'services-detail':
+           // Services by department detailed view
+           response = await statisticsService.getServiceDeliveryStats();
+           console.log('Services detail response:', response);
+           if (response && response.success && response.data) {
+             // Transform department data for display
+             const deptData = Object.entries(response.data.by_department || {}).map(([dept, count]) => ({
+               department: dept,
+               count: count as number
+             }));
+             setModalData(deptData);
+             setModalPagination({ currentPage: 1, totalPages: 1, totalItems: deptData.length, limit });
+           } else {
+             setModalData([]);
+             setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
+           }
+           break;
 
-        case 'employees-detail':
-          // Employees by department detailed view
-          response = await statisticsService.getDepartmentsWithLeaders();
-          console.log('Employees detail response:', response);
-          if (response && response.success && response.data && response.data.departments) {
-            setModalData(response.data.departments);
-            setModalPagination({ currentPage: 1, totalPages: 1, totalItems: response.data.departments.length, limit });
-          } else {
-            setModalData([]);
-            setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
-          }
-          break;
+         case 'employees-detail':
+           // Employees by department detailed view
+           response = await statisticsService.getDepartmentsWithLeaders();
+           console.log('Employees detail response:', response);
+           if (response && response.success && response.data && response.data.departments) {
+             setModalData(response.data.departments);
+             setModalPagination({ currentPage: 1, totalPages: 1, totalItems: response.data.departments.length, limit });
+           } else {
+             setModalData([]);
+             setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
+           }
+           break;
 
-        case 'service-hourly':
-          response = await statisticsService.getHourlyServiceDeliveryStats();
-          console.log('Service hourly response:', response);
-          if (response && (response as any).success && (response as any).data) {
-            setModalData((response as any).data.hourly || []);
-            setModalPagination({ currentPage: 1, totalPages: 1, totalItems: ((response as any).data.hourly || []).length, limit });
-          } else {
-            setModalData([]);
-            setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
-          }
-          break;
+         case 'service-hourly':
+           response = await statisticsService.getHourlyServiceDeliveryStats();
+           console.log('Service hourly response:', response);
+           if (response && (response as any).success && (response as any).data) {
+             setModalData((response as any).data.hourly || []);
+             setModalPagination({ currentPage: 1, totalPages: 1, totalItems: ((response as any).data.hourly || []).length, limit });
+           } else {
+             setModalData([]);
+             setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
+           }
+           break;
 
-        default:
-          setModalData([]);
-          setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
-      }
-    } catch (error) {
-      console.error('Error fetching modal data:', error);
-      setModalData([]);
-      setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
-    } finally {
-      setModalLoading(false);
-    }
-  }, []);
+         default:
+           setModalData([]);
+           setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
+       }
+     } catch (error) {
+       console.error('Error fetching modal data:', error);
+       setModalData([]);
+       setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
+     } finally {
+       setModalLoading(false);
+     }
+   }, []);
 
   // Handle card click to open modal with data
   const handleCardClick = useCallback((cardType: string) => {
@@ -709,7 +786,7 @@ const Overview: React.FC = () => {
                   callbacks: {
                     label: (context: any) => {
                       const value = Math.round(context.raw);
-                      return `Total services: ${value}`;
+                      return `Total Visitors: ${value}`;
                     }
                   }
                 }
@@ -863,6 +940,9 @@ const Overview: React.FC = () => {
   const avgRating = data ? Math.round(data.feedbackAvg.overall_average.average_rating) : 0;
   const driverTotal = data ? data.parkingStats.by_driver_type.staff + data.parkingStats.by_driver_type.visitor + data.parkingStats.by_driver_type.regular : 0;
   const maxStaff = data ? Math.max(...data.departments.map(d => d.staff), 1) : 1;
+  const maxTasks = data?.employeePerformanceTasksDone?.length ? Math.max(...data.employeePerformanceTasksDone.map(t => t.total_tasks || 0), 1) : 1;
+  const maxWaitingCases = data?.waitingTimeAnalytics?.length ? Math.max(...data.waitingTimeAnalytics.map(w => w.total_cases || 0), 1) : 1;
+  const maxCitizensServed = data?.employeePerformanceService?.length ? Math.max(...data.employeePerformanceService.map(e => e.citizens_served || 0), 1) : 1;
   
   // Get color based on rating
   const getRatingColor = (rating: number) => {
@@ -872,11 +952,42 @@ const Overview: React.FC = () => {
     return 'text-red-600';
   };
   
+  // Get status color for waiting time
+  const getStatusColor = (status: string) => {
+    if (status === 'Critical') return 'bg-red-100 text-red-800';
+    if (status === 'Moderate') return 'bg-yellow-100 text-yellow-800';
+    return 'bg-green-100 text-green-800';
+  };
+  
+  // Get rating color for employee performance
+  const getPerfRatingColor = (rating: string) => {
+    if (rating === 'Excellent') return 'text-emerald-600';
+    if (rating === 'Good') return 'text-blue-600';
+    if (rating === 'Slow') return 'text-yellow-600';
+    return 'text-red-600';
+  };
+  
   // Visible data for expandable tables
   const visibleDepartments = showAllDepartments
     ? data?.departments
     : data?.departments?.slice((departmentPage - 1) * departmentLimit, departmentPage * departmentLimit);
   const visibleRatings = showAllRatings ? data?.departments : data?.departments?.slice(0, 5);
+  
+  // Employee Performance pagination calculations
+  const totalTasksDonePages = Math.ceil((data?.employeePerformanceTasksDone?.length || 0) / performanceLimit);
+  const visibleTasksDone = showAllTasksDone
+    ? data?.employeePerformanceTasksDone
+    : data?.employeePerformanceTasksDone?.slice((tasksDonePage - 1) * performanceLimit, tasksDonePage * performanceLimit);
+  
+  const totalWaitingTimePages = Math.ceil((data?.waitingTimeAnalytics?.length || 0) / performanceLimit);
+  const visibleWaitingTime = showAllWaitingTime
+    ? data?.waitingTimeAnalytics
+    : data?.waitingTimeAnalytics?.slice((waitingTimePage - 1) * performanceLimit, waitingTimePage * performanceLimit);
+  
+  const totalServicePerfPages = Math.ceil((data?.employeePerformanceService?.length || 0) / performanceLimit);
+  const visibleServicePerf = showAllServicePerf
+    ? data?.employeePerformanceService
+    : data?.employeePerformanceService?.slice((servicePerfPage - 1) * performanceLimit, servicePerfPage * performanceLimit);
   
   if (loading || !data) {
     return (
@@ -914,18 +1025,21 @@ const Overview: React.FC = () => {
             <option>Today</option>
           </select>
         </div>
-        <button
-          onClick={fetchData}
-          className="ml-auto text-xs px-3 py-1 bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-1"
-        >
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M13.65 2.35A7.958 7.958 0 008 0C4.69 0 1.99 2.24 1.25 5.4m-.9 5.25A7.958 7.958 0 008 16c3.31 0 6.01-2.24 6.75-5.4M16 6l-4-4-4 4M0 10l4 4 4-4" stroke="white" strokeWidth="1.5" fill="none"/></svg>
-          Refresh
-        </button>
-        <span className="text-xs text-gray-500 hidden lg:inline">{lastRefresh.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-      </div>
-      
-      {/* Main Content */}
-      <div className="p-3 space-y-2.5">
+       <button
+         onClick={fetchData}
+         className="ml-auto text-xs px-3 py-1 bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-1"
+       >
+         <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M13.65 2.35A7.958 7.958 0 008 0C4.69 0 1.99 2.24 1.25 5.4m-.9 5.25A7.958 7.958 0 008 16c3.31 0 6.01-2.24 6.75-5.4M16 6l-4-4-4 4M0 10l4 4 4-4" stroke="white" strokeWidth="1.5" fill="none"/></svg>
+         Refresh
+       </button>
+       <span className="text-xs text-gray-500 hidden lg:inline">{lastRefresh.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+     </div>
+
+    {/* Employee Performance Tables Section */}
+
+   
+   {/* Main Content */}
+   <div className="p-3 space-y-2.5">
         
         {/* KPI Row 1 - Clickable Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2">
@@ -960,7 +1074,7 @@ const Overview: React.FC = () => {
             className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
           >
             <div className="border-l-2 border-yellow-500 pl-2">
-              <div className="text-xs text-gray-500 font-medium">Total services</div>
+              <div className="text-xs text-gray-500 font-medium">Total Visitors</div>
               <div className="text-2xl font-light text-gray-900">{data.serviceStats.total}</div>
               <div className="text-xs text-gray-400 mt-1">
                 <span className="text-teal-600">▲ {completionRate}%</span> completed
@@ -982,13 +1096,13 @@ const Overview: React.FC = () => {
             </div>
         </div>
         
-        {/* KPI Row 2 */}
+{/* KPI Row 2 */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2">
           <div className="bg-white border border-gray-200 p-3">
             <div className="border-l-2 border-purple-600 pl-2">
-              <div className="text-xs text-gray-500 font-medium">Avg feedback rating</div>
-              <div className="text-xl font-light text-gray-900">{avgRating} <span className="text-sm text-gray-400">/ 10</span></div>
-              <div className="text-xs text-gray-400 mt-1">{data.feedbackTotals.total} total responses</div>
+              <div className="text-xs text-gray-500 font-medium">Satisfaction Score</div>
+              <div className="text-xl font-light text-gray-900">{(avgRating * 100 / 10).toFixed(1)} <span className="text-sm text-gray-400">%</span></div>
+              <div className="text-xs text-gray-400 mt-1">{data.feedbackTotals.total}  total feedbacks</div>
             </div>
           </div>
           <div className="bg-white border border-gray-200 p-3">
@@ -1000,7 +1114,7 @@ const Overview: React.FC = () => {
           </div>
           <div className="bg-white border border-gray-200 p-3">
             <div className="border-l-2 border-yellow-500 pl-2">
-              <div className="text-xs text-gray-500 font-medium">Emergency cars</div>
+              <div className="text-xs text-gray-500 font-medium">Visitors Reserved cars</div>
               <div className="text-2xl font-light text-gray-900">{data.emergencyCars.total}</div>
               <div className="text-xs text-gray-400 mt-1"><span className="text-teal-600">{data.emergencyCars.active} active</span> · {data.emergencyCars.expired} expired</div>
             </div>
@@ -1010,6 +1124,280 @@ const Overview: React.FC = () => {
               <div className="text-xs text-gray-500 font-medium">Total departments</div>
               <div className="text-2xl font-light text-gray-900">{data.departments.length}</div>
               <div className="text-xs text-gray-400 mt-1">{data.employeeStats.total} staff total</div>
+            </div>
+          </div>
+        </div>
+
+        
+
+                <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">Performance </h3>
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+            
+            {/* Employee Performance Tasks Done Table */}
+            <div className="bg-white border border-gray-200   overflow-hidden">
+              <div className="px-4 py-3 border-b bg-gray-50">
+                <span className="font-medium text-gray-900">Tasks Completed Performance</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="text-left py-2 px-2 font-semibold text-gray-600">Employee Name</th>
+                      <th className="text-left py-2 px-2 font-semibold text-gray-600">Tasks Completed</th>
+                      <th className="text-left py-2 px-2 font-semibold text-gray-600">Expected Time</th>
+                      <th className="text-left py-2 px-2 font-semibold text-gray-600">Actual Time</th>
+                      <th className="text-left py-2 px-2 font-semibold text-gray-600">Rating</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleTasksDone?.map((emp, idx) => {
+                      const tasksPercent = Math.round(((emp.total_tasks || 0) / maxTasks) * 100);
+                      return (
+                        <tr key={idx} className="border-t border-gray-100 hover:bg-gray-50">
+                          <td className="py-2 px-2 font-medium text-gray-900 break-words max-w-[120px]">{emp.employee_name || 'Unknown'}</td>
+                          <td className="py-2 px-2">
+                            <div>{emp.total_tasks || 0}</div>
+                            <div className="h-1 bg-gray-100 mt-1 w-12">
+                              <div className="h-full bg-indigo-600" style={{ width: `${tasksPercent}%` }}></div>
+                            </div>
+                          </td>
+                          <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{emp.avg_expected_time || '0h'}</td>
+                          <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{emp.avg_actual_time || '0h'}</td>
+                          <td className={`py-2 px-2 font-semibold ${getPerfRatingColor(emp.rating)} whitespace-nowrap`}>
+                            {emp.rating || 'N/A'}
+                          </td>
+                         </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {!showAllTasksDone && data.employeePerformanceTasksDone.length > performanceLimit && (
+                <div className="mt-3 p-3 pt-0 flex flex-col sm:flex-row justify-between items-center gap-2 border-t border-gray-100">
+                  <div className="text-xs text-gray-600 text-center sm:text-left">
+                    Showing {visibleTasksDone?.length || 0} of {data.employeePerformanceTasksDone.length} employees
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setTasksDonePage(Math.max(1, tasksDonePage - 1))}
+                      disabled={tasksDonePage <= 1}
+                      className="px-2 py-1 text-xs border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setTasksDonePage(Math.min(totalTasksDonePages, tasksDonePage + 1))}
+                      disabled={tasksDonePage >= totalTasksDonePages}
+                      className="px-2 py-1 text-xs border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setShowAllTasksDone(true)}
+                    className="text-xs px-2 py-1 bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    Show All
+                  </button>
+                </div>
+              )}
+              {showAllTasksDone && (
+                <div className="mt-3 p-3 pt-0 text-center border-t border-gray-100">
+                  <button
+                    onClick={() => {
+                      setShowAllTasksDone(false);
+                      setTasksDonePage(1);
+                    }}
+                    className="text-xs px-3 py-1 bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    Show Less
+                  </button>
+                </div>
+              )}
+              {data.employeePerformanceTasksDone.length === 0 && (
+                <div className="p-4 text-center text-gray-500 text-sm">
+                  No task performance data available
+                </div>
+              )}
+            </div>
+            
+            {/* Waiting Time Analytics Table */}
+            <div className="bg-white border border-gray-200   overflow-hidden">
+              <div className="px-4 py-3 border-b bg-gray-50">
+                <span className="font-medium text-gray-900">Waiting Time Analytics</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="text-left py-2 px-2 font-semibold text-gray-600">Department</th>
+                      <th className="text-left py-2 px-2 font-semibold text-gray-600">Avg Wait</th>
+                      <th className="text-left py-2 px-2 font-semibold text-gray-600">Max Wait</th>
+                      <th className="text-left py-2 px-2 font-semibold text-gray-600">Min Wait</th>
+                      <th className="text-left py-2 px-2 font-semibold text-gray-600">Status</th>
+                      <th className="text-left py-2 px-2 font-semibold text-gray-600">Cases</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleWaitingTime?.map((wt, idx) => {
+                      const casesPercent = Math.round(((wt.total_cases || 0) / maxWaitingCases) * 100);
+                      return (
+                        <tr key={idx} className="border-t border-gray-100 hover:bg-gray-50">
+                          <td className="py-2 px-2 font-medium text-gray-900 break-words max-w-[100px]">{wt.department_name || 'Unknown'}</td>
+                          <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{wt.avg_wait_time || '0m'}</td>
+                          <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{wt.max_wait_time || '0m'}</td>
+                          <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{wt.min_wait_time || '0m'}</td>
+                          <td className="py-2 px-2">
+                            <span className={`px-1.5 py-0.5 text-xs rounded ${getStatusColor(wt.status)} whitespace-nowrap`}>
+                              {wt.status || 'Normal'}
+                            </span>
+                          </td>
+                          <td className="py-2 px-2">
+                            <div>{wt.total_cases || 0}</div>
+                            <div className="h-1 bg-gray-100 mt-1 w-12">
+                              <div className="h-full bg-orange-500" style={{ width: `${casesPercent}%` }}></div>
+                            </div>
+                          </td>
+                         </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {!showAllWaitingTime && data.waitingTimeAnalytics.length > performanceLimit && (
+                <div className="mt-3 p-3 pt-0 flex flex-col sm:flex-row justify-between items-center gap-2 border-t border-gray-100">
+                  <div className="text-xs text-gray-600 text-center sm:text-left">
+                    Showing {visibleWaitingTime?.length || 0} of {data.waitingTimeAnalytics.length} departments
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setWaitingTimePage(Math.max(1, waitingTimePage - 1))}
+                      disabled={waitingTimePage <= 1}
+                      className="px-2 py-1 text-xs border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setWaitingTimePage(Math.min(totalWaitingTimePages, waitingTimePage + 1))}
+                      disabled={waitingTimePage >= totalWaitingTimePages}
+                      className="px-2 py-1 text-xs border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setShowAllWaitingTime(true)}
+                    className="text-xs px-2 py-1 bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    Show All
+                  </button>
+                </div>
+              )}
+              {showAllWaitingTime && (
+                <div className="mt-3 p-3 pt-0 text-center border-t border-gray-100">
+                  <button
+                    onClick={() => {
+                      setShowAllWaitingTime(false);
+                      setWaitingTimePage(1);
+                    }}
+                    className="text-xs px-3 py-1 bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    Show Less
+                  </button>
+                </div>
+              )}
+              {data.waitingTimeAnalytics.length === 0 && (
+                <div className="p-4 text-center text-gray-500 text-sm">
+                  No waiting time data available
+                </div>
+              )}
+            </div>
+            
+            {/* Employee Performance Service Table */}
+            <div className="bg-white border border-gray-200   overflow-hidden">
+              <div className="px-4 py-3 border-b bg-gray-50">
+                <span className="font-medium text-gray-900">Service Performance</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="text-left py-2 px-2 font-semibold text-gray-600">Employee Name</th>
+                      <th className="text-left py-2 px-2 font-semibold text-gray-600">Citizens Served</th>
+                      <th className="text-left py-2 px-2 font-semibold text-gray-600">Avg Service Time</th>
+                      <th className="text-left py-2 px-2 font-semibold text-gray-600">Rating</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleServicePerf?.map((emp, idx) => {
+                      const servedPercent = Math.round(((emp.citizens_served || 0) / maxCitizensServed) * 100);
+                      return (
+                        <tr key={idx} className="border-t border-gray-100 hover:bg-gray-50">
+                          <td className="py-2 px-2 font-medium text-gray-900 break-words max-w-[120px]">{emp.employee_name || 'Unknown'}</td>
+                          <td className="py-2 px-2">
+                            <div>{emp.citizens_served || 0}</div>
+                            <div className="h-1 bg-gray-100 mt-1 w-12">
+                              <div className="h-full bg-green-600" style={{ width: `${servedPercent}%` }}></div>
+                            </div>
+                          </td>
+                          <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{emp.avg_service_time || '0m'}</td>
+                          <td className={`py-2 px-2 font-semibold ${getPerfRatingColor(emp.rating)} whitespace-nowrap`}>
+                            {emp.rating || 'N/A'}
+                          </td>
+                         </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {!showAllServicePerf && data.employeePerformanceService.length > performanceLimit && (
+                <div className="mt-3 p-3 pt-0 flex flex-col sm:flex-row justify-between items-center gap-2 border-t border-gray-100">
+                  <div className="text-xs text-gray-600 text-center sm:text-left">
+                    Showing {visibleServicePerf?.length || 0} of {data.employeePerformanceService.length} employees
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setServicePerfPage(Math.max(1, servicePerfPage - 1))}
+                      disabled={servicePerfPage <= 1}
+                      className="px-2 py-1 text-xs border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setServicePerfPage(Math.min(totalServicePerfPages, servicePerfPage + 1))}
+                      disabled={servicePerfPage >= totalServicePerfPages}
+                      className="px-2 py-1 text-xs border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setShowAllServicePerf(true)}
+                    className="text-xs px-2 py-1 bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    Show All
+                  </button>
+                </div>
+              )}
+              {showAllServicePerf && (
+                <div className="mt-3 p-3 pt-0 text-center border-t border-gray-100">
+                  <button
+                    onClick={() => {
+                      setShowAllServicePerf(false);
+                      setServicePerfPage(1);
+                    }}
+                    className="text-xs px-3 py-1 bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    Show Less
+                  </button>
+                </div>
+              )}
+              {data.employeePerformanceService.length === 0 && (
+                <div className="p-4 text-center text-gray-500 text-sm">
+                  No service performance data available
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1083,7 +1471,7 @@ const Overview: React.FC = () => {
                 <div className="bg-white border border-gray-200 p-3">
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <div className="text-sm font-semibold text-gray-900">Department overview</div>
+                      <div className="text-sm font-semibold text-gray-900">CITIZEN FEEDBACK</div>
                       <div className="text-xs text-gray-500">Leaders, staff, and feedback ratings</div>
                     </div>
                     <button className="text-gray-400 text-lg">⋯</button>
@@ -1112,7 +1500,7 @@ const Overview: React.FC = () => {
                                   <div className="h-full bg-purple-600" style={{ width: `${staffPercent}%` }}></div>
                                 </div>
                               </td>
-                              <td className={`py-2 px-2 font-semibold ${getRatingColor(row.rating)}`}>{row.rating}/10</td>
+                              <td className={`py-2 px-2 font-semibold ${getRatingColor(row.rating)}`}>{row.feedback ? (row.rating * 100 / 10).toFixed(1) + '%' : '___'}</td>
                               <td className="py-2 px-2 text-gray-500">{row.feedback}</td>
                             </tr>
                           );
@@ -1212,10 +1600,10 @@ const Overview: React.FC = () => {
                   </div>
                 </div>
                 
-                {/* Emergency Cars */}
+                {/* Visitors Reserved cars */}
                 <div className="bg-white border border-gray-200 p-3">
                   <div className="mb-3">
-                    <div className="text-sm font-semibold text-gray-900">Emergency cars</div>
+                    <div className="text-sm font-semibold text-gray-900">Visitors Reserved cars</div>
                     <div className="text-xs text-gray-500">Active vs expired status</div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -1243,10 +1631,10 @@ const Overview: React.FC = () => {
                   </div>
                 </div>
                 
-                {/* Avg Feedback Rating */}
+                {/* Satisfaction Score */}
                 <div className="bg-white border border-gray-200 p-3">
                   <div className="mb-3">
-                    <div className="text-sm font-semibold text-gray-900">Avg feedback rating</div>
+                    <div className="text-sm font-semibold text-gray-900">Satisfaction Score</div>
                     <div className="text-xs text-gray-500">By department · out of 10</div>
                   </div>
                   <div className="space-y-2">
@@ -1719,7 +2107,7 @@ const Overview: React.FC = () => {
                   </div>
 
                   <div className="flex gap-3 text-xs mb-3">
-                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-600"></div>Total services</div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-600"></div>Total Visitors</div>
                   </div>
                   <div className="h-[500px] w-full">
                     <canvas id="modal-services-detail-chart"></canvas>
@@ -1762,28 +2150,142 @@ const Overview: React.FC = () => {
                 </div>
               )}
 
-              {selectedCard === 'service-hourly' && (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <div className="text-sm text-gray-600">
-                      Visitor arrivals · today
-                    </div>
-                  </div>
+               {selectedCard === 'service-hourly' && (
+                 <div className="space-y-4">
+                   <div className="flex justify-between items-center">
+                     <div className="text-sm text-gray-600">
+                       Visitor arrivals · today
+                     </div>
+                   </div>
 
-                  <div className="flex gap-3 text-xs mb-3">
-                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-teal-600"></div>Visitors checked in</div>
-                  </div>
-                  <div className="h-48 sm:h-56 md:h-64 w-full">
-                    <canvas id="modal-service-hourly-chart"></canvas>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </MainLayout>
-  );
-};
+                   <div className="flex gap-3 text-xs mb-3">
+                     <div className="flex items-center gap-1"><div className="w-2 h-2 bg-teal-600"></div>Visitors checked in</div>
+                   </div>
+                   <div className="h-48 sm:h-56 md:h-64 w-full">
+                     <canvas id="modal-service-hourly-chart"></canvas>
+                   </div>
+                 </div>
+               )}
 
-export default Overview;
+               {/* Employee Performance by Tasks Done Modal */}
+               {selectedCard === 'employee-performance-tasks-done' && (
+                 <div className="space-y-4">
+                   <div className="flex justify-between items-center">
+                     <div className="text-sm text-gray-600">
+                       Employee Performance (Based on Completed Tasks)
+                     </div>
+                   </div>
+
+                   <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                     <table className="w-full text-sm border border-gray-200">
+                       <thead className="bg-gray-50 sticky top-0 z-10">
+                         <tr>
+                           <th className="px-4 py-2 text-left border-b">Employee Name</th>
+                           <th className="px-4 py-2 text-left border-b">Total Tasks Completed</th>
+                           <th className="px-4 py-2 text-left border-b">Avg Expected Time</th>
+                           <th className="px-4 py-2 text-left border-b">Avg Actual Time</th>
+                           <th className="px-4 py-2 text-left border-b">Rating</th>
+                         </tr>
+                       </thead>
+                       <tbody>
+                         {modalData.map((emp: any, idx: number) => (
+                           <tr key={idx} className="border-b hover:bg-gray-50">
+                             <td className="px-4 py-2">{emp.employee_name || 'Unknown'}</td>
+                             <td className="px-4 py-2">{emp.total_tasks || 0}</td>
+                             <td className="px-4 py-2">{emp.avg_expected_time || '0 hours'}</td>
+                             <td className="px-4 py-2">{emp.avg_actual_time || '0 hours'}</td>
+                             <td className={`px-4 py-2 ${emp.rating === 'Excellent' ? 'text-emerald-600' : emp.rating === 'Good' ? 'text-blue-600' : emp.rating === 'Slow' ? 'text-yellow-600' : 'text-red-600'}`}>
+                               {emp.rating || 'N/A'}
+                             </td>
+                           </tr>
+                         ))}
+                       </tbody>
+                     </table>
+                   </div>
+                 </div>
+               )}
+
+               {/* Waiting Time Analytics Modal */}
+               {selectedCard === 'waiting-time-analytics' && (
+                 <div className="space-y-4">
+                   <div className="flex justify-between items-center">
+                     <div className="text-sm text-gray-600">
+                       Waiting Time Analytics by Department
+                     </div>
+                   </div>
+
+                   <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                     <table className="w-full text-sm border border-gray-200">
+                       <thead className="bg-gray-50 sticky top-0 z-10">
+                         <tr>
+                           <th className="px-4 py-2 text-left border-b">Department</th>
+                           <th className="px-4 py-2 text-left border-b">Avg Wait Time</th>
+                           <th className="px-4 py-2 text-left border-b">Max Wait Time</th>
+                           <th className="px-4 py-2 text-left border-b">Min Wait Time</th>
+                           <th className="px-4 py-2 text-left border-b">Status</th>
+                           <th className="px-4 py-2 text-left border-b">Total Cases</th>
+                         </tr>
+                       </thead>
+                       <tbody>
+                         {modalData.map((wt: any, idx: number) => (
+                           <tr key={idx} className="border-b hover:bg-gray-50">
+                             <td className="px-4 py-2">{wt.department_name || 'Unknown'}</td>
+                             <td className="px-4 py-2">{wt.avg_wait_time || '0 mins'}</td>
+                             <td className="px-4 py-2">{wt.max_wait_time || '0 mins'}</td>
+                             <td className="px-4 py-2">{wt.min_wait_time || '0 mins'}</td>
+                             <td className={`px-4 py-2 ${wt.status === 'Critical' ? 'bg-red-100 text-red-800' : wt.status === 'Moderate' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'} rounded`}>
+                               {wt.status || 'Normal'}
+                             </td>
+                             <td className="px-4 py-2">{wt.total_cases || 0}</td>
+                           </tr>
+                         ))}
+                       </tbody>
+                     </table>
+                   </div>
+                 </div>
+               )}
+
+               {/* Employee Performance by Service Modal */}
+               {selectedCard === 'employee-performance-service' && (
+                 <div className="space-y-4">
+                   <div className="flex justify-between items-center">
+                     <div className="text-sm text-gray-600">
+                       Employee Performance (Based on Service)
+                     </div>
+                   </div>
+
+                   <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                     <table className="w-full text-sm border border-gray-200">
+                       <thead className="bg-gray-50 sticky top-0 z-10">
+                         <tr>
+                           <th className="px-4 py-2 text-left border-b">Employee Name</th>
+                           <th className="px-4 py-2 text-left border-b">Citizens Served</th>
+                           <th className="px-4 py-2 text-left border-b">Avg Service Time</th>
+                           <th className="px-4 py-2 text-left border-b">Rating</th>
+                         </tr>
+                       </thead>
+                       <tbody>
+                         {modalData.map((emp: any, idx: number) => (
+                           <tr key={idx} className="border-b hover:bg-gray-50">
+                             <td className="px-4 py-2">{emp.employee_name || 'Unknown'}</td>
+                             <td className="px-4 py-2">{emp.citizens_served || 0}</td>
+                             <td className="px-4 py-2">{emp.avg_service_time || '0 mins'}</td>
+                             <td className={`px-4 py-2 ${emp.rating === 'Excellent' ? 'text-emerald-600' : emp.rating === 'Good' ? 'text-blue-600' : emp.rating === 'Slow' ? 'text-yellow-600' : 'text-red-600'}`}>
+                               {emp.rating || 'N/A'}
+                             </td>
+                           </tr>
+                         ))}
+                       </tbody>
+                     </table>
+                   </div>
+                 </div>
+               )}
+             </div>
+           </div>
+         </div>
+       )}
+     </MainLayout>
+   );
+ };
+
+ export default Overview;

@@ -12,6 +12,7 @@ const statisticsController = require('../../controllers/statistics/statistics.js
 
 Router.use(upload.any())
 
+
 /**
  * Global Interceptor for Multer Errors
  * This prevents the app from throwing a 500 error when:
@@ -65,5 +66,17 @@ Router.get('/hourly-parking', statisticsController.getHourlyParkingStats);
 
 // Hourly Service Delivery Statistics (for graphs)
 Router.get('/hourly-service-delivery', statisticsController.getHourlyServiceDeliveryStats);
+
+// Employee Performance by Tasks
+Router.get('/employee-performance/tasks', statisticsController.getEmployeePerformanceByTasks);
+
+// Employee Performance by Tasks Done
+Router.get('/employee-performance/tasks-done', statisticsController.getEmployeePerformanceByTasksDone);
+
+// Waiting Time Analytics
+Router.get('/waiting-time-analytics', statisticsController.getWaitingTimeAnalytics);
+
+// Employee Performance by Service
+Router.get('/employee-performance/service', statisticsController.getEmployeePerformanceByService);
 
 module.exports = Router;

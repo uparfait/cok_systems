@@ -19,7 +19,8 @@ const updateTaskStatus = async (req, res) => {
             id,
             {
                 status,
-                updatedAt: new Date()
+                updatedAt: new Date(),
+                ...(status === 'Completed' && { completedAt: new Date() }) // Set completedAt if status is Completed
             },
             { new: true, runValidators: true }
         )

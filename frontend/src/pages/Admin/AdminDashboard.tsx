@@ -34,6 +34,7 @@ interface ActivityItem {
   color: string;
 }
 
+
 interface InsightItem {
   id: string;
   title: string;
@@ -47,6 +48,9 @@ const AdminDashboard: React.FC = () => {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { socket, isConnected } = useSocket();
   const navigate = useNavigate();
+  
+
+  
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
