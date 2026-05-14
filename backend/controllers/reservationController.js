@@ -42,10 +42,12 @@ const registerSingleReservation = async (req, res) => {
 
         await newReservation.save();
 
-        // Increment visitor reservation count
+        // Increment visitor reservation count and decrement regular available slots
         const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
         if (parkingSlot) {
             parkingSlot.visitorReservationCount = (parkingSlot.visitorReservationCount || 0) + 1;
+            parkingSlot.RegularAvailableSlots = Math.max(0, (parkingSlot.RegularAvailableSlots || 0) - 1);
+            parkingSlot.RegularReservedSlots = (parkingSlot.RegularReservedSlots || 0) + 1;
             await parkingSlot.save();
         }
 
@@ -56,7 +58,7 @@ const registerSingleReservation = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error in single reservation:', error);
+        console.error(' Error in single reservation:', error);
         res.status(500).json({ success: false, message: 'Server error during single reservation.' });
     }
 };
@@ -145,10 +147,12 @@ const bulkUploadReservations = async (req, res) => {
             // B. Do the database work, explicitly passing the { session }
             await newReservationBatch.save({ session });
 
-            // Increment visitor reservation count
+            // Increment visitor reservation count and decrement regular available slots
             const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' }).session(session);
             if (parkingSlot) {
                 parkingSlot.visitorReservationCount = (parkingSlot.visitorReservationCount || 0) + mappedVisitors.length;
+                parkingSlot.RegularAvailableSlots = Math.max(0, (parkingSlot.RegularAvailableSlots || 0) - mappedVisitors.length);
+                parkingSlot.RegularReservedSlots = (parkingSlot.RegularReservedSlots || 0) + mappedVisitors.length;
                 await parkingSlot.save({ session });
             }
 
@@ -169,12 +173,12 @@ const bulkUploadReservations = async (req, res) => {
             await session.abortTransaction();
             session.endSession();
             
-            console.error('❌ Database Transaction Failed & Rolled Back:', dbError);
+            console.error(' Database Transaction Failed & Rolled Back:', dbError);
             return res.status(500).json({ success: false, message: 'Database error during save. All changes were rolled back.' });
         }
 
     } catch (error) {
-        console.error('❌ Error in bulk upload:', error);
+        console.error('Error in bulk upload:', error);
         res.status(500).json({ success: false, message: 'Server error during file upload.' });
     }
 };
