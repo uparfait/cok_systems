@@ -162,7 +162,8 @@ db_connection()
     // check if parking slot document exists, if not create one with default values
     // default will be 350 total slots, 50 reserved for visitors, 100 reserved for staff, 100 available for visitors, 100 available for staff and 100 regular available slots
     const parkingSlotDoc = await ParkingSlot.findOne({ UnChangedId: "parking_slots" });
-    if (!parkingSlotDoc?.totalSlots) {
+
+    if (!!parkingSlotDoc?.totalSlots) {
       const newParkingSlot = new ParkingSlot({
         totalSlots: 0,
         visitorsReservedSlots: 0,
