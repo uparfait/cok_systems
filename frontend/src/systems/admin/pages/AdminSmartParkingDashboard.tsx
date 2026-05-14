@@ -6,17 +6,18 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
+import { useToast } from '../../../core/contexts/ToastContext';
 import { useSocket } from '../../../core/contexts/SocketContext';
 import { smartParkingService, statisticsService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import {
-   FiTruck, FiSearch, FiFlag, FiCheckCircle, FiX,
-   FiArrowRight, FiDownload, FiFilter, FiCalendar, FiRefreshCw,
-   FiMapPin, FiFileText, FiEdit
- } from 'react-icons/fi';
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+  FiTruck, FiSearch, FiFlag, FiCheckCircle, FiX,
+  FiArrowRight, FiDownload, FiFilter, FiCalendar, FiRefreshCw,
+  FiMapPin, FiFileText, FiEdit
+} from 'react-icons/fi';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 
 // Types
@@ -48,9 +49,10 @@ interface ParkingStats {
 }
 
 const AdminSmartParkingDashboard: React.FC = () => {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const navigate = useNavigate();
-  const { socket, isConnected } = useSocket();
+   const { isAuthenticated, isLoading: authLoading } = useAuth();
+   const navigate = useNavigate();
+   const { showSuccess, showError } = useToast();
+   const { socket, isConnected } = useSocket();
 
   // State
   const [loading, setLoading] = useState(true);
@@ -75,8 +77,9 @@ const AdminSmartParkingDashboard: React.FC = () => {
    const [dateTo, setDateTo] = useState('');
    const [realtimeUpdate, setRealtimeUpdate] = useState<string | null>(null);
    const [showSlotConfigModal, setShowSlotConfigModal] = useState(false);
+   const [savingSlotConfig, setSavingSlotConfig] = useState(false);
 
-// Slot configuration - will be loaded from backend
+   // Slot configuration - will be loaded from backend
     const [slotConfig, setSlotConfig] = useState({
       totalSlots: 0,
       staffReservedSlots: 0,
@@ -291,15 +294,37 @@ const AdminSmartParkingDashboard: React.FC = () => {
      }
    }, [realtimeUpdate]);
 
-   // Slot configuration change handler
-   const handleSlotConfigChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-     const { name, value } = e.target;
-     setSlotConfig(prev => ({ ...prev, [name]: parseInt(value) || 0 }));
-   };
+    // Slot configuration change handler
+    const handleSlotConfigChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const { name, value } = e.target;
+      setSlotConfig(prev => ({ ...prev, [name]: parseInt(value) || 0 }));
+    };
 
-   const calculateRegularSlots = () => {
-     return Math.max(0, slotConfig.totalSlots - slotConfig.staffReservedSlots - slotConfig.visitorReservedSlots);
-   };
+    // Save slot configuration
+    const handleSaveSlotConfig = async () => {
+      setSavingSlotConfig(true);
+      try {
+        const response = await smartParkingService.updateSlotConfig(slotConfig);
+
+        if (response.success) {
+          showSuccess('Slot configuration updated successfully');
+          setShowSlotConfigModal(false);
+          // Refetch dashboard data to reflect changes
+          fetchDashboardData();
+        } else {
+          showError(response.message || 'Failed to update slot configuration');
+        }
+      } catch (err: any) {
+        console.error('Error saving slot config:', err);
+        showError(err?.message || 'Failed to update slot configuration');
+      } finally {
+        setSavingSlotConfig(false);
+      }
+    };
+
+    const calculateRegularSlots = () => {
+      return Math.max(0, slotConfig.totalSlots - slotConfig.staffReservedSlots - slotConfig.visitorReservedSlots);
+    };
 
   // Open records modal
   const handleOpenRecordsModal = useCallback(() => {
@@ -750,14 +775,18 @@ const AdminSmartParkingDashboard: React.FC = () => {
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
-                    // TODO: Save slot configuration to backend
-                    console.log('Saving slot config:', slotConfig);
-                    setShowSlotConfigModal(false);
-                  }}
-                  className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-500 to-blue-500 text-white rounded-xl font-medium hover:from-indigo-600 hover:to-blue-600 shadow-lg transition-all"
+                  onClick={handleSaveSlotConfig}
+                  disabled={savingSlotConfig}
+                  className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-500 to-blue-500 text-white rounded-xl font-medium hover:from-indigo-600 hover:to-blue-600 shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Save Configuration
+                  {savingSlotConfig ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Configuration'
+                  )}
                 </button>
               </div>
             </div>

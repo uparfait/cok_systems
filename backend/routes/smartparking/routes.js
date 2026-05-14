@@ -20,6 +20,7 @@ const list_parking = require('../../controllers/smart_parking/list_parking.js')
 const search_inparking_records = require('../../controllers/smart_parking/search_inparking_records.js')
 const verify_acar = require('../../controllers/smart_parking/verify_acar.js')
 const get_parking_slots_number = require('../../controllers/smart_parking/get_parking_slots_number.js')
+const update_parking_slots_config = require('../../controllers/smart_parking/update_parking_slots_config.js')
 
 // 2. Configure Multer to store the uploaded Excel file in memory temporarily
 const upload = multer({ 
@@ -72,6 +73,7 @@ Router.post('/', (req, res, next) => {
 })
 
 Router.get('/slots', get_parking_slots_number);
+Router.put('/slots', auditSuccess('UPDATE', 'parking_config', (req, res, data) => 'Updated parking slot configuration'), update_parking_slots_config);
 
 
 Router.put('/', (req, res, next) => {
