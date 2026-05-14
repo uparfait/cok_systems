@@ -130,11 +130,9 @@ app.use("/cok/api", allRoutes);
  * Catches any request that doesn't match a defined route
  */
 app.use((req, res, next) => {
-  console.warn(`[404 WARNING]: No route found for ${req.method} ${req.originalUrl}`);
   res.status(404).json({
     success: false,
     type: "warning",
-
     message: "[404] REQUESTED SERVICE NOT FOUND",
   });
 });
@@ -162,26 +160,18 @@ db_connection()
     const realtimeServicesInitiated = await InitialiseAllRealtimeServices();
 
     // check if parking slot document exists, if not create one with default values
-    // Initialize or ensure parking slot configuration exists
-    // default will be 350 total slots, 50 reserved for visitors, 100 reserved for staff,
-    // 100 available for visitors, 100 available for staff and 100 regular available slots
+    // default will be 350 total slots, 50 reserved for visitors, 100 reserved for staff, 100 available for visitors, 100 available for staff and 100 regular available slots
     const parkingSlotDoc = await ParkingSlot.findOne({ UnChangedId: "parking_slots" });
-    if (!parkingSlotDoc) {
+    if (!parkingSlotDoc?.totalSlots) {
       const newParkingSlot = new ParkingSlot({
-        UnChangedId: "parking_slots",
-        totalSlots: 350,
-        visitorsReservedSlots: 50,
-        staffReservedSlots: 100,
-        visitorsAvailableSlots: 50,
-        staffAvailableSlots: 100,
+        totalSlots: 0,
+        visitorsReservedSlots: 0,
+        staffReservedSlots: 0,
+        visitorsAvailableSlots: 0,
+        staffAvailableSlots: 0,
         RegularReservedSlots: 0,
-        RegularAvailableSlots: 200,
-        staffReservationCount: 0,
-        visitorReservationCount: 0,
-        staffOccupiedCount: 0,
-        visitorOccupiedCount: 0,
-        regularOccupiedCount: 0
-      });
+        RegularAvailableSlots: 0,
+      });// commenting haardcoded values 
       await newParkingSlot.save();
       console.log("Default parking slot document created.");
     } else {
