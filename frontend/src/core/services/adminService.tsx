@@ -786,6 +786,15 @@ export const statisticsService = {
   // Get emergency cars statistics
   getEmergencyCarsStats: () => get('/statistics/emergency-cars'),
 
+  // Get employee performance based on completed tasks (using Task model)
+  getEmployeePerformanceByTasksDone: () => get('/statistics/employee-performance/tasks-done'),
+
+  // Get waiting time analytics for each department
+  getWaitingTimeAnalytics: () => get('/statistics/waiting-time-analytics'),
+
+  // Get employee performance based on service
+  getEmployeePerformanceByService: () => get('/statistics/employee-performance/service'),
+
   // Get parking slots information
   getParkingSlots: () => get('/smartparking/slots'),
 };
