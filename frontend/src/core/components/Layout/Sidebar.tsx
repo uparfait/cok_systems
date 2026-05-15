@@ -179,8 +179,11 @@ const Sidebar: React.FC<SidebarProps> = ({
     const currentSearch = location.search;
     const currentFullPath = currentPathname + currentSearch;
 
-    if(path === '/service-delivery/employee' && currentPathname?.includes('/service-delivery/visitors')) {
-      return true;
+    // Match visitor detail pages to the employee dashboard link (role-slug based)
+    if (currentPathname?.includes('/visitors/') && path.endsWith('/dashboard')) {
+      const pathRoleSlug = path.split('/')[1];
+      const currentRoleSlug = currentPathname.split('/')[1];
+      if (pathRoleSlug && pathRoleSlug === currentRoleSlug) return true;
     }
     
     const linkPathname = path.split('?')[0];
