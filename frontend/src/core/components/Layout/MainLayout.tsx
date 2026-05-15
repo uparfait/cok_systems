@@ -49,7 +49,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, customNavItems }) => 
   }, [user, customNavItems]);
   
   // Determine current system from URL path
-  // Note: currentSystem is kept for future use in breadcrumbs/title
   getCurrentSystemFromPath(location.pathname);
   
   // Get user department
@@ -73,7 +72,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, customNavItems }) => 
     const handleAuthLogout = (event: Event) => {
       const customEvent = event as CustomEvent;
       console.log('[MainLayout] Auth logout event:', customEvent.detail);
-      // Use React Router navigate for smoother transition
       navigate('/login', { replace: true });
     };
     
@@ -97,18 +95,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, customNavItems }) => 
     }
   };
 
-  // Get current system name for header
+  // Get current system name for header — uses the actual user role name
   const getCurrentSystemName = (): string => {
-    const path = location.pathname.toLowerCase();
-    
-    if (path.includes('/admin')) return 'Admin';
-    if (path.includes('/smart-parking') || path.includes('/parking')) return 'Smart Parking';
-    if (path.includes('/service-delivery') || path.includes('/service')) return 'Service Delivery';
-    if (path.includes('/dashboard') || path === '/') return 'Dashboard';
-    if (path.includes('/profile')) return 'Profile';
-    if (path.includes('/reports')) return 'Reports';
-    if (path.includes('/settings')) return 'Settings';
-    
+    if (user?.role) {
+      return user.role
+        .split(' ')
+        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+    }
     return 'Dashboard';
   };
 
