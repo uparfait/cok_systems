@@ -57,13 +57,13 @@ const AdminSmartParkingDashboard: React.FC = () => {
   // State
   const [loading, setLoading] = useState(true);
   const [firstLoad, setfirstLoad] = useState(true);
-  const [stats, setStats] = useState<ParkingStats>({
-    todayVehicles: 0,
-    currentlyParked: 0,
-    availableSlots: 0,
-    flaggedInside: 0,
-    totalCapacity: 200
-  });
+   const [stats, setStats] = useState<ParkingStats>({
+     todayVehicles: 0,
+     currentlyParked: 0,
+     availableSlots: 0,
+     flaggedInside: 0,
+     totalCapacity: 0
+   });
   const [hourlyData, setHourlyData] = useState<HourlyData[]>([]);
   const [recentRecords, setRecentRecords] = useState<ParkingRecord[]>([]);
   
@@ -92,8 +92,8 @@ const AdminSmartParkingDashboard: React.FC = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const PAGE_SIZE = 20;
 
-// Total parking capacity - loaded from backend
-   const TOTAL_CAPACITY = stats.totalCapacity || 200;
+   // Total parking capacity - loaded from backend
+   // (used directly from stats.totalCapacity)
 
 // Fetch dashboard data
    const fetchDashboardData = useCallback(async () => {
@@ -122,7 +122,7 @@ const AdminSmartParkingDashboard: React.FC = () => {
       // Fetch parking slots configuration
       const slotsResponse = await statisticsService.getParkingSlots();
       const slotsData = slotsResponse?.data?.available_slots || {};
-      const totalCapacity = slotsData?.totalSlots || 200;
+       const totalCapacity = slotsData?.totalSlots || 0;
 
       // Update slot config for modal display
       setSlotConfig({
@@ -297,7 +297,7 @@ const AdminSmartParkingDashboard: React.FC = () => {
     // Slot configuration change handler
     const handleSlotConfigChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const { name, value } = e.target;
-      setSlotConfig(prev => ({ ...prev, [name]: parseInt(value) || 0 }));
+      setSlotConfig(prev => ({ ...prev, [name]: value === '' ? 0 : parseInt(value) || 0 }));
     };
 
     // Save slot configuration
@@ -698,74 +698,77 @@ const AdminSmartParkingDashboard: React.FC = () => {
      )}
   </div>
 
-         {/* Slot Configuration Modal */}
-        {showSlotConfigModal && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
-            <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-md mx-2 sm:mx-auto overflow-hidden border border-white/50 animate-scaleIn">
-              <div className="px-6 py-4 flex items-center justify-between border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-blue-50">
-                <h3 className="text-xl font-bold text-gray-900">Parking Slot Configuration</h3>
-                <button
-                  onClick={() => setShowSlotConfigModal(false)}
-                  className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                >
-                  <FiX className="w-5 h-5 text-gray-600" />
-                </button>
-              </div>
+               {/* Slot Configuration Modal */}
+         {showSlotConfigModal && (
+           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+             <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-md mx-2 sm:mx-auto overflow-hidden border border-white/50 animate-scaleIn">
+               <div className="px-6 py-4 flex items-center justify-between border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-blue-50">
+                 <h3 className="text-xl font-bold text-gray-900">Parking Slot Configuration</h3>
+                 <button
+                   onClick={() => setShowSlotConfigModal(false)}
+                   className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                 >
+                   <FiX className="w-5 h-5 text-gray-600" />
+                 </button>
+               </div>
 
-              <div className="p-6 space-y-6">
-                {/* Total Slots */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Total Slots</label>
-                  <input
-                    type="number"
-                    name="totalSlots"
-                    value={slotConfig.totalSlots}
-                    onChange={handleSlotConfigChange}
-                    className="w-full px-4 py-3 bg-white/50 backdrop-blur border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
-                    min="0"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Total parking capacity</p>
-                </div>
+               <div className="p-6 space-y-6">
+                 {/* Total Slots */}
+                 <div>
+                   <label className="block text-sm font-semibold text-gray-700 mb-2">Total Slots</label>
+                   <input
+                     type="number"
+                     name="totalSlots"
+                     value={slotConfig.totalSlots || ''}
+                     onChange={handleSlotConfigChange}
+                     className="w-full px-4 py-3 bg-white/50 backdrop-blur border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+                     min="0"
+                     placeholder="0"
+                   />
+                   <p className="text-xs text-gray-500 mt-1">Total parking capacity</p>
+                 </div>
 
-                {/* Staff Reserved Slots */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Staff Reserved Slots</label>
-                  <input
-                    type="number"
-                    name="staffReservedSlots"
-                    value={slotConfig.staffReservedSlots}
-                    onChange={handleSlotConfigChange}
-                    className="w-full px-4 py-3 bg-white/50 backdrop-blur border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
-                    min="0"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Slots reserved for staff vehicles</p>
-                </div>
+                 {/* Staff Reserved Slots */}
+                 <div>
+                   <label className="block text-sm font-semibold text-gray-700 mb-2">Staff Reserved Slots</label>
+                   <input
+                     type="number"
+                     name="staffReservedSlots"
+                     value={slotConfig.staffReservedSlots || ''}
+                     onChange={handleSlotConfigChange}
+                     className="w-full px-4 py-3 bg-white/50 backdrop-blur border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+                     min="0"
+                     placeholder="0"
+                   />
+                   <p className="text-xs text-gray-500 mt-1">Slots reserved for staff vehicles</p>
+                 </div>
 
-                {/* Visitor Reserved Slots */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Visitor Reserved Slots</label>
-                  <input
-                    type="number"
-                    name="visitorReservedSlots"
-                    value={slotConfig.visitorReservedSlots}
-                    onChange={handleSlotConfigChange}
-                    className="w-full px-4 py-3 bg-white/50 backdrop-blur border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
-                    min="0"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Slots reserved for visitor vehicles</p>
-                </div>
+                 {/* Visitor Reserved Slots */}
+                 <div>
+                   <label className="block text-sm font-semibold text-gray-700 mb-2">Visitor Reserved Slots</label>
+                   <input
+                     type="number"
+                     name="visitorReservedSlots"
+                     value={slotConfig.visitorReservedSlots || ''}
+                     onChange={handleSlotConfigChange}
+                     className="w-full px-4 py-3 bg-white/50 backdrop-blur border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+                     min="0"
+                     placeholder="0"
+                   />
+                   <p className="text-xs text-gray-500 mt-1">Slots reserved for visitor vehicles</p>
+                 </div>
 
-                {/* Computed Regular Slots */}
-                <div className="p-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 rounded-xl border border-blue-100">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-gray-700">Regular Available Slots:</span>
-                    <span className="text-xl font-bold text-blue-600">{calculateRegularSlots()}</span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Automatically calculated: Total - Staff Reserved - Visitor Reserved
-                  </p>
-                </div>
-              </div>
+                 {/* Computed Regular Slots */}
+                 <div className="p-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 rounded-xl border border-blue-100">
+                   <div className="flex justify-between items-center">
+                     <span className="text-sm font-medium text-gray-700">Regular Available Slots:</span>
+                     <span className="text-xl font-bold text-blue-600">{calculateRegularSlots()}</span>
+                   </div>
+                   <p className="text-xs text-gray-500 mt-1">
+                     Automatically calculated: Total - Staff Reserved - Visitor Reserved
+                   </p>
+                 </div>
+               </div>
 
               <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex gap-3">
                 <button
