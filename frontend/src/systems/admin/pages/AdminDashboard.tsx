@@ -791,7 +791,7 @@ const AdminDashboard: React.FC = () => {
               <HiOutlineShieldCheck className="w-7 h-7 text-white" aria-hidden="true" />
             </div>
             <div>
-              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{user?.role ? user.role.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + ' Dashboard' : 'Admin Dashboard'}</h1>
               <p className="text-gray-500 mt-1">Welcome back! Here's what's happening with your systems.</p>
               <div className="flex items-center gap-4 mt-2">
                 {lastUpdated && (
