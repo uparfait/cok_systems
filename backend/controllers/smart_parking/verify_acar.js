@@ -25,8 +25,7 @@ module.exports = async function verify_car(req, res, next) {
         const active_parking = await ParkingRecord.findOne({ plate_number, status: 'active' }).sort({ check_in: -1 });
 
         //  Check if it's a registered Staff Car (both active and inactive for recognition)
-        const staff_car = await StaffCar.findOne({ plate_number });
-        const isStaffActive = staff_car?.is_active === true;
+        const staff_car = await StaffCar.findOne({ plate_number, is_active: true });
 
         //  Check if it's a reserved Emergency/Visitor Car
         // We look inside the visitor_info array of the EmergencyCar model
@@ -83,7 +82,7 @@ module.exports = async function verify_car(req, res, next) {
 
         if (staff_car) {
             vehicle_type = 'Staff';
-            is_reserved = isStaffActive; // Only reserve if active
+            is_reserved = true; // Only reserve if active
             is_found_in_system = true;
             driver_type = 'Staff'; // Set driver_type for staff cars
             
@@ -170,7 +169,7 @@ module.exports = async function verify_car(req, res, next) {
                 is_reserved: is_reserved || false,
                 staff_details: staff_car ? {
                     ...staff_car.toObject(),
-                    is_active: isStaffActive
+                    is_active: true
                 } : null,
                 emergency_reservation_details: emergency_reservation?.visitor_info || null,
                 driver_details: {
