@@ -149,20 +149,18 @@ const createStaffBooking = async (req, res) => {
 
         await newStaffBooking.save();
 
-        // Increment reservation count and decrement regular available slots
-        try {
-            const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
-            if (parkingSlot) {
-                parkingSlot.staffReservationCount = (parkingSlot.staffReservationCount || 0) + 1;
-                parkingSlot.RegularAvailableSlots = Math.max(0, (parkingSlot.RegularAvailableSlots || 0) - 1);
-                parkingSlot.RegularReservedSlots = (parkingSlot.RegularReservedSlots || 0) + 1;
-                await parkingSlot.save();
-            } else {
-                console.error('ParkingSlot document not found');
-            }
-        } catch (slotError) {
-            console.error('Error updating parking slots:', slotError);
-        }
+// Increment staff reservation count (do NOT affect RegularAvailableSlots)
+         try {
+             const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+             if (parkingSlot) {
+                 parkingSlot.staffReservationCount = (parkingSlot.staffReservationCount || 0) + 1;
+                 await parkingSlot.save();
+             } else {
+                 console.error('ParkingSlot document not found');
+             }
+         } catch (slotError) {
+             console.error('Error updating parking slots:', slotError);
+         }
 
         res.status(201).json({
             success: true,
@@ -208,15 +206,13 @@ const cancelReservation = async (req, res) => {
                 status: 'active' 
             });
             
-            if (!activeCheckIn) {
-                const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
-                if (parkingSlot) {
-                    parkingSlot.staffReservationCount = Math.max(0, (parkingSlot.staffReservationCount || 0) - 1);
-                    parkingSlot.RegularAvailableSlots = Math.max(0, (parkingSlot.RegularAvailableSlots || 0) + 1);
-                    parkingSlot.RegularReservedSlots = Math.max(0, (parkingSlot.RegularReservedSlots || 0) - 1);
-                    await parkingSlot.save();
-                }
-            }
+if (!activeCheckIn) {
+                 const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+                 if (parkingSlot) {
+                     parkingSlot.staffReservationCount = Math.max(0, (parkingSlot.staffReservationCount || 0) - 1);
+                     await parkingSlot.save();
+                 }
+             }
 
             staffReservation.is_active = false;
             await staffReservation.save();
@@ -246,14 +242,12 @@ const cancelReservation = async (req, res) => {
             reservation.validity.to = new Date();
             await reservation.save();
 
-            // Decrement visitor reservation count and increment regular available slots
-            const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
-            if (parkingSlot) {
-                parkingSlot.visitorReservationCount = Math.max(0, (parkingSlot.visitorReservationCount || 0) - 1);
-                parkingSlot.RegularAvailableSlots = Math.max(0, (parkingSlot.RegularAvailableSlots || 0) + 1);
-                parkingSlot.RegularReservedSlots = Math.max(0, (parkingSlot.RegularReservedSlots || 0) - 1);
-                await parkingSlot.save();
-            }
+// Decrement visitor reservation count
+             const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+             if (parkingSlot) {
+                 parkingSlot.visitorReservationCount = Math.max(0, (parkingSlot.visitorReservationCount || 0) - 1);
+                 await parkingSlot.save();
+             }
 
             return res.status(200).json({
                 success: true,
@@ -321,8 +315,6 @@ const reactivateReservation = async (req, res) => {
         const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
         if (parkingSlot) {
             parkingSlot.staffReservationCount = (parkingSlot.staffReservationCount || 0) + 1;
-            parkingSlot.RegularAvailableSlots = Math.max(0, (parkingSlot.RegularAvailableSlots || 0) - 1);
-            parkingSlot.RegularReservedSlots = (parkingSlot.RegularReservedSlots || 0) + 1;
             await parkingSlot.save();
         }
 
@@ -406,14 +398,12 @@ const bulkUploadStaff = async (req, res) => {
         // Insert all staff bookings
         await StaffCar.insertMany(staffBookings);
 
-        // Increment reservation count and decrement regular available slots
-        const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
-        if (parkingSlot) {
-            parkingSlot.staffReservationCount = (parkingSlot.staffReservationCount || 0) + staffBookings.length;
-            parkingSlot.RegularAvailableSlots = Math.max(0, (parkingSlot.RegularAvailableSlots || 0) - staffBookings.length);
-            parkingSlot.RegularReservedSlots = (parkingSlot.RegularReservedSlots || 0) + staffBookings.length;
-            await parkingSlot.save();
-        }
+// Increment reservation count (do NOT affect RegularAvailableSlots)
+         const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+         if (parkingSlot) {
+             parkingSlot.staffReservationCount = (parkingSlot.staffReservationCount || 0) + staffBookings.length;
+             await parkingSlot.save();
+         }
 
         res.status(201).json({
             success: true,

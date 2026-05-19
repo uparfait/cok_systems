@@ -9,7 +9,7 @@ const parking_record_schema = new mongoose.Schema({
     driver_name: { type: String, default: "Not Specified" },
     driver_telephone: { type: String, default: "Not Specified"  },
     status: { type: String, enum: ['active', 'completed'], default: 'active' },
-    driver_type: { type: String, enum: ['staff', 'visitor', 'regular', 'Staff', 'Regular', 'Visitor'] },
+    driver_type: { type: String, enum: ['staff', 'visitor', 'regular'] },
     driver_gender: {type: String, default: 'Not Specified' },
     slot_number: { type: String, default: "Not Specified"  },
     check_in: { type: Date, default: Date.now },

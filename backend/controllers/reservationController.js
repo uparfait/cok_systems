@@ -40,18 +40,16 @@ const registerSingleReservation = async (req, res) => {
             registered_by: 'Super_Admin' 
         });
 
-        await newReservation.save();
+await newReservation.save();
 
-        // Increment visitor reservation count and decrement regular available slots
-        const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
-        if (parkingSlot) {
-            parkingSlot.visitorReservationCount = (parkingSlot.visitorReservationCount || 0) + 1;
-            parkingSlot.RegularAvailableSlots = Math.max(0, (parkingSlot.RegularAvailableSlots || 0) - 1);
-            parkingSlot.RegularReservedSlots = (parkingSlot.RegularReservedSlots || 0) + 1;
-            await parkingSlot.save();
-        }
+         // Increment visitor reservation count (do NOT affect RegularAvailableSlots)
+         const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+         if (parkingSlot) {
+             parkingSlot.visitorReservationCount = (parkingSlot.visitorReservationCount || 0) + 1;
+             await parkingSlot.save();
+         }
 
-        res.status(201).json({
+         res.status(201).json({
             success: true,
             message: `Successfully registered visitor reservation for ${driver_name}.`,
             data: newReservation
@@ -147,14 +145,12 @@ const bulkUploadReservations = async (req, res) => {
             // B. Do the database work, explicitly passing the { session }
             await newReservationBatch.save({ session });
 
-            // Increment visitor reservation count and decrement regular available slots
-            const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' }).session(session);
-            if (parkingSlot) {
-                parkingSlot.visitorReservationCount = (parkingSlot.visitorReservationCount || 0) + mappedVisitors.length;
-                parkingSlot.RegularAvailableSlots = Math.max(0, (parkingSlot.RegularAvailableSlots || 0) - mappedVisitors.length);
-                parkingSlot.RegularReservedSlots = (parkingSlot.RegularReservedSlots || 0) + mappedVisitors.length;
-                await parkingSlot.save({ session });
-            }
+// Increment visitor reservation count
+             const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' }).session(session);
+             if (parkingSlot) {
+                 parkingSlot.visitorReservationCount = (parkingSlot.visitorReservationCount || 0) + mappedVisitors.length;
+                 await parkingSlot.save({ session });
+             }
 
             // C. If nothing crashed, make it permanent!
             await session.commitTransaction();

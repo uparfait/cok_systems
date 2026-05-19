@@ -5,7 +5,7 @@ const emergency_car_history_schema = new mongoose.Schema({
     visitor_info: [{
         plate_number: String,
         driver_name: String,
-        driver_type: { type: String, default: 'visitor' },
+        driver_type: { type: String, default: 'visitor', enum: ['visitor', 'staff'] },
         driver_identification: {
             id_type: String,
             number: String

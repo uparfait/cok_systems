@@ -13,11 +13,16 @@ module.exports = async function car_check_in(req, res, next) {
             driver_name = null,
             driver_telephone = null,
             driver_gender = null,
-            driver_type = 'Regular',
+            driver_type = 'regular',
             driver_email = null,
             badge_number = null
 
         } = req.body || {}
+
+
+        if(driver_type) {
+            driver_type = driver_type.toString().trim().toLowerCase()
+        }
 
         if (badge_number) {
             badge_number = badge_number.toString().trim().toUpperCase()
@@ -157,18 +162,22 @@ module.exports = async function car_check_in(req, res, next) {
 
         await new_parking.save()
 
-        // check this car type and increment the corresponding parking slot count in ParkingSlot model and allow negative  values
-
+// Update slot counts based on driver type
+        // RegularAvailableSlots tracks actual vehicles inside (decrements on check-in)
+        // Staff/Visitor available slots track their pool, occupied tracks actual inside
         const parkingSlotDoc = await ParkingSlot.findOne({ UnChangedId: "parking_slots" });
         if (parkingSlotDoc) {
             if (driver_type.toLowerCase() === 'visitor') {
-                parkingSlotDoc.visitorsAvailableSlots = parkingSlotDoc.visitorsAvailableSlots - 1
+                parkingSlotDoc.visitorsAvailableSlots = Math.max(0, (parkingSlotDoc.visitorsAvailableSlots || 0) - 1);
+                parkingSlotDoc.visitorOccupiedCount = (parkingSlotDoc.visitorOccupiedCount || 0) + 1;
             } else if (driver_type.toLowerCase() === 'staff') {
-                parkingSlotDoc.staffAvailableSlots = parkingSlotDoc.staffAvailableSlots - 1
+                parkingSlotDoc.staffAvailableSlots = Math.max(0, (parkingSlotDoc.staffAvailableSlots || 0) - 1);
+                parkingSlotDoc.staffOccupiedCount = (parkingSlotDoc.staffOccupiedCount || 0) + 1;
             } else if (driver_type.toLowerCase() === 'regular') {
-                parkingSlotDoc.RegularAvailableSlots = parkingSlotDoc.RegularAvailableSlots - 1
+                parkingSlotDoc.RegularAvailableSlots = Math.max(0, (parkingSlotDoc.RegularAvailableSlots || 0) - 1);
+                parkingSlotDoc.regularOccupiedCount = (parkingSlotDoc.regularOccupiedCount || 0) + 1;
             }
-            await parkingSlotDoc.save()
+            await parkingSlotDoc.save();
         }
 
         // search this car in all parking records and mark it as not flagged if it was flagged before

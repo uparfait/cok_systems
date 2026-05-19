@@ -4,7 +4,7 @@ const flagged_vehicle_schema = new mongoose.Schema({
     plate_number: { type: String, required: true },
     driver_type: { 
         type: String, 
-        enum: ['staff', 'visitor', 'regular', 'Staff', 'Regular', 'Visitor'], 
+        enum: ['staff', 'visitor', 'regular'], 
         required: true 
     },
     driver_name: { type: String, default: "Not Specified" },
