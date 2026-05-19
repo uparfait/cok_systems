@@ -52,7 +52,7 @@ module.exports = async function car_check_in(req, res, next) {
         driver_type = driver_type.toLowerCase()
 
 
-        const allowed_driver_type = ['regular', 'visitor', 'staff', 'Staff Vehicle']  //  Staff Vehicle fot the Reserved Vehicle 
+        const allowed_driver_type = ['regular', 'visitor', 'staff']  //  Staff Vehicle fot the Reserved Vehicle 
 
         if (!allowed_driver_type.includes(driver_type.toLowerCase())) {
             return res.status(400).json({
@@ -100,7 +100,7 @@ module.exports = async function car_check_in(req, res, next) {
         if ((!driver_telephone && !driver_name && staff_car) || staff_car) {
             driver_name = staff_car.owner_name
             driver_telephone = staff_car.telephone
-            driver_type = "Staff"
+            driver_type = "staff"
             driver_gender = staff_car.gender
             driver_email = staff_car.email
             driver_identification = {
@@ -116,7 +116,7 @@ module.exports = async function car_check_in(req, res, next) {
             const visitor = emergency_reservation.visitor_info.find(v => v.plate_number === plate_number)
             if (visitor) {
                 driver_name = visitor.driver_name
-                driver_type = "Visitor"
+                driver_type = "visitor"
                 driver_telephone = visitor.telephone_number
                 slot_number = visitor.slot_number || 'Not Specified'
                 driver_email = visitor.email || null
@@ -133,7 +133,7 @@ module.exports = async function car_check_in(req, res, next) {
             })
             if (service_delivery) {
                 driver_name = service_delivery.full_name
-                driver_type = "Regular"
+                driver_type = "regular"
                 driver_telephone = service_delivery.telephone
                 driver_gender = service_delivery.gender || null
                 driver_email = service_delivery.email || null
