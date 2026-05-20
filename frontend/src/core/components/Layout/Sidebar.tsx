@@ -1,6 +1,3 @@
-// Sidebar Component - Navigation sidebar with dynamic collapsible dropdowns
-// Provides navigation links with expandable menus for each system
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -88,6 +85,15 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const location = useLocation();
   const { user, logout } = useAuth();
+
+  const navigate = useNavigate();
+
+  
+
+  if(links[0]?.id === 'unknown') {
+     navigate(links[0].path);
+     return <></>
+  }
   
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(() => {
     const initial = new Set<string>();

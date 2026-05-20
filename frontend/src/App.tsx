@@ -105,6 +105,10 @@ const App: React.FC = () => {
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
 
+                <Route path="/mayor/dashboard" element={<ProtectedRoute><OverviewPage /></ProtectedRoute>} />
+                <Route path="/mayor/overview" element={<ProtectedRoute><AdminDashboard/></ProtectedRoute>} />
+                
+
                 {/* ==================== ROLE-BASED ROUTES ==================== */}
                 {/* Dashboard - role-specific component chosen at runtime */}
                 <Route path="/:roleSlug/dashboard" element={<ProtectedRoute><RoleDashboardPage /></ProtectedRoute>} />
@@ -138,7 +142,6 @@ const App: React.FC = () => {
 
                 {/* Shared pages */}
                 <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-                <Route path="/under-development" element={<ProtectedRoute><UnderDevelopment /></ProtectedRoute>} />
 
                 {/* ==================== LEGACY ROUTE REDIRECTS ==================== */}
                 <Route path="/admin/overview" element={<Navigate to="/system-admin/overview" replace />} />
@@ -169,6 +172,9 @@ const App: React.FC = () => {
 
                 {/* Default and catch-all */}
                 <Route path="/" element={<Navigate to="/login" replace />} />
+                {/* route for unknown route move to under development */}
+                <Route path=":roleSlug/Unknown-user" element={<ProtectedRoute><UnderDevelopment /></ProtectedRoute>} />
+
                 <Route path="*" element={<Navigate to="/login" replace />} />
               </Routes>
             </Router>

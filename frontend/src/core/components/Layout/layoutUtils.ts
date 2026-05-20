@@ -1,5 +1,6 @@
-
+import { useNavigate } from 'react-router-dom';
 import type { User, Permission } from '../../contexts/AuthContext';
+
 
 // ==================== Role Slug Helpers ====================
 
@@ -8,6 +9,7 @@ export const getRoleSlug = (role: string | undefined): string => {
   if (!role) return 'user';
   const normalized = role.toLowerCase().trim();
 
+  
   if (normalized === 'system admin' || (normalized.includes('admin') && normalized.includes('system'))) return 'system-admin';
   if (normalized.includes('receptionist')) return 'receptionist';
   if (normalized.includes('department manager') || normalized.includes('department head') || normalized.includes('head of department') || normalized.includes('director')) return 'department-manager';
@@ -15,6 +17,7 @@ export const getRoleSlug = (role: string | undefined): string => {
   if ((normalized.includes('manager') || normalized.includes('head')) && !normalized.includes('receptionist')) return 'department-manager';
   if (normalized.includes('employee') || normalized.includes('staff') || normalized.includes('officer') || normalized.includes('clerk')) return 'employee';
   if (normalized.includes('admin')) return 'system-admin';
+  
 
   // Fallback: convert to kebab-case
   return normalized.replace(/\s+/g, '-');
@@ -92,7 +95,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   const isAdmin = isAdminRole(userRole);
   const slug = getRoleSlug(user.role);
 
-  // 👉 RECEPTIONIST INTERCEPTOR
+  // RECEPTIONIST INTERCEPTOR
   if (userRole.includes('receptionist')) {
     return [
       { id: 'dashboard', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiHome' },
@@ -100,7 +103,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     ];
   }
 
-  // 👉 EMPLOYEE INTERCEPTOR
+  // EMPLOYEE INTERCEPTOR
   if (userRole.includes('employee') || userRole.includes('staff')) {
     return [
       { id: 'dashboard', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiGrid' },
@@ -111,7 +114,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     ];
   }
 
-  // 👉 DEPT MANAGER INTERCEPTOR
+  // MANAGER INTERCEPTOR
   if (userRole.includes('department manager') || userRole.includes('department head') ||
       userRole.includes('head of department') || userRole.includes('director')) {
     return [
@@ -132,7 +135,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     ];
   }
 
-  // 👉 GATE AND VEHICLE REGISTRAR INTERCEPTOR
+  // GATE AND VEHICLE REGISTRAR INTERCEPTOR
   if (userRole.includes('gate') && userRole.includes('vehicle')) {
     return [
       { id: 'overview', label: 'Overview', path: `/${slug}/dashboard`, icon: 'FiHome' },
@@ -170,23 +173,36 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     ];
   }
 
-  if (!isAdmin) {
-    console.log('[Layout] Unrecognized non-admin role, showing role selection navigation');
-    return getRoleSelectionNavigation(userRole);
+  // Mayor Role Interceptor 
+
+  if(userRole.includes('mayor')) {
+
+    // only show all dashboards from admin and overview page without any children links with analytics and feedback links
+
+    return [
+      { id: 'mayor-dashboadr', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiHome' },
+      { id: 'mayor-activities', label: 'Activities', path: `/${slug}/overview`, icon: 'FiBarChart2' },
+      { id: 'service-dashboard', label: 'Service Delivery Dashboard', path: `/${slug}/service-delivery/dashboard`, icon: 'FiClipboard' },
+      { id: 'service-feedback', label: 'Feedback Analysis', path: `/${slug}/service-delivery/feedback`, icon: 'FiMessageSquare' },
+    ];
   }
 
-  // Admin role: permission-based navigation
-  console.log('[Layout] Admin role detected, continuing to permission-based navigation');
-  const navigation: NavItem[] = [];
+  // if not the user is not an admin it means the role not exists redirect to under by using useNavigate
 
-  navigation.push({
-    id: 'overview',
-    label: 'Overview',
-    path: `/${slug}/overview`,
-    icon: 'FiBarChart2',
-    resource: 'admin',
-    requiredAction: 'read',
-  });
+  if(!isAdmin) {
+    return [
+      {
+        id: 'unknown',
+        label: 'Unknown Role',
+        path: `/${slug}/Unknown-user`,
+        icon: 'FiAlertTriangle'
+      }
+    ]
+  }
+
+  // amin routes
+
+  const navigation: NavItem[] = [];
 
   const hasAdminAccess = hasPermission(user, 'admin') || hasPermission(user, 'departments') ||
                         hasPermission(user, 'employees') || hasPermission(user, 'roles_management');
