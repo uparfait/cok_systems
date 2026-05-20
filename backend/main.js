@@ -172,9 +172,32 @@ app.use(
 
       return body;
     } catch (error) {
-      console.log(error);
+            if (res.statusCode > 300) {
+        const action = body?.error?.toUpperCase() === "ERROR" ? req.method.toUpperCase() : req.method.toUpperCase();
+        const description = body?.message || body?.error || "";
+        const error_message = body?.error || "";
+        const endpoint = req.originalUrl || req.url || "";
+        const status_code = res.statusCode;
+       
+        LogSystemAuditEvent(
+          req,
+
+          {
+            action: action,
+            description: description,
+            error: error_message,
+            error_message: error_message,
+            status_code: status_code,
+            endpoint: endpoint,
+
+          }
+        )
+        
+      }
       return body;
     }
+  }, {
+    mungError: true,
   }),
 );
 
