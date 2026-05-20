@@ -56,7 +56,7 @@ const SystemAuditPage: React.FC = () => {
     { value: 'UPDATE', label: 'UPDATE' },
     { value: 'DELETE', label: 'DELETE' },
     { value: 'ERROR', label: 'ERROR' },
-    { value: 'PUT', label: 'PUT' }
+    { value: 'PUT', label: 'PUT' },
     { value: 'POST', label: 'POST' }
   ];
 
