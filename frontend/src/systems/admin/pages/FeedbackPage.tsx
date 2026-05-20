@@ -229,7 +229,7 @@ const FeedbackPage: React.FC = () => {
                   {[1, 2, 3, 4, 5].map((star) => (
                     <FiStar
                       key={star}
-                      className={`w-4 h-4 ${star <= Math.round(overallAverage.average_rating || 0) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
+                      className={`w-4 h-4 ${star <= Number(overallAverage.average_rating || 0) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
                     />
                   ))}
                 </div>
@@ -302,7 +302,7 @@ const FeedbackPage: React.FC = () => {
                       {[1, 2, 3, 4, 5].map((star) => (
                         <FiStar
                           key={star}
-                          className={`w-4 h-4 ${star <= Math.round(dept.average_rating || 0) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
+                          className={`w-4 h-4 ${star <= Number(dept.average_rating || 0) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
                         />
                       ))}
                     </div>
@@ -404,7 +404,7 @@ const FeedbackPage: React.FC = () => {
                                  {[1, 2, 3, 4, 5].map((star) => (
                                    <FiStar
                                      key={star}
-                                     className={`w-3 h-3 ${star <= Math.round((feedback.rate || 0) / (feedback.rate_out_of || 10) * 5) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
+                                     className={`w-3 h-3 ${star <= Number((feedback.rate || 0) / (feedback.rate_out_of || 10) * 5) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
                                    />
                                  ))}
                                </div>
@@ -499,7 +499,7 @@ const FeedbackPage: React.FC = () => {
                                 {[1, 2, 3, 4, 5].map((star) => (
                                   <FiStar
                                     key={star}
-                                    className={`w-4 h-4 ${star <= Math.round(dept.average_rating || 0) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
+                                    className={`w-4 h-4 ${star <= Number(dept.average_rating || 0) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
                                   />
                                 ))}
                               </div>
@@ -584,7 +584,7 @@ const FeedbackPage: React.FC = () => {
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                  <p>{insights.total > 0 ? Math.round((insights.excellent / insights.total) * 100) : 0}% of feedback is rated excellent or above</p>
+                  <p>{insights.total > 0 ? Number((insights.excellent / insights.total) * 100) : 0}% of feedback is rated excellent or above</p>
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 flex-shrink-0"></div>
