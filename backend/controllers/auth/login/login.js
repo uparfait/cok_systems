@@ -58,13 +58,7 @@ async function login(req, res, next) {
     if (!user || !(await bcrypt.compare(password.trim(), user.password))) {
       let loginAttempts = 0;
 
-      // Log failed login attempt
-      await logAuditEvent('LOGIN', `Failed login attempt for email: ${userEmail}`, { ip: req.ip, userAgent: req.get('User-Agent') }, {
-        resource: 'auth',
-        status_code: 401,
-        error_message: 'Invalid credentials',
-        metadata: { email: userEmail }
-      });
+    
 
       // check if user email exists to track login attempts and lock account if necessary
       const userByEmail = await User.findOne({ email: userEmail });
