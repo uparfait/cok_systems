@@ -243,7 +243,7 @@ const FeedbackPage: React.FC = () => {
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500 mb-1">Active Departments</p>
+                <p className="text-sm font-medium text-gray-500 mb-1">Departments received feedback</p>
                 <p className="text-3xl font-bold text-purple-600">{departments.length}</p>
                 <p className="text-xs text-gray-400 mt-1">Receiving feedback</p>
               </div>
@@ -258,9 +258,9 @@ const FeedbackPage: React.FC = () => {
               <div>
                 <p className="text-sm font-medium text-gray-500 mb-1">Satisfaction Rate</p>
                 <p className="text-3xl font-bold text-green-600">
-                  {insights.total > 0 ? Math.round(((insights.excellent + insights.good) / insights.total) * 100) : 0}%
+                  {(Number(overallAverage.average_rating?.toFixed(2)) || 0) * 10}%
                 </p>
-                <p className="text-xs text-gray-400 mt-1">Excellent + Good ratings</p>
+                <p className="text-xs text-gray-400 mt-1">Overall satisfaction</p>
               </div>
               <div className="w-14 h-14 bg-green-50 rounded-xl flex items-center justify-center">
                 <FiTrendingUp className="w-7 h-7 text-green-600" />

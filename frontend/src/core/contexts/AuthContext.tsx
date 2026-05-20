@@ -1,6 +1,3 @@
-// AuthContext - Global authentication state management
-// Provides user authentication state, permissions, and methods
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import {

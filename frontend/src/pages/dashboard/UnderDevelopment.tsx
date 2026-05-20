@@ -43,10 +43,10 @@ const UnderDevelopment: React.FC<UnderDevelopmentProps> = ({ departmentName }) =
               <FiSettings className="w-10 h-10 text-white" />
             </div>
             <h1 className="text-2xl lg:text-3xl font-bold text-white mb-2">
-              Coming Soon
+              Unknown
             </h1>
             <p className="text-blue-100 text-lg">
-              This feature is under development
+              It looks like you don't have any known Role assigned to your account
             </p>
           </div>
 
@@ -59,7 +59,7 @@ const UnderDevelopment: React.FC<UnderDevelopmentProps> = ({ departmentName }) =
                 <div>
                   <p className="font-medium text-amber-900">Need immediate access?</p>
                   <p className="text-sm text-amber-700 mt-1">
-                    You can still access the following available systems while we work on your department's custom dashboard.
+                    Contact an administrator to assign you a role or access to the system.
                   </p>
                 </div>
               </div>
