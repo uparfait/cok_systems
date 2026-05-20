@@ -86,7 +86,7 @@ const getChartConfig = (maxValue: number, minValue: number = 0) => {
       tooltip: {
         callbacks: {
           label: (context: any) => {
-            const value = Math.round(context.raw);
+            const value = Number(context.raw);
             return `${context.dataset.label}: ${value}`;
           }
         }
@@ -100,7 +100,7 @@ const getChartConfig = (maxValue: number, minValue: number = 0) => {
         grid: { color: '#e5e7eb' },
         ticks: {
           stepSize: stepSize,
-          callback: (value: any) => Math.round(Number(value)).toString(),
+          callback: (value: any) => Number(Number(value)).toString(),
           precision: 0  // Force no decimal places
         },
         title: {
@@ -202,7 +202,7 @@ const Overview: React.FC = () => {
          name: dept.department_name,
          leader: dept.department_leader?.full_name || 'Not assigned',
          staff: dept.total_employees,
-         rating: Math.round((feedbackAvg?.by_department?.[dept.department_name]?.average_rating || 0)),
+         rating: Number((feedbackAvg?.by_department?.[dept.department_name]?.average_rating || 0)),
          feedback: feedbackTotals?.by_department?.[dept.department_name] || 0,
        }));
        
@@ -347,7 +347,7 @@ const Overview: React.FC = () => {
           scales: {
             x: {
               ...getChartConfig(maxSvc).scales.x,
-              ticks: { callback: (value: any) => Math.round(Number(value)).toString(), stepSize: 1 }
+              ticks: { callback: (value: any) => Number(Number(value)).toString(), stepSize: 1 }
             },
             y: { grid: { display: false } }
           }
@@ -379,7 +379,7 @@ const Overview: React.FC = () => {
           scales: {
             x: {
               ...getChartConfig(maxEmp).scales.x,
-              ticks: { callback: (value: any) => Math.round(Number(value)).toString(), stepSize: 1 }
+              ticks: { callback: (value: any) => Number(Number(value)).toString(), stepSize: 1 }
             },
             y: { grid: { display: false } }
           }
@@ -409,7 +409,7 @@ const Overview: React.FC = () => {
             legend: { display: false },
             tooltip: {
               callbacks: {
-                label: (ctx: any) => `${ctx.label}: ${Math.round(ctx.raw)}`
+                label: (ctx: any) => `${ctx.label}: ${Number(ctx.raw)}`
               }
             }
           }
@@ -485,7 +485,7 @@ const Overview: React.FC = () => {
             legend: { display: false },
             tooltip: {
               callbacks: {
-                label: (ctx: any) => `${ctx.label}: ${Math.round(ctx.raw)}`
+                label: (ctx: any) => `${ctx.label}: ${Number(ctx.raw)}`
               }
             }
           }
@@ -785,7 +785,7 @@ const Overview: React.FC = () => {
                 tooltip: {
                   callbacks: {
                     label: (context: any) => {
-                      const value = Math.round(context.raw);
+                      const value = Number(context.raw);
                       return `Total Visitors: ${value}`;
                     }
                   }
@@ -799,7 +799,7 @@ const Overview: React.FC = () => {
                   grid: { color: '#e5e7eb' },
                   ticks: {
                     stepSize: Math.max(1, Math.ceil(maxCount / 5)),
-                    callback: (value: any) => Math.round(Number(value)).toString(),
+                    callback: (value: any) => Number(Number(value)).toString(),
                     precision: 0
                   },
                   title: {
@@ -869,7 +869,7 @@ const Overview: React.FC = () => {
                 tooltip: {
                   callbacks: {
                     label: (context: any) => {
-                      const value = Math.round(context.raw);
+                      const value = Number(context.raw);
                       return `Visitors checked in: ${value}`;
                     }
                   }
@@ -883,7 +883,7 @@ const Overview: React.FC = () => {
                   grid: { color: '#e5e7eb' },
                   ticks: {
                     stepSize: Math.max(1, Math.ceil((maxVisitor * 2) / 5)),
-                    callback: (value: any) => Math.round(Number(value)).toString(),
+                    callback: (value: any) => Number(Number(value)).toString(),
                     precision: 0
                   },
                   title: {
@@ -935,9 +935,9 @@ const Overview: React.FC = () => {
   }, [selectedCard, modalPagination.limit, fetchModalData]);
 
   // Computed values (rounded, no decimals)
-  const activeRate = data ? Math.round((data.employeeStats.active / data.employeeStats.total) * 100) : 0;
-  const completionRate = data && data.serviceStats.total ? Math.round((data.serviceStats.completed / data.serviceStats.total) * 100) : 0;
-  const avgRating = data ? Math.round(data.feedbackAvg.overall_average.average_rating) : 0;
+  const activeRate = data ? Number((data.employeeStats.active / data.employeeStats.total) * 100) : 0;
+  const completionRate = data && data.serviceStats.total ? Number((data.serviceStats.completed / data.serviceStats.total) * 100) : 0;
+  const avgRating = data ? Number(data.feedbackAvg.overall_average.average_rating) : 0;
   const driverTotal = data ? data.parkingStats.by_driver_type.staff + data.parkingStats.by_driver_type.visitor + data.parkingStats.by_driver_type.regular : 0;
   const maxStaff = data ? Math.max(...data.departments.map(d => d.staff), 1) : 1;
   const maxTasks = data?.employeePerformanceTasksDone?.length ? Math.max(...data.employeePerformanceTasksDone.map(t => t.total_tasks || 0), 1) : 1;
@@ -1152,7 +1152,7 @@ const Overview: React.FC = () => {
                   </thead>
                   <tbody>
                     {visibleTasksDone?.map((emp, idx) => {
-                      const tasksPercent = Math.round(((emp.total_tasks || 0) / maxTasks) * 100);
+                      const tasksPercent = Number(((emp.total_tasks || 0) / maxTasks) * 100);
                       return (
                         <tr key={idx} className="border-t border-gray-100 hover:bg-gray-50">
                           <td className="py-2 px-2 font-medium text-gray-900 break-words max-w-[120px]">{emp.employee_name || 'Unknown'}</td>
@@ -1241,7 +1241,7 @@ const Overview: React.FC = () => {
                   </thead>
                   <tbody>
                     {visibleWaitingTime?.map((wt, idx) => {
-                      const casesPercent = Math.round(((wt.total_cases || 0) / maxWaitingCases) * 100);
+                      const casesPercent = Number(((wt.total_cases || 0) / maxWaitingCases) * 100);
                       return (
                         <tr key={idx} className="border-t border-gray-100 hover:bg-gray-50">
                           <td className="py-2 px-2 font-medium text-gray-900 break-words max-w-[100px]">{wt.department_name || 'Unknown'}</td>
@@ -1331,7 +1331,7 @@ const Overview: React.FC = () => {
                   </thead>
                   <tbody>
                     {visibleServicePerf?.map((emp, idx) => {
-                      const servedPercent = Math.round(((emp.citizens_served || 0) / maxCitizensServed) * 100);
+                      const servedPercent = Number(((emp.citizens_served || 0) / maxCitizensServed) * 100);
                       return (
                         <tr key={idx} className="border-t border-gray-100 hover:bg-gray-50">
                           <td className="py-2 px-2 font-medium text-gray-900 break-words max-w-[120px]">{emp.employee_name || 'Unknown'}</td>
@@ -1489,7 +1489,7 @@ const Overview: React.FC = () => {
                       </thead>
                       <tbody>
                         {visibleDepartments?.map((row, idx) => {
-                          const staffPercent = Math.round((row.staff / maxStaff) * 100);
+                          const staffPercent = Number((row.staff / maxStaff) * 100);
                           return (
                             <tr key={idx} className="border-t border-gray-100 hover:bg-gray-50">
                               <td className="py-2 px-2 font-medium text-gray-900">{row.name}</td>
@@ -1571,15 +1571,15 @@ const Overview: React.FC = () => {
                     <div className="flex-1 space-y-2 w-full">
                       <div className="flex justify-between items-center text-sm">
                         <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-blue-600"></div>Staff</div>
-                        <div className="font-semibold">{data.parkingStats.by_driver_type.staff} <span className="text-gray-400 text-xs">({driverTotal ? Math.round(data.parkingStats.by_driver_type.staff / driverTotal * 100) : 0}%)</span></div>
+                        <div className="font-semibold">{data.parkingStats.by_driver_type.staff} <span className="text-gray-400 text-xs">({driverTotal ? Number(data.parkingStats.by_driver_type.staff / driverTotal * 100) : 0}%)</span></div>
                       </div>
                       <div className="flex justify-between items-center text-sm">
                         <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-teal-600"></div>Visitor</div>
-                        <div className="font-semibold">{data.parkingStats.by_driver_type.visitor} <span className="text-gray-400 text-xs">({driverTotal ? Math.round(data.parkingStats.by_driver_type.visitor / driverTotal * 100) : 0}%)</span></div>
+                        <div className="font-semibold">{data.parkingStats.by_driver_type.visitor} <span className="text-gray-400 text-xs">({driverTotal ? Number(data.parkingStats.by_driver_type.visitor / driverTotal * 100) : 0}%)</span></div>
                       </div>
                       <div className="flex justify-between items-center text-sm">
                         <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-yellow-500"></div>Regular</div>
-                        <div className="font-semibold">{data.parkingStats.by_driver_type.regular} <span className="text-gray-400 text-xs">({driverTotal ? Math.round(data.parkingStats.by_driver_type.regular / driverTotal * 100) : 0}%)</span></div>
+                        <div className="font-semibold">{data.parkingStats.by_driver_type.regular} <span className="text-gray-400 text-xs">({driverTotal ? Number(data.parkingStats.by_driver_type.regular / driverTotal * 100) : 0}%)</span></div>
                       </div>
                     </div>
                   </div>
@@ -1611,17 +1611,17 @@ const Overview: React.FC = () => {
                       <div className="text-xl font-light text-teal-600">{data.emergencyCars.active}</div>
                       <div className="text-xs text-gray-500">Active</div>
                       <div className="h-1 bg-gray-100 mt-1">
-                        <div className="h-full bg-teal-600" style={{ width: `${data.emergencyCars.total > 0 ? Math.round(data.emergencyCars.active / data.emergencyCars.total * 100) : 0}%` }}></div>
+                        <div className="h-full bg-teal-600" style={{ width: `${data.emergencyCars.total > 0 ? Number(data.emergencyCars.active / data.emergencyCars.total * 100) : 0}%` }}></div>
                       </div>
-                      <div className="text-[10px] text-gray-400 mt-1">{data.emergencyCars.total > 0 ? Math.round(data.emergencyCars.active / data.emergencyCars.total * 100) : 0}% of fleet</div>
+                      <div className="text-[10px] text-gray-400 mt-1">{data.emergencyCars.total > 0 ? Number(data.emergencyCars.active / data.emergencyCars.total * 100) : 0}% of fleet</div>
                     </div>
                     <div className="text-center">
                       <div className="text-xl font-light text-red-600">{data.emergencyCars.expired}</div>
                       <div className="text-xs text-gray-500">Expired</div>
                       <div className="h-1 bg-gray-100 mt-1">
-                        <div className="h-full bg-red-600" style={{ width: `${data.emergencyCars.total > 0 ? Math.round(data.emergencyCars.expired / data.emergencyCars.total * 100) : 0}%` }}></div>
+                        <div className="h-full bg-red-600" style={{ width: `${data.emergencyCars.total > 0 ? Number(data.emergencyCars.expired / data.emergencyCars.total * 100) : 0}%` }}></div>
                       </div>
-                      <div className="text-[10px] text-gray-400 mt-1">{data.emergencyCars.total > 0 ? Math.round(data.emergencyCars.expired / data.emergencyCars.total * 100) : 0}% of fleet</div>
+                      <div className="text-[10px] text-gray-400 mt-1">{data.emergencyCars.total > 0 ? Number(data.emergencyCars.expired / data.emergencyCars.total * 100) : 0}% of fleet</div>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-gray-100 text-center">
@@ -1639,7 +1639,7 @@ const Overview: React.FC = () => {
                   </div>
                   <div className="space-y-2">
                     {visibleRatings?.map((dept, idx) => {
-                      const barWidth = Math.round(dept.rating / 10 * 100);
+                      const barWidth = Number(dept.rating / 10 * 100);
                       return (
                         <div key={idx}>
                           <div className="flex justify-between text-xs mb-1">
