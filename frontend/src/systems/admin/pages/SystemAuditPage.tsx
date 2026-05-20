@@ -1,6 +1,3 @@
-// SystemAuditPage - System audit logs and monitoring
-// Complete audit trail for all system activities
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { FiSearch, FiFilter, FiDownload, FiActivity, FiUsers, FiAlertTriangle, FiTrendingUp } from 'react-icons/fi';
 import Table from '../../../core/components/Table';
@@ -11,18 +8,17 @@ import MainLayout from '../../../core/components/Layout/MainLayout';
 
 interface AuditLog {
   _id: string;
-  action: 'CREATE' | 'READ' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'ERROR' | 'SYSTEM';
+  action: 'GET' | 'READ' | 'UPDATE' | 'DELETE' | 'ERROR';
   time: string;
   description: string;
   user_id?: string;
   user_name: string;
   user_email?: string;
-  resource?: string;
-  resource_id?: string;
+  error?: string;
+  status_code?: string;
   ip_address?: string;
   method?: string;
   endpoint?: string;
-  status_code?: number;
   error_message?: string;
 }
 
@@ -43,7 +39,7 @@ const SystemAuditPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAction, setSelectedAction] = useState('');
-  const [selectedResource, setSelectedResource] = useState('');
+  const [selectederror, setSelectederror] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -56,27 +52,21 @@ const SystemAuditPage: React.FC = () => {
   // Available actions for filtering
   const actionOptions = [
     { value: '', label: 'All Actions' },
-    { value: 'CREATE', label: 'Create' },
-    { value: 'READ', label: 'Read' },
-    { value: 'UPDATE', label: 'Update' },
-    { value: 'DELETE', label: 'Delete' },
-    { value: 'LOGIN', label: 'Login' },
-    { value: 'LOGOUT', label: 'Logout' },
-    { value: 'ERROR', label: 'Error' },
-    { value: 'SYSTEM', label: 'System' }
+    { value: 'GET', label: 'GET' },
+    { value: 'UPDATE', label: 'UPDATE' },
+    { value: 'DELETE', label: 'DELETE' },
+    { value: 'ERROR', label: 'ERROR' },
+    { value: 'PUT', label: 'PUT' }
   ];
 
   // Get action color
   const getActionColor = (action: string) => {
     switch (action) {
-      case 'CREATE': return 'bg-green-100 text-green-800';
       case 'UPDATE': return 'bg-blue-100 text-blue-800';
       case 'DELETE': return 'bg-red-100 text-red-800';
-      case 'READ': return 'bg-gray-100 text-gray-800';
-      case 'LOGIN': return 'bg-purple-100 text-purple-800';
-      case 'LOGOUT': return 'bg-indigo-100 text-indigo-800';
+      case 'GET': return 'bg-gray-100 text-gray-800';
       case 'ERROR': return 'bg-red-200 text-red-900';
-      case 'SYSTEM': return 'bg-yellow-100 text-yellow-800';
+      case 'PUT': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -90,7 +80,7 @@ const SystemAuditPage: React.FC = () => {
         page: page.toString(),
         limit: pageSize.toString(),
         ...(selectedAction && { action: selectedAction }),
-        ...(selectedResource && { resource: selectedResource }),
+        ...(selectederror && { error: selectederror }),
         ...(startDate && { start_date: startDate }),
         ...(endDate && { end_date: endDate })
       });
@@ -116,7 +106,7 @@ const SystemAuditPage: React.FC = () => {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [selectedAction, selectedResource, startDate, endDate, showError]);
+  }, [selectedAction, selectederror, startDate, endDate, showError]);
 
   // Fetch audit statistics
   const fetchAuditStats = useCallback(async () => {
@@ -165,13 +155,13 @@ const SystemAuditPage: React.FC = () => {
       return;
     }
 
-    const headers = ['Time', 'Action', 'User', 'Description', 'Resource', 'IP Address', 'Method', 'Endpoint'];
+    const headers = ['Time', 'Action', 'User', 'Description', 'error', 'IP Address', 'Method', 'Endpoint'];
     const csvData = auditLogs.map(log => [
       new Date(log.time).toLocaleString(),
       log.action,
       log.user_name || 'System',
       log.description,
-      log.resource || '',
+      log.error || '',
       log.ip_address || '',
       log.method || '',
       log.endpoint || ''
@@ -330,12 +320,12 @@ const SystemAuditPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Resource</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">error</label>
                 <input
                   type="text"
                   placeholder="e.g., users, vehicles"
-                  value={selectedResource}
-                  onChange={(e) => setSelectedResource(e.target.value)}
+                  value={selectederror}
+                  onChange={(e) => setSelectederror(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -370,7 +360,7 @@ const SystemAuditPage: React.FC = () => {
             { key: 'action', label: 'Action' },
             { key: 'user', label: 'User' },
             { key: 'description', label: 'Description' },
-            { key: 'resource', label: 'Resource' },
+            { key: 'error', label: 'error' },
             { key: 'details', label: 'Details' }
           ]}
           data={auditLogs}
@@ -416,17 +406,17 @@ const SystemAuditPage: React.FC = () => {
                     {log.description}
                   </div>
                 );
-              case 'resource':
+              case 'error':
                 return (
                   <div className="text-sm">
-                    {log.resource && (
+                    {log.error && (
                       <span className="inline-flex px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded">
-                        {log.resource}
+                        {log.error}
                       </span>
                     )}
-                    {log.resource_id && (
+                    {log.status_code && (
                       <div className="text-xs text-gray-500 mt-1">
-                        ID: {log.resource_id}
+                        ID: {log.status_code}
                       </div>
                     )}
                   </div>
