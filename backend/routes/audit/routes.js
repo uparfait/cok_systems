@@ -6,42 +6,7 @@ const authenticate = require('../../middlewares/authenticate');
 
 // Middleware to log audit events
 const logAudit = async (action, description, req, additionalData = {}) => {
-  try {
-    const auditData = {
-      action,
-      description,
-      user_id: req.user?.id || req.user?._id || null,
-      resource: additionalData.resource || null,
-      resource_id: additionalData.resource_id || null,
-      ip_address: req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || null,
-      user_agent: req.get('User-Agent') || null,
-      method: req.method,
-      endpoint: req.originalUrl || req.url,
-      status_code: additionalData.status_code || null,
-      old_values: additionalData.old_values || null,
-      new_values: additionalData.new_values || null,
-      error_message: additionalData.error_message || null,
-      metadata: additionalData.metadata || null
-    };
-
-    // Try to get user details if user_id exists
-    if (auditData.user_id) {
-      try {
-        const user = await User.findById(auditData.user_id).select('full_name email');
-        if (user) {
-          auditData.user_name = user.full_name;
-          auditData.user_email = user.email;
-        }
-      } catch (userError) {
-        console.warn('Could not fetch user details for audit log:', userError.message);
-      }
-    }
-
-    await Audit.create(auditData);
-  } catch (error) {
-    console.error('Failed to log audit event:', error);
-    // Don't throw error to avoid breaking the main request
-  }
+ /// this function functionality made as middleware and not working again
 };
 
 // Export the logAudit function for use in other routes
@@ -96,7 +61,7 @@ Router.get('/logs', authenticate, async (req, res) => {
     // Transform the data to include user info
     const transformedAudits = audits.map(audit => ({
       ...audit,
-      user_name: audit.user_name || (audit.user_id?.full_name) || 'System',
+      user_name: audit.user_name || (audit.user_id?.full_name) || 'None',
       user_email: audit.user_email || (audit.user_id?.email) || null
     }));
 
@@ -234,48 +199,10 @@ Router.delete('/logs/:id', authenticate, async (req, res) => {
  */
 Router.post('/test', authenticate, async (req, res) => {
   try {
-    const testActions = [
-      { action: 'CREATE', description: 'Created new user account', resource: 'users' },
-      { action: 'UPDATE', description: 'Updated user profile information', resource: 'users' },
-      { action: 'DELETE', description: 'Deleted visitor record', resource: 'visitors' },
-      { action: 'LOGIN', description: 'User logged into system', resource: 'auth' },
-      { action: 'ERROR', description: 'Failed to process payment', resource: 'payments', error_message: 'Payment gateway timeout' }
-    ];
-
-    const auditLogs = [];
-    for (const testAction of testActions) {
-      const auditData = {
-        action: testAction.action,
-        description: testAction.description,
-        user_id: req.user?.id || req.user?._id,
-        resource: testAction.resource,
-        resource_id: `test_${Date.now()}`,
-        ip_address: req.ip,
-        user_agent: req.get('User-Agent'),
-        method: 'POST',
-        endpoint: '/audit/test',
-        error_message: testAction.error_message || null
-      };
-
-      // Add user details
-      try {
-        const user = await User.findById(auditData.user_id).select('full_name email');
-        if (user) {
-          auditData.user_name = user.full_name;
-          auditData.user_email = user.email;
-        }
-      } catch (userError) {
-        console.warn('Could not fetch user details for test audit log');
-      }
-
-      auditLogs.push(auditData);
-    }
-
-    await Audit.insertMany(auditLogs);
 
     return res.status(200).json({
       success: true,
-      message: `Created ${auditLogs.length} test audit logs`,
+      message: `Working fine`,
       data: auditLogs
     });
 

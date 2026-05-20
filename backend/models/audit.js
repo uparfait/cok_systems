@@ -1,14 +1,14 @@
 const mongoose = require('mongoose');
 
 const audit_schema = new mongoose.Schema({
-    action: { type: String, required: true, enum: ['CREATE', 'READ', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT', 'ERROR', 'SYSTEM'] },
+    action: { type: String, required: true},
     time: { type: Date, default: Date.now },
     description: { type: String, required: true },
     user_id: { type: String },
     user_name: { type: String }, // Populated from user data
     user_email: { type: String }, // Populated from user data
     resource: { type: String }, // What resource was affected (users, vehicles, visitors, etc.)
-    resource_id: { type: String }, // ID of the affected resource
+    error: { type: String }, // ID of the affected resource
     ip_address: { type: String }, // Client IP address
     user_agent: { type: String }, // Browser/device info
     method: { type: String }, // HTTP method (GET, POST, PUT, DELETE)
