@@ -73,10 +73,8 @@ const http = require("http");
 const path = require("path");
 const expressMung = require("express-mung");
 
-
-
 async function LogSystemAuditEvent(req, data) {
-  console.log(data)
+  console.log(data);
   try {
     const auditData = {
       action: data.action,
@@ -95,7 +93,7 @@ async function LogSystemAuditEvent(req, data) {
       old_values: data.old_values || null,
       new_values: data.new_values || null,
       error_message: data.error_message || null,
-      metadata:  null,
+      metadata: null,
     };
 
     if (auditData.user_id) {
@@ -141,64 +139,69 @@ const web_socket_service = new WebSocketService(server);
 
 // Automatically intercepts and modifies JSON responses
 app.use(
-  expressMung.json((body, req, res) => {
-    try {
-      /**
-       * We are only going to skip logging audits for success status btn 200-209
-       */
+  expressMung.json(
+    (body, req, res) => {
+      try {
+        /**
+         * We are only going to skip logging audits for success status btn 200-209
+         */
 
-      if (res.statusCode > 300) {
-        const action = body?.error?.toUpperCase() === "ERROR" ? req.method.toUpperCase() : req.method.toUpperCase();
-        const description = body?.message || body?.error || "";
-        const error_message = body?.error || "";
-        const endpoint = req.originalUrl || req.url || "";
-        const status_code = res.statusCode;
-       
-        LogSystemAuditEvent(
-          req,
+        if (res.statusCode > 300) {
+          const action =
+            body?.error?.toUpperCase() === "ERROR"
+              ? req.method.toUpperCase()
+              : req.method.toUpperCase();
+          const description = body?.message || body?.error || "";
+          const error_message = body?.error || "";
+          const endpoint = req.originalUrl || req.url || "";
+          const status_code = res.statusCode;
 
-          {
-            action: action,
-            description: description,
-            error: error_message,
-            error_message: error_message,
-            status_code: status_code,
-            endpoint: endpoint,
+          LogSystemAuditEvent(
+            req,
 
-          }
-        )
-        
+            {
+              action: action,
+              description: description,
+              error: error_message,
+              error_message: error_message,
+              status_code: status_code,
+              endpoint: endpoint,
+            },
+          );
+        }
+
+        return body;
+      } catch (error) {
+        if (res.statusCode > 300) {
+          const action =
+            body?.error?.toUpperCase() === "ERROR"
+              ? req.method.toUpperCase()
+              : req.method.toUpperCase();
+          const description = body?.message || body?.error || "";
+          const error_message = body?.error || "";
+          const endpoint = req.originalUrl || req.url || "";
+          const status_code = res.statusCode;
+
+          LogSystemAuditEvent(
+            req,
+
+            {
+              action: action,
+              description: description,
+              error: error_message,
+              error_message: error_message,
+              status_code: status_code,
+              endpoint: endpoint,
+            },
+          );
+        }
+        return body;
       }
-
-      return body;
-    } catch (error) {
-            if (res.statusCode > 300) {
-        const action = body?.error?.toUpperCase() === "ERROR" ? req.method.toUpperCase() : req.method.toUpperCase();
-        const description = body?.message || body?.error || "";
-        const error_message = body?.error || "";
-        const endpoint = req.originalUrl || req.url || "";
-        const status_code = res.statusCode;
-       
-        LogSystemAuditEvent(
-          req,
-
-          {
-            action: action,
-            description: description,
-            error: error_message,
-            error_message: error_message,
-            status_code: status_code,
-            endpoint: endpoint,
-
-          }
-        )
-        
-      }
-      return body;
-    }
-  }, {
-    mungError: true,
-  }),
+    },
+    {
+      mungError: true,
+    },
+  ),
 );
 
 app.use(
