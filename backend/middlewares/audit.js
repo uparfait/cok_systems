@@ -1,6 +1,3 @@
-// Audit Logging Middleware
-// Automatically logs critical system actions
-
 const auditRoutes = require('../routes/audit/routes');
 
 // Log audit event

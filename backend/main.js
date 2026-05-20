@@ -6,8 +6,6 @@
 process.env.WS_NO_BUFFER_UTIL = "true";
 process.env.WS_NO_UTF_8_VALIDATE = "true";
 
-
-
 const Module = require("module");
 const originalRequire = Module.prototype.require;
 
@@ -55,6 +53,8 @@ const WebSocketService = require("./services/reatime_service/web_socket.js");
 const InitialiseAllRealtimeServices = require("./services/reatime_service/initialise_realtime_services.js");
 const taskNotificationScheduler = require("./services/task_notification_scheduler.js");
 const parkingMonitor = require("./utilities/parkingMonitor.js");
+const Audit = require("./models/audit.js");
+const User = require("./models/user.js");
 
 const ParkingSlot = require("./models/parking_slots.js");
 
@@ -71,6 +71,55 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const http = require("http");
 const path = require("path");
+const expressMung = require("express-mung");
+
+
+
+async function LogSystemAuditEvent(req, data) {
+  console.log(data)
+  try {
+    const auditData = {
+      action: data.action,
+      description: data.description,
+      user_id: req.user?.id || req.user?._id || null,
+      error: data.error || null,
+      ip_address:
+        req.connection?.remoteAddress ||
+        req.socket?.remoteAddress ||
+        req.ip ||
+        null,
+      user_agent: req.get("User-Agent") || null,
+      method: req.method,
+      endpoint: req.originalUrl || req.url,
+      status_code: data.status_code || null,
+      old_values: data.old_values || null,
+      new_values: data.new_values || null,
+      error_message: data.error_message || null,
+      metadata:  null,
+    };
+
+    if (auditData.user_id) {
+      try {
+        const user = await User.findById(auditData.user_id).select(
+          "full_name email",
+        );
+        if (user) {
+          auditData.user_name = user.full_name;
+          auditData.user_email = user.email;
+        }
+      } catch (userError) {
+        console.warn(
+          "Could not fetch user details for audit log:",
+          userError.message,
+        );
+      }
+    }
+
+    await Audit.create(auditData);
+  } catch (error) {
+    console.log("Error occurred while logging audit event:", error);
+  }
+}
 
 /**
  * Import the central routes
@@ -85,11 +134,50 @@ const PORT = process.env.PORT || 2026;
 const server = http.createServer(app);
 const web_socket_service = new WebSocketService(server);
 
-
 /**
  * Configure Cross-Origin Resource Sharing (CORS)
  * Defines allowed origins and enables credential support (cookies/auth headers)
  */
+
+// Automatically intercepts and modifies JSON responses
+app.use(
+  expressMung.json((body, req, res) => {
+    try {
+      /**
+       * We are only going to skip logging audits for success status btn 200-209
+       */
+
+      if (res.statusCode > 300) {
+        const action = body?.error?.toUpperCase() === "ERROR" ? req.method.toUpperCase() : req.method.toUpperCase();
+        const description = body?.message || body?.error || "";
+        const error_message = body?.error || "";
+        const endpoint = req.originalUrl || req.url || "";
+        const status_code = res.statusCode;
+       
+        LogSystemAuditEvent(
+          req,
+
+          {
+            action: action,
+            description: description,
+            error: error_message,
+            error_message: error_message,
+            status_code: status_code,
+            endpoint: endpoint,
+
+          }
+        )
+        
+      }
+
+      return body;
+    } catch (error) {
+      console.log(error);
+      return body;
+    }
+  }),
+);
+
 app.use(
   cors({
     origin: process.env.CLIENT_URL_SET || [
@@ -161,8 +249,10 @@ db_connection()
 
     // check if parking slot document exists, if not create one with default values
     // default will be 350 total slots, 50 reserved for visitors, 100 reserved for staff, 100 available for visitors, 100 available for staff and 100 regular available slots
-    const parkingSlotDoc = await ParkingSlot.findOne({ UnChangedId: "parking_slots" });
-  
+    const parkingSlotDoc = await ParkingSlot.findOne({
+      UnChangedId: "parking_slots",
+    });
+
     if (!!parkingSlotDoc?.unChangedId) {
       const newParkingSlot = new ParkingSlot({
         totalSlots: 0,
@@ -172,7 +262,7 @@ db_connection()
         staffAvailableSlots: 0,
         RegularReservedSlots: 0,
         RegularAvailableSlots: 0,
-      });// commenting haardcoded values 
+      }); // commenting haardcoded values
       await newParkingSlot.save();
       console.log("Default parking slot document created.");
     } else {
@@ -184,7 +274,10 @@ db_connection()
       taskNotificationScheduler.start();
       console.log("Task notification scheduler started successfully.");
     } catch (schedulerError) {
-      console.error("Failed to start task notification scheduler:", schedulerError);
+      console.error(
+        "Failed to start task notification scheduler:",
+        schedulerError,
+      );
     }
 
     /**
