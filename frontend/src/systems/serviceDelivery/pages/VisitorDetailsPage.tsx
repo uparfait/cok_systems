@@ -1,13 +1,38 @@
-// VisitorDetailsPage - Comprehensive visitor details and editing page
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiArrowLeft, FiUser, FiRefreshCw, FiCheckCircle, FiClock, FiX, FiLoader, FiSave, FiEdit3, FiPlus } from 'react-icons/fi';
+import {
+  FiArrowLeft, FiUser, FiRefreshCw, FiCheckCircle, FiClock, FiX, FiLoader, FiSave, FiEdit3, FiPlus,
+  FiSquare, FiArrowRightCircle, FiSearch
+} from 'react-icons/fi';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
-import { serviceDeliveryService } from '../../../core/services/adminService';
+import {
+  serviceDeliveryService,
+  departmentService,
+  employeeService,
+} from '../../../core/services/adminService';
 import { getTasks } from '../../../core/services/taskService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import CreateTaskModal from '../../taskManagement/components/CreateTaskModal';
+import { ServeVisitorModal } from '../components/employeeFlow';
+
+// ======== Additional Interfaces ========
+
+interface TransferEmployee {
+  _id?: string;
+  employee_id?: string;
+  full_name?: string;
+  title?: string;
+}
+
+interface UnitOption {
+  id: string;
+  name: string;
+  staffAvailable: number;
+  currentQueue: number;
+  isActive: boolean;
+}
 
 // Validation helper functions (from CheckInPersonPage)
 const validateIdNumber = (idType: string, idNumber: string): string | null => {
@@ -111,6 +136,52 @@ const VisitorDetailsPage: React.FC = () => {
   const [idError, setIdError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
+  // Service State
+  const [isServing, setIsServing] = useState(false);
+
+  // Serve Modal State
+  const [showServeModal, setShowServeModal] = useState(false);
+  const [selectedVisitorForServe, setSelectedVisitorForServe] = useState<any>(null);
+
+  // Live Timer state for inline display
+  const [liveElapsed, setLiveElapsed] = useState(0);
+  const liveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ── Tick liveElapsed every second when an active service exists ─────
+  useEffect(() => {
+    if (!visitor) return;
+    const currentUser = user as any;
+    const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || '');
+    const serviceDuration = visitor?.durations?.services_durations?.find(
+      (d: any) => String(d.provider_id) === myId && d.ended_at === null,
+    );
+    const startTime = serviceDuration?.started_at || "";
+
+    if (!startTime) {
+      if (liveTimerRef.current) { clearInterval(liveTimerRef.current); liveTimerRef.current = null; }
+      setLiveElapsed(0);
+      return;
+    }
+
+    const tick = () => setLiveElapsed(Math.floor((Date.now() - new Date(startTime).getTime()) / 1000));
+    tick();
+    liveTimerRef.current = setInterval(tick, 1000);
+    return () => { if (liveTimerRef.current) { clearInterval(liveTimerRef.current); liveTimerRef.current = null; } };
+  }, [visitor, user]);
+
+  // Transfer Modal State
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferDepartment, setTransferDepartment] = useState<string>("");
+  const [transferEmployee, setTransferEmployee] = useState<TransferEmployee | null>(null);
+  const [transferring, setTransferring] = useState(false);
+  // Transfer Modal helper state
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [transferEmployees, setTransferEmployees] = useState<any[]>([]);
+  const [transferEmployeesLoading, setTransferEmployeesLoading] = useState(false);
+  const [units, setUnits] = useState<any[]>([]);
+  const [selectedUnit, setSelectedUnit] = useState<string>("");
+  const [transferVisitor, setTransferVisitor] = useState<any>(null);
+
   const [visitorTasks, setVisitorTasks] = useState<any[]>([]);
 
   // Load visitor data
@@ -157,6 +228,12 @@ const VisitorDetailsPage: React.FC = () => {
 
     loadVisitor();
   }, [visitorId, navigate, showError]);
+
+  // Load departments (needed for transfer modal, only once on mount)
+  useEffect(() => {
+    fetchDepartments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleUpdateVisitor = async () => {
     if (!editingVisitor || !visitor) return;
@@ -216,6 +293,336 @@ const VisitorDetailsPage: React.FC = () => {
     navigate('/service-delivery/employee');
   };
 
+  // ============================================================
+  //  Live Inline Timer (mirrors ProvideServicesTab LiveTimer)
+  // ============================================================
+  const LiveTimer: React.FC<{ startTime: string }> = ({ startTime }) => {
+    const [elapsed, setElapsed] = useState(0);
+
+    useEffect(() => {
+      if (!startTime) return;
+      const start = new Date(startTime).getTime();
+
+      const updateTime = () =>
+        setElapsed(
+          Math.max(0, Math.floor((new Date().getTime() - start) / 1000)),
+        );
+
+      updateTime();
+      const interval = setInterval(updateTime, 1000);
+      return () => clearInterval(interval);
+    }, [startTime]);
+
+    const h = Math.floor(elapsed / 3600).toString().padStart(2, "0");
+    const m = Math.floor((elapsed % 3600) / 60).toString().padStart(2, "0");
+    const s = (elapsed % 60).toString().padStart(2, "0");
+
+    return (
+      <span className="font-mono tracking-widest">
+        {h}:{m}:{s}
+      </span>
+    );
+  };
+
+  // ============================================================
+  //  Helper: Build visitor service object from raw visitor data
+  // ============================================================
+  const buildVisitorForServe = (raw: any) => {
+    const currentUser = user as any;
+    const myId = String(
+      currentUser?.userId || currentUser?._id || currentUser?.id || '',
+    );
+
+    const myAssignment = raw?.departments_assigned?.find(
+      (d: any) => String(d.provider_id) === myId,
+    );
+
+    const serviceDuration = raw?.durations?.services_durations?.find(
+      (d: any) => String(d.provider_id) === myId && d.ended_at === null,
+    );
+    const serviceStartTimeVal = serviceDuration?.started_at || "";
+
+    let myServiceStatus: any = null;
+    if (Array.isArray(raw?.services_status)) {
+      myServiceStatus = raw.services_status.find(
+        (s: any) => String(s.provider_id) === myId,
+      );
+    } else if (raw?.services_status && typeof raw.services_status === "object") {
+      if (String(raw.services_status.provider_id) === myId) {
+        myServiceStatus = raw.services_status;
+      }
+    }
+
+    let status = (myServiceStatus?.s_type || raw?.status || "Not started");
+    if (status === "transfered" || status === "transferred") status = "transfered";
+
+    return {
+      id: raw._id,
+      name: raw.full_name || "Unknown",          // ← ServeVisitorModal reads .name
+      visitorName: raw.full_name || "Unknown",
+      visitorId:
+        typeof raw.identification === "string"
+          ? raw.identification
+          : raw.identification?.number || "N/A",
+      badgeNumber: raw.badge_number || "",
+      email: raw.telephone || "N/A",
+      service: myAssignment?.department_name || raw._departmentGroup || "General Service",
+      checkInTime: myAssignment?.assigned_time || raw.entry_date
+        ? new Date(
+            myAssignment?.assigned_time || raw.entry_date,
+          ).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+        : "N/A",
+      gate: "Main Reception",
+      status,
+      serviceStartTime: serviceStartTimeVal,
+      assignedTo: myAssignment?.provider_name || myAssignment?.department_name || "Unassigned",
+      waitTime: raw?.current_duration || "N/A",
+      rawVisitor: raw,
+    };
+  };
+
+  // ============================================================
+  //  Backend API calls
+  //  Uses POST /servicedelivery/visitor/service/status → toggle_service_status (WORKING)
+  // ============================================================
+  const updateBackendStatus = async (
+    targetStatus: string,
+    visitorId: string,
+    rawVisitor: any,
+    isStart: boolean = false,
+    durationStr: string = "",
+    notes: string = "",
+  ) => {
+    await serviceDeliveryService.updateServiceStatus({
+      visitor_id: visitorId,
+      status: targetStatus,
+      notes: notes,
+    });
+  };
+
+  // ============================================================
+  //  Timer helper — computes elapsed HH:MM:SS from elapsed seconds
+  //  If fromElapsed is given, use it; otherwise derive from startTime
+  // ============================================================
+  const getElapsedParts = (startTime: string, fromElapsed?: number) => {
+    const elapsed = fromElapsed !== undefined ? fromElapsed : Math.max(0, Math.floor((Date.now() - new Date(startTime).getTime()) / 1000));
+    const h = String(Math.floor(elapsed / 3600)).padStart(2, "0");
+    const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2, "0");
+    const s = String(elapsed % 60).padStart(2, "0");
+    return { h, m, s };
+  };
+
+  // ============================================================
+  //  Serve / Stop Service
+  // ============================================================
+  const handleServeClick = async () => {
+    if (!visitor) return;
+    const raw = visitor;
+    setSelectedVisitorForServe(buildVisitorForServe(raw));
+
+    // If already started, just open the modal to show the timer + End button
+    let serviceStartTime = raw?.durations?.services_durations?.find(
+      (d: any) => d.ended_at === null
+    )?.started_at;
+
+    if (!serviceStartTime) {
+      // First serve → set status to in-progress on backend
+      await updateBackendStatus(
+        "Inprogress",
+        raw._id,
+        raw,
+        true,
+      );
+      setIsServing(true);
+      setIsServing(false);
+      await reloadVisitor();
+    }
+    setShowServeModal(true);
+  };
+
+  const handleServiceComplete = async (data: any) => {
+    if (!selectedVisitorForServe) return;
+    setIsServing(true);
+
+    try {
+      const isTransfer =
+        data.notes && data.notes.toLowerCase().includes("transfer");
+      const targetStatus = isTransfer ? "Transfered" : "Completed";
+
+      await updateBackendStatus(
+        targetStatus,
+        selectedVisitorForServe.id,
+        selectedVisitorForServe.rawVisitor,
+        false,
+        data.duration,
+        data.notes,
+      );
+
+      setShowServeModal(false);
+      setSelectedVisitorForServe(null);
+      await reloadVisitor();
+    } catch (error) {
+      console.error("Failed to process service:", error);
+      alert("Failed to process request. Please try again.");
+    } finally {
+      setIsServing(false);
+    }
+  };
+
+  // ============================================================
+  //  Transfer
+  // ============================================================
+  const handleTransferClick = () => {
+    if (!visitor) return;
+    setTransferVisitor(visitor);
+    setTransferDepartment("");
+    setTransferEmployee(null);
+    setTransferEmployees([]);
+    setUnits([]);
+    setSelectedUnit("");
+    setShowTransferModal(true);
+  };
+
+  const handleTransferVisitor = async () => {
+    if (!transferVisitor || !transferDepartment) return;
+    setTransferring(true);
+
+    try {
+      const currentUser = user as any;
+      const myId = String(
+        currentUser?.userId || currentUser?._id || currentUser?.id || '',
+      );
+
+      const targetId = selectedUnit || transferDepartment;
+      const targetInfo = selectedUnit
+        ? units.find((u) => u.id === selectedUnit)
+        : departments.find((d) => d._id === transferDepartment);
+      const targetName = targetInfo?.name || targetInfo?.department_name || "Unknown";
+
+      const currentDept = transferVisitor.departments_assigned?.find(
+        (d: any) => String(d.provider_id) === myId,
+      );
+      const previousDepartmentId = currentDept?.department_id;
+
+      await serviceDeliveryService.assignToDepartment(
+        transferVisitor._id,
+        targetId,
+        targetName,
+        undefined, // no specific employee via department details page
+        undefined,
+        previousDepartmentId,
+      );
+
+      setShowTransferModal(false);
+      setTransferVisitor(null);
+      setTransferDepartment("");
+      setTransferEmployee(null);
+      setTransferEmployees([]);
+      setUnits([]);
+      setSelectedUnit("");
+
+      await reloadVisitor();
+    } catch (error) {
+      console.error("Error transferring visitor:", error);
+      alert("Failed to transfer visitor. Please try again.");
+    } finally {
+      setTransferring(false);
+    }
+  };
+
+  const handleTransferDepartmentChange = (deptId: string) => {
+    setTransferDepartment(deptId);
+    setSelectedUnit("");
+    if (deptId) {
+      loadUnitsByDepartment(deptId);
+      fetchTransferEmployees(deptId);
+    } else {
+      setUnits([]);
+      setTransferEmployees([]);
+    }
+  };
+
+  const fetchTransferEmployees = async (deptId: string) => {
+    if (!deptId) {
+      setTransferEmployees([]);
+      return;
+    }
+    setTransferEmployeesLoading(true);
+    try {
+      const response: any = await employeeService.getByDepartment(deptId, false);
+      if (response?.data || Array.isArray(response)) {
+        setTransferEmployees(
+          Array.isArray(response.data) ? response.data : response,
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      setTransferEmployees([]);
+    } finally {
+      setTransferEmployeesLoading(false);
+    }
+  };
+
+  const loadUnitsByDepartment = async (departmentId: string) => {
+    setTransferEmployeesLoading(true);
+    try {
+      const response: any = await departmentService.getAll();
+      if (response.status || response.success) {
+        const deptData = Array.isArray(response.data) ? response.data : [];
+        const subDepts = deptData.filter((dept: any) => {
+          return (
+            (dept.sub_department_mng?.is_sub_department === true ||
+              dept.sub_department_mng?.is_sub_department === "true") &&
+            String(dept.sub_department_mng?.parent_department_id) ===
+              String(departmentId)
+          );
+        });
+        const formattedUnits = subDepts.map((subDept: any) => ({
+          id: subDept._id || subDept.department_id,
+          name: subDept.department_name || subDept.name,
+          staffAvailable: subDept.total_employees || 0,
+          currentQueue: 0,
+          isActive: true,
+        }));
+        setUnits(formattedUnits);
+      } else {
+        setUnits([]);
+      }
+    } catch (error) {
+      console.error("Failed to load units:", error);
+      setUnits([]);
+    } finally {
+      setTransferEmployeesLoading(false);
+    }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const response: any = await departmentService.getAll();
+      if (response && (response.data || Array.isArray(response))) {
+        setDepartments(Array.isArray(response.data) ? response.data : response);
+      }
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+    }
+  };
+
+  // ============================================================
+  //  Reload visitor (re-fetch from backend)
+  // ============================================================
+  const reloadVisitor = async () => {
+    if (!visitorId) return;
+    try {
+      const response = await serviceDeliveryService.getById(visitorId);
+      if (response.success && response.data) {
+        setVisitor(response.data);
+        setEditingVisitor({ ...response.data });
+      }
+    } catch (error) {
+      console.error("Error reloading visitor:", error);
+    }
+  };
+
   if (loading) {
     return (
       <MainLayout>
@@ -265,8 +672,27 @@ const VisitorDetailsPage: React.FC = () => {
             >
               <FiArrowLeft className="w-5 h-5" />
             </button>
-            <h1 className="text-lg font-semibold text-[#1a2744]">Visitor Details</h1>
-          </div>
+              <h1 className="text-lg font-semibold text-[#1a2744]">Visitor Details</h1>
+
+
+              {/* Header — In-Progress live counter pill */}
+              {(() => {
+                if (!visitor) return null;
+                const currentUser = user as any;
+                const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || '');
+                const serviceDuration = visitor?.durations?.services_durations?.find(
+                  (d: any) => String(d.provider_id) === myId && d.ended_at === null,
+                );
+                const serviceStartTimeVal = serviceDuration?.started_at || "";
+                if (!serviceStartTimeVal) return null;
+                const { h, m, s } = getElapsedParts(serviceStartTimeVal, liveElapsed);
+                return (
+                  <span className="inline-flex items-center gap-2 bg-blue-100 border border-blue-300 text-blue-700 px-3.5 py-1.5 rounded-full text-[12px] font-bold tracking-wide">
+                    <FiClock className="w-5 h-5 text-blue-500 animate-pulse" /> Service In Progress — {h}:{m}:{s}
+                  </span>
+                );
+              })()}
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setShowCreateTaskModal(true)}
@@ -565,42 +991,69 @@ const VisitorDetailsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Service Status Section */}
-          <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-sm p-6 border border-orange-100">
-            <h3 className="text-lg font-bold text-[#1a2744] mb-4 flex items-center gap-2">
-              <FiClock className="w-5 h-5 text-orange-600" />
-              Service Status
-            </h3>
-            <div className="space-y-3">
-              {editingVisitor.services_status?.map((status: any, index: number) => (
-                <div key={index} className="bg-white rounded-lg p-4 border border-orange-200">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div>
-                      <span className="text-xs font-medium text-gray-600 uppercase tracking-wider">Department</span>
-                      <p className="text-sm font-medium text-gray-900">{status.department_name}</p>
+          {/* This section replaces the read-only Service Status badge with live serve/transfer actions */}
+          {(() => {
+            if (!visitor) return null;
+
+            // Derive MY service status from the raw visitor data (same logic as ProvideServicesTab)
+            const currentUser = user as any;
+            const myId = String(
+              currentUser?.userId || currentUser?._id || currentUser?.id || '',
+            );
+            const myAssignment = visitor?.departments_assigned?.find(
+              (d: any) => String(d.provider_id) === myId,
+            );
+            const serviceDuration = visitor?.durations?.services_durations?.find(
+              (d: any) => String(d.provider_id) === myId && d.ended_at === null,
+            );
+            const serviceStartTimeVal = serviceDuration?.started_at || "";
+
+            let myServiceStatus: any = null;
+            if (Array.isArray(visitor?.services_status)) {
+              myServiceStatus = visitor.services_status.find(
+                (s: any) => String(s.provider_id) === myId,
+              );
+            } else if (visitor?.services_status && typeof visitor.services_status === "object") {
+              if (String(visitor.services_status.provider_id) === myId) {
+                myServiceStatus = visitor.services_status;
+              }
+            }
+
+            const status = (myServiceStatus?.s_type || visitor.status || "Not started");
+
+            // Department name for service
+            const deptName = myAssignment?.department_name || visitor._departmentGroup || "General Service";
+
+            // ── COMPLETED ──────────────────────────────────────────────
+            if (status === "Completed" || status === "completed") {
+              return (
+                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-sm p-6 border border-emerald-100">
+                  <h3 className="text-lg font-bold text-emerald-700 mb-4 flex items-center gap-2">
+                    <FiCheckCircle className="w-5 h-5" />
+                    Service Completed
+                  </h3>
+                  <div className="flex items-center gap-4 bg-white rounded-lg p-5 border border-emerald-200">
+                    <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                      <FiCheckCircle className="w-7 h-7 text-emerald-600" />
                     </div>
                     <div>
-                      <span className="text-xs font-medium text-gray-600 uppercase tracking-wider">Provider</span>
-                      <p className="text-sm text-gray-700">{status.provider_name || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs font-medium text-gray-600 uppercase tracking-wider block mb-2">Status</span>
-                      <div className="flex">
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                          status.s_type === 'Completed' ? 'bg-green-100 text-green-800' :
-                          status.s_type === 'Inprogress' ? 'bg-blue-100 text-blue-800' :
-                          status.s_type === 'Transfered' ? 'bg-purple-100 text-purple-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {status.s_type || 'Not started'}
-                        </span>
-                      </div>
+                      <p className="text-sm text-gray-500 font-medium uppercase tracking-wider">Status</p>
+                      <p className="text-xl font-bold text-emerald-700 mt-0.5">✓ Completed</p>
+                      <p className="text-xs text-gray-400 mt-1">Service delivered by {visitor?.services_status?.[0]?.provider_name || "Staff"}</p>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              );
+            }
+
+            // ── IN PROGRESS ────────────────────────────────────────────
+            if (status === "Inprogress" || status === "inprogress") {
+              return  <></>
+            }
+
+            // ── NOT STARTED or TRANSFERRED ─────────────────────────────
+            return <></>;
+          })()}
 
 
           {/* Notes Section */}
@@ -666,26 +1119,201 @@ const VisitorDetailsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Footer Actions */}
-        {isEditMode && (
-          <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
-            <button
-              onClick={handleUpdateVisitor}
-              disabled={updating || !!idError || !!emailError}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-            >
-              {updating ? (
-                <>
-                  <FiLoader className="w-4 h-4 animate-spin" />
-                  Saving updates...
-                </>
-              ) : (
-                <>
-                  <FiSave className="w-4 h-4" />
-                  Save updates
-                </>
-              )}
-            </button>
+        {/* Footer Actions — dual mode: serve buttons (view) / save button (edit) */}
+        <div className="p-6 border-t border-gray-200 bg-gray-50">
+          {isEditMode ? (
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleUpdateVisitor}
+                disabled={updating || !!idError || !!emailError}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {updating ? (
+                  <>
+                    <FiLoader className="w-4 h-4 animate-spin" />
+                    Saving updates...
+                  </>
+                ) : (
+                  <>
+                    <FiSave className="w-4 h-4" />
+                    Save updates
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleTransferClick}
+                disabled={isServing}
+                className="flex items-center gap-2 h-10 px-5 bg-[#7b1fa2] text-white text-[13px] font-bold rounded-[8px] hover:bg-[#6a1b9a] transition-colors disabled:opacity-50"
+              >
+                <FiArrowRightCircle className="w-4 h-4" /> Transfer
+              </button>
+              <button
+                onClick={handleServeClick}
+                disabled={isServing}
+                className="flex items-center gap-2 h-10 px-6 bg-[#1a73e8] text-white text-[13px] font-bold rounded-[8px] hover:bg-[#1558c0] transition-colors disabled:opacity-50"
+              >
+                {(() => {
+                  if (!visitor) return null;
+                  const currentUser = user as any;
+                  const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || '');
+                  const serviceDuration = visitor?.durations?.services_durations?.find(
+                    (d: any) => String(d.provider_id) === myId && d.ended_at === null,
+                  );
+                  const hasActiveService = !!serviceDuration;
+                  return (
+                    <>
+                      {hasActiveService ? <FiSquare className="w-4 h-4" /> : <FiCheckCircle className="w-4 h-4" />}
+                      {hasActiveService ? 'End Service' : 'Serve'}
+                    </>
+                  );
+                })()}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* ======== Serve Visitor Modal ======== */}
+        {showServeModal && selectedVisitorForServe && (
+          <ServeVisitorModal
+            isOpen={showServeModal}
+            onClose={() => {
+              setShowServeModal(false);
+              setSelectedVisitorForServe(null);
+            }}
+            visitor={selectedVisitorForServe}
+            onServiceEnd={handleServiceComplete}
+          />
+        )}
+
+        {/* ======== Transfer Visitor Modal ======== */}
+        {showTransferModal && visitor && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-[16px] shadow-[0px_10px_30px_rgba(0,0,0,0.1)] w-full max-w-md overflow-visible">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-[#2C3E50] text-[20px] font-semibold">
+                    Transfer Visitor
+                  </h2>
+                  <button
+                    onClick={() => {
+                      setShowTransferModal(false);
+                      setTransferVisitor(null);
+                      setTransferDepartment("");
+                      setTransferEmployee(null);
+                      setTransferEmployees([]);
+                      setUnits([]);
+                      setSelectedUnit("");
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <FiX className="w-6 h-6" />
+                  </button>
+                </div>
+
+                {/* Visitor summary card */}
+                <div className="mb-4">
+                  <label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">
+                    Visitor
+                  </label>
+                  <div className="flex items-center gap-3 p-3 bg-[#F7F9FB] rounded-lg">
+                    <div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                      <span>{(visitor.full_name || "?")[0]}</span>
+                    </div>
+                    <div>
+                      <div className="text-[#2C3E50] text-[14px] font-medium">
+                        {visitor.full_name}
+                      </div>
+                      <div className="text-[#8A94A6] text-[12px]">
+                        Badge: {visitor.badge_number || "N/A"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Select Department */}
+                <div className="mb-4">
+                  <label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">
+                    Select Department
+                  </label>
+                  <select
+                    value={transferDepartment}
+                    onChange={(e) => handleTransferDepartmentChange(e.target.value)}
+                    className="w-full px-3 py-2 h-[42px] border border-[#D9E1EA] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#0284C7] bg-white"
+                  >
+                    <option value="">Choose a department…</option>
+                    {departments.map((dept: any) => (
+                      <option key={dept._id} value={dept._id}>
+                        {dept.department_name || "Unknown"}
+                        {dept.total_employees > 0 && ` (${dept.total_employees} staff)`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Select Unit (Optional) */}
+                {transferDepartment && (
+                  <div className="mb-4">
+                    <label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">
+                      Select Unit (Optional)
+                    </label>
+                    {transferEmployeesLoading ? (
+                      <div className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-sm bg-gray-100 flex items-center justify-center">
+                        <FiLoader className="w-4 h-4 border-2 border-[#0284C7] border-t-transparent rounded-full animate-spin mr-2" />
+                        <span className="text-gray-500">Loading units…</span>
+                      </div>
+                    ) : (
+                      <select
+                        value={selectedUnit}
+                        onChange={(e) => setSelectedUnit(e.target.value)}
+                        className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#0284C7] bg-white"
+                      >
+                        <option value="">No specific unit — assign to department only</option>
+                        {units.map((unit) => (
+                          <option key={unit.id} value={unit.id}>
+                            {unit.name} ({unit.staffAvailable} staff)
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 mt-5">
+                  <button
+                    onClick={() => {
+                      setShowTransferModal(false);
+                      setTransferVisitor(null);
+                      setTransferDepartment("");
+                      setTransferEmployee(null);
+                      setTransferEmployees([]);
+                      setUnits([]);
+                      setSelectedUnit("");
+                    }}
+                    className="flex-1 px-4 py-2 border border-[#D9E1EA] text-[#2C3E50] rounded-[8px] font-medium hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleTransferVisitor}
+                    disabled={!transferDepartment || transferring}
+                    className="flex-1 px-4 py-2 bg-[#0284C7] text-white rounded-[8px] font-medium hover:bg-[#0369A1] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {transferring ? (
+                      <>
+                        <FiRefreshCw className="w-4 h-4 animate-spin" />
+                        Transferring…
+                      </>
+                    ) : (
+                      "Transfer Visitor"
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
