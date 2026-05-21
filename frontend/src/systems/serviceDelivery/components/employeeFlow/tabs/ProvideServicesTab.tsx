@@ -472,7 +472,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
           status === "completed" ||
           status === "transfered") &&
         serviceStartTimeVal
-          ? new Date(serviceStartTimeVal).getTime()
+          ? new Date().getTime()
           : new Date().getTime();
 
       let waitTimeString = "Just now";
@@ -966,7 +966,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
                 ASSIGNED TO
               </th>
               <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[15%]">
-                WAIT TIME
+                DURATIONS
               </th>
               <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[15%]">
                 STATUS

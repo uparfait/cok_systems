@@ -144,8 +144,10 @@ const ServeVisitorModal: React.FC<ServeVisitorModalProps> = ({
   if (!isOpen || !visitor) return null;
 
   const getInitials = (name: string) => {
-    const parts = name.split(' ');
-    return parts.length >= 2 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : name.substring(0, 2).toUpperCase();
+    if (!name) return "?";
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return name.substring(0, Math.min(2, name.length)).toUpperCase();
   };
 
   return (
