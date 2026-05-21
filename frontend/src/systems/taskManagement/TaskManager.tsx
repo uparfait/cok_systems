@@ -296,11 +296,11 @@ const TaskManager: React.FC = () => {
           {columns.map((column) => (
             <div
               key={column.id}
-              className={`column-card w-[340px] md:w-[380px] flex-shrink-0 rounded-2xl bg-gradient-to-br ${column.gradient} 
+              className={`column-card w-[340px] md:w-[380px] flex-shrink-0 rounded-sm bg-gradient-to-br ${column.gradient} 
                 border ${column.borderColor} shadow-xl hover:shadow-2xl transition-all duration-300 
                 ${draggedOverColumn === column.id ? 'ring-4 ring-blue-400/50 ring-offset-2 scale-[1.02]' : ''} 
                 ${loading.tasks ? 'opacity-75' : ''} 
-                backdrop-blur-sm bg-white/40`}
+                 bg-white/40`}
               style={{
                 transform: 'perspective(1200px) rotateX(2deg)',
                 transformStyle: 'preserve-3d',
@@ -312,7 +312,7 @@ const TaskManager: React.FC = () => {
             >
               {/* Column Header with distinct gradient */}
               <div
-                className={`relative px-5 py-4 rounded-t-2xl bg-gradient-to-r ${column.headerColor}`}
+                className={`relative px-5 py-4 rounded-t-sm bg-gradient-to-r ${column.headerColor}`}
                 style={{
                   transform: 'translateZ(8px)',
                   boxShadow: '0 4px 12px rgba(0,0,0,0.1)'

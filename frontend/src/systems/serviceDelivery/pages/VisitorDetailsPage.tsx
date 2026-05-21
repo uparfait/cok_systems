@@ -290,7 +290,7 @@ const VisitorDetailsPage: React.FC = () => {
 
           {/* Belongs To Tasks Section */}
           {visitorTasks.length > 0 && (
-            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-6 border border-purple-100">
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-sm p-6 border border-purple-100">
               <h3 className="text-lg font-bold text-[#1a2744] mb-4 flex items-center gap-2">
                 <FiCheckCircle className="w-5 h-5 text-purple-600" />
                 Related Tasks ({visitorTasks.length})
@@ -326,7 +326,7 @@ const VisitorDetailsPage: React.FC = () => {
           )}
 
           {/* Personal Information Section */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-sm p-6 border border-blue-100">
             <h3 className="text-lg font-bold text-[#1a2744] mb-4 flex items-center gap-2">
               <FiUser className="w-5 h-5 text-blue-600" />
               Personal Information
@@ -488,7 +488,7 @@ const VisitorDetailsPage: React.FC = () => {
           </div>
 
           {/* Vehicle Information Section */}
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-sm p-6 border border-green-100">
             <h3 className="text-lg font-bold text-[#1a2744] mb-4 flex items-center gap-2">
               <FiRefreshCw className="w-5 h-5 text-green-600" />
               Vehicle Information
@@ -526,7 +526,7 @@ const VisitorDetailsPage: React.FC = () => {
           </div>
 
           {/* Department Assignments Section */}
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-sm p-6 border border-purple-100">
             <h3 className="text-lg font-bold text-[#1a2744] mb-4 flex items-center gap-2">
               <FiCheckCircle className="w-5 h-5 text-purple-600" />
               Department Assignments
@@ -566,7 +566,7 @@ const VisitorDetailsPage: React.FC = () => {
           </div>
 
           {/* Service Status Section */}
-          <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-xl p-6 border border-orange-100">
+          <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-sm p-6 border border-orange-100">
             <h3 className="text-lg font-bold text-[#1a2744] mb-4 flex items-center gap-2">
               <FiClock className="w-5 h-5 text-orange-600" />
               Service Status
@@ -604,7 +604,7 @@ const VisitorDetailsPage: React.FC = () => {
 
 
           {/* Notes Section */}
-          <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl p-6 border border-gray-100">
+          <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-sm p-6 border border-gray-100">
             <h3 className="text-lg font-bold text-[#1a2744] mb-4 flex items-center gap-2">
               <FiUser className="w-5 h-5 text-gray-600" />
               Notes & Comments
@@ -628,7 +628,7 @@ const VisitorDetailsPage: React.FC = () => {
           </div>
 
           {/* Status Information Section */}
-          <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-6 border border-indigo-100">
+          <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-sm p-6 border border-indigo-100">
             <h3 className="text-lg font-bold text-[#1a2744] mb-4 flex items-center gap-2">
               <FiCheckCircle className="w-5 h-5 text-indigo-600" />
               Status Information
