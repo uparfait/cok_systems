@@ -268,7 +268,7 @@ module.exports = async function toggle_service_status(req, res, next) {
                 visitor.notes.push({
                     writter_name: officerName,
                     message: notes,
-                    timestamp: new Date().toLocaleDateString()
+                    timestamp: new Date()
                 });
             }
         }

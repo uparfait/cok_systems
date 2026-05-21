@@ -126,7 +126,7 @@ Router.post('/visitor/emergency/leave-return',
   toggle_leave_out_side_and_return
 )
 
-// Below route addeed by Fabrice and from now disabled due to conflicts his message wa `Add your new dedicated route`
+// Below route addeed by Fabrice and from now disabled due to conflicts his message was `Add your new dedicated route`
 Router.put('/visitor/:id/status',
   auditSuccess('UPDATE', 'visitors', (req, res, data) => `Updated service status for visitor ${req.params.id}`),
   update_service_status
