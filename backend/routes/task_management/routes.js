@@ -22,6 +22,11 @@ const deleteAttachment = require('../../controllers/task_management/delete_attac
 const addChecklist = require('../../controllers/task_management/add_subtask')
 const updateChecklist = require('../../controllers/task_management/update_subtask')
 const deleteChecklist = require('../../controllers/task_management/delete_subtask')
+const createBoard = require('../../controllers/task_management/create_board')
+const getBoards = require('../../controllers/task_management/get_boards')
+const getBoardWithLists = require('../../controllers/task_management/get_board_with_lists')
+const createList = require('../../controllers/task_management/create_list')
+const moveTask = require('../../controllers/task_management/move_task')
 
 const multer = require('multer')
 const path = require('path')
@@ -57,27 +62,12 @@ const upload = multer({
     },
     fileFilter: (req, file, cb) => {
         cb(null, true)
-        // // Allow various file types
-        // const allowedTypes = [
-        //     'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-        //     'application/pdf',
-        //     'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        //     'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        //     'text/plain', 'text/csv',
-        //     'video/mp4', 'video/avi', 'video/mov'
-        // ]
-
-        // if (allowedTypes.includes(file.mimetype)) {
-        //     cb(null, true)
-        // } else {
-        //     cb(new Error('Invalid file type'), false)
-        // }
     }
 })
 
 // Handle both single and multiple file uploads
 const multiUpload = upload.fields([
-    { name: 'attachments', maxCount: 3000 } // Allow up to 3000 attachments
+    { name: 'attachments', maxCount: 3000 }
 ])
 
 Router.use(multiUpload)
@@ -94,6 +84,14 @@ Router.use((error, req, res, next) => {
     next()
 })
 
+// Board management routes
+Router.post('/boards/create', auditSuccess('CREATE', 'boards', (req, res, data) => `Created new board: ${data?.data?.name || 'unknown'}`), createBoard)
+Router.get('/boards/list', auditSuccess('READ', 'boards'), getBoards)
+Router.get('/boards/:boardId', auditSuccess('READ', 'boards'), getBoardWithLists)
+
+// List management routes
+Router.post('/boards/:boardId/lists', auditSuccess('CREATE', 'lists', (req, res, data) => `Created new list`), createList)
+
 // Task CRUD routes
 Router.get('/', auditSuccess('READ', 'tasks'), getTasks)
 Router.get('/:id', auditSuccess('READ', 'tasks'), getTaskById)
@@ -101,6 +99,9 @@ Router.post('/', auditSuccess('CREATE', 'tasks', (req, res, data) => `Created ne
 Router.put('/:id', auditSuccess('UPDATE', 'tasks', (req, res, data) => `Updated task: ${req.params.id}`), updateTask)
 Router.put('/:id/status', auditSuccess('UPDATE', 'tasks', (req, res, data) => `Updated task status: ${req.params.id}`), updateTaskStatus)
 Router.delete('/:id', auditSuccess('DELETE', 'tasks', (req, res, data) => `Deleted task: ${req.params.id}`), deleteTask)
+
+// Task positioning/moving
+Router.put('/:taskId/move', auditSuccess('UPDATE', 'tasks', (req, res, data) => `Moved task: ${req.params.taskId}`), moveTask)
 
 // Comment management
 Router.post('/:id/comments', auditSuccess('CREATE', 'task_comments', (req, res, data) => `Added comment to task: ${req.params.id}`), addComment)

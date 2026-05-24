@@ -36,6 +36,7 @@ const taskSchema = new mongoose.Schema({
     dueDate: { type: Date },
     startDate: { type: Date },
     completedAt: { type: Date },
+    actualDateCompleted: { type: Date }, // The actual date when task was marked as completed for analytics
     archived: { type: Boolean, default: false },
 
     createdAt: { type: Date, default: Date.now },
@@ -108,6 +109,7 @@ taskSchema.index({ incharge: 1, status: 1 });
 taskSchema.index({ members: 1 });
 taskSchema.index({ watchers: 1 });
 taskSchema.index({ dueDate: 1 });
+taskSchema.index({ actualDateCompleted: 1 }); // Index for analytics queries
 taskSchema.index({ archived: 1 });
 taskSchema.index({ createdAt: -1 });
 taskSchema.index({ labels: 1 }); // For label filtering
