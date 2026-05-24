@@ -1,4 +1,5 @@
-// TaskDetails - Component for task details editing
+// TaskDetails - Component for task details editing with comprehensive date management
+// UPDATED: Allow date editing at all task statuses
 
 import React from 'react'
 import { FiCalendar, FiEdit, FiCheck, FiX } from 'react-icons/fi'
@@ -47,7 +48,7 @@ const TaskDetails: React.FC<TaskDetailsProps> = ({
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="block text-sm font-medium text-gray-700">Description</label>
-            {task.status !== 'Completed' && !editingSections.description && (
+            {!editingSections.description && (
               <button
                 onClick={() => onEditSection('description', true)}
                 className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100 transition-colors"
@@ -103,11 +104,11 @@ const TaskDetails: React.FC<TaskDetailsProps> = ({
           </span>
         </div>
 
-        {/* Dates */}
+        {/* Dates - NOW EDITABLE AT ALL STATUSES */}
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="block text-sm font-medium text-gray-700">Timeline</label>
-            {task.status !== 'Completed' && !editingSections.dates && (
+            {!editingSections.dates && (
               <button
                 onClick={() => onEditSection('dates', true)}
                 className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100 transition-colors"
@@ -119,44 +120,49 @@ const TaskDetails: React.FC<TaskDetailsProps> = ({
           </div>
 
           {editingSections.dates ? (
-            <div className="space-y-3">
-              {(task.status === 'Under-review' || task.status === 'Completed') && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Start Date & Time</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="relative">
-                      <FiCalendar className="absolute left-2 top-1/2 text-gray-400 w-3 h-3" style={{ transform: "translateY(-50%)" }} />
-                      <input
-                        type="date"
-                        value={editForms.startDate}
-                        onChange={(e) => onEditFormChange('startDate', e.target.value)}
-                        className="w-full pl-7 pr-2 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        disabled={loadingStates.dates}
-                      />
-                    </div>
+            <div className="space-y-3 bg-blue-50 rounded-lg p-4 border border-blue-100">
+              {/* Start Date - Always editable */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">Start Date & Time</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <FiCalendar className="absolute left-3 top-3 text-gray-400 w-4 h-4 pointer-events-none" />
                     <input
-                      type="time"
-                      value={editForms.startTime}
-                      onChange={(e) => onEditFormChange('startTime', e.target.value)}
-                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      type="date"
+                      value={editForms.startDate}
+                      onChange={(e) => onEditFormChange('startDate', e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       disabled={loadingStates.dates}
                     />
                   </div>
+                  <input
+                    type="time"
+                    value={editForms.startTime}
+                    onChange={(e) => onEditFormChange('startTime', e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={loadingStates.dates}
+                  />
                 </div>
-              )}
+                {editForms.startDate && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {new Date(editForms.startDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                  </p>
+                )}
+              </div>
 
+              {/* Due Date - Always editable */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  {task.status === 'In-progress' ? 'Due Date & Time' : 'End Date & Time'}
+                <label className="block text-xs font-medium text-gray-700 mb-2">
+                  {task.status === 'Completed' ? 'Completed Date & Time' : 'Due Date & Time'}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="relative">
-                    <FiCalendar className="absolute left-2 top-1/2 text-gray-400 w-3 h-3" style={{ transform: "translateY(-50%)" }} />
+                    <FiCalendar className="absolute left-3 top-3 text-gray-400 w-4 h-4 pointer-events-none" />
                     <input
                       type="date"
                       value={editForms.dueDate}
                       onChange={(e) => onEditFormChange('dueDate', e.target.value)}
-                      className="w-full pl-7 pr-2 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       disabled={loadingStates.dates}
                     />
                   </div>
@@ -164,19 +170,33 @@ const TaskDetails: React.FC<TaskDetailsProps> = ({
                     type="time"
                     value={editForms.dueTime}
                     onChange={(e) => onEditFormChange('dueTime', e.target.value)}
-                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     disabled={loadingStates.dates}
                   />
                 </div>
+                {editForms.dueDate && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {new Date(editForms.dueDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                  </p>
+                )}
               </div>
 
-              <div className="flex justify-end gap-2">
+              {/* Validation message */}
+              {editForms.startDate && editForms.dueDate && (
+                new Date(`${editForms.startDate}T${editForms.startTime}`).getTime() > new Date(`${editForms.dueDate}T${editForms.dueTime}`).getTime() && (
+                  <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded p-2">
+                    ⚠️ Start date cannot be after due date
+                  </div>
+                )
+              )}
+
+              <div className="flex justify-end gap-2 pt-2">
                 <button
                   onClick={onSaveDates}
-                  disabled={loadingStates.dates}
-                  className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  disabled={loadingStates.dates || (editForms.startDate && editForms.dueDate && new Date(`${editForms.startDate}T${editForms.startTime}`).getTime() > new Date(`${editForms.dueDate}T${editForms.dueTime}`).getTime()) || false}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
                 >
-                  {loadingStates.dates ? 'Saving...' : 'Save'}
+                  {loadingStates.dates ? 'Saving...' : 'Save Dates'}
                 </button>
                 <button
                   onClick={() => {
@@ -187,32 +207,40 @@ const TaskDetails: React.FC<TaskDetailsProps> = ({
                     onEditSection('dates', false)
                   }}
                   disabled={loadingStates.dates}
-                  className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
                 >
                   Cancel
                 </button>
               </div>
             </div>
           ) : (
-            <div className="space-y-2 bg-gray-50 rounded-lg p-3">
+            <div className="space-y-2 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
               {task.startDate && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Start:</span>
-                  <span className="text-gray-900">
-                    {new Date(task.startDate).toLocaleDateString()} {new Date(task.startDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-700 font-medium">Start:</span>
+                  <span className="text-gray-900 font-semibold">
+                    {new Date(task.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} 
+                    <span className="text-xs text-gray-600 ml-1">
+                      {new Date(task.startDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </span>
                   </span>
                 </div>
               )}
               {task.dueDate && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">{task.status === 'In-progress' ? 'Due:' : 'End:'}</span>
-                  <span className="text-gray-900">
-                    {new Date(task.dueDate).toLocaleDateString()} {new Date(task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-700 font-medium">
+                    {task.status === 'Completed' ? 'Completed:' : 'Due:'}
+                  </span>
+                  <span className="text-gray-900 font-semibold">
+                    {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} 
+                    <span className="text-xs text-gray-600 ml-1">
+                      {new Date(task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </span>
                   </span>
                 </div>
               )}
               {!task.startDate && !task.dueDate && (
-                <div className="text-gray-500 text-sm">No dates set</div>
+                <div className="text-gray-500 text-sm text-center py-2">No dates set</div>
               )}
             </div>
           )}
@@ -223,3 +251,4 @@ const TaskDetails: React.FC<TaskDetailsProps> = ({
 }
 
 export default TaskDetails
+
