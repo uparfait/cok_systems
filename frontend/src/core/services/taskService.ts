@@ -8,7 +8,10 @@ export type TaskStatus = 'Under-review' | 'In-progress' | 'Completed'
 
 export interface Task {
   _id?: string
-  belongs: {
+  board?: string
+  list?: string
+  position?: number
+  belongs?: {
     isBelongsTo: boolean
     itBelongsTo?:  {
       _id: string
@@ -17,20 +20,20 @@ export interface Task {
       telephone?: string
     }
   }
-  incharge: string
-  members: string[]
-  watchers: string[]
+  incharge?: string
+  members?: string[]
+  watchers?: string[]
   title: string
   description?: string
   status: TaskStatus
-  priority: string
-  labels: Array<{
+  priority?: string
+  labels?: Array<{
     name: string
     color: string
     _id?: string
   }>
-  attachmentsFile: Array<Attachment>
-  checklists: Array<{
+  attachmentsFile?: Array<Attachment>
+  checklists?: Array<{
     title: string
     items: Array<{
       text: string
@@ -39,7 +42,7 @@ export interface Task {
     }>
     _id?: string
   }>
-  comments: Array<{
+  comments?: Array<{
     commenter: string
     comment: string
     createdAt: string
@@ -50,11 +53,19 @@ export interface Task {
   startDate?: string
   completedAt?: string
   createdAt?: string
+  activities?: Array<{
+    user: string
+    action: string
+    details: any
+    timestamp: string
+  }>
   taskConfig?: {
     coverImage?: string
     coverColor?: string
     estimatedTime?: number
     actualTime?: number
+    startDate?: string
+    notifyDateTime?: string
   }
 }
 
@@ -83,6 +94,44 @@ export interface Notification {
   createdAt?: string
 }
 
+export interface Board {
+  _id?: string
+  name: string
+  description?: string
+  background: {
+    type: 'color' | 'image'
+    value: string
+  }
+  visibility: 'private' | 'workspace' | 'public'
+  createdBy: string
+  members: Array<{
+    user: string
+    role: 'admin' | 'member' | 'observer'
+    addedAt?: string
+  }>
+  labels: Array<{
+    name: string
+    color: string
+    uses?: number
+  }>
+  starred: string[]
+  archived: boolean
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface List {
+  _id?: string
+  name: string
+  board: string
+  position: number
+  color?: string
+  isDefault?: boolean
+  archived?: boolean
+  createdAt?: string
+  updatedAt?: string
+  tasks?: Task[]
+}
 
 // Task CRUD operations
 export const createTask = (taskData: Partial<Task> | FormData) => {
@@ -171,6 +220,36 @@ export const createNotification = (notification: Partial<Notification>) =>
 export const deleteNotification = (notificationId: string) =>
   del(`/notifications/${notificationId}`)
 
+// Board CRUD operations
+export const createBoard = (board: Partial<Board>) =>
+  post('/tasks/boards/create', board)
+
+export const getBoards = (params?: {
+  skip?: number
+  limit?: number
+}) =>
+  get('/tasks/boards/list', params as any)
+
+export const getBoardWithLists = (boardId: string) =>
+  get(`/tasks/boards/${boardId}`)
+
+// List operations
+export const createList = (boardId: string, list: Partial<List>) =>
+  post(`/tasks/boards/${boardId}/lists`, list)
+
+// Task positioning/moving
+export const moveTask = (
+  taskId: string,
+  fromListId: string,
+  toListId: string,
+  newPosition: number
+) =>
+  put(`/tasks/${taskId}/move`, {
+    fromListId,
+    toListId,
+    newPosition
+  })
+
 // Utility functions
 export const getTaskProgress = (task: Task): number => {
   if (!task.checklists || task.checklists.length === 0) return 0
@@ -199,12 +278,12 @@ export const getTaskStatusColor = (task: Task): string => {
   const timeDiff = dueDate.getTime() - now.getTime()
   const hoursDiff = timeDiff / (1000 * 60 * 60)
 
-  if (hoursDiff < 0) return 'red' // Overdue
-  if (hoursDiff <= 1) return 'red' // Due within 1 hour
-  if (hoursDiff <= 24) return 'orange' // Due within 24 hours
-  if (hoursDiff <= 168) return 'yellow' // Due within 1 week
+  if (hoursDiff < 0) return 'red'
+  if (hoursDiff <= 1) return 'red'
+  if (hoursDiff <= 24) return 'orange'
+  if (hoursDiff <= 168) return 'yellow'
 
-  return 'green' // Due later
+  return 'green'
 }
 
 export const isTaskUrgent = (task: Task): boolean => {

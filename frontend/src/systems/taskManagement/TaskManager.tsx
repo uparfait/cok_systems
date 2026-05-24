@@ -1,15 +1,19 @@
-// TaskManager.tsx
+/**
+ * Trello-Like Task Manager Component
+ * Features: Drag-drop, kanban board, persistent modal, real-time updates
+ * UPDATED: Allow backward movement in any direction
+ */
+
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { FiPlus, FiChevronLeft, FiChevronRight } from 'react-icons/fi'
-import { useAuth } from '../../core/contexts/AuthContext'
-import { useToast } from '../../core/contexts/ToastContext'
+import type { Task, List as ListType, Board } from '../../core/services/taskService'
 import {
   getTasks,
-  updateTaskStatus,
+  moveTask,
   getTaskProgress,
   getTaskStatusColor
 } from '../../core/services/taskService'
-import type { Task } from '../../core/services/taskService'
+import { useAuth } from '../../core/contexts/AuthContext'
+import { useToast } from '../../core/contexts/ToastContext'
 import useTaskRealtime from '../../core/hooks/useTaskRealtime'
 import TaskCard from './components/TaskCard'
 import TaskDetailModal from './components/TaskDetailModal'
@@ -33,7 +37,7 @@ const TaskManager: React.FC = () => {
   const [isDraggingScroll, setIsDraggingScroll] = useState(false)
   const [startX, setStartX] = useState(0)
   const [scrollLeft, setScrollLeft] = useState(0)
-  const [SelectedColumnStatus, setSelectedColumnStatus] = useState('Under-review')
+  const [SelectedColumnStatus, setSelectedColumnStatus] = useState<Task['status']>('Under-review')
 
   const [columns, setColumns] = useState<TaskColumn[]>([
     {
@@ -73,7 +77,7 @@ const TaskManager: React.FC = () => {
     columns: false
   })
 
-  const [firstLoad, setFirstLoad] = useState(true);
+  const [firstLoad, setFirstLoad] = useState(true)
 
   // Load tasks
   const loadTasks = useCallback(async (showLoader = true) => {
@@ -106,12 +110,12 @@ const TaskManager: React.FC = () => {
     } catch (error: any) {
       showError(error?.message || 'Failed to load tasks')
     } finally {
-      setFirstLoad(false);
+      setFirstLoad(false)
       if (showLoader) setLoading(prev => ({ ...prev, tasks: false }))
     }
   }, [user?.userId, showError])
 
-  // Load tasks on mount and when user changes
+  // Load tasks on mount
   useEffect(() => {
     loadTasks()
   }, [loadTasks])
@@ -119,12 +123,6 @@ const TaskManager: React.FC = () => {
   // Real-time updates
   useTaskRealtime({
     onTaskStatusUpdated: (data) => {
-      setColumns(prevColumns =>
-        prevColumns.map(column => ({
-          ...column,
-          tasks: column.tasks.filter(task => task._id !== data.taskId)
-        }))
-      )
       loadTasks(false)
     },
     onTaskUpdated: () => {
@@ -162,16 +160,7 @@ const TaskManager: React.FC = () => {
 
     if (sourceColumnIndex === -1 || destinationColumnIndex === -1) return
 
-    const statusOrder = ['Under-review', 'In-progress', 'Completed']
-    const sourceStatusIndex = statusOrder.indexOf(columns[sourceColumnIndex].status)
-    const destinationStatusIndex = statusOrder.indexOf(columns[destinationColumnIndex].status)
-
-    if (destinationStatusIndex <= sourceStatusIndex) {
-      showError('Tasks can only be moved forward, not backward')
-      setDraggedTask(null)
-      return
-    }
-
+    // Allow movement in any direction (forward and backward)
     if (sourceColumnIndex === destinationColumnIndex) {
       setDraggedTask(null)
       return
@@ -179,9 +168,10 @@ const TaskManager: React.FC = () => {
 
     const destinationColumn = columns[destinationColumnIndex]
     const newStatus = destinationColumn.status
+    const newPosition = destinationColumn.tasks.length
 
     try {
-      await updateTaskStatus(draggedTask._id!, newStatus)
+      await moveTask(draggedTask._id!, draggedTask.list || '', destinationColumn.id, newPosition)
       showSuccess(`Task moved to ${destinationColumn.title}`)
 
       const sourceColumn = columns[sourceColumnIndex]
@@ -199,8 +189,13 @@ const TaskManager: React.FC = () => {
           return column
         })
       )
+
+      // Update selected task if it's the one being moved
+      if (selectedTask?._id === draggedTask._id) {
+        setSelectedTask((prev) => prev ? { ...prev, status: newStatus } : null)
+      }
     } catch (error: unknown) {
-      showError((error as Error)?.message || 'Failed to update task status')
+      showError((error as Error)?.message || 'Failed to move task')
       loadTasks(false)
     } finally {
       setDraggedTask(null)
@@ -219,8 +214,9 @@ const TaskManager: React.FC = () => {
   }
 
   const handleTaskUpdated = (updatedTask?: Task) => {
-    // Update the task in the columns state with the provided updated task data
     if (updatedTask && selectedTask) {
+      setSelectedTask(updatedTask)
+
       setColumns(prevColumns =>
         prevColumns.map(column => ({
           ...column,
@@ -229,11 +225,9 @@ const TaskManager: React.FC = () => {
           )
         }))
       )
+
+      showSuccess('Task updated successfully')
     }
-    // Always reload tasks to ensure consistency
-    loadTasks(false)
-    setShowDetailModal(false)
-    setSelectedTask(null)
   }
 
   // Horizontal scroll with drag
@@ -268,21 +262,9 @@ const TaskManager: React.FC = () => {
     scrollContainerRef.current.style.userSelect = 'auto'
   }
 
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollContainerRef.current) {
-      const scrollAmount = 400
-      scrollContainerRef.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth'
-      })
-    }
-  }
-
   return (
     <div className="task-manager-container min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
-    
-
-      {/* Scrollable Columns Container - with drag-to-scroll */}
+      {/* Scrollable Columns Container */}
       <div
         ref={scrollContainerRef}
         className="columns-scroll-container overflow-x-auto overflow-y-hidden cursor-grab px-4 pb-8 pt-2"
@@ -300,7 +282,7 @@ const TaskManager: React.FC = () => {
                 border ${column.borderColor} shadow-xl hover:shadow-2xl transition-all duration-300 
                 ${draggedOverColumn === column.id ? 'ring-4 ring-blue-400/50 ring-offset-2 scale-[1.02]' : ''} 
                 ${loading.tasks ? 'opacity-75' : ''} 
-                 bg-white/40`}
+                bg-white/40`}
               style={{
                 transform: 'perspective(1200px) rotateX(2deg)',
                 transformStyle: 'preserve-3d',
@@ -310,7 +292,7 @@ const TaskManager: React.FC = () => {
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, column.id)}
             >
-              {/* Column Header with distinct gradient */}
+              {/* Column Header */}
               <div
                 className={`relative px-5 py-4 rounded-t-sm bg-gradient-to-r ${column.headerColor}`}
                 style={{
@@ -320,7 +302,6 @@ const TaskManager: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    
                     <h2 className="text-lg font-bold text-white tracking-tight">
                       {column.title}
                     </h2>
@@ -343,8 +324,6 @@ const TaskManager: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                {/* 3D edge effect */}
-                <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
               </div>
 
               {/* Tasks Container */}
@@ -353,7 +332,6 @@ const TaskManager: React.FC = () => {
                   <div className="flex justify-center items-center py-12">
                     <div className="relative">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400"></div>
-                      <div className="absolute inset-0 rounded-full h-8 w-8 border-t-2 border-transparent"></div>
                     </div>
                   </div>
                 ) : column.tasks.length === 0 ? (
@@ -366,17 +344,16 @@ const TaskManager: React.FC = () => {
                     <p className="text-sm text-slate-500">No tasks</p>
                     <button
                       onClick={() => {
-                        setSelectedColumnStatus(column.status);
+                        setSelectedColumnStatus(column.status)
                         setShowCreateModal(true)
-                      }
-                      }
+                      }}
                       className="mt-3 text-xs text-blue-500 hover:text-blue-600 font-medium"
                     >
                       + Add a task
                     </button>
                   </div>
                 ) : (
-                  column.tasks.map((task, idx) => (
+                  column.tasks.map((task) => (
                     <div
                       key={task._id}
                       draggable
@@ -394,16 +371,13 @@ const TaskManager: React.FC = () => {
                         progress={getTaskProgress(task)}
                         statusColor={getTaskStatusColor(task)}
                         onUpdate={() => handleTaskClick(task)}
-                        onMove={() => {
-                          loadTasks(false)
-                        }}
+                        onMove={() => loadTasks(false)}
                       />
                     </div>
                   ))
                 )}
               </div>
 
-              {/* Add footer note for 3D effect */}
               <div className="px-4 pb-3 pt-1">
                 <div className="h-1 w-full bg-gradient-to-r from-transparent via-white/40 to-transparent rounded-full" />
               </div>
@@ -415,10 +389,9 @@ const TaskManager: React.FC = () => {
       {/* Modals */}
       {showCreateModal && (
         <CreateTaskModal
-          
           onClose={() => setShowCreateModal(false)}
           onSuccess={handleTaskCreated}
-          TaskStatus = {SelectedColumnStatus}
+          TaskStatus={SelectedColumnStatus}
         />
       )}
 
@@ -431,12 +404,13 @@ const TaskManager: React.FC = () => {
           }}
           onUpdate={handleTaskUpdated}
           onDelete={() => {
+            setShowDetailModal(false)
+            setSelectedTask(null)
             loadTasks(false)
           }}
         />
       )}
 
-      {/* Custom scrollbar styles */}
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
