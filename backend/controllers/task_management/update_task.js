@@ -24,37 +24,109 @@ const updateTask = async (req, res) => {
             })
         }
 
-        // Convert dates to Date objects if provided
-        if (updateData.dueDate) {
-            updateData.dueDate = new Date(updateData.dueDate)
-        }
-        if (updateData.startDate) {
-            updateData.startDate = new Date(updateData.startDate)
+        // Enhanced date handling with comprehensive validation
+        const dateFields = ['dueDate', 'startDate']
+        const processedDates = {}
+
+        for (const dateField of dateFields) {
+            if (updateData[dateField]) {
+                try {
+                    const dateValue = updateData[dateField]
+                    const date = new Date(dateValue)
+
+                    // Validate date is not invalid
+                    if (isNaN(date.getTime())) {
+                        return res.status(StatusCodes.BAD_REQUEST).json({
+                            status: false,
+                            message: `Invalid ${dateField} format. Please provide a valid date.`
+                        })
+                    }
+
+                    processedDates[dateField] = date
+                } catch (err) {
+                    return res.status(StatusCodes.BAD_REQUEST).json({
+                        status: false,
+                        message: `Error parsing ${dateField}: ${err.message}`
+                    })
+                }
+            }
         }
 
-        // Auto-update status based on start date
-        if (updateData.startDate && (!updateData.status || updateData.status === 'Under-review')) {
-            const startDate = new Date(updateData.startDate)
+        // Date validation: start date must be before due date
+        if (processedDates.startDate && processedDates.dueDate) {
+            if (processedDates.startDate.getTime() > processedDates.dueDate.getTime()) {
+                return res.status(StatusCodes.BAD_REQUEST).json({
+                    status: false,
+                    message: 'Start date cannot be after due date'
+                })
+            }
+        }
+
+        // Apply processed dates to updateData
+        Object.assign(updateData, processedDates)
+
+        // Handle taskConfig dates if provided
+        if (updateData.taskConfig) {
+            if (updateData.taskConfig.startDate) {
+                try {
+                    const configStartDate = new Date(updateData.taskConfig.startDate)
+                    if (isNaN(configStartDate.getTime())) {
+                        return res.status(StatusCodes.BAD_REQUEST).json({
+                            status: false,
+                            message: 'Invalid taskConfig.startDate format'
+                        })
+                    }
+                    updateData.taskConfig.startDate = configStartDate
+                } catch (err) {
+                    return res.status(StatusCodes.BAD_REQUEST).json({
+                        status: false,
+                        message: `Error parsing taskConfig.startDate: ${err.message}`
+                    })
+                }
+            }
+        }
+
+        // Auto-update status based on start date (only if status not explicitly provided)
+        if (processedDates.startDate && !req.body.status) {
+            const startDate = processedDates.startDate
             const today = new Date()
-            const yesterday = new Date(today)
-            yesterday.setDate(today.getDate() - 1)
 
-            // Set to In-progress if start date is today or yesterday
+            // Compare dates at day level (ignoring time)
             const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
             const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-            const yesterdayOnly = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate())
 
-            if (startDateOnly.getTime() <= todayOnly.getTime() && startDateOnly.getTime() >= yesterdayOnly.getTime()) {
+            // Set to In-progress if start date is today or past
+            if (startDateOnly.getTime() <= todayOnly.getTime()) {
                 updateData.status = 'In-progress'
             }
         }
 
-        // Add updatedAt timestamp
+        // Add updatedAt timestamp and activity log for date changes
         updateData.updatedAt = new Date()
+
+        // Track which dates were changed for activity log
+        const dateChanges = {}
+        if (processedDates.startDate) dateChanges.startDate = processedDates.startDate.toISOString()
+        if (processedDates.dueDate) dateChanges.dueDate = processedDates.dueDate.toISOString()
+
+        const activityUpdate = {}
+        if (Object.keys(dateChanges).length > 0) {
+            activityUpdate.$push = {
+                activities: {
+                    user: req.user?.userId || 'system',
+                    action: 'updated_dates',
+                    details: dateChanges,
+                    timestamp: new Date()
+                }
+            }
+        }
+
+        // Merge activity update with main update data
+        const finalUpdateData = { ...updateData, ...activityUpdate }
 
         const updatedTask = await Task.findByIdAndUpdate(
             id,
-            updateData,
+            finalUpdateData,
             { new: true, runValidators: true }
         )
             .populate('board', 'name')

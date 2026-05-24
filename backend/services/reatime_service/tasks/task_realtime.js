@@ -232,7 +232,66 @@ function taskRealtime(socket) {
         console.log(`User ${socket.user?.email || socket.id} left board room: BOARD_ROOM_${boardId}`)
     })
 
-    // Move task between lists
+    // Move task between lists (NEW TRELLO-LIKE)
+    socket.on('move_task_trello', async (data) => {
+        try {
+            const { taskId, boardId, fromListId, toListId, newPosition, userId } = data
+
+            if (!socket.user || socket.user.userId !== userId) {
+                socket.emit('task_error', { message: 'Unauthorized' })
+                return
+            }
+
+            // Update task position and list
+            const updateData = {
+                list: toListId,
+                position: newPosition,
+                updatedAt: new Date(),
+                $push: {
+                    activities: {
+                        user: userId,
+                        action: 'moved',
+                        details: { fromList: fromListId, toList: toListId, position: newPosition },
+                        timestamp: new Date()
+                    }
+                }
+            }
+
+            const updatedTask = await Task.findByIdAndUpdate(taskId, updateData, { new: true })
+                .populate('incharge', 'full_name email')
+                .populate('members', 'full_name email')
+                .populate('list', 'name')
+
+            if (!updatedTask) {
+                socket.emit('task_error', { message: 'Task not found' })
+                return
+            }
+
+            // Emit to board room for real-time updates
+            socket.to(`BOARD_ROOM_${boardId}`).emit('task_moved_trello', {
+                taskId,
+                fromListId,
+                toListId,
+                newPosition,
+                updatedTask,
+                movedBy: socket.user,
+                timestamp: new Date()
+            })
+
+            // Confirm to sender
+            socket.emit('task_move_success', {
+                taskId,
+                toListId,
+                newPosition
+            })
+
+        } catch (error) {
+            console.error('Error moving task:', error)
+            socket.emit('task_error', { message: 'Failed to move task' })
+        }
+    })
+
+    // Move task between lists (Legacy)
     socket.on('move_task', async (data) => {
         try {
             const { taskId, fromListId, toListId, newPosition, userId } = data
