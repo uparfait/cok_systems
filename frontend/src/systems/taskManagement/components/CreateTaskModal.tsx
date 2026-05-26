@@ -696,7 +696,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
           </div>
 
           {/* Notification Date */}
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               <FiBell className="inline w-4 h-4 mr-1" />
               Notification Date & Time
@@ -721,7 +721,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ onClose, onSuccess, T
               />
             </div>
             <p className="text-xs text-gray-500 mt-1">Leave empty to disable notifications</p>
-          </div>
+          </div> */}
 
           {/* Actions */}
           <div className="flex space-x-3 pt-4">
