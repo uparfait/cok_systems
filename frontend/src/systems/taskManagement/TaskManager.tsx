@@ -46,7 +46,7 @@ const TaskManager: React.FC = () => {
       status: 'Under-review',
       tasks: [],
       gradient: 'from-stone-50 to-stone-100/80',
-      headerColor: 'from-stone-600 to-stone-700',
+      headerColor: 'from-stone-700 to-stone-700',
       borderColor: 'border-stone-200'
     },
     {
@@ -55,7 +55,7 @@ const TaskManager: React.FC = () => {
       status: 'In-progress',
       tasks: [],
       gradient: 'from-blue-50 to-indigo-50/80',
-      headerColor: 'from-blue-600 to-indigo-600',
+      headerColor: 'from-blue-600 to-blue-600',
       borderColor: 'border-blue-200'
     },
     {
@@ -64,7 +64,7 @@ const TaskManager: React.FC = () => {
       status: 'Completed',
       tasks: [],
       gradient: 'from-emerald-50 to-teal-50/80',
-      headerColor: 'from-emerald-600 to-teal-600',
+      headerColor: 'from-teal-600 to-teal-600',
       borderColor: 'border-emerald-200'
     }
   ])
@@ -347,7 +347,7 @@ const TaskManager: React.FC = () => {
                         setSelectedColumnStatus(column.status)
                         setShowCreateModal(true)
                       }}
-                      className="mt-3 text-xs text-blue-500 hover:text-blue-600 font-medium"
+                      className="mt-3 text-xs hover:cursor-pointer  text-blue-500 hover:text-blue-600 font-medium"
                     >
                       + Add a task
                     </button>
