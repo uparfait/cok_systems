@@ -22,4 +22,10 @@ export const departmentService = {
   create: (data: Partial<Department>) => post('/department/crud', data),
   update: (id: string, data: Partial<Department>) => put(`/department/crud/${id}`, data),
   delete: (id: string) => del(`/department/crud/${id}`),
+  addService: (departmentId: string, serviceData: { name: string; description?: string }) => 
+    post(`/department/crud/${departmentId}/services`, serviceData),
+  updateService: (departmentId: string, serviceId: string, serviceData: { name?: string; description?: string }) => 
+    put(`/department/crud/${departmentId}/services/${serviceId}`, serviceData),
+  deleteService: (departmentId: string, serviceId: string) => 
+    del(`/department/crud/${departmentId}/services/${serviceId}`),
 }

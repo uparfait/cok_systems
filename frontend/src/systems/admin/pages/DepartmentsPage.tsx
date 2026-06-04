@@ -4,27 +4,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
-import { departmentService, employeeService, type Department as AdminDepartment, type Employee } from '../../../core/services/adminService';
+import { departmentService, employeeService, normalizeDepartments, type Department, type Employee } from '../../../core/services/adminService';
 import DepartmentManagementTable from '../components/DepartmentManagementTable';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { 
-  FiPlus, FiSearch, FiEdit2, FiTrash2, FiRefreshCw,
-  FiX, FiCheck, FiAlertCircle
+  FiPlus, FiSearch, FiRefreshCw,
+  FiCheck, FiAlertCircle
 } from 'react-icons/fi';
 import { HiOutlineOfficeBuilding } from 'react-icons/hi';
-
-interface DepartmentLeader {
-  _id?: string;
-  full_name?: string;
-  email?: string;
-  title?: string;
-}
-
-interface Department extends AdminDepartment {
-  description?: string;
-  room_number?: string;
-}
 
 const DepartmentsPage: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -51,12 +39,11 @@ const DepartmentsPage: React.FC = () => {
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
 
-  // Form state
   const [formData, setFormData] = useState<Partial<Department>>({
     name: '',
     description: '',
     room_number: '',
-    leader: '',
+    leader: null,
     services: [],
   });
 
@@ -83,10 +70,10 @@ const DepartmentsPage: React.FC = () => {
       ]);
       
       if (deptResponse?.success) {
-        const deptData = Array.isArray(deptResponse.data) 
+        const rawData = Array.isArray(deptResponse.data) 
           ? deptResponse.data 
           : (deptResponse.data?.data || []);
-        setDepartments(deptData);
+        setDepartments(normalizeDepartments(rawData));
       } else if (deptResponse) {
         setError(deptResponse.message || deptResponse.error || 'Failed to load departments');
       }
@@ -97,8 +84,8 @@ const DepartmentsPage: React.FC = () => {
           : (empResponse.data?.data || []);
         setEmployees(empData);
       }
-    } catch (err: any) {
-      setError(err?.message || err?.error || 'An error occurred while loading data');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred while loading data');
     } finally {
       setLoading(false);
       setFirstLoad(false);
@@ -153,8 +140,8 @@ const DepartmentsPage: React.FC = () => {
       } else {
         setError(response.message || response.error || 'Search failed');
       }
-    } catch (err: any) {
-      setError(err.message || err.error || 'Search failed');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Search failed');
     } finally {
       setLoading(false);
     }
@@ -177,13 +164,11 @@ const DepartmentsPage: React.FC = () => {
 
   // Open modal for editing
   const handleEdit = (department: Department) => {
-    let leaderId = '';
-    if (department.leader) {
-      if (typeof department.leader === 'string') {
-        leaderId = department.leader;
-      } else if (typeof department.leader === 'object') {
-        leaderId = (department.leader as any)._id || '';
-      }
+    let leaderId: string = '';
+    const leader = department.leader || department.department_leader;
+    if (leader) {
+      if (typeof leader === 'string') leaderId = leader;
+      else if (typeof leader === 'object') leaderId = (leader as { _id?: string })._id || '';
     }
     
     setEditingDepartment(department);
@@ -247,8 +232,8 @@ const DepartmentsPage: React.FC = () => {
           setFormError(response.message || response.error || 'Failed to create department');
         }
       }
-    } catch (err: any) {
-      setFormError(err.message || err.error || 'Failed to save department');
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Failed to save department');
     } finally {
       setSubmitting(false);
     }
@@ -268,8 +253,8 @@ const DepartmentsPage: React.FC = () => {
       await departmentService.delete(deletingId);
       setShowDeleteConfirm(false);
       loadDepartments(false);
-    } catch (err: any) {
-      setError(err.message || err.error || 'Failed to delete department');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete department');
     } finally {
       setDeleting(false);
       setDeletingId(null);
