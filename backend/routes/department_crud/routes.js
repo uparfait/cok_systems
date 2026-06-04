@@ -1,5 +1,5 @@
 /**
- * Below are routes for department-clud system
+ * Below are routes for department-crud system
  */
 
 const Router = require('express').Router()
@@ -19,6 +19,7 @@ const delete_department = require('../../controllers/department_crud/delete_depa
 const search_department = require('../../controllers/department_crud/search_department.js')
 const get_department_leader = require('../../controllers/department_crud/get_department_leader.js')
 const get_department_sub_departments = require('../../controllers/department_crud/get_department_sub_departments.js')
+const { addService, updateService, deleteService } = require('../../controllers/department_crud/service_management.js')
 const multer = require('multer')
 const upload = multer()
 
@@ -54,6 +55,11 @@ Router.get('/:departmentId/sub-departments', auditSuccess('READ', 'departments')
 Router.post('/', auditSuccess('CREATE', 'departments', (req, res, data) => `Created new department: ${data?.data?.department_name || req.body.department_name || 'unknown'}`), create_department)
 Router.put('/:id', auditSuccess('UPDATE', 'departments', (req, res, data) => `Updated department: ${req.params.id}`), update_department)
 Router.delete('/:id', auditSuccess('DELETE', 'departments', (req, res, data) => `Deleted department: ${req.params.id}`), delete_department)
+
+// Service management routes
+Router.post('/:departmentId/services', auditSuccess('CREATE', 'department_services', (req, res, data) => `Added service to department: ${req.params.departmentId}`), addService)
+Router.put('/:departmentId/services/:serviceId', auditSuccess('UPDATE', 'department_services', (req, res, data) => `Updated service: ${req.params.serviceId}`), updateService)
+Router.delete('/:departmentId/services/:serviceId', auditSuccess('DELETE', 'department_services', (req, res, data) => `Deleted service: ${req.params.serviceId}`), deleteService)
 
 // Add error logging middleware
 Router.use(auditError('departments'))

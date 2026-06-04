@@ -1,78 +1,22 @@
-/* Chat utility to send messages*/
-/* First fetch the authenticated user info from the socket, then handle chat events */
-/* then fetch all users in userModel for easiest chat implementation */
+/**
+ * Chat Utility - MongoDB Persistence
+ * All messages are stored in MongoDB instead of in-memory variables
+ * Provides full CRUD operations for global and inbox chat messages
+ */
 
+const crypto = require('crypto');
+const ChatMessage = require('../models/chat_message.js');
+const User = require('../models/user.js');
 
-// Declaring chatting database as it is not be saved to database
-
-// old ones will be removed only last 1000 messages stored
-
-
-/*Schema
-{
-message: '',
-createdAt: '',
-time: '10:30 AM',
-sender: {
-    email: '',
-    full_name: '',
-    telephone: '',
-    userId: '',
-}
-
-
-*/
-var Global_Messages = []
-
-// these stored for a whole day
-
-/*schema
-
-{
-message: '',
-createdAt: '',
-time: '10:30 AM',
-sender: {
-    email: '',
-    full_name: '',
-    telephone: '',
-    userId: '',
-},
-receiver: {
-    email: '',
-    full_name: '',
-    telephone: '',
-    userId: '',
-}
-
-*/
-var InBoxMessages = []
-// updated every 10 minutes from database to makesure that we have all users in the system for chat functionality
-var AllUsers = []
-
-// schema
-
-/*
-
-{
-messageId: '',
-readerIds: [userId1, userId2, ...],
-}
-
-*/
-
-var MessagesWithWhoReadIt = []
-
-// import all neccessary modules and crypto for message id
-const crypto = require('crypto')
-const user_model = require('../models/user.js')
+// In-memory cache for connected user socket mappings (still needed for real-time)
+const UserSockets = {};
 
 /**
  * Generate a unique message ID
  * @returns {string} - Unique message ID
  */
 function generateMessageId() {
-    return crypto.randomBytes(16).toString('hex');
+  return crypto.randomBytes(16).toString('hex');
 }
 
 /**
@@ -80,483 +24,419 @@ function generateMessageId() {
  * @returns {string} - Formatted time
  */
 function getCurrentTime() {
-    const now = new Date();
-    return now.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: true 
-    });
+  const now = new Date();
+  return now.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
 }
 
 function Global_ChatRoom() {
-    return "global_chat_room"
+  return 'global_chat_room';
 }
 
 function Private_Room(userId) {
-    return `PRIVATE_ROOM_${userId}`
+  return `PRIVATE_ROOM_${String(userId)}`;
 }
 
-/**
- * Update AllUsers from database
- */
+// ──────────────────────────────────────────────
+// USER SOCKET MAPPING
+// ──────────────────────────────────────────────
+
+function RegisterUserSocket(userId, socketId) {
+  if (!UserSockets[userId]) {
+    UserSockets[userId] = [];
+  }
+  if (!UserSockets[userId].includes(socketId)) {
+    UserSockets[userId].push(socketId);
+  }
+}
+
+function UnregisterUserSocket(userId, socketId) {
+  if (UserSockets[userId]) {
+    UserSockets[userId] = UserSockets[userId].filter(id => id !== socketId);
+    if (UserSockets[userId].length === 0) {
+      delete UserSockets[userId];
+    }
+  }
+}
+
+function GetUserSocketId(userId) {
+  const sockets = UserSockets[userId];
+  return sockets && sockets.length > 0 ? sockets[0] : null;
+}
+
+function GetConnectedUsers() {
+  return Object.keys(UserSockets);
+}
+
+// ──────────────────────────────────────────────
+// USERS (cached from DB every 10 minutes)
+// ──────────────────────────────────────────────
+
+let AllUsers = [];
+let lastUsersFetch = 0;
+const USERS_FETCH_INTERVAL = 10 * 60 * 1000; // 10 minutes
+
 async function UpdateAllUsers() {
-    try {
-        const users = await user_model.find({}, "is_active email full_name telephone")
-        AllUsers = users
-    } catch (e) {
-        console.log('Error fetching users for chat:', e)
+  try {
+    const now = Date.now();
+    if (now - lastUsersFetch < USERS_FETCH_INTERVAL && AllUsers.length > 0) {
+      return;
     }
+    const users = await User.find(
+      {},
+      'is_active email full_name telephone',
+    ).lean();
+    AllUsers = users;
+    lastUsersFetch = now;
+  } catch (e) {
+    console.log('Error fetching users for chat:', e);
+  }
 }
 
-/**
- * Get all users
- * @returns {Array} - Array of users
- */
 function GetAllUsers() {
-    return AllUsers;
+  return AllUsers;
 }
 
-/* with respective MessagesWithWhoReadIt */
-
- async function MarkMessagesAsRead( userId, MessageArrayIds) {
-    try {
-        MessageArrayIds.forEach(messageId => {
-            let messageReadInfo = MessagesWithWhoReadIt.find(msg => msg.messageId === messageId)
-            if (messageReadInfo) {
-                if (!messageReadInfo.readerIds.includes(userId)) {
-                    messageReadInfo.readerIds.push(userId)
-                }
-            } else {
-                MessagesWithWhoReadIt.push({
-                    messageId: messageId,
-                    readerIds: [userId]
-                })
-            }
-        })
-    } catch (e) {
-        console.log('Error marking messages as read:', e)
-    }
+async function SendAllUsersToClient(socket) {
+  socket.emit('all_users', AllUsers);
 }
+
+// ──────────────────────────────────────────────
+// GLOBAL MESSAGES
+// ──────────────────────────────────────────────
 
 /**
- * Mark a single inbox message as read
- * @param {string} messageId - Message ID
- * @param {string} userId - User ID who is reading the message
- * @returns {object} - Result object
- */
-async function MarkMessageAsRead(messageId, userId) {
-    try {
-        let message = InBoxMessages.find(msg => msg.messageId === messageId);
-        
-        if (!message) {
-            return { success: false, error: 'Message not found' };
-        }
-        
-        // Initialize readBy array if it doesn't exist
-        if (!message.readBy) {
-            message.readBy = [];
-        }
-        
-        // Add user to readBy if not already there
-        if (!message.readBy.includes(userId)) {
-            message.readBy.push(userId);
-            message.readAt = new Date().toISOString();
-        }
-        
-        return { success: true, messageId, readBy: message.readBy };
-    } catch (e) {
-        console.log('Error marking message as read:', e);
-        return { success: false, error: e.message };
-    }
-}
-
-/**
- * Get unread message count for a user from a specific sender
- * @param {string} userId - User ID (receiver)
- * @param {string} fromUserId - Sender user ID
- * @returns {number} - Unread message count
- */
-function GetUnreadCount(userId, fromUserId) {
-    const messages = InBoxMessages.filter(msg => 
-        !msg.isDeleted &&
-        msg.sender.userId === fromUserId &&
-        msg.receiver.userId === userId
-    );
-    
-    return messages.filter(msg => !msg.readBy || !msg.readBy.includes(userId)).length;
-}
-
-/**
- * Create a new global message
- * @param {string} message - Message content
- * @param {object} sender - Sender info {email, full_name, telephone, userId}
- * @returns {object} - Created message object
+ * Create a new global message (persisted to MongoDB)
  */
 async function CreateGlobalMessage(message, sender) {
-    const messageId = generateMessageId();
-    const newMessage = {
-        messageId,
-        message,
-        createdAt: new Date().toISOString(),
-        time: getCurrentTime(),
-        sender,
-        isEdited: false,
-        isDeleted: false
-    };
-    
-    Global_Messages.push(newMessage);
-    
-    // Keep only last 1000 messages
-    await RemainLast1000GlobalMessages();
-    
-    return newMessage;
-}
-
-/**
- * Create a new inbox message (private/direct message)
- * @param {string} message - Message content
- * @param {object} sender - Sender info {email, full_name, telephone, userId}
- * @param {object} receiver - Receiver info {email, full_name, telephone, userId}
- * @returns {object} - Created message object
- */
-async function CreateInboxMessage(message, sender, receiver) {
-    const messageId = generateMessageId();
-    const newMessage = {
-        messageId,
-        message,
-        createdAt: new Date().toISOString(),
-        time: getCurrentTime(),
-        sender,
-        receiver,
-        isEdited: false,
-        isDeleted: false
-    };
-    
-    InBoxMessages.push(newMessage);
-    
-    return newMessage;
+  const messageId = generateMessageId();
+  const doc = await ChatMessage.create({
+    messageId,
+    message,
+    type: 'global',
+    sender: {
+      userId: sender.userId,
+      email: sender.email,
+      full_name: sender.full_name,
+    },
+    createdAt: new Date(),
+  });
+  return doc.toJSON();
 }
 
 /**
  * Edit a global message
- * @param {string} messageId - Message ID to edit
- * @param {string} newMessage - New message content
- * @param {string} userId - User ID (for authorization)
- * @returns {object|null} - Updated message or null if not found/unauthorized
  */
 async function EditGlobalMessage(messageId, newMessage, userId) {
-    const message = Global_Messages.find(msg => msg.messageId === messageId);
-    
-    if (!message) {
-        return { success: false, error: 'Message not found' };
-    }
-    
-    if (message.sender.userId !== userId) {
-        return { success: false, error: 'Unauthorized to edit this message' };
-    }
-    
-    message.message = newMessage;
-    message.isEdited = true;
-    message.editedAt = new Date().toISOString();
-    message.editedTime = getCurrentTime();
-    
-    return { success: true, message };
-}
-
-/**
- * Edit an inbox message
- * @param {string} messageId - Message ID to edit
- * @param {string} newMessage - New message content
- * @param {string} userId - User ID (for authorization)
- * @returns {object|null} - Updated message or null if not found/unauthorized
- */
-async function EditInboxMessage(messageId, newMessage, userId) {
-    const message = InBoxMessages.find(msg => msg.messageId === messageId);
-    
-    if (!message) {
-        return { success: false, error: 'Message not found' };
-    }
-    
-    // Both sender and receiver can edit the message
-    if (message.sender.userId !== userId && message.receiver.userId !== userId) {
-        return { success: false, error: 'Unauthorized to edit this message' };
-    }
-    
-    message.message = newMessage;
-    message.isEdited = true;
-    message.editedAt = new Date().toISOString();
-    message.editedTime = getCurrentTime();
-    
-    return { success: true, message };
+  const msg = await ChatMessage.findOne({ messageId, type: 'global', isDeleted: false });
+  if (!msg) {
+    return { success: false, error: 'Message not found' };
+  }
+  if (msg.sender.userId !== userId) {
+    return { success: false, error: 'Unauthorized to edit this message' };
+  }
+  msg.message = newMessage;
+  msg.isEdited = true;
+  msg.editedAt = new Date();
+  await msg.save();
+  return { success: true, message: msg.toJSON() };
 }
 
 /**
  * Delete a global message (soft delete)
- * @param {string} messageId - Message ID to delete
- * @param {string} userId - User ID (for authorization)
- * @returns {object} - Result object
  */
 async function DeleteGlobalMessage(messageId, userId) {
-    const messageIndex = Global_Messages.findIndex(msg => msg.messageId === messageId);
-    
-    if (messageIndex === -1) {
-        return { success: false, error: 'Message not found' };
-    }
-    
-    const message = Global_Messages[messageIndex];
-    
-    // Only sender can delete their own message
-    if (message.sender.userId !== userId) {
-        return { success: false, error: 'Unauthorized to delete this message' };
-    }
-    
-    // Soft delete
-    Global_Messages =  Global_Messages.filter((_,i) => i !== messageIndex)
-    
-    // Also remove from read tracking
-    MessagesWithWhoReadIt = MessagesWithWhoReadIt.filter(msg => msg.messageId !== messageId);
-    
-    return { success: true, messageId };
+  const msg = await ChatMessage.findOne({ messageId, type: 'global', isDeleted: false });
+  if (!msg) {
+    return { success: false, error: 'Message not found' };
+  }
+  if (msg.sender.userId !== userId) {
+    return { success: false, error: 'Unauthorized to delete this message' };
+  }
+  msg.isDeleted = true;
+  msg.deletedAt = new Date();
+  await msg.save();
+  return { success: true, messageId };
+}
+
+/**
+ * Get all non-deleted global messages (last 1000)
+ */
+async function GetGlobalMessages() {
+  return ChatMessage.find({ type: 'global', isDeleted: false })
+    .sort({ createdAt: -1 })
+    .limit(1000)
+    .lean()
+    .then(docs => docs.reverse());
+}
+
+function GetGlobalMessageById(messageId) {
+  return ChatMessage.findOne({ messageId, type: 'global', isDeleted: false }).lean();
+}
+
+async function SendGlobalMessagesToClient(socket) {
+  const msgs = await GetGlobalMessages();
+  socket.emit('global_messages', msgs);
+}
+
+async function SendGlobalMessagesToAllClients() {
+  const msgs = await GetGlobalMessages();
+  global.WebsocketIO.to(Global_ChatRoom()).emit('global_messages', msgs);
+}
+
+async function DeleteMessageFromGlobal(messageId) {
+  await ChatMessage.updateOne({ messageId }, { isDeleted: true, deletedAt: new Date() });
+}
+
+/**
+ * Trim global messages older than 7 days (keep only recent)
+ */
+async function TrimOldGlobalMessages() {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  await ChatMessage.deleteMany({ type: 'global', createdAt: { $lt: sevenDaysAgo } });
+}
+
+// ──────────────────────────────────────────────
+// INBOX / PRIVATE MESSAGES
+// ──────────────────────────────────────────────
+
+/**
+ * Create a new inbox message (persisted to MongoDB)
+ */
+async function CreateInboxMessage(message, sender, receiver) {
+  const messageId = generateMessageId();
+  const conversationKey = ChatMessage.makeConversationKey(sender.userId, receiver.userId);
+  const doc = await ChatMessage.create({
+    messageId,
+    message,
+    type: 'inbox',
+    sender: {
+      userId: sender.userId,
+      email: sender.email,
+      full_name: sender.full_name,
+    },
+    receiver: {
+      userId: String(receiver.userId),
+      email: receiver.email || '',
+      full_name: receiver.full_name || '',
+    },
+    conversationKey,
+    createdAt: new Date(),
+  });
+  return doc.toJSON();
+}
+
+/**
+ * Edit an inbox message
+ */
+async function EditInboxMessage(messageId, newMessage, userId) {
+  const msg = await ChatMessage.findOne({ messageId, type: 'inbox', isDeleted: false });
+  if (!msg) {
+    return { success: false, error: 'Message not found' };
+  }
+  if (msg.sender.userId !== userId && msg.receiver.userId !== userId) {
+    return { success: false, error: 'Unauthorized to edit this message' };
+  }
+  msg.message = newMessage;
+  msg.isEdited = true;
+  msg.editedAt = new Date();
+  await msg.save();
+  return { success: true, message: msg.toJSON() };
 }
 
 /**
  * Delete an inbox message (soft delete)
- * @param {string} messageId - Message ID to delete
- * @param {string} userId - User ID (for authorization)
- * @returns {object} - Result object
  */
 async function DeleteInboxMessage(messageId, userId) {
-    const messageIndex = InBoxMessages.findIndex(msg => msg.messageId === messageId);
-    
-    if (messageIndex === -1) {
-        return { success: false, error: 'Message not found' };
-    }
-    
-    const message = InBoxMessages[messageIndex];
-    
-    // Both sender and receiver can delete the message
-    if (message.sender.userId !== userId && message.receiver.userId !== userId) {
-        return { success: false, error: 'Unauthorized to delete this message' };
-    }
-    
-    // Soft delete
-      InBoxMessages = InBoxMessages.filter((_,i) => i !== messageIndex)
-    
-    return { success: true, messageId };
+  const msg = await ChatMessage.findOne({ messageId, type: 'inbox', isDeleted: false });
+  if (!msg) {
+    return { success: false, error: 'Message not found' };
+  }
+  if (msg.sender.userId !== userId && msg.receiver.userId !== userId) {
+    return { success: false, error: 'Unauthorized to delete this message' };
+  }
+  msg.isDeleted = true;
+  msg.deletedAt = new Date();
+  await msg.save();
+  return { success: true, messageId };
 }
 
 /**
- * Get global messages
- * @returns {Array} - Array of global messages
- */
-function GetGlobalMessages() {
-    return Global_Messages.filter(msg => !msg.isDeleted);
-}
-
-/**
- * Get inbox messages for a user
- * @param {string} userId - User ID
- * @returns {Array} - Array of inbox messages
+ * Get all inbox messages for a user (conversations list)
  */
 async function GetInboxMessages(userId) {
-    return InBoxMessages.filter(msg => 
-        !msg.isDeleted && 
-        (msg.sender.userId === userId || msg.receiver.userId === userId)
-    );
+  const sid = String(userId);
+  return ChatMessage.find({
+    type: 'inbox',
+    isDeleted: false,
+    $or: [{ 'sender.userId': sid }, { 'receiver.userId': sid }],
+  })
+    .sort({ createdAt: -1 })
+    .lean();
 }
 
-/**
- * Get a specific message by ID (global)
- * @param {string} messageId - Message ID
- * @returns {object|null} - Message object or null
- */
-function GetGlobalMessageById(messageId) {
-    return Global_Messages.find(msg => msg.messageId === messageId && !msg.isDeleted);
-}
-
-/**
- * Get a specific message by ID (inbox)
- * @param {string} messageId - Message ID
- * @param {string} userId - User ID (for authorization)
- * @returns {object|null} - Message object or null
- */
 function GetInboxMessageById(messageId, userId) {
-    const message = InBoxMessages.find(msg => 
-        msg.messageId === messageId && 
-        !msg.isDeleted &&
-        (msg.sender.userId === userId || msg.receiver.userId === userId)
-    );
-    return message || null;
+  return ChatMessage.findOne({
+    messageId,
+    type: 'inbox',
+    isDeleted: false,
+    $or: [{ 'sender.userId': userId }, { 'receiver.userId': userId }],
+  }).lean();
 }
 
-/* delete messages from global*/
-
-async function DeleteMessageFromGlobal(messageId) {
-    Global_Messages = Global_Messages.filter(msg => msg.messageId !== messageId)
-    MessagesWithWhoReadIt = MessagesWithWhoReadIt.filter(msg => msg.messageId !== messageId)
+/**
+ * Get messages between two specific users (sorted chronological)
+ */
+async function GetMessagesBetweenUsers(userId1, userId2) {
+  const conversationKey = ChatMessage.makeConversationKey(userId1, userId2);
+  return ChatMessage.find({
+    type: 'inbox',
+    isDeleted: false,
+    conversationKey,
+  })
+    .sort({ createdAt: 1 })
+    .lean();
 }
 
-
-async function RemainLast1000GlobalMessages() {
-    if (Global_Messages.length > 1000) {
-        Global_Messages = Global_Messages.slice(-1000)
-    }
-}
-
-
-async function SendAllUsersToClient(socket) {
-    socket.emit('all_users', AllUsers)
-}
-
-async function SendGlobalMessagesToClient(socket) {
-    socket.emit('global_messages', GetGlobalMessages())
-}
-
-async function SendGlobalMessagesToAllClients() {
-    global.WebsocketIO.to(Global_ChatRoom()).emit('global_messages', GetGlobalMessages())
-}
-
+/**
+ * Send the latest inbox messages snapshot to a specific socket for a given user
+ */
 async function SendInBoxMessagesToClient(socket) {
-    const userId = socket.user.userId
-    const userInBoxMessages = InBoxMessages.filter(msg => 
-        !msg.isDeleted && (msg.sender.userId === userId) || (msg.receiver.userId === userId)
-    )
-    socket.emit('inbox_messages', userInBoxMessages)
+  const userId = socket.user.userId;
+  const msgs = await GetInboxMessages(userId);
+  const sid = String(userId);
+
+  // Group by conversation and get latest message per conversation
+  const conversations = {};
+  for (const msg of msgs) {
+    const otherId = msg.sender.userId === sid ? msg.receiver.userId : msg.sender.userId;
+    if (!conversations[otherId] || new Date(msg.createdAt) > new Date(conversations[otherId].createdAt)) {
+      conversations[otherId] = msg;
+    }
+  }
+
+  socket.emit('inbox_messages', msgs);
 }
 
 /**
- * Send inbox message to specific user
- * @param {string} userId - Receiver user ID
- * @param {object} message - Message object
+ * Send a specific inbox message to a user via their private room
  */
-async function SendInboxMessageToUser(userId, message) {
-    const userSocketId = GetUserSocketId(userId);
-    if (userSocketId) {
-        global.WebsocketIO.to(userSocketId).emit('new_inbox_message', message);
+async function SendInboxMessageToUser(message, receiverId) {
+  const room = Private_Room(receiverId);
+  if (global.WebsocketIO) {
+    global.WebsocketIO.to(room).emit('new_inbox_message', message);
+  }
+
+  // Also send to the sender
+  if (message.sender && message.sender.userId) {
+    const senderRoom = Private_Room(message.sender.userId);
+    if (global.WebsocketIO) {
+      global.WebsocketIO.to(senderRoom).emit('new_inbox_message', message);
     }
-    // Also emit to the sender
-    const senderSocketId = GetUserSocketId(message.sender.userId);
-    if (senderSocketId) {
-        global.WebsocketIO.to(senderSocketId).emit('new_inbox_message', message);
-    }
+  }
 }
 
-// Store user socket mappings
-var UserSockets = {};
+// ──────────────────────────────────────────────
+// READ TRACKING
+// ──────────────────────────────────────────────
 
-/**
- * Register a user's socket connection
- * @param {string} userId - User ID
- * @param {string} socketId - Socket ID
- */
-function RegisterUserSocket(userId, socketId) {
-    if (!UserSockets[userId]) {
-        UserSockets[userId] = [];
+async function MarkMessageAsRead(messageId, userId) {
+  try {
+    const msg = await ChatMessage.findOne({ messageId, isDeleted: false });
+    if (!msg) {
+      return { success: false, error: 'Message not found' };
     }
-    if (!UserSockets[userId].includes(socketId)) {
-        UserSockets[userId].push(socketId);
+
+    const alreadyRead = msg.readBy.some(r => r.userId === userId);
+    if (!alreadyRead) {
+      msg.readBy.push({ userId, readAt: new Date() });
+      await msg.save();
     }
+    return { success: true, messageId, readBy: msg.readBy };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
 }
 
-/**
- * Unregister a user's socket connection
- * @param {string} userId - User ID
- * @param {string} socketId - Socket ID
- */
-function UnregisterUserSocket(userId, socketId) {
-    if (UserSockets[userId]) {
-        UserSockets[userId] = UserSockets[userId].filter(id => id !== socketId);
-        if (UserSockets[userId].length === 0) {
-            delete UserSockets[userId];
+async function MarkMessagesAsRead(userId, messageIds) {
+  const sid = String(userId);
+  for (const messageId of messageIds) {
+    try {
+      const msg = await ChatMessage.findOne({ messageId, isDeleted: false });
+      if (msg) {
+        const alreadyRead = msg.readBy.some(r => r.userId === sid);
+        if (!alreadyRead) {
+          msg.readBy.push({ userId: sid, readAt: new Date() });
+          await msg.save();
         }
+      }
+    } catch (e) {
+      // continue with next
     }
+  }
 }
 
-/**
- * Get socket ID for a user
- * @param {string} userId - User ID
- * @returns {string|null} - Socket ID or null
- */
-function GetUserSocketId(userId) {
-    const sockets = UserSockets[userId];
-    return sockets && sockets.length > 0 ? sockets[0] : null;
+function GetUnreadCount(userId, fromUserId) {
+  // We'll handle this via MongoDB query
+  return ChatMessage.countDocuments({
+    type: 'inbox',
+    isDeleted: false,
+    'sender.userId': String(fromUserId),
+    'receiver.userId': String(userId),
+    'readBy.userId': { $ne: String(userId) },
+  });
 }
 
-/**
- * Get all connected users
- * @returns {Array} - Array of user IDs
- */
-function GetConnectedUsers() {
-    return Object.keys(UserSockets);
-}
+// ──────────────────────────────────────────────
+// EXPORTS
+// ──────────────────────────────────────────────
 
-/**
- * Get messages between two specific users
- * @param {string} userId1 - First user ID
- * @param {string} userId2 - Second user ID
- * @returns {Array} - Array of messages between the two users
- */
-function GetMessagesBetweenUsers(userId1, userId2) {
-    
-    // Convert userIds to strings for comparison (handle both MongoDB ObjectId and plain strings)
-    const id1 = String(userId1);
-    const id2 = String(userId2);
-    
-    const messages = InBoxMessages.filter(msg => {
-        const senderId = String(msg.sender.userId);
-        const receiverId = String(msg.receiver.userId);
-        return !msg.isDeleted &&
-        ((senderId === id1 && receiverId === id2) ||
-         (senderId === id2 && receiverId === id1));
-    }).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-    
-    return messages;
-}
-
-// Export all functions
 module.exports = {
-    // Room functions
-    Global_ChatRoom,
-    Private_Room,
-    
-    // User functions
-    UpdateAllUsers,
-    GetAllUsers,
-    RegisterUserSocket,
-    UnregisterUserSocket,
-    GetUserSocketId,
-    GetConnectedUsers,
-    
-    // Global message functions
-    CreateGlobalMessage,
-    EditGlobalMessage,
-    DeleteGlobalMessage,
-    GetGlobalMessages,
-    GetGlobalMessageById,
-    SendGlobalMessagesToClient,
-    SendGlobalMessagesToAllClients,
-    
-    // Inbox message functions
-    CreateInboxMessage,
-    EditInboxMessage,
-    DeleteInboxMessage,
-    GetInboxMessages,
-    GetInboxMessageById,
-    SendInBoxMessagesToClient,
-    SendInboxMessageToUser,
-    
-    // Read tracking
-    MarkMessagesAsRead,
-    MarkMessageAsRead,
-    GetUnreadCount,
-    
-    // Utilities
-    generateMessageId,
-    getCurrentTime,
-    DeleteMessageFromGlobal,
-    RemainLast1000GlobalMessages,
-    SendAllUsersToClient,
-    
-    // Get messages between users
-    GetMessagesBetweenUsers
+  // Room functions
+  Global_ChatRoom,
+  Private_Room,
+
+  // User functions
+  UpdateAllUsers,
+  GetAllUsers,
+  RegisterUserSocket,
+  UnregisterUserSocket,
+  GetUserSocketId,
+  GetConnectedUsers,
+
+  // Global message functions
+  CreateGlobalMessage,
+  EditGlobalMessage,
+  DeleteGlobalMessage,
+  GetGlobalMessages,
+  GetGlobalMessageById,
+  SendGlobalMessagesToClient,
+  SendGlobalMessagesToAllClients,
+
+  // Inbox message functions
+  CreateInboxMessage,
+  EditInboxMessage,
+  DeleteInboxMessage,
+  GetInboxMessages,
+  GetInboxMessageById,
+  SendInBoxMessagesToClient,
+  SendInboxMessageToUser,
+
+  // Read tracking
+  MarkMessagesAsRead,
+  MarkMessageAsRead,
+  GetUnreadCount,
+
+  // Utilities
+  generateMessageId,
+  getCurrentTime,
+  DeleteMessageFromGlobal,
+  TrimOldGlobalMessages,
+  SendAllUsersToClient,
+
+  // Get messages between users
+  GetMessagesBetweenUsers,
 };
