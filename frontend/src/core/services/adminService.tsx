@@ -1,4 +1,3 @@
-
 // Admin API Services - TypeScript definitions
 // All admin-related API endpoints are defined here
 
@@ -27,10 +26,16 @@ export interface Department {
   _id?: string;
   department_id?: string;
   department_name?: string;
-  department_leader?: string;
+  name?: string;
+  department_leader?: string | undefined;
+  leader?: string | {_id?: string; full_name?: string; email?: string} | undefined;
   description?: string;
-  employees?: number;
+  room_number?: string;
+  employees?: number | Employee[];
+  services?: Array<{_id?: string; name?: string; description?: string}>;
   status?: string;
+  is_unit?: boolean;
+  parent_department?: string | {name?: string};
   createdAt?: string;
   updatedAt?: string;
   department_response_time_in_minutes?: number;
@@ -60,6 +65,18 @@ export const departmentService = {
   
   // Delete department
   delete: (id: string) => del(`/department/crud/${id}`),
+
+  // Add service to department
+  addService: (departmentId: string, serviceData: { name: string; description?: string }) => 
+    post(`/department/crud/${departmentId}/services`, serviceData),
+  
+  // Update service in department
+  updateService: (departmentId: string, serviceId: string, serviceData: { name?: string; description?: string }) => 
+    put(`/department/crud/${departmentId}/services/${serviceId}`, serviceData),
+  
+  // Delete service from department
+  deleteService: (departmentId: string, serviceId: string) => 
+    del(`/department/crud/${departmentId}/services/${serviceId}`),
 };
 
 // ==================== EMPLOYEE APIs ====================
@@ -935,4 +952,3 @@ export const roleService = {
   bulkUpdatePermissions: (id: string, permissions: Array<{ resource_name: string; actions: string[] }>) => 
     put(`/roles/${id}/permissions/bulk`, { permissions }),
 };
-

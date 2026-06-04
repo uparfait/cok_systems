@@ -9,6 +9,7 @@ import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import ProfilePage from './pages/profile/ProfilePage';
 import UnderDevelopment from './pages/dashboard/UnderDevelopment';
 import ProtectedRoute from './core/components/ProtectedRoute';
+import ChatWidget from './core/components/ChatWidget';
 import { AuthProvider } from './core/contexts/AuthContext';
 import { SocketProvider } from './core/contexts/SocketContext';
 import { NotificationProvider } from './core/contexts/NotificationContext';
@@ -177,6 +178,7 @@ const App: React.FC = () => {
 
                 <Route path="*" element={<Navigate to="/login" replace />} />
               </Routes>
+              <ChatWidget />
             </Router>
           </ToastProvider>
         </NotificationProvider>
