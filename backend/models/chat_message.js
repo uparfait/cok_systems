@@ -1,10 +1,5 @@
 const mongoose = require('mongoose');
 
-/**
- * Chat Message Schema
- * Stores all chat messages persistently in MongoDB
- * Supports both global chat and private inbox messages
- */
 const chatMessageSchema = new mongoose.Schema({
   messageId: {
     type: String,
@@ -14,14 +9,19 @@ const chatMessageSchema = new mongoose.Schema({
   },
   message: {
     type: String,
-    required: true,
-    maxlength: 10000,
+    default: '',
+    maxlength: 50000,
   },
   type: {
     type: String,
     enum: ['global', 'inbox'],
     required: true,
     index: true,
+  },
+  contentType: {
+    type: String,
+    enum: ['text', 'image', 'video', 'audio', 'document', 'gif', 'sticker', 'view_once'],
+    default: 'text',
   },
   sender: {
     userId: { type: String, required: true },
@@ -38,34 +38,61 @@ const chatMessageSchema = new mongoose.Schema({
     default: null,
     index: true,
   },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-    index: true,
-  },
-  isEdited: {
-    type: Boolean,
-    default: false,
-  },
-  editedAt: {
-    type: Date,
-    default: null,
-  },
-  isDeleted: {
-    type: Boolean,
-    default: false,
-    index: true,
-  },
-  deletedAt: {
-    type: Date,
-    default: null,
-  },
+  // File/media metadata
+  fileUrl: { type: String, default: null },
+  fileName: { type: String, default: null },
+  fileSize: { type: Number, default: null },
+  mimeType: { type: String, default: null },
+  thumbnailUrl: { type: String, default: null },
+  duration: { type: Number, default: null }, // audio/video duration in seconds
+  // View once (disappearing messages)
+  isViewOnce: { type: Boolean, default: false },
+  viewedBy: [
+    {
+      userId: { type: String },
+      viewedAt: { type: Date, default: Date.now },
+    },
+  ],
+  // For stickers
+  stickerUrl: { type: String, default: null },
+  // For GIFs
+  gifUrl: { type: String, default: null },
+  gifTitle: { type: String, default: '' },
+  // For forwarded messages
+  isForwarded: { type: Boolean, default: false },
+  forwardedFrom: { type: String, default: null },
+  // Message metadata
+  createdAt: { type: Date, default: Date.now, index: true },
+  isEdited: { type: Boolean, default: false },
+  editedAt: { type: Date, default: null },
+  editHistory: [
+    {
+      previousMessage: String,
+      editedAt: { type: Date, default: Date.now },
+    },
+  ],
+  isDeleted: { type: Boolean, default: false, index: true },
+  deletedAt: { type: Date, default: null },
+  // For "delete for everyone"
+  deletedForEveryone: { type: Boolean, default: false },
   readBy: [
     {
       userId: { type: String },
       readAt: { type: Date, default: Date.now },
     },
   ],
+  deliveredTo: [
+    {
+      userId: { type: String },
+      deliveredAt: { type: Date, default: Date.now },
+    },
+  ],
+  // Reply to
+  replyTo: {
+    messageId: { type: String, default: null },
+    message: { type: String, default: '' },
+    senderName: { type: String, default: '' },
+  },
 }, {
   timestamps: true,
   versionKey: false,
@@ -83,13 +110,8 @@ chatMessageSchema.index({ type: 1, createdAt: -1 });
 chatMessageSchema.index({ type: 1, isDeleted: 1, createdAt: -1 });
 chatMessageSchema.index({ 'sender.userId': 1, 'receiver.userId': 1, createdAt: -1 });
 chatMessageSchema.index({ conversationKey: 1, isDeleted: 1, createdAt: -1 });
+chatMessageSchema.index({ conversationKey: 1, createdAt: -1 });
 
-/**
- * Generate a deterministic conversation key for inbox messages
- * @param {string} userId1
- * @param {string} userId2
- * @returns {string}
- */
 chatMessageSchema.statics.makeConversationKey = function (userId1, userId2) {
   const ids = [String(userId1), String(userId2)].sort();
   return `${ids[0]}_${ids[1]}`;

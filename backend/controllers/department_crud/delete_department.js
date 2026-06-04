@@ -5,28 +5,17 @@ module.exports = async function delete_department(req, res, next) {
     try {
         const { id } = req.params
 
-        //  Validate if the ID is a valid MongoDB ObjectId
+        // Validate if the ID is a valid MongoDB ObjectId
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({
                 success: false,
                 type: "warning",
-                message: `The provided ID '${id}' is not a valid format`
+                message: `Invalid department ID format`
             })
         }
 
-        // avoid deleteing a department which have a sub-departments, first check if there are any departments with sub_department_mng.parent_department_id matching the id to be deleted   
-        const sub_dept = await department_model.findOne({ 'sub_department_mng.parent_department_id': id })
-        if (sub_dept) {
-            return res.status(400).json({
-                success: false,
-                type: "warning",
-                message: "Cannot delete department with existing sub-departments. Please delete or reassign sub-departments first."
-            })
-        }
-
-        // avoid deleting a department which have employees
+        // Check if department exists first
         const find_employees = await department_model.findById(id)
-        // check if department exists
 
         if(!find_employees) {
             return res.status(404).json({
@@ -35,7 +24,18 @@ module.exports = async function delete_department(req, res, next) {
                 message: "Department not found"
             })
         }
-        // let count tatal employees
+
+        // Avoid deleting a department which has sub-departments
+        const sub_dept = await department_model.findOne({ parent_department: id })
+        if (sub_dept) {
+            return res.status(400).json({
+                success: false,
+                type: "warning",
+                message: "Cannot delete department with existing sub-departments. Please delete or reassign sub-departments first."
+            })
+        }
+
+        // Avoid deleting a department which has employees
         const total_employees = find_employees.total_employees || 0
         if (total_employees > 0) {
             return res.status(400).json({
@@ -59,7 +59,8 @@ module.exports = async function delete_department(req, res, next) {
         return res.status(200).json({
             success: true,
             type: "success",
-            message: "Department deleted"
+            message: "Department deleted successfully",
+            data: { id: deleted_dept._id, name: deleted_dept.name }
         })
 
     } catch (error) {

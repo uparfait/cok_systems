@@ -24,49 +24,45 @@ module.exports = async function delete_employee(req, res, next) {
             })
         }
       
-            const user = await user_model.findById(id)
+        const user = await user_model.findById(id)
 
-            if (!user) {
-                return res.status(404).json({
-                    success: false,
-                    type: "warning",
-                    message: "Employee not found"
-                })
-            }
-
-        // prevent from deleting department leader account if they are assigned as leader to any department, they need to be removed as leader first before deleting their account
-
-        const leading_departments = await department_model.find({ department_leader: id })
-
-        if (leading_departments && leading_departments.length > 0) {
-            const dept_names = leading_departments.map(d => d.department_name).join(', ')
-            return res.status(400).json({
-                success: false, 
+        if (!user) {
+            return res.status(404).json({
+                success: false,
                 type: "warning",
-                message: `Cannot delete a Employee because he/she is department leader in: ${dept_names}`
+                message: "Employee not found"
             })
         }
 
-          // check if user have a department and decrement employee in that department
+        // prevent from deleting department leader account if they are assigned as leader to any department, they need to be removed as leader first before deleting their account
+        const leading_departments = await department_model.find({ department_leader: id })
 
+        if (leading_departments && leading_departments.length > 0) {
+            const dept_names = leading_departments.map(d => d.name || d.department_name).join(', ')
+            return res.status(400).json({
+                success: false, 
+                type: "warning",
+                message: `Cannot delete employee because they are department leader in: ${dept_names}`
+            })
+        }
 
-            if(user.department && user.department !== 'Not specified') {
-                const dept = await department_model.findById(user.department)
-                if(dept) {
-                    dept.number_of_employees = Math.max(0, (dept.number_of_employees || 1) - 1)
-                    await dept.save()
-                }
+        // check if user have a department and decrement employee in that department
+        if(user.department && user.department !== 'Not specified') {
+            const dept = await department_model.findById(user.department)
+            if(dept) {
+                dept.total_employees = Math.max(0, (dept.total_employees || 1) - 1)
+                await dept.save()
             }
+        }
 
-            // check also if have department unit and decrement employee in that unit as well
-            if(user.department_unit && user.department_unit !== 'Not specified' && user.department_unit !== user.department) {
-                const deptUnit = await department_model.findById(user.department_unit)
-                if(deptUnit) {
-                    deptUnit.number_of_employees = Math.max(0, (deptUnit.number_of_employees || 1) - 1)
-                    await deptUnit.save()
-                }
+        // check also if have department unit and decrement employee in that unit as well
+        if(user.department_unit && user.department_unit !== 'Not specified' && user.department_unit !== user.department) {
+            const deptUnit = await department_model.findById(user.department_unit)
+            if(deptUnit) {
+                deptUnit.total_employees = Math.max(0, (deptUnit.total_employees || 1) - 1)
+                await deptUnit.save()
             }
-
+        }
 
         //  Perform deletion
         const deleted_user = await user_model.findByIdAndDelete(id)
@@ -82,8 +78,12 @@ module.exports = async function delete_employee(req, res, next) {
         return res.status(200).json({
             success: true,
             type: "success",
-            message: `Account for ${deleted_user.full_name} has been successfully removed`,
-            data: { id: deleted_user._id }
+            message: `Account for ${deleted_user.full_name || 'Employee'} has been successfully removed`,
+            data: { 
+                id: deleted_user._id,
+                full_name: deleted_user.full_name,
+                email: deleted_user.email
+            }
         })
 
     } catch (error) {
@@ -91,7 +91,8 @@ module.exports = async function delete_employee(req, res, next) {
         return res.status(500).json({
             success: false,
             type: "error",
-            message: "Internal server error during deletion of employee"
+            message: "Internal server error during deletion of employee",
+            error: error.message
         })
     }
 }
