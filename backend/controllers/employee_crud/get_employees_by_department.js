@@ -1,4 +1,3 @@
-
 const User = require('../../models/user.js');
 const Department = require('../../models/department.js');
 
@@ -22,23 +21,19 @@ module.exports = async function get_employees_by_department(req, res, next) {
         // Build filter object
         let filter = {};
 
-        // If department_id is provided, use it directly and department_unit
+        // If department_id is provided, use it directly
         if (department_id) {
-            
-            
-     // filter where department field matches the provided department_id or department_unit matches the provided department_id (in case department_id is actually a department unit id)
             filter.$or = [
                 { department: department_id },
                 { department_unit: department_id }
             ];
-
         } 
-        // If department_name is provided, first find the department
+        // If department_name is provided, find the department first
         else if (department_name) {
             const department = await Department.findOne({ 
                 $or: [
-                    { department_name: department_name },
-                    { department_name: { $regex: department_name, $options: 'i' } }
+                    { name: department_name },
+                    { name: { $regex: department_name, $options: 'i' } }
                 ]
             });
             
@@ -54,21 +49,13 @@ module.exports = async function get_employees_by_department(req, res, next) {
         }
 
         // Filter by is_active if provided
-        if (is_active !== null) {
-            if (is_active === 'true' || is_active === true) {
-                filter.is_active = true;
-            } else if (is_active === 'false' || is_active === false) {
-                filter.is_active = false;
-            }
+        if (is_active !== null && is_active !== undefined) {
+            filter.is_active = is_active === 'true' || is_active === true;
         }
 
         // Filter by is_account_activated if provided
-        if (is_account_activated !== null) {
-            if (is_account_activated === 'true' || is_account_activated === true) {
-                filter.is_account_activated = true;
-            } else if (is_account_activated === 'false' || is_account_activated === false) {
-                filter.is_account_activated = false;
-            }
+        if (is_account_activated !== null && is_account_activated !== undefined) {
+            filter.is_account_activated = is_account_activated === 'true' || is_account_activated === true;
         }
 
         // Fetch employees with the filter
@@ -77,9 +64,8 @@ module.exports = async function get_employees_by_department(req, res, next) {
             .limit(limit_val)
             .skip(skip_val)
             .sort({ created_date: -1 })
-            .populate('department', 'department_name department_id');
-
-            
+            .populate('department', 'name department_id _id')
+            .populate('roles', 'role_name');
 
         const total_count = await User.countDocuments(filter);
 
@@ -87,7 +73,7 @@ module.exports = async function get_employees_by_department(req, res, next) {
         let department_info = null;
         if (filter.department) {
             department_info = await Department.findById(filter.department)
-                .select('department_name department_id total_employees');
+                .select('name _id total_employees');
         }
 
         return res.status(200).json({

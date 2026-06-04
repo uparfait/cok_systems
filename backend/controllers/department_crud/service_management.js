@@ -1,4 +1,4 @@
-const Department = require('../../../models/department');
+const Department = require('../../models/department');
 const mongoose = require('mongoose');
 
 // Add a new service to a department
@@ -7,8 +7,12 @@ async function addService(req, res) {
     const { departmentId } = req.params;
     const { name, description } = req.body;
 
-    if (!name) {
+    if (!name || !name.trim()) {
       return res.status(400).json({ success: false, message: 'Service name is required' });
+    }
+
+    if (!departmentId) {
+      return res.status(400).json({ success: false, message: 'Department ID is required' });
     }
 
     const department = await Department.findById(departmentId);
@@ -43,6 +47,10 @@ async function updateService(req, res) {
     const { departmentId, serviceId } = req.params;
     const { name, description } = req.body;
 
+    if (!departmentId || !serviceId) {
+      return res.status(400).json({ success: false, message: 'Department ID and Service ID are required' });
+    }
+
     const department = await Department.findById(departmentId);
     if (!department) {
       return res.status(404).json({ success: false, message: 'Department not found' });
@@ -74,17 +82,23 @@ async function deleteService(req, res) {
   try {
     const { departmentId, serviceId } = req.params;
 
+    if (!departmentId || !serviceId) {
+      return res.status(400).json({ success: false, message: 'Department ID and Service ID are required' });
+    }
+
     const department = await Department.findById(departmentId);
     if (!department) {
       return res.status(404).json({ success: false, message: 'Department not found' });
     }
 
-    const service = department.services.id(serviceId);
-    if (!service) {
+    // Find the service in the array
+    const serviceIndex = department.services.findIndex(s => s._id.toString() === serviceId);
+    if (serviceIndex === -1) {
       return res.status(404).json({ success: false, message: 'Service not found' });
     }
 
-    service.deleteOne();
+    // Remove the service from the array
+    department.services.splice(serviceIndex, 1);
     const updated = await department.save();
 
     res.status(200).json({

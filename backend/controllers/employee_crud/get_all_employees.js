@@ -10,22 +10,14 @@ module.exports = async function get_employees(req, res, next) {
 
         const user_role_name = req.user?.role_name;
 
-
         let filter = {}
 
-        // so if a user is a head of department, then we will only show the employees that are in his department and department unit if he has one, if not we will show all employees
+        // If a user is a head of department, only show employees in their department
         if (user_role_name === "Head of department") {
-            // fetch the department of the head of department
             const department = await Department.findOne({ department_leader: req.user.id })
             
             if (department) {
-                // if it is not a sub department add filter to be a department id
-                if (!department.sub_department_mng.is_sub_department) {
-                    filter.department = department._id.toString()
-                } else {
-                    // if it is a sub department add filter to be a department unit id
-                    filter.department_unit = department._id.toString()
-                }
+                filter.department = department._id.toString()
             }
             else {
                 return res.status(200).json({
@@ -44,9 +36,11 @@ module.exports = async function get_employees(req, res, next) {
             .select('-password -auth') 
             .limit(limit_val)
             .skip(skip_val)
-            .sort({ created_date: -1 }).populate('department', 'department_name department_id')
+            .sort({ created_date: -1 })
+            .populate('department', 'name department_id _id')
+            .populate('roles', 'role_name')
 
-        const total_count = await user_model.countDocuments()
+        const total_count = await user_model.countDocuments(filter)
 
         return res.status(200).json({
             success: true,
@@ -54,8 +48,7 @@ module.exports = async function get_employees(req, res, next) {
             message: "Employees",
             total: total_count,
             page: parseInt(page),
-            data: employees,
-            tols: employees.length
+            data: employees
         })
 
     } catch (error) {
