@@ -7,8 +7,16 @@ module.exports = async function list_all_departments(req, res, next) {
         const limit_val = parseInt(limit)
         const skip_val = (parseInt(page) - 1) * limit_val;
 
-        // Get MAIN departments only (where is_unit is false or not a sub-department)
-        const departments = await department_model.find({ is_unit: { $ne: true } })
+        // Get MAIN departments only (exclude both new format is_unit=true AND legacy sub_department_mng.is_sub_department=true)
+        const departments = await department_model.find({
+            $and: [
+                { is_unit: { $ne: true } },
+                { $or: [
+                    { 'sub_department_mng.is_sub_department': { $ne: true } },
+                    { 'sub_department_mng.is_sub_department': { $exists: false } }
+                ]}
+            ]
+        })
             .limit(limit_val)
             .skip(skip_val)
             .sort({ created_at: -1 })
@@ -18,11 +26,19 @@ module.exports = async function list_all_departments(req, res, next) {
             .populate('parent_department', 'name')
 
         // For each main department, fetch its SUB-DEPARTMENTS (units)
+        // Supports both new format (is_unit=true + parent_department) and legacy format (sub_department_mng)
         const departmentsWithSubs = await Promise.all(
             departments.map(async (dept) => {
-                const subDepartments = await department_model.find({ 
-                    is_unit: true,
-                    parent_department: dept._id 
+                const subDepartments = await department_model.find({
+                    $or: [
+                        // New format: is_unit flag with parent_department ObjectId reference
+                        { is_unit: true, parent_department: dept._id },
+                        // Legacy format: sub_department_mng structure with parent_department_id string
+                        { 
+                            'sub_department_mng.is_sub_department': true,
+                            'sub_department_mng.parent_department_id': dept._id.toString()
+                        }
+                    ]
                 })
                 .populate('leader', 'full_name email title')
                 .populate('department_leader', 'full_name email title')
@@ -35,7 +51,15 @@ module.exports = async function list_all_departments(req, res, next) {
             })
         )
 
-        const total_count = await department_model.countDocuments({ is_unit: { $ne: true } })
+        const total_count = await department_model.countDocuments({
+            $and: [
+                { is_unit: { $ne: true } },
+                { $or: [
+                    { 'sub_department_mng.is_sub_department': { $ne: true } },
+                    { 'sub_department_mng.is_sub_department': { $exists: false } }
+                ]}
+            ]
+        })
 
         return res.status(200).json({
             success: true,
