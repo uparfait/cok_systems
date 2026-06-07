@@ -43,6 +43,7 @@ const DepartmentsPage: React.FC = () => {
     name: '',
     description: '',
     room_number: '',
+    department_id: '',
     leader: null,
     services: [],
   });
@@ -154,6 +155,7 @@ const DepartmentsPage: React.FC = () => {
       name: '',
       description: '',
       room_number: '',
+      department_id: '',
       leader: '',
       services: [],
     });
@@ -176,8 +178,27 @@ const DepartmentsPage: React.FC = () => {
       name: department.name || '',
       description: department.description || '',
       room_number: department.room_number || '',
+      department_id: department.department_id || '',
       leader: leaderId,
       services: department.services || [],
+    });
+    setFormError('');
+    setFormSuccess('');
+    setShowModal(true);
+  };
+
+  // Handle add unit (sub-department)
+  const handleAddUnit = (department: Department) => {
+    setEditingDepartment(null);
+    setFormData({
+      name: '',
+      description: '',
+      room_number: '',
+      department_id: '',
+      leader: '',
+      services: [],
+      is_unit: true,
+      parent_department: department._id,
     });
     setFormError('');
     setFormSuccess('');
@@ -199,13 +220,22 @@ const DepartmentsPage: React.FC = () => {
     try {
       setSubmitting(true);
 
-      const submitData: any = {
+      const submitData: Record<string, unknown> = {
         name: formData?.name,
         description: formData?.description || '',
         room_number: formData?.room_number || '',
+        department_id: formData?.department_id || '',
         leader: formData?.leader || null,
         services: formData?.services || [],
       };
+
+      // Include unit (sub-department) fields when adding a unit
+      if (formData?.is_unit) {
+        submitData.is_unit = true;
+        if (formData?.parent_department) {
+          submitData.parent_department = formData.parent_department;
+        }
+      }
 
       if (editingDepartment?._id) {
         const response = await departmentService.update(editingDepartment._id, submitData);
@@ -365,6 +395,8 @@ const DepartmentsPage: React.FC = () => {
               loading={loading}
               onEdit={handleEdit}
               onDelete={handleDeleteClick}
+              onAddUnit={handleAddUnit}
+              onViewDetails={handleEdit}
               refreshDepartments={() => loadDepartments(false)}
             />
           )}
@@ -423,6 +455,20 @@ const DepartmentsPage: React.FC = () => {
                   />
                 </div>
                 
+                {/* Department ID */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Department ID
+                  </label>
+                  <input
+                    type="text"
+                    value={formData?.department_id || ''}
+                    onChange={(e) => setFormData({ ...formData, department_id: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="e.g., DEP-001, IT-DEPT"
+                  />
+                </div>
+
                 {/* Room Number */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">

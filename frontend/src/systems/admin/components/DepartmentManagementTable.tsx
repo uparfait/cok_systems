@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { departmentService, type Department, type Service, type Employee } from '../../../core/services/adminService'
+import { departmentService, type Department, type Employee } from '../../../core/services/adminService'
 import {
   FiPlus, FiEdit2, FiTrash2, FiUsers, FiRefreshCw, FiX, FiCheck,
   FiAlertCircle, FiChevronLeft, FiChevronRight, FiPackage, FiSearch
@@ -51,8 +51,7 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
     
     departments.forEach(dept => {
       // Add parent department
-      if (dept.sub_department_mng?.is_sub_department !== true && 
-          dept.sub_department_mng?.is_sub_department !== 'true') {
+      if (dept.sub_department_mng?.is_sub_department !== true) {
         flattened.push({ ...dept, isSubDepartment: false, level: 0 })
         
         // Add sub-departments
@@ -74,9 +73,10 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
 
   // Get employees for specific department with search filter
   const getDepartmentEmployees = (dept: Department) => {
+    const deptName = dept.name;
     let filtered = employees.filter((emp: any) =>
-      emp.department === dept.department_name ||
-      emp.department?.department_name === dept.department_name ||
+      emp.department === deptName ||
+      emp.department?.department_name === deptName ||
       emp.department?._id === dept._id
     )
 
@@ -134,16 +134,15 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
       const response = await departmentService.addService(
         selectedDepartment._id || selectedDepartment.department_id || '',
         {
-          service_name: newServiceName.trim(),
-          service_description: newServiceDesc.trim(),
-          service_id: `SVC-${Date.now()}`
+          name: newServiceName.trim(),
+          description: newServiceDesc.trim(),
         }
       )
 
       if (response.success) {
-        const updatedDept = departments.find(d => d._id === selectedDepartment._id)
-        if (updatedDept) {
-          setSelectedDepartment(response.data)
+        // Backend returns { services: [...] } - merge services back into selectedDepartment
+        if (response.data?.services) {
+          setSelectedDepartment({ ...selectedDepartment, services: response.data.services })
         }
         setNewServiceName('')
         setNewServiceDesc('')
@@ -172,13 +171,16 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
         selectedDepartment._id || selectedDepartment.department_id || '',
         editingServiceId,
         {
-          service_name: editServiceName.trim(),
-          service_description: editServiceDesc.trim()
+          name: editServiceName.trim(),
+          description: editServiceDesc.trim()
         }
       )
 
       if (response.success) {
-        setSelectedDepartment(response.data)
+        // Backend returns { services: [...] } - merge services back into selectedDepartment
+        if (response.data?.services) {
+          setSelectedDepartment({ ...selectedDepartment, services: response.data.services })
+        }
         setEditingServiceId(null)
         setEditServiceName('')
         setEditServiceDesc('')
@@ -206,7 +208,10 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
       )
 
       if (response.success) {
-        setSelectedDepartment(response.data)
+        // Backend returns { services: [...] } - merge services back into selectedDepartment
+        if (response.data?.services) {
+          setSelectedDepartment({ ...selectedDepartment, services: response.data.services })
+        }
         refreshDepartments()
       } else {
         setServiceError(response.message || 'Failed to delete service')
@@ -233,7 +238,6 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                 <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Total Employees</th>
                 <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Total Services</th>
                 <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Total Units</th>
-                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Is Unit</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Actions</th>
               </tr>
             </thead>
@@ -292,9 +296,9 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                               className={`text-sm font-normal truncate max-w-xs ${
                                 isSubDept ? 'text-purple-900' : 'text-gray-900'
                               }`}
-                              title={dept.department_name}
+                              title={dept.name}
                             >
-                              {dept.department_name}
+                              {dept.name}
                             </p>
                             {dept.description && (
                               <p className="text-xs text-gray-500 truncate max-w-xs">{dept.description}</p>
@@ -378,12 +382,7 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                         )}
                       </td>
 
-                      {/* Is Unit */}
-                      <td className="px-6 py-4 text-center whitespace-nowrap">
-                        <span className="inline-flex px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold">
-                          {isSubDept ? 'Yes' : 'No'}
-                        </span>
-                      </td>
+                     
 
                       {/* Actions */}
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -405,7 +404,7 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                             <FiEdit2 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => onDelete(dept._id || dept.department_id || '', dept.department_name || 'this department')}
+                            onClick={() => onDelete(dept._id || dept.department_id || '', dept.name || 'this department')}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Delete"
                           >
@@ -434,7 +433,7 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">Employees</h2>
-                  <p className="text-sm text-gray-500">{selectedDepartment.department_name}</p>
+                  <p className="text-sm text-gray-500">{selectedDepartment.name}</p>
                 </div>
               </div>
               <button onClick={() => {
@@ -542,7 +541,7 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">Services Management</h2>
-                  <p className="text-sm text-gray-500">{selectedDepartment.department_name}</p>
+                  <p className="text-sm text-gray-500">{selectedDepartment.name}</p>
                 </div>
               </div>
               <button onClick={() => {
@@ -672,41 +671,38 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Services ({selectedDepartment.services.length})</h3>
                     
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {paginateArray(selectedDepartment.services, servicesPage, itemsPerPage).map((service: any) => (
                         <div
                           key={service._id}
-                          className="bg-white rounded-xl p-4 border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all"
+                          className="bg-white rounded-lg px-4 py-3 border border-gray-200"
                         >
-                          {/* Service Header */}
-                          <div className="flex items-start justify-between mb-2">
-                            <h4 className="font-semibold text-gray-900 text-base">{service.service_name}</h4>
-                            <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-900">{service.name}</span>
+                            <div className="flex items-center gap-1 flex-shrink-0">
                               <button
                                 onClick={() => {
                                   setEditingServiceId(service._id)
-                                  setEditServiceName(service.service_name)
-                                  setEditServiceDesc(service.service_description || '')
+                                  setEditServiceName(service.name)
+                                  setEditServiceDesc(service.description || '')
                                 }}
-                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                                 title="Edit Service"
                               >
-                                <FiEdit2 className="w-4 h-4" />
+                                <FiEdit2 className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => handleDeleteService(service._id)}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
                                 title="Delete Service"
                                 disabled={serviceLoading}
                               >
-                                <FiTrash2 className="w-4 h-4" />
+                                <FiTrash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </div>
-                          
-                          {/* Service Description with Word Wrap */}
-                          {service.service_description && (
-                            <p className="text-sm text-gray-600 break-words whitespace-pre-wrap">{service.service_description}</p>
+                          {service.description && (
+                            <p className="text-xs text-gray-500 mt-1 break-words whitespace-pre-wrap">{service.description}</p>
                           )}
                         </div>
                       ))}
