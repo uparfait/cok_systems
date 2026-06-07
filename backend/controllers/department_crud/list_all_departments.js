@@ -30,9 +30,7 @@ module.exports = async function list_all_departments(req, res, next) {
 
                 return {
                     ...dept.toObject(),
-                    sub_departments: subDepartments,
-                    total_employees: dept.total_employees || 0,
-                    services: dept.services || []
+                    sub_departments: subDepartments
                 }
             })
         )

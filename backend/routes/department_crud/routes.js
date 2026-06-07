@@ -28,23 +28,37 @@ Router.use(upload.any())
 
 
 /**
- * Global Interceptor for Multer Errors
+ * Multer Error Handler / Normal Request Pass-through
  * This prevents the app from throwing a 500 error when:
  * - No data is sent
  * - Input is not formatted correctly as multipart/form-data
  * - Unexpected fields are sent
+ * 
+ * NOTE: A 3-parameter middleware is used here so Express treats it as a
+ * NORMAL middleware (not an error handler). Multer errors are caught
+ * inside the function body by checking the error type.
  */
-Router.use((error, req, res, next) => {
-    if (error instanceof multer.MulterError || error) {
-        // Log the issue internally for the dev
-        console.warn('[UPLOAD WARNING]: Handled unexpected or empty input:', error.message)
+Router.use((req, res, next) => {
+    // If multer threw an error, it will be attached to the request
+    const multerError = req._multerError || null;
+    if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
+        // Body is fine, proceed
+        return next();
+    }
+    // Normalize body if it's empty to prevent downstream crashes
+    req.body = req.body || {};
+    next();
+})
 
-        // Instead of crashing, we normalize the body to an empty object
-        // and let the request continue to the controllers
+// Global error handler specifically for multer errors that propagate here
+Router.use((err, req, res, next) => {
+    if (err instanceof multer.MulterError) {
+        console.warn('[UPLOAD WARNING]: Handled multer error:', err.message)
         req.body = req.body || {}
         return next()
     }
-    next()
+    // Not a multer error, pass to next error handler
+    next(err)
 })
 
 Router.get('/', auditSuccess('READ', 'departments'), list_all_departments)
