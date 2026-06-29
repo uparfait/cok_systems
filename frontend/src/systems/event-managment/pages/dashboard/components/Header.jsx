@@ -1,43 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { useNotification } from '../../contexts/NotificationContext';
 import { 
   FiMenu, FiBell, FiChevronDown, 
   FiLogOut, FiHelpCircle, FiCheck, FiUser
 } from 'react-icons/fi';
 
-interface SidebarLink {
-  id: string;
-  name: string;
-  path: string;
-  icon: string;
-  isParent: boolean;
-  parentId?: string;
-}
-
-interface HeaderProps {
-  onMenuToggle: () => void;
-  currentSystem: string;
-  links: SidebarLink[];
-  currentPath: string;
-  onNavigate: (path: string) => void;
-}
-
-const Header: React.FC<HeaderProps> = ({ 
+export default function Header({ 
   onMenuToggle, 
   currentSystem,
-  links,
   currentPath,
-  onNavigate
-}) => {
-  const { user, logout } = useAuth();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotification();
+  onNavigate,
+  mockUser
+}) {
+  const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [currentDateTime, setCurrentDateTime] = useState(() => {
     const now = new Date();
-    const options: Intl.DateTimeFormatOptions = {
+    const options = {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -52,7 +34,7 @@ const Header: React.FC<HeaderProps> = ({
   useEffect(() => {
     const updateDateTime = () => {
       const now = new Date();
-      const options: Intl.DateTimeFormatOptions = {
+      const options = {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
@@ -67,25 +49,65 @@ const Header: React.FC<HeaderProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // Get user info
-  const displayName = user?.fullName || 'User';
-  const displayRole = user?.role || 'Guest';
-  const userDepartment = user?.departmentName || user?.department_name || '';
+  // Mock notifications
+  useEffect(() => {
+    // Simulate loading some mock notifications
+    const mockNotifications = [
+      {
+        id: 1,
+        title: 'New Event Request',
+        message: 'You have a new event request from Marketing department',
+        type: 'info',
+        read: false,
+        timestamp: new Date(Date.now() - 1000 * 60 * 30) // 30 minutes ago
+      },
+      {
+        id: 2,
+        title: 'Room Booking Confirmed',
+        message: 'Main Hall booking for July 15th has been confirmed',
+        type: 'success',
+        read: false,
+        timestamp: new Date(Date.now() - 1000 * 60 * 60) // 1 hour ago
+      },
+      {
+        id: 3,
+        title: 'System Update',
+        message: 'System maintenance scheduled for tonight at 11 PM',
+        type: 'warning',
+        read: true,
+        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2) // 2 hours ago
+      }
+    ];
+    
+    setNotifications(mockNotifications);
+    setUnreadCount(mockNotifications.filter(n => !n.read).length);
+  }, []);
+
+  // Use mock user data
+  const displayName = mockUser?.fullName || 'User';
+  const displayRole = mockUser?.role || 'Guest';
+  const userDepartment = mockUser?.departmentName || mockUser?.department_name || '';
+  const userEmail = mockUser?.email || 'user@cok.rw';
   
-  // Get first two initials
+  // Get first two initials from mock data
   const nameParts = displayName.trim().split(' ').filter(part => part.length > 0);
   const userInitial = nameParts.length >= 2 
     ? (nameParts[0].charAt(0) + nameParts[1].charAt(0)).toUpperCase()
     : displayName.charAt(0).toUpperCase();
 
+  const markAsRead = (id) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setUnreadCount(0);
+  };
+
   // Handle logout
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error('Logout error:', error);
-      window.location.href = '/login';
-    }
+  const handleLogout = () => {
+    window.location.href = '/login';
   };
 
   return (
@@ -162,7 +184,7 @@ const Header: React.FC<HeaderProps> = ({
                         )}
                         <p className="text-sm text-gray-600 truncate">{notification.message}</p>
                         <p className="text-xs text-gray-400 mt-1">
-                          {notification.timestamp.toLocaleTimeString()}
+                          {notification.timestamp ? new Date(notification.timestamp).toLocaleTimeString() : ''}
                         </p>
                       </div>
                     </div>
@@ -200,7 +222,7 @@ const Header: React.FC<HeaderProps> = ({
               {/* User Info */}
               <div className="px-3 py-2 border-b border-gray-100">
                 <p className="text-sm font-medium text-gray-900">{displayName}</p>
-                <p className="text-xs text-gray-500">{user?.email}</p>
+                <p className="text-xs text-gray-500">{userEmail}</p>
                 {userDepartment && (
                   <p className="text-xs text-blue-600 mt-1">{userDepartment}</p>
                 )}
@@ -249,6 +271,4 @@ const Header: React.FC<HeaderProps> = ({
       )}
     </header>
   );
-};
-
-export default Header;
+}
