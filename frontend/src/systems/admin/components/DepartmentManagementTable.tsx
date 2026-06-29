@@ -1,20 +1,34 @@
-import React, { useState, useMemo } from 'react'
-import { departmentService, type Department, type Employee } from '../../../core/services/adminService'
+import React, { useState, useMemo } from "react";
 import {
-  FiPlus, FiEdit2, FiTrash2, FiUsers, FiRefreshCw, FiX, FiCheck,
-  FiAlertCircle, FiChevronLeft, FiChevronRight, FiPackage, FiSearch
-} from 'react-icons/fi'
-import { HiOutlineOfficeBuilding } from 'react-icons/hi'
+  departmentService,
+  type Department,
+  type Employee,
+} from "../../../core/services/adminService";
+import {
+  FiPlus,
+  FiEdit2,
+  FiTrash2,
+  FiUsers,
+  FiRefreshCw,
+  FiX,
+  FiCheck,
+  FiAlertCircle,
+  FiChevronLeft,
+  FiChevronRight,
+  FiPackage,
+  FiSearch,
+} from "react-icons/fi";
+import { HiOutlineOfficeBuilding } from "react-icons/hi";
 
 interface DepartmentTableProps {
-  departments: Department[]
-  employees: Employee[]
-  loading: boolean
-  onEdit: (dept: Department) => void
-  onDelete: (id: string, name: string) => void
-  onAddUnit: (dept: Department) => void
-  onViewDetails: (dept: Department) => void
-  refreshDepartments: () => void
+  departments: Department[];
+  employees: Employee[];
+  loading: boolean;
+  onEdit: (dept: Department) => void;
+  onDelete: (id: string, name: string) => void;
+  onAddUnit: (dept: Department) => void;
+  onViewDetails: (dept: Department) => void;
+  refreshDepartments: () => void;
 }
 
 const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
@@ -25,203 +39,219 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
   onDelete,
   onAddUnit,
   onViewDetails,
-  refreshDepartments
+  refreshDepartments,
 }) => {
-  const [expandedRow, setExpandedRow] = useState<string | null>(null)
-  const [showEmployeesModal, setShowEmployeesModal] = useState(false)
-  const [showServicesModal, setShowServicesModal] = useState(false)
-  const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null)
-  const [employeesPage, setEmployeesPage] = useState(1)
-  const [employeesSearchQuery, setEmployeesSearchQuery] = useState('')
-  const [servicesPage, setServicesPage] = useState(1)
-  const [newServiceName, setNewServiceName] = useState('')
-  const [newServiceDesc, setNewServiceDesc] = useState('')
-  const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
-  const [editServiceName, setEditServiceName] = useState('')
-  const [editServiceDesc, setEditServiceDesc] = useState('')
-  const [serviceError, setServiceError] = useState('')
-  const [serviceLoading, setServiceLoading] = useState(false)
-  const [hoveredDeptId, setHoveredDeptId] = useState<string | null>(null)
-  
-  const itemsPerPage = 10
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [showEmployeesModal, setShowEmployeesModal] = useState(false);
+  const [showServicesModal, setShowServicesModal] = useState(false);
+  const [selectedDepartment, setSelectedDepartment] =
+    useState<Department | null>(null);
+  const [employeesPage, setEmployeesPage] = useState(1);
+  const [employeesSearchQuery, setEmployeesSearchQuery] = useState("");
+  const [servicesPage, setServicesPage] = useState(1);
+  const [newServiceName, setNewServiceName] = useState("");
+  const [newServiceDesc, setNewServiceDesc] = useState("");
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+  const [editServiceName, setEditServiceName] = useState("");
+  const [editServiceDesc, setEditServiceDesc] = useState("");
+  const [serviceError, setServiceError] = useState("");
+  const [serviceLoading, setServiceLoading] = useState(false);
+  const [hoveredDeptId, setHoveredDeptId] = useState<string | null>(null);
+
+  const itemsPerPage = 10;
 
   // Flatten departments with sub-departments
   const flattenedDepartments = useMemo(() => {
-    const flattened: (Department & { isSubDepartment?: boolean; parentId?: string; level?: number })[] = []
-    
-    departments.forEach(dept => {
+    const flattened: (Department & {
+      isSubDepartment?: boolean;
+      parentId?: string;
+      level?: number;
+    })[] = [];
+
+    departments.forEach((dept) => {
       // Add parent department
       if (dept.sub_department_mng?.is_sub_department !== true) {
-        flattened.push({ ...dept, isSubDepartment: false, level: 0 })
-        
+        flattened.push({ ...dept, isSubDepartment: false, level: 0 });
+
         // Add sub-departments
         if (dept.sub_departments && dept.sub_departments.length > 0) {
-          dept.sub_departments.forEach(subDept => {
-            flattened.push({ 
-              ...subDept, 
-              isSubDepartment: true, 
+          dept.sub_departments.forEach((subDept) => {
+            flattened.push({
+              ...subDept,
+              isSubDepartment: true,
               parentId: dept._id,
-              level: 1
-            })
-          })
+              level: 1,
+            });
+          });
         }
       }
-    })
-    
-    return flattened
-  }, [departments])
+    });
+
+    return flattened;
+  }, [departments]);
 
   // Get employees for specific department with search filter
   const getDepartmentEmployees = (dept: Department) => {
     const deptName = dept.name;
-    let filtered = employees.filter((emp: any) =>
-      emp.department === deptName ||
-      emp.department?.department_name === deptName ||
-      emp.department?._id === dept._id
-    )
+    let filtered = employees.filter(
+      (emp: any) =>
+        emp.department === deptName ||
+        emp.department?.department_name === deptName ||
+        emp.department?._id === dept._id,
+    );
 
     // Apply search filter
     if (employeesSearchQuery.trim()) {
-      const query = employeesSearchQuery.toLowerCase()
-      filtered = filtered.filter((emp: any) =>
-        emp.full_name?.toLowerCase().includes(query) ||
-        emp.email?.toLowerCase().includes(query) ||
-        emp.telephone?.toLowerCase().includes(query)
-      )
+      const query = employeesSearchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (emp: any) =>
+          emp.full_name?.toLowerCase().includes(query) ||
+          emp.email?.toLowerCase().includes(query) ||
+          emp.telephone?.toLowerCase().includes(query),
+      );
     }
 
-    return filtered
-  }
+    return filtered;
+  };
 
   // Count sub-departments
   const getSubDepartmentCount = (dept: Department) => {
-    if (!dept.sub_departments) return 0
-    return dept.sub_departments.length
-  }
+    if (!dept.sub_departments) return 0;
+    return dept.sub_departments.length;
+  };
 
   // Pagination helpers
   const paginateArray = (arr: any[], page: number, itemsPerPage: number) => {
-    const startIdx = (page - 1) * itemsPerPage
-    return arr.slice(startIdx, startIdx + itemsPerPage)
-  }
+    const startIdx = (page - 1) * itemsPerPage;
+    return arr.slice(startIdx, startIdx + itemsPerPage);
+  };
 
-  const getTotalPages = (total: number) => Math.ceil(total / itemsPerPage)
+  const getTotalPages = (total: number) => Math.ceil(total / itemsPerPage);
 
   const handleShowEmployees = (dept: Department) => {
-    setSelectedDepartment(dept)
-    setEmployeesPage(1)
-    setEmployeesSearchQuery('')
-    setShowEmployeesModal(true)
-  }
+    setSelectedDepartment(dept);
+    setEmployeesPage(1);
+    setEmployeesSearchQuery("");
+    setShowEmployeesModal(true);
+  };
 
   const handleShowServices = (dept: Department) => {
-    setSelectedDepartment(dept)
-    setServicesPage(1)
-    setShowServicesModal(true)
-  }
+    setSelectedDepartment(dept);
+    setServicesPage(1);
+    setShowServicesModal(true);
+  };
 
   // Service Management
   const handleAddService = async () => {
     if (!selectedDepartment || !newServiceName.trim()) {
-      setServiceError('Service name is required')
-      return
+      setServiceError("Service name is required");
+      return;
     }
 
     try {
-      setServiceLoading(true)
-      setServiceError('')
-      
+      setServiceLoading(true);
+      setServiceError("");
+
       const response = await departmentService.addService(
-        selectedDepartment._id || selectedDepartment.department_id || '',
+        selectedDepartment._id || selectedDepartment.department_id || "",
         {
           name: newServiceName.trim(),
           description: newServiceDesc.trim(),
-        }
-      )
+        },
+      );
 
       if (response.success) {
         // Backend returns { services: [...] } - merge services back into selectedDepartment
         if (response.data?.services) {
-          setSelectedDepartment({ ...selectedDepartment, services: response.data.services })
+          setSelectedDepartment({
+            ...selectedDepartment,
+            services: response.data.services,
+          });
         }
-        setNewServiceName('')
-        setNewServiceDesc('')
-        refreshDepartments()
+        setNewServiceName("");
+        setNewServiceDesc("");
+        refreshDepartments();
       } else {
-        setServiceError(response.message || 'Failed to add service')
+        setServiceError(response.message || "Failed to add service");
       }
     } catch (err: any) {
-      setServiceError(err.message || 'Failed to add service')
+      setServiceError(err.message || "Failed to add service");
     } finally {
-      setServiceLoading(false)
+      setServiceLoading(false);
     }
-  }
+  };
 
   const handleEditService = async () => {
     if (!selectedDepartment || !editingServiceId || !editServiceName.trim()) {
-      setServiceError('Service name is required')
-      return
+      setServiceError("Service name is required");
+      return;
     }
 
     try {
-      setServiceLoading(true)
-      setServiceError('')
-      
+      setServiceLoading(true);
+      setServiceError("");
+
       const response = await departmentService.updateService(
-        selectedDepartment._id || selectedDepartment.department_id || '',
+        selectedDepartment._id || selectedDepartment.department_id || "",
         editingServiceId,
         {
           name: editServiceName.trim(),
-          description: editServiceDesc.trim()
-        }
-      )
+          description: editServiceDesc.trim(),
+        },
+      );
 
       if (response.success) {
         // Backend returns { services: [...] } - merge services back into selectedDepartment
         if (response.data?.services) {
-          setSelectedDepartment({ ...selectedDepartment, services: response.data.services })
+          setSelectedDepartment({
+            ...selectedDepartment,
+            services: response.data.services,
+          });
         }
-        setEditingServiceId(null)
-        setEditServiceName('')
-        setEditServiceDesc('')
-        refreshDepartments()
+        setEditingServiceId(null);
+        setEditServiceName("");
+        setEditServiceDesc("");
+        refreshDepartments();
       } else {
-        setServiceError(response.message || 'Failed to update service')
+        setServiceError(response.message || "Failed to update service");
       }
     } catch (err: any) {
-      setServiceError(err.message || 'Failed to update service')
+      setServiceError(err.message || "Failed to update service");
     } finally {
-      setServiceLoading(false)
+      setServiceLoading(false);
     }
-  }
+  };
 
   const handleDeleteService = async (serviceId: string) => {
-    if (!selectedDepartment) return
+    if (!selectedDepartment) return;
 
     try {
-      setServiceLoading(true)
-      setServiceError('')
-      
+      setServiceLoading(true);
+      setServiceError("");
+
       const response = await departmentService.deleteService(
-        selectedDepartment._id || selectedDepartment.department_id || '',
-        serviceId
-      )
+        selectedDepartment._id || selectedDepartment.department_id || "",
+        serviceId,
+      );
 
       if (response.success) {
         // Backend returns { services: [...] } - merge services back into selectedDepartment
         if (response.data?.services) {
-          setSelectedDepartment({ ...selectedDepartment, services: response.data.services })
+          setSelectedDepartment({
+            ...selectedDepartment,
+            services: response.data.services,
+          });
         }
-        refreshDepartments()
+        refreshDepartments();
       } else {
-        setServiceError(response.message || 'Failed to delete service')
+        setServiceError(response.message || "Failed to delete service");
       }
     } catch (err: any) {
-      setServiceError(err.message || 'Failed to delete service')
+      setServiceError(err.message || "Failed to delete service");
     } finally {
-      setServiceLoading(false)
+      setServiceLoading(false);
     }
-  }
+  };
 
   return (
     <div className="space-y-4">
@@ -231,14 +261,30 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
           <table className="w-full min-w-[1200px]">
             <thead>
               <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Department Name</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Department ID</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Room Number</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Department Leader</th>
-                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Total Employees</th>
-                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Total Services</th>
-                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Total Units</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Actions</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                  Department Name
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                  Department ID
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                  Room Number
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                  Department Leader
+                </th>
+                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                  Total Employees
+                </th>
+                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                  Total Services
+                </th>
+                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                  Total Units
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -247,7 +293,9 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                   <td colSpan={9} className="px-6 py-8 text-center">
                     <div className="flex justify-center items-center gap-2">
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                      <span className="text-gray-500">Loading departments...</span>
+                      <span className="text-gray-500">
+                        Loading departments...
+                      </span>
                     </div>
                   </td>
                 </tr>
@@ -262,46 +310,50 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                 </tr>
               ) : (
                 flattenedDepartments.map((dept) => {
-                  const deptEmployees = getDepartmentEmployees(dept)
-                  const deptServices = dept.services || []
-                  const subDeptCount = getSubDepartmentCount(dept)
-                  const isSubDept = dept.isSubDepartment
-                  const deptKey = `${dept._id}-${isSubDept ? 'sub' : 'parent'}`
+                  const deptEmployees = getDepartmentEmployees(dept);
+                  const deptServices = dept.services || [];
+                  const subDeptCount = getSubDepartmentCount(dept);
+                  const isSubDept = dept.isSubDepartment;
+                  const deptKey = `${dept._id}-${isSubDept ? "sub" : "parent"}`;
 
                   return (
                     <tr
                       key={deptKey}
                       className={`hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0 ${
-                        isSubDept ? 'bg-purple-50/30' : ''
+                        isSubDept ? "bg-purple-50/30" : ""
                       }`}
                       onMouseEnter={() => setHoveredDeptId(deptKey)}
                       onMouseLeave={() => setHoveredDeptId(null)}
                     >
                       {/* Department Name - Small, non-bold, trimmed with tooltip */}
                       <td className="px-6 py-4">
-                        <div className={`flex items-center gap-3 ${isSubDept ? 'ml-8' : ''}`}>
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                            isSubDept 
-                              ? 'bg-purple-100' 
-                              : 'bg-blue-100'
-                          }`}>
-                            <HiOutlineOfficeBuilding className={`w-5 h-5 ${
-                              isSubDept 
-                                ? 'text-purple-600' 
-                                : 'text-blue-600'
-                            }`} />
+                        <div
+                          className={`flex items-center gap-3 ${isSubDept ? "ml-8" : ""}`}
+                        >
+                          <div
+                            className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                              isSubDept ? "bg-purple-100" : "bg-blue-100"
+                            }`}
+                          >
+                            <HiOutlineOfficeBuilding
+                              className={`w-5 h-5 ${
+                                isSubDept ? "text-purple-600" : "text-blue-600"
+                              }`}
+                            />
                           </div>
                           <div className="min-w-0">
-                            <p 
+                            <p
                               className={`text-sm font-normal truncate max-w-xs ${
-                                isSubDept ? 'text-purple-900' : 'text-gray-900'
+                                isSubDept ? "text-purple-900" : "text-gray-900"
                               }`}
                               title={dept.name}
                             >
                               {dept.name}
                             </p>
                             {dept.description && (
-                              <p className="text-xs text-gray-500 truncate max-w-xs">{dept.description}</p>
+                              <p className="text-xs text-gray-500 truncate max-w-xs">
+                                {dept.description}
+                              </p>
                             )}
                           </div>
                         </div>
@@ -309,11 +361,13 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
 
                       {/* Department ID */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-3 py-1 rounded-lg text-sm font-medium ${
-                          isSubDept 
-                            ? 'bg-purple-100 text-purple-700' 
-                            : 'bg-gray-100 text-gray-700'
-                        }`}>
+                        <span
+                          className={`inline-flex px-3 py-1 rounded-lg text-sm font-medium ${
+                            isSubDept
+                              ? "bg-purple-100 text-purple-700"
+                              : "bg-gray-100 text-gray-700"
+                          }`}
+                        >
                           {dept.department_id}
                         </span>
                       </td>
@@ -334,14 +388,25 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                       {/* Department Leader */}
                       <td className="px-6 py-4">
                         <div>
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {typeof dept.department_leader === 'object' && dept.department_leader
-                              ? dept.department_leader.full_name || dept.department_leader.email
-                              : dept.department_leader || 'Not assigned'}
+                          {/* First block: Display Name (or Email fallback / 'Not assigned') */}
+                          <p>
+                            {typeof dept.department_leader === "object" &&
+                            dept.department_leader !== null
+                              ? dept.department_leader.full_name ||
+                                dept.department_leader.email ||
+                                "Not assigned"
+                              : typeof dept.department_leader === "string"
+                                ? dept.department_leader
+                                : "Not assigned"}
                           </p>
-                          {typeof dept.department_leader === 'object' && dept.department_leader?.email && (
-                            <p className="text-xs text-gray-500 truncate">{dept.department_leader.email}</p>
-                          )}
+
+                          {/* Second block: Secondary Email Display */}
+                          {typeof dept.department_leader === "object" &&
+                            dept.department_leader?.email && (
+                              <p className="text-xs text-gray-500 truncate">
+                                {dept.department_leader.email}
+                              </p>
+                            )}
                         </div>
                       </td>
 
@@ -370,19 +435,19 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                       {/* Total Units (only for parent departments) */}
                       <td className="px-6 py-4 text-center whitespace-nowrap">
                         {!isSubDept ? (
-                          <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                            subDeptCount > 0
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}>
+                          <span
+                            className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                              subDeptCount > 0
+                                ? "bg-blue-100 text-blue-700"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
+                          >
                             {subDeptCount}
                           </span>
                         ) : (
                           <span className="text-gray-400">—</span>
                         )}
                       </td>
-
-                     
 
                       {/* Actions */}
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -404,7 +469,12 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                             <FiEdit2 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => onDelete(dept._id || dept.department_id || '', dept.name || 'this department')}
+                            onClick={() =>
+                              onDelete(
+                                dept._id || dept.department_id || "",
+                                dept.name || "this department",
+                              )
+                            }
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Delete"
                           >
@@ -413,7 +483,7 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                         </div>
                       </td>
                     </tr>
-                  )
+                  );
                 })
               )}
             </tbody>
@@ -433,13 +503,18 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">Employees</h2>
-                  <p className="text-sm text-gray-500">{selectedDepartment.name}</p>
+                  <p className="text-sm text-gray-500">
+                    {selectedDepartment.name}
+                  </p>
                 </div>
               </div>
-              <button onClick={() => {
-                setShowEmployeesModal(false)
-                setEmployeesSearchQuery('')
-              }} className="p-2 hover:bg-gray-200 rounded-lg">
+              <button
+                onClick={() => {
+                  setShowEmployeesModal(false);
+                  setEmployeesSearchQuery("");
+                }}
+                className="p-2 hover:bg-gray-200 rounded-lg"
+              >
                 <FiX className="w-5 h-5" />
               </button>
             </div>
@@ -453,8 +528,8 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                   placeholder="Search by name, email, or phone..."
                   value={employeesSearchQuery}
                   onChange={(e) => {
-                    setEmployeesSearchQuery(e.target.value)
-                    setEmployeesPage(1)
+                    setEmployeesSearchQuery(e.target.value);
+                    setEmployeesPage(1);
                   }}
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
@@ -466,7 +541,11 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
               {getDepartmentEmployees(selectedDepartment).length === 0 ? (
                 <div className="text-center py-12">
                   <FiUsers className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">{employeesSearchQuery ? 'No employees match your search' : 'No employees found'}</p>
+                  <p className="text-gray-500">
+                    {employeesSearchQuery
+                      ? "No employees match your search"
+                      : "No employees found"}
+                  </p>
                 </div>
               ) : (
                 <>
@@ -474,26 +553,48 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                     <table className="w-full text-sm">
                       <thead className="bg-gray-50 border-b sticky top-0">
                         <tr>
-                          <th className="px-4 py-3 text-left font-semibold text-gray-600">Employee</th>
-                          <th className="px-4 py-3 text-left font-semibold text-gray-600">Email</th>
-                          <th className="px-4 py-3 text-left font-semibold text-gray-600">Position</th>
-                          <th className="px-4 py-3 text-left font-semibold text-gray-600">Phone</th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                            Employee
+                          </th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                            Email
+                          </th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                            Position
+                          </th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                            Phone
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {paginateArray(getDepartmentEmployees(selectedDepartment), employeesPage, itemsPerPage).map((emp: any) => (
+                        {paginateArray(
+                          getDepartmentEmployees(selectedDepartment),
+                          employeesPage,
+                          itemsPerPage,
+                        ).map((emp: any) => (
                           <tr key={emp._id} className="hover:bg-gray-50">
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
                                 <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                  <span className="text-blue-600 font-semibold text-xs">{(emp.full_name || 'E').charAt(0)}</span>
+                                  <span className="text-blue-600 font-semibold text-xs">
+                                    {(emp.full_name || "E").charAt(0)}
+                                  </span>
                                 </div>
-                                <span className="font-medium text-gray-900">{emp.full_name}</span>
+                                <span className="font-medium text-gray-900">
+                                  {emp.full_name}
+                                </span>
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-gray-600">{emp.email}</td>
-                            <td className="px-4 py-3 text-gray-600">{emp.roles?.role_name || '-'}</td>
-                            <td className="px-4 py-3 text-gray-600">{emp.telephone || '-'}</td>
+                            <td className="px-4 py-3 text-gray-600">
+                              {emp.email}
+                            </td>
+                            <td className="px-4 py-3 text-gray-600">
+                              {emp.roles?.role_name || "-"}
+                            </td>
+                            <td className="px-4 py-3 text-gray-600">
+                              {emp.telephone || "-"}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -501,21 +602,33 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                   </div>
 
                   {/* Pagination */}
-                  {getTotalPages(getDepartmentEmployees(selectedDepartment).length) > 1 && (
+                  {getTotalPages(
+                    getDepartmentEmployees(selectedDepartment).length,
+                  ) > 1 && (
                     <div className="mt-4 flex items-center justify-center gap-2">
                       <button
-                        onClick={() => setEmployeesPage(Math.max(1, employeesPage - 1))}
+                        onClick={() =>
+                          setEmployeesPage(Math.max(1, employeesPage - 1))
+                        }
                         disabled={employeesPage === 1}
                         className="p-2 hover:bg-gray-100 disabled:opacity-50 rounded-lg transition-colors"
                       >
                         <FiChevronLeft className="w-4 h-4" />
                       </button>
                       <span className="text-sm text-gray-600">
-                        Page {employeesPage} of {getTotalPages(getDepartmentEmployees(selectedDepartment).length)}
+                        Page {employeesPage} of{" "}
+                        {getTotalPages(
+                          getDepartmentEmployees(selectedDepartment).length,
+                        )}
                       </span>
                       <button
                         onClick={() => setEmployeesPage(employeesPage + 1)}
-                        disabled={employeesPage >= getTotalPages(getDepartmentEmployees(selectedDepartment).length)}
+                        disabled={
+                          employeesPage >=
+                          getTotalPages(
+                            getDepartmentEmployees(selectedDepartment).length,
+                          )
+                        }
                         className="p-2 hover:bg-gray-100 disabled:opacity-50 rounded-lg transition-colors"
                       >
                         <FiChevronRight className="w-4 h-4" />
@@ -540,16 +653,23 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                   <FiPackage className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Services Management</h2>
-                  <p className="text-sm text-gray-500">{selectedDepartment.name}</p>
+                  <h2 className="text-lg font-bold text-gray-900">
+                    Services Management
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    {selectedDepartment.name}
+                  </p>
                 </div>
               </div>
-              <button onClick={() => {
-                setShowServicesModal(false)
-                setEditingServiceId(null)
-                setNewServiceName('')
-                setNewServiceDesc('')
-              }} className="p-2 hover:bg-gray-200 rounded-lg">
+              <button
+                onClick={() => {
+                  setShowServicesModal(false);
+                  setEditingServiceId(null);
+                  setNewServiceName("");
+                  setNewServiceDesc("");
+                }}
+                className="p-2 hover:bg-gray-200 rounded-lg"
+              >
                 <FiX className="w-5 h-5" />
               </button>
             </div>
@@ -567,9 +687,9 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
               {/* Add/Edit Service Form */}
               <div className="rounded-xl p-5 border border-blue-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  {editingServiceId ? 'Edit Service' : 'Add New Service'}
+                  {editingServiceId ? "Edit Service" : "Add New Service"}
                 </h3>
-                
+
                 <div className="space-y-4">
                   {/* Service Name */}
                   <div>
@@ -578,10 +698,13 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                     </label>
                     <input
                       type="text"
-                      value={editingServiceId ? editServiceName : newServiceName}
-                      onChange={(e) => editingServiceId 
-                        ? setEditServiceName(e.target.value)
-                        : setNewServiceName(e.target.value)
+                      value={
+                        editingServiceId ? editServiceName : newServiceName
+                      }
+                      onChange={(e) =>
+                        editingServiceId
+                          ? setEditServiceName(e.target.value)
+                          : setNewServiceName(e.target.value)
                       }
                       placeholder="e.g., Consultation"
                       className="w-full px-4 py-2.5 border border-blue-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -594,10 +717,13 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                       Description
                     </label>
                     <textarea
-                      value={editingServiceId ? editServiceDesc : newServiceDesc}
-                      onChange={(e) => editingServiceId 
-                        ? setEditServiceDesc(e.target.value)
-                        : setNewServiceDesc(e.target.value)
+                      value={
+                        editingServiceId ? editServiceDesc : newServiceDesc
+                      }
+                      onChange={(e) =>
+                        editingServiceId
+                          ? setEditServiceDesc(e.target.value)
+                          : setNewServiceDesc(e.target.value)
                       }
                       placeholder="Brief description of the service (optional)"
                       rows={3}
@@ -628,9 +754,9 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                         </button>
                         <button
                           onClick={() => {
-                            setEditingServiceId(null)
-                            setEditServiceName('')
-                            setEditServiceDesc('')
+                            setEditingServiceId(null);
+                            setEditServiceName("");
+                            setEditServiceDesc("");
                           }}
                           className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
                         >
@@ -661,30 +787,41 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
               </div>
 
               {/* Services List - Enhanced UI/UX */}
-              {!selectedDepartment.services || selectedDepartment.services.length === 0 ? (
+              {!selectedDepartment.services ||
+              selectedDepartment.services.length === 0 ? (
                 <div className="text-center py-12">
                   <FiPackage className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">No services yet. Add one to get started!</p>
+                  <p className="text-gray-500">
+                    No services yet. Add one to get started!
+                  </p>
                 </div>
               ) : (
                 <>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Services ({selectedDepartment.services.length})</h3>
-                    
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Services ({selectedDepartment.services.length})
+                    </h3>
+
                     <div className="space-y-2">
-                      {paginateArray(selectedDepartment.services, servicesPage, itemsPerPage).map((service: any) => (
+                      {paginateArray(
+                        selectedDepartment.services,
+                        servicesPage,
+                        itemsPerPage,
+                      ).map((service: any) => (
                         <div
                           key={service._id}
                           className="bg-white rounded-lg px-4 py-3 border border-gray-200"
                         >
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-900">{service.name}</span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {service.name}
+                            </span>
                             <div className="flex items-center gap-1 flex-shrink-0">
                               <button
                                 onClick={() => {
-                                  setEditingServiceId(service._id)
-                                  setEditServiceName(service.name)
-                                  setEditServiceDesc(service.description || '')
+                                  setEditingServiceId(service._id);
+                                  setEditServiceName(service.name);
+                                  setEditServiceDesc(service.description || "");
                                 }}
                                 className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                                 title="Edit Service"
@@ -702,7 +839,9 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                             </div>
                           </div>
                           {service.description && (
-                            <p className="text-xs text-gray-500 mt-1 break-words whitespace-pre-wrap">{service.description}</p>
+                            <p className="text-xs text-gray-500 mt-1 break-words whitespace-pre-wrap">
+                              {service.description}
+                            </p>
                           )}
                         </div>
                       ))}
@@ -712,18 +851,24 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
                     {getTotalPages(selectedDepartment.services.length) > 1 && (
                       <div className="mt-4 flex items-center justify-center gap-2">
                         <button
-                          onClick={() => setServicesPage(Math.max(1, servicesPage - 1))}
+                          onClick={() =>
+                            setServicesPage(Math.max(1, servicesPage - 1))
+                          }
                           disabled={servicesPage === 1}
                           className="p-2 hover:bg-gray-100 disabled:opacity-50 rounded-lg transition-colors"
                         >
                           <FiChevronLeft className="w-4 h-4" />
                         </button>
                         <span className="text-sm text-gray-600">
-                          Page {servicesPage} of {getTotalPages(selectedDepartment.services.length)}
+                          Page {servicesPage} of{" "}
+                          {getTotalPages(selectedDepartment.services.length)}
                         </span>
                         <button
                           onClick={() => setServicesPage(servicesPage + 1)}
-                          disabled={servicesPage >= getTotalPages(selectedDepartment.services.length)}
+                          disabled={
+                            servicesPage >=
+                            getTotalPages(selectedDepartment.services.length)
+                          }
                           className="p-2 hover:bg-gray-100 disabled:opacity-50 rounded-lg transition-colors"
                         >
                           <FiChevronRight className="w-4 h-4" />
@@ -738,7 +883,7 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default DepartmentManagementTable
+export default DepartmentManagementTable;
