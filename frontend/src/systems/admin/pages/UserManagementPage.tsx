@@ -23,6 +23,7 @@ interface UserWithLock extends Employee {
 }
 
 const UserManagementPage: React.FC = () => {
+  
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();  
   const [users, setUsers] = useState<UserWithLock[]>([]);
   const [loading, setLoading] = useState(false);
