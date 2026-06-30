@@ -15,6 +15,7 @@ import { validateToken } from '../../core/services/authService';
 import { getStoredUser } from '../../core/services/apiClient';
 
 const LoginPage = () => {
+
   const { login } = useAuth();
   const { showSuccess, showError } = useToast();
   const [email, setEmail] = useState('');
@@ -71,6 +72,7 @@ const LoginPage = () => {
                                validationResult.user.department || '';
 
           const redirectPath = await getDashboardRoute(userRole, userDepartment);
+         
           console.log('[LoginPage] Redirecting to:', redirectPath);
           navigate(redirectPath);
           return;
