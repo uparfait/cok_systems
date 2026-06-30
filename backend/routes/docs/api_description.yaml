@@ -1,4 +1,0 @@
-# This file is deprecated.
-# API documentation is now generated from @swagger JSDoc annotations in route files.
-# See ../../configurations/swaggerConfig.js for configuration.
-# The swagger spec is served at /cok/api/docs/swagger.json
