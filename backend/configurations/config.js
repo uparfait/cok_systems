@@ -1,6 +1,3 @@
-const Feedback = require("../models/feedback_db");
-
-
 const DB_CONFIG = {
     // Email Configuration (Hardcoded for deployment)
     email: {
