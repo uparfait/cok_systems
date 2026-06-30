@@ -12,25 +12,21 @@ const path = require('path')
 // Load swagger specification from swagger-jsdoc (generated from @swagger annotations)
 const swaggerSpec = require('../../configurations/swaggerConfig')
 
-const multer = require('multer')
-const upload = multer()
-
-Router.use(upload.any())
-
 /**
- * Global Interceptor for Multer Errors
- */
-Router.use((error, req, res, next) => {
-    if (error instanceof multer.MulterError || error) {
-        console.warn('[UPLOAD WARNING]: Handled unexpected or empty input:', error.message)
-        req.body = req.body || {}
-        return next()
-    }
-    next()
-})
-
-/**
- * Serve Swagger JSON spec (generated from route annotations)
+ * @swagger
+ * /docs/swagger.json:
+ *   get:
+ *     summary: "Get OpenAPI specification"
+ *     description: "Retrieve the complete OpenAPI 3.0.3 specification JSON generated from @swagger annotations across all route files."
+ *     tags: [System]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: OpenAPI specification JSON
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
  */
 Router.get('/swagger.json', (req, res) => {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -40,7 +36,16 @@ Router.get('/swagger.json', (req, res) => {
 });
 
 /**
- * Unified Swagger UI with all APIs grouped by tags
+ * @swagger
+ * /docs:
+ *   get:
+ *     summary: "Swagger UI Documentation"
+ *     description: "Interactive Swagger UI documentation for all COK Systems APIs. Browse and test endpoints directly from the browser."
+ *     tags: [System]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: Swagger UI HTML page
  */
 Router.use(
     '/',
