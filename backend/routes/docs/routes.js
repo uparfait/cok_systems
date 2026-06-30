@@ -1,16 +1,16 @@
 /**
  * Combined API Documentation Routes
- * Serves unified Swagger UI for all APIs (AMOS & PARFAIT)
+ * Serves unified Swagger UI for all APIs using swagger-jsdoc annotations
+ * All endpoint documentation is defined via @swagger JSDoc comments in each route file
  */
 
 const Router = require('express').Router()
 
 const swaggerUi = require('swagger-ui-express')
-const YAML = require('yamljs')
 const path = require('path')
 
-// Load combined API specification
-const swaggerDocument = YAML.load(path.join(__dirname, 'api_description.yaml'))
+// Load swagger specification from swagger-jsdoc (generated from @swagger annotations)
+const swaggerSpec = require('../../configurations/swaggerConfig')
 
 const multer = require('multer')
 const upload = multer()
@@ -30,13 +30,13 @@ Router.use((error, req, res, next) => {
 })
 
 /**
- * Serve Swagger JSON spec
+ * Serve Swagger JSON spec (generated from route annotations)
  */
 Router.get('/swagger.json', (req, res) => {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
-    res.json(swaggerDocument);
+    res.json(swaggerSpec);
 });
 
 /**
@@ -45,7 +45,7 @@ Router.get('/swagger.json', (req, res) => {
 Router.use(
     '/',
     swaggerUi.serve,
-    swaggerUi.setup(swaggerDocument, {
+    swaggerUi.setup(swaggerSpec, {
         explorer: true,
         customSiteTitle: 'COK Systems API Documentation',
         customCss: `
@@ -66,7 +66,6 @@ Router.use(
             docExpansion: 'list',
             defaultModelsExpandDepth: 2,
             defaultModelExpandDepth: 2,
-            // Group operations by tags
             tagsSorter: 'alpha',
             operationsSorter: 'alpha'
         }
