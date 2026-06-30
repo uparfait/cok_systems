@@ -1,7 +1,7 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import SideBar from "./components/SideBar";
-import Header from "./components/Header";
+import { Header } from "@/core/components/Layout";
 
 // Mock user data
 const mockUser = {
@@ -41,13 +41,7 @@ export default function DashboardLayout() {
 
   // Get current system name from mock data
   const getCurrentSystemName = () => {
-    if (mockUser?.role) {
-      return mockUser.role
-        .split(' ')
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ');
-    }
-    return 'Dashboard';
+    return "Event Manager"
   };
 
   return (
@@ -73,15 +67,18 @@ export default function DashboardLayout() {
           mockUser={mockUser}
         />
       </div>
+
+     
       
       {/* Main Content Area */}
       <div className={`flex-1 flex flex-col min-w-0 h-screen overflow-hidden ${isDesktop ? 'lg:ml-64 ml-0' : 'ml-0'}`}>
         <Header 
-          onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-          currentSystem={getCurrentSystemName()}
-          currentPath={location.pathname}
-          onNavigate={handleNavigation}
-          mockUser={mockUser}
+        onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+        currentPath={location.pathname}
+        onNavigate={handleNavigation}
+        currentSystem={getCurrentSystemName()}
+       
+        
         />
         
         {/* Page Content */}
