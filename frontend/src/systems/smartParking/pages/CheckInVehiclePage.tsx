@@ -273,15 +273,7 @@ const CheckInVehiclePage: React.FC = () => {
       // Get driver type - use driver_type first (shown in UI), then fall back to vehicle_category
       let driverType = verifiedData.driver_type || verifiedData.vehicle_category || verifiedData.driver_details?.type || '';
       // Convert to lowercase for backend API
-      if (driverType.toLowerCase() === 'staff vehicle') {
-        driverType = 'Staff';
-      } else if (driverType.toLowerCase() === 'visitor') {
-        driverType = 'Visitor';
-      } else if (driverType.toLowerCase() === 'regular') {
-        driverType = 'Regular';
-      } else if (driverType.toLowerCase() === 'staff') {
-        driverType = 'Staff';
-      }
+      driverType = driverType.toLowerCase();
       
       // Get identification from verified data
       const identification = verifiedData.driver_details?.identification || null;
