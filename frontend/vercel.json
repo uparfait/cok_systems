@@ -5,8 +5,16 @@
   "installCommand": "npm install",
   "rewrites": [
     {
+      "source": "/cok/api/v1/:path*",
+      "destination": "https://cok-bc.onrender.com/cok/api/v1/:path*"
+    },
+    {
       "source": "/cok/api/:path*",
-      "destination": "https://dineflow-smartdining-v-one.onrender.com"
+      "destination": "https://cok-bc.onrender.com/cok/api/:path*"
+    },
+    {
+      "source": "/uploads/:path*",
+      "destination": "https://cok-bc.onrender.com/uploads/:path*"
     },
     {
       "source": "/(.*)",
