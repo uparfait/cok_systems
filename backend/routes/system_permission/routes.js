@@ -8,35 +8,62 @@ const SystemPermissionManager = require('../../controllers/system_permission/man
 const multer = require('multer')
 const upload = multer()
 
-
 Router.use(upload.any())
 
 /**
  * Global Interceptor for Multer Errors
- * This prevents the app from throwing a 500 error when:
- * - No data is sent
- * - Input is not formatted correctly as multipart/form-data
- * - Unexpected fields are sent
  */
 Router.use((error, req, res, next) => {
     if (error instanceof multer.MulterError || error) {
-        // Log the issue internally for the dev
         console.warn('[UPLOAD WARNING]: Handled unexpected or empty input:', error.message)
-
-        // Instead of crashing, we normalize the body to an empty object
-        // and let the request continue to the controllers
         req.body = req.body || {}
         return next()
     }
     next()
 })
 
-
-
-
-Router.get('/', SystemPermissionManager.listSystemPermissions) // Get all system permissions
-// Router.get('/resource/:resource', SystemPermissionManager.getResourcePermissions) // get system permissions by resource
-// Router.post('/user/:userId/assign', SystemPermissionManager.assignPermissions) // Assign system permissions to a user
-// Router.post('/user/:userId/remove', SystemPermissionManager.removePermissions) // Remove system permissions from a user
+/**
+ * @swagger
+ * /permissions:
+ *   get:
+ *     summary: "List all system permissions"
+ *     description: "Retrieve all system-wide permissions and their configurations."
+ *     tags: [System Permissions]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: System permissions retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       resource_name:
+ *                         type: string
+ *                         example: "employees"
+ *                       actions:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             action_type:
+ *                               type: string
+ *                               example: "read:employees"
+ *                             description:
+ *                               type: string
+ *                               example: "Allow this user to view a list of all employees"
+ *       500:
+ *         description: Internal server error
+ */
+Router.get('/', SystemPermissionManager.listSystemPermissions)
 
 module.exports = Router

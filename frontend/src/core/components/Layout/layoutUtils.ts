@@ -377,8 +377,9 @@ export const getDashboardRoute = (role: string | undefined, _departmentName?: st
 
   const normalizedRole = role.toLowerCase().trim();
   const slug = getRoleSlug(role);
-
+ 
   if (normalizedRole.includes('receptionist')) return `/${slug}/dashboard`;
+  if(normalizedRole.includes("event-manager")) return `/event-manager/rooms/all`;
   if (normalizedRole.includes('department manager') || normalizedRole.includes('department head') ||
       normalizedRole.includes('head of department') || normalizedRole.includes('director')) return `/${slug}/dashboard`;
   if ((normalizedRole.includes('manager') || normalizedRole.includes('head')) && !normalizedRole.includes('receptionist')) return `/${slug}/dashboard`;
