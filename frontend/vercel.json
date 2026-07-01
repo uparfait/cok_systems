@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/cok/api/:path*",
-      "destination": "https://cok-bc.onrender.com/cok/api/:path*"
+      "destination": "https://dineflow-smartdining-v-one.onrender.com"
     },
     {
       "source": "/(.*)",
