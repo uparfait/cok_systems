@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        * { 
+            border-radius: 0 !important;
+           font-family: "Roboto", sans-serif !important;
+     }
+        .notification {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .status-live { background: black; color: white; padding: 2px 8px; font-size: 12px; font-weight: 600; }
+        .status-upcoming { border: 2px solid black; padding: 2px 8px; font-size: 12px; font-weight: 600; }
+        .status-recurring { background: black; color: white; padding: 2px 8px; font-size: 12px; font-weight: 600; }
+        .status-past { border: 2px solid black; color: #666; padding: 2px 8px; font-size: 12px; font-weight: 600; }
+        .nav-active { background: white !important; color: black !important; }
+        .top-nav-active { background: white; color: black; }
+    </style>
+</head>
+<body class="bg-white text-black min-h-screen flex">
+    
+    <!-- Notification Container -->
+    <div id="notification-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <!-- Sidebar -->
+    <div class="w-64 bg-black text-white min-h-screen flex-col flex">
+        <div class="p-6 border-b border-white">
+            <h1 class="text-xl font-bold">Event Manager</h1>
+        </div>
+        <nav class="flex-1 py-4">
+            <button onclick="navigateTo('rooms')" id="nav-rooms" class="nav-item w-full text-left px-6 py-3 hover:bg-white hover:text-black transition-colors font-medium flex items-center gap-3">
+                <span>🏠</span> Rooms
+            </button>
+            <button onclick="navigateTo('events')" id="nav-events" class="nav-item w-full text-left px-6 py-3 hover:bg-white hover:text-black transition-colors font-medium flex items-center gap-3">
+                <span>📅</span> Events
+            </button>
+            <button onclick="navigateTo('attendance')" id="nav-attendance" class="nav-item w-full text-left px-6 py-3 hover:bg-white hover:text-black transition-colors font-medium flex items-center gap-3">
+                <span>✓</span> Attendance
+            </button>
+        </nav>
+        <div class="p-6 border-t border-white text-sm opacity-75">
+            © 2024 EMS
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+        
+        <!-- Rooms Section -->
+        <div id="section-rooms" class="section hidden flex flex-col h-full">
+            <div class="bg-black text-white">
+                <div class="flex overflow-x-auto">
+                    <button onclick="roomsAction('all')" id="rooms-tab-all" class="rooms-tab px-6 py-3 font-medium hover:bg-white hover:text-black transition-colors whitespace-nowrap top-nav-active">
+                        All Rooms
+                    </button>
+                    <button onclick="roomsAction('active')" id="rooms-tab-active" class="rooms-tab px-6 py-3 font-medium hover:bg-white hover:text-black transition-colors whitespace-nowrap">
+                        Active Rooms
+                    </button>
+                    <button onclick="roomsAction('statistics')" id="rooms-tab-statistics" class="rooms-tab px-6 py-3 font-medium hover:bg-white hover:text-black transition-colors whitespace-nowrap">
+                        Statistics
+                    </button>
+                    <button onclick="roomsAction('create')" id="rooms-tab-create" class="rooms-tab px-6 py-3 font-medium hover:bg-white hover:text-black transition-colors whitespace-nowrap">
+                        Create Room
+                    </button>
+                    <button onclick="roomsAction('availability')" id="rooms-tab-availability" class="rooms-tab px-6 py-3 font-medium hover:bg-white hover:text-black transition-colors whitespace-nowrap">
+                        Check Availability
+                    </button>
+                </div>
+            </div>
+            <div id="rooms-content" class="flex-1 overflow-auto p-6"></div>
+        </div>
+
+        <!-- Events Section -->
+        <div id="section-events" class="section hidden flex flex-col h-full">
+            <div class="bg-black text-white">
+                <div class="flex overflow-x-auto">
+                    <button onclick="eventsAction('scheduled')" id="events-tab-scheduled" class="events-tab px-6 py-3 font-medium hover:bg-white hover:text-black transition-colors whitespace-nowrap top-nav-active">
+                        Scheduled
+                    </button>
+                    <button onclick="eventsAction('live')" id="events-tab-live" class="events-tab px-6 py-3 font-medium hover:bg-white hover:text-black transition-colors whitespace-nowrap">
+                        Live
+                    </button>
+                    <button onclick="eventsAction('upcoming')" id="events-tab-upcoming" class="events-tab px-6 py-3 font-medium hover:bg-white hover:text-black transition-colors whitespace-nowrap">
+                        Upcoming
+                    </button>
+                    <button onclick="eventsAction('recurring')" id="events-tab-recurring" class="events-tab px-6 py-3 font-medium hover:bg-white hover:text-black transition-colors whitespace-nowrap">
+                        Recurring
+                    </button>
+                    <button onclick="eventsAction('past')" id="events-tab-past" class="events-tab px-6 py-3 font-medium hover:bg-white hover:text-black transition-colors whitespace-nowrap">
+                        Past
+                    </button>
+                    <button onclick="eventsAction('create')" id="events-tab-create" class="events-tab px-6 py-3 font-medium hover:bg-white hover:text-black transition-colors whitespace-nowrap">
+                        Create Event
+                    </button>
+                </div>
+            </div>
+            <div id="events-content" class="flex-1 overflow-auto p-6"></div>
+        </div>
+
+        <!-- Attendance Section -->
+        <div id="section-attendance" class="section hidden flex flex-col h-full">
+            <div class="bg-black text-white">
+                <div class="flex">
+                    <button onclick="attendanceAction('view')" id="attendance-tab-view" class="attendance-tab px-6 py-3 font-medium hover:bg-white hover:text-black transition-colors top-nav-active">
+                        View Records
+                    </button>
+                    <button onclick="attendanceAction('submit')" id="attendance-tab-submit" class="attendance-tab px-6 py-3 font-medium hover:bg-white hover:text-black transition-colors">
+                        Submit Attendance
+                    </button>
+                </div>
+            </div>
+            <div id="attendance-content" class="flex-1 overflow-auto p-6"></div>
+        </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div id="qrcode-modal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50">
+        <div class="bg-white border-2 border-black w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center p-6 border-b-2 border-black">
+                <h2 class="text-xl font-bold">Event QR Code</h2>
+                <button onclick="closeQrModal()" class="text-2xl hover:opacity-70 font-bold">✕</button>
+            </div>
+            <div id="qrcode-content" class="p-6"></div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50">
+        <div class="bg-white border-2 border-black w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center p-6 border-b-2 border-black">
+                <h2 id="edit-modal-title" class="text-xl font-bold">Edit</h2>
+                <button onclick="closeEditModal()" class="text-2xl hover:opacity-70 font-bold">✕</button>
+            </div>
+            <div id="edit-modal-content" class="p-6"></div>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = "http://localhost:2027" + '/cok/api/v1';
+        let currentPage = {};
+        let attendancePrefill = {};
+
+        // Parse URL params on load
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('eventSpecialId')) {
+                attendancePrefill = {
+                    eventSpecialId: params.get('eventSpecialId'),
+                    eventName: params.get('eventName') || '',
+                    eventRoom: params.get('eventRoom') || '',
+                    roomLocation: params.get('roomLocation') || ''
+                };
+                setTimeout(() => {
+                    navigateTo('attendance');
+                    attendanceAction('submit');
+                }, 100);
+            }
+        })();
+
+        // Notification System
+        function notify(message, type = 'success') {
+            const container = document.getElementById('notification-container');
+            const el = document.createElement('div');
+            el.className = `notification p-4 border-2 font-medium shadow-lg ${
+                type === 'success' ? 'border-black bg-white text-black' : 'border-black bg-black text-white'
+            }`;
+            el.textContent = message;
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 4000);
+        }
+
+        // API Helper
+        async function api(url, method = 'GET', data = null, params = null) {
+            try {
+                const response = await axios({ method, url: `${BASE_URL}${url}`, params, data });
+                return response.data;
+            } catch (error) {
+                const msg = error.response?.data?.message || error.message;
+                notify(msg, 'error');
+                throw error;
+            }
+        }
+
+        // Navigation
+        function navigateTo(section) {
+            document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(`section-${section}`).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('nav-active');
+            });
+            document.getElementById(`nav-${section}`).classList.add('nav-active');
+
+            if (section === 'rooms') roomsAction('all');
+            else if (section === 'events') eventsAction('scheduled');
+            else if (section === 'attendance') attendanceAction('view');
+        }
+
+        function switchTab(section, tab) {
+            document.querySelectorAll(`.${section}-tab`).forEach(t => {
+                t.classList.remove('top-nav-active');
+            });
+            document.getElementById(`${section}-tab-${tab}`).classList.add('top-nav-active');
+        }
+
+        // ============ ROOMS ============
+        async function roomsAction(action, page = 1) {
+            switchTab('rooms', action);
+            currentPage.rooms = page;
+            
+            switch(action) {
+                case 'all': await loadAllRooms(page); break;
+                case 'active': await loadActiveRooms(page); break;
+                case 'statistics': await loadRoomStatistics(); break;
+                case 'create': showCreateRoomForm(); break;
+                case 'availability': showAvailabilityChecker(); break;
+            }
+        }
+
+        async function loadAllRooms(page = 1) {
+            try {
+                const search = document.getElementById('room-search')?.value || '';
+                const searchField = document.getElementById('room-search-field')?.value || '';
+                const statusSel = document.getElementById('room-status-filter')?.value || 'all';
+                const sort = document.getElementById('room-sort')?.value || 'new';
+                const params = { page, limit: 10, sort };
+                if (search) {
+                    if (searchField) params.searchField = searchField;
+                    params.search = search;
+                }
+                if (statusSel === 'activeOnly') params.isActive = 'true';
+                else if (statusSel === 'inactiveOnly') params.isActive = 'false';
+                
+                const result = await api('/rooms', 'GET', null, params);
+                renderRoomsTable(result, 'all');
+            } catch (e) {}
+        }
+
+        async function loadActiveRooms(page = 1) {
+            try {
+                const result = await api('/rooms/status/active', 'GET', null, { page, limit: 10, includeEventCount: 'true' });
+                renderRoomsTable(result, 'active');
+            } catch (e) {}
+        }
+
+        async function loadRoomStatistics() {
+            try {
+                const result = await api('/rooms/statistics');
+                const stats = result.data;
+                document.getElementById('rooms-content').innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <div class="border-2 border-black p-6">
+                            <div class="text-sm mb-2">Total Rooms</div>
+                            <div class="text-4xl font-bold">${stats.overview.totalRooms}</div>
+                        </div>
+                        <div class="border-2 border-black p-6">
+                            <div class="text-sm mb-2">Active</div>
+                            <div class="text-4xl font-bold">${stats.overview.activeRooms}</div>
+                        </div>
+                        <div class="border-2 border-black p-6">
+                            <div class="text-sm mb-2">Occupied</div>
+                            <div class="text-4xl font-bold">${stats.overview.occupiedRooms}</div>
+                        </div>
+                        <div class="border-2 border-black p-6">
+                            <div class="text-sm mb-2">Total Capacity</div>
+                            <div class="text-4xl font-bold">${stats.capacity.totalCapacity}</div>
+                        </div>
+                    </div>
+                    <div class="border-2 border-black p-6">
+                        <h3 class="text-lg font-bold mb-4">Top Locations</h3>
+                        ${stats.topLocations.map(loc => `
+                            <div class="flex justify-between border-t border-black py-2">
+                                <span>${loc.location}</span>
+                                <span class="font-bold">${loc.roomCount} rooms (${loc.totalCapacity} capacity)</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } catch (e) {}
+        }
+
+        function renderRoomsTable(result, type) {
+            const html = `
+                <div class="mb-4 flex gap-2 flex-wrap">
+                    <input id="room-search" type="text" placeholder="Search rooms..." 
+                           class="border-2 border-black px-4 py-2 flex-1 min-w-[150px]" 
+                           onkeyup="debounceSearch('rooms')">
+                    <select id="room-search-field" class="border-2 border-black px-4 py-2">
+                        <option value="">All Fields</option>
+                        <option value="roomName">Room Name</option>
+                        <option value="roomLocation">Location</option>
+                        <option value="roomDescription">Description</option>
+                    </select>
+                    <select id="room-status-filter" onchange="loadAllRooms()" class="border-2 border-black px-4 py-2">
+                        <option value="all">All Status</option>
+                        <option value="activeOnly">Active Only</option>
+                        <option value="inactiveOnly">Inactive Only</option>
+                    </select>
+                    <select onchange="roomsSort()" id="room-sort" class="border-2 border-black px-4 py-2">
+                        <option value="new">Newest</option>
+                        <option value="old">Oldest</option>
+                        <option value="name">Name A-Z</option>
+                        <option value="nameDesc">Name Z-A</option>
+                        <option value="capacity">Capacity Low</option>
+                        <option value="capacityDesc">Capacity High</option>
+                        <option value="location">Location</option>
+                    </select>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full border-2 border-black">
+                        <thead class="bg-black text-white">
+                            <tr>
+                                <th class="p-3 text-left">Room Name</th>
+                                <th class="p-3 text-left">Capacity</th>
+                                <th class="p-3 text-left">Location</th>
+                                <th class="p-3 text-left">Status</th>
+                                ${type === 'active' ? '<th class="p-3 text-left">Events</th>' : ''}
+                                <th class="p-3 text-left">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${result.data.map(room => `
+                                <tr class="border-t border-black hover:bg-gray-50">
+                                    <td class="p-3 font-medium">${room.roomName}</td>
+                                    <td class="p-3">${room.roomCapacity}</td>
+                                    <td class="p-3">${room.roomLocation}</td>
+                                    <td class="p-3">
+                                        <span class="${room.isActive ? 'status-live' : 'status-past'}">
+                                            ${room.isActive ? 'Active' : 'Inactive'}
+                                        </span>
+                                    </td>
+                                    ${type === 'active' ? `
+                                        <td class="p-3 text-sm">
+                                            Live: ${room.liveEventsCount || 0} | Upcoming: ${room.upcomingEventsCount || 0}
+                                        </td>
+                                    ` : ''}
+                                    <td class="p-3">
+                                        <button onclick="viewRoomDetails('${room._id}')" class="underline hover:opacity-70 mr-2">View</button>
+                                        <button onclick="showEditRoomForm('${room._id}')" class="underline hover:opacity-70 mr-2">Edit</button>
+                                        <button onclick="deleteRoom('${room._id}')" class="underline hover:opacity-70 text-red-600">Delete</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                ${renderRoomsPagination(result, type)}
+            `;
+            document.getElementById('rooms-content').innerHTML = html;
+        }
+
+        function roomsSort() {
+            loadAllRooms();
+        }
+
+        async function viewRoomDetails(roomId) {
+            try {
+                const result = await api(`/rooms/${roomId}`);
+                const room = result.data;
+                let liveEventHtml = '';
+                try {
+                    const liveResult = await api(`/rooms/${roomId}/live-event`);
+                    if (liveResult.data && liveResult.data.liveEvent) {
+                        const evt = liveResult.data.liveEvent;
+                        liveEventHtml = `
+                            <div class="border-2 border-black p-4 mt-4">
+                                <h3 class="font-bold text-lg mb-2">Current Live Event</h3>
+                                <p><strong>Event:</strong> ${evt.eventName}</p>
+                                <p><strong>Type:</strong> ${evt.eventType}</p>
+                                <p><strong>Organizer:</strong> ${evt.eventOrganizer}</p>
+                                <p><strong>Time:</strong> ${new Date(evt.startedAt).toLocaleString()} - ${new Date(evt.willEndAt).toLocaleString()}</p>
+                                <button onclick="generateQRCode('${evt._id}')" class="mt-2 border-2 border-black px-3 py-1 hover:bg-black hover:text-white text-sm">QR Code</button>
+                            </div>
+                        `;
+                    }
+                } catch (e) {}
+                
+                document.getElementById('rooms-content').innerHTML = `
+                    <div class="border-2 border-black p-6">
+                        <h2 class="text-2xl font-bold mb-4">Room Details</h2>
+                        <p><strong>Name:</strong> ${room.roomName}</p>
+                        <p><strong>Description:</strong> ${room.roomDescription}</p>
+                        <p><strong>Capacity:</strong> ${room.roomCapacity}</p>
+                        <p><strong>Location:</strong> ${room.roomLocation}</p>
+                        <p><strong>Status:</strong> ${room.isActive ? 'Active' : 'Inactive'}</p>
+                        ${liveEventHtml}
+                        <div class="mt-4 flex gap-2">
+                            <button onclick="showEditRoomForm('${room._id}')" class="border-2 border-black px-4 py-2 hover:bg-black hover:text-white">Edit Room</button>
+                            <button onclick="roomsAction('all')" class="border-2 border-black px-4 py-2 hover:bg-black hover:text-white">Back to List</button>
+                        </div>
+                    </div>
+                `;
+            } catch (e) {}
+        }
+
+        function showCreateRoomForm() {
+            document.getElementById('rooms-content').innerHTML = `
+                <div class="max-w-lg mx-auto border-2 border-black p-6">
+                    <h2 class="text-xl font-bold mb-6">Create New Room</h2>
+                    <form onsubmit="createRoom(event)" class="space-y-4">
+                        <div>
+                            <label class="block mb-1 font-medium">Room Name *</label>
+                            <input type="text" name="roomName" required class="w-full border-2 border-black px-4 py-2">
+                        </div>
+                        <div>
+                            <label class="block mb-1 font-medium">Description *</label>
+                            <textarea name="roomDescription" required class="w-full border-2 border-black px-4 py-2" rows="3"></textarea>
+                        </div>
+                        <div>
+                            <label class="block mb-1 font-medium">Capacity *</label>
+                            <input type="number" name="roomCapacity" required min="1" class="w-full border-2 border-black px-4 py-2">
+                        </div>
+                        <div>
+                            <label class="block mb-1 font-medium">Location *</label>
+                            <input type="text" name="roomLocation" required class="w-full border-2 border-black px-4 py-2">
+                        </div>
+                        <button type="submit" class="w-full bg-black text-white py-3 font-bold hover:opacity-80">
+                            Create Room
+                        </button>
+                    </form>
+                </div>
+            `;
+        }
+
+        async function showEditRoomForm(roomId) {
+            try {
+                const result = await api(`/rooms/${roomId}`);
+                const room = result.data;
+                showEditModal('Edit Room', `
+                    <form onsubmit="updateRoom(event, '${roomId}')" class="space-y-4">
+                        <div>
+                            <label class="block mb-1 font-medium">Room Name *</label>
+                            <input type="text" name="roomName" required value="${room.roomName}" class="w-full border-2 border-black px-4 py-2">
+                        </div>
+                        <div>
+                            <label class="block mb-1 font-medium">Description *</label>
+                            <textarea name="roomDescription" required class="w-full border-2 border-black px-4 py-2" rows="3">${room.roomDescription}</textarea>
+                        </div>
+                        <div>
+                            <label class="block mb-1 font-medium">Capacity *</label>
+                            <input type="number" name="roomCapacity" required min="1" value="${room.roomCapacity}" class="w-full border-2 border-black px-4 py-2">
+                        </div>
+                        <div>
+                            <label class="block mb-1 font-medium">Location *</label>
+                            <input type="text" name="roomLocation" required value="${room.roomLocation}" class="w-full border-2 border-black px-4 py-2">
+                        </div>
+                        <div>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" name="isActive" ${room.isActive ? 'checked' : ''} class="border-2 border-black">
+                                <span class="font-medium">Active</span>
+                            </label>
+                        </div>
+                        <button type="submit" class="w-full bg-black text-white py-3 font-bold hover:opacity-80">
+                            Update Room
+                        </button>
+                    </form>
+                `);
+            } catch (e) {}
+        }
+
+        async function updateRoom(e, roomId) {
+            e.preventDefault();
+            const formData = Object.fromEntries(new FormData(e.target));
+            const data = {
+                roomName: formData.roomName,
+                roomDescription: formData.roomDescription,
+                roomCapacity: parseInt(formData.roomCapacity),
+                roomLocation: formData.roomLocation,
+                isActive: formData.isActive === 'on'
+            };
+            try {
+                await api(`/rooms/${roomId}`, 'PUT', data);
+                notify('Room updated successfully');
+                closeEditModal();
+                roomsAction('all');
+            } catch (e) {}
+        }
+
+        async function createRoom(e) {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(e.target));
+            try {
+                await api('/rooms', 'POST', data);
+                notify('Room created successfully');
+                roomsAction('all');
+            } catch (e) {}
+        }
+
+        async function deleteRoom(id) {
+            if (!confirm('Delete this room?')) return;
+            try {
+                await api(`/rooms/${id}`, 'DELETE');
+                notify('Room deleted');
+                roomsAction('all');
+            } catch (e) {}
+        }
+
+        function showAvailabilityChecker() {
+            document.getElementById('rooms-content').innerHTML = `
+                <div class="max-w-lg mx-auto border-2 border-black p-6">
+                    <h2 class="text-xl font-bold mb-6">Check Room Availability</h2>
+                    <form onsubmit="checkAvailability(event)" class="space-y-4">
+                        <div>
+                            <label class="block mb-1 font-medium">Room Name *</label>
+                            <input type="text" name="roomName" required class="w-full border-2 border-black px-4 py-2">
+                        </div>
+                        <div>
+                            <label class="block mb-1 font-medium">Start Time *</label>
+                            <input type="datetime-local" name="startTime" required class="w-full border-2 border-black px-4 py-2">
+                        </div>
+                        <div>
+                            <label class="block mb-1 font-medium">End Time *</label>
+                            <input type="datetime-local" name="endTime" required class="w-full border-2 border-black px-4 py-2">
+                        </div>
+                        <button type="submit" class="w-full bg-black text-white py-3 font-bold hover:opacity-80">
+                            Check Availability
+                        </button>
+                    </form>
+                    <div id="availability-result" class="mt-4"></div>
+                </div>
+            `;
+        }
+
+        async function checkAvailability(e) {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(e.target));
+            try {
+                const result = await api('/rooms/availability', 'GET', null, {
+                    roomName: data.roomName,
+                    startTime: new Date(data.startTime).toISOString(),
+                    endTime: new Date(data.endTime).toISOString()
+                });
+                const avail = result.data;
+                document.getElementById('availability-result').innerHTML = `
+                    <div class="border-2 ${avail.available ? 'border-black' : 'border-black bg-gray-100'} p-4">
+                        <p class="font-bold text-lg">${avail.available ? '✅ Available' : '❌ Not Available'}</p>
+                        ${!avail.available && avail.conflict ? `
+                            <p class="mt-2">Conflict with ${avail.conflict.type}: ${avail.conflict.details?.eventName || 'Unknown'}</p>
+                        ` : ''}
+                    </div>
+                `;
+            } catch (e) {}
+        }
+
+        function debounceSearch(type) {
+            clearTimeout(window.searchTimeout);
+            window.searchTimeout = setTimeout(() => {
+                if (type === 'rooms') loadAllRooms();
+            }, 500);
+        }
+
+        // ============ EVENTS ============
+        async function eventsAction(action, page = 1) {
+            switchTab('events', action);
+            currentPage.events = page;
+            
+            switch(action) {
+                case 'scheduled': await loadScheduledEvents(page); break;
+                case 'live': await loadLiveEvents(page); break;
+                case 'upcoming': await loadUpcomingEvents(page); break;
+                case 'recurring': await loadRecurringEvents(page); break;
+                case 'past': await loadPastEvents(page); break;
+                case 'create': showCreateEventForm(); break;
+            }
+        }
+
+        function getEventsParams(page = 1) {
+            const search = document.getElementById('event-search')?.value || '';
+            const searchField = document.getElementById('event-search-field')?.value || '';
+            const filter = document.getElementById('event-filter')?.value || '';
+            const sort = document.getElementById('event-sort')?.value || 'new';
+            const params = { page, limit: 15, sort };
+            if (search) {
+                if (searchField) params.searchField = searchField;
+                params.search = search;
+            }
+            if (filter && filter !== 'all') params.filter = filter;
+            return params;
+        }
+
+        async function loadScheduledEvents(page = 1) {
+            try {
+                const result = await api('/events/scheduled', 'GET', null, getEventsParams(page));
+                renderEventsTable(result, 'scheduled');
+            } catch (e) {}
+        }
+
+        async function loadLiveEvents(page = 1) {
+            try {
+                const result = await api('/events/live', 'GET', null, getEventsParams(page));
+                renderEventsTable(result, 'live');
+            } catch (e) {}
+        }
+
+        async function loadUpcomingEvents(page = 1) {
+            try {
+                const result = await api('/events/upcoming', 'GET', null, getEventsParams(page));
+                renderEventsTable(result, 'upcoming');
+            } catch (e) {}
+        }
+
+        async function loadRecurringEvents(page = 1) {
+            try {
+                const result = await api('/events/recurring', 'GET', null, getEventsParams(page));
+                renderEventsTable(result, 'recurring');
+            } catch (e) {}
+        }
+
+        async function loadPastEvents(page = 1) {
+            try {
+                const result = await api('/events/past', 'GET', null, getEventsParams(page));
+                renderEventsTable(result, 'past');
+            } catch (e) {}
+        }
+
+        function getEventTime(event) {
+            if (event.startedAt) return { start: event.startedAt, end: event.willEndAt };
+            if (event.willStartAt) return { start: event.willStartAt, end: event.willEndAt };
+            if (event.eventRecurring) {
+                return { 
+                    start: event.eventRecurring.eventStartTime, 
+                    end: event.eventRecurring.eventEndTime,
+                    isRecurring: true,
+                    recurringType: event.eventRecurring.recurringType,
+                    recurringEndDate: event.eventRecurring.recurringEndDate
+                };
+            }
+            return { start: null, end: null };
+        }
+
+        function renderEventsTable(result, type) {
+            const timeHeader = type === 'past' ? 'Ended At' : 'Time';
+            const showActions = type !== 'past';
+            
+            const html = `
+                <div class="mb-4 flex gap-2 flex-wrap">
+                    <input id="event-search" type="text" placeholder="Search events..." class="border-2 border-black px-4 py-2 flex-1 min-w-[150px]"
+                           onkeyup="debounceEventSearch('${type}')">
+                    <select id="event-search-field" class="border-2 border-black px-4 py-2">
+                        <option value="">All Fields</option>
+                        <option value="eventName">Event Name</option>
+                        <option value="eventOrganizer">Organizer</option>
+                        <option value="eventRoom">Room</option>
+                        <option value="eventSpecialId">Special ID</option>
+                    </select>
+                    <select id="event-filter" onchange="eventsAction('${type}', 1)" class="border-2 border-black px-4 py-2">
+                        <option value="all">All</option>
+                        <option value="thisWeek">This Week</option>
+                        <option value="thisMonth">This Month</option>
+                        <option value="thisYear">This Year</option>
+                        ${type === 'scheduled' ? `
+                            <option value="live">Live Only</option>
+                            <option value="upcoming">Upcoming Only</option>
+                            <option value="recurring">Recurring Only</option>
+                        ` : ''}
+                        <option value="Special">Special</option>
+                        <option value="Regular">Regular</option>
+                    </select>
+                    <select id="event-sort" onchange="eventsAction('${type}', 1)" class="border-2 border-black px-4 py-2">
+                        <option value="new">Newest First</option>
+                        <option value="old">Oldest First</option>
+                    </select>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full border-2 border-black">
+                        <thead class="bg-black text-white">
+                            <tr>
+                                <th class="p-3 text-left">Event Name</th>
+                                <th class="p-3 text-left">Type</th>
+                                <th class="p-3 text-left">Room</th>
+                                <th class="p-3 text-left">Organizer</th>
+                                <th class="p-3 text-left">Status</th>
+                                <th class="p-3 text-left">${timeHeader}</th>
+                                <th class="p-3 text-left">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${result.data.length === 0 ? `
+                                <tr><td colspan="7" class="p-6 text-center">No events found</td></tr>
+                            ` : result.data.map(event => {
+                                const time = getEventTime(event);
+                                let statusText = event.eventStatus || type;
+                                
+                                let statusClass = '';
+                                switch(statusText) {
+                                    case 'live': statusClass = 'status-live'; break;
+                                    case 'upcoming': statusClass = 'status-upcoming'; break;
+                                    case 'recurring': statusClass = 'status-recurring'; break;
+                                    case 'past': statusClass = 'status-past'; break;
+                                    default: statusClass = 'status-upcoming';
+                                }
+                                
+                                let timeDisplay = 'N/A';
+                                if (time.isRecurring) {
+                                    timeDisplay = `${time.recurringType}: ${time.start} - ${time.end}<br>Until: ${new Date(time.recurringEndDate).toLocaleDateString()}`;
+                                } else if (time.start) {
+                                    timeDisplay = new Date(time.start).toLocaleString();
+                                    if (type !== 'past' && time.end) {
+                                        timeDisplay += `<br>to ${new Date(time.end).toLocaleString()}`;
+                                    }
+                                }
+                                
+                                return `
+                                    <tr class="border-t border-black hover:bg-gray-50">
+                                        <td class="p-3 font-medium">${event.eventName}</td>
+                                        <td class="p-3">
+                                            <span class="${event.eventType === 'Special' ? 'status-live' : 'status-upcoming'}">
+                                                ${event.eventType}
+                                            </span>
+                                        </td>
+                                        <td class="p-3">${event.eventRoom}</td>
+                                        <td class="p-3">${event.eventOrganizer}</td>
+                                        <td class="p-3"><span class="${statusClass}">${statusText}</span></td>
+                                        <td class="p-3 text-sm">${timeDisplay}</td>
+                                        <td class="p-3">
+                                            ${statusText === 'live' ? 
+                                                `<button onclick="generateQRCode('${event._id}')" class="underline hover:opacity-70 mr-2">QR Code</button>` : 
+                                                type === 'live' ? 
+                                                `<button onclick="generateQRCode('${event._id}')" class="underline hover:opacity-70 mr-2">QR Code</button>` : ''
+                                            }
+                                            ${statusText === 'live' ? `<button onclick="showEditLiveEvent('${event._id}')" class="underline hover:opacity-70 mr-2">Edit</button>` : ''}
+                                            ${statusText === 'upcoming' ? `<button onclick="showEditUpcomingEvent('${event._id}')" class="underline hover:opacity-70 mr-2">Edit</button>` : ''}
+                                            ${statusText === 'recurring' ? `<button onclick="showEditRecurringEvent('${event._id}')" class="underline hover:opacity-70 mr-2">Edit</button>` : ''}
+                                            ${showActions ? `<button onclick="showChangeRoom('${event._id}', '${statusText}')" class="underline hover:opacity-70 text-blue-600">Change Room</button>` : ''}
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                ${renderEventsPagination(result, type)}
+            `;
+            document.getElementById('events-content').innerHTML = html;
+        }
+
+        function debounceEventSearch(type) {
+            clearTimeout(window.eventSearchTimeout);
+            window.eventSearchTimeout = setTimeout(() => {
+                eventsAction(type, 1);
+            }, 500);
+        }
+
+        // ============ EVENT CREATE ============
+        function showCreateEventForm() {
+            const content = document.getElementById('events-content');
+            content.innerHTML = `
+                <div class="max-w-lg mx-auto border-2 border-black p-6">
+                    <h2 class="text-xl font-bold mb-6">Create New Event</h2>
+                    <form id="event-create-form" class="space-y-4">
+                        <div>
+                            <label class="block mb-1 font-medium">Event Mode *</label>
+                            <select name="eventMode" required onchange="toggleEventFields(this.value)" class="w-full border-2 border-black px-4 py-2">
+                                <option value="">Select mode</option>
+                                <option value="live">Live Event</option>
+                                <option value="upcoming">Upcoming Event</option>
+                                <option value="recurring">Recurring Event</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block mb-1 font-medium">Event Name *</label>
+                            <input type="text" name="eventName" required class="w-full border-2 border-black px-4 py-2">
+                        </div>
+                        <div>
+                            <label class="block mb-1 font-medium">Description *</label>
+                            <textarea name="eventDescription" required class="w-full border-2 border-black px-4 py-2" rows="3"></textarea>
+                        </div>
+                        <div>
+                            <label class="block mb-1 font-medium">Event Type *</label>
+                            <select name="eventType" required class="w-full border-2 border-black px-4 py-2">
+                                <option value="Regular">Regular</option>
+                                <option value="Special">Special</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block mb-1 font-medium">Room *</label>
+                            <input type="text" name="eventRoom" required class="w-full border-2 border-black px-4 py-2">
+                        </div>
+                        <div>
+                            <label class="block mb-1 font-medium">Organizer *</label>
+                            <input type="text" name="eventOrganizer" required class="w-full border-2 border-black px-4 py-2">
+                        </div>
+                        
+                        <div id="live-time-fields" class="hidden space-y-4">
+                            <div>
+                                <label class="block mb-1 font-medium">Start Time *</label>
+                                <input type="datetime-local" name="startedAt" class="w-full border-2 border-black px-4 py-2">
+                            </div>
+                            <div>
+                                <label class="block mb-1 font-medium">End Time *</label>
+                                <input type="datetime-local" name="willEndAt" class="w-full border-2 border-black px-4 py-2">
+                            </div>
+                        </div>
+                        
+                        <div id="upcoming-time-fields" class="hidden space-y-4">
+                            <div>
+                                <label class="block mb-1 font-medium">Start Time *</label>
+                                <input type="datetime-local" name="willStartAt" class="w-full border-2 border-black px-4 py-2">
+                            </div>
+                            <div>
+                                <label class="block mb-1 font-medium">End Time *</label>
+                                <input type="datetime-local" name="willEndAt" class="w-full border-2 border-black px-4 py-2">
+                            </div>
+                        </div>
+                        
+                        <div id="recurring-fields" class="hidden space-y-4">
+                            <div>
+                                <label class="block mb-1 font-medium">Recurring Type *</label>
+                                <select name="recurringType" onchange="toggleRecurringDetails(this.value)" class="w-full border-2 border-black px-4 py-2">
+                                    <option value="">Select type</option>
+                                    <option value="Daily">Daily</option>
+                                    <option value="Weekly">Weekly</option>
+                                    <option value="Monthly">Monthly</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block mb-1 font-medium">Start Time *</label>
+                                <input type="time" name="eventStartTime" class="w-full border-2 border-black px-4 py-2">
+                            </div>
+                            <div>
+                                <label class="block mb-1 font-medium">End Time *</label>
+                                <input type="time" name="eventEndTime" class="w-full border-2 border-black px-4 py-2">
+                            </div>
+                            <div id="weekly-days-field" class="hidden">
+                                <label class="block mb-1 font-medium">Days of Week *</label>
+                                <div class="grid grid-cols-7 gap-2">
+                                    ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => `
+                                        <label class="flex items-center gap-1">
+                                            <input type="checkbox" name="weeklyDays" value="${i}" class="border-2 border-black">
+                                            <span class="text-sm">${day}</span>
+                                        </label>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <div id="monthly-dates-field" class="hidden">
+                                <label class="block mb-1 font-medium">Monthly Pattern</label>
+                                <select name="monthlyPattern" onchange="toggleMonthlyPatternFields(this.value)" class="w-full border-2 border-black px-4 py-2 mb-2">
+                                    <option value="specific">Specific Dates</option>
+                                    <option value="firstDay">First Day of Month</option>
+                                    <option value="lastDay">Last Day of Month</option>
+                                    <option value="firstTwoWeeks">First Two Weeks</option>
+                                    <option value="lastTwoWeeks">Last Two Weeks</option>
+                                    <option value="mixed">Mixed</option>
+                                </select>
+                                <div id="monthly-specific-dates">
+                                    <label class="block mb-1 font-medium">Monthly Dates (comma-separated, 1-31) *</label>
+                                    <input type="text" name="monthlyDates" placeholder="1,15,30" class="w-full border-2 border-black px-4 py-2">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block mb-1 font-medium">Recurring End Date *</label>
+                                <input type="date" name="recurringEndDate" class="w-full border-2 border-black px-4 py-2">
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="w-full bg-black text-white py-3 font-bold hover:opacity-80">
+                            Create Event
+                        </button>
+                    </form>
+                </div>
+            `;
+            // Attach submit listener via JS to ensure preventDefault works
+            const form = document.getElementById('event-create-form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    return false;
+                });
+                form.addEventListener('submit', handleCreateEvent);
+            }
+        }
+
+        async function handleCreateEvent(e) {
+            const form = e.currentTarget;
+            const formData = new FormData(form);
+            const mode = formData.get('eventMode');
+            
+            const data = {
+                eventName: formData.get('eventName'),
+                eventDescription: formData.get('eventDescription'),
+                eventType: formData.get('eventType'),
+                eventRoom: formData.get('eventRoom'),
+                eventOrganizer: formData.get('eventOrganizer'),
+                eventMode: mode
+            };
+            
+            if (mode === 'live') {
+                data.startedAt = new Date(formData.get('startedAt')).toISOString();
+                data.willEndAt = new Date(formData.get('willEndAt')).toISOString();
+            } else if (mode === 'upcoming') {
+                data.willStartAt = new Date(formData.get('willStartAt')).toISOString();
+                data.willEndAt = new Date(formData.get('willEndAt')).toISOString();
+            } else if (mode === 'recurring') {
+                const recurringType = formData.get('recurringType');
+                const recurringEndDate = new Date(formData.get('recurringEndDate')).toISOString();
+                const eventStartTime = formData.get('eventStartTime');
+                const eventEndTime = formData.get('eventEndTime');
+                
+                const recurringConfig = {
+                    isRecurring: true,
+                    recurringType,
+                    recurringEndDate,
+                    eventStartTime,
+                    eventEndTime,
+                    willExpire: false
+                };
+                
+                if (recurringType === 'Weekly') {
+                    const weekDays = formData.getAll('weeklyDays').map(Number);
+                    recurringConfig.weeklyDays = weekDays;
+                } else if (recurringType === 'Monthly') {
+                    const monthlyPattern = formData.get('monthlyPattern') || 'specific';
+                    recurringConfig.monthlyPattern = monthlyPattern;
+                    
+                    if (monthlyPattern === 'specific' || monthlyPattern === 'mixed') {
+                        const datesStr = formData.get('monthlyDates') || '';
+                        const dates = datesStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
+                        recurringConfig.monthlyDates = dates;
+                    }
+                }
+                
+                data.eventRecurring = recurringConfig;
+            }
+            
+            try {
+                const response = await api('/events', 'POST', data);
+                if (response.success) {
+                    notify('Event created successfully');
+                    document.getElementById('events-content').innerHTML += `
+                        <div class="mt-4 border-2 border-black p-4 bg-gray-50 text-center">
+                            <p class="font-bold text-lg">✅ Event created successfully!</p>
+                            <p class="text-sm mt-1">You can create another event or <button onclick="eventsAction('scheduled')" class="underline font-medium">view scheduled events</button></p>
+                        </div>
+                    `;
+                } else {
+                    notify(response.message || 'Failed to create event', 'error');
+                }
+            } catch (e) {}
+        }
+
+        function toggleEventFields(mode) {
+            ['live-time-fields', 'upcoming-time-fields', 'recurring-fields'].forEach(id => {
+                const el = document.getElementById(id);
+                el.classList.add('hidden');
+                el.querySelectorAll('input, select, textarea').forEach(f => f.disabled = true);
+            });
+            if (mode) {
+                const targetId = mode === 'live' ? 'live-time-fields' : mode === 'upcoming' ? 'upcoming-time-fields' : 'recurring-fields';
+                const el = document.getElementById(targetId);
+                el.classList.remove('hidden');
+                el.querySelectorAll('input, select, textarea').forEach(f => f.disabled = false);
+            }
+        }
+
+        function toggleRecurringDetails(type) {
+            document.getElementById('weekly-days-field').classList.add('hidden');
+            document.getElementById('monthly-dates-field').classList.add('hidden');
+            
+            if (type === 'Weekly') {
+                document.getElementById('weekly-days-field').classList.remove('hidden');
+            } else if (type === 'Monthly') {
+                document.getElementById('monthly-dates-field').classList.remove('hidden');
+            }
+        }
+
+        function toggleMonthlyPatternFields(pattern) {
+            const specificDatesDiv = document.getElementById('monthly-specific-dates');
+            if (pattern === 'specific' || pattern === 'mixed') {
+                specificDatesDiv.style.display = 'block';
+            } else {
+                specificDatesDiv.style.display = 'none';
+            }
+        }
+
+        // ============ UPDATE EVENTS ============
+        async function showEditLiveEvent(eventId) {
+            try {
+                const result = await api('/events/live', 'GET', null, { page: 1, limit: 200 });
+                const event = result.data.find(e => e._id === eventId);
+                if (!event) { notify('Live event not found', 'error'); return; }
+                
+                showEditModal('Edit Live Event', `
+                    <form onsubmit="updateLiveEvent(event, '${eventId}')" class="space-y-4">
+                        <div><label class="block mb-1 font-medium">Event Name</label><input type="text" name="eventName" value="${event.eventName}" class="w-full border-2 border-black px-4 py-2"></div>
+                        <div><label class="block mb-1 font-medium">Description</label><textarea name="eventDescription" class="w-full border-2 border-black px-4 py-2" rows="3">${event.eventDescription || ''}</textarea></div>
+                        <div>
+                            <label class="block mb-1 font-medium">Event Type</label>
+                            <select name="eventType" class="w-full border-2 border-black px-4 py-2">
+                                <option value="Regular" ${event.eventType === 'Regular' ? 'selected' : ''}>Regular</option>
+                                <option value="Special" ${event.eventType === 'Special' ? 'selected' : ''}>Special</option>
+                            </select>
+                        </div>
+                        <div><label class="block mb-1 font-medium">Organizer</label><input type="text" name="eventOrganizer" value="${event.eventOrganizer || ''}" class="w-full border-2 border-black px-4 py-2"></div>
+                        <div><label class="block mb-1 font-medium">Start Time</label><input type="datetime-local" name="startedAt" value="${event.startedAt ? new Date(event.startedAt).toISOString().slice(0, 16) : ''}" class="w-full border-2 border-black px-4 py-2"></div>
+                        <div><label class="block mb-1 font-medium">End Time</label><input type="datetime-local" name="willEndAt" value="${event.willEndAt ? new Date(event.willEndAt).toISOString().slice(0, 16) : ''}" class="w-full border-2 border-black px-4 py-2"></div>
+                        <button type="submit" class="w-full bg-black text-white py-3 font-bold hover:opacity-80">Update Live Event</button>
+                    </form>
+                `);
+            } catch (e) {}
+        }
+
+        async function updateLiveEvent(e, eventId) {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(e.target));
+            if (data.startedAt) data.startedAt = new Date(data.startedAt).toISOString();
+            if (data.willEndAt) data.willEndAt = new Date(data.willEndAt).toISOString();
+            try {
+                await api(`/events/live/${eventId}`, 'PUT', data);
+                notify('Live event updated successfully');
+                closeEditModal();
+                eventsAction('live');
+            } catch (e) {}
+        }
+
+        async function showEditUpcomingEvent(eventId) {
+            try {
+                const result = await api('/events/upcoming', 'GET', null, { page: 1, limit: 200 });
+                const event = result.data.find(e => e._id === eventId);
+                if (!event) { notify('Upcoming event not found', 'error'); return; }
+                
+                showEditModal('Edit Upcoming Event', `
+                    <form onsubmit="updateUpcomingEvent(event, '${eventId}')" class="space-y-4">
+                        <div><label class="block mb-1 font-medium">Event Name</label><input type="text" name="eventName" value="${event.eventName}" class="w-full border-2 border-black px-4 py-2"></div>
+                        <div><label class="block mb-1 font-medium">Description</label><textarea name="eventDescription" class="w-full border-2 border-black px-4 py-2" rows="3">${event.eventDescription || ''}</textarea></div>
+                        <div>
+                            <label class="block mb-1 font-medium">Event Type</label>
+                            <select name="eventType" class="w-full border-2 border-black px-4 py-2">
+                                <option value="Regular" ${event.eventType === 'Regular' ? 'selected' : ''}>Regular</option>
+                                <option value="Special" ${event.eventType === 'Special' ? 'selected' : ''}>Special</option>
+                            </select>
+                        </div>
+                        <div><label class="block mb-1 font-medium">Room</label><input type="text" name="eventRoom" value="${event.eventRoom || ''}" class="w-full border-2 border-black px-4 py-2"></div>
+                        <div><label class="block mb-1 font-medium">Organizer</label><input type="text" name="eventOrganizer" value="${event.eventOrganizer || ''}" class="w-full border-2 border-black px-4 py-2"></div>
+                        <div><label class="block mb-1 font-medium">Start Time</label><input type="datetime-local" name="willStartAt" value="${event.willStartAt ? new Date(event.willStartAt).toISOString().slice(0, 16) : ''}" class="w-full border-2 border-black px-4 py-2"></div>
+                        <div><label class="block mb-1 font-medium">End Time</label><input type="datetime-local" name="willEndAt" value="${event.willEndAt ? new Date(event.willEndAt).toISOString().slice(0, 16) : ''}" class="w-full border-2 border-black px-4 py-2"></div>
+                        <button type="submit" class="w-full bg-black text-white py-3 font-bold hover:opacity-80">Update Upcoming Event</button>
+                    </form>
+                `);
+            } catch (e) {}
+        }
+
+        async function updateUpcomingEvent(e, eventId) {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(e.target));
+            if (data.willStartAt) data.willStartAt = new Date(data.willStartAt).toISOString();
+            if (data.willEndAt) data.willEndAt = new Date(data.willEndAt).toISOString();
+            try {
+                await api(`/events/upcoming/${eventId}`, 'PUT', data);
+                notify('Upcoming event updated successfully');
+                closeEditModal();
+                eventsAction('upcoming');
+            } catch (e) {}
+        }
+
+        async function showEditRecurringEvent(eventId) {
+            try {
+                const result = await api('/events/recurring', 'GET', null, { page: 1, limit: 200 });
+                const event = result.data.find(e => e._id === eventId);
+                if (!event) { notify('Recurring event not found', 'error'); return; }
+                const rec = event.eventRecurring || {};
+                
+                let recurringTypeFields = '';
+                if (rec.recurringType === 'Weekly') {
+                    recurringTypeFields = `
+                        <div>
+                            <label class="block mb-1 font-medium">Days of Week</label>
+                            <div class="grid grid-cols-7 gap-2">
+                                ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => `
+                                    <label class="flex items-center gap-1">
+                                        <input type="checkbox" name="weeklyDays" value="${i}" ${rec.weeklyDays && rec.weeklyDays.includes(i) ? 'checked' : ''} class="border-2 border-black">
+                                        <span class="text-sm">${day}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                } else if (rec.recurringType === 'Monthly') {
+                    recurringTypeFields = `
+                        <div>
+                            <label class="block mb-1 font-medium">Monthly Pattern</label>
+                            <select name="monthlyPattern" class="w-full border-2 border-black px-4 py-2">
+                                <option value="specific" ${rec.monthlyPattern === 'specific' ? 'selected' : ''}>Specific Dates</option>
+                                <option value="firstDay" ${rec.monthlyPattern === 'firstDay' ? 'selected' : ''}>First Day</option>
+                                <option value="lastDay" ${rec.monthlyPattern === 'lastDay' ? 'selected' : ''}>Last Day</option>
+                                <option value="firstTwoWeeks" ${rec.monthlyPattern === 'firstTwoWeeks' ? 'selected' : ''}>First Two Weeks</option>
+                                <option value="lastTwoWeeks" ${rec.monthlyPattern === 'lastTwoWeeks' ? 'selected' : ''}>Last Two Weeks</option>
+                                <option value="mixed" ${rec.monthlyPattern === 'mixed' ? 'selected' : ''}>Mixed</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block mb-1 font-medium">Monthly Dates (comma-separated)</label>
+                            <input type="text" name="monthlyDates" value="${rec.monthlyDates ? rec.monthlyDates.join(',') : ''}" class="w-full border-2 border-black px-4 py-2">
+                        </div>
+                    `;
+                }
+                
+                showEditModal('Edit Recurring Event', `
+                    <form onsubmit="updateRecurringEvent(event, '${eventId}')" class="space-y-4">
+                        <div><label class="block mb-1 font-medium">Event Name</label><input type="text" name="eventName" value="${event.eventName}" class="w-full border-2 border-black px-4 py-2"></div>
+                        <div><label class="block mb-1 font-medium">Description</label><textarea name="eventDescription" class="w-full border-2 border-black px-4 py-2" rows="3">${event.eventDescription || ''}</textarea></div>
+                        <div>
+                            <label class="block mb-1 font-medium">Event Type</label>
+                            <select name="eventType" class="w-full border-2 border-black px-4 py-2">
+                                <option value="Regular" ${event.eventType === 'Regular' ? 'selected' : ''}>Regular</option>
+                                <option value="Special" ${event.eventType === 'Special' ? 'selected' : ''}>Special</option>
+                            </select>
+                        </div>
+                        <div><label class="block mb-1 font-medium">Room</label><input type="text" name="eventRoom" value="${event.eventRoom || ''}" class="w-full border-2 border-black px-4 py-2"></div>
+                        <div><label class="block mb-1 font-medium">Organizer</label><input type="text" name="eventOrganizer" value="${event.eventOrganizer || ''}" class="w-full border-2 border-black px-4 py-2"></div>
+                        <div>
+                            <label class="block mb-1 font-medium">Recurring Type</label>
+                            <select name="recurringType" class="w-full border-2 border-black px-4 py-2">
+                                <option value="Daily" ${rec.recurringType === 'Daily' ? 'selected' : ''}>Daily</option>
+                                <option value="Weekly" ${rec.recurringType === 'Weekly' ? 'selected' : ''}>Weekly</option>
+                                <option value="Monthly" ${rec.recurringType === 'Monthly' ? 'selected' : ''}>Monthly</option>
+                            </select>
+                        </div>
+                        <div><label class="block mb-1 font-medium">Start Time</label><input type="time" name="eventStartTime" value="${rec.eventStartTime || ''}" class="w-full border-2 border-black px-4 py-2"></div>
+                        <div><label class="block mb-1 font-medium">End Time</label><input type="time" name="eventEndTime" value="${rec.eventEndTime || ''}" class="w-full border-2 border-black px-4 py-2"></div>
+                        ${recurringTypeFields}
+                        <div><label class="block mb-1 font-medium">Recurring End Date</label><input type="date" name="recurringEndDate" value="${rec.recurringEndDate ? new Date(rec.recurringEndDate).toISOString().slice(0, 10) : ''}" class="w-full border-2 border-black px-4 py-2"></div>
+                        <button type="submit" class="w-full bg-black text-white py-3 font-bold hover:opacity-80">Update Recurring Event</button>
+                    </form>
+                `);
+            } catch (e) {}
+        }
+
+        async function updateRecurringEvent(e, eventId) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            
+            const eventRecurring = {
+                recurringType: formData.get('recurringType'),
+                eventStartTime: formData.get('eventStartTime'),
+                eventEndTime: formData.get('eventEndTime'),
+                recurringEndDate: formData.get('recurringEndDate') ? new Date(formData.get('recurringEndDate')).toISOString() : undefined
+            };
+            
+            if (eventRecurring.recurringType === 'Weekly') {
+                eventRecurring.weeklyDays = formData.getAll('weeklyDays').map(Number);
+            } else if (eventRecurring.recurringType === 'Monthly') {
+                eventRecurring.monthlyPattern = formData.get('monthlyPattern') || 'specific';
+                const datesStr = formData.get('monthlyDates') || '';
+                eventRecurring.monthlyDates = datesStr.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
+            }
+            
+            const data = {
+                eventName: formData.get('eventName'),
+                eventDescription: formData.get('eventDescription'),
+                eventType: formData.get('eventType'),
+                eventRoom: formData.get('eventRoom'),
+                eventOrganizer: formData.get('eventOrganizer'),
+                eventRecurring: eventRecurring
+            };
+            
+            try {
+                await api(`/events/recurring/${eventId}`, 'PUT', data);
+                notify('Recurring event updated successfully');
+                closeEditModal();
+                eventsAction('recurring');
+            } catch (e) {}
+        }
+
+        // ============ CHANGE ROOM ============
+        function showChangeRoom(eventId, statusText) {
+            showEditModal('Change Event Room', `
+                <form onsubmit="changeEventRoom(event)" class="space-y-4">
+                    <input type="hidden" name="eventId" value="${eventId}">
+                    <input type="hidden" name="eventType" value="${statusText}">
+                    <div>
+                        <label class="block mb-1 font-medium">New Room Name *</label>
+                        <input type="text" name="newRoom" required class="w-full border-2 border-black px-4 py-2" placeholder="Enter new room name">
+                    </div>
+                    <button type="submit" class="w-full bg-black text-white py-3 font-bold hover:opacity-80">Change Room</button>
+                </form>
+            `);
+        }
+
+        async function changeEventRoom(e) {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(e.target));
+            try {
+                await api('/events/change-room', 'PUT', data);
+                notify('Event room changed successfully');
+                closeEditModal();
+                eventsAction('scheduled');
+            } catch (e) {}
+        }
+
+        // ============ QR CODE ============
+        async function generateQRCode(eventId) {
+            try {
+                const result = await api(`/events/${eventId}/qrcode`);
+                showQrModal(result.data);
+            } catch (e) {
+                notify('Failed to generate QR code', 'error');
+            }
+        }
+
+        function showQrModal(data) {
+            const attendanceUrl = `${window.location.origin}/?eventSpecialId=${encodeURIComponent(data.eventSpecialId)}&eventName=${encodeURIComponent(data.eventName)}&eventRoom=${encodeURIComponent(data.eventRoom)}&roomLocation=${encodeURIComponent(data.roomLocation)}`;
+            
+            document.getElementById('qrcode-content').innerHTML = `
+                <div class="space-y-4">
+                    <div class="border-2 border-black p-4">
+                        <h3 class="font-bold text-lg">${data.eventName}</h3>
+                        <p class="text-sm mt-1"><strong>Room:</strong> ${data.eventRoom}</p>
+                        <p class="text-sm"><strong>Location:</strong> ${data.roomLocation}</p>
+                        <p class="text-sm"><strong>Event ID:</strong> ${data.eventSpecialId}</p>
+                    </div>
+                    <div class="border-2 border-black p-4 flex justify-center bg-white">
+                        <img src="${data.qrCodeDataUrl}" alt="QR Code" class="max-w-full h-auto cursor-pointer" onclick="navigateToAttendanceWithPrefill()">
+                    </div>
+                    <div class="text-center">
+                        <button onclick="navigateToAttendanceWithPrefill()" class="underline hover:opacity-70 font-bold text-lg">
+                            Click to Submit Attendance ✏️
+                        </button>
+                    </div>
+                    <div class="text-sm text-center opacity-75">
+                        Or scan the QR code with your phone to submit attendance
+                    </div>
+                </div>
+            `;
+            window.attendancePrefillData = {
+                eventSpecialId: data.eventSpecialId,
+                eventName: data.eventName,
+                eventRoom: data.eventRoom,
+                roomLocation: data.roomLocation
+            };
+            document.getElementById('qrcode-modal').style.display = 'flex';
+        }
+
+        function closeQrModal() {
+            document.getElementById('qrcode-modal').style.display = 'none';
+        }
+
+        function navigateToAttendanceWithPrefill() {
+            closeQrModal();
+            if (window.attendancePrefillData) {
+                attendancePrefill = window.attendancePrefillData;
+            }
+            navigateTo('attendance');
+            attendanceAction('submit');
+        }
+
+        // ============ ATTENDANCE ============
+        async function attendanceAction(action, page = 1) {
+            switchTab('attendance', action);
+            currentPage.attendance = page;
+            
+            if (action === 'view') await loadAttendance(page);
+            else if (action === 'submit') showSubmitAttendanceForm();
+        }
+
+        async function loadAttendance(page = 1) {
+            try {
+                const search = document.getElementById('attendance-search')?.value || '';
+                const params = { page, limit: 20 };
+                if (search) params.search = search;
+                const result = await api('/attendance', 'GET', null, params);
+                renderAttendanceTable(result);
+            } catch (e) {}
+        }
+
+        function renderAttendanceTable(result) {
+            document.getElementById('attendance-content').innerHTML = `
+                <div class="mb-4">
+                    <input id="attendance-search" type="text" placeholder="Search by name, email, or event..." 
+                           class="border-2 border-black px-4 py-2 w-full"
+                           onkeyup="debounceAttendanceSearch()">
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full border-2 border-black">
+                        <thead class="bg-black text-white">
+                            <tr>
+                                <th class="p-3 text-left">Attendee</th>
+                                <th class="p-3 text-left">Email</th>
+                                <th class="p-3 text-left">Event</th>
+                                <th class="p-3 text-left">Room</th>
+                                <th class="p-3 text-left">Location</th>
+                                <th class="p-3 text-left">Time</th>
+                                <th class="p-3 text-left">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${result.data.length === 0 ? `
+                                <tr><td colspan="7" class="p-6 text-center">No attendance records</td></tr>
+                            ` : result.data.map(record => `
+                                <tr class="border-t border-black hover:bg-gray-50">
+                                    <td class="p-3 font-medium">${record.attendeeName}</td>
+                                    <td class="p-3 text-sm">${record.attendeeEmail}</td>
+                                    <td class="p-3">${record.eventName}</td>
+                                    <td class="p-3">${record.eventRoom}</td>
+                                    <td class="p-3 text-sm">${record.roomLocation}</td>
+                                    <td class="p-3 text-sm">${new Date(record.attendanceTime).toLocaleString()}</td>
+                                    <td class="p-3">
+                                        <span class="${record.isVerified ? 'status-live' : 'status-upcoming'}">
+                                            ${record.isVerified ? 'Verified' : 'Pending'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                ${renderAttendancePagination(result)}
+            `;
+        }
+
+        function showSubmitAttendanceForm() {
+            const prefill = attendancePrefill || {};
+            const hasPrefill = prefill.eventSpecialId && prefill.eventName;
+            
+            document.getElementById('attendance-content').innerHTML = `
+                <div class="max-w-lg mx-auto border-2 border-black p-6">
+                    <h2 class="text-xl font-bold mb-6">${hasPrefill ? 'Submit Attendance for Event' : 'Submit Attendance'}</h2>
+                    
+                    ${hasPrefill ? `
+                        <div class="border-2 border-black p-4 mb-6 bg-gray-50">
+                            <h3 class="font-bold text-lg mb-2">Event Details</h3>
+                            <p><strong>Event:</strong> ${prefill.eventName}</p>
+                            <p><strong>Room:</strong> ${prefill.eventRoom}</p>
+                            <p><strong>Location:</strong> ${prefill.roomLocation}</p>
+                            <p><strong>Event ID:</strong> ${prefill.eventSpecialId}</p>
+                        </div>
+                    ` : ''}
+                    
+                    <form onsubmit="submitAttendance(event)" class="space-y-4">
+                        ${!hasPrefill ? `
+                            <div>
+                                <label class="block mb-1 font-medium">Event Special ID *</label>
+                                <input type="text" name="eventSpecialId" required class="w-full border-2 border-black px-4 py-2" placeholder="From QR code">
+                            </div>
+                            <div>
+                                <label class="block mb-1 font-medium">Event Name *</label>
+                                <input type="text" name="eventName" required class="w-full border-2 border-black px-4 py-2">
+                            </div>
+                            <div>
+                                <label class="block mb-1 font-medium">Room *</label>
+                                <input type="text" name="eventRoom" required class="w-full border-2 border-black px-4 py-2">
+                            </div>
+                            <div>
+                                <label class="block mb-1 font-medium">Room Location *</label>
+                                <input type="text" name="roomLocation" required class="w-full border-2 border-black px-4 py-2">
+                            </div>
+                        ` : `
+                            <input type="hidden" name="eventSpecialId" value="${prefill.eventSpecialId}">
+                            <input type="hidden" name="eventName" value="${prefill.eventName}">
+                            <input type="hidden" name="eventRoom" value="${prefill.eventRoom}">
+                            <input type="hidden" name="roomLocation" value="${prefill.roomLocation}">
+                        `}
+                        <div>
+                            <label class="block mb-1 font-medium">Your Name *</label>
+                            <input type="text" name="attendeeName" required class="w-full border-2 border-black px-4 py-2" placeholder="Enter your full name">
+                        </div>
+                        <div>
+                            <label class="block mb-1 font-medium">Your Email *</label>
+                            <input type="email" name="attendeeEmail" required class="w-full border-2 border-black px-4 py-2" placeholder="Enter your email address">
+                        </div>
+                        <button type="submit" class="w-full bg-black text-white py-3 font-bold hover:opacity-80">
+                            ${hasPrefill ? 'Submit My Attendance' : 'Submit Attendance'}
+                        </button>
+                    </form>
+                </div>
+            `;
+            if (hasPrefill) {
+                attendancePrefill = {};
+                window.attendancePrefillData = null;
+            }
+        }
+
+        async function submitAttendance(e) {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(e.target));
+            try {
+                await api('/attendance', 'POST', data);
+                notify('Attendance recorded successfully');
+                attendanceAction('view');
+            } catch (e) {}
+        }
+
+        function debounceAttendanceSearch() {
+            clearTimeout(window.attendanceSearchTimeout);
+            window.attendanceSearchTimeout = setTimeout(() => {
+                loadAttendance(1);
+            }, 500);
+        }
+
+        // ============ PAGINATION ============
+        function renderRoomsPagination(result, type) {
+            if (result.totalPages <= 1) return '';
+            const action = type === 'all' ? 'all' : 'active';
+            return renderPagination(result, action, 'rooms');
+        }
+
+        function renderEventsPagination(result, type) {
+            if (result.totalPages <= 1) return '';
+            return renderPagination(result, type, 'events');
+        }
+
+        function renderAttendancePagination(result) {
+            if (result.totalPages <= 1) return '';
+            return renderPagination(result, 'attendance', 'attendance');
+        }
+
+        function renderPagination(result, type, section = 'rooms') {
+            const actionMap = {
+                'rooms': 'roomsAction',
+                'events': 'eventsAction',
+                'attendance': 'attendanceAction'
+            };
+            
+            return `
+                <div class="mt-4 flex justify-between items-center">
+                    <div class="text-sm">
+                        Total: ${result.totalRecords} | Page ${result.currentPage} of ${result.totalPages}
+                    </div>
+                    <div class="flex gap-2">
+                        ${result.currentPage > 1 ? 
+                            `<button onclick="${actionMap[section]}('${type}', ${result.currentPage - 1})" 
+                                     class="border-2 border-black px-4 py-2 hover:bg-black hover:text-white">Previous</button>` : ''}
+                        ${result.currentPage < result.totalPages ? 
+                            `<button onclick="${actionMap[section]}('${type}', ${result.currentPage + 1})" 
+                                     class="border-2 border-black px-4 py-2 hover:bg-black hover:text-white">Next</button>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // ============ MODALS ============
+        function showEditModal(title, content) {
+            document.getElementById('edit-modal-title').textContent = title;
+            document.getElementById('edit-modal-content').innerHTML = content;
+            document.getElementById('edit-modal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').style.display = 'none';
+        }
+
+        document.getElementById('qrcode-modal').addEventListener('click', function(e) {
+            if (e.target === this) closeQrModal();
+        });
+        document.getElementById('edit-modal').addEventListener('click', function(e) {
+            if (e.target === this) closeEditModal();
+        });
+
+        navigateTo('rooms');
+        
+    </script>
+</body>
+</html>
