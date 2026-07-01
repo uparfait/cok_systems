@@ -14,6 +14,7 @@ import LoginPage from "./pages/auth/LoginPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import ProfilePage from "./pages/profile/ProfilePage";
+import FeedbackStatusPage from "./pages/FeedbackStatusPage";
 import UnderDevelopment from "./pages/dashboard/UnderDevelopment";
 import ProtectedRoute from "./core/components/ProtectedRoute";
 // import ChatWidget from './core/components/ChatWidget';
@@ -181,24 +182,21 @@ const App: React.FC = () => {
                     path="event/:id/attendances"
                     element={<AttendanceForm />}
                   />
-                  <Route path="event/:id/details" element={<EventDetails />} />
-                  <Route
-                    path="event/:id/attendees"
-                    element={<AttendeesList />}
-                  />
+<Route path="event/:id/details" element={<EventDetails />} />
+                   <Route
+                     path="event/:id/attendees"
+                     element={<AttendeesList />}
+                   />
+                   <Route
+                     path="event/:id/actions"
+                     element={<EventActionsPage />}
+                   />
+                   <Route path="event/:id/editor" element={<ShowEditor />} />
 
-                  <Route path="event/:id/editor" element={<ShowEditor />} />
-
-                  <Route
-                    path="event/:id/actions"
-                    element={<EventActionsPage />}
-                  />
-                  <Route path="my-tasks" element={<MyTasksPage />} />
-                  <Route
-                    path="my-tasks/:taskId"
-                    element={<MyTasksTaskPage />}
-                  />
-                </Route>
+                   <Route path="my-tasks" element={<MyTasksPage />} />
+                   <Route path="my-tasks/:taskId" element={<MyTasksTaskPage />} />
+                   <Route path="feedback" element={<FeedbackStatusPage />} />
+                 </Route>
 
                 {/* Public Routes */}
                 <Route path="/login" element={<LoginPage />} />
