@@ -33,7 +33,8 @@
     }
   ],
   "env": {
-    "VITE_API_URL": "https://cok-bc.onrender.com/cok/api"
+    "VITE_API_URL": "https://cok-bc.onrender.com/cok/api",
+    "VITE_API_EVENT_URL": "https://cok-bc.onrender.com/cok/api/v1"
   },
   "github": {
     "enabled": true,
