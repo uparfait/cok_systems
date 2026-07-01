@@ -19,7 +19,7 @@ export default function IndexHeader() {
 
   const HandleLoginButtonClicked = () => {
 
-    navigate('/dashboard');
+    navigate('/login');
   }
 
   return (

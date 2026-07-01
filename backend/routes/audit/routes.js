@@ -13,8 +13,124 @@ const logAudit = async (action, description, req, additionalData = {}) => {
 Router.logAudit = logAudit;
 
 /**
- * GET /audit/logs
- * Fetch audit logs with pagination and filtering
+ * @swagger
+ * /audit/logs:
+ *   get:
+ *     summary: "Get audit logs"
+ *     description: "Retrieve paginated audit logs with filtering by action, user, resource, and date range. Requires authentication."
+ *     tags: [Audit Logs]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: "Page number"
+ *         example: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 100
+ *         description: "Records per page"
+ *         example: 20
+ *       - in: query
+ *         name: action
+ *         schema:
+ *           type: string
+ *         description: "Filter by action type (e.g., CREATE, UPDATE, DELETE, LOGIN, ERROR)"
+ *         example: "LOGIN"
+ *       - in: query
+ *         name: user_id
+ *         schema:
+ *           type: string
+ *         description: "Filter by user ID"
+ *         example: "64f1a2b3c4d5e6f7a8b9c0d1"
+ *       - in: query
+ *         name: resource
+ *         schema:
+ *           type: string
+ *         description: "Filter by resource type (e.g., users, vehicles, visitors)"
+ *         example: "users"
+ *       - in: query
+ *         name: start_date
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: "Start date (YYYY-MM-DD)"
+ *         example: "2026-01-01"
+ *       - in: query
+ *         name: end_date
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: "End date (YYYY-MM-DD)"
+ *         example: "2026-12-31"
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *           default: "-time"
+ *         description: "Sort order (prefix with - for descending)"
+ *         example: "-time"
+ *     responses:
+ *       200:
+ *         description: Audit logs retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Audit logs retrieved successfully"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       action:
+ *                         type: string
+ *                         example: "LOGIN"
+ *                       description:
+ *                         type: string
+ *                         example: "User logged in: john.doe@cok.gov.rw"
+ *                       user_name:
+ *                         type: string
+ *                         example: "John Doe"
+ *                       user_email:
+ *                         type: string
+ *                         example: "john.doe@cok.gov.rw"
+ *                       resource:
+ *                         type: string
+ *                         example: "auth"
+ *                       method:
+ *                         type: string
+ *                         example: "POST"
+ *                       endpoint:
+ *                         type: string
+ *                         example: "/cok/api/auth/login/verify"
+ *                       status_code:
+ *                         type: integer
+ *                         example: 200
+ *                       ip_address:
+ *                         type: string
+ *                         example: "192.168.1.100"
+ *                       time:
+ *                         type: string
+ *                         format: date-time
+ *                 pagination:
+ *                   $ref: '#/components/schemas/PaginationInfo'
+ *       500:
+ *         description: Internal server error
  */
 Router.get('/logs', authenticate, async (req, res) => {
   try {
@@ -55,7 +171,7 @@ Router.get('/logs', authenticate, async (req, res) => {
       .sort(sort)
       .skip(skip)
       .limit(limitNum)
-      .populate('user_id', 'full_name email') // Populate user details
+      .populate('user_id', 'full_name email')
       .lean();
 
     // Transform the data to include user info
@@ -90,8 +206,49 @@ Router.get('/logs', authenticate, async (req, res) => {
 });
 
 /**
- * GET /audit/stats
- * Get audit statistics
+ * @swagger
+ * /audit/stats:
+ *   get:
+ *     summary: "Get audit statistics"
+ *     description: "Retrieve aggregated audit statistics including total logs, action breakdown, top users, and recent errors."
+ *     tags: [Audit Logs]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: days
+ *         schema:
+ *           type: integer
+ *           default: 30
+ *         description: "Number of days to look back"
+ *         example: 30
+ *     responses:
+ *       200:
+ *         description: Audit statistics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     total_logs:
+ *                       type: integer
+ *                       example: 1500
+ *                     action_breakdown:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                     top_users:
+ *                       type: array
+ *                     recent_errors:
+ *                       type: array
+ *       500:
+ *         description: Internal server error
  */
 Router.get('/stats', authenticate, async (req, res) => {
   try {
@@ -99,7 +256,6 @@ Router.get('/stats', authenticate, async (req, res) => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - parseInt(days));
 
-    // Get statistics
     const [
       totalLogs,
       actionStats,
@@ -155,14 +311,34 @@ Router.get('/stats', authenticate, async (req, res) => {
 });
 
 /**
- * DELETE /audit/logs/:id
- * Delete a specific audit log (admin only)
+ * @swagger
+ * /audit/logs/{id}:
+ *   delete:
+ *     summary: "Delete an audit log"
+ *     description: "Delete a specific audit log by its MongoDB ObjectId. Requires admin privileges."
+ *     tags: [Audit Logs]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: "Audit log MongoDB ObjectId"
+ *         example: "64f1a2b3c4d5e6f7a8b9c0d1"
+ *     responses:
+ *       200:
+ *         description: Audit log deleted successfully
+ *       404:
+ *         description: Audit log not found
+ *       500:
+ *         description: Internal server error
  */
 Router.delete('/logs/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Check if user has admin permissions (you might want to add role checking here)
     const auditLog = await Audit.findByIdAndDelete(id);
 
     if (!auditLog) {
@@ -172,7 +348,6 @@ Router.delete('/logs/:id', authenticate, async (req, res) => {
       });
     }
 
-    // Log the deletion
     await logAudit('DELETE', `Deleted audit log: ${auditLog.description}`, req, {
       resource: 'audit_logs',
       resource_id: id
@@ -194,18 +369,27 @@ Router.delete('/logs/:id', authenticate, async (req, res) => {
 });
 
 /**
- * POST /audit/test
- * Test endpoint to create sample audit logs (for development)
+ * @swagger
+ * /audit/test:
+ *   post:
+ *     summary: "Test audit endpoint"
+ *     description: "Test endpoint to verify audit functionality is working."
+ *     tags: [Audit Logs]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Audit system is working
+ *       500:
+ *         description: Internal server error
  */
 Router.post('/test', authenticate, async (req, res) => {
   try {
-
     return res.status(200).json({
       success: true,
       message: `Working fine`,
-      data: auditLogs
+      data: {}
     });
-
   } catch (error) {
     console.error('Error creating test audit logs:', error);
     return res.status(500).json({

@@ -43,7 +43,54 @@ Router.use('/password-reset', passwordReset)
 Router.use('/first-login', firstLogin)
 Router.use('/lock-unlock', lockUnlock)
 
-// Token validation endpoint
+/**
+ * @swagger
+ * /auth/validate-token:
+ *   get:
+ *     summary: "Validate JWT token and get user info"
+ *     description: "Check if the current JWT token is valid and retrieve the authenticated user's information."
+ *     tags: [Authentication - Login]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Token is valid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Token is valid"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         userId:
+ *                           type: string
+ *                           example: "64f1a2b3c4d5e6f7a8b9c0d1"
+ *                         email:
+ *                           type: string
+ *                           example: "john.doe@cok.gov.rw"
+ *                         fullName:
+ *                           type: string
+ *                           example: "John Doe"
+ *                         role:
+ *                           type: string
+ *                           example: "system_admin"
+ *                     timestamp:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2026-06-30T10:00:00.000Z"
+ *       401:
+ *         description: Invalid or expired token
+ */
 Router.get('/validate-token', authenticate, (req, res) => {
   res.status(200).json({
     status: true,

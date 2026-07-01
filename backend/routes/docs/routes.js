@@ -1,51 +1,56 @@
 /**
  * Combined API Documentation Routes
- * Serves unified Swagger UI for all APIs (AMOS & PARFAIT)
+ * Serves unified Swagger UI for all APIs using swagger-jsdoc annotations
+ * All endpoint documentation is defined via @swagger JSDoc comments in each route file
  */
 
 const Router = require('express').Router()
 
 const swaggerUi = require('swagger-ui-express')
-const YAML = require('yamljs')
 const path = require('path')
 
-// Load combined API specification
-const swaggerDocument = YAML.load(path.join(__dirname, 'api_description.yaml'))
-
-const multer = require('multer')
-const upload = multer()
-
-Router.use(upload.any())
+// Load swagger specification from swagger-jsdoc (generated from @swagger annotations)
+const swaggerSpec = require('../../configurations/swaggerConfig')
 
 /**
- * Global Interceptor for Multer Errors
- */
-Router.use((error, req, res, next) => {
-    if (error instanceof multer.MulterError || error) {
-        console.warn('[UPLOAD WARNING]: Handled unexpected or empty input:', error.message)
-        req.body = req.body || {}
-        return next()
-    }
-    next()
-})
-
-/**
- * Serve Swagger JSON spec
+ * @swagger
+ * /docs/swagger.json:
+ *   get:
+ *     summary: "Get OpenAPI specification"
+ *     description: "Retrieve the complete OpenAPI 3.0.3 specification JSON generated from @swagger annotations across all route files."
+ *     tags: [System]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: OpenAPI specification JSON
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
  */
 Router.get('/swagger.json', (req, res) => {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
-    res.json(swaggerDocument);
+    res.json(swaggerSpec);
 });
 
 /**
- * Unified Swagger UI with all APIs grouped by tags
+ * @swagger
+ * /docs:
+ *   get:
+ *     summary: "Swagger UI Documentation"
+ *     description: "Interactive Swagger UI documentation for all COK Systems APIs. Browse and test endpoints directly from the browser."
+ *     tags: [System]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: Swagger UI HTML page
  */
 Router.use(
     '/',
     swaggerUi.serve,
-    swaggerUi.setup(swaggerDocument, {
+    swaggerUi.setup(swaggerSpec, {
         explorer: true,
         customSiteTitle: 'COK Systems API Documentation',
         customCss: `
@@ -66,7 +71,6 @@ Router.use(
             docExpansion: 'list',
             defaultModelsExpandDepth: 2,
             defaultModelExpandDepth: 2,
-            // Group operations by tags
             tagsSorter: 'alpha',
             operationsSorter: 'alpha'
         }

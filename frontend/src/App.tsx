@@ -8,6 +8,7 @@ import {
   Route,
   Navigate,
   useParams,
+  useNavigate,
 } from "react-router-dom";
 import LoginPage from "./pages/auth/LoginPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
@@ -93,6 +94,8 @@ import Editor from "./systems/event-managment/components/Editor.jsx";
 
 // RoleDashboardPage: renders the correct dashboard component based on the logged-in user's role
 const RoleDashboardPage: React.FC = () => {
+
+
 
   
   const { user } = useAuth();

@@ -50,7 +50,82 @@ Router.use((error, req, res, next) => {
     next();
 });
 
+/**
+ * @swagger
+ * /multiple/employees:
+ *   post:
+ *     summary: "Bulk create employees from Excel/CSV file"
+ *     description: "Upload an Excel (.xlsx, .xls) or CSV file to bulk create multiple employee accounts at once. The file should follow the required template format."
+ *     tags: [Bulk Operations]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - file
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: Excel file (.xlsx, .xls) or CSV file containing employee data
+ *     responses:
+ *       200:
+ *         description: Employees created successfully (or partial success with error details)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Successfully created 50 employees"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     created:
+ *                       type: integer
+ *                       example: 50
+ *                     errors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           row:
+ *                             type: integer
+ *                             example: 5
+ *                           error:
+ *                             type: string
+ *                             example: "Email already exists"
+ *       400:
+ *         description: Invalid file type or format
+ *       500:
+ *         description: Internal server error
+ */
 Router.post('/employees', upload.any(), create_users_bulk);
+
+/**
+ * @swagger
+ * /multiple/employees/template:
+ *   get:
+ *     summary: "Download employee bulk upload template"
+ *     description: "Download an Excel template file with the correct format for bulk employee upload. The template includes example data and required columns."
+ *     tags: [Bulk Operations]
+ *     responses:
+ *       200:
+ *         description: Excel template file downloaded
+ *         content:
+ *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       500:
+ *         description: Internal server error
+ */
 Router.get('/employees/template', download_employee_template);
 
 module.exports = Router;
