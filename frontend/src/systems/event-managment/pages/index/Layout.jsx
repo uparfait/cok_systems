@@ -67,7 +67,7 @@ useEffect(() => {
 
        <Link 
          to="/feedback" 
-         className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-blue-500 hover:bg-yellow-600 text-white px-4 py-3 rounded-full shadow-lg transition-all duration-200 hover:scale-105"
+         className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-3 rounded-full shadow-lg transition-all duration-200 hover:scale-105"
          title="View Your Service History & Feedback"
        >
          <FiMessageSquare className="w-5 h-5" />
