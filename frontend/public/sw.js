@@ -1,6 +1,6 @@
-const CACHE_NAME = 'cok-systems-v2';
-const STATIC_CACHE = 'cok-systems-static-v2';
-const DYNAMIC_CACHE = 'cok-systems-dynamic-v2';
+const CACHE_NAME = 'cok-systems-v3';
+const STATIC_CACHE = 'cok-systems-static-v3';
+const DYNAMIC_CACHE = 'cok-systems-dynamic-v3';
 
 // Resources to cache immediately
 const STATIC_ASSETS = [
