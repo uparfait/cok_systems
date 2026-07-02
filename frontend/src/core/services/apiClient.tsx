@@ -22,7 +22,7 @@ export const dispatchToast = (type: 'success' | 'error' | 'warning', message: st
 };
 
 // Base URL - uses Vite proxy in development, production URL in production
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/cok/api';
+const API_BASE_URL = '/cok/api';
 
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'accessToken';
