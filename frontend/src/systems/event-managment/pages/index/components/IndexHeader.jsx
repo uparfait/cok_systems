@@ -45,7 +45,7 @@ export default function IndexHeader() {
               >
                 {/* Text Layout: Dynamic Gradient Hover and Active States */}
                 <span className={`inline-block transition-all duration-300 ${
-                  isActive 
+                  (isActive || (link.DisplayName === "Booking" && currentPath.startsWith("/book-a-room")))
                     ? "bg-gradient-to-r from-violet-600 via-pink-600 to-amber-500 bg-clip-text text-transparent bg-[size:200%_auto] animate-gradient" 
                     : "text-black group-hover:bg-gradient-to-r group-hover:from-violet-600 group-hover:via-pink-600 group-hover:to-amber-500 group-hover:bg-clip-text group-hover:text-transparent bg-[size:200%_auto] group-hover:animate-gradient"
                 }`}>
@@ -53,7 +53,7 @@ export default function IndexHeader() {
                 </span>
 
                 {/* Desktop Framer Motion Sliding Underline */}
-                {isActive && (
+                {(isActive || (link.DisplayName === "Booking" && currentPath.startsWith("/book-a-room"))) && (
                   <motion.div
                     layoutId="desktopActiveUnderline"
                     className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-violet-600 to-amber-500 rounded-full"

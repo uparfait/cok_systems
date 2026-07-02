@@ -2,6 +2,7 @@ const Room = require('../models/Room');
 const LiveEvent = require('../models/LiveEvent');
 const UpcomingEvent = require('../models/UpcomingEvent');
 const RecurringEvent = require('../models/RecurringEvent');
+const BookingRequest = require('../models/BookingRequest');
 const recurrenceHelper = require('./recurrenceHelper');
 
 class CheckRoomAvailability {
@@ -80,6 +81,17 @@ class CheckRoomAvailability {
       if (recurrenceHelper.isRecurringOverlapping(recurring, startTime, endTime)) {
         return { available: false, conflict: 'RecurringEvent', details: recurring };
       }
+    }
+
+    // Check BookingRequests (Pending or Accepted)
+    const bookingRequestConflict = await BookingRequest.findOne({
+      eventRoom: roomName,
+      status: { $in: ['Pending', 'Accepted'] },
+      $or: [{ startTime: { $lt: endTime }, endTime: { $gt: startTime } }],
+    }).lean();
+
+    if (bookingRequestConflict) {
+      return { available: false, conflict: 'BookingRequest', details: bookingRequestConflict };
     }
 
     return { available: true };

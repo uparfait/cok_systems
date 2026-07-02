@@ -1,4 +1,5 @@
 const Router = require('express').Router();
+const bookingRequestRoutes = require('./routes/bookingRequestRoutes');
 const roomRoutes = require('./routes/roomRoutes');
 const eventRoutes = require('./routes/eventRoutes');
 const liveEventRoutes = require('./routes/liveEventRoutes');
@@ -36,5 +37,8 @@ Router.use('/attendance', attendanceRoutes);
 Router.use('/event-actions', eventActionRoutes);
 Router.use('/events', eventManagementRoutes);
 Router.put('/events/section-update', SectionUpdate.handle);
+
+// Booking Request routes
+Router.use('/booking-requests', bookingRequestRoutes);
 
 module.exports = Router;
