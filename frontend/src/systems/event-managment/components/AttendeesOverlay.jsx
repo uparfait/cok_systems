@@ -70,7 +70,7 @@ export default function AttendeesOverlay({ eventSpecialId, eventName, onClose })
         responseType: "blob",
       });
       const safeName = (eventName || "attendance").replace(/[^a-zA-Z0-9]/g, "_");
-      const ext = type === "excel" ? "csv" : "html";
+      const ext = type === "excel" ? "csv" : "pdf";
       const blob = new Blob([res.data]);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
