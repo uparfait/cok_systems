@@ -38,6 +38,10 @@ Router.use('/event-actions', eventActionRoutes);
 Router.use('/events', eventManagementRoutes);
 Router.put('/events/section-update', SectionUpdate.handle);
 
+// Attendance export
+const ExportAttendanceController = require('./controllers/ExportAttendanceController');
+Router.get('/attendance/export', ExportAttendanceController.handle);
+
 // Booking Request routes
 Router.use('/booking-requests', bookingRequestRoutes);
 
