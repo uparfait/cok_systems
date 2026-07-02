@@ -1,9 +1,6 @@
-// Service Worker for COK Systems PWA
-// Provides offline functionality and caching
-
-const CACHE_NAME = 'cok-systems-v1';
-const STATIC_CACHE = 'cok-systems-static-v1';
-const DYNAMIC_CACHE = 'cok-systems-dynamic-v1';
+const CACHE_NAME = 'cok-systems-v2';
+const STATIC_CACHE = 'cok-systems-static-v2';
+const DYNAMIC_CACHE = 'cok-systems-dynamic-v2';
 
 // Resources to cache immediately
 const STATIC_ASSETS = [
