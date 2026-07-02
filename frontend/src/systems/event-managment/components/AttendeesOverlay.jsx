@@ -66,7 +66,7 @@ export default function AttendeesOverlay({ eventSpecialId, eventName, onClose })
     setExportLoading(true);
     try {
       const res = await axios.get(`${BASE_URL}/attendance/export`, {
-        params: { eventSpecialId, type },
+        params: { eventSpecialId, eventName, type },
         responseType: "blob",
       });
       const safeName = (eventName || "attendance").replace(/[^a-zA-Z0-9]/g, "_");

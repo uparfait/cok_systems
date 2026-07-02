@@ -46,7 +46,7 @@ class ExportAttendanceController {
 
         let csv = '\uFEFF';
         // Title row
-        csv += `${eventName}\n`;
+        csv += `${safeName}\n`;
         csv += `Total Attendees: ${attendees.length}\n\n`;
         // Headers
         csv += headers.join(',') + '\n';
@@ -71,7 +71,7 @@ class ExportAttendanceController {
         const doc = new PDFDocument({
           size: 'A4',
           margins: { top: 40, bottom: 30, left: 30, right: 30 },
-          info: { Title: `${eventName} - Attendees` },
+          info: { Title: `${safeName} - Attendees` },
         });
 
         res.setHeader('Content-Type', 'application/pdf');
@@ -79,7 +79,7 @@ class ExportAttendanceController {
         doc.pipe(res);
 
         // Title
-        doc.fontSize(16).font('Helvetica-Bold').text(eventName, { align: 'left' });
+        doc.fontSize(16).font('Helvetica-Bold').text(safeName, { align: 'left' });
         doc.moveDown(0.3);
         doc.fontSize(10).font('Helvetica')
           .text(`Total Attendees: ${attendees.length}`, { align: 'left' })
