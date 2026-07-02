@@ -39,6 +39,7 @@
     "mongoose": "^9.6.3",
     "morgan": "^1.11.0",
     "multer": "^2.2.0",
+    "pdfkit": "^0.19.1",
     "qrcode": "^1.5.4",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
