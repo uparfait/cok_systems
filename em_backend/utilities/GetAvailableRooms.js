@@ -2,6 +2,7 @@ const Room = require('../models/Room');
 const LiveEvent = require('../models/LiveEvent');
 const UpcomingEvent = require('../models/UpcomingEvent');
 const RecurringEvent = require('../models/RecurringEvent');
+const BookingRequest = require('../models/BookingRequest');
 const recurrenceHelper = require('./recurrenceHelper');
 
 class GetAvailableRooms {
@@ -118,10 +119,15 @@ class GetAvailableRooms {
       combinedExclude.eventSpecialId = { ...combinedExclude.eventSpecialId, $not: { $regex: `^${excludeRecurringPrefix}` } };
     }
 
-    const [liveConflicts, upcomingConflicts, recurringEvents] = await Promise.all([
+    const [liveConflicts, upcomingConflicts, recurringEvents, bookingRequestConflicts] = await Promise.all([
       LiveEvent.find({ eventRoom: roomName, ...combinedExclude, $or: [{ startedAt: { $lt: end }, willEndAt: { $gt: start } }] }).lean(),
       UpcomingEvent.find({ eventRoom: roomName, ...combinedExclude, $or: [{ willStartAt: { $lt: end }, willEndAt: { $gt: start } }] }).lean(),
       RecurringEvent.find({ eventRoom: roomName, ...excludeFilter, 'eventRecurring.recurringEndDate': { $gte: start }, 'eventRecurring.isExpired': false }).lean(),
+      BookingRequest.find({
+        eventRoom: roomName,
+        status: { $in: ['Pending', 'Accepted'] },
+        $or: [{ startTime: { $lt: end }, endTime: { $gt: start } }],
+      }).lean(),
     ]);
 
     for (const lc of liveConflicts) {
@@ -136,6 +142,10 @@ class GetAvailableRooms {
       if (recurrenceHelper.isRecurringOverlapping(re, start, end)) {
         conflicts.push({ type: 'RecurringEvent', eventName: re.eventName, eventSpecialId: re.eventSpecialId, startTime: re.eventRecurring.eventStartTime, endTime: re.eventRecurring.eventEndTime, recurringType: re.eventRecurring.recurringType, organizer: re.eventOrganizer?.fullNames || 'N/A', message: `Recurring "${re.eventName}" (${re.eventRecurring.recurringType}) overlaps.` });
       }
+    }
+
+    for (const br of bookingRequestConflicts) {
+      conflicts.push({ type: 'BookingRequest', eventName: br.eventName, eventSpecialId: br.trackingCode, startTime: br.startTime, endTime: br.endTime, organizer: br.eventOrganizer?.fullNames || 'N/A', message: `Booking request "${br.eventName}" (${br.status}) overlaps.` });
     }
 
     return conflicts;

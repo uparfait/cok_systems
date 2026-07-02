@@ -85,5 +85,19 @@ export default function SideBarLinks() {
 
       ],
     },
+    {
+      id: "booking-requests",
+      name: "Booking Requests",
+      pathname: "/event-manager/booking-requests",
+      icon: "FiClipboard",
+      children: [
+        {
+          id: "all-requests",
+          name: "All Requests",
+          pathname: "/event-manager/booking-requests/all",
+          icon: "FiList",
+        },
+      ],
+    },
   ];
 }

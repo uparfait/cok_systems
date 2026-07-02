@@ -66,6 +66,7 @@ import {
 import Layout from "./systems/event-managment/pages/index/Layout.jsx";
 import Request from "./systems/event-managment/pages/index/Request.jsx";
 import BookingOptions from "./systems/event-managment/pages/index/BookingOptions.jsx";
+import BookingRequestTrack from "./systems/event-managment/pages/index/BookingRequestTrack.jsx";
 import BookNow from "./systems/event-managment/pages/index/BookNow.jsx";
 import LiveEvents from "./systems/event-managment/pages/index/LiveEvents.jsx";
 import UpcomingEvents from "./systems/event-managment/pages/index/UpcomingEvents.jsx";
@@ -92,6 +93,8 @@ import Past from "./systems/event-managment/components/Past.jsx";
 import ViewEventDetailsDashboard from "./systems/event-managment/components/ViewEventDetailsDashboard.jsx";
 import EventActions from "./systems/event-managment/components/EventActions.jsx";
 import Editor from "./systems/event-managment/components/Editor.jsx";
+import BookingRequestsList from "./systems/event-managment/components/BookingRequestsList.jsx";
+import BookingRequestDetails from "./systems/event-managment/components/BookingRequestDetails.jsx";
 
 // RoleDashboardPage: renders the correct dashboard component based on the logged-in user's role
 const RoleDashboardPage: React.FC = () => {
@@ -176,6 +179,8 @@ const App: React.FC = () => {
                     element={<BookingOptions />}
                   />
                   <Route path="book-a-room/new" element={<BookNow />} />
+                  <Route path="book-a-room/new/:eventMeetingType" element={<BookNow />} />
+                  <Route path="book-a-room/track" element={<BookingRequestTrack />} />
 
                   <Route path="live/:id" element={<>Live Event Details</>} />
                   <Route
@@ -278,6 +283,16 @@ const App: React.FC = () => {
           <Route path="/event-manager/events/:eventId/edit" element={< CreateEvent eventMeetingType={undefined} /> } />
           <Route path="/event-manager/events/:eventId/details" element={<ViewEventDetailsDashboard />} />
           <Route path="/event-manager/events/actions" element={<EventActions />} />
+
+          {/* Booking Requests Routes */}
+          <Route
+            path="/event-manager/booking-requests/all"
+            element={<BookingRequestsList />}
+          />
+          <Route
+            path="/event-manager/booking-requests/:id"
+            element={<BookingRequestDetails />}
+          />
         </Route>
 
 
