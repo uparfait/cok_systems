@@ -32,7 +32,7 @@ const OverviewModal: React.FC<OverviewModalProps> = ({ title, loading, paginatio
       }
     }
     return () => { if (chartRef.current) chartRef.current.destroy(); };
-  }, [chartId, createChart, data]);
+  }, [chartId, createChart]);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4" onClick={onClose}>

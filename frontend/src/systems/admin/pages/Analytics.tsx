@@ -140,8 +140,8 @@ const Analytics: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-gray-900 flex items-center gap-3">
-              <FiBarChart2 className="w-6 h-6 text-purple-600" />
+            <h1 className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <FiBarChart2 className="w-4 h-4 text-purple-600" />
               Comprehensive analytics for parking and service delivery
             </h1>
           </div>
@@ -149,7 +149,7 @@ const Analytics: React.FC = () => {
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value as any)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              className="px-3 py-1.5 border border-gray-300 text-sm"
             >
               <option value="today">Today</option>
               <option value="week">This Week</option>
@@ -157,7 +157,7 @@ const Analytics: React.FC = () => {
             </select>
             <button 
               onClick={fetchAnalyticsData}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-xs font-medium hover:bg-purple-700"
             >
               <FiRefreshCw className="w-4 h-4" />
               Refresh
@@ -167,80 +167,80 @@ const Analytics: React.FC = () => {
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div className="bg-white border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Parking Check-Ins</p>
+                <p className="text-xs text-gray-500">Parking Check-Ins</p>
                 {(loading && firstLoad) ? (
-                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                  <div className="h-8 w-16 bg-gray-200 animate-pulse mt-1"></div>
                 ) : (
-                  <p className="text-2xl font-bold text-blue-600 mt-1">{totalParkingCheckIns}</p>
+                  <p className="text-lg font-bold text-blue-600 mt-0.5">{totalParkingCheckIns}</p>
                 )}
-                <p className="text-xs text-green-600 mt-1 flex items-center">
+                <p className="text-xs text-green-600 mt-0.5 flex items-center">
                   <FiTrendingUp className="w-3 h-3 mr-1" /> Today
                 </p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <FiTruck className="w-6 h-6 text-blue-600" />
+              <div className="w-10 h-10 bg-blue-100 flex items-center justify-center">
+                <FiTruck className="w-5 h-5 text-blue-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div className="bg-white border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Service Visitors</p>
+                <p className="text-xs text-gray-500">Service Visitors</p>
                 {(loading && firstLoad) ? (
-                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                  <div className="h-8 w-16 bg-gray-200 animate-pulse mt-1"></div>
                 ) : (
-                  <p className="text-2xl font-bold text-green-600 mt-1">{totalServiceVisitors}</p>
+                  <p className="text-lg font-bold text-green-600 mt-0.5">{totalServiceVisitors}</p>
                 )}
-                <p className="text-xs text-green-600 mt-1 flex items-center">
+                <p className="text-xs text-green-600 mt-0.5 flex items-center">
                   <FiTrendingUp className="w-3 h-3 mr-1" /> Today
                 </p>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <FiUsers className="w-6 h-6 text-green-600" />
+              <div className="w-10 h-10 bg-green-100 flex items-center justify-center">
+                <FiUsers className="w-5 h-5 text-green-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div className="bg-white border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Active Employees</p>
+                <p className="text-xs text-gray-500">Active Employees</p>
                 {(loading && firstLoad) ? (
-                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                  <div className="h-8 w-16 bg-gray-200 animate-pulse mt-1"></div>
                 ) : (
-                  <p className="text-2xl font-bold text-purple-600 mt-1">{employeeStats.active || 0}</p>
+                  <p className="text-lg font-bold text-purple-600 mt-0.5">{employeeStats.active || 0}</p>
                 )}
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 mt-0.5">
                   of {employeeStats.total || 0} total
                 </p>
               </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                <FiCheckCircle className="w-6 h-6 text-purple-600" />
+              <div className="w-10 h-10 bg-purple-100 flex items-center justify-center">
+                <FiCheckCircle className="w-5 h-5 text-purple-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div className="bg-white border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Avg Feedback</p>
+                <p className="text-xs text-gray-500">Avg Feedback</p>
                 {(loading && firstLoad) ? (
-                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+                  <div className="h-8 w-16 bg-gray-200 animate-pulse mt-1"></div>
                 ) : (
-                  <p className="text-2xl font-bold text-orange-600 mt-1">
+                  <p className="text-lg font-bold text-orange-600 mt-0.5">
                     {feedbackData?.overall_average?.average_rating?.toFixed(1) || '0.0'}
                   </p>
                 )}
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 mt-0.5">
                   {feedbackData?.overall_average?.total_feedback || 0} reviews
                 </p>
               </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-                <FiPieChart className="w-6 h-6 text-orange-600" />
+              <div className="w-10 h-10 bg-orange-100 flex items-center justify-center">
+                <FiPieChart className="w-5 h-5 text-orange-600" />
               </div>
             </div>
           </div>
@@ -249,8 +249,8 @@ const Analytics: React.FC = () => {
         {/* Charts Row 1 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Parking Activity Chart */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Parking Activity</h2>
+          <div className="bg-white border border-gray-200 p-4">
+            <h2 className="text-sm font-bold text-gray-800 mb-3">Parking Activity</h2>
             {loading ? (
               <div className="h-64 flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
@@ -288,8 +288,8 @@ const Analytics: React.FC = () => {
           </div>
 
           {/* Service Delivery Activity Chart */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Service Delivery Activity</h2>
+          <div className="bg-white border border-gray-200 p-4">
+            <h2 className="text-sm font-bold text-gray-800 mb-3">Service Delivery Activity</h2>
             {loading ? (
               <div className="h-64 flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-2 border-green-500 border-t-transparent"></div>
@@ -324,8 +324,8 @@ const Analytics: React.FC = () => {
         {/* Charts Row 2 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Comparison Chart */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Parking vs Service Delivery</h2>
+          <div className="bg-white border border-gray-200 p-4">
+            <h2 className="text-sm font-bold text-gray-800 mb-3">Parking vs Service Delivery</h2>
             {loading ? (
               <div className="h-64 flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-2 border-purple-500 border-t-transparent"></div>
@@ -353,8 +353,8 @@ const Analytics: React.FC = () => {
           </div>
 
           {/* Feedback by Department */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Feedback by Department</h2>
+          <div className="bg-white border border-gray-200 p-4">
+            <h2 className="text-sm font-bold text-gray-800 mb-3">Feedback by Department</h2>
             {loading ? (
               <div className="h-64 flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-2 border-orange-500 border-t-transparent"></div>

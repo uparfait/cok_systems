@@ -231,20 +231,20 @@ const DepartmentQueueTab: React.FC = () => {
   );
 
   return (
-    <div className="p-7">
+    <div className="p-4">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-[#1a2744] text-[28px] font-extrabold">Department Queue</h1>
-          <p className="text-[#888] text-[13px] mt-1.5">A high-level view of how many people are waiting in the entire department.</p>
+          <h1 className="text-base font-bold text-[#1a2744]">Department Queue</h1>
+          <p className="text-gray-500 text-xs mt-0.5">A high-level view of how many people are waiting in the entire department.</p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-yellow-50 px-3 py-2 rounded-lg">
-            <FiClock className="text-yellow-600 w-5 h-5" />
-            <span className="text-yellow-800 text-[14px] font-semibold">{totalWaiting} Waiting</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 bg-yellow-50 px-2.5 py-1.5">
+            <FiClock className="text-yellow-600 w-4 h-4" />
+            <span className="text-yellow-800 text-xs font-semibold">{totalWaiting} Waiting</span>
           </div>
-          <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg">
-            <FiUserCheck className="text-blue-600 w-5 h-5" />
-            <span className="text-blue-800 text-[14px] font-semibold">{totalInService} In Service</span>
+          <div className="flex items-center gap-1.5 bg-blue-50 px-2.5 py-1.5">
+            <FiUserCheck className="text-blue-600 w-4 h-4" />
+            <span className="text-blue-800 text-xs font-semibold">{totalInService} In Service</span>
           </div>
         </div>
       </div>
