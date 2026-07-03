@@ -15,18 +15,18 @@ export const EmployeesModal: React.FC<EmployeesModalProps> = ({ show, department
   const totalPages = Math.ceil(deptEmployees.length / itemsPerPage);
   const paginated = deptEmployees.slice((page - 1) * itemsPerPage, page * itemsPerPage);
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
       <div className="bg-white w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
-        <div className="p-4 border-b bg-gray-50 flex items-center justify-between flex-shrink-0">
+        <div className="p-3 sm:p-4 border-b bg-gray-50 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2"><div className="w-8 h-8 bg-blue-100 flex items-center justify-center"><FiUsers className="w-4 h-4 text-blue-600" /></div><div><h2 className="text-sm font-bold text-gray-900">Employees</h2><p className="text-xs text-gray-500">{department.name}</p></div></div>
           <button onClick={onClose} className="p-1.5 hover:bg-gray-200"><FiX className="w-4 h-4" /></button>
         </div>
-        <div className="p-3 border-b bg-white flex-shrink-0">
-          <div className="relative"><FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Search..." value={searchQuery} onChange={e => { onSearchChange(e.target.value); onPageChange(1); }} className="w-full pl-8 pr-3 py-2 border border-gray-300 text-sm" /></div>
+        <div className="p-2 sm:p-3 border-b bg-white flex-shrink-0">
+          <div className="relative"><FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Search..." value={searchQuery} onChange={e => { onSearchChange(e.target.value); onPageChange(1); }} className="w-full pl-8 pr-3 py-1.5 border border-gray-300 text-sm" /></div>
         </div>
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4">
           {paginated.length === 0 ? <div className="text-center py-8"><FiUsers className="w-8 h-8 text-gray-300 mx-auto mb-2" /><p className="text-sm text-gray-500">{searchQuery ? 'No matches' : 'No employees'}</p></div>
-            : <table className="w-full text-sm"><thead className="bg-gray-50 border-b sticky top-0"><tr><th className="px-3 py-2 text-left font-semibold text-gray-600 text-xs">Employee</th><th className="px-3 py-2 text-left font-semibold text-gray-600 text-xs">Email</th><th className="px-3 py-2 text-left font-semibold text-gray-600 text-xs">Position</th></tr></thead>
+            : <table className="w-full text-sm"><thead className="bg-blue-50 border-b sticky top-0"><tr><th className="px-3 py-2 text-left font-semibold text-gray-700 text-xs">Employee</th><th className="px-3 py-2 text-left font-semibold text-gray-700 text-xs">Email</th><th className="px-3 py-2 text-left font-semibold text-gray-700 text-xs">Position</th></tr></thead>
               <tbody className="divide-y">{paginated.map((emp: any) => <tr key={emp._id} className="hover:bg-gray-50"><td className="px-3 py-2.5"><div className="flex items-center gap-2"><div className="w-7 h-7 bg-blue-100 flex items-center justify-center"><span className="text-blue-600 font-semibold text-xs">{(emp.full_name || 'E').charAt(0)}</span></div><span className="font-medium text-gray-900 text-sm">{emp.full_name}</span></div></td><td className="px-3 py-2.5 text-xs text-gray-600">{emp.email}</td><td className="px-3 py-2.5 text-xs text-gray-600">{emp.roles?.role_name || '-'}</td></tr>)}</tbody></table>}
         </div>
         {totalPages > 1 && <div className="p-3 border-t flex items-center justify-center gap-2"><button onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page === 1} className="p-1.5 hover:bg-gray-100 disabled:opacity-50"><FiChevronLeft className="w-4 h-4" /></button><span className="text-xs text-gray-600">Page {page} of {totalPages}</span><button onClick={() => onPageChange(page + 1)} disabled={page >= totalPages} className="p-1.5 hover:bg-gray-100 disabled:opacity-50"><FiChevronRight className="w-4 h-4" /></button></div>}
@@ -53,13 +53,13 @@ export const ServicesModal: React.FC<ServicesModalProps> = ({ show, department, 
   const totalPages = Math.ceil((services || []).length / itemsPerPage);
   const paginated = (services || []).slice((page - 1) * itemsPerPage, page * itemsPerPage);
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
       <div className="bg-white w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
-        <div className="p-4 border-b bg-white flex items-center justify-between flex-shrink-0">
+        <div className="p-3 sm:p-4 border-b bg-white flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2"><div className="w-8 h-8 bg-blue-100 flex items-center justify-center"><FiPackage className="w-4 h-4 text-blue-600" /></div><div><h2 className="text-sm font-bold text-gray-900">Services Management</h2><p className="text-xs text-gray-500">{department.name}</p></div></div>
           <button onClick={() => { onClose(); setEditId(null); setNewName(''); setNewDesc(''); }} className="p-1.5 hover:bg-gray-200"><FiX className="w-4 h-4" /></button>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 flex items-start gap-2 text-sm"><FiAlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{error}</span></div>}
           <div className="border border-blue-200 p-4">
             <h3 className="text-sm font-semibold text-gray-900 mb-3">{editId ? 'Edit Service' : 'Add New Service'}</h3>
