@@ -132,11 +132,10 @@ class BookingRequestService {
       eventData.willEndAt = endTime;
 
       // Use EventService to create the event
-      // We need to delegate to EventService which handles all validation
-      // But EventService expects eventMode - we pass upcoming since that's what booking requests create
+      // Delegate to EventService which handles all validation
       eventData.eventMode = "upcoming";
 
-      const result = await EventService.createEvent(eventData);
+      const result = await EventService.createEvent(eventData, requestId);
 
       acceptedEventSpecialId = result.data.eventSpecialId;
 

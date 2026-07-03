@@ -3,6 +3,7 @@ const LiveEvent = require('../models/LiveEvent');
 const UpcomingEvent = require('../models/UpcomingEvent');
 const RecurringEvent = require('../models/RecurringEvent');
 const PastEvent = require('../models/PastEvent');
+const BookRequestModel = require('../models/BookingRequest');
 
 /**
  * Service to handle event cancellation.
@@ -73,6 +74,15 @@ class CancelEventService {
     await pastEvent.save({ session });
     await LiveEvent.findByIdAndDelete(eventId, { session });
 
+    // Also cancel any associated booking requests
+    const bookingRequest = await BookRequestModel.findOne({ acceptedEventSpecialId: liveEvent.eventSpecialId }).session(session);
+
+    if (bookingRequest) {
+      bookingRequest.status = 'Cancelled';
+      bookingRequest.cancellationReason = reason;
+      await bookingRequest.save({ session });
+    }
+
     return pastEvent;
   }
 
@@ -102,6 +112,15 @@ class CancelEventService {
     await pastEvent.save({ session });
     await UpcomingEvent.findByIdAndDelete(eventId, { session });
 
+    // Also cancel any associated booking requests
+    const bookingRequest = await BookRequestModel.findOne({ acceptedEventSpecialId: upcomingEvent.eventSpecialId }).session(session);
+    console.log('Booking request found for upcoming event:', bookingRequest);
+    if (bookingRequest) {
+      bookingRequest.status = 'Cancelled';
+      bookingRequest.cancellationReason = reason;
+      await bookingRequest.save({ session });
+    }
+
     return pastEvent;
   }
 
@@ -109,37 +128,7 @@ class CancelEventService {
     const recurringEvent = await RecurringEvent.findById(eventId).session(session);
     if (!recurringEvent) {
       throw new Error('Recurring event not found');
-    }
-
-    // Mark recurring event as expired
-    recurringEvent.eventRecurring.isExpired = true;
-    if (reason) {
-      recurringEvent.eventRecurring.willExpire = true;
-      recurringEvent.eventRecurring.willExpireAt = new Date();
-    }
-   
-
-    // Create a cancellation record in PastEvent
-    const pastEvent = new PastEvent({
-      eventMeetingType: recurringEvent.eventMeetingType || 'event',
-      eventName: recurringEvent.eventName,
-      eventDescription: recurringEvent.eventDescription,
-      eventType: recurringEvent.eventType,
-      eventRoom: recurringEvent.eventRoom,
-      eventOrganizer: recurringEvent.eventOrganizer,
-      eventSpecialId: `${recurringEvent.eventSpecialId}_cancelled_${Date.now()}`,
-      startedAt: recurringEvent.eventStartTime || new Date(),
-      expectedToEndAt: recurringEvent.eventRecurring.recurringEndDate,
-      endedAt: recurringEvent.eventEndTime || new Date(),
-      isCancelled: true,
-      cancellationReason: reason,
-      expectedAudience: recurringEvent.expectedAudience,
-      activityAgenda: recurringEvent.activityAgenda || [],
-    });
-
-    await pastEvent.save({ session });
-
-    
+    }    
     await recurringEvent.deleteOne({ session });
 
     // Also cancel any upcoming occurrences of this recurring event
@@ -148,7 +137,7 @@ class CancelEventService {
       { session }
     );
 
-    return pastEvent;
+    return {};
   }
 }
 

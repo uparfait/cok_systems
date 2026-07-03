@@ -29,10 +29,11 @@ class CancelEventController {
 
       const result = await CancelEventService.execute(eventId, eventType, reason || '');
 
+
       return res.status(200).json({
         success: true,
         message: 'Event cancelled successfully.',
-        data: result.data,
+        data: result.data || {},
       });
     } catch (error) {
       const statusCode = error.message.includes('not found') ? 404 : 400;
