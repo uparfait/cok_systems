@@ -954,17 +954,17 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({
       {/* Table Section */}
       <div className="bg-white rounded-[14px] p-4 mt-4 shadow-[0_1px_4px_rgba(0,0,0,0.07)] overflow-x-auto">
         <table className="w-full min-w-[800px]">
-          <thead>
-            <tr className="border-b border-[#f0f0f0]">
-              <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[25%]">
-                VISITOR
-              </th>
-              <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[20%]">
-                BADGE & ID
-              </th>
-              <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[15%]">
-                ASSIGNED TO
-              </th>
+              <thead>
+                <tr className="bg-blue-50 border-b border-[#E2E8F0]">
+                  <th className="text-left text-[11px] font-bold text-gray-700 uppercase tracking-[0.5px] px-4 py-3 w-[5%]">
+                    #
+                  </th>
+                  <th className="text-left text-[11px] font-bold text-gray-700 uppercase tracking-[0.5px] px-4 py-3 w-[15%]">
+                    VISITOR / BADGE
+                  </th>
+                  <th className="text-left text-[11px] font-bold text-gray-700 uppercase tracking-[0.5px] px-4 py-3 w-[12%]">
+                    VISITOR ID
+                  </th>
               <th className="text-left py-3 px-2 text-[#999] text-[11px] uppercase tracking-wider font-medium w-[15%]">
                 DURATIONS
               </th>

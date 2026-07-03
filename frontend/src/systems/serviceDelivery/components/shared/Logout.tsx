@@ -10,7 +10,7 @@ interface LogoutProps {
 const Logout: React.FC<LogoutProps> = ({ onConfirm, onCancel }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-[16px] w-[400px] max-h-[90vh] overflow-hidden shadow-xl">
+      <div className="bg-white w-[400px] max-h-[90vh] overflow-hidden shadow-xl">
         {/* Header */}
         <div className="p-6">
           <div className="flex flex-col items-center text-center">
