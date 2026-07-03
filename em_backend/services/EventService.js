@@ -11,7 +11,7 @@ const RecurringValidator = require('../validators/RecurringValidator');
 const CalculateMonthlyFirstOccurrence = require('./CalculateMonthlyFirstOccurrence');
 
 class EventService {
-  static async createEvent(eventData) {
+  static async createEvent(eventData, requestId = null) {
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -50,7 +50,7 @@ class EventService {
           event = await this.createLiveEvent(sanitizedData, session);
           break;
         case 'upcoming':
-          event = await this.createUpcomingEvent(sanitizedData, session);
+          event = await this.createUpcomingEvent(sanitizedData, session, requestId);
           break;
         case 'recurring':
           event = await this.createRecurringEvent(sanitizedData, session);
@@ -90,7 +90,7 @@ class EventService {
     );
 
     if (!availability.available) {
-      throw new Error('Selected room is already reserved during the requested time');
+      throw new Error(`Selected room is already reserved during the requested time by a ${availability.conflict} event which is ${availability.details.eventName}`);
     }
 
     // If event ends in the past, create as past event
@@ -112,7 +112,7 @@ class EventService {
     return await liveEvent.save({ session });
   }
 
-  static async createUpcomingEvent(data, session) {
+  static async createUpcomingEvent(data, session, requestId = null) {
     const { willStartAt, willEndAt } = data;
     const now = new Date();
 
@@ -133,11 +133,13 @@ class EventService {
       data.eventRoom,
       new Date(willStartAt),
       new Date(willEndAt),
-      data.eventSpecialId || null
+      data.eventSpecialId || null,
+      null,
+      requestId || null
     );
-
+    
     if (!availability.available) {
-      throw new Error('Selected room is already reserved during the requested time');
+      throw new Error(`Selected room is already reserved during the requested time by a ${availability.conflict} event which is ${availability.details.eventName}`);
     }
 
     // If event would have ended in the past, create as past event
@@ -189,7 +191,7 @@ class EventService {
     );
 
     if (!availability.available) {
-      throw new Error('Selected room is already reserved during the requested time');
+      throw new Error(`Selected room is already reserved during the requested time by a ${availability.conflict} event which is ${availability.details.eventName}`);
     }
 
     const recurringEvent = new RecurringEvent(data);

@@ -14,8 +14,9 @@ class CheckRoomAvailability {
    * @param {string|null} excludeEventSpecialId - Exact eventSpecialId to exclude (for self-conflict checks)
    * @param {string|null} excludeRecurringPrefix - Prefix to match eventSpecialIds that START WITH this 
    *   (for excluding upcoming instances created FROM a recurring event, e.g. "REC_123" matches "REC_123_456")
-   */
-  static async execute(roomName, startTime, endTime, excludeEventSpecialId = null, excludeRecurringPrefix = null) {
+   * @param {string|null} requestId - The ID of the booking request (if applicable)
+   */  
+  static async execute(roomName, startTime, endTime, excludeEventSpecialId = null, excludeRecurringPrefix = null, requestId = null) {
     const room = await Room.findOne({ 
       roomName: roomName.toLowerCase(), 
       isActive: true 
@@ -86,8 +87,9 @@ class CheckRoomAvailability {
     // Check BookingRequests (Pending or Accepted)
     const bookingRequestConflict = await BookingRequest.findOne({
       eventRoom: roomName,
-      status: { $in: ['Pending', 'Accepted'] },
+      status: { $in: ['Pending'] },
       $or: [{ startTime: { $lt: endTime }, endTime: { $gt: startTime } }],
+      ...(requestId ? { _id: { $ne: requestId } } : {}) // Exclude the current request if provided
     }).lean();
 
     if (bookingRequestConflict) {
