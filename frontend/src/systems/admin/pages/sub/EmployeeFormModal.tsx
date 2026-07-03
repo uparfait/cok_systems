@@ -35,8 +35,8 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
 }) => {
   if (!show) return null;
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl m-3 sm:m-6">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl mx-2 sm:mx-4 my-2 sm:my-6">
         <div className="p-4 border-b bg-gray-50 sticky top-0 flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-blue-100 flex items-center justify-center"><FiUser className="w-4 h-4 text-blue-600" /></div>

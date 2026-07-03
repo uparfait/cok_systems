@@ -35,13 +35,13 @@ const OverviewModal: React.FC<OverviewModalProps> = ({ title, loading, paginatio
   }, [chartId, createChart, data]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4" onClick={onClose}>
       <div className="bg-white w-full max-w-4xl max-h-[85vh] overflow-hidden shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="p-4 border-b flex items-center justify-between bg-gray-50">
+        <div className="p-3 sm:p-4 border-b flex items-center justify-between bg-gray-50">
           <h3 className="text-base font-bold text-gray-900">{title}</h3>
           <button onClick={onClose} className="p-1.5 hover:bg-gray-200">✕</button>
         </div>
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4">
           {loading ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>

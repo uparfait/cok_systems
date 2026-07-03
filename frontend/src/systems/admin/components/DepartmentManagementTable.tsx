@@ -78,7 +78,7 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({ departments
       <div className="bg-white border border-gray-200 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px]">
-            <thead><tr className="bg-gray-50 border-b border-gray-200">
+            <thead><tr className="bg-blue-50 border-b border-gray-200">
               {['Department Name', 'Department ID', 'Room Number', 'Department Leader', 'Employees', 'Services', 'Units', 'Actions'].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">{h}</th>)}
             </tr></thead>
             <tbody className="divide-y divide-gray-100">
