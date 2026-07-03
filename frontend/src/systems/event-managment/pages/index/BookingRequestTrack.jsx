@@ -227,7 +227,7 @@ export default function BookingRequestTrack() {
               </div>
               {request.eventDescription && <div className="mt-3 pt-3 border-t border-zinc-200"><DetailRow label="Description" value={request.eventDescription} /></div>}
               {request.status === "Rejected" && request.rejectionReason && <div className="mt-3 pt-3 border-t"><div className="bg-red-50 border border-red-200 p-3"><p className="text-xs font-medium text-red-700 uppercase">Reason</p><p className="text-sm text-red-600 mt-1">{request.rejectionReason}</p></div></div>}
-              {request.status === "Accepted" && request.acceptedEventSpecialId && <div className="mt-3 pt-3 border-t"><div className="bg-green-50 border border-green-200 p-3"><p className="text-sm font-medium text-green-700"><FiCheckCircle className="w-4 h-4 inline" /> Event Created</p><p className="text-xs text-green-600 mt-1">ID: {request.acceptedEventSpecialId}</p></div></div>}
+              {request.status === "Accepted" && request.acceptedEventSpecialId && <div className="mt-3 pt-3 border-t"><div className="bg-green-50 border border-green-200 p-3"><p className="text-sm font-medium text-green-700"><FiCheckCircle className="w-4 h-4 inline" />Your Request Has Been Accepted</p></div></div>}
               {request.status === "Pending" && (
                 <div className="mt-4 pt-3 border-t border-zinc-200 flex justify-end gap-2">
                   <button onClick={() => { setEditStep(1); setCompletedSteps([]); setIsEditing(true); }} className="inline-flex items-center gap-1.5 px-4 py-2 border border-blue-300 text-sm font-medium text-blue-700 hover:bg-blue-50"><FiEdit2 className="w-4 h-4" /> Edit</button>
