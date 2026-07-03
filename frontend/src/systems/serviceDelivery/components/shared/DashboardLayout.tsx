@@ -1,5 +1,3 @@
-// DashboardLayout - Reusable layout component for all dashboards
-// This component provides consistent sidebar and header for all dashboard pages
 
 import React, { useState, useEffect } from 'react';
 import { FiLogOut, FiHome, FiUsers, FiGrid, FiClock, FiCheckCircle, FiFile, FiActivity, FiList } from 'react-icons/fi';

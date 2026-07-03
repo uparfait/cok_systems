@@ -83,7 +83,7 @@ const ServiceStatusBadge: React.FC<ServiceStatusBadgeProps> = ({
   return (
     <span
       className={`
-        inline-flex items-center justify-center font-medium rounded-full
+        inline-flex items-center justify-center font-medium
         ${style.bg} ${style.text}
         ${sizeClasses[size]}
       `}
