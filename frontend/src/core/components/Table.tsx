@@ -1,5 +1,6 @@
 import React from 'react';
 import { FiLoader, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+
 import { useNavigate } from 'react-router-dom';
 
 export interface TableHeader {
@@ -81,7 +82,7 @@ const Table: React.FC<TableProps> = ({
   };
 
   return (
-    <div className={`bg-white rounded-xl border border-gray-200 overflow-hidden ${className}`}>
+    <div className={`bg-white  border border-gray-200 overflow-hidden ${className}`}>
       {/* Table Container with Scrolling */}
       <div
         className="overflow-x-auto overflow-y-auto"
@@ -89,12 +90,12 @@ const Table: React.FC<TableProps> = ({
       >
         <table className="w-full">
           {/* Header */}
-          <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
+          <thead className="bg-blue-600 text-white sticky top-0 z-10 shadow-sm">
             <tr>
               {headers.map((header, index) => (
                 <th
                   key={header.key || index}
-                  className={`px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider ${header.className || ''}`}
+                  className={`px-6 py-3 text-left text-xs font-semibold  uppercase tracking-wider ${header.className || ''}`}
                 >
                   {header.label}
                 </th>
@@ -140,8 +141,8 @@ const Table: React.FC<TableProps> = ({
 
       {/* Footer with Pagination */}
       {pagination && pagination.totalPages > 0 && (
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-2">
-          <div className="text-sm text-gray-600">
+        <div className="px-6 py-4   bg-white border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-2">
+          <div className="text-sm  text-gray-600">
             Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} to{' '}
             {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalCount)} of{' '}
             {pagination.totalCount} results

@@ -94,10 +94,8 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
         
         <div className="relative z-10 flex flex-col justify-end p-7 lg:p-10 text-white w-full h-full">
           {/* COK OFFICIAL PORTAL pill */}
-          <div className="inline-flex items-center px-3 py-1.5 mb-3 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 text-xs font-semibold tracking-wide uppercase w-max cok-badge-animated">
-            <span className="mr-1.5 inline-flex h-3 w-3 items-center justify-center rounded-full border border-white/60">
-              <span className="h-1.5 w-1.5 rounded-full bg-white" />
-            </span>
+          <div className="inline-flex items-center px-3 py-1.5 mb-3 bg-white/10 backdrop-blur-sm  border border-white/20 text-xs font-semibold tracking-wide uppercase w-max cok-badge-animated">
+          
             <span className="font-bold">COK Official Portal</span>
           </div>
 
@@ -119,13 +117,7 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
       {/* Right side - Forgot Password form */}
       <div className="w-full md:w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-6 lg:py-8 bg-white">
         <div className="w-full max-w-lg px-2 sm:px-4">
-          {/* Back button */}
-          <Link to="/login" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6 sm:mb-8 transition-colors">
-            <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back
-          </Link>
+       
 
           {/* City of Kigali Logo */}
           <div className="mb-6 ml-4  flex justify-center">
@@ -157,7 +149,7 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
                     type="email"
                     required
                     className="w-full px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    placeholder="evode@cok.gov.rw"
+                    placeholder="email@cok.gov.rw"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -223,7 +215,7 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
 
           {/* Secure Portal footer */}
           <p className="text-center text-xs text-gray-400 mt-8">
-            Secure Official City of Kigali Portal
+            Official City of Kigali Portal
           </p>
         </div>
       </div>

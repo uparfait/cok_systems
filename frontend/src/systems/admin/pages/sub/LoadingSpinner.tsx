@@ -1,4 +1,6 @@
 import React from 'react';
+import { FiLoader, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+
 
 interface LoadingSpinnerProps {
   message?: string;
@@ -8,7 +10,7 @@ interface LoadingSpinnerProps {
 const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ message = 'Loading...', fullPage = false }) => {
   const content = (
     <div className="flex items-center justify-center gap-2">
-      <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent"></div>
+     <FiLoader className="w-6 h-6 animate-spin text-blue-600" />
       <span className="text-sm text-gray-500">{message}</span>
     </div>
   );

@@ -106,7 +106,7 @@ const FeedbackPage: React.FC = () => {
           <div key={selectedDept.id} id="feedback-messages-section" className="bg-white border border-gray-200">
             <div className="p-4 border-b border-gray-100"><div className="flex items-center justify-between"><h2 className="text-sm font-bold text-gray-900 flex items-center gap-2"><FiMessageSquare className="w-4 h-4 text-blue-600" />Feedback - {selectedDept.name}</h2><button onClick={() => { setFeedbackList([]); setSelectedDept(null); }} className="p-1 hover:bg-gray-100"><FiX className="w-4 h-4" /></button></div></div>
             <div className="p-4">
-              {feedbackLoading ? <div className="flex justify-center py-8"><div className="animate-spin h-6 w-6 border-2 border-blue-500 border-t-transparent" /><span className="ml-2 text-sm text-gray-500">Loading...</span></div>
+              {feedbackLoading ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent" /><span className="ml-2 text-sm text-gray-500">Loading...</span></div>
                 : feedbackList.length > 0 ? <div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50"><tr>{['Visitor', 'Rating', 'Comment', 'Date'].map(h => <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>)}</tr></thead>
                     <tbody className="divide-y">{feedbackList.map((fb, i) => <tr key={fb._id || i} className="hover:bg-gray-50"><td className="px-3 py-2.5"><div className="flex items-center gap-2"><div className="w-7 h-7 bg-blue-100 flex items-center justify-center"><FiMessageSquare className="w-3.5 h-3.5 text-blue-600" /></div><span className="text-sm font-medium text-gray-900">{fb.user_name || 'Anonymous'}</span></div></td><td className="px-3 py-2.5"><span className="text-sm font-bold text-gray-900">{fb.rate || 0}/{fb.rate_out_of || 10}</span></td><td className="px-3 py-2.5 max-w-xs text-xs text-gray-700">{fb.textmessage ? (fb.textmessage.length > 100 ? fb.textmessage.substring(0, 100) + '...' : fb.textmessage) : <span className="text-gray-400 italic">No message</span>}</td><td className="px-3 py-2.5 text-xs text-gray-600">{fb.created_date ? new Date(fb.created_date).toLocaleDateString() : 'N/A'}</td></tr>)}</tbody></table></div>
                   : <div className="text-center py-8"><FiMessageSquare className="w-10 h-10 text-gray-300 mx-auto mb-2" /><p className="text-sm text-gray-500">No feedback messages for {selectedDept.name}</p></div>}
@@ -121,7 +121,7 @@ const FeedbackPage: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full"><thead className="bg-gray-50 sticky top-0 z-10"><tr>{['Rank', 'Department', 'Rating', 'Feedback', 'Performance'].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>)}</tr></thead>
                   <tbody className="divide-y">
-                    {loading ? <tr><td colSpan={5} className="px-4 py-8 text-center"><div className="animate-spin h-6 w-6 border-2 border-blue-500 border-t-transparent mx-auto" /></td></tr>
+                    {loading ? <tr><td colSpan={5} className="px-4 py-8 text-center"><div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent mx-auto" /></td></tr>
                       : deptRatings.length > 0 ? deptRatings.map((d, i) => (
                           <tr key={d.department} className="hover:bg-gray-50">
                             <td className="px-4 py-3"><span className={`inline-flex items-center justify-center w-7 h-7 text-xs font-bold ${i === 0 ? 'bg-yellow-100 text-yellow-800' : i === 1 ? 'bg-gray-100 text-gray-800' : i === 2 ? 'bg-orange-100 text-orange-800' : 'bg-gray-50 text-gray-600'}`}>{i + 1}</span></td>
@@ -142,14 +142,6 @@ const FeedbackPage: React.FC = () => {
                 <div className="flex justify-between items-center p-2.5 bg-green-50"><span className="text-xs font-medium text-green-800">Excellent (4.5+)</span><span className="text-sm font-bold text-green-600">{insights.excellent}</span></div>
                 <div className="flex justify-between items-center p-2.5 bg-blue-50"><span className="text-xs font-medium text-blue-800">Good (3.5-4.4)</span><span className="text-sm font-bold text-blue-600">{insights.good}</span></div>
                 <div className="flex justify-between items-center p-2.5 bg-yellow-50"><span className="text-xs font-medium text-yellow-800">Needs Improvement</span><span className="text-sm font-bold text-yellow-600">{insights.poor}</span></div>
-              </div>
-            </div>
-            <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-4 border border-blue-100">
-              <h3 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2"><FiUsers className="w-4 h-4 text-blue-600" />Key Insights</h3>
-              <div className="space-y-2 text-xs text-gray-700">
-                <div className="flex items-start gap-2"><div className="w-1.5 h-1.5 bg-blue-500 mt-1.5 flex-shrink-0"></div><p>{deptRatings.length} departments actively receiving feedback</p></div>
-                <div className="flex items-start gap-2"><div className="w-1.5 h-1.5 bg-green-500 mt-1.5 flex-shrink-0"></div><p>{insights.total > 0 ? Number((insights.excellent / insights.total) * 100) : 0}% rated excellent or above</p></div>
-                <div className="flex items-start gap-2"><div className="w-1.5 h-1.5 bg-purple-500 mt-1.5 flex-shrink-0"></div><p>Top: {deptRatings[0]?.department || 'N/A'}</p></div>
               </div>
             </div>
           </div>

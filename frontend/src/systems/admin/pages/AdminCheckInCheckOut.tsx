@@ -5,7 +5,7 @@ import { serviceDeliveryService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import { useToast } from '../../../core/contexts/ToastContext';
-import { FiSearch, FiRefreshCw, FiUserPlus, FiUserMinus, FiClock, FiDownload } from 'react-icons/fi';
+import { FiSearch, FiRefreshCw, FiUserPlus, FiUserMinus, FiClock, FiDownload, FiLoader } from 'react-icons/fi';
 import { HiOutlineClipboardList } from 'react-icons/hi';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -135,9 +135,9 @@ const AdminCheckInCheckOut: React.FC = () => {
           </div>
           <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
             <table className="w-full">
-              <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm"><tr>{['Visitor Name', 'ID Number', 'Badge', 'Entry Time', 'Exit Time', 'Duration', 'Department', 'Status'].map(h => <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>)}</tr></thead>
+              <thead className="bg-blue-600 sticky top-0 z-10 shadow-sm"><tr>{['Visitor Name', 'ID Number', 'Badge', 'Entry Time', 'Exit Time', 'Duration', 'Department', 'Status'].map(h => <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-white/95 uppercase">{h}</th>)}</tr></thead>
               <tbody className="divide-y divide-gray-50">
-                {(loading && firstLoad) ? <tr><td colSpan={8} className="px-3 py-6 text-center"><div className="animate-spin h-6 w-6 border-2 border-green-500 border-t-transparent mx-auto" /></td></tr>
+                {(loading && firstLoad) ? <tr><td colSpan={8} className="px-3 py-6 text-center"><div className="h-6 w-6 mx-auto"> <FiLoader className='animate-spin h-6 w-6 text-blue-600'/> </div></td></tr>
                   : filteredVisitors.length > 0 ? filteredVisitors.map((v, i) => (
                       <tr key={v._id || i} className="hover:bg-gray-50">
                         <td className="px-3 py-2.5"><div className="flex items-center"><div className="w-7 h-7 bg-green-100 flex items-center justify-center mr-2"><span className="text-green-600 font-medium text-xs">{(v.full_name || v.name || v.visitorName || 'V').charAt(0).toUpperCase()}</span></div><span className="text-sm font-medium text-gray-900">{v.full_name || v.name || v.visitorName || 'N/A'}</span></div></td>

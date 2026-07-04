@@ -345,9 +345,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Use event for smoother navigation
       window.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: 'manual_logout' } }));
       setTimeout(() => {
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
+          window.location.href = '/';
       }, 100);
     }
   };

@@ -393,7 +393,7 @@ const logoImage = '/LOGO_COK.png';
 
               {/* Secure portal footer */}
               <p className="text-left text-xs text-gray-400 mt-8">
-                © SECURE OFFICIAL CITY OF KIGALI PORTAL
+                ©CITY OF KIGALI PORTAL
               </p>
             </>
           )}

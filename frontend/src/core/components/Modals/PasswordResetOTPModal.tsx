@@ -318,7 +318,7 @@ const handleVerify = async () => {
 
               {/* Secure portal footer - left aligned */}
               <p className="text-left text-xs text-gray-400 mt-8">
-                © SECURE OFFICIAL CITY OF KIGALI PORTAL
+                © CITY OF KIGALI PORTAL
               </p>
             </>
           )}

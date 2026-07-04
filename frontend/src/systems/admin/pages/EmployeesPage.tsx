@@ -117,7 +117,7 @@ const EmployeesPage: React.FC = () => {
         if (r.success) { setFormSuccess(r.message || 'Employee created!'); setTimeout(() => { setShowModal(false); loadEmployees(currentPage, pageLimit); }, 1500); }
         else setFormError(r.error || 'Failed to create');
       }
-    } catch (err: any) { setFormError(err.message || 'Failed to save'); } finally { setSubmitting(false); }
+    } catch (err: any) { setFormError(err.message || 'Failed to save'); } finally { setSubmitting(false); setShowModal(false)}
   };
 
   const handleDeleteClick = (id: string, name: string) => { setDeletingId(id); setDeletingName(name); setShowDeleteConfirm(true); };

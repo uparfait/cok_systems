@@ -3,6 +3,7 @@ import { departmentService, type Department, type Employee, } from "../../../cor
 import { FiPlus, FiEdit2, FiTrash2, FiUsers, FiPackage, FiRefreshCw, FiChevronLeft, FiChevronRight, FiSearch, } from "react-icons/fi";
 import { HiOutlineOfficeBuilding } from "react-icons/hi";
 import { EmployeesModal, ServicesModal } from "../pages/sub/DepartmentServiceModal";
+import { FiLoader } from 'react-icons/fi';
 
 interface DepartmentTableProps {
   departments: Department[]; employees: Employee[]; loading: boolean;
@@ -78,11 +79,11 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({ departments
       <div className="bg-white border border-gray-200 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px]">
-            <thead><tr className="bg-blue-50 border-b border-gray-200">
-              {['Department Name', 'Department ID', 'Room Number', 'Department Leader', 'Employees', 'Services', 'Units', 'Actions'].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">{h}</th>)}
+            <thead><tr className="bg-blue-600 border-b border-gray-200">
+              {['Department Name', 'Department ID', 'Room Number', 'Department Leader', 'Employees', 'Services', 'Units', 'Actions'].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider whitespace-nowrap">{h}</th>)}
             </tr></thead>
             <tbody className="divide-y divide-gray-100">
-              {loading ? <tr><td colSpan={9} className="px-4 py-6 text-center"><div className="flex justify-center items-center gap-2"><div className="animate-spin h-5 w-5 border-b-2 border-blue-600"></div><span className="text-sm text-gray-500">Loading...</span></div></td></tr>
+              {loading ? <tr><td colSpan={9} className="px-4 py-6 text-center"><div className="flex justify-center items-center gap-2"><FiLoader className="w-6 h-6 animate-spin text-blue-600" /><span className="text-sm text-gray-500">Loading...</span></div></td></tr>
                 : flattenedDepartments.length === 0 ? <tr><td colSpan={9} className="px-4 py-8 text-center"><HiOutlineOfficeBuilding className="w-8 h-8 text-gray-300 mx-auto mb-2" /><p className="text-sm text-gray-500">No departments found</p></td></tr>
                   : flattenedDepartments.map((dept) => {
                     const deptEmployees = getDepartmentEmployees(dept);

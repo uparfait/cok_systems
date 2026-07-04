@@ -4,7 +4,7 @@ import { userAccountService } from '../../../core/services/adminService';
 import type { Employee } from '../../../core/services/adminService';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import MainLayout from '../../../core/components/Layout/MainLayout';
-import { FiSearch, FiLock, FiUnlock, FiRefreshCw, FiUsers, FiMail, FiPhone, FiCheck, FiX, FiAlertCircle, FiUser, FiAlertTriangle } from 'react-icons/fi';
+import { FiSearch, FiLock, FiUnlock,FiLoader, FiRefreshCw, FiUsers, FiMail, FiPhone, FiCheck, FiX, FiAlertCircle, FiUser, FiAlertTriangle } from 'react-icons/fi';
 
 interface UserWithLock extends Employee { access_control?: { is_locked?: boolean; reason?: string; last_login_attempt?: number }; is_account_activated?: boolean; }
 
@@ -53,12 +53,12 @@ const UserManagementPage: React.FC = () => {
         </div>
         {error && !loading && <div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2"><FiAlertCircle className="w-4 h-4" />{error}</div>}
 
-        <div className="bg-white border overflow-hidden">
+        <div className=" p-5 overflow-hidden">
           <div className="overflow-x-auto max-h-96 overflow-y-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm"><tr>{['User', 'Department', 'Activation', 'Account Lock', 'Actions'].map(h => <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>)}</tr></thead>
+            <table className="min-w-full  divide-y divide-gray-200">
+              <thead className="bg-blue-600 sticky top-0 z-10 shadow-sm"><tr>{['User', 'Department', 'Activation', 'Account Lock', 'Actions'].map(h => <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-white uppercase tracking-wider">{h}</th>)}</tr></thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {(loading && firstLoad) ? <tr><td colSpan={5} className="px-4 py-8 text-center"><div className="flex justify-center gap-2"><div className="animate-spin h-6 w-6 border-b-2 border-blue-600"></div><span className="text-sm text-gray-500">Loading...</span></div></td></tr>
+                {(loading && firstLoad) ? <tr><td colSpan={5} className="px-4 py-8 text-center"><div className="flex justify-center gap-2"><div className="h-6 w-6 justify-center items-center flex"><FiLoader className="w-5 h-5 animate-spin text-blue-600" /></div></div></td></tr>
                   : paginatedUsers.length === 0 ? <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">{searchQuery ? 'No matches' : 'No users'}</td></tr>
                     : paginatedUsers.map(u => (
                         <tr key={u._id} className="hover:bg-gray-50">
@@ -75,7 +75,7 @@ const UserManagementPage: React.FC = () => {
           </div>
         </div>
         {totalPages > 1 && <div className="px-4 py-3 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-2 text-xs"><span>Showing {((currentPage - 1) * pageLimit) + 1} to {Math.min(currentPage * pageLimit, totalUsers)} of {totalUsers}</span><div className="flex gap-2"><button onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage <= 1} className="px-3 py-1 border hover:bg-gray-50 disabled:opacity-50">Previous</button><button onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage >= totalPages} className="px-3 py-1 border hover:bg-gray-50 disabled:opacity-50">Next</button></div></div>}
-        <div className="mt-3 text-xs text-gray-500">Total: {users.length} users</div>
+       
 
         {showLockModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -83,10 +83,10 @@ const UserManagementPage: React.FC = () => {
             <div className="relative bg-white shadow-2xl w-full max-w-md mx-4">
               <div className="flex items-center justify-between p-3 border-b"><h3 className="text-sm font-bold text-gray-900 flex items-center gap-2"><FiLock className="w-4 h-4 text-red-600" />Lock User Account</h3><button onClick={() => { setShowLockModal(false); setSelectedUser(null); setLockReason(''); }} disabled={actionLoading} className="p-1 hover:bg-gray-100 disabled:opacity-50"><FiX className="w-4 h-4 text-gray-500" /></button></div>
               <div className="p-4">
-                <div className="mx-auto w-12 h-12 bg-red-100 flex items-center justify-center mb-3"><FiAlertTriangle className="w-6 h-6 text-red-600" /></div>
+                <div className="mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-3"><FiAlertTriangle className="w-6 h-6 text-red-600" /></div>
                 <p className="text-sm text-gray-600 mb-3">Lock account for <span className="font-semibold text-gray-900">{selectedUser?.full_name || selectedUser?.email}</span>?</p>
                 <div className="mb-4"><label className="text-xs font-medium text-gray-700 mb-1 block">Reason <span className="text-red-500">*</span></label><textarea value={lockReason} onChange={e => setLockReason(e.target.value)} placeholder="Enter reason..." rows={2} className="w-full px-3 py-2 border border-gray-300 text-sm resize-none" disabled={actionLoading} /><p className="text-xs text-gray-500 mt-0.5">Visible to user on login</p></div>
-                <div className="flex gap-3"><button onClick={() => { setShowLockModal(false); setSelectedUser(null); setLockReason(''); }} disabled={actionLoading} className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 flex items-center justify-center gap-1"><FiX className="w-3.5 h-3.5" />Cancel</button><button onClick={handleLock} disabled={actionLoading || !lockReason.trim()} className="flex-1 px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-1">{actionLoading ? <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent animate-spin" />Locking...</> : <><FiLock className="w-3.5 h-3.5" />Lock</>}</button></div>
+                <div className="flex gap-3"><button onClick={() => { setShowLockModal(false); setSelectedUser(null); setLockReason(''); }} disabled={actionLoading} className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 flex items-center justify-center gap-1"><FiX className="w-3.5 h-3.5" />Cancel</button><button onClick={handleLock} disabled={actionLoading || !lockReason.trim()} className="flex-1 px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-1">{actionLoading ? <><FiLoader className="w-3.5 h-3.5 text-white animate-spin" />Locking...</> : <><FiLock className="w-3.5 h-3.5" />Lock</>}</button></div>
               </div>
             </div>
           </div>

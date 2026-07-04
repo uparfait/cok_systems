@@ -141,9 +141,9 @@ const redirectToLogin = () => {
   window.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: 'unauthorized' } }));
   // Fallback to direct redirect after short delay (for when no component is listening)
   setTimeout(() => {
-    if (window.location.pathname !== '/login') {
-      window.location.href = '/login';
-    }
+   
+      window.location.href = '/';
+    
   }, 100);
 };
 

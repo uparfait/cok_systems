@@ -7,6 +7,7 @@ import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { FiPlus, FiSearch, FiRefreshCw, FiCheck, FiAlertCircle } from 'react-icons/fi';
 import { HiOutlineOfficeBuilding } from 'react-icons/hi';
+import { FiLoader, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
 const DepartmentsPage: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -102,7 +103,7 @@ const DepartmentsPage: React.FC = () => {
         {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 text-sm flex items-center gap-2"><FiAlertCircle className="w-4 h-4 flex-shrink-0" />{error}</div>}
 
         <div className="bg-white border border-gray-200 overflow-hidden">
-          {loading && firstLoad ? <div className="p-8 text-center"><div className="animate-spin h-6 w-6 border-b-2 border-blue-600 mx-auto" /><p className="text-sm text-gray-500 mt-2">Loading...</p></div>
+          {loading && firstLoad ? <div className="p-8 text-center flex justify-center flex-row items-center text-gray-500"> <FiLoader className="w-6 h-6 animate-spin text-blue-600 mr-0.75"  />Loading...</div>
             : filteredDepartments.length === 0 ? <div className="p-8 text-center"><HiOutlineOfficeBuilding className="w-10 h-10 text-gray-400 mx-auto mb-3" /><h3 className="text-sm font-semibold text-gray-900 mb-1">No departments found</h3><p className="text-xs text-gray-500">{searchQuery ? 'Try adjusting your search' : 'Get started by adding your first department'}</p></div>
               : <DepartmentManagementTable departments={filteredDepartments} employees={employees} loading={loading} onEdit={handleEdit} onDelete={handleDeleteClick} onAddUnit={handleAddUnit} onViewDetails={handleEdit} refreshDepartments={() => loadDepartments(false)} />}
         </div>
