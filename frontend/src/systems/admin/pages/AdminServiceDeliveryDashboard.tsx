@@ -8,7 +8,7 @@ import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import { useToast } from '../../../core/contexts/ToastContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { FiUsers, FiUserPlus, FiClock, FiCheckCircle, FiRefreshCw, FiSearch, FiDownload } from 'react-icons/fi';
+import { FiUsers, FiUserPlus, FiClock, FiCheckCircle, FiRefreshCw, FiSearch, FiDownload, FiLoader } from 'react-icons/fi';
 import { HiOutlineClipboardList } from 'react-icons/hi';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -84,9 +84,9 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
     <MainLayout>
       <div className="space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div><h1 className="text-sm font-bold text-gray-900 flex items-center gap-2"><HiOutlineClipboardList className="w-5 h-5 text-green-600" />Manage and monitor visitor services</h1></div>
+          <div><h1 className="text-sm font-bold text-gray-900 flex items-center gap-2"><HiOutlineClipboardList className="w-5 h-5 text-blue-600" />Manage and monitor visitor services</h1></div>
           <div className="flex gap-2">
-            <button onClick={fetchData} className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-sm font-medium hover:bg-green-700"><FiRefreshCw className="w-3.5 h-3.5" />Refresh</button>
+            <button onClick={fetchData} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"><FiRefreshCw className="w-3.5 h-3.5" />Refresh</button>
             <button onClick={handleExportPDF} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200"><FiDownload className="w-3.5 h-3.5" />Export PDF</button>
           </div>
         </div>
@@ -109,27 +109,27 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
 
         <div className="bg-white border border-gray-200 p-4">
           <h2 className="text-sm font-semibold text-gray-900 mb-3">Today's Visitor Activity</h2>
-          {loading && firstLoad ? <div className="h-48 flex items-center justify-center"><div className="animate-spin h-6 w-6 border-2 border-green-500 border-t-transparent" /></div>
+          {loading && firstLoad ? <div className="h-48 flex items-center justify-center"><div className="h-6 w-6 " /> <FiLoader className='animate-spin h-6 w-6 text-blue-600' /> </div>
             : <div className="h-48"><ResponsiveContainer width="100%" height="100%"><AreaChart data={hourlyData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="hour" tickFormatter={(v: number) => `${v}:00`} tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Area type="monotone" dataKey="visitors_checked_in" stroke="#10b981" fill="rgba(16,185,129,0.1)" name="Visitors" /></AreaChart></ResponsiveContainer></div>}
         </div>
 
         <div className="bg-white border border-gray-200 overflow-hidden">
-          <div className="px-4 py-3 border-b flex items-center justify-between">
+          <div className="px-4 py-3  flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-900">Current Visitors</h2>
-            <button onClick={handleExportPDF} className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-xs font-medium hover:bg-green-700"><FiDownload className="w-3 h-3" />Export PDF</button>
+            <button onClick={handleExportPDF} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium hover:bg-blue-700"><FiDownload className="w-3 h-3" />Export PDF</button>
           </div>
           <div className="px-4 py-2 bg-gray-50 flex flex-wrap gap-3 items-center">
             <div className="flex-1 min-w-[200px] relative"><FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" /><input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-8 pr-3 py-1.5 border border-gray-300 text-sm" /></div>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-1.5 border border-gray-300 text-sm"><option value="all">All</option><option value="inside">Inside</option><option value="left">Checked Out</option></select>
           </div>
           <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
-            <table className="w-full"><thead className="bg-gray-50 sticky top-0 z-10"><tr>{['Visitor Name', 'Department', 'Staff', 'Badge', 'Check-in', 'Check-out', 'Status'].map(h => <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>)}</tr></thead>
-              <tbody className="divide-y">{loading ? <tr><td colSpan={7} className="px-3 py-6 text-center"><div className="animate-spin h-6 w-6 border-2 border-green-500 border-t-transparent mx-auto" /></td></tr>
+            <table className="w-full"><thead className="bg-blue-600 sticky top-0 z-10"><tr>{['Visitor Name', 'Department', 'Staff', 'Badge', 'Check-in', 'Check-out', 'Status'].map(h => <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-white/95 uppercase">{h}</th>)}</tr></thead>
+              <tbody className="divide-y">{loading ? <tr><td colSpan={7} className="px-3 py-6 text-center"><div className="h-6 w-6 mx-auto" >< FiLoader className='animate-spin h-6 w-6 text-blue-600' /> </div></td></tr>
                 : filteredVisitors.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((v, i) => { const st = getStatus(v); return <tr key={v._id || i} className="hover:bg-gray-50"><td className="px-3 py-2.5 text-sm font-medium text-gray-900">{v.full_name || v.name || v.visitorName || '___'}</td><td className="px-3 py-2.5 text-xs text-gray-600">{getDeptName(v)}</td><td className="px-3 py-2.5 text-xs"><span className={getStaff(v).includes('Not') ? 'text-orange-500' : 'text-gray-600'}>{getStaff(v)}</span></td><td className="px-3 py-2.5 text-xs text-gray-600">{v.badge_number || '___'}</td><td className="px-3 py-2.5 text-xs text-gray-600">{v.entry_date ? new Date(v.entry_date).toLocaleString() : '___'}</td><td className="px-3 py-2.5 text-xs text-gray-600">{v.exist_date ? new Date(v.exist_date).toLocaleString() : (v.is_still_inhouse ? '-' : '___')}</td><td className="px-3 py-2.5"><span className={`text-xs px-2 py-0.5 font-medium ${st.color === 'green' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{st.text}</span></td></tr>; })}
               </tbody>
             </table>
           </div>
-          {filteredVisitors.length > 0 && <div className="px-4 py-3 border-t flex items-center justify-between text-xs"><span>Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredVisitors.length)} of {filteredVisitors.length}</span><div className="flex gap-1">{Array.from({ length: Math.ceil(filteredVisitors.length / itemsPerPage) }, (_, i) => i + 1).slice(Math.max(0, currentPage - 3), Math.min(Math.ceil(filteredVisitors.length / itemsPerPage), currentPage + 2)).map(p => <button key={p} onClick={() => setCurrentPage(p)} className={`px-2.5 py-1 border text-xs ${currentPage === p ? 'bg-green-600 text-white border-green-600' : 'border-gray-300 hover:bg-gray-50'}`}>{p}</button>)}</div></div>}
+          {filteredVisitors.length > 0 && <div className="px-4 py-3 border-t flex items-center justify-between text-xs"><span>Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredVisitors.length)} of {filteredVisitors.length}</span><div className="flex gap-1">{Array.from({ length: Math.ceil(filteredVisitors.length / itemsPerPage) }, (_, i) => i + 1).slice(Math.max(0, currentPage - 3), Math.min(Math.ceil(filteredVisitors.length / itemsPerPage), currentPage + 2)).map(p => <button key={p} onClick={() => setCurrentPage(p)} className={`px-2.5 py-1 border text-xs ${currentPage === p ? 'bg-blue-600 text-white border-green-600' : 'border-gray-300 hover:bg-gray-50'}`}>{p}</button>)}</div></div>}
         </div>
       </div>
     </MainLayout>

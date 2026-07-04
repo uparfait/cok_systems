@@ -4,7 +4,7 @@ import { useToast } from '../../../core/contexts/ToastContext';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import { reservationService } from '../../../core/services/adminService';
-import { FiInfo, FiSearch, FiEdit2, FiTrash2, FiClock, FiCheck, FiDownload } from 'react-icons/fi';
+import { FiInfo, FiSearch, FiEdit2, FiTrash2, FiClock, FiCheck, FiDownload, FiLoader } from 'react-icons/fi';
 import { VisitorReservationForm, StaffBookingForm } from './sub/ReservationForms';
 
 interface Reservation { id: string; visitor_name: string; plate_number: string; telephone: string; id_type?: string; id_number?: string; expected_arrival: string; type: 'visitor' | 'staff'; status: 'active' | 'expired' | 'cancelled'; created_at?: string; }
@@ -41,7 +41,7 @@ const ReservationsPage: React.FC = () => {
     try { const r = await reservationService.createVisitorReservation(visitorFormData);
       if (r.success) { showSuccess(r.message || 'Visitor reservation created!'); setVisitorFormData({ plate_number: '', driver_name: '', id_type: 'NID', id_number: '', telephone_number: '', slot_number: '', arrival_time: '' }); fetchReservations(); }
       else showError(r.message || 'Failed');
-    } catch (error) { showError('Network error'); } finally { setLoading(false); }
+    } catch (error) { showError(error.message); } finally { setLoading(false); }
   };
 
   const handleStaffSubmit = async (e: React.FormEvent) => {
@@ -49,7 +49,7 @@ const ReservationsPage: React.FC = () => {
     try { const r = await reservationService.createStaffBooking(staffFormData);
       if (r.success) { showSuccess(r.message || 'Staff slot allocated!'); setStaffBookingData({ staff_name: '', phone: '', plate_number: '', department_name: '', owner_title: '', id_type: 'NID', identification: '' }); fetchReservations(); }
       else showError(r.message || 'Failed');
-    } catch (error) { showError('Network error'); } finally { setLoading(false); }
+    } catch (error) { showError(error.message); } finally { setLoading(false); }
   };
 
   const handleVisitorFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,14 +66,14 @@ const ReservationsPage: React.FC = () => {
     if (!visitorBulkFile) { showError('Select a file'); return; }
     setLoading(true); const fd = new FormData(); fd.append('file', visitorBulkFile);
     try { const d = await reservationService.bulkUploadVisitors(fd); if (d.success) { showSuccess(d.message || 'Uploaded!'); setVisitorBulkFile(null); fetchReservations(); } else showError(d.message || 'Failed'); }
-    catch (error) { showError('Network error'); } finally { setLoading(false); }
+    catch (error) { showError(error.message); } finally { setLoading(false); }
   };
 
   const handleStaffBulkUpload = async () => {
     if (!staffBulkFile) { showError('Select a file'); return; }
     setLoading(true); const fd = new FormData(); fd.append('file', staffBulkFile);
     try { const d = await reservationService.bulkUploadStaff(fd); if (d.success) { showSuccess(d.message || 'Uploaded!'); setStaffBulkFile(null); fetchReservations(); } else showError(d.message || 'Failed'); }
-    catch (error) { showError('Network error'); } finally { setLoading(false); }
+    catch (error) { showError(error.message); } finally { setLoading(false); }
   };
 
   const downloadVisitorTemplate = () => {
@@ -105,7 +105,7 @@ const ReservationsPage: React.FC = () => {
   const confirmCancel = async () => {
     if (!reservationToCancel) return;
     try { const d = await reservationService.cancelReservation(reservationToCancel.id); if (d.success) { showSuccess('Cancelled'); setTimeout(fetchReservations, 500); } else showError(d.message || 'Failed'); }
-    catch (error) { showError('Network error'); } finally { setShowCancelModal(false); setReservationToCancel(null); }
+    catch (error) { showError(error.message); } finally { setShowCancelModal(false); setReservationToCancel(null); }
   };
 
   const filteredReservations = useMemo(() => reservations.filter(r => r.status !== 'cancelled' && (r.visitor_name.toLowerCase().includes(searchTerm.toLowerCase()) || r.plate_number.toLowerCase().includes(searchTerm.toLowerCase()))), [reservations, searchTerm]);
@@ -125,7 +125,7 @@ const ReservationsPage: React.FC = () => {
         </div>
 
         <div className="bg-white border border-gray-200 overflow-hidden">
-          <div className="px-4 py-3 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="px-4 py-3  flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div><h2 className="text-sm font-semibold text-gray-900">Reservation List</h2><p className="text-xs text-gray-500 mt-0.5">View and manage all parking reservations</p></div>
             <div className="flex items-center gap-2">
               <button onClick={downloadHistoryCSV} className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700 flex items-center gap-1"><FiClock className="w-3 h-3" />History</button>
@@ -134,7 +134,7 @@ const ReservationsPage: React.FC = () => {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px]">
-              <thead className="bg-gray-50"><tr>{['Visitor Name', 'Plate Number', 'Telephone', 'Type', 'Status', 'Action'].map(h => <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{h}</th>)}</tr></thead>
+              <thead className="bg-blue-600"><tr>{['Visitor Name', 'Plate Number', 'Telephone', 'Type', 'Status', 'Action'].map(h => <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider">{h}</th>)}</tr></thead>
               <tbody className="divide-y divide-gray-100">
                 {paginated.length > 0 ? paginated.map(r => (
                   <tr key={r.id} className="hover:bg-gray-50">
@@ -149,7 +149,7 @@ const ReservationsPage: React.FC = () => {
               </tbody>
             </table>
           </div>
-          {totalPages > 1 && <div className="p-3 border-t flex items-center justify-between text-sm"><span className="text-gray-600">Page {currentPage} of {totalPages}</span><div className="flex gap-2"><button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1} className="px-3 py-1 border hover:bg-gray-50 disabled:opacity-50">Prev</button><button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} className="px-3 py-1 border hover:bg-gray-50 disabled:opacity-50">Next</button></div></div>}
+          {totalPages > 1 && <div className="p-3  flex items-center justify-between text-sm"><span className="text-gray-600">Page {currentPage} of {totalPages}</span><div className="flex gap-2"><button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1} className="px-3 py-1 border hover:bg-gray-50 disabled:opacity-50">Prev</button><button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} className="px-3 py-1 border hover:bg-gray-50 disabled:opacity-50">Next</button></div></div>}
         </div>
 
         {showCancelModal && (

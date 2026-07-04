@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { FiUser, FiTruck, FiClock, FiPhone, FiCheck, FiDownload, FiUpload, FiX, FiMapPin, FiBriefcase, FiFileText } from 'react-icons/fi';
+import { FiUser, FiTruck, FiClock, FiPhone,FiLoader, FiCheck, FiDownload, FiUpload, FiX, FiMapPin, FiBriefcase, FiFileText } from 'react-icons/fi';
 
 interface ReservationFormData { plate_number: string; driver_name: string; id_type: string; id_number: string; telephone_number: string; slot_number: string; arrival_time?: string; }
 interface StaffBookingData { staff_name: string; phone: string; plate_number: string; department_name?: string; owner_title?: string; id_type?: string; identification?: string; }
@@ -12,8 +12,8 @@ interface VisitorFormProps {
 
 export const VisitorReservationForm: React.FC<VisitorFormProps> = ({ formData, loading, onChange, onSubmit, onDownloadTemplate, bulkFile, onFileSelect, onFileRemove, onBulkUpload, fileInputRef }) => (
   <div className="bg-white border border-gray-200 overflow-hidden">
-    <div className="px-4 py-3 border-b bg-gradient-to-r from-blue-50/50 to-white">
-      <div className="flex items-center gap-2"><div className="p-1.5 bg-blue-100"><FiUser className="w-4 h-4 text-blue-600" /></div><h2 className="text-sm font-semibold text-gray-900">Visitor Reservations</h2></div>
+    <div className="px-4 py-3 bg-blue-600 to-white">
+      <div className="flex items-center gap-2"><div className="p-1.5 bg-white rounded-full"><FiUser className="w-4 h-4 text-blue-600" /></div><h2 className="text-sm font-semibold text-white/95">Visitor Reservations</h2></div>
     </div>
     <div className="p-4">
       <form onSubmit={onSubmit} className="space-y-3">
@@ -30,7 +30,7 @@ export const VisitorReservationForm: React.FC<VisitorFormProps> = ({ formData, l
           <div><label className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1 block">ID Number</label><input type="text" name="id_number" value={formData.id_number} onChange={e => onChange({ ...formData, id_number: e.target.value })} placeholder="Enter ID number" className="w-full px-2.5 py-1.5 text-sm border border-gray-200" /></div>
         </div>
         <div className="flex flex-col sm:flex-row justify-end gap-2 pt-1">
-          <button type="submit" disabled={loading} className="px-4 py-1.5 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-1.5">{loading ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent animate-spin" /> : <FiCheck className="w-3.5 h-3.5" />}Reserve Slot</button>
+          <button type="submit" disabled={loading} className="px-4 py-1.5 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-1.5">{loading ? <div className="w-3.5 h-3.5"><FiLoader className='w-3.5 h-3.5 text-white  animate-spin' /></div> : <FiCheck className="w-3.5 h-3.5" />}Reserve Slot</button>
           <button type="button" onClick={onDownloadTemplate} className="px-4 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 flex items-center justify-center gap-1.5"><FiDownload className="w-3.5 h-3.5" />Template</button>
         </div>
       </form>
@@ -42,7 +42,7 @@ export const VisitorReservationForm: React.FC<VisitorFormProps> = ({ formData, l
             {bulkFile ? <div className="flex items-center justify-center gap-2 text-xs"><span className="text-gray-700">{bulkFile.name}</span><button type="button" onClick={onFileRemove} className="text-red-500"><FiX className="w-3.5 h-3.5" /></button></div> : <><div className="text-xs text-gray-600">Click to upload</div><div className="text-xs text-gray-400 mt-0.5">.xlsx, .csv</div></>}
           </label>
         </div>
-        {bulkFile && <button onClick={onBulkUpload} disabled={loading} className="mt-2 w-full py-1.5 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-1.5">{loading ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent animate-spin" /> : <FiUpload className="w-3.5 h-3.5" />}Upload List</button>}
+        {bulkFile && <button onClick={onBulkUpload} disabled={loading} className="mt-2 w-full py-1.5 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-1.5">{loading ? <div className="w-3.5 h-3.5"><FiLoader className='w-3.5 h-3.5 text-white  animate-spin' /></div> : <FiUpload className="w-3.5 h-3.5" />}Upload List</button>}
       </div>
     </div>
   </div>
@@ -56,8 +56,8 @@ interface StaffFormProps {
 
 export const StaffBookingForm: React.FC<StaffFormProps> = ({ formData, loading, onChange, onSubmit, onDownloadTemplate, bulkFile, onFileSelect, onFileRemove, onBulkUpload, fileInputRef }) => (
   <div className="bg-white border border-gray-200 overflow-hidden">
-    <div className="px-4 py-3 border-b bg-gradient-to-r from-indigo-50/50 to-white">
-      <div className="flex items-center gap-2"><div className="p-1.5 bg-indigo-100"><FiBriefcase className="w-4 h-4 text-indigo-600" /></div><h2 className="text-sm font-semibold text-gray-900">Permanent Staff Booking</h2></div>
+    <div className="px-4 py-3 bg-indigo-600">
+      <div className="flex items-center gap-2"><div className="p-1.5 bg-white rounded-full"><FiBriefcase className="w-4 h-4 text-indigo-600" /></div><h2 className="text-sm font-semibold text-white/95">Permanent Staff Booking</h2></div>
     </div>
     <div className="p-4">
       <form onSubmit={onSubmit} className="space-y-3">
@@ -74,7 +74,7 @@ export const StaffBookingForm: React.FC<StaffFormProps> = ({ formData, loading, 
             <div className="relative"><FiBriefcase className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-3.5 h-3.5" /><input type="text" name="department_name" value={formData.department_name} onChange={e => onChange({ ...formData, department_name: e.target.value })} placeholder="e.g., Finance" className="w-full pl-8 pr-2.5 py-1.5 text-sm border border-gray-200" /></div></div>
         </div>
         <div className="flex flex-col sm:flex-row justify-end gap-2 pt-1">
-          <button type="submit" disabled={loading} className="px-4 py-1.5 bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-1.5">{loading ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent animate-spin" /> : <FiMapPin className="w-3.5 h-3.5" />}Allocate Slot</button>
+          <button type="submit" disabled={loading} className="px-4 py-1.5 bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-1.5">{loading ? <div className="w-3.5 h-3.5"><FiLoader className='w-3.5 h-3.5 text-white  animate-spin' /></div> : <FiMapPin className="w-3.5 h-3.5" />}Allocate Slot</button>
           <button type="button" onClick={onDownloadTemplate} className="px-4 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 flex items-center justify-center gap-1.5"><FiDownload className="w-3.5 h-3.5" />Template</button>
         </div>
       </form>
@@ -86,8 +86,9 @@ export const StaffBookingForm: React.FC<StaffFormProps> = ({ formData, loading, 
             {bulkFile ? <div className="flex items-center justify-center gap-2 text-xs"><span className="text-gray-700">{bulkFile.name}</span><button type="button" onClick={onFileRemove} className="text-red-500"><FiX className="w-3.5 h-3.5" /></button></div> : <><div className="text-xs text-gray-600">Choose file for staff reservation</div><div className="text-xs text-gray-400 mt-0.5">Excel or CSV format</div></>}
           </label>
         </div>
-        {bulkFile && <button onClick={onBulkUpload} disabled={loading} className="mt-2 w-full py-1.5 bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-1.5">{loading ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent animate-spin" /> : <FiUpload className="w-3.5 h-3.5" />}Upload List</button>}
+        {bulkFile && <button onClick={onBulkUpload} disabled={loading} className="mt-2 w-full py-1.5 bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-1.5">{loading ? <div className="w-3.5 h-3.5"><FiLoader className='w-3.5 h-3.5 text-white  animate-spin' /></div> : <FiUpload className="w-3.5 h-3.5" />}Upload List</button>}
       </div>
     </div>
   </div>
 );
+

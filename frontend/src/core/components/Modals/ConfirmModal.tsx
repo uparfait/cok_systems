@@ -1,9 +1,7 @@
-// ConfirmModal Component - Custom confirmation dialog modal
-// Used for confirming destructive or important actions like delete
 
 import React from 'react';
 import type { ReactNode } from 'react';
-import { FiAlertTriangle, FiCheck, FiX } from 'react-icons/fi';
+import { FiAlertTriangle, FiCheck, FiX, FiLoader } from 'react-icons/fi';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -71,7 +69,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
       />
       
       {/* Modal Content */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 transform animate-scaleIn">
+      <div className="relative bg-white shadow-2xl w-full max-w-md mx-4 transform animate-scaleIn">
         {/* Header with Close Button */}
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="text-xl font-bold text-gray-900">
@@ -80,7 +78,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
           <button
             onClick={onCancel}
             disabled={isLoading}
-            className="p-1 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+            className="p-1 cursor-pointer hover:bg-gray-100 rounded-0.75 transition-colors disabled:opacity-50"
             title="Close"
           >
             <FiX className="w-5 h-5 text-gray-500" />
@@ -106,7 +104,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
             <button
               onClick={onCancel}
               disabled={isLoading}
-              className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-colors flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-[5px] cursor-pointer hover:bg-gray-50 font-medium transition-colors flex items-center justify-center gap-2"
             >
               <FiX className="w-4 h-4" />
               {cancelText}
@@ -114,11 +112,11 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
             <button
               onClick={onConfirm}
               disabled={isLoading}
-              className={`flex-1 px-4 py-2.5 ${styles.button} text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50`}
+              className={`flex-1 px-4 py-2.5 ${styles.button} text-white rounded-[5px] cursor-pointer font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50`}
             >
               {isLoading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+             <FiLoader className="w-6 h-6 animate-spin text-white" />
                   {confirmText}
                 </>
               ) : (

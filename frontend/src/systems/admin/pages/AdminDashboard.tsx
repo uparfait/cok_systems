@@ -11,6 +11,8 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import StatCard from './sub/AdminDashboardStats';
 import ActivityFeed from './sub/AdminDashboardActivity';
 import LoadingInline from './sub/LoadingSpinner';
+import { FiLoader, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+
 
 const NOTIFICATION_DURATION = 5000, RELOAD_DEBOUNCE_DELAY = 2000, LOADING_TIMEOUT = 15000, MODAL_PAGE_SIZE = 20, DEFAULT_PARKING_CAPACITY = 200;
 
@@ -141,9 +143,9 @@ const AdminDashboard: React.FC = () => {
       <div className="space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center shadow-lg shadow-blue-200"><HiOutlineShieldCheck className="w-6 h-6 text-white" /></div>
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-800 flex items-center rounded-full justify-center shadow-lg shadow-blue-200"><HiOutlineShieldCheck className="w-6 h-6 text-white" /></div>
             <div><h1 className="text-lg lg:text-xl font-bold text-gray-900">{user?.role ? user.role.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + ' Dashboard' : 'Admin Dashboard'}</h1><p className="text-xs text-gray-500 mt-0.5">Welcome back! Here's what's happening.</p>
-              <div className="flex items-center gap-4 mt-1">{lastUpdated && <p className="text-xs text-gray-400 flex items-center gap-1"><FiClock className="w-3 h-3" />Last updated: {lastUpdated.toLocaleTimeString()}</p>}<div className="flex items-center gap-1.5"><span className={`w-2 h-2 ${socketConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} /><span className="text-xs text-gray-500">{socketConnected ? 'Live' : 'Connecting...'}</span></div>{isOffline && <div className="flex items-center gap-1.5 text-amber-600"><FiWifiOff className="w-3 h-3" /><span className="text-xs">Offline</span></div>}</div></div>
+              <div className="flex items-center gap-4 mt-1">{lastUpdated && <p className="text-xs text-gray-400 flex items-center gap-1"><FiClock className="w-3 h-3" />Last updated: {lastUpdated.toLocaleTimeString()}</p>}<div className="flex items-center gap-1.5"><span className={`w-2 rounded-full h-2 ${socketConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} /><span className="text-xs text-gray-500">{socketConnected ? 'Live' : 'Connecting...'}</span></div>{isOffline && <div className="flex items-center gap-1.5 text-amber-600"><FiWifiOff className="w-3 h-3" /><span className="text-xs">Offline</span></div>}</div></div>
           </div>
           <button onClick={handleRefresh} disabled={loading} className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 text-sm font-medium transition-all disabled:opacity-50"><FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh</button>
         </div>
@@ -164,7 +166,7 @@ const AdminDashboard: React.FC = () => {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-blue-50"><tr><th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Vehicle</th><th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</th><th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Time</th></tr></thead>
+                    <thead className="bg-blue-600 text-white"><tr><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Vehicle</th><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Status</th><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Time</th></tr></thead>
                     <tbody className="divide-y divide-gray-50">
                       {(loadingStates.parking && firstLoad) ? <LoadingInline message="Loading parking..." />
                         : recentParking.length > 0 ? recentParking.slice(0, 5).map((r: any) => (
@@ -186,7 +188,7 @@ const AdminDashboard: React.FC = () => {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-blue-50"><tr><th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Name</th><th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</th><th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Dept</th></tr></thead>
+                    <thead className="bg-blue-600 text-white"><tr><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Name</th><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Status</th><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Department</th></tr></thead>
                     <tbody className="divide-y divide-gray-50">
                       {(loadingStates.visitors && firstLoad) ? <LoadingInline message="Loading visitors..." />
                         : recentVisitors.length > 0 ? recentVisitors.slice(0, 5).map((v: any) => (

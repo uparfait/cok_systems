@@ -8,7 +8,7 @@ import { useSocket } from '../../../core/contexts/SocketContext';
 import { smartParkingService, statisticsService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
-import { FiTruck, FiSearch, FiFlag, FiCheckCircle, FiX, FiDownload, FiFilter, FiCalendar, FiRefreshCw, FiMapPin, FiEdit } from 'react-icons/fi';
+import { FiTruck, FiSearch,FiLoader, FiFlag, FiCheckCircle, FiX, FiDownload, FiFilter, FiCalendar, FiRefreshCw, FiMapPin, FiEdit } from 'react-icons/fi';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ParkingSlotConfigModal from './sub/ParkingSlotConfigModal';
 
@@ -147,7 +147,7 @@ const AdminSmartParkingDashboard: React.FC = () => {
         </div>
 
         <div className="flex justify-center">
-          <button onClick={() => setShowSlotConfig(true)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-br from-indigo-500/20 to-blue-500/20 hover:from-indigo-500/30 hover:to-blue-500/30 border border-indigo-200/30 text-sm font-medium text-indigo-700"><FiEdit className="w-4 h-4" />Slot Configuration</button>
+          <button onClick={() => setShowSlotConfig(true)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-br from-indigo-500/20 to-blue-500/20 hover:from-indigo-500/30 hover:to-blue-500/30 border border-indigo-200/30 text-sm font-medium cursor-pointer text-indigo-700"><FiEdit className="w-4 h-4" />Click To Set Slots</button>
         </div>
 
         <div className="bg-white border border-gray-200 p-4">
@@ -156,8 +156,8 @@ const AdminSmartParkingDashboard: React.FC = () => {
             : <div className="h-48"><ResponsiveContainer width="100%" height="100%"><AreaChart data={hourlyData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="hour" tickFormatter={(v: number) => `${v}:00`} tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Legend /><Area type="monotone" dataKey="check_in" stroke="#3b82f6" fill="rgba(59,130,246,0.1)" name="Check-ins" /><Area type="monotone" dataKey="check_out" stroke="#ef4444" fill="rgba(239,68,68,0.1)" name="Check-outs" /></AreaChart></ResponsiveContainer></div>}
         </div>
 
-        <div className="bg-white border border-gray-200 overflow-hidden">
-          <div className="px-4 py-3 border-b flex items-center justify-between">
+        <div className="bg-white   overflow-hidden">
+          <div className="px-4 py-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-900">Recent Parking Records</h2>
             <div className="flex gap-2">
               <button onClick={handleDownloadReport} className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium hover:bg-blue-700"><FiDownload className="w-3 h-3" />PDF</button>
@@ -165,7 +165,7 @@ const AdminSmartParkingDashboard: React.FC = () => {
             </div>
           </div>
           <table className="w-full">
-            <thead className="bg-gray-50"><tr><th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Plate</th><th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Driver</th><th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Type</th><th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Status</th><th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Time</th></tr></thead>
+            <thead className="bg-blue-600"><tr><th className="px-3 py-2 text-left text-xs font-semibold text-white uppercase">Plate</th><th className="px-3 py-2 text-left text-xs font-semibold text-white uppercase">Driver</th><th className="px-3 py-2 text-left text-xs font-semibold text-white uppercase">Type</th><th className="px-3 py-2 text-left text-xs font-semibold text-white uppercase">Status</th><th className="px-3 py-2 text-left text-xs font-semibold text-white uppercase">Time</th></tr></thead>
             <tbody className="divide-y">{(recentRecords || []).slice(0, 5).map((r: any) => <tr key={r._id} className="hover:bg-gray-50"><td className="px-3 py-2.5 text-sm font-medium text-gray-900">{r.plate_number || '___'}</td><td className="px-3 py-2.5 text-sm text-gray-600">{r.driver_name || '___'}</td><td className="px-3 py-2.5 text-sm text-gray-600">{r.driver_type || '___'}</td><td className="px-3 py-2.5"><span className={`text-xs px-2 py-0.5 font-medium ${r.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{r.status}</span></td><td className="px-3 py-2.5 text-xs text-gray-600">{r.check_in ? new Date(r.check_in).toLocaleString() : '___'}</td></tr>)}
             </tbody>
           </table>
@@ -176,17 +176,17 @@ const AdminSmartParkingDashboard: React.FC = () => {
         {showRecordsModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowRecordsModal(false)}>
             <div className="bg-white w-full max-w-4xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
-              <div className="p-4 border-b flex items-center justify-between bg-gray-50">
+              <div className="p-4  flex items-center justify-between bg-gray-50">
                 <h3 className="text-sm font-bold text-gray-900">All Parking Records</h3>
                 <div className="flex items-center gap-2">
                   <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="px-2.5 py-1.5 border text-sm w-40" />
-                  <button onClick={() => fetchAllRecords(1)} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium">Filter</button>
+                  <button onClick={() => fetchAllRecords(1)} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium">Search</button>
                   <button onClick={() => setShowRecordsModal(false)} className="p-1.5 hover:bg-gray-200">✕</button>
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto">
-                {modalLoading ? <div className="flex justify-center py-8"><div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent" /></div>
-                  : <table className="w-full"><thead className="bg-gray-50 sticky top-0"><tr>{['Plate', 'Driver', 'Phone', 'Type', 'Status', 'Check-in', 'Check-out'].map(h => <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>)}</tr></thead>
+                {modalLoading ? <div className="flex justify-center py-8"><div className="h-8 w-8" /><FiLoader className='h-8 w-8 animate-spin text-blue-600' /></div>
+                  : <table className="w-full"><thead className="bg-blue-600 sticky top-0"><tr>{['Plate', 'Driver', 'Phone', 'Type', 'Status', 'Check-in', 'Check-out'].map(h => <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-white/95 uppercase">{h}</th>)}</tr></thead>
                     <tbody className="divide-y">{(allRecords || []).map((r: any) => <tr key={r._id} className="hover:bg-gray-50"><td className="px-3 py-2 text-sm font-medium">{r.plate_number || '___'}</td><td className="px-3 py-2 text-sm">{r.driver_name || '___'}</td><td className="px-3 py-2 text-sm">{r.driver_telephone || '___'}</td><td className="px-3 py-2 text-sm">{r.driver_type || '___'}</td><td className="px-3 py-2"><span className={`text-xs px-2 py-0.5 ${r.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{r.status}</span></td><td className="px-3 py-2 text-xs">{r.check_in ? new Date(r.check_in).toLocaleString() : '___'}</td><td className="px-3 py-2 text-xs">{r.check_out ? new Date(r.check_out).toLocaleString() : '___'}</td></tr>)}
                     </tbody></table>}
               </div>

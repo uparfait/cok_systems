@@ -3,7 +3,7 @@ import { roleService, type Role, type CreateRoleInput } from '../../../core/serv
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { useToast } from '../../../core/contexts/ToastContext';
-import { FiSearch, FiPlus, FiEdit2, FiTrash2, FiRefreshCw, FiShield, FiCheck, FiX, FiAlertCircle, FiChevronDown, FiChevronRight } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiEdit2, FiTrash2, FiRefreshCw, FiShield, FiCheck, FiX, FiAlertCircle, FiChevronDown, FiChevronRight, FiLoader } from 'react-icons/fi';
 
 interface ResourceAction { action: string; description?: string; is_enabled: boolean; }
 interface ResourcePermission { resource_name: string; actions: ResourceAction[]; }
@@ -101,7 +101,7 @@ const RolesManagementPage: React.FC = () => {
         </div>
         {error && !loading && <div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2"><FiAlertCircle className="w-4 h-4" />{error}</div>}
         <div className="space-y-3">
-          {(loading && firstLoad) ? <div className="bg-white border p-8 text-center"><div className="animate-spin h-6 w-6 border-b-2 border-blue-600 mx-auto" /><p className="text-sm text-gray-500 mt-2">Loading...</p></div>
+          {(loading && firstLoad) ? <div className="bg-white border p-8 text-center"><div className="h-6 w-6 mx-auto"><FiLoader className="w-5 h-5 animate-spin text-blue-600" /></div><p className="text-sm text-gray-500 mt-2">Loading...</p></div>
             : filteredRoles.length === 0 ? <div className="bg-white border p-8 text-center text-sm text-gray-500">{searchQuery ? 'No roles found' : 'No roles available'}</div>
               : filteredRoles.map(role => (
                   <div key={role._id} className="bg-white border overflow-hidden">
