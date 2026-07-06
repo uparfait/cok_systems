@@ -78,6 +78,7 @@ import ShowEditor from "./systems/event-managment/pages/index/components/ShowEdi
 import MyTasksPage from "./systems/event-managment/pages/index/MyTasksPage.jsx";
 import MyTasksTaskPage from "./systems/event-managment/pages/index/MyTasksTaskPage.jsx";
 import InvitePage from "./systems/event-managment/pages/index/InvitePage.jsx";
+import DesignateMinutes from "./systems/event-managment/pages/index/DesignateMinutes.jsx";
 
 import DashboardLayout from "./systems/event-managment/pages/dashboard/DashboardLayout.jsx";
 import CreateRoomForm from "./systems/event-managment/components/CreateRoomForm.jsx";
@@ -193,10 +194,8 @@ const App: React.FC = () => {
                      path="event/:id/attendees"
                      element={<AttendeesList />}
                    />
-                   <Route
-                     path="event/:id/actions"
-                     element={<EventActionsPage />}
-                   />
+<Route path="event/:id/designate" element={<DesignateMinutes />} />
+                    <Route path="event/:id/actions" element={<EventActionsPage />} />
                    <Route path="event/:id/editor" element={<ShowEditor />} />
                    <Route path="event/:id/invite" element={<InvitePage />} />
 
