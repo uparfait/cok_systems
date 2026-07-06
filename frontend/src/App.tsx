@@ -14,6 +14,7 @@ import LoginPage from "./pages/auth/LoginPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import ProfilePage from "./pages/profile/ProfilePage";
+import FeedbackStatusPage from "./pages/FeedbackStatusPage";
 import UnderDevelopment from "./pages/dashboard/UnderDevelopment";
 import ProtectedRoute from "./core/components/ProtectedRoute";
 // import ChatWidget from './core/components/ChatWidget';
@@ -65,6 +66,7 @@ import {
 import Layout from "./systems/event-managment/pages/index/Layout.jsx";
 import Request from "./systems/event-managment/pages/index/Request.jsx";
 import BookingOptions from "./systems/event-managment/pages/index/BookingOptions.jsx";
+import BookingRequestTrack from "./systems/event-managment/pages/index/BookingRequestTrack.jsx";
 import BookNow from "./systems/event-managment/pages/index/BookNow.jsx";
 import LiveEvents from "./systems/event-managment/pages/index/LiveEvents.jsx";
 import UpcomingEvents from "./systems/event-managment/pages/index/UpcomingEvents.jsx";
@@ -75,6 +77,7 @@ import AttendeesList from "./systems/event-managment/pages/index/AttendeesList.j
 import ShowEditor from "./systems/event-managment/pages/index/components/ShowEditor.jsx";
 import MyTasksPage from "./systems/event-managment/pages/index/MyTasksPage.jsx";
 import MyTasksTaskPage from "./systems/event-managment/pages/index/MyTasksTaskPage.jsx";
+import InvitePage from "./systems/event-managment/pages/index/InvitePage.jsx";
 
 import DashboardLayout from "./systems/event-managment/pages/dashboard/DashboardLayout.jsx";
 import CreateRoomForm from "./systems/event-managment/components/CreateRoomForm.jsx";
@@ -91,6 +94,8 @@ import Past from "./systems/event-managment/components/Past.jsx";
 import ViewEventDetailsDashboard from "./systems/event-managment/components/ViewEventDetailsDashboard.jsx";
 import EventActions from "./systems/event-managment/components/EventActions.jsx";
 import Editor from "./systems/event-managment/components/Editor.jsx";
+import BookingRequestsList from "./systems/event-managment/components/BookingRequestsList.jsx";
+import BookingRequestDetails from "./systems/event-managment/components/BookingRequestDetails.jsx";
 
 // RoleDashboardPage: renders the correct dashboard component based on the logged-in user's role
 const RoleDashboardPage: React.FC = () => {
@@ -175,30 +180,30 @@ const App: React.FC = () => {
                     element={<BookingOptions />}
                   />
                   <Route path="book-a-room/new" element={<BookNow />} />
+                  <Route path="book-a-room/new/:eventMeetingType" element={<BookNow />} />
+                  <Route path="book-a-room/track" element={<BookingRequestTrack />} />
 
                   <Route path="live/:id" element={<>Live Event Details</>} />
                   <Route
                     path="event/:id/attendances"
                     element={<AttendanceForm />}
                   />
-                  <Route path="event/:id/details" element={<EventDetails />} />
-                  <Route
-                    path="event/:id/attendees"
-                    element={<AttendeesList />}
-                  />
+<Route path="event/:id/details" element={<EventDetails />} />
+                   <Route
+                     path="event/:id/attendees"
+                     element={<AttendeesList />}
+                   />
+                   <Route
+                     path="event/:id/actions"
+                     element={<EventActionsPage />}
+                   />
+                   <Route path="event/:id/editor" element={<ShowEditor />} />
+                   <Route path="event/:id/invite" element={<InvitePage />} />
 
-                  <Route path="event/:id/editor" element={<ShowEditor />} />
-
-                  <Route
-                    path="event/:id/actions"
-                    element={<EventActionsPage />}
-                  />
-                  <Route path="my-tasks" element={<MyTasksPage />} />
-                  <Route
-                    path="my-tasks/:taskId"
-                    element={<MyTasksTaskPage />}
-                  />
-                </Route>
+                   <Route path="my-tasks" element={<MyTasksPage />} />
+                   <Route path="my-tasks/:taskId" element={<MyTasksTaskPage />} />
+                   <Route path="feedback" element={<FeedbackStatusPage />} />
+                 </Route>
 
                 {/* Public Routes */}
                 <Route path="/login" element={<LoginPage />} />
@@ -280,6 +285,17 @@ const App: React.FC = () => {
           <Route path="/event-manager/events/:eventId/edit" element={< CreateEvent eventMeetingType={undefined} /> } />
           <Route path="/event-manager/events/:eventId/details" element={<ViewEventDetailsDashboard />} />
           <Route path="/event-manager/events/actions" element={<EventActions />} />
+          <Route path="/event-manager/events/:eventId/invite" element={<InvitePage />} />
+
+          {/* Booking Requests Routes */}
+          <Route
+            path="/event-manager/booking-requests/all"
+            element={<BookingRequestsList />}
+          />
+          <Route
+            path="/event-manager/booking-requests/:id"
+            element={<BookingRequestDetails />}
+          />
         </Route>
 
 
@@ -443,6 +459,16 @@ const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <FeedbackPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Event Management Invite Page */}
+                <Route
+                  path="/:roleSlug/events/:eventId/invite"
+                  element={
+                    <ProtectedRoute>
+                      <InvitePage />
                     </ProtectedRoute>
                   }
                 />

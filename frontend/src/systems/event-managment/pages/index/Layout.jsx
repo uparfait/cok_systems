@@ -1,6 +1,7 @@
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, Link } from "react-router-dom";
 import IndexHeader from "./components/IndexHeader";
 import { useEffect, useState } from "react";
+import { FiMessageSquare } from "react-icons/fi";
 
 export default function Layout() {
 
@@ -55,14 +56,23 @@ useEffect(() => {
 
       {/* Pages */}
 
-      <div className="w-full  relative flex flex-col items-center p-4">
-        <div className="w-full h-[100px] justify-center items-center relative h-[150px]  bg-transparent">
-            <span className="w-4 h-4 bg-red-500 rounded-full inline-block mr-2"></span>
-            <span className="w-4 h-4 bg-yellow-500 rounded-full inline-block mr-2"></span>
-            <span className="w-4 h-4 bg-green-500 rounded-full inline-block"></span>
-        </div>
-         <Outlet context={{LiveEventsData, setLiveEventsData, UpcomingEventsData, setUpcomingEventsData, activeEvent, setActiveEvent}} />
-      </div>
-    </div>
+<div className="w-full  relative flex flex-col items-center p-4">
+         <div className="w-full h-[100px] justify-center items-center relative h-[150px]  bg-transparent">
+             <span className="w-4 h-4 bg-red-500 rounded-full inline-block mr-2"></span>
+             <span className="w-4 h-4 bg-yellow-500 rounded-full inline-block mr-2"></span>
+             <span className="w-4 h-4 bg-green-500 rounded-full inline-block"></span>
+         </div>
+          <Outlet context={{LiveEventsData, setLiveEventsData, UpcomingEventsData, setUpcomingEventsData, activeEvent, setActiveEvent}} />
+       </div>
+
+       <Link 
+         to="/feedback" 
+         className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-3 rounded-full shadow-lg transition-all duration-200 hover:scale-105"
+         title="View Your Service History & Feedback"
+       >
+         <FiMessageSquare className="w-5 h-5" />
+         <span className="text-sm font-medium hidden sm:inline">Feedback</span>
+       </Link>
+     </div>
   );
 }

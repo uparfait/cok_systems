@@ -1,538 +1,99 @@
-// UserManagementPage - Admin User Account Management
-// Page for managing user account lock/unlock functionality
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { userAccountService } from '../../../core/services/adminService';
 import type { Employee } from '../../../core/services/adminService';
 import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import MainLayout from '../../../core/components/Layout/MainLayout';
-import {  
-  FiSearch, FiLock, FiUnlock, FiRefreshCw, FiUsers,
-  FiMail, FiPhone, FiCheck, FiX, FiAlertCircle, FiUser,
-  FiAlertTriangle
-} from 'react-icons/fi';
+import { FiSearch, FiLock, FiUnlock,FiLoader, FiRefreshCw, FiUsers, FiMail, FiPhone, FiCheck, FiX, FiAlertCircle, FiUser, FiAlertTriangle } from 'react-icons/fi';
 
-interface UserWithLock extends Employee {
-  access_control?: {
-    is_locked?: boolean;
-    reason?: string;
-    last_login_attempt?: number;
-  };
-  is_account_activated?: boolean;
-}
+interface UserWithLock extends Employee { access_control?: { is_locked?: boolean; reason?: string; last_login_attempt?: number }; is_account_activated?: boolean; }
 
 const UserManagementPage: React.FC = () => {
-  
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();  
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [users, setUsers] = useState<UserWithLock[]>([]);
   const [loading, setLoading] = useState(false);
   const [firstLoad, setfirstLoad] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredUsers, setFilteredUsers] = useState<UserWithLock[]>([]);
-
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageLimit, setPageLimit] = useState(10);
+  const [pageLimit] = useState(10);
   const [totalUsers, setTotalUsers] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-
-  // Get paginated users
-  const paginatedUsers = filteredUsers.slice((currentPage - 1) * pageLimit, currentPage * pageLimit);
-  
-  // Modal state
   const [showLockModal, setShowLockModal] = useState(false);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithLock | null>(null);
   const [lockReason, setLockReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Load users on mount
-  useEffect(() => {
-    loadUsers();
-  }, []);
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * pageLimit, currentPage * pageLimit);
 
-  // Filter users when search query changes
+  useEffect(() => { loadUsers(); }, []);
   useEffect(() => {
-    let filtered = users;
-    if (searchQuery.trim() !== '') {
-      const query = searchQuery.toLowerCase();
-      filtered = users.filter(u =>
-        (u.full_name?.toLowerCase().includes(query)) ||
-        (u.email?.toLowerCase().includes(query)) ||
-        (u.telephone?.toLowerCase().includes(query)) ||
-        (u.department_name?.toLowerCase().includes(query))
-      );
-    }
-
-    setFilteredUsers(filtered);
-    setTotalUsers(filtered.length);
-    setTotalPages(Math.ceil(filtered.length / pageLimit));
-    setCurrentPage(1); // Reset to first page when search changes
+    let f = users;
+    if (searchQuery.trim()) { const q = searchQuery.toLowerCase(); f = users.filter(u => u.full_name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.telephone?.toLowerCase().includes(q) || u.department_name?.toLowerCase().includes(q)); }
+    setFilteredUsers(f); setTotalUsers(f.length); setTotalPages(Math.ceil(f.length / pageLimit)); setCurrentPage(1);
   }, [searchQuery, users, pageLimit]);
 
-  const loadUsers = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const response = await userAccountService.getAllUsers();
-      if (response.success) {
-        const usersData = response.data || [];
-        setUsers(usersData);
-        setFilteredUsers(usersData);
-        setTotalUsers(usersData.length);
-        setTotalPages(Math.ceil(usersData.length / pageLimit));
-        setCurrentPage(1);
-      } else {
-        setError(response.message || 'Failed to load users');
-      }
-    } catch (err: any) {
-      console.error('Error loading users:', err);
-      setError(err.response?.data?.message || 'Failed to load users');
-    } finally {
-      setLoading(false);
-      setfirstLoad(false);
-    }
-  };
+  const loadUsers = async () => { setLoading(true); setError(''); try { const r = await userAccountService.getAllUsers(); if (r.success) { const d = r.data || []; setUsers(d); setFilteredUsers(d); setTotalUsers(d.length); setTotalPages(Math.ceil(d.length / pageLimit)); setCurrentPage(1); } else setError(r.message || 'Failed'); } catch (err: any) { setError(err.response?.data?.message || 'Failed'); } finally { setLoading(false); setfirstLoad(false); } };
 
-  const handleLockClick = (userItem: UserWithLock) => {
-    setSelectedUser(userItem);
-    setLockReason('');
-    setShowLockModal(true);
-  };
-
-  const handleUnlockClick = (userItem: UserWithLock) => {
-    setSelectedUser(userItem);
-    setShowUnlockModal(true);
-  };
-
-  const handleLockAccount = async () => {
-    if (!selectedUser?._id) return;
-    
-    setActionLoading(true);
-    
-    try {
-      const response = await userAccountService.lockUnlock(
-        selectedUser._id, 
-        'lock', 
-        lockReason || 'Account locked by administrator'
-      );
-      
-      if (response.success) {
-        // Let the interceptor handle the toast (it shows response.data.message)
-        // Update the user in the list
-        setUsers(prev => prev.map(u => 
-          u._id === selectedUser._id 
-            ? { ...u, access_control: { is_locked: true, reason: lockReason || 'Account locked by administrator' } }
-            : u
-        ));
-        setShowLockModal(false);
-        setSelectedUser(null);
-      } else {
-        // Error toast is already shown by apiClient interceptor
-      }
-    } catch (err: any) {
-      // Error toast is already shown by apiClient interceptor
-      console.error('Error locking account:', err);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleUnlockAccount = async () => {
-    if (!selectedUser?._id) return;
-    
-    setActionLoading(true);
-    
-    try {
-      const response = await userAccountService.lockUnlock(selectedUser._id, 'unlock');
-      
-      if (response.success) {
-        // Let the interceptor handle the toast (it shows response.data.message)
-        // Update the user in the list
-        setUsers(prev => prev.map(u => 
-          u._id === selectedUser._id 
-            ? { ...u, access_control: { is_locked: false, reason: undefined } }
-            : u
-        ));
-        setShowUnlockModal(false);
-        setSelectedUser(null);
-      } else {
-        // Error toast is already shown by apiClient interceptor
-      }
-    } catch (err: any) {
-      // Error toast is already shown by apiClient interceptor
-      console.error('Error unlocking account:', err);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleResetAttempts = async (userItem: UserWithLock) => {
-    if (!userItem._id) return;
-    
-    try {
-      const response = await userAccountService.resetLoginAttempts(userItem._id);
-      
-      if (response.success) {
-        // Toast is handled by interceptor (backend returns message)
-        // Update the user in the list
-        setUsers(prev => prev.map(u => 
-          u._id === userItem._id 
-            ? { ...u, access_control: { ...u.access_control, last_login_attempt: 0 } }
-            : u
-        ));
-      } else {
-        // Error toast is already shown by apiClient interceptor
-      }
-    } catch (err: any) {
-      // Error toast is already shown by apiClient interceptor
-      console.error('Error resetting login attempts:', err);
-    }
-  };
+  const handleLock = async () => { if (!selectedUser?._id) return; setActionLoading(true); try { const r = await userAccountService.lockUnlock(selectedUser._id, 'lock', lockReason || 'Account locked'); if (r.success) { setUsers(prev => prev.map(u => u._id === selectedUser._id ? { ...u, access_control: { is_locked: true, reason: lockReason || 'Locked' } } : u)); setShowLockModal(false); setSelectedUser(null); } } catch (err) { } finally { setActionLoading(false); } };
+  const handleUnlock = async () => { if (!selectedUser?._id) return; setActionLoading(true); try { const r = await userAccountService.lockUnlock(selectedUser._id, 'unlock'); if (r.success) { setUsers(prev => prev.map(u => u._id === selectedUser._id ? { ...u, access_control: { is_locked: false } } : u)); setShowUnlockModal(false); setSelectedUser(null); } } catch (err) { } finally { setActionLoading(false); } };
+  const handleResetAttempts = async (u: UserWithLock) => { if (!u._id) return; try { const r = await userAccountService.resetLoginAttempts(u._id); if (r.success) setUsers(prev => prev.map(x => x._id === u._id ? { ...x, access_control: { ...x.access_control, last_login_attempt: 0 } } : x)); } catch (err) { } };
 
   return (
     <MainLayout>
-    <div className="p-6">
-      {/* Page Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <FiUsers className="w-7 h-7" />
-          User Account Management
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Manage user account lock/unlock status
-        </p>
-      </div>
-
-      {/* Search and Actions Bar */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4 justify-end">
-        <div className="flex gap-3 items-center">
-          <div className="relative">
-            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by name, email, phone, or department..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <button
-            onClick={loadUsers}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      {/* Error State */}
-      {error && !loading && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-          <FiAlertCircle className="w-5 h-5 text-red-600" />
-          <span className="text-red-700">{error}</span>
-        </div>
-      )}
-
-      {/* Users Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto max-h-96 overflow-y-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Department
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Activation
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Account Lock
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {(loading && firstLoad) ? (
-                 <tr>
-                   <td colSpan={5} className="px-6 py-12 text-center">
-                     <div className="flex justify-center items-center gap-2">
-                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                       <span className="text-gray-500">Loading users...</span>
-                     </div>
-                   </td>
-                 </tr>
-                ) : paginatedUsers.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                      {searchQuery ? 'No users found matching your search' : 'No users available'}
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedUsers.map((userItem) => (
-                  <tr key={userItem._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                          <FiUser className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {userItem.full_name || 'N/A'}
-                          </div>
-                          <div className="text-sm text-gray-500 flex items-center gap-1">
-                            <FiMail className="w-3 h-3" />
-                            {userItem.email || 'N/A'}
-                          </div>
-                          {userItem.telephone && (
-                            <div className="text-sm text-gray-500 flex items-center gap-1">
-                              <FiPhone className="w-3 h-3" />
-                              {userItem.telephone}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {userItem.department_name || 
-                         (typeof userItem.department === 'object' ? userItem.department?.department_name : 'N/A')}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {userItem.is_account_activated ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          <FiCheck className="w-3 h-3 mr-1" />
-                          Activated
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                          <FiX className="w-3 h-3 mr-1" />
-                          Not Activated
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {userItem.access_control?.is_locked ? (
-                        <div>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            <FiLock className="w-3 h-3 mr-1" />
-                            Locked
-                          </span>
-                          {userItem.access_control?.reason && (
-                            <p className="text-xs text-gray-500 mt-1 max-w-48 truncate" title={userItem.access_control.reason}>
-                              {userItem.access_control.reason}
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          <FiUnlock className="w-3 h-3 mr-1" />
-                          Unlocked
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <div className="flex items-center gap-2">
-                        {userItem.access_control?.is_locked ? (
-                          <button
-                            onClick={() => handleUnlockClick(userItem)}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-xs font-medium"
-                            title="Unlock account"
-                          >
-                            <FiUnlock className="w-3 h-3" />
-                            Unlock
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleLockClick(userItem)}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 text-xs font-medium"
-                            title="Lock account"
-                          >
-                            <FiLock className="w-3 h-3" />
-                            Lock
-                          </button>
-                        )}
-                        {userItem.access_control?.last_login_attempt && userItem.access_control.last_login_attempt > 0 && (
-                          <button
-                            onClick={() => handleResetAttempts(userItem)}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-xs font-medium"
-                            title="Reset login attempts"
-                          >
-                            <FiRefreshCw className="w-3 h-3" />
-                            Reset
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-2">
-          <div className="text-sm text-gray-600">
-            Showing {((currentPage - 1) * pageLimit) + 1} to {Math.min(currentPage * pageLimit, totalUsers)} of {totalUsers} users
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage <= 1}
-              className="px-3 py-1 text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage >= totalPages}
-              className="px-3 py-1 text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded"
-            >
-              Next
-            </button>
+      <div className="p-4">
+        <div className="mb-4"><h1 className="text-base font-bold text-gray-900 flex items-center gap-2"><FiUsers className="w-5 h-5" />User Account Management</h1><p className="text-xs text-gray-600 mt-0.5">Manage user account lock/unlock status</p></div>
+        <div className="mb-4 flex flex-col sm:flex-row gap-3 justify-end">
+          <div className="flex gap-3 items-center">
+            <div className="relative"><FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" /><input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-48 pl-8 pr-3 py-1.5 border border-gray-300 text-sm" /></div>
+            <button onClick={loadUsers} disabled={loading} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 disabled:opacity-50"><FiRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />Refresh</button>
           </div>
         </div>
-      )}
+        {error && !loading && <div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2"><FiAlertCircle className="w-4 h-4" />{error}</div>}
 
-      {/* Summary */}
-      <div className="mt-4 text-sm text-gray-500">
-        Total: {users.length} users
-      </div>
+        <div className=" p-5 overflow-hidden">
+          <div className="overflow-x-auto max-h-96 overflow-y-auto">
+            <table className="min-w-full  divide-y divide-gray-200">
+              <thead className="bg-blue-600 sticky top-0 z-10 shadow-sm"><tr>{['User', 'Department', 'Activation', 'Account Lock', 'Actions'].map(h => <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-white uppercase tracking-wider">{h}</th>)}</tr></thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {(loading && firstLoad) ? <tr><td colSpan={5} className="px-4 py-8 text-center"><div className="flex justify-center gap-2"><div className="h-6 w-6 justify-center items-center flex"><FiLoader className="w-5 h-5 animate-spin text-blue-600" /></div></div></td></tr>
+                  : paginatedUsers.length === 0 ? <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">{searchQuery ? 'No matches' : 'No users'}</td></tr>
+                    : paginatedUsers.map(u => (
+                        <tr key={u._id} className="hover:bg-gray-50">
+                          <td className="px-4 py-2.5"><div className="flex items-center"><div className="w-8 h-8 bg-blue-100 flex items-center justify-center"><FiUser className="w-4 h-4 text-blue-600" /></div><div className="ml-3"><div className="text-sm font-medium text-gray-900">{u.full_name || 'N/A'}</div><div className="text-xs text-gray-500 flex items-center gap-1"><FiMail className="w-3 h-3" />{u.email || 'N/A'}</div>{u.telephone && <div className="text-xs text-gray-500 flex items-center gap-1"><FiPhone className="w-3 h-3" />{u.telephone}</div>}</div></div></td>
+                          <td className="px-4 py-2.5 text-sm text-gray-900">{u.department_name || (typeof u.department === 'object' ? (u.department as any)?.department_name : 'N/A')}</td>
+                          <td className="px-4 py-2.5">{u.is_account_activated ? <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800"><FiCheck className="w-3 h-3 mr-1" />Activated</span> : <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800"><FiX className="w-3 h-3 mr-1" />Not Activated</span>}</td>
+                          <td className="px-4 py-2.5">{u.access_control?.is_locked ? <div><span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800"><FiLock className="w-3 h-3 mr-1" />Locked</span>{u.access_control?.reason && <p className="text-xs text-gray-500 mt-1 max-w-48 truncate" title={u.access_control.reason}>{u.access_control.reason}</p>}</div> : <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800"><FiUnlock className="w-3 h-3 mr-1" />Unlocked</span>}</td>
+                          <td className="px-4 py-2.5"><div className="flex items-center gap-1.5">{u.access_control?.is_locked ? <button onClick={() => { setSelectedUser(u); setShowUnlockModal(true); }} className="flex items-center gap-1 px-2.5 py-1.5 bg-green-600 text-white text-xs font-medium hover:bg-green-700"><FiUnlock className="w-3 h-3" />Unlock</button> : <button onClick={() => { setSelectedUser(u); setLockReason(''); setShowLockModal(true); }} className="flex items-center gap-1 px-2.5 py-1.5 bg-red-600 text-white text-xs font-medium hover:bg-red-700"><FiLock className="w-3 h-3" />Lock</button>}
+                            {u.access_control?.last_login_attempt && u.access_control.last_login_attempt > 0 && <button onClick={() => handleResetAttempts(u)} className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200"><FiRefreshCw className="w-3 h-3" />Reset</button>}</div></td>
+                        </tr>
+                      ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {totalPages > 1 && <div className="px-4 py-3 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-2 text-xs"><span>Showing {((currentPage - 1) * pageLimit) + 1} to {Math.min(currentPage * pageLimit, totalUsers)} of {totalUsers}</span><div className="flex gap-2"><button onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage <= 1} className="px-3 py-1 border hover:bg-gray-50 disabled:opacity-50">Previous</button><button onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage >= totalPages} className="px-3 py-1 border hover:bg-gray-50 disabled:opacity-50">Next</button></div></div>}
+       
 
-      {/* Lock Account Modal with Reason Input */}
-      {showLockModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Backdrop */}
-          <div 
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => {
-              setShowLockModal(false);
-              setSelectedUser(null);
-              setLockReason('');
-            }}
-          />
-          
-          {/* Modal Content */}
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 transform animate-scaleIn">
-            {/* Header with Close Button */}
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <FiLock className="w-5 h-5 text-red-600" />
-                Lock User Account
-              </h3>
-              <button
-                onClick={() => {
-                  setShowLockModal(false);
-                  setSelectedUser(null);
-                  setLockReason('');
-                }}
-                disabled={actionLoading}
-                className="p-1 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-                title="Close"
-              >
-                <FiX className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            
-            {/* Content */}
-            <div className="p-6">
-              {/* Icon */}
-              <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                <FiAlertTriangle className="w-8 h-8 text-red-600" />
-              </div>
-              
-              {/* Message */}
-              <div className="text-center mb-4">
-                <p className="text-gray-600">
-                  Are you sure you want to lock the account for <span className="font-semibold text-gray-900">{selectedUser?.full_name || selectedUser?.email}</span>?
-                </p>
-              </div>
-
-              {/* Reason Input */}
-              <div className="mb-6">
-                <label htmlFor="lockReason" className="block text-sm font-medium text-gray-700 mb-2">
-                  Reason for locking <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  id="lockReason"
-                  value={lockReason}
-                  onChange={(e) => setLockReason(e.target.value)}
-                  placeholder="Enter reason for locking this account..."
-                  rows={3}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
-                  disabled={actionLoading}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  This reason will be visible to the user when they try to log in.
-                </p>
-              </div>
-              
-              {/* Buttons */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowLockModal(false);
-                    setSelectedUser(null);
-                    setLockReason('');
-                  }}
-                  disabled={actionLoading}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  <FiX className="w-4 h-4" />
-                  Cancel
-                </button>
-                <button
-                  onClick={handleLockAccount}
-                  disabled={actionLoading || !lockReason.trim()}
-                  className={`flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50`}
-                >
-                  {actionLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Locking...
-                    </>
-                  ) : (
-                    <>
-                      <FiLock className="w-4 h-4" />
-                      Lock Account
-                    </>
-                  )}
-                </button>
+        {showLockModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/50" onClick={() => { setShowLockModal(false); setSelectedUser(null); setLockReason(''); }} />
+            <div className="relative bg-white shadow-2xl w-full max-w-md mx-4">
+              <div className="flex items-center justify-between p-3 border-b"><h3 className="text-sm font-bold text-gray-900 flex items-center gap-2"><FiLock className="w-4 h-4 text-red-600" />Lock User Account</h3><button onClick={() => { setShowLockModal(false); setSelectedUser(null); setLockReason(''); }} disabled={actionLoading} className="p-1 hover:bg-gray-100 disabled:opacity-50"><FiX className="w-4 h-4 text-gray-500" /></button></div>
+              <div className="p-4">
+                <div className="mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-3"><FiAlertTriangle className="w-6 h-6 text-red-600" /></div>
+                <p className="text-sm text-gray-600 mb-3">Lock account for <span className="font-semibold text-gray-900">{selectedUser?.full_name || selectedUser?.email}</span>?</p>
+                <div className="mb-4"><label className="text-xs font-medium text-gray-700 mb-1 block">Reason <span className="text-red-500">*</span></label><textarea value={lockReason} onChange={e => setLockReason(e.target.value)} placeholder="Enter reason..." rows={2} className="w-full px-3 py-2 border border-gray-300 text-sm resize-none" disabled={actionLoading} /><p className="text-xs text-gray-500 mt-0.5">Visible to user on login</p></div>
+                <div className="flex gap-3"><button onClick={() => { setShowLockModal(false); setSelectedUser(null); setLockReason(''); }} disabled={actionLoading} className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 flex items-center justify-center gap-1"><FiX className="w-3.5 h-3.5" />Cancel</button><button onClick={handleLock} disabled={actionLoading || !lockReason.trim()} className="flex-1 px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-1">{actionLoading ? <><FiLoader className="w-3.5 h-3.5 text-white animate-spin" />Locking...</> : <><FiLock className="w-3.5 h-3.5" />Lock</>}</button></div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Unlock Account Modal */}
-      <ConfirmModal
-        isOpen={showUnlockModal}
-        onCancel={() => {
-          setShowUnlockModal(false);
-          setSelectedUser(null);
-        }}
-        onConfirm={handleUnlockAccount}
-        title="Unlock User Account"
-        message={`Are you sure you want to unlock the account for ${selectedUser?.full_name || selectedUser?.email}?`}
-        confirmText={actionLoading ? 'Unlocking...' : 'Unlock Account'}
-        cancelText="Cancel"
-        type="info"
-        isLoading={actionLoading}
-      />
-    </div>
+        <ConfirmModal isOpen={showUnlockModal} onCancel={() => { setShowUnlockModal(false); setSelectedUser(null); }} onConfirm={handleUnlock} title="Unlock User Account" message={`Unlock account for ${selectedUser?.full_name || selectedUser?.email}?`} confirmText={actionLoading ? 'Unlocking...' : 'Unlock Account'} cancelText="Cancel" type="info" isLoading={actionLoading} />
+      </div>
     </MainLayout>
   );
 };

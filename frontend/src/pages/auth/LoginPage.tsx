@@ -294,10 +294,8 @@ const LoginPage = () => {
 
         <div className="relative z-10 flex flex-col justify-end p-7 lg:p-14  text-white w-full h-full">
           {/* COK OFFICIAL PORTAL pill */}
-          <div className="inline-flex  items-center px-3 py-1.5 mb-6 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 text-xs font-semibold tracking-wide uppercase w-max cok-badge-animated">
-            <span className="mr-1.5 inline-flex h-3 w-3 items-center justify-center rounded-full border border-white/60">
-              <span className="h-1.5 w-1.5 rounded-full bg-white" />
-            </span>
+          <div className="inline-flex  items-center px-3 py-1.5 mb-6 bg-white/10 backdrop-blur-sm  border border-white/20 text-xs font-semibold tracking-wide uppercase w-max cok-badge-animated">
+
             <span className="font-bold">COK Official Portal</span>
           </div>
 
@@ -488,10 +486,10 @@ const LoginPage = () => {
                     : 'bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
                 }`}
               >
-                <span className="inline-flex h-4 w-4 items-center justify-center rounded-md border border-white/40 mr-1">
+                <span className="inline-flex h-4 w-4 items-center justify-center mr-1">
                   {isLoading ? (
                     <svg
-                      className="animate-spin h-3 w-3"
+                      className="animate-spin h-5 w-5"
                       fill="none"
                       viewBox="0 0 24 24"
                     >
@@ -510,28 +508,10 @@ const LoginPage = () => {
                       />
                     </svg>
                   ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-3 w-3"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M10 17l5-5-5-5"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M4 12h11"
-                      />
-                    </svg>
+                   <span>LOGIN</span>
                   )}
                 </span>
-                SIGN IN
+                
               </button>
             </form>
 
@@ -558,19 +538,7 @@ const LoginPage = () => {
               © {new Date().getFullYear()} City of Kigali. All rights reserved.
             </p>
 
- {/* Feedback button for visitors */}
-<div className="mt-4 text-center">
-  <button
-    type="button"
-    onClick={() => setShowFeedbackModal(true)}
-    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-blue-800 bg-blue-100/80 hover:bg-blue-200 hover:text-blue-900 rounded-full transition-all duration-200 border border-blue-200 shadow-sm"
-  >
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-    </svg>
-    Give Feedback
-  </button>
-</div>
+
           </div>
         </div>
       </div>
