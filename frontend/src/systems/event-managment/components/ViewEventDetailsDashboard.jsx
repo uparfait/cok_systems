@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiXCircle, FiClock, FiUsers } from 'react-icons/fi';
+import { FiEdit2, FiXCircle, FiClock, FiUsers, FiMail, FiX } from 'react-icons/fi';
 import axios from 'axios';
 import SpiralLoader from './SpiralLoader';
 import EventDetailHeader from './sub-components/EventDetailHeader';
@@ -25,6 +25,13 @@ export default function ViewEventDetailsDashboard() {
   const [modalAction, setModalAction] = useState('cancel'); // 'cancel' | 'postpone'
   const [attendeesOverlayOpen, setAttendeesOverlayOpen] = useState(false);
   const [attendeeCount, setAttendeeCount] = useState(null);
+  const [invitedCount, setInvitedCount] = useState(0);
+  const [invitedPeople, setInvitedPeople] = useState([]);
+  const [showInvitedModal, setShowInvitedModal] = useState(false);
+  const [invitedLoading, setInvitedLoading] = useState(false);
+  const [invitedPage, setInvitedPage] = useState(1);
+  const [invitedTotalPages, setInvitedTotalPages] = useState(1);
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // { _id, email }
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -70,6 +77,35 @@ export default function ViewEventDetailsDashboard() {
 
     fetchEvent();
   }, [eventId]);
+
+  // Fetch invited people count
+  useEffect(() => {
+    if (!event?.eventSpecialId) return;
+    axios
+      .get(`${BASE_URL}/events/${event.eventSpecialId}/invited`, { params: { limit: 1 } })
+      .then((res) => {
+        if (res.data?.success) setInvitedCount(res.data.totalRecords || 0);
+      })
+      .catch(() => {});
+  }, [event?.eventSpecialId]);
+
+  // Fetch invited people list for modal
+  const fetchInvitedPeople = async (page = 1) => {
+    if (!event?.eventSpecialId) return;
+    setInvitedLoading(true);
+    try {
+      const res = await axios.get(`${BASE_URL}/events/${event.eventSpecialId}/invited`, { params: { page, limit: 50 } });
+      if (res.data?.success) {
+        setInvitedPeople(res.data.data || []);
+        setInvitedTotalPages(res.data.totalPages || 1);
+        setInvitedPage(page);
+      }
+    } catch (err) {
+      console.error("Failed to fetch invited people:", err);
+    } finally {
+      setInvitedLoading(false);
+    }
+  };
 
   const openModal = (action) => {
     setModalAction(action);
@@ -160,6 +196,39 @@ export default function ViewEventDetailsDashboard() {
           if (updatedEvent.isCancelled) setEventMode('past');
         }} />
 
+        {/* Invited People */}
+        <div className="bg-white border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Invited People</h3>
+          </div>
+          <div className="px-6 py-4">
+            <button
+              onClick={() => {
+                fetchInvitedPeople(1);
+                setShowInvitedModal(true);
+              }}
+              className="inline-flex items-center gap-3 p-4 border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50/30 transition-all duration-200 w-full text-left group"
+            >
+              <div className="w-10 h-10 bg-blue-100 flex items-center justify-center group-hover:bg-blue-600 transition-colors duration-200">
+                <FiMail className="w-5 h-5 text-blue-600 group-hover:text-white transition-colors duration-200" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
+                  Invited People ({invitedCount})
+                </p>
+                <p className="text-xs text-gray-500">
+                  Click to view all invited people
+                </p>
+              </div>
+              <div className="ml-auto">
+                <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 text-sm font-bold group-hover:bg-blue-600 group-hover:text-white transition-all">
+                  {invitedCount}
+                </span>
+              </div>
+            </button>
+          </div>
+        </div>
+
         {/* Total Attended */}
         <div className="bg-white border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
@@ -208,6 +277,143 @@ export default function ViewEventDetailsDashboard() {
           setEvent(updatedEvent);
         }} />
       </div>
+
+      {/* Invited People Modal */}
+      {showInvitedModal && (
+        <div className="fixed inset-0 z-[99999] bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg max-h-[80vh] flex flex-col shadow-xl">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <FiUsers className="w-5 h-5 text-blue-600" />
+                Invited People
+              </h3>
+              <button
+                onClick={() => setShowInvitedModal(false)}
+                className="p-1 hover:bg-gray-100 text-gray-500 transition-colors"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-5">
+              {invitedLoading ? (
+                <div className="text-center py-8">
+                  <div className="w-8 h-8 mx-auto"><SpiralLoader /></div>
+                  <p className="text-sm text-gray-500 mt-3">Loading...</p>
+                </div>
+              ) : invitedPeople.length === 0 ? (
+                <div className="text-center py-8">
+                  <FiUsers className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-sm text-gray-500">No one has been invited yet</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {invitedPeople.map((person, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-100">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
+                          <span className="text-xs font-bold text-blue-600">
+                            {person.email.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-800 truncate">{person.email}</p>
+                          <p className="text-[10px] text-gray-400">
+                            {new Date(person.invitedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setDeleteConfirm({ _id: person._id, email: person.email })}
+                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        title="Remove invitation"
+                      >
+                        <FiX className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination */}
+              {invitedTotalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-4">
+                  <button
+                    disabled={invitedPage <= 1}
+                    onClick={() => fetchInvitedPeople(invitedPage - 1)}
+                    className="px-3 py-1 text-xs border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-xs text-gray-500">
+                    Page {invitedPage} of {invitedTotalPages}
+                  </span>
+                  <button
+                    disabled={invitedPage >= invitedTotalPages}
+                    onClick={() => fetchInvitedPeople(invitedPage + 1)}
+                    className="px-3 py-1 text-xs border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Footer - only show invite button for non-past events */}
+            {!isPastEvent && (
+            <div className="p-5 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowInvitedModal(false);
+                  navigate(`/event-manager/events/${event?.eventSpecialId}/invite`);
+                }}
+                className="w-full py-2.5 bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+              >
+                Invite More People
+              </button>
+            </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-[99999] bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white max-w-sm w-full p-6 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Confirm Removal</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Are you sure you want to remove <strong>{deleteConfirm.email}</strong> from the invited list?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 py-2.5 border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await axios.delete(`/cok/api/v1/events/invited/${deleteConfirm._id}`);
+                    setDeleteConfirm(null);
+                    fetchInvitedPeople(invitedPage);
+                    setInvitedCount(prev => Math.max(0, prev - 1));
+                  } catch (err) {
+                    console.error("Failed to remove invitation:", err);
+                    setDeleteConfirm(null);
+                  }
+                }}
+                className="flex-1 py-2.5 bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Attendees Overlay */}
       {attendeesOverlayOpen && (

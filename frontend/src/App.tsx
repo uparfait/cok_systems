@@ -77,6 +77,7 @@ import AttendeesList from "./systems/event-managment/pages/index/AttendeesList.j
 import ShowEditor from "./systems/event-managment/pages/index/components/ShowEditor.jsx";
 import MyTasksPage from "./systems/event-managment/pages/index/MyTasksPage.jsx";
 import MyTasksTaskPage from "./systems/event-managment/pages/index/MyTasksTaskPage.jsx";
+import InvitePage from "./systems/event-managment/pages/index/InvitePage.jsx";
 
 import DashboardLayout from "./systems/event-managment/pages/dashboard/DashboardLayout.jsx";
 import CreateRoomForm from "./systems/event-managment/components/CreateRoomForm.jsx";
@@ -197,6 +198,7 @@ const App: React.FC = () => {
                      element={<EventActionsPage />}
                    />
                    <Route path="event/:id/editor" element={<ShowEditor />} />
+                   <Route path="event/:id/invite" element={<InvitePage />} />
 
                    <Route path="my-tasks" element={<MyTasksPage />} />
                    <Route path="my-tasks/:taskId" element={<MyTasksTaskPage />} />
@@ -283,6 +285,7 @@ const App: React.FC = () => {
           <Route path="/event-manager/events/:eventId/edit" element={< CreateEvent eventMeetingType={undefined} /> } />
           <Route path="/event-manager/events/:eventId/details" element={<ViewEventDetailsDashboard />} />
           <Route path="/event-manager/events/actions" element={<EventActions />} />
+          <Route path="/event-manager/events/:eventId/invite" element={<InvitePage />} />
 
           {/* Booking Requests Routes */}
           <Route
@@ -456,6 +459,16 @@ const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <FeedbackPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Event Management Invite Page */}
+                <Route
+                  path="/:roleSlug/events/:eventId/invite"
+                  element={
+                    <ProtectedRoute>
+                      <InvitePage />
                     </ProtectedRoute>
                   }
                 />
