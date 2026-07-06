@@ -165,7 +165,7 @@ const FeedbackStatusPage: React.FC = () => {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <FiMessageSquare className="w-6 h-6 text-yellow-500" />
+          <FiMessageSquare className="w-6 h-6 text-blue-600" />
           Service History & Feedback Status
         </h1>
         <p className="text-gray-600 mt-1">
@@ -189,7 +189,7 @@ const FeedbackStatusPage: React.FC = () => {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Enter your phone number"
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 onKeyDown={(e) => e.key === 'Enter' && handleVerifyPhone()}
               />
             </div>
@@ -197,7 +197,7 @@ const FeedbackStatusPage: React.FC = () => {
           <button
             onClick={handleVerifyPhone}
             disabled={isVerifying || isLoadingFeedback || !phone.trim()}
-            className="h-fit px-6 py-2.5 rounded-lg bg-yellow-500 text-white font-semibold text-sm hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-6 flex items-center gap-2"
+            className="h-fit px-6 py-2.5 rounded-lg bg-blue-500 text-white font-semibold text-sm hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-6 flex items-center gap-2"
           >
             {isVerifying || isLoadingFeedback ? (
               <>
