@@ -515,6 +515,19 @@ const LoginPage = () => {
               </button>
             </form>
 
+            {/* Dev QR Code - Only visible in development */}
+            {import.meta.env.DEV && (
+              <div className="mt-4 flex flex-col items-center rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="mb-2 text-xs font-medium text-gray-500">Scan to access on mobile (dev)</p>
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(import.meta.env.VITE_DEV_QR_URL || window.location.origin)}`}
+                  alt="Dev QR"
+                  className="h-36 w-36 rounded"
+                />
+                <p className="mt-1 break-all text-[10px] text-gray-400">{import.meta.env.VITE_DEV_QR_URL || window.location.origin}</p>
+              </div>
+            )}
+
             {/* First time logging in section */}
             <div className="mt-4 sm:mt-5">
               <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 sm:px-4 py-2.5 sm:py-3 text-center">

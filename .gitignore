@@ -9,7 +9,7 @@ backend/uploads/tasks/attachments
 .env
 .env.local
 .env.*.local
-
+.env
 # IDE
 .vscode/
 .idea/
