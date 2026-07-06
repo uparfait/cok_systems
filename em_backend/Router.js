@@ -42,6 +42,10 @@ Router.put('/events/section-update', SectionUpdate.handle);
 const ExportAttendanceController = require('./controllers/ExportAttendanceController');
 Router.get('/attendance/export', ExportAttendanceController.handle);
 
+// Invite routes
+const inviteRoutes = require('./routes/inviteRoutes');
+Router.use('/events', inviteRoutes);
+
 // Booking Request routes
 Router.use('/booking-requests', bookingRequestRoutes);
 
