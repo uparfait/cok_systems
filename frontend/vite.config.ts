@@ -19,9 +19,10 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/cok/api/v1': {
-        target: process.env.VITE_API_URL || 'http://localhost:2027',
+        
+        target: process.env.VITE_API_EVENT_URL || 'http://localhost:2027',
         changeOrigin: true,
-        secure: !!process.env.VITE_API_URL,
+        secure: !!process.env.VITE_API_EVENT_URL,
       },
 
       '/cok/api': {

@@ -1,6 +1,4 @@
-// LoadingSpinner Component - Visual loading indicator
-// Displays a spinning loader animation during async operations
-// Shows a "taking longer than usual" message after a configurable delay
+import { FiLoader, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
 import React, { useState, useEffect } from 'react';
 
@@ -50,14 +48,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
 
   return (
     <div className={`flex flex-col items-center justify-center ${className}`}>
-      <div
-        className={`animate-spin rounded-full border-b-2 border-blue-600 ${sizeClasses[size]}`}
-        role="status"
-        aria-label="Loading"
-      >
-        {/* Accessible text for screen readers */}
-        <span className="sr-only">Loading...</span>
-      </div>
+     <FiLoader className="w-6 h-6 animate-spin text-blue-600" />
       
       {showMessage && (
         <div className="mt-4 text-center">

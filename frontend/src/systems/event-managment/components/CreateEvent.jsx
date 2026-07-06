@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiPlus, FiSave } from 'react-icons/fi';
+import { FiPlus, FiSave, FiUsers, FiX } from 'react-icons/fi';
 import axios from 'axios';
 import SpiralLoader from './SpiralLoader';
 import CreateEventStepper from './CreateEventStepper';
@@ -24,6 +24,8 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [createdEventSpecialId, setCreatedEventSpecialId] = useState(null);
   const [step, setStep] = useState(1);
   const [eventMode, setEventMode] = useState('');
   const [eventMeetingType, setEventMeetingType] = useState(initialType || 'event');
@@ -239,8 +241,19 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
 
       if (response.data.success) {
         setSuccess(true);
-        if (!isEditMode) resetForm();
-        setTimeout(() => navigate(-1), 1500);
+        if (!isEditMode) {
+          resetForm();
+          // Show invite modal with the created event's special ID
+          const eventSpecialId = response.data.data?.eventSpecialId;
+          if (eventSpecialId) {
+            setCreatedEventSpecialId(eventSpecialId);
+            setTimeout(() => setShowInviteModal(true), 500);
+          } else {
+            setTimeout(() => navigate(-1), 1500);
+          }
+        } else {
+          setTimeout(() => navigate(-1), 1500);
+        }
       } else {
         setError(response.data.message || `Failed to ${isEditMode ? 'update' : 'create'} ${typeLower}`);
       }
@@ -283,8 +296,49 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
   return (
     <div className="p-6">
       <div className="max-w-2xl mx-auto space-y-6">
-        <SuccessMessage show={success} message={`${type} ${isEditMode ? 'updated' : 'created'} successfully!`} />
-        <ErrorMessage message={error} />
+          <SuccessMessage show={success} message={`${type} ${isEditMode ? 'updated' : 'created'} successfully!`} />
+          <ErrorMessage message={error} />
+
+          {/* Invite Modal */}
+          {showInviteModal && (
+            <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center p-4">
+              <div className="bg-white max-w-md w-full p-6 shadow-xl">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-zinc-900 flex items-center gap-2">
+                    <FiUsers className="w-5 h-5 text-blue-600" />
+                    Invite People
+                  </h3>
+                  <button
+                    onClick={() => { setShowInviteModal(false); navigate(-1); }}
+                    className="p-1 hover:bg-zinc-100 text-zinc-500 transition-colors"
+                  >
+                    <FiX className="w-5 h-5" />
+                  </button>
+                </div>
+                <p className="text-sm text-zinc-600 mb-6">
+                  Would you like to invite people to this {typeLower}?
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setShowInviteModal(false); navigate(-1); }}
+                    className="flex-1 py-2.5 border border-zinc-300 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+                  >
+                    Later
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowInviteModal(false);
+                      const roleSlug = window.location.pathname.split('/')[1];
+                      navigate(`/${roleSlug || 'event-manager'}/events/${createdEventSpecialId}/invite`);
+                    }}
+                    className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+                  >
+                    Invite Now
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
         <div className="bg-white border border-gray-200 overflow-hidden">
           <CreateEventStepper currentStep={step} eventMeetingType={eventMeetingType} eventMode={eventMode} />

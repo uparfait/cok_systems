@@ -1,6 +1,3 @@
-// AdminServiceDeliveryDashboard - Admin Service Delivery Management Dashboard
-// Features: Stats cards, visitor management, hourly activity chart, PDF export
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
@@ -11,686 +8,128 @@ import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import { useToast } from '../../../core/contexts/ToastContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import {
-  FiUsers, FiUserPlus, FiClock, FiCheckCircle,
-  FiRefreshCw, FiSearch, FiDownload
-} from 'react-icons/fi';
+import { FiUsers, FiUserPlus, FiClock, FiCheckCircle, FiRefreshCw, FiSearch, FiDownload, FiLoader } from 'react-icons/fi';
 import { HiOutlineClipboardList } from 'react-icons/hi';
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
-} from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-// Types
-interface Visitor {
-  _id: string;
-  full_name?: string;
-  name?: string;
-  visitorName?: string;
-  telephone?: string;
-  phone?: string;
-  badge_number?: string;
-  departments_assigned?: Array<{
-    department_id: string;
-    department_name: string;
-    assigned_time: Date;
-    reached_in: boolean;
-    provider_name?: string;
-    provider_id?: string;
-  }>;
-  services_status?: Array<{
-    department_name: string;
-    department_id: string;
-    provider_name?: string;
-    provider_id?: string;
-    s_type: string;
-  }>;
-  entry_date?: string;
-  exist_date?: string;
-  is_still_inhouse?: boolean;
-}
-
-interface HourlyData {
-  hour: number;
-  visitors_checked_in: number;
-}
-
-interface ServiceDeliveryStats {
-  total: number;
-  inhouse: number;
-  completed: number;
-  by_status: { [key: string]: number };
-  by_department: { [key: string]: number };
-}
+interface Visitor { _id: string; full_name?: string; name?: string; visitorName?: string; telephone?: string; phone?: string; badge_number?: string; departments_assigned?: Array<{ department_id: string; department_name: string; assigned_time: Date; reached_in: boolean; provider_name?: string; provider_id?: string }>; services_status?: Array<{ department_name: string; department_id: string; provider_name?: string; provider_id?: string; s_type: string }>; entry_date?: string; exist_date?: string; is_still_inhouse?: boolean; }
+interface HourlyData { hour: number; visitors_checked_in: number; }
+interface ServiceDeliveryStats { total: number; inhouse: number; completed: number; by_status: { [key: string]: number }; by_department: { [key: string]: number }; }
 
 const AdminServiceDeliveryDashboard: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
   const { socket, isConnected } = useSocket();
-
-  // State
   const [loading, setLoading] = useState(true);
   const [firstLoad, setfirstLoad] = useState(true);
   const [departmentCount, setDepartmentCount] = useState(0);
-  const [stats, setStats] = useState<ServiceDeliveryStats>({
-    total: 0,
-    inhouse: 0,
-    completed: 0,
-    by_status: {},
-    by_department: {}
-  });
+  const [stats, setStats] = useState<ServiceDeliveryStats>({ total: 0, inhouse: 0, completed: 0, by_status: {}, by_department: {} });
   const [hourlyData, setHourlyData] = useState<HourlyData[]>([]);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Fetch dashboard data
-  const fetchDashboardData = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch hourly service delivery stats
-      const hourlyResponse = await statisticsService.getHourlyServiceDeliveryStats();
-      const hourly = hourlyResponse?.data?.hourly || hourlyResponse?.hourly || [];
-      setHourlyData(hourly);
-
-      // Fetch service delivery stats
-      const statsResponse = await statisticsService.getServiceDeliveryStats();
-      const statsData = statsResponse?.data || statsResponse || {};
-      setStats(statsData);
-
-      // Fetch departments count
-      const deptResponse = await departmentService.getAll();
-      const departments = deptResponse?.data || deptResponse || [];
-      const activeDepts = Array.isArray(departments) ? departments.filter((d: any) => d.status !== 'inactive').length : 0;
-      setDepartmentCount(activeDepts);
-
-      // Fetch all visitors (both inside and left)
-      const [insideResponse, leftResponse] = await Promise.all([
-        serviceDeliveryService.getAll(1, 100, true),
-        serviceDeliveryService.getAll(1, 100, false)
-      ]);
-      
-      // API returns response.data directly which contains { success, data, total, etc }
-      const insideData = insideResponse?.data || [];
-      const leftData = leftResponse?.data || [];
-      setVisitors([...insideData, ...leftData]);
-    } catch (error) {
-      console.error('Error fetching service delivery data:', error);
-      showError('Failed to load service delivery data');
-    } finally {
-      setLoading(false);
-      setfirstLoad(false);
-    }
+      const hourlyRes = await statisticsService.getHourlyServiceDeliveryStats();
+      setHourlyData(hourlyRes?.data?.hourly || hourlyRes?.hourly || []);
+      const statsRes = await statisticsService.getServiceDeliveryStats();
+      setStats(statsRes?.data || statsRes || {});
+      const deptRes = await departmentService.getAll();
+      const departments = deptRes?.data || deptRes || [];
+      setDepartmentCount(Array.isArray(departments) ? departments.filter((d: any) => d.status !== 'inactive').length : 0);
+      const [insideRes, leftRes] = await Promise.all([serviceDeliveryService.getAll(1, 100, true), serviceDeliveryService.getAll(1, 100, false)]);
+      setVisitors([...(insideRes?.data || []), ...(leftRes?.data || [])]);
+    } catch (error) { showError('Failed to load data'); }
+    finally { setLoading(false); setfirstLoad(false); }
   }, [showError]);
 
-  // Initial load
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      navigate('/login');
-    }
-  }, [authLoading, isAuthenticated, navigate]);
+  useEffect(() => { if (!authLoading && !isAuthenticated) navigate('/login'); }, [authLoading, isAuthenticated, navigate]);
+  useEffect(() => { if (isAuthenticated && !authLoading) fetchData(); }, [isAuthenticated, authLoading, fetchData]);
+  useEffect(() => { if (!socket || !isConnected) return; socket.on('visitor_checkedin', () => fetchData()); socket.on('visitor_checkedout', () => fetchData()); return () => { socket.off('visitor_checkedin'); socket.off('visitor_checkedout'); }; }, [socket, isConnected, fetchData]);
 
-  useEffect(() => {
-    if (isAuthenticated && !authLoading) {
-      fetchDashboardData();
-    }
-  }, [isAuthenticated, authLoading, fetchDashboardData]);
+  const filteredVisitors = visitors.filter(v => { const n = v.full_name || v.name || v.visitorName || ''; const ms = !searchQuery || n.toLowerCase().includes(searchQuery.toLowerCase()) || (v.telephone || v.phone || '').toLowerCase().includes(searchQuery.toLowerCase()); const ms2 = statusFilter === 'all' || (statusFilter === 'inside' && v.is_still_inhouse) || (statusFilter === 'left' && !v.is_still_inhouse); return ms && ms2; });
+  useEffect(() => setCurrentPage(1), [searchQuery, statusFilter]);
 
-  // Listen to real-time service delivery events and auto-refetch
-  useEffect(() => {
-    if (!socket || !isConnected) return;
+  const getDeptName = (v: Visitor) => v.departments_assigned?.length ? (v.departments_assigned.find(d => d.reached_in)?.department_name || v.departments_assigned[0]?.department_name || '___') : 'Not Yet Assigned';
+  const getStaff = (v: Visitor) => { const s = v.services_status?.find(s => s.s_type === 'Inprogress'); if (s?.provider_name) return s.provider_name; const c = v.services_status?.find(s => s.s_type === 'Completed'); if (c?.provider_name) return c.provider_name; const r = v.departments_assigned?.find(d => d.reached_in); if (r?.provider_name) return r.provider_name; return v.departments_assigned?.length ? 'Not Yet Served' : 'Not Yet Assigned'; };
+  const getStatus = (v: Visitor) => v.is_still_inhouse ? { text: 'Inside', color: 'green' } : { text: 'Checked Out', color: 'gray' };
 
-    const handleVisitorCheckedIn = (data: any) => {
-      // Auto-refetch dashboard data when a visitor is checked in
-      fetchDashboardData();
-    };
-
-    const handleVisitorCheckedOut = (data: any) => {
-      // Auto-refetch dashboard data when a visitor is checked out
-      fetchDashboardData();
-    };
-
-    // Subscribe to service delivery events
-    socket.on('visitor_checkedin', handleVisitorCheckedIn);
-    socket.on('visitor_checkedout', handleVisitorCheckedOut);
-
-    // Cleanup on unmount or when socket changes
-    return () => {
-      socket.off('visitor_checkedin', handleVisitorCheckedIn);
-      socket.off('visitor_checkedout', handleVisitorCheckedOut);
-    };
-  }, [socket, isConnected, fetchDashboardData]);
-
-  // Filter visitors
-  const filteredVisitors = visitors.filter(v => {
-    const fullName = v.full_name || v.name || v.visitorName || '';
-    const matchesSearch = !searchQuery || 
-      fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (v.telephone || v.phone || '').toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || 
-      (statusFilter === 'inside' && v.is_still_inhouse) ||
-      (statusFilter === 'left' && !v.is_still_inhouse);
-    
-    return matchesSearch && matchesStatus;
-  });
-
-  // Reset pagination when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, statusFilter]);
-
-  // Get department name from visitor
-  const getDepartmentName = (visitor: Visitor): string => {
-    if (visitor.departments_assigned && visitor.departments_assigned.length > 0) {
-      const reachedDept = visitor.departments_assigned.find(d => d.reached_in);
-      return reachedDept?.department_name || visitor.departments_assigned[0]?.department_name || '___';
-    }
-    return 'Not Yet Assigned';
-  };
-
-  // Get assigned staff (provider) name
-  const getAssignedStaff = (visitor: Visitor): string => {
-    // First check if there's a provider in services_status
-    if (visitor.services_status && visitor.services_status.length > 0) {
-      const inProgressService = visitor.services_status.find(s => s.s_type === 'Inprogress');
-      if (inProgressService?.provider_name) {
-        return inProgressService.provider_name;
-      }
-      // Check if any service has been completed
-      const completedService = visitor.services_status.find(s => s.s_type === 'Completed');
-      if (completedService?.provider_name) {
-        return completedService.provider_name;
-      }
-    }
-    
-    // Check departments_assigned for provider
-    if (visitor.departments_assigned && visitor.departments_assigned.length > 0) {
-      const reachedDept = visitor.departments_assigned.find(d => d.reached_in);
-      if (reachedDept?.provider_name) {
-        return reachedDept.provider_name;
-      }
-    }
-    
-    // Check if assigned to any department
-    if (visitor.departments_assigned && visitor.departments_assigned.length > 0) {
-      return 'Not Yet Served';
-    }
-    
-    return 'Not Yet Assigned';
-  };
-
-  // Get check-in time
-  const getCheckInTime = (visitor: Visitor): string => {
-    if (visitor.entry_date) {
-      return new Date(visitor.entry_date).toLocaleString();
-    }
-    return '___';
-  };
-
-  // Get check-out time
-  const getCheckOutTime = (visitor: Visitor): string => {
-    // Check exist_date for check-out time
-    if (visitor.exist_date) {
-      return new Date(visitor.exist_date).toLocaleString();
-    }
-    // If still inhouse, no check-out time
-    if (visitor.is_still_inhouse) {
-      return '-';
-    }
-    return '___';
-  };
-
-  // Get status display
-  const getStatusDisplay = (visitor: Visitor): { text: string; color: string } => {
-    if (visitor.is_still_inhouse) {
-      return { text: 'Inside', color: 'green' };
-    }
-    return { text: 'Checked Out', color: 'gray' };
-  };
-
-  // Handle PDF export
   const handleExportPDF = useCallback(() => {
     const doc = new jsPDF('l', 'mm', 'a4');
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 10;
-    let yPosition = 15;
-
-    // Logo
-    const logoWidth = 40;
-    const logoHeight = 40;
-    const logoX = (pageWidth - logoWidth) / 2;
-    
-    try {
-      doc.addImage('/LOGO_COK.png', 'PNG', logoX, yPosition, logoWidth, logoHeight);
-    } catch (e) {
-      console.log('Logo not found, continuing without logo');
-    }
-    yPosition += logoHeight + 8;
-
-    // Header
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text('REPUBLIC OF RWANDA', pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 7;
-
-    doc.setFontSize(12);
-    doc.text('CITY OF KIGALI', pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 12;
-
+    const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight();
+    let y = 15;
+    try { doc.addImage('/LOGO_COK.png', 'PNG', (pw - 40) / 2, y, 40, 40); y += 48; } catch (e) { }
+    doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.text('REPUBLIC OF RWANDA', pw / 2, y, { align: 'center' }); y += 7;
+    doc.setFontSize(12); doc.text('CITY OF KIGALI', pw / 2, y, { align: 'center' }); y += 12;
     const now = new Date();
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`${now.toLocaleDateString()}`, pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 5;
-    doc.text(`${now.toLocaleTimeString()}`, pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 12;
-
-    // Title
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 255);
-    doc.text('SERVICE DELIVERY VISITORS REPORT', pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 15;
-
-    // Table
+    doc.setFontSize(9); doc.text(now.toLocaleDateString(), pw / 2, y, { align: 'center' }); y += 5;
+    doc.text(now.toLocaleTimeString(), pw / 2, y, { align: 'center' }); y += 12;
+    doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 0, 255);
+    doc.text('SERVICE DELIVERY VISITORS REPORT', pw / 2, y, { align: 'center' }); y += 15;
     if (filteredVisitors.length > 0) {
-      const tableData = filteredVisitors.slice(0, 200).map(visitor => [
-        visitor.full_name || visitor.name || visitor.visitorName || '___',
-        getDepartmentName(visitor),
-        getAssignedStaff(visitor),
-        visitor.badge_number || '___',
-        getCheckInTime(visitor),
-        getCheckOutTime(visitor),
-        getStatusDisplay(visitor).text
-      ]);
-
-      const tableWidth = 280;
-      const tableStartX = (pageWidth - tableWidth) / 2;
-
-      autoTable(doc, {
-        startY: yPosition,
-        head: [['Visitor Name', 'Department', 'Assigned Staff', 'Badge No.', 'Check-in', 'Check-out', 'Status']],
-        body: tableData,
-        theme: 'grid',
-        headStyles: {
-          fillColor: [34, 139, 34],
-          textColor: [255, 255, 255],
-          fontSize: 9,
-          fontStyle: 'bold',
-          halign: 'center',
-          cellPadding: 4,
-          valign: 'middle'
-        },
-        bodyStyles: {
-          fontSize: 8,
-          cellPadding: 3,
-          valign: 'middle',
-          halign: 'center'
-        },
-        columnStyles: {
-          0: { cellWidth: 45, halign: 'left' },
-          1: { cellWidth: 40, halign: 'center' },
-          2: { cellWidth: 40, halign: 'center' },
-          3: { cellWidth: 30, halign: 'center' },
-          4: { cellWidth: 45, halign: 'center' },
-          5: { cellWidth: 45, halign: 'center' },
-          6: { cellWidth: 35, halign: 'center' }
-        },
-        margin: { left: tableStartX, right: tableStartX },
-        tableWidth: tableWidth,
-        didDrawPage: (data) => {
-          const footerY = pageHeight - 12;
-          doc.setDrawColor(200, 200, 200);
-          doc.setLineWidth(0.3);
-          doc.line(margin, footerY - 3, pageWidth - margin, footerY - 3);
-          
-          doc.setFontSize(7);
-          doc.setTextColor(128, 128, 128);
-          doc.text('City of Kigali - Service Delivery Management System', pageWidth / 2, footerY, { align: 'center' });
-          doc.text(`Report ID: SD-${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}`, pageWidth / 2, footerY + 4, { align: 'center' });
-          doc.text(`Page ${data.pageNumber}`, pageWidth - margin, footerY, { align: 'right' });
-        }
-      });
-    } else {
-      doc.setFontSize(11);
-      doc.setTextColor(100, 100, 100);
-      doc.text('No visitors found', pageWidth / 2, yPosition + 30, { align: 'center' });
+      const rows = filteredVisitors.slice(0, 200).map(v => [v.full_name || v.name || v.visitorName || '___', getDeptName(v), getStaff(v), v.badge_number || '___', v.entry_date ? new Date(v.entry_date).toLocaleString() : '___', v.exist_date ? new Date(v.exist_date).toLocaleString() : '___', getStatus(v).text]);
+      autoTable(doc, { startY: y, head: [['Visitor Name', 'Department', 'Staff', 'Badge', 'Check-in', 'Check-out', 'Status']], body: rows, theme: 'grid', headStyles: { fillColor: [34, 139, 34], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold', halign: 'center' }, bodyStyles: { fontSize: 8, halign: 'center' }, margin: { left: (pw - 280) / 2, right: (pw - 280) / 2 }, tableWidth: 280 });
     }
-
     doc.save(`Service_Delivery_Visitors_${now.toISOString().split('T')[0]}.pdf`);
   }, [filteredVisitors]);
 
-  // Loading state
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[600px]">
-        <LoadingSpinner message="Loading..." />
-      </div>
-    );
-  }
+  if (authLoading) return <div className="flex items-center justify-center min-h-[600px]"><LoadingSpinner message="Loading..." /></div>;
 
   return (
     <MainLayout>
-      <div className="space-y-6">
-        {/* Header */}
+      <div className="space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 flex items-center gap-3">
-              <HiOutlineClipboardList className="w-6 h-6 text-green-600" />
-             Manage and monitor visitor services
-            </h1>
-          </div>
+          <div><h1 className="text-sm font-bold text-gray-900 flex items-center gap-2"><HiOutlineClipboardList className="w-5 h-5 text-blue-600" />Manage and monitor visitor services</h1></div>
           <div className="flex gap-2">
-            <button 
-              onClick={fetchDashboardData}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              <FiRefreshCw className="w-4 h-4" />
-              Refresh
-            </button>
-            <button 
-              onClick={handleExportPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              <FiDownload className="w-4 h-4" />
-              Export PDF
-            </button>
+            <button onClick={fetchData} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"><FiRefreshCw className="w-3.5 h-3.5" />Refresh</button>
+            <button onClick={handleExportPDF} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200"><FiDownload className="w-3.5 h-3.5" />Export PDF</button>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total Visitors */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Total Visitors</p>
-                {(loading && firstLoad )? (
-                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
-                ) : (
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
-                )}
-              </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <FiUsers className="w-6 h-6 text-blue-600" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { label: 'Total Visitors', value: stats.total, icon: FiUsers, color: 'text-blue-600', bg: 'bg-blue-100' },
+            { label: 'Currently Inside', value: stats.inhouse, icon: FiUserPlus, color: 'text-green-600', bg: 'bg-green-100' },
+            { label: 'Completed', value: stats.completed, icon: FiCheckCircle, color: 'text-purple-600', bg: 'bg-purple-100' },
+            { label: 'Departments', value: departmentCount, icon: FiClock, color: 'text-orange-600', bg: 'bg-orange-100' },
+          ].map((s, i) => (
+            <div key={i} className="bg-white border border-gray-200 p-4">
+              <div className="flex items-center justify-between">
+                <div><p className="text-xs text-gray-500">{s.label}</p>{loading && firstLoad ? <div className="h-7 w-14 bg-gray-200 animate-pulse mt-1" /> : <p className="text-xl font-bold text-gray-900 mt-0.5">{s.value}</p>}</div>
+                <div className={`w-10 h-10 ${s.bg} flex items-center justify-center`}><s.icon className={`w-5 h-5 ${s.color}`} /></div>
               </div>
             </div>
-          </div>
-
-          {/* Currently Inside */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Currently Inside</p>
-                {(loading && firstLoad) ? (
-                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
-                ) : (
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{stats.inhouse}</p>
-                )}
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <FiUserPlus className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </div>
-
-          {/* Completed */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Completed</p>
-                {(loading && firstLoad )? (
-                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
-                ) : (
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{stats.completed}</p>
-                )}
-              </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                <FiCheckCircle className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </div>
-
-          {/* Departments */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Departments</p>
-                {(loading && firstLoad) ? (
-                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
-                ) : (
-                  <p className="text-2xl font-bold text-gray-900 mt-1">
-                    {departmentCount}
-                  </p>
-                )}
-              </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-                <FiClock className="w-6 h-6 text-orange-600" />
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
-        {/* Hourly Activity Chart */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Today's Visitor Activity</h2>
-            <span className="text-sm text-gray-500">Hourly check-ins</span>
-          </div>
-          
-          {(loading && firstLoad) ? (
-            <div className="h-64 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-green-500 border-t-transparent"></div>
-            </div>
-          ) : (
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={hourlyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorVisitors" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                  <XAxis
-                    dataKey="hour"
-                    tickFormatter={(value: number) => `${value.toString().padStart(2, '0')}:00`}
-                    stroke="#9ca3af"
-                    tick={{ fontSize: 12 }}
-                    label={{
-                      value: 'Hour of Day',
-                      position: 'insideBottom',
-                      offset:0,
-                      style: { fill: '#6b7280', fontSize: 11, fontWeight: 500 }
-                    }}
-                  />
-                  <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }}
-                   label={{ 
-                    value: 'Number of Visitors', 
-                    angle: -90, 
-                    position: 'insideLeft',
-                    style: { fill: '#6b7280', fontSize: 12, fontWeight: 500, textAnchor: 'middle' },
-                    offset: 20
-            }}
-                  />
-                  <Tooltip 
-                    formatter={(value: any) => [value || 0, 'Visitors']}
-                    labelFormatter={(label) => `${label}:00`}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="visitors_checked_in" 
-                    stroke="#10b981" 
-                    strokeWidth={2}
-                    fillOpacity={1} 
-                    fill="url(#colorVisitors)" 
-                    name="Visitors"
-                    dot={false}
-                    activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          )}
+        <div className="bg-white border border-gray-200 p-4">
+          <h2 className="text-sm font-semibold text-gray-900 mb-3">Today's Visitor Activity</h2>
+          {loading && firstLoad ? <div className="h-48 flex items-center justify-center"><div className="h-6 w-6 " /> <FiLoader className='animate-spin h-6 w-6 text-blue-600' /> </div>
+            : <div className="h-48"><ResponsiveContainer width="100%" height="100%"><AreaChart data={hourlyData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="hour" tickFormatter={(v: number) => `${v}:00`} tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Area type="monotone" dataKey="visitors_checked_in" stroke="#10b981" fill="rgba(16,185,129,0.1)" name="Visitors" /></AreaChart></ResponsiveContainer></div>}
         </div>
 
-        {/* Current Visitors Table */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Current Visitors</h2>
-            <button 
-              onClick={handleExportPDF}
-              className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
-            >
-              <FiDownload className="w-4 h-4" />
-              Export PDF
-            </button>
+        <div className="bg-white border border-gray-200 overflow-hidden">
+          <div className="px-4 py-3  flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-900">Current Visitors</h2>
+            <button onClick={handleExportPDF} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium hover:bg-blue-700"><FiDownload className="w-3 h-3" />Export PDF</button>
           </div>
-          
-          {/* Filters */}
-          <div className="px-5 py-3 bg-gray-50 flex flex-wrap gap-4 items-center">
-            <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search by name or phone..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                />
-              </div>
-            </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-            >
-              <option value="all">All Status</option>
-              <option value="inside">Inside</option>
-              <option value="left">Checked Out</option>
-            </select>
+          <div className="px-4 py-2 bg-gray-50 flex flex-wrap gap-3 items-center">
+            <div className="flex-1 min-w-[200px] relative"><FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" /><input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-8 pr-3 py-1.5 border border-gray-300 text-sm" /></div>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-1.5 border border-gray-300 text-sm"><option value="all">All</option><option value="inside">Inside</option><option value="left">Checked Out</option></select>
           </div>
-
-          {/* Table */}
-          <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 sticky top-0 z-10">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Visitor Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Department</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Assigned Staff</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Badge No.</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Check-in</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Check-out</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {loading ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-green-500 border-t-transparent mx-auto"></div>
-                    </td>
-                  </tr>
-                ) : filteredVisitors.length > 0 ? (
-                  filteredVisitors.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((visitor, index) => {
-                    const statusDisplay = getStatusDisplay(visitor);
-                    return (
-                      <tr key={visitor._id || index} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">
-                          <span className="font-medium text-gray-900">
-                            {visitor.full_name || visitor.name || visitor.visitorName || '___'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {getDepartmentName(visitor)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={getAssignedStaff(visitor).includes('Not') ? 'text-orange-500' : 'text-gray-600'}>
-                            {getAssignedStaff(visitor)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {visitor.badge_number || '___'}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {getCheckInTime(visitor)}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {getCheckOutTime(visitor)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            statusDisplay.color === 'green'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {statusDisplay.text}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                      No visitors found
-                    </td>
-                  </tr>
-                )}
+          <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+            <table className="w-full"><thead className="bg-blue-600 sticky top-0 z-10"><tr>{['Visitor Name', 'Department', 'Staff', 'Badge', 'Check-in', 'Check-out', 'Status'].map(h => <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-white/95 uppercase">{h}</th>)}</tr></thead>
+              <tbody className="divide-y">{loading ? <tr><td colSpan={7} className="px-3 py-6 text-center"><div className="h-6 w-6 mx-auto" >< FiLoader className='animate-spin h-6 w-6 text-blue-600' /> </div></td></tr>
+                : filteredVisitors.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((v, i) => { const st = getStatus(v); return <tr key={v._id || i} className="hover:bg-gray-50"><td className="px-3 py-2.5 text-sm font-medium text-gray-900">{v.full_name || v.name || v.visitorName || '___'}</td><td className="px-3 py-2.5 text-xs text-gray-600">{getDeptName(v)}</td><td className="px-3 py-2.5 text-xs"><span className={getStaff(v).includes('Not') ? 'text-orange-500' : 'text-gray-600'}>{getStaff(v)}</span></td><td className="px-3 py-2.5 text-xs text-gray-600">{v.badge_number || '___'}</td><td className="px-3 py-2.5 text-xs text-gray-600">{v.entry_date ? new Date(v.entry_date).toLocaleString() : '___'}</td><td className="px-3 py-2.5 text-xs text-gray-600">{v.exist_date ? new Date(v.exist_date).toLocaleString() : (v.is_still_inhouse ? '-' : '___')}</td><td className="px-3 py-2.5"><span className={`text-xs px-2 py-0.5 font-medium ${st.color === 'green' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{st.text}</span></td></tr>; })}
               </tbody>
             </table>
           </div>
-
-          {/* Pagination */}
-          {filteredVisitors.length > 0 && (
-            <div className="px-5 py-4 border-t border-gray-100 flex items-center justify-between">
-              <div className="text-sm text-gray-500">
-                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredVisitors.length)} of {filteredVisitors.length} entries
-              </div>
-              <div className="flex gap-1">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                >
-                  Previous
-                </button>
-                {Array.from({ length: Math.ceil(filteredVisitors.length / itemsPerPage) }, (_, i) => i + 1).slice(
-                  Math.max(0, currentPage - 3),
-                  Math.min(Math.ceil(filteredVisitors.length / itemsPerPage), currentPage + 2)
-                ).map(page => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`px-3 py-1 border rounded-lg text-sm ${
-                      currentPage === page
-                        ? 'bg-green-600 text-white border-green-600'
-                        : 'border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredVisitors.length / itemsPerPage), p + 1))}
-                  disabled={currentPage >= Math.ceil(filteredVisitors.length / itemsPerPage)}
-                  className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
+          {filteredVisitors.length > 0 && <div className="px-4 py-3 border-t flex items-center justify-between text-xs"><span>Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredVisitors.length)} of {filteredVisitors.length}</span><div className="flex gap-1">{Array.from({ length: Math.ceil(filteredVisitors.length / itemsPerPage) }, (_, i) => i + 1).slice(Math.max(0, currentPage - 3), Math.min(Math.ceil(filteredVisitors.length / itemsPerPage), currentPage + 2)).map(p => <button key={p} onClick={() => setCurrentPage(p)} className={`px-2.5 py-1 border text-xs ${currentPage === p ? 'bg-blue-600 text-white border-green-600' : 'border-gray-300 hover:bg-gray-50'}`}>{p}</button>)}</div></div>}
         </div>
       </div>
     </MainLayout>

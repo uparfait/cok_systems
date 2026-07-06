@@ -160,11 +160,11 @@ const QueueStatusModal: React.FC<QueueStatusModalProps> = ({
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">POS</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">VISITOR NAME</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">SERVICE TYPE</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">WAIT TIME</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">STATUS</th>
+                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider px-4 py-3">POS</th>
+                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider px-4 py-3">VISITOR NAME</th>
+                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider px-4 py-3">SERVICE TYPE</th>
+                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider px-4 py-3">WAIT TIME</th>
+                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider px-4 py-3">STATUS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">

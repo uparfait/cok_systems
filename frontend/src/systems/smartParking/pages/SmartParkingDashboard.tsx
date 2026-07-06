@@ -106,7 +106,9 @@ const SmartParkingDashboard: React.FC = () => {
      visitorReservedSlots: 0,
      regularAvailable: 0,
      regularReserved: 0,
-     regularTotal: 0
+     regularTotal: 0,
+     visitorAvailableSlots: 0,
+      staffAvailableSlots: 0
    });
 
   // Flagged vehicles
@@ -189,7 +191,9 @@ const SmartParkingDashboard: React.FC = () => {
            visitorReservedSlots: visitorReservedSlots,
            regularAvailable: regularAvailableSlots,
            regularReserved: slotsData?.RegularReservedSlots || 0,
-           regularTotal: regularTotal
+           regularTotal: regularTotal,
+            visitorAvailableSlots: slotsData?.visitorsAvailableSlots || 0,
+            staffAvailableSlots: slotsData?.staffAvailableSlots || 0
          }));
          setStatsLoading(false);
        }
@@ -533,7 +537,7 @@ const SmartParkingDashboard: React.FC = () => {
                   <h3 className="text-3xl font-bold text-emerald-700">{stats.regularAvailable}</h3>
                 )}
                 <p className="text-gray-600 text-xs mt-2 flex items-center gap-1">
-                  <FiMapPin className="w-3 h-3" /> {stats.regularAvailable}/{stats.regularTotal} allocated
+                  <FiMapPin className="w-3 h-3" /> {stats.regularTotal} allocated
                 </p>
               </div>
               <div className="p-3 bg-white/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
@@ -551,11 +555,11 @@ const SmartParkingDashboard: React.FC = () => {
 {statsLoading ? (
                    <div className="h-9 w-16 bg-purple-200/50 rounded animate-pulse mt-1"></div>
                  ) : (
-                   <h3 className="text-3xl font-bold text-purple-700">{stats.staffReserved}</h3>
+                   <h3 className="text-3xl font-bold text-purple-700">{stats.staffAvailableSlots}</h3>
                  )}
                  <p className="text-gray-700 text-xs mt-2 flex items-center gap-1">
                     <FiUsers className="w-3 h-3" />
-                    {stats.staffReserved}/{stats.staffReservedSlots} allocated
+                    {stats.staffReservedSlots} allocated
                   </p>
                </div>
               <div className="p-3 bg-white/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
@@ -572,11 +576,11 @@ const SmartParkingDashboard: React.FC = () => {
 {statsLoading ? (
                    <div className="h-9 w-16 bg-amber-200/50 rounded animate-pulse mt-1"></div>
                  ) : (
-                   <h3 className="text-3xl font-bold text-amber-700">{stats.visitorReserved}</h3>
+                   <h3 className="text-3xl font-bold text-amber-700">{stats.visitorAvailableSlots}</h3>
                  )}
                   <p className="text-gray-700 text-xs mt-2 flex items-center gap-1">
                     <FiTrendingUp className="w-3 h-3" />
-                    {stats.visitorReserved}/{stats.visitorReservedSlots} allocated
+                    {stats.visitorReservedSlots} allocated
                   </p>
                </div>
               <div className="p-3 bg-white/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">

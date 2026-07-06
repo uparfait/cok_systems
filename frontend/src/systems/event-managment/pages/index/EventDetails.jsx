@@ -58,7 +58,6 @@ export default function EventDetails() {
   const [showCopiedPopup, setShowCopiedPopup] = useState(false);
   const [attendeeCount, setAttendeeCount] = useState(0);
 
-
   // Compute the effectively loaded event metadata targeting layout details safely
   const activeEvent = contextActiveEvent || localEvent;
 

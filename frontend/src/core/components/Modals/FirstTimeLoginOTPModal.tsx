@@ -1,5 +1,3 @@
-// FirstTimeLoginOTPModal - First-time login OTP verification modal
-// Modal for users logging in for the first time using OTP
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -388,7 +386,7 @@ const logoImage = '/LOGO_COK.png';
 
               {/* Secure portal footer - left aligned */}
               <p className="text-left text-xs text-gray-400 mt-8">
-                © SECURE OFFICIAL CITY OF KIGALI PORTAL
+                © CITY OF KIGALI PORTAL
               </p>
             </>
           )}
