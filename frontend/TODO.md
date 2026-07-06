@@ -1,6 +1,6 @@
 # TODO - Completed: Improve Add Card/Form Layout.
 
-## ✅ Completed Tasks
+##  Completed Tasks
 
 ### Phase 1: Create Reusable Components
 - [x] AddCard component - Visually appealing card to trigger add forms
@@ -31,4 +31,4 @@
 
 ---
 
-## Status: ✅ COMPLETED
+## Status: COMPLETED
