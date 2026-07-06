@@ -331,9 +331,9 @@ if (isEventNotFound || (!isEventLoading && !activeEvent)) {
                   className="flex-1 flex items-center justify-between px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white transition-colors duration-200 group rounded-none"
                 >
                   <div className="flex items-center gap-2.5">
-                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 100 0V4.354zM12 4.354v1.292m0 0l-2-2m2 2 2-2m-2 2v10m-6 0h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                    </svg>
+<svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14v7m-3 0h6" />
+                     </svg>
                     <span className="text-sm font-semibold tracking-wide">Designate</span>
                   </div>
                   <svg className="w-4 h-4 text-emerald-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
