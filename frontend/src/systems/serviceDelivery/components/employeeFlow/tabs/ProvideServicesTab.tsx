@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSearch, FiClock, FiCheckCircle, FiRefreshCw, FiArrowRightCircle } from "react-icons/fi";
+import { FiSearch, FiClock, FiCheckCircle, FiRefreshCw, FiArrowRightCircle, FiLoader } from "react-icons/fi";
 import { useAuth } from "../../../../../core/contexts/AuthContext";
 import { serviceDeliveryService, departmentService, employeeService } from "../../../../../core/services/adminService";
 import { useToast } from "../../../../../core/contexts/ToastContext";
@@ -219,18 +219,18 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
       <div className="bg-white p-4 mt-4 shadow-sm overflow-x-auto">
         <table className="w-full min-w-[800px]">
           <thead>
-            <tr className="bg-blue-50 border-b border-gray-200">
-              <th className="text-left text-xs font-semibold text-gray-700 uppercase px-3 py-2.5 w-[5%]">#</th>
-              <th className="text-left text-xs font-semibold text-gray-700 uppercase px-3 py-2.5 w-[15%]">VISITOR / BADGE</th>
-              <th className="text-left text-xs font-semibold text-gray-700 uppercase px-3 py-2.5 w-[12%]">VISITOR ID</th>
-              <th className="text-left py-2.5 px-2 text-gray-600 text-xs uppercase tracking-wider font-medium w-[15%]">DURATIONS</th>
-              <th className="text-left py-2.5 px-2 text-gray-600 text-xs uppercase tracking-wider font-medium w-[15%]">STATUS</th>
-              <th className="text-left py-2.5 px-2 text-gray-600 text-xs uppercase tracking-wider font-medium w-[10%]">ACTION</th>
+            <tr className="bg-blue-600 border-b border-gray-200">
+              <th className="text-left text-xs font-semibold text-white uppercase px-3 py-2.5 w-[5%]">NAME / TEL</th>
+              <th className="text-left text-xs font-semibold text-white uppercase px-3 py-2.5 w-[15%]">BADGE / ID</th>
+              <th className="text-left text-xs font-semibold text-white uppercase px-3 py-2.5 w-[12%]">SERVICE</th>
+              <th className="text-left py-2.5 px-2 text-white text-xs uppercase tracking-wider font-medium w-[15%]">DURATIONS</th>
+              <th className="text-left py-2.5 px-2 text-white text-xs uppercase tracking-wider font-medium w-[15%]">STATUS</th>
+              <th className="text-left py-2.5 px-2 text-white text-xs uppercase tracking-wider font-medium w-[10%]">ACTION</th>
             </tr>
           </thead>
           <tbody>
             {loading && requests.length === 0 ? (
-              <tr><td colSpan={6} className="py-8 text-center text-gray-500"><div className="flex items-center justify-center p-8"><div className="animate-spin h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div><p className="text-xs text-gray-600">Loading...</p></div></td></tr>
+              <tr><td colSpan={6} className="py-8 text-center text-gray-500"><div className="flex items-center justify-center p-8"><div className="h-6 w-6   mx-auto"> <FiLoader className="animate-spin h-6 w-6 text-blue-600" /> </div></div></td></tr>
             ) : paginatedRequests.length > 0 ? (
               paginatedRequests.map((request) => (
                 <tr title="Click to view visitor details" key={request.id} className="border-b border-gray-100 h-12 cursor-pointer hover:bg-gray-50" onClick={() => handleVisitorClick(request)}>

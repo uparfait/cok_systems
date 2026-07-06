@@ -1,8 +1,4 @@
-/**
- * Trello-Like Task Manager Component
- * Features: Drag-drop, kanban board, persistent modal, real-time updates
- * UPDATED: Allow backward movement in any direction
- */
+
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import type { Task, List as ListType, Board } from '../../core/services/taskService'
@@ -19,6 +15,7 @@ import TaskCard from './components/TaskCard'
 import TaskDetailModal from './components/TaskDetailModal'
 import CreateTaskModal from './components/CreateTaskModal'
 import './TaskManager.css'
+import { FiLoader } from 'react-icons/fi'
 
 interface TaskColumn {
   id: string
@@ -331,7 +328,9 @@ const TaskManager: React.FC = () => {
                 {loading.tasks && firstLoad ? (
                   <div className="flex justify-center items-center py-12">
                     <div className="relative">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400"></div>
+                      <div className="rounded-full h-8 w-8">
+                        <FiLoader className="animate-spin text-blue-500" size={32} />
+                      </div>
                     </div>
                   </div>
                 ) : column.tasks.length === 0 ? (
