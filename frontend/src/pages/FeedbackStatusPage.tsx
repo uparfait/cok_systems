@@ -80,7 +80,7 @@ const FeedbackStatusPage: React.FC = () => {
         await loadFeedback(phone.trim());
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Phone number not found in service records';
+      const message = error instanceof Error ? error.message : 'No service records found for this number';
       setErrorMessage(message);
       setDepartments([]);
       setFeedback([]);
