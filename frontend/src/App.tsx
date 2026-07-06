@@ -282,8 +282,9 @@ const App: React.FC = () => {
           <Route path="/event-manager/events/new/event" element={< CreateEvent eventMeetingType="event" /> } />
           <Route path="/event-manager/events/new/meet" element={< CreateEvent eventMeetingType="meet" /> } />
           <Route path="/event-manager/events/:eventId/edit" element={< CreateEvent eventMeetingType={undefined} /> } />
-          <Route path="/event-manager/events/:eventId/details" element={<ViewEventDetailsDashboard />} />
-          <Route path="/event-manager/events/actions" element={<EventActions />} />
+<Route path="/event-manager/events/:eventId/details" element={<ViewEventDetailsDashboard />} />
+           <Route path="/event-manager/events/:eventId/designate" element={<DesignateMinutes />} />
+           <Route path="/event-manager/events/actions" element={<EventActions />} />
           <Route path="/event-manager/events/:eventId/invite" element={<InvitePage />} />
 
           {/* Booking Requests Routes */}
