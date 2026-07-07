@@ -46,10 +46,13 @@ class MonitorEvents {
       if (nextOccurrence) {
         const { start, end } = nextOccurrence;
 
-        // Check if this occurrence already exists in UpcomingEvents
+        // Check if this occurrence already exists in UpcomingEvents.
+        // Generated instances use eventSpecialId = `${parent}_${start.getTime()}`,
+        // so we must match the exact generated id — not the parent id — or the
+        // monitor would re-insert it every cycle and hit a duplicate-key error.
+        const generatedEventSpecialId = `${recurring.eventSpecialId}_${start.getTime()}`;
         const existingUpcoming = await UpcomingEvent.findOne({
-          eventSpecialId: recurring.eventSpecialId,
-          willStartAt: start
+          eventSpecialId: generatedEventSpecialId
         }).session(session);
 
         console.log(existingUpcoming)
