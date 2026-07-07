@@ -85,17 +85,17 @@ app.use(UPLOAD_ROUT, express.static(path.join(__dirname, 'uploads')));
 
 // Serve SPA index.html for attendance form flow (root)
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "..", "index.html"));
+  res.sendFile(path.join(__dirname, "..", "frontend", "index.html"));
 });
 
 // Serve static files (for frontend SPA)
-app.use(express.static(path.join(__dirname, "..")));
+app.use(express.static(path.join(__dirname, "..", "frontend")));
 
 // 404 handler for API routes
 app.use((req, res) => {
   // If the request accepts HTML, serve the SPA
   if (req.accepts("html")) {
-    return res.sendFile(path.join(__dirname, "..", "index.html"));
+    return res.sendFile(path.join(__dirname, "..", "frontend", "index.html"));
   }
   res.status(404).json({ error: "Route not found" });
 });
