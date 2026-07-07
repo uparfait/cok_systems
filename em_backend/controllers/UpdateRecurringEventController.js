@@ -39,15 +39,15 @@ class UpdateRecurringEventController {
 
       // Check room availability if room changed
       if (sanitizedData.eventRoom && sanitizedData.eventRoom !== existingEvent.eventRoom) {
-        const availability = await CheckRoomAvailability.execute(
+        const recurringConfig = sanitizedData.eventRecurring || existingEvent.eventRecurring;
+        const availability = await CheckRoomAvailability.executeRecurring(
           sanitizedData.eventRoom,
-          sanitizedData.eventStartDate || existingEvent.eventStartDate,
-          sanitizedData.eventEndDate || existingEvent.eventEndDate,
-          existingEvent.eventSpecialId  // exclude self by eventSpecialId string
+          recurringConfig,
+          existingEvent.eventSpecialId  // exclude self and its generated instances
         );
 
         if (!availability.available) {
-          throw new Error('Selected room is already reserved during the requested time');
+          throw new Error(`Selected room is already reserved during the requested time by a ${availability.conflict} event (${availability.details.eventName})`);
         }
       }
 

@@ -28,6 +28,18 @@ export default function EventRoomSelector({ eventMode, formData, onChange, recur
     return startTime && endTime;
   };
 
+  // For recurring events we must wait until the schedule is fully specified,
+  // otherwise the backend generates zero occurrence dates and reports every
+  // room as unavailable (false positive) or runs an incomplete check.
+  const canCheckAvailability = () => {
+    if (!hasDates()) return false;
+    if (eventMode !== 'recurring') return true;
+    if (!formData.eventStartTime || !formData.eventEndTime || !recurringType) return false;
+    if (recurringType === 'Weekly' && (!formData.weeklyDays || formData.weeklyDays.length === 0)) return false;
+    if (recurringType === 'Monthly' && (monthlyPattern === 'specific' || monthlyPattern === 'mixed') && !(formData.monthlyDates && formData.monthlyDates.trim())) return false;
+    return true;
+  };
+
   const fetchAvailableRooms = async () => {
     const { startTime, endTime } = getStartEnd();
     if (!startTime || !endTime) return;
@@ -55,7 +67,7 @@ export default function EventRoomSelector({ eventMode, formData, onChange, recur
           // Default: use current day of week if no days selected yet
           params.weeklyDays = String(new Date().getDay());
         }
-        if (formData.monthlyDates && monthlyPattern === 'specific') {
+        if (formData.monthlyDates && (monthlyPattern === 'specific' || monthlyPattern === 'mixed')) {
           params.monthlyDates = formData.monthlyDates;
         }
       }
@@ -73,7 +85,14 @@ export default function EventRoomSelector({ eventMode, formData, onChange, recur
   };
 
   useEffect(() => {
-    if (hasDates()) fetchAvailableRooms();
+    if (canCheckAvailability()) fetchAvailableRooms();
+    else {
+      // Reset stale results so the UI doesn't show availability for an incomplete schedule
+      setAvailableRooms([]);
+      setUnavailableRooms([]);
+      setSearched(false);
+      setError(null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     formData.startedAt,

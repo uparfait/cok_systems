@@ -230,9 +230,9 @@ class EventService {
         break;
 
       case 'Monthly':
-        if (monthlyPattern === 'specific') {
+        if (monthlyPattern === 'specific' || monthlyPattern === 'mixed') {
           if (!monthlyDates || monthlyDates.length === 0) {
-            throw new Error('Monthly recurring events with specific pattern must specify dates');
+            throw new Error('Monthly recurring events with specific/mixed pattern must specify dates');
           }
           if (!monthlyDates.every(date => date >= 1 && date <= 31)) {
             throw new Error('Monthly dates must be between 1 and 31');

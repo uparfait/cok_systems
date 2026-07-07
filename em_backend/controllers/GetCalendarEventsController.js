@@ -63,15 +63,22 @@ function expandEventToDays(event, status, eventStart, eventEnd, monthStart, mont
 }
 
 function getRecurringOccurrences(event, monthStart, monthEnd) {
+  if (!event.eventRecurring) return [];
   const { recurringType, weeklyDays, monthlyDates, monthlyPattern, eventStartTime, eventEndTime } = event.eventRecurring;
+  if (!eventStartTime || !eventEndTime) return [];
 
   const occurrences = [];
   const [startHour, startMin] = eventStartTime.split(':').map(Number);
   const [endHour, endMin] = eventEndTime.split(':').map(Number);
 
-  const overallStart = new Date(Math.max(new Date(event.eventStartDate).getTime(), monthStart.getTime()));
+  // RecurringEvent has NO top-level eventStartDate field — the schedule effectively
+  // starts when the event was created (fall back to "now"). Using a missing field
+  // produced an Invalid Date and silently yielded zero occurrences.
+  const startSource = event.eventStartDate || event.createdAt || new Date();
+  const overallStart = new Date(Math.max(new Date(startSource).getTime(), monthStart.getTime()));
   overallStart.setHours(0, 0, 0, 0);
-  const overallEnd = new Date(Math.min(new Date(event.eventRecurring.recurringEndDate).getTime(), monthEnd.getTime()));
+  const recurringEnd = event.eventRecurring.recurringEndDate ? new Date(event.eventRecurring.recurringEndDate) : null;
+  const overallEnd = new Date(Math.min(recurringEnd ? recurringEnd.getTime() : monthEnd.getTime(), monthEnd.getTime()));
   overallEnd.setHours(23, 59, 59, 999);
 
   const current = new Date(overallStart);
@@ -166,7 +173,7 @@ class GetCalendarEventsController {
         const occurrences = getRecurringOccurrences(event, monthStart, monthEnd);
         for (const occ of occurrences) {
           events.push({
-            ...transformEvent(event, 'upcoming', occ.startTime, occ.endTime),
+            ...transformEvent(event, 'recurring', occ.startTime, occ.endTime),
             occurrenceDate: occ.date
           });
         }
