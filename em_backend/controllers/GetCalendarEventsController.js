@@ -62,6 +62,12 @@ function expandEventToDays(event, status, eventStart, eventEnd, monthStart, mont
   return results;
 }
 
+function localDateKey(date) {
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return null;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function getRecurringOccurrences(event, monthStart, monthEnd) {
   if (!event.eventRecurring) return [];
   const { recurringType, weeklyDays, monthlyDates, monthlyPattern, eventStartTime, eventEndTime } = event.eventRecurring;
@@ -170,8 +176,24 @@ class GetCalendarEventsController {
       }
 
       for (const event of recurringEvents) {
+        // MonitorEvents already generates concrete UpcomingEvent/LiveEvent instances
+        // for each future occurrence (eventSpecialId = "<parent>_<timestamp>"). Skip any
+        // expanded recurring occurrence whose day is already represented by one of those
+        // generated instances, otherwise the same event would appear twice on the calendar.
+        const [genUpcoming, genLive] = await Promise.all([
+          UpcomingEvent.find({ eventSpecialId: { $regex: `^${event.eventSpecialId}_` } }).lean(),
+          LiveEvent.find({ eventSpecialId: { $regex: `^${event.eventSpecialId}_` } }).lean(),
+        ]);
+        const coveredDates = new Set();
+        for (const g of [...genUpcoming, ...genLive]) {
+          const start = g.willStartAt || g.startedAt;
+          const key = localDateKey(start);
+          if (key) coveredDates.add(key);
+        }
+
         const occurrences = getRecurringOccurrences(event, monthStart, monthEnd);
         for (const occ of occurrences) {
+          if (coveredDates.has(localDateKey(occ.date))) continue;
           events.push({
             ...transformEvent(event, 'recurring', occ.startTime, occ.endTime),
             occurrenceDate: occ.date
