@@ -41,28 +41,33 @@ class ChangeEventRoomController {
       }
 
       // Get event's time window and eventSpecialId for exclusion
-      let startTime, endTime;
+      let availability;
       if (eventType === 'live') {
-        startTime = event.startedAt;
-        endTime = event.willEndAt;
+        availability = await CheckRoomAvailability.execute(
+          newRoom,
+          event.startedAt,
+          event.willEndAt,
+          event.eventSpecialId
+        );
       } else if (eventType === 'upcoming') {
-        startTime = event.willStartAt;
-        endTime = event.willEndAt;
+        availability = await CheckRoomAvailability.execute(
+          newRoom,
+          event.willStartAt,
+          event.willEndAt,
+          event.eventSpecialId
+        );
       } else {
-        startTime = event.eventStartDate;
-        endTime = event.eventEndDate;
+        // Recurring event: use the recurrence-aware check (avoids false positives
+        // against live/upcoming events that fall on non-occurrence days).
+        availability = await CheckRoomAvailability.executeRecurring(
+          newRoom,
+          event.eventRecurring,
+          event.eventSpecialId
+        );
       }
 
-      // Check availability in new room (exclude self by eventSpecialId)
-      const availability = await CheckRoomAvailability.execute(
-        newRoom,
-        startTime,
-        endTime,
-        event.eventSpecialId
-      );
-
       if (!availability.available) {
-        throw new Error('New room is already reserved during the event time');
+        throw new Error(`New room is already reserved during the event time by a ${availability.conflict} event (${availability.details.eventName})`);
       }
 
       // Update room

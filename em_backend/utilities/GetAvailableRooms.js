@@ -96,8 +96,107 @@ class GetAvailableRooms {
     return { availableRooms, unavailableRooms };
   }
 
+  /**
+   * Returns true when two absolute time ranges overlap (touching edges do not count as overlap).
+   */
+  static _rangesOverlap(aStart, aEnd, bStart, bEnd) {
+    const as = new Date(aStart).getTime();
+    const ae = new Date(aEnd).getTime();
+    const bs = new Date(bStart).getTime();
+    const be = new Date(bEnd).getTime();
+    return as < be && ae > bs;
+  }
+
+  /**
+   * Fetch every conflicting event for a room across the ENTIRE requested window exactly once.
+   * Returns in-memory arrays so per-occurrence checks can run without extra DB round-trips.
+   * Completed (Past) events are intentionally excluded because they no longer occupy the room.
+   */
+  static async _fetchRoomEvents(roomName, start, end, excludeEventId = null, excludeRecurringPrefix = null) {
+    const excludeFilter = excludeEventId
+      ? { eventSpecialId: { $ne: excludeEventId } }
+      : {};
+
+    let recurringQuery = {
+      eventRoom: roomName,
+      'eventRecurring.recurringEndDate': { $gte: start },
+      'eventRecurring.isExpired': false,
+    };
+    // When editing a recurring event, exclude both the parent and all generated instances
+    // (generated instances use "<parentId>_<timestamp>" ids).
+    if (excludeRecurringPrefix) {
+      recurringQuery.eventSpecialId = { $not: { $regex: `^${excludeRecurringPrefix}` } };
+    } else if (excludeEventId) {
+      recurringQuery.eventSpecialId = { $ne: excludeEventId };
+    }
+
+    const [live, upcoming, recurring, booking] = await Promise.all([
+      LiveEvent.find({ eventRoom: roomName, ...excludeFilter, $or: [{ startedAt: { $lt: end }, willEndAt: { $gt: start } }] }).lean(),
+      UpcomingEvent.find({ eventRoom: roomName, ...excludeFilter, $or: [{ willStartAt: { $lt: end }, willEndAt: { $gt: start } }] }).lean(),
+      RecurringEvent.find(recurringQuery).lean(),
+      BookingRequest.find({
+        eventRoom: roomName,
+        status: { $in: ['Pending', 'Accepted'] },
+        $or: [{ startTime: { $lt: end }, endTime: { $gt: start } }],
+      }).lean(),
+    ]);
+
+    return { live, upcoming, recurring, booking };
+  }
+
+  /**
+   * Build conflict descriptors from in-memory event arrays for a single [start, end] window.
+   */
+  static _conflictsFromEvents(events, start, end) {
+    const conflicts = [];
+
+    for (const lc of events.live) {
+      if (this._rangesOverlap(lc.startedAt, lc.willEndAt, start, end)) {
+        conflicts.push({ type: 'LiveEvent', eventName: lc.eventName, eventSpecialId: lc.eventSpecialId, startTime: lc.startedAt, endTime: lc.willEndAt, organizer: lc.eventOrganizer?.fullNames || 'N/A' });
+      }
+    }
+
+    for (const uc of events.upcoming) {
+      if (this._rangesOverlap(uc.willStartAt, uc.willEndAt, start, end)) {
+        conflicts.push({ type: 'UpcomingEvent', eventName: uc.eventName, eventSpecialId: uc.eventSpecialId, startTime: uc.willStartAt, endTime: uc.willEndAt, organizer: uc.eventOrganizer?.fullNames || 'N/A' });
+      }
+    }
+
+    for (const re of events.recurring) {
+      if (recurrenceHelper.isRecurringOverlapping(re, start, end)) {
+        conflicts.push({
+          type: 'RecurringEvent',
+          eventName: re.eventName,
+          eventSpecialId: re.eventSpecialId,
+          startTime: re.eventRecurring.eventStartTime,
+          endTime: re.eventRecurring.eventEndTime,
+          recurringType: re.eventRecurring.recurringType,
+          organizer: re.eventOrganizer?.fullNames || 'N/A',
+          message: `Recurring "${re.eventName}" (${re.eventRecurring.recurringType}) overlaps.`,
+        });
+      }
+    }
+
+    for (const br of events.booking) {
+      if (this._rangesOverlap(br.startTime, br.endTime, start, end)) {
+        conflicts.push({
+          type: 'BookingRequest',
+          eventName: br.eventName,
+          eventSpecialId: br.trackingCode,
+          startTime: br.startTime,
+          endTime: br.endTime,
+          organizer: br.eventOrganizer?.fullNames || 'N/A',
+          message: `Booking request "${br.eventName}" (${br.status}) overlaps.`,
+        });
+      }
+    }
+
+    return conflicts;
+  }
+
   static async _checkSingleRoomAvailability(roomName, start, end, excludeEventId = null) {
-    const conflicts = await this._findConflicts(roomName, start, end, excludeEventId);
+    const events = await this._fetchRoomEvents(roomName, start, end, excludeEventId);
+    const conflicts = this._conflictsFromEvents(events, start, end);
 
     if (conflicts.length === 0) return { available: true };
 
@@ -109,53 +208,23 @@ class GetAvailableRooms {
     };
   }
 
-  static async _findConflicts(roomName, start, end, excludeEventId = null, excludeRecurringPrefix = null) {
-    const conflicts = [];
-
-    const excludeFilter = excludeEventId ? { eventSpecialId: { $ne: excludeEventId } } : {};
-
-    const combinedExclude = { ...excludeFilter };
-    if (excludeRecurringPrefix) {
-      combinedExclude.eventSpecialId = { ...combinedExclude.eventSpecialId, $not: { $regex: `^${excludeRecurringPrefix}` } };
-    }
-
-    const [liveConflicts, upcomingConflicts, recurringEvents, bookingRequestConflicts] = await Promise.all([
-      LiveEvent.find({ eventRoom: roomName, ...combinedExclude, $or: [{ startedAt: { $lt: end }, willEndAt: { $gt: start } }] }).lean(),
-      UpcomingEvent.find({ eventRoom: roomName, ...combinedExclude, $or: [{ willStartAt: { $lt: end }, willEndAt: { $gt: start } }] }).lean(),
-      RecurringEvent.find({ eventRoom: roomName, ...excludeFilter, 'eventRecurring.recurringEndDate': { $gte: start }, 'eventRecurring.isExpired': false }).lean(),
-      BookingRequest.find({
-        eventRoom: roomName,
-        status: { $in: ['Pending', 'Accepted'] },
-        $or: [{ startTime: { $lt: end }, endTime: { $gt: start } }],
-      }).lean(),
-    ]);
-
-    for (const lc of liveConflicts) {
-      conflicts.push({ type: 'LiveEvent', eventName: lc.eventName, eventSpecialId: lc.eventSpecialId, startTime: lc.startedAt, endTime: lc.willEndAt, organizer: lc.eventOrganizer?.fullNames || 'N/A' });
-    }
-
-    for (const uc of upcomingConflicts) {
-      conflicts.push({ type: 'UpcomingEvent', eventName: uc.eventName, eventSpecialId: uc.eventSpecialId, startTime: uc.willStartAt, endTime: uc.willEndAt, organizer: uc.eventOrganizer?.fullNames || 'N/A' });
-    }
-
-    for (const re of recurringEvents) {
-      if (recurrenceHelper.isRecurringOverlapping(re, start, end)) {
-        conflicts.push({ type: 'RecurringEvent', eventName: re.eventName, eventSpecialId: re.eventSpecialId, startTime: re.eventRecurring.eventStartTime, endTime: re.eventRecurring.eventEndTime, recurringType: re.eventRecurring.recurringType, organizer: re.eventOrganizer?.fullNames || 'N/A', message: `Recurring "${re.eventName}" (${re.eventRecurring.recurringType}) overlaps.` });
-      }
-    }
-
-    for (const br of bookingRequestConflicts) {
-      conflicts.push({ type: 'BookingRequest', eventName: br.eventName, eventSpecialId: br.trackingCode, startTime: br.startTime, endTime: br.endTime, organizer: br.eventOrganizer?.fullNames || 'N/A', message: `Booking request "${br.eventName}" (${br.status}) overlaps.` });
-    }
-
-    return conflicts;
-  }
-
   static async _checkRecurringRoomAvailability(roomName, eventStartDate, eventEndDate, recurringConfig, excludeEventId = null) {
     const { recurringType, weeklyDays, monthlyDates, monthlyPattern, eventStartTime, eventEndTime, recurringEndDate } = recurringConfig;
 
-    if (!eventStartTime || !eventEndTime) return this._invalidRecurringConfig('eventStartTime and eventEndTime');
-    if (!recurringEndDate) return this._invalidRecurringConfig('recurringEndDate');
+    if (!eventStartTime || !eventEndTime) throw new Error('eventStartTime and eventEndTime are required for recurring availability checks');
+    if (!recurringEndDate) throw new Error('recurringEndDate is required for recurring availability checks');
+
+    // Monthly patterns that depend on explicit dates must provide them. Without
+    // dates we would generate zero occurrences and falsely report every room as
+    // unavailable — fail loudly instead.
+    if (recurringType === 'Monthly' && (!monthlyPattern || monthlyPattern === 'specific' || monthlyPattern === 'mixed')) {
+      if (!Array.isArray(monthlyDates) || monthlyDates.length === 0) {
+        throw new Error(`monthlyDates is required for monthly pattern "${monthlyPattern || 'specific'}"`);
+      }
+    }
+    if (recurringType === 'Weekly' && (!Array.isArray(weeklyDays) || weeklyDays.length === 0)) {
+      throw new Error('weeklyDays is required for Weekly recurring availability checks');
+    }
 
     const [startHour, startMin] = eventStartTime.split(':').map(Number);
     const [endHour, endMin] = eventEndTime.split(':').map(Number);
@@ -164,7 +233,15 @@ class GetAvailableRooms {
 
     const occurrenceDates = recurrenceHelper.generateOccurrenceDates(eventStartDate, effectiveEnd, recurringType, weeklyDays, monthlyDates, monthlyPattern);
 
-    if (occurrenceDates.length === 0) return { available: false, message: 'No occurrence dates generated within the requested period.', conflicts: [], availableDates: [], unavailableDates: [] };
+    if (occurrenceDates.length === 0) throw new Error('No occurrence dates generated within the requested period. Please provide a complete recurring configuration.');
+
+    // Fetch the room's events ONCE for the whole effective window, then evaluate each
+    // occurrence in memory. This avoids firing DB queries for every single occurrence.
+    const windowStart = new Date(eventStartDate);
+    windowStart.setHours(0, 0, 0, 0);
+    const windowEnd = new Date(effectiveEnd);
+    windowEnd.setHours(23, 59, 59, 999);
+    const events = await this._fetchRoomEvents(roomName, windowStart, windowEnd, excludeEventId, excludeEventId || null);
 
     const availableDates = [];
     const unavailableDates = [];
@@ -180,7 +257,7 @@ class GetAvailableRooms {
         occEnd.setDate(occEnd.getDate() + 1);
       }
 
-      const dayConflicts = await this._findConflicts(roomName, occStart, occEnd, excludeEventId);
+      const dayConflicts = this._conflictsFromEvents(events, occStart, occEnd);
 
       if (dayConflicts.length === 0) {
         availableDates.push({ date: occDate, startTime: occStart.toISOString(), endTime: occEnd.toISOString() });
@@ -207,11 +284,8 @@ class GetAvailableRooms {
       message += ` Conflicts with: ${names.join(', ')}.`;
     }
 
-    return { available: availCount > 0, message, conflicts: allConflicts, availableDates, unavailableDates };
-  }
-
-  static _invalidRecurringConfig(fields) {
-    return { available: false, message: `Recurring configuration must include ${fields}.`, conflicts: [], availableDates: [], unavailableDates: [] };
+    // A recurring schedule can only be hosted if EVERY occurrence is free.
+    return { available: unavailableDates.length === 0, message, conflicts: allConflicts, availableDates, unavailableDates };
   }
 
   static _formatRoom(room) {
