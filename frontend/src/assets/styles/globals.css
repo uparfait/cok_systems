@@ -199,7 +199,7 @@ html, body {
 }
 #ToDayAnimatedCalenderBg {
   position: relative;
-  background: #111; /* Your content background */
+  background: white;
  
   overflow: hidden;
 }

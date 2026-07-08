@@ -43,10 +43,12 @@ class ChangeEventRoomController {
       // Get event's time window and eventSpecialId for exclusion
       let availability;
       if (eventType === 'live') {
+        const now = new Date();
+        const effectiveEnd = event.willEndAt;
         availability = await CheckRoomAvailability.execute(
           newRoom,
-          event.startedAt,
-          event.willEndAt,
+          now,
+          effectiveEnd,
           event.eventSpecialId
         );
       } else if (eventType === 'upcoming') {
@@ -57,8 +59,6 @@ class ChangeEventRoomController {
           event.eventSpecialId
         );
       } else {
-        // Recurring event: use the recurrence-aware check (avoids false positives
-        // against live/upcoming events that fall on non-occurrence days).
         availability = await CheckRoomAvailability.executeRecurring(
           newRoom,
           event.eventRecurring,
