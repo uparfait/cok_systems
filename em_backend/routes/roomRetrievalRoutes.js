@@ -380,6 +380,12 @@ Router.get('/status/active', GetActiveRoomsController.handle);
  *         required: true
  *         description: End of the time period
  *         example: "2024-02-15T11:00:00.000Z"
+ *       - in: query
+ *         name: excludeEventId
+ *         schema:
+ *           type: string
+ *         description: Event special ID to exclude (prevents self-conflict)
+ *         example: "550e8400-e29b-41d4-a716-446655440000"
  *     responses:
  *       200:
  *         description: Room availability check completed

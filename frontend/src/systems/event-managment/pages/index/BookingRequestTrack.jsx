@@ -34,7 +34,7 @@ function DetailRow({ label, value }) {
   return <div className="py-2 border-b border-gray-100 last:border-b-0"><p className="text-xs font-medium text-gray-400 uppercase tracking-wider">{label}</p><p className="text-sm text-gray-900 mt-0.5">{value || "—"}</p></div>;
 }
 
-function EditRoomSelector({ editForm, setEditForm }) {
+function EditRoomSelector({ editForm, setEditForm, requestId }) {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -44,16 +44,20 @@ function EditRoomSelector({ editForm, setEditForm }) {
       if (!editForm.startTime || !editForm.endTime) return;
       setLoading(true);
       try {
-        const res = await axios.get(`${BASE_URL}/rooms/available`, {
-          params: { startTime: new Date(editForm.startTime).toISOString(), endTime: new Date(editForm.endTime).toISOString(), eventMode: "upcoming" }
-        });
+        const params = {
+          startTime: new Date(editForm.startTime).toISOString(),
+          endTime: new Date(editForm.endTime).toISOString(),
+          eventMode: 'upcoming',
+          ...(requestId ? { requestId } : {}),
+        };
+        const res = await axios.get(`${BASE_URL}/rooms/available`, { params });
         const data = res.data?.data || res.data;
         setRooms(data.availableRooms || []);
-      } catch (err) { setError(err.response?.data?.message || "Failed to check"); }
+      } catch (err) { setError(err.response?.data?.message || 'Failed to check'); }
       finally { setLoading(false); }
     };
     fetchRooms();
-  }, [editForm.startTime, editForm.endTime]);
+  }, [editForm.startTime, editForm.endTime, requestId]);
 
   const isSelected = (name) => editForm.eventRoom?.toLowerCase() === name.toLowerCase();
 
@@ -270,7 +274,7 @@ export default function BookingRequestTrack() {
                   <div><label className={labelClass}>End <span className="text-red-500">*</span></label><input className={inputClass} type="datetime-local" value={editForm.endTime} onChange={(e) => setEditForm((p) => ({ ...p, endTime: e.target.value }))} /></div>
                 </div>
               )}
-              {editStep === 4 && <EditRoomSelector editForm={editForm} setEditForm={setEditForm} />}
+              {editStep === 4 && <EditRoomSelector editForm={editForm} setEditForm={setEditForm} requestId={request?._id} />}
               {editStep === 5 && showAgenda && <ActivityAgenda agenda={editForm.agenda} onChange={(agenda) => setEditForm((p) => ({ ...p, agenda }))} eventStartTime={editForm.startTime ? editForm.startTime.split("T")[1]?.substring(0, 5) : null} eventEndTime={editForm.endTime ? editForm.endTime.split("T")[1]?.substring(0, 5) : null} />}
               {editStep === 5 && !showAgenda && <div className="bg-blue-50 border border-blue-200 p-4 text-center"><p className="text-sm text-blue-700 font-medium">No agenda required</p></div>}
               <div className="flex gap-3 mt-4 pt-4 border-t border-zinc-200">

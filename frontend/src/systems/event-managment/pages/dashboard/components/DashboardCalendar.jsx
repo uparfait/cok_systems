@@ -146,9 +146,10 @@ export default function DashboardCalendar({ events, loading, onMonthChange, curr
             return (
               <div
                 key={day}
-                className={`min-h-[80px] sm:min-h-[100px] md:min-h-[120px] border-r border-b border-gray-100 p-1 sm:p-1.5 md:p-2 last:border-r-0 ${isToday ? 'bg-blue-50/40' : ''}`}
+                id={`${isToday ? 'ToDayAnimatedCalenderBg' : ''}`}
+                className={`min-h-[80px]  sm:min-h-[100px] md:min-h-[120px] border-r border-b border-gray-100 p-1 sm:p-1.5 md:p-2 last:border-r-0 ${isToday ? 'bg-blue-50/40' : ''}`}
               >
-                <div className={`text-xs font-semibold mb-1 ${isToday ? 'text-blue-600' : 'text-gray-700'}`}>
+                <div className={`text-xs mb-1 ${isToday ? ' font-bold text-blue-600 ' : 'font-semibold text-gray-700'}`}>
                   {day}
                 </div>
                 <div className="space-y-1">
