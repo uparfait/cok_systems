@@ -9,7 +9,7 @@ class GetAvailableRooms {
   /**
    * Get all rooms with detailed availability for a requested time period
    */
-  static async execute({ startTime, endTime, eventMode, recurringConfig = null, excludeEventId = null }) {
+  static async execute({ startTime, endTime, eventMode, recurringConfig = null, excludeEventId = null, requestId = null }) {
     this._validateInputs(startTime, endTime, eventMode, recurringConfig);
 
     const start = new Date(startTime);
@@ -20,7 +20,7 @@ class GetAvailableRooms {
       return this._emptyResponse(start, end, eventMode);
     }
 
-    const { availableRooms, unavailableRooms } = await this._processAllRooms(rooms, start, end, eventMode, recurringConfig, excludeEventId);
+    const { availableRooms, unavailableRooms } = await this._processAllRooms(rooms, start, end, eventMode, recurringConfig, excludeEventId, requestId);
     const summary = this._buildSummary(availableRooms, unavailableRooms, start, end, eventMode, recurringConfig);
 
     return {
@@ -69,13 +69,13 @@ class GetAvailableRooms {
     };
   }
 
-  static async _processAllRooms(rooms, start, end, eventMode, recurringConfig, excludeEventId = null) {
+  static async _processAllRooms(rooms, start, end, eventMode, recurringConfig, excludeEventId = null, requestId = null) {
     const availableRooms = [];
     const unavailableRooms = [];
 
     for (const room of rooms) {
       if (eventMode === 'recurring' && recurringConfig) {
-        const result = await this._checkRecurringRoomAvailability(room.roomName, start, end, recurringConfig, excludeEventId);
+        const result = await this._checkRecurringRoomAvailability(room.roomName, start, end, recurringConfig, excludeEventId, requestId);
         const item = { room: this._formatRoom(room), available: result.available, message: result.message };
         if (result.available) {
           availableRooms.push(item);
@@ -83,7 +83,7 @@ class GetAvailableRooms {
           unavailableRooms.push({ ...item, conflicts: result.conflicts, availableDates: result.availableDates, unavailableDates: result.unavailableDates });
         }
       } else {
-        const result = await this._checkSingleRoomAvailability(room.roomName, start, end, excludeEventId);
+        const result = await this._checkSingleRoomAvailability(room.roomName, start, end, excludeEventId, requestId);
         const item = { room: this._formatRoom(room), available: result.available, message: result.available ? `Room "${room.roomName}" is available for ${start.toLocaleString()} - ${end.toLocaleString()}.` : result.message };
         if (result.available) {
           availableRooms.push(item);
@@ -112,7 +112,7 @@ class GetAvailableRooms {
    * Returns in-memory arrays so per-occurrence checks can run without extra DB round-trips.
    * Completed (Past) events are intentionally excluded because they no longer occupy the room.
    */
-  static async _fetchRoomEvents(roomName, start, end, excludeEventId = null, excludeRecurringPrefix = null) {
+  static async _fetchRoomEvents(roomName, start, end, excludeEventId = null, excludeRecurringPrefix = null, requestId = null) {
     const excludeFilter = excludeEventId
       ? { eventSpecialId: { $ne: excludeEventId } }
       : {};
@@ -136,8 +136,9 @@ class GetAvailableRooms {
       RecurringEvent.find(recurringQuery).lean(),
       BookingRequest.find({
         eventRoom: roomName,
-        status: { $in: ['Pending', 'Accepted'] },
+        status: { $in: ['Pending'] },
         $or: [{ startTime: { $lt: end }, endTime: { $gt: start } }],
+        ...(requestId ? { _id: { $ne: requestId } } : {}),
       }).lean(),
     ]);
 
@@ -194,8 +195,8 @@ class GetAvailableRooms {
     return conflicts;
   }
 
-  static async _checkSingleRoomAvailability(roomName, start, end, excludeEventId = null) {
-    const events = await this._fetchRoomEvents(roomName, start, end, excludeEventId);
+  static async _checkSingleRoomAvailability(roomName, start, end, excludeEventId = null, requestId = null) {
+    const events = await this._fetchRoomEvents(roomName, start, end, excludeEventId, null, requestId);
     const conflicts = this._conflictsFromEvents(events, start, end);
 
     if (conflicts.length === 0) return { available: true };
@@ -208,7 +209,7 @@ class GetAvailableRooms {
     };
   }
 
-  static async _checkRecurringRoomAvailability(roomName, eventStartDate, eventEndDate, recurringConfig, excludeEventId = null) {
+  static async _checkRecurringRoomAvailability(roomName, eventStartDate, eventEndDate, recurringConfig, excludeEventId = null, requestId = null) {
     const { recurringType, weeklyDays, monthlyDates, monthlyPattern, eventStartTime, eventEndTime, recurringEndDate } = recurringConfig;
 
     if (!eventStartTime || !eventEndTime) throw new Error('eventStartTime and eventEndTime are required for recurring availability checks');
@@ -241,7 +242,7 @@ class GetAvailableRooms {
     windowStart.setHours(0, 0, 0, 0);
     const windowEnd = new Date(effectiveEnd);
     windowEnd.setHours(23, 59, 59, 999);
-    const events = await this._fetchRoomEvents(roomName, windowStart, windowEnd, excludeEventId, excludeEventId || null);
+    const events = await this._fetchRoomEvents(roomName, windowStart, windowEnd, excludeEventId, excludeEventId || null, requestId);
 
     const availableDates = [];
     const unavailableDates = [];

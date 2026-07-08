@@ -3,7 +3,7 @@ const GetAvailableRooms = require('../utilities/GetAvailableRooms');
 class GetAvailableRoomsController {
   static async handle(req, res) {
     try {
-      const { startTime, endTime, eventMode, excludeEventId, ...rest } = req.query;
+      const { startTime, endTime, eventMode, excludeEventId, requestId, ...rest } = req.query;
 
       // Validate required fields
       if (!startTime || !endTime || !eventMode) {
@@ -33,6 +33,7 @@ class GetAvailableRoomsController {
         eventMode,
         recurringConfig,
         excludeEventId: excludeEventId || null,
+        requestId: requestId || null,
       });
 
       return res.status(200).json(result);

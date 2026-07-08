@@ -5,7 +5,7 @@ import SpiralLoader from '../SpiralLoader';
 
 const BASE_URL = '/cok/api/v1';
 
-export default function EventRoomSelector({ eventMode, formData, onChange, recurringType, monthlyPattern }) {
+export default function EventRoomSelector({ eventMode, formData, onChange, recurringType, monthlyPattern, excludeEventId }) {
   const [availableRooms, setAvailableRooms] = useState([]);
   const [unavailableRooms, setUnavailableRooms] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -55,24 +55,30 @@ export default function EventRoomSelector({ eventMode, formData, onChange, recur
         eventMode,
       };
 
-      if (eventMode === 'recurring' && formData.recurringEndDate) {
-        params.recurringType = recurringType || 'Weekly';
-        params.eventStartTime = formData.eventStartTime;
-        params.eventEndTime = formData.eventEndTime;
-        params.recurringEndDate = new Date(formData.recurringEndDate).toISOString();
-        params.monthlyPattern = monthlyPattern || 'specific';
-        if (formData.weeklyDays?.length) {
-          params.weeklyDays = formData.weeklyDays.join(',');
-        } else if (recurringType === 'Weekly') {
-          // Default: use current day of week if no days selected yet
-          params.weeklyDays = String(new Date().getDay());
-        }
-        if (formData.monthlyDates && (monthlyPattern === 'specific' || monthlyPattern === 'mixed')) {
-          params.monthlyDates = formData.monthlyDates;
-        }
-      }
+       if (eventMode === 'recurring' && formData.recurringEndDate) {
+         params.recurringType = recurringType || 'Weekly';
+         params.eventStartTime = formData.eventStartTime;
+         params.eventEndTime = formData.eventEndTime;
+         params.recurringEndDate = new Date(formData.recurringEndDate).toISOString();
+         params.startTime = new Date().toISOString();
+         params.endTime = new Date(formData.recurringEndDate).toISOString();
+         params.monthlyPattern = monthlyPattern || 'specific';
+         if (formData.weeklyDays?.length) {
+           params.weeklyDays = formData.weeklyDays.join(',');
+         } else if (recurringType === 'Weekly') {
+           // Default: use current day of week if no days selected yet
+           params.weeklyDays = String(new Date().getDay());
+         }
+         if (formData.monthlyDates && (monthlyPattern === 'specific' || monthlyPattern === 'mixed')) {
+           params.monthlyDates = formData.monthlyDates;
+         }
+       }
 
-      const res = await axios.get(`${BASE_URL}/rooms/available`, { params });
+       if (excludeEventId) {
+         params.excludeEventId = excludeEventId;
+       }
+
+       const res = await axios.get(`${BASE_URL}/rooms/available`, { params });
       const data = res.data?.data || res.data;
       setAvailableRooms(data.availableRooms || []);
       setUnavailableRooms(data.unavailableRooms || []);

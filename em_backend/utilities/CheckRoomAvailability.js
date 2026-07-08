@@ -43,7 +43,7 @@ class CheckRoomAvailability {
       RecurringEvent.find(recurringQuery).lean(),
       BookingRequest.find({
         eventRoom: roomName,
-        status: { $in: ['Pending', 'Accepted'] },
+        status: { $in: ['Pending'] },
         $or: [{ startTime: { $lt: end }, endTime: { $gt: start } }],
       }).lean(),
     ]);

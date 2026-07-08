@@ -71,7 +71,7 @@ function AgendaSection({ agenda }) {
   );
 }
 
-function EditRoomSelector({ editForm, setEditForm }) {
+function EditRoomSelector({ editForm, setEditForm, requestId }) {
   const [availableRooms, setAvailableRooms] = useState([]);
   const [unavailableRooms, setUnavailableRooms] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -86,21 +86,25 @@ function EditRoomSelector({ editForm, setEditForm }) {
       setLoading(true);
       setError(null);
       try {
-        const res = await axios.get(`${BASE_URL}/rooms/available`, {
-          params: { startTime: new Date(editForm.startTime).toISOString(), endTime: new Date(editForm.endTime).toISOString(), eventMode: "upcoming" }
-        });
+        const params = {
+          startTime: new Date(editForm.startTime).toISOString(),
+          endTime: new Date(editForm.endTime).toISOString(),
+          eventMode: 'upcoming',
+          ...(requestId ? { requestId } : {}),
+        };
+        const res = await axios.get(`${BASE_URL}/rooms/available`, { params });
         const data = res.data?.data || res.data;
         setAvailableRooms(data.availableRooms || []);
         setUnavailableRooms(data.unavailableRooms || []);
         setSearched(true);
       } catch (err) {
-        setError(err.response?.data?.message || "Failed to check availability");
+        setError(err.response?.data?.message || 'Failed to check availability');
       } finally {
         setLoading(false);
       }
     };
     checkRooms();
-  }, [editForm.startTime, editForm.endTime, hasDates]);
+  }, [editForm.startTime, editForm.endTime, hasDates, requestId]);
 
   const isSelected = (roomName) => editForm.eventRoom?.toLowerCase() === roomName.toLowerCase();
 
@@ -349,7 +353,7 @@ export default function BookingRequestDetails() {
                   <div><label className={labelClass}>End <span className="text-red-500">*</span></label><input className={inputClass} type="datetime-local" value={editForm.endTime} onChange={(e) => setEditForm((p) => ({ ...p, endTime: e.target.value }))} /></div>
                 </div>
               )}
-              {editStep === 4 && <EditRoomSelector editForm={editForm} setEditForm={setEditForm} />}
+              {editStep === 4 && <EditRoomSelector editForm={editForm} setEditForm={setEditForm} requestId={request?._id} />}
               {editStep === 5 && showAgenda && <ActivityAgenda agenda={editForm.agenda} onChange={(agenda) => setEditForm((p) => ({ ...p, agenda }))} eventStartTime={editForm.startTime ? editForm.startTime.split("T")[1]?.substring(0, 5) : null} eventEndTime={editForm.endTime ? editForm.endTime.split("T")[1]?.substring(0, 5) : null} />}
               {editStep === 5 && !showAgenda && <div className="bg-blue-50 border border-blue-200 p-4 text-center"><p className="text-sm text-blue-700 font-medium">No agenda required</p></div>}
               <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">

@@ -126,5 +126,3 @@ connect_db()
     });
     process.exit(1);
   });
-
-module.exports = server;

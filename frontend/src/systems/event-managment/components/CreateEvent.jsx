@@ -377,6 +377,7 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
                 onChange={handleChange}
                 recurringType={recurringType}
                 monthlyPattern={monthlyPattern}
+                excludeEventId={isEditMode ? eventId : null}
               />
             )}
 
