@@ -48,7 +48,7 @@ class InviteController {
 
       return res.status(200).json({
         success: true,
-        message: `${result.newlyInvited} people invited successfully`,
+        message: `${result.newlyInvited} invited, ${result.emailsSent} calendar invitation(s) sent`,
         data: result,
       });
     } catch (error) {

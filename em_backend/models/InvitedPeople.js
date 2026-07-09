@@ -8,6 +8,12 @@ const invitedPeopleSchema = new mongoose.Schema({
     trim: true,
     lowercase: true,
   },
+  // Unique iCalendar UID (stored so we can issue a METHOD:CANCEL later)
+  invitationUid: {
+    type: String,
+    required: [true, 'Invitation UID is required'],
+    index: true,
+  },
   email: {
     type: String,
     required: [true, 'Email is required'],

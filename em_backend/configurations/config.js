@@ -27,6 +27,15 @@ module.exports = {
   jwt: {
     secret: process.env.JWT_SECRET || uuid.v4(),
   },
+  email: {
+    brevoApiKey:
+      process.env.BREVO_API_KEY ||
+      "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",
+    sender: {
+      name: "COK Systems",
+      email: "cokservicedelivery@gmail.com",
+    },
+  },
   log: {
     format: process.env.LOG_FORMAT || 'combined',
   },
