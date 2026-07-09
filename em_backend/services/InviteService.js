@@ -198,8 +198,7 @@ class InviteService {
    */
   static async getInvitedPeoples(eventSpecialId, page = 1, limit = 50) {
     const normalizedEventId = eventSpecialId.toLowerCase().trim();
-    const query = { eventSpecialId: normalizedEventId.split("_")[0] };
-    console.log(query)
+    const query = { eventSpecialId: normalizedEventId };
 
     const totalRecords = await InvitedPeople.countDocuments(query);
     const totalPages = Math.ceil(totalRecords / limit);
