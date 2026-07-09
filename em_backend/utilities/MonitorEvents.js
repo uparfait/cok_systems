@@ -40,7 +40,7 @@ class MonitorEvents {
     for (const recurring of recurringEvents) {
       const nextOccurrence = this.getNextOccurrence(recurring, now);
 
-      console.log(nextOccurrence)
+    
       
       
       if (nextOccurrence) {
@@ -55,7 +55,7 @@ class MonitorEvents {
           eventSpecialId: generatedEventSpecialId
         }).session(session);
 
-        console.log(existingUpcoming)
+        
 
       
 
