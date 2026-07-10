@@ -1,7 +1,12 @@
 // utils/links.ts or wherever SideBarLinks is saved
 export default function SideBarLinks() {
   return [
-
+    {
+      id: "dashboard",
+      name: "Dashboard",
+      pathname: "/event-manager",
+      icon: "FiBarChart2",
+    },
     {
       id: "rooms",
       name: "Rooms",

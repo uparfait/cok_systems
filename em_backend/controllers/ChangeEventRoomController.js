@@ -38,30 +38,30 @@ class ChangeEventRoomController {
           throw new Error('Event not found');
         }
 
-        // Get event's time window and eventSpecialId for exclusion
-        let startTime, endTime;
-        if (eventType === 'live') {
-          startTime = event.startedAt;
-          endTime = event.willEndAt;
-        } else if (eventType === 'upcoming') {
-          startTime = event.willStartAt;
-          endTime = event.willEndAt;
-        } else {
-          startTime = event.eventStartDate;
-          endTime = event.eventEndDate;
-        }
+      // Get event's time window and eventSpecialId for exclusion
+      let startTime, endTime;
+      if (eventType === 'live') {
+        startTime = event.startedAt;
+        endTime = event.willEndAt;
+      } else if (eventType === 'upcoming') {
+        startTime = event.willStartAt;
+        endTime = event.willEndAt;
+      } else {
+        startTime = event.eventStartDate;
+        endTime = event.eventEndDate;
+      }
 
-        // Check availability in new room (exclude self by eventSpecialId)
-        const availability = await CheckRoomAvailability.execute(
-          newRoom,
-          startTime,
-          endTime,
-          event.eventSpecialId
-        );
+      // Check availability in new room (exclude self by eventSpecialId)
+      const availability = await CheckRoomAvailability.execute(
+        newRoom,
+        startTime,
+        endTime,
+        event.eventSpecialId
+      );
 
-        if (!availability.available) {
-          throw new Error('New room is already reserved during the event time');
-        }
+      if (!availability.available) {
+        throw new Error('New room is already reserved during the event time');
+      }
 
         // Update room
         event.eventRoom = newRoom;

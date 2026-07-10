@@ -4,7 +4,7 @@ const CheckRoomAvailability = require('../utilities/CheckRoomAvailability');
 class GetRoomAvailabilityController {
   static async handle(req, res) {
     try {
-      const { roomName, startTime, endTime } = req.query;
+      const { roomName, startTime, endTime, excludeEventId } = req.query;
 
       if (!roomName || !startTime || !endTime) {
         return res.status(400).json({
@@ -48,7 +48,8 @@ class GetRoomAvailabilityController {
       const availability = await CheckRoomAvailability.execute(
         roomName,
         start,
-        end
+        end,
+        excludeEventId || null
       );
 
       return res.status(200).json({

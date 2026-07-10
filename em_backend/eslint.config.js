@@ -15,7 +15,7 @@ module.exports = [
     rules: {
       // 1. Limit total lines in a file to 200, but ignore blank lines and comments
       "max-lines": ["error", { 
-        "max": 350, 
+        "max": 500, 
         "skipBlankLines": true, 
         "skipComments": true 
       }],

@@ -48,7 +48,7 @@ class InviteController {
 
       return res.status(200).json({
         success: true,
-        message: `${result.newlyInvited} people invited successfully`,
+        message: `${result.newlyInvited} invited, ${result.emailsSent} calendar invitation(s) sent`,
         data: result,
       });
     } catch (error) {
@@ -61,11 +61,14 @@ class InviteController {
 
   static async handleGetInvited(req, res) {
     try {
+     
       const { eventSpecialId } = req.params;
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 50;
 
       const result = await InviteService.getInvitedPeoples(eventSpecialId, page, limit);
+
+     
 
       return res.status(200).json(result);
     } catch (error) {

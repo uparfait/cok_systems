@@ -1,5 +1,11 @@
 const XLSX = require('xlsx');
+const { v4: uuidv4 } = require('uuid');
 const InvitedPeople = require('../models/InvitedPeople');
+const UpcomingEvent = require('../models/UpcomingEvent');
+const LiveEvent = require('../models/LiveEvent');
+const RecurringEvent = require('../models/RecurringEvent');
+const emailUtil = require('../utilities/email');
+const { firstRecurringOccurrence, fromUTCInstant } = require('../utilities/eventCalendar');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -64,8 +70,54 @@ class InviteService {
   }
 
   /**
-   * Invite people to an event. Checks for duplicates before saving.
-   * Returns stats about what was invited, already existed, or was invalid.
+   * Resolve an event by its special ID across the phase collections and return a
+   * normalized shape consumable by the calendar/email utilities.
+   * Returns null when the event does not exist.
+   */
+  static async fetchEventForInvite(eventSpecialId) {
+    const id = eventSpecialId.toLowerCase().trim();
+    const [upcoming, live, recurring] = await Promise.all([
+      UpcomingEvent.findOne({ eventSpecialId: id }).lean(),
+      LiveEvent.findOne({ eventSpecialId: id }).lean(),
+      RecurringEvent.findOne({ eventSpecialId: id }).lean(),
+    ]);
+
+    const doc = upcoming || live || recurring;
+    if (!doc) return null;
+
+    if (recurring) {
+      const occ = firstRecurringOccurrence(recurring.eventRecurring);
+      return {
+        eventName: recurring.eventName,
+        eventDescription: recurring.eventDescription,
+        eventRoom: recurring.eventRoom,
+        eventOrganizer: recurring.eventOrganizer,
+        start: occ.start,
+        end: occ.end,
+        isRecurring: true,
+        recurring: recurring.eventRecurring,
+      };
+    }
+
+    const start = upcoming ? upcoming.willStartAt : live.startedAt;
+    const end = upcoming ? upcoming.willEndAt : live.willEndAt;
+
+    return {
+      eventName: doc.eventName,
+      eventDescription: doc.eventDescription,
+      eventRoom: doc.eventRoom,
+      eventOrganizer: doc.eventOrganizer,
+      start: fromUTCInstant(start),
+      end: fromUTCInstant(end),
+      isRecurring: false,
+      recurring: null,
+    };
+  }
+
+  /**
+   * Invite people to an event. Checks for duplicates before saving, then sends a
+   * personalized calendar invitation (.ics) to every newly invited email.
+   * Returns stats about what was invited, already existed, or failed to email.
    */
   static async invitePeoples(eventSpecialId, emails) {
     if (!eventSpecialId) throw new Error('Event special ID is required');
@@ -81,6 +133,8 @@ class InviteService {
         alreadyInvited: 0,
         newlyInvited: 0,
         invalidEmails: emails.length,
+        emailsSent: 0,
+        emailErrors: [],
         invited: [],
       };
     }
@@ -94,14 +148,37 @@ class InviteService {
     const existingEmails = new Set(existing.map(e => e.email));
     const newEmails = validEmails.filter(e => !existingEmails.has(e));
 
-    // Bulk insert new invites
+    const emailsSent = [];
+    const emailErrors = [];
+
+    // Bulk insert new invites, each with a stable invitation UID
     if (newEmails.length > 0) {
       const docs = newEmails.map(email => ({
         eventSpecialId: normalizedEventId,
         email,
+        invitationUid: uuidv4(),
         invitedAt: new Date(),
       }));
       await InvitedPeople.insertMany(docs, { ordered: false });
+
+      // Send a calendar invitation to each new attendee
+      const event = await this.fetchEventForInvite(normalizedEventId);
+      if (event) {
+        const results = await Promise.allSettled(
+          docs.map(d => emailUtil.sendEventInvitation(d.email, event, d.invitationUid))
+        );
+        results.forEach((result, i) => {
+          const ok = result.status === 'fulfilled' && result.value && result.value.success;
+          if (ok) {
+            emailsSent.push(docs[i].email);
+          } else {
+            emailErrors.push({
+              email: docs[i].email,
+              error: (result.reason && result.reason.message) || (result.value && result.value.error) || 'Email send failed',
+            });
+          }
+        });
+      }
     }
 
     return {
@@ -110,6 +187,8 @@ class InviteService {
       alreadyInvited: existingEmails.size,
       newlyInvited: newEmails.length,
       invalidEmails: emails.length - validEmails.length,
+      emailsSent: emailsSent.length,
+      emailErrors,
       invited: validEmails,
     };
   }
@@ -144,11 +223,21 @@ class InviteService {
   }
 
   /**
-   * Remove an invited person by ID
+   * Remove an invited person by ID. Sends a calendar cancellation (METHOD:CANCEL)
+   * using the stored invitation UID so the attendee's calendar can remove the event.
    */
   static async removeInvitedPerson(inviteId) {
-    const result = await InvitedPeople.findByIdAndDelete(inviteId);
-    if (!result) throw new Error('Invited person not found');
+    const invite = await InvitedPeople.findById(inviteId);
+    if (!invite) throw new Error('Invited person not found');
+
+    if (invite.invitationUid) {
+      const event = await this.fetchEventForInvite(invite.eventSpecialId);
+      if (event) {
+        await emailUtil.sendEventCancellation(invite.email, event, invite.invitationUid);
+      }
+    }
+
+    await InvitedPeople.findByIdAndDelete(inviteId);
     return { success: true, message: 'Invitation removed successfully' };
   }
 }

@@ -56,8 +56,17 @@ module.exports = function CalculateMonthlyFirstOccurrence(now, monthlyPattern, m
         break; }
 
       case 'mixed':
-        // Default to first day of next month
-        targetDate = new Date(currentYear, currentMonth + 1, 1);
+        // 'mixed' is date-driven (like 'specific'); it must use the provided dates.
+        if (!monthlyDates || monthlyDates.length === 0) {
+          throw new Error('Monthly mixed pattern requires dates');
+        }
+        {
+          const sortedDates = [...monthlyDates].sort((a, b) => a - b);
+          const nextDate = sortedDates.find(date => date > currentDate);
+          targetDate = nextDate
+            ? new Date(currentYear, currentMonth, nextDate)
+            : new Date(currentYear, currentMonth + 1, sortedDates[0]);
+        }
         break;
 
       default:

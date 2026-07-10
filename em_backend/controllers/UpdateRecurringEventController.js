@@ -35,19 +35,19 @@ class UpdateRecurringEventController {
           throw new Error('Recurring event not found');
         }
 
-        // Check room availability if room changed
-        if (sanitizedData.eventRoom && sanitizedData.eventRoom !== existingEvent.eventRoom) {
-          const availability = await CheckRoomAvailability.execute(
-            sanitizedData.eventRoom,
-            sanitizedData.eventStartDate || existingEvent.eventStartDate,
-            sanitizedData.eventEndDate || existingEvent.eventEndDate,
-            existingEvent.eventSpecialId  // exclude self by eventSpecialId string
-          );
+      // Check room availability if room changed
+      if (sanitizedData.eventRoom && sanitizedData.eventRoom !== existingEvent.eventRoom) {
+        const availability = await CheckRoomAvailability.execute(
+          sanitizedData.eventRoom,
+          sanitizedData.eventStartDate || existingEvent.eventStartDate,
+          sanitizedData.eventEndDate || existingEvent.eventEndDate,
+          existingEvent.eventSpecialId  // exclude self by eventSpecialId string
+        );
 
-          if (!availability.available) {
-            throw new Error('Selected room is already reserved during the requested time');
-          }
+        if (!availability.available) {
+          throw new Error('Selected room is already reserved during the requested time');
         }
+      }
 
         // Update event
         Object.assign(existingEvent, sanitizedData);
