@@ -3,11 +3,10 @@ const mongoose = require('mongoose');
 const postMeetingSchema = new mongoose.Schema({
   meetingMinutes: {
     type: String,
-    required: [true, 'Meeting minutes are required'],
     trim: false,
     validate: {
       validator: function(value) {
-        return value.trim().length > 0;
+        return !value || value.trim().length > 0;
       },
       message: 'Meeting minutes cannot be empty'
     }
@@ -33,6 +32,25 @@ const postMeetingSchema = new mongoose.Schema({
     },
     email: {type: String},
     phone: {type: String}
+  },
+  designatedMinutesTaker: {
+    name: {
+      type: String,
+      maxlength: [200, 'Name cannot exceed 200 characters'],
+      trim: true
+    },
+    email: {
+      type: String,
+      trim: true
+    },
+    designatedAt: {
+      type: Date,
+      default: Date.now
+    },
+    designatedBy: {
+      type: String,
+      trim: true
+    }
   },
   meetingDate: {
     type: Date,

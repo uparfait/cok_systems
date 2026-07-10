@@ -140,7 +140,8 @@ class PostMeetingMinutesController {
             documentedBy: postMeeting.documentedBy,
             meetingDate: postMeeting.meetingDate,
             lastUpdated: postMeeting.updatedAt,
-            createdAt: postMeeting.createdAt
+            createdAt: postMeeting.createdAt,
+            designatedMinutesTaker: postMeeting.designatedMinutesTaker
           }
         }
       });
@@ -151,6 +152,97 @@ class PostMeetingMinutesController {
       return res.status(500).json({
         success: false,
         message: 'Error fetching meeting minutes',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+  }
+
+  static async designateMinutes(req, res) {
+    try {
+      const { eventSpecialId } = req.params;
+      const { designatedEmail, designatedName } = req.body;
+
+      if (!eventSpecialId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Event special ID is required'
+        });
+      }
+
+      if (!designatedEmail || !designatedEmail.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Designated email is required'
+        });
+      }
+
+      // Find the live event to ensure it exists
+      const liveEvent = await LiveEvent.findOne({ eventSpecialId }).lean();
+
+      if (!liveEvent) {
+        return res.status(404).json({
+          success: false,
+          message: 'Event not found with the provided special ID'
+        });
+      }
+
+      // Find existing post-meeting record or create new one
+      let postMeeting = await PostMeeting.findOne({ eventSpecialId });
+
+      if (postMeeting) {
+        // Update existing record with designated minutes taker
+        postMeeting.designatedMinutesTaker = {
+          name: designatedName || designatedEmail.split('@')[0],
+          email: designatedEmail.trim(),
+          designatedAt: new Date(),
+          designatedBy: req.user?.email || 'system'
+        };
+        await postMeeting.save();
+      } else {
+        // Create new post-meeting record
+        postMeeting = await PostMeeting.create({
+          meetingMinutes: '',
+          documentedBy: {
+            name: 'Pending Designation',
+            role: 'Pending',
+            institution: 'Pending',
+            email: 'pending@cok.rw',
+            phone: ''
+          },
+          designatedMinutesTaker: {
+            name: designatedName || designatedEmail.split('@')[0],
+            email: designatedEmail.trim(),
+            designatedAt: new Date(),
+            designatedBy: req.user?.email || 'system'
+          },
+          meetingDate: liveEvent.startedAt,
+          eventSpecialId
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Minutes responsibility designated successfully',
+        data: {
+          designatedMinutesTaker: postMeeting.designatedMinutesTaker
+        }
+      });
+
+    } catch (error) {
+      console.error('Error designating minutes:', error);
+
+      if (error.name === 'ValidationError') {
+        const messages = Object.values(error.errors).map(err => err.message);
+        return res.status(400).json({
+          success: false,
+          message: 'Validation error',
+          errors: messages
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: 'Error designating minutes responsibility',
         error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
       });
     }

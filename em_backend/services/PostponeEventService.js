@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const withTransaction = require('../utilities/withTransaction');
 const LiveEvent = require('../models/LiveEvent');
 const UpcomingEvent = require('../models/UpcomingEvent');
 const RecurringEvent = require('../models/RecurringEvent');
@@ -14,10 +14,7 @@ class PostponeEventService {
    * @param {object} newSchedule - Object containing new schedule fields
    */
   static async execute(eventId, eventType, newSchedule) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
+    return withTransaction(async (session) => {
       let result;
 
       switch (eventType) {
@@ -34,14 +31,8 @@ class PostponeEventService {
           throw new Error('Invalid event type. Must be live, upcoming, or recurring.');
       }
 
-      await session.commitTransaction();
       return { success: true, data: result };
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
-    }
+    });
   }
 
   /**

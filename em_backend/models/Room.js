@@ -6,8 +6,7 @@ const roomSchema = new mongoose.Schema({
     required: [true, 'Room name is required'],
     maxlength: [300, 'Room name cannot exceed 300 characters'],
     trim: true,
-    set: value => value.toLowerCase(),
-    unique: [true, "Every Room must have a unique name."]
+    set: value => value.toLowerCase()
   },
   roomDescription: {
     type: String,

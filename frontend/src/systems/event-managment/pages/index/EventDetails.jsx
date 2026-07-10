@@ -309,20 +309,38 @@ if (isEventNotFound || (!isEventLoading && !activeEvent)) {
                 </svg>
               </Link>
 
-              <Link
-                to={`/event/${activeEvent.eventSpecialId}/editor`}
-                className="w-full flex items-center justify-between px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white transition-colors duration-200 group rounded-none"
-              >
-                <div className="flex items-center gap-2.5">
-                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              {/* Record Minutes and Designate buttons in parallel */}
+              <div className="flex flex-row gap-2">
+                <Link
+                  to={`/event/${activeEvent.eventSpecialId}/editor`}
+                  className="flex-1 flex items-center justify-between px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white transition-colors duration-200 group rounded-none"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    <span className="text-sm font-semibold tracking-wide">Record Minutes</span>
+                  </div>
+                  <svg className="w-4 h-4 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
-                  <span className="text-sm font-semibold tracking-wide">Record Minutes</span>
-                </div>
-                <svg className="w-4 h-4 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
+                </Link>
+                
+                <Link
+                  to={`/event/${activeEvent.eventSpecialId}/designate`}
+                  className="flex-1 flex items-center justify-between px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white transition-colors duration-200 group rounded-none"
+                >
+                  <div className="flex items-center gap-2.5">
+<svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14v7m-3 0h6" />
+                     </svg>
+                    <span className="text-sm font-semibold tracking-wide">Designate</span>
+                  </div>
+                  <svg className="w-4 h-4 text-emerald-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              </div>
 
               <button
                 onClick={() => navigate(`/event/${eventSpecialId}/actions`)}

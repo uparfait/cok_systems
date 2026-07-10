@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { FiPhone, FiCheckCircle, FiAlertCircle, FiClock, FiStar, FiMessageSquare } from 'react-icons/fi';
 import { verifyPhone, getFeedbackByPhone } from '../core/services/feedbackService';
 import { useToast } from '../core/contexts/ToastContext';
+import FeedbackModal from '../core/components/Modals/FeedbackModal';
 
 interface AssignedDepartment {
   department_id: string;
@@ -54,6 +55,8 @@ const FeedbackStatusPage: React.FC = () => {
   const [isLoadingFeedback, setIsLoadingFeedback] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+
   const handleVerifyPhone = async () => {
     if (!phone.trim()) {
       showError('Please enter your phone number');
@@ -80,7 +83,7 @@ const FeedbackStatusPage: React.FC = () => {
         await loadFeedback(phone.trim());
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Phone number not found in service records';
+      const message = error instanceof Error ? error.message : 'No service records found for this number';
       setErrorMessage(message);
       setDepartments([]);
       setFeedback([]);
@@ -119,6 +122,14 @@ const FeedbackStatusPage: React.FC = () => {
 
   const getFeedbackForDepartment = (departmentId: string): FeedbackItem | null => {
     return feedback.find(f => f.department_id === departmentId) || null;
+  };
+
+  const handleOpenFeedbackModal = () => {
+    setIsFeedbackModalOpen(true);
+  };
+
+  const handleCloseFeedbackModal = () => {
+    setIsFeedbackModalOpen(false);
   };
 
   const renderStatusBadge = (departmentId: string) => {
@@ -165,7 +176,7 @@ const FeedbackStatusPage: React.FC = () => {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <FiMessageSquare className="w-6 h-6 text-yellow-500" />
+          <FiMessageSquare className="w-6 h-6 text-blue-600" />
           Service History & Feedback Status
         </h1>
         <p className="text-gray-600 mt-1">
@@ -189,7 +200,7 @@ const FeedbackStatusPage: React.FC = () => {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Enter your phone number"
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 onKeyDown={(e) => e.key === 'Enter' && handleVerifyPhone()}
               />
             </div>
@@ -197,7 +208,7 @@ const FeedbackStatusPage: React.FC = () => {
           <button
             onClick={handleVerifyPhone}
             disabled={isVerifying || isLoadingFeedback || !phone.trim()}
-            className="h-fit px-6 py-2.5 rounded-lg bg-yellow-500 text-white font-semibold text-sm hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-6 flex items-center gap-2"
+            className="h-fit px-6 py-2.5 rounded-lg bg-blue-500 text-white font-semibold text-sm hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-6 flex items-center gap-2"
           >
             {isVerifying || isLoadingFeedback ? (
               <>
@@ -304,15 +315,24 @@ const FeedbackStatusPage: React.FC = () => {
                           </div>
                         </button>
                       ) : (
-                        <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-100 w-full sm:w-auto">
-                          <div className="flex items-center gap-2 mb-1">
-                            <FiClock className="w-4 h-4 text-yellow-600" />
-                            <span className="text-xs font-semibold text-yellow-700 uppercase">Pending</span>
+                        <button
+                          onClick={handleOpenFeedbackModal}
+                          className="w-full sm:w-auto text-left"
+                        >
+                          <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-100 hover:border-yellow-300 hover:bg-yellow-100 transition-colors cursor-pointer">
+                            <div className="flex items-center gap-2 mb-1">
+                              <FiClock className="w-4 h-4 text-yellow-600" />
+                              <span className="text-xs font-semibold text-yellow-700 uppercase">Pending</span>
+                            </div>
+                            <p className="text-xs text-gray-600 mb-2">
+                              You haven't submitted feedback for this service yet
+                            </p>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-yellow-500 text-white hover:bg-yellow-600 transition-colors">
+                              <FiMessageSquare className="w-3 h-3" />
+                              Submit Feedback
+                            </span>
                           </div>
-                          <p className="text-xs text-gray-600">
-                            You haven't submitted feedback for this service yet
-                          </p>
-                        </div>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -337,6 +357,11 @@ const FeedbackStatusPage: React.FC = () => {
           </div>
         </>
       )}
+
+      <FeedbackModal
+        isOpen={isFeedbackModalOpen}
+        onClose={handleCloseFeedbackModal}
+      />
     </div>
   );
 };

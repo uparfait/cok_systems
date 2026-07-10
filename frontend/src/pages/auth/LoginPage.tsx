@@ -514,7 +514,6 @@ const LoginPage = () => {
                 
               </button>
             </form>
-
             {/* First time logging in section */}
             <div className="mt-4 sm:mt-5">
               <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 sm:px-4 py-2.5 sm:py-3 text-center">
