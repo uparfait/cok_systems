@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const withTransaction = require('../utilities/withTransaction');
 const LiveEvent = require('../models/LiveEvent');
 const UpcomingEvent = require('../models/UpcomingEvent');
 const RecurringEvent = require('../models/RecurringEvent');
@@ -20,10 +20,7 @@ class EventSectionUpdateService {
     const Model = MODELS[eventType];
     if (!Model) throw new Error('Invalid event type');
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
+    return withTransaction(async (session) => {
       const event = await Model.findById(eventId).session(session);
       if (!event) throw new Error(`${eventType} event not found`);
 
@@ -45,15 +42,9 @@ class EventSectionUpdateService {
       }
 
       await event.save({ session, validateModifiedOnly: true });
-      await session.commitTransaction();
 
       return { success: true, data: event };
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
-    }
+    });
   }
 
   static _updateBasic(event, data) {
