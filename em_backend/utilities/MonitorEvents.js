@@ -2,7 +2,9 @@ const mongoose = require('mongoose');
 const RecurringEvent = require('../models/RecurringEvent');
 const UpcomingEvent = require('../models/UpcomingEvent');
 const LiveEvent = require('../models/LiveEvent');
+const InvitedPeople = require('../models/InvitedPeople');
 const EventService = require('../services/EventService');
+const InviteService = require('../services/InviteService');
 const CheckRoomAvailability = require('./CheckRoomAvailability');
 
 class MonitorEvents {
@@ -15,6 +17,7 @@ class MonitorEvents {
       await this.processUpcomingEvents(session);
       await this.processLiveEvents(session);
       await this.processRecurringExpirations(session);
+      await this.reconcileRecurringInvites(session);
 
       await session.commitTransaction();
       console.log('Event monitoring completed successfully');
@@ -86,6 +89,21 @@ class MonitorEvents {
 
             await upcomingEvent.save({ session });
             console.log(`Created upcoming event for recurring event ${recurring.eventSpecialId} at ${start}`);
+
+            // Track invites: copy the series' invites onto this instance so a later
+            // removal cancels just this date. Reuses the series UID (no email sent).
+            try {
+              const copied = await InviteService.copyInvitesToInstance(
+                recurring.eventSpecialId,
+                upcomingEvent.eventSpecialId,
+                { start: upcomingEvent.willStartAt, end: upcomingEvent.willEndAt }
+              );
+              if (copied > 0) {
+                console.log(`Copied ${copied} invite(s) to instance ${upcomingEvent.eventSpecialId}`);
+              }
+            } catch (err) {
+              console.error(`copyInvitesToInstance failed for ${upcomingEvent.eventSpecialId}:`, err.message);
+            }
           } else {
             console.log(`Room not available for recurring event ${recurring.eventName} ${recurring.eventSpecialId} at ${start}. Conflict: ${availability.conflict}`);
           }
@@ -224,6 +242,58 @@ class MonitorEvents {
       },
       { session }
     );
+  }
+
+  /**
+   * Safety net: ensure every generated instance (Upcoming AND Live) of an active
+   * recurring event has its series invites copied. Catches any instance that was
+   * created (or whose invites were skipped) before the copy logic ran, so no
+   * attendee is ever left without their invite. Copying is idempotent (deduped by
+   * email + instance id) and never resurrects a cancelled specific-date invite.
+   */
+  static async reconcileRecurringInvites(session) {
+    const recurringEvents = await RecurringEvent.find({
+      'eventRecurring.isExpired': false,
+      'eventRecurring.recurringEndDate': { $gte: new Date() },
+    }).session(session);
+
+    for (const recurring of recurringEvents) {
+      const parentInvites = await InvitedPeople.find({
+        eventSpecialId: recurring.eventSpecialId,
+      }).lean();
+      if (parentInvites.length === 0) continue;
+
+      // Instance ids are `${parent}_${ms}`; match all of them.
+      const escaped = recurring.eventSpecialId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`^${escaped}_`);
+
+      const [upcomingInstances, liveInstances] = await Promise.all([
+        UpcomingEvent.find({ eventSpecialId: { $regex: regex } }).session(session).lean(),
+        LiveEvent.find({ eventSpecialId: { $regex: regex } }).session(session).lean(),
+      ]);
+
+      for (const inst of [...upcomingInstances, ...liveInstances]) {
+        const specificDate = inst.willStartAt
+          ? { start: inst.willStartAt, end: inst.willEndAt }
+          : { start: inst.startedAt, end: inst.willEndAt };
+
+        try {
+          const copied = await InviteService.copyInvitesToInstance(
+            recurring.eventSpecialId,
+            inst.eventSpecialId,
+            specificDate
+          );
+          if (copied > 0) {
+            console.log(
+              `[reconcile] Caught missing invites for recurring ${recurring.eventSpecialId}: ` +
+              `copied ${copied} to instance ${inst.eventSpecialId}`
+            );
+          }
+        } catch (err) {
+          console.error(`[reconcile] Failed copying invites to ${inst.eventSpecialId}:`, err.message);
+        }
+      }
+    }
   }
 }
 

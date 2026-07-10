@@ -218,13 +218,53 @@ class InviteService {
         _id: d._id,
         email: d.email,
         invitedAt: d.invitedAt,
+        cancelled: d.cancelled || false,
+        specificDate: d.specificDate || null,
       })),
     };
   }
 
   /**
-   * Remove an invited person by ID. Sends a calendar cancellation (METHOD:CANCEL)
-   * using the stored invitation UID so the attendee's calendar can remove the event.
+   * Copy a recurring series' invites onto a generated instance. The instance keeps
+   * the same invitationUid as the series so a later per-instance cancellation can be
+   * correlated, and stores the occurrence's start/end in `specificDate`. No emails are
+   * sent because the original series invitation already covers the attendee.
+   * @returns {number} number of invite docs created
+   */
+  static async copyInvitesToInstance(parentEventSpecialId, instanceEventSpecialId, specificDate) {
+    const parentId = parentEventSpecialId.toLowerCase().trim();
+    const instanceId = instanceEventSpecialId.toLowerCase().trim();
+
+    const parentInvites = await InvitedPeople.find({ eventSpecialId: parentId }).lean();
+    if (parentInvites.length === 0) return 0;
+
+    // Avoid duplicates if the instance was already processed
+    const existing = await InvitedPeople.find({ eventSpecialId: instanceId }).lean();
+    const existingEmails = new Set(existing.map((e) => e.email));
+
+    const docs = parentInvites
+      .filter((inv) => !existingEmails.has(inv.email))
+      .map((inv) => ({
+        eventSpecialId: instanceId,
+        email: inv.email,
+        invitationUid: inv.invitationUid, // same UID => cancels correlate to the series
+        specificDate: { start: specificDate.start, end: specificDate.end },
+        invitedAt: new Date(),
+      }));
+
+    if (docs.length > 0) {
+      await InvitedPeople.insertMany(docs, { ordered: false });
+    }
+    return docs.length;
+  }
+
+  /**
+   * Remove/cancel an invited person by ID.
+   * - If the invite has a `specificDate` (a single occurrence of a series), it is NOT
+   *   deleted. We send a per-occurrence METHOD:CANCEL (RECURRENCE-ID) and flag it
+   *   `cancelled` so the UI can show the state and allow re-activation later.
+   * - Otherwise (series parent or single event) the doc is deleted and a full cancel
+   *   (or single-event cancel) is sent.
    */
   static async removeInvitedPerson(inviteId) {
     const invite = await InvitedPeople.findById(inviteId);
@@ -233,12 +273,79 @@ class InviteService {
     if (invite.invitationUid) {
       const event = await this.fetchEventForInvite(invite.eventSpecialId);
       if (event) {
+        if (invite.specificDate && invite.specificDate.start) {
+          // Cancel only this specific occurrence of the series
+          const specificEvent = {
+            eventName: event.eventName,
+            eventDescription: event.eventDescription,
+            eventRoom: event.eventRoom,
+            eventOrganizer: event.eventOrganizer,
+            start: fromUTCInstant(invite.specificDate.start),
+            end: fromUTCInstant(invite.specificDate.end),
+            isRecurring: false,
+            recurring: null,
+          };
+          await emailUtil.sendEventCancellation(
+            invite.email,
+            specificEvent,
+            invite.invitationUid,
+            fromUTCInstant(invite.specificDate.start)
+          );
+          // Keep the doc, just mark it cancelled (no deletion)
+          invite.cancelled = true;
+          invite.cancelledAt = new Date();
+          await invite.save();
+          return { success: true, message: 'Invitation for this date cancelled', cancelled: true };
+        }
+        // Cancel the whole schedule / single event
         await emailUtil.sendEventCancellation(invite.email, event, invite.invitationUid);
       }
     }
 
     await InvitedPeople.findByIdAndDelete(inviteId);
     return { success: true, message: 'Invitation removed successfully' };
+  }
+
+  /**
+   * Re-activate a previously cancelled invite (typically a specific-date instance).
+   * Un-flags `cancelled` and re-sends the invitation. For a series occurrence this
+   * sends a METHOD:REQUEST with RECURRENCE-ID so the client re-adds that date.
+   */
+  static async reactivateInvitedPerson(inviteId) {
+    const invite = await InvitedPeople.findById(inviteId);
+    if (!invite) throw new Error('Invited person not found');
+    if (!invite.cancelled) {
+      return { success: true, message: 'Invitation is already active', alreadyActive: true };
+    }
+
+    const event = await this.fetchEventForInvite(invite.eventSpecialId);
+    if (event && invite.invitationUid) {
+      if (invite.specificDate && invite.specificDate.start) {
+        const specificEvent = {
+          eventName: event.eventName,
+          eventDescription: event.eventDescription,
+          eventRoom: event.eventRoom,
+          eventOrganizer: event.eventOrganizer,
+          start: fromUTCInstant(invite.specificDate.start),
+          end: fromUTCInstant(invite.specificDate.end),
+          isRecurring: false,
+          recurring: null,
+        };
+        await emailUtil.sendEventInvitation(
+          invite.email,
+          specificEvent,
+          invite.invitationUid,
+          fromUTCInstant(invite.specificDate.start)
+        );
+      } else {
+        await emailUtil.sendEventInvitation(invite.email, event, invite.invitationUid);
+      }
+    }
+
+    invite.cancelled = false;
+    invite.cancelledAt = null;
+    await invite.save();
+    return { success: true, message: 'Invitation re-activated successfully' };
   }
 }
 

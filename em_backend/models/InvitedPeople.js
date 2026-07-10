@@ -14,6 +14,22 @@ const invitedPeopleSchema = new mongoose.Schema({
     required: [true, 'Invitation UID is required'],
     index: true,
   },
+  // Present only for invites copied from a recurring series onto a specific
+  // generated instance. Holds that occurrence's start/end so a removal cancels
+  // just this date (via RECURRENCE-ID) instead of the whole series.
+  specificDate: {
+    start: { type: Date },
+    end: { type: Date },
+  },
+  // When a specific-date invite is cancelled we keep the doc (so the UI can show
+  // the cancelled state and allow re-activation) and just flag it here.
+  cancelled: {
+    type: Boolean,
+    default: false,
+  },
+  cancelledAt: {
+    type: Date,
+  },
   email: {
     type: String,
     required: [true, 'Email is required'],
