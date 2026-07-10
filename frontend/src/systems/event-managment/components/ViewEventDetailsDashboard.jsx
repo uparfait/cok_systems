@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiXCircle, FiClock, FiUsers, FiMail, FiX } from 'react-icons/fi';
+import { FiEdit2, FiXCircle, FiClock, FiUsers, FiMail, FiX, FiRefreshCw } from 'react-icons/fi';
 import axios from 'axios';
 import SpiralLoader from './SpiralLoader';
 import EventDetailHeader from './sub-components/EventDetailHeader';
@@ -104,6 +104,16 @@ export default function ViewEventDetailsDashboard() {
       console.error("Failed to fetch invited people:", err);
     } finally {
       setInvitedLoading(false);
+    }
+  };
+
+  // Re-activate a previously cancelled (specific-date) invite.
+  const reactivateInvite = async (person) => {
+    try {
+      await axios.patch(`${BASE_URL}/events/invited/${person._id}/reactivate`);
+      fetchInvitedPeople(invitedPage);
+    } catch (err) {
+      console.error("Failed to re-activate invitation:", err);
     }
   };
 
@@ -319,19 +329,39 @@ export default function ViewEventDetailsDashboard() {
                           </span>
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">{person.email}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-gray-800 truncate">{person.email}</p>
+                            {person.cancelled && (
+                              <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-orange-100 text-orange-600">
+                                Cancelled
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[10px] text-gray-400">
                             {new Date(person.invitedAt).toLocaleDateString()}
+                            {person.specificDate?.start && (
+                              <> · {new Date(person.specificDate.start).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</>
+                            )}
                           </p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => setDeleteConfirm({ _id: person._id, email: person.email })}
-                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                        title="Remove invitation"
-                      >
-                        <FiX className="w-4 h-4" />
-                      </button>
+                      {person.cancelled ? (
+                        <button
+                          onClick={() => reactivateInvite(person)}
+                          className="p-1.5 text-orange-500 hover:text-orange-700 hover:bg-orange-50 transition-colors"
+                          title="Re-activate invitation"
+                        >
+                          <FiRefreshCw className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setDeleteConfirm({ _id: person._id, email: person.email })}
+                          className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          title="Remove invitation"
+                        >
+                          <FiX className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

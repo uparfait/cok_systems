@@ -64,8 +64,8 @@ function cancelHtml(event) {
 }
 
 /** Send a calendar invitation to a single attendee. */
-async function sendEventInvitation(email, event, invitationUid) {
-  const ics = buildInviteICS(event, invitationUid, 'REQUEST', email);
+async function sendEventInvitation(email, event, invitationUid, recurrenceId = null) {
+  const ics = buildInviteICS(event, invitationUid, 'REQUEST', email, 0, recurrenceId);
   return sendCalendarEmail(
     email,
     `Invitation: ${event.eventName}`,
@@ -77,8 +77,8 @@ async function sendEventInvitation(email, event, invitationUid) {
 }
 
 /** Send a calendar cancellation (METHOD:CANCEL) to a single attendee. */
-async function sendEventCancellation(email, event, invitationUid) {
-  const ics = buildInviteICS(event, invitationUid, 'CANCEL', email);
+async function sendEventCancellation(email, event, invitationUid, recurrenceId = null) {
+  const ics = buildInviteICS(event, invitationUid, 'CANCEL', email, 0, recurrenceId);
   return sendCalendarEmail(
     email,
     `Cancelled: ${event.eventName}`,
