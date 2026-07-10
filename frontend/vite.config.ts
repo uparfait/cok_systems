@@ -17,6 +17,7 @@ export default defineConfig({
 
   server: {
     port: 5173,
+    host: process.env.VITE_DEV_SERVER_HOST || false,
     proxy: {
       '/cok/api/v1': {
         

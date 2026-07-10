@@ -86,5 +86,6 @@ const PostMeetingMinutesController = require('../controllers/PostMeetingMinutesC
  */
 Router.post('/:eventSpecialId/minutes', PostMeetingMinutesController.saveMinutes);
 Router.get('/:eventSpecialId/minutes', PostMeetingMinutesController.getMinutes);
+Router.post('/:eventSpecialId/minutes/designate', PostMeetingMinutesController.designateMinutes);
 
 module.exports = Router;

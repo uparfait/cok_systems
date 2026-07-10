@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const withTransaction = require('./withTransaction');
 const RecurringEvent = require('../models/RecurringEvent');
 const UpcomingEvent = require('../models/UpcomingEvent');
 const LiveEvent = require('../models/LiveEvent');
@@ -9,24 +9,17 @@ const CheckRoomAvailability = require('./CheckRoomAvailability');
 
 class MonitorEvents {
   static async execute() {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
-      await this.processRecurringEvents(session);
-      await this.processUpcomingEvents(session);
-      await this.processLiveEvents(session);
-      await this.processRecurringExpirations(session);
-      await this.reconcileRecurringInvites(session);
-
-      await session.commitTransaction();
+      await withTransaction(async (session) => {
+        await this.processRecurringEvents(session);
+        await this.processUpcomingEvents(session);
+        await this.processLiveEvents(session);
+        await this.processRecurringExpirations(session);
+      });
       console.log('Event monitoring completed successfully');
     } catch (error) {
-      await session.abortTransaction();
       console.error('Event monitoring failed:', error);
       throw error;
-    } finally {
-      session.endSession();
     }
   }
 

@@ -75,6 +75,7 @@ import ShowEditor from "./systems/event-managment/pages/index/components/ShowEdi
 import MyTasksPage from "./systems/event-managment/pages/index/MyTasksPage.jsx";
 import MyTasksTaskPage from "./systems/event-managment/pages/index/MyTasksTaskPage.jsx";
 import InvitePage from "./systems/event-managment/pages/index/InvitePage.jsx";
+import DesignateMinutes from "./systems/event-managment/pages/index/DesignateMinutes.jsx";
 
 import DashboardLayout from "./systems/event-managment/pages/dashboard/DashboardLayout.jsx";
 import DashboardPage from "./systems/event-managment/pages/dashboard/DashboardPage.jsx";
@@ -191,10 +192,8 @@ const App: React.FC = () => {
                      path="event/:id/attendees"
                      element={<AttendeesList />}
                    />
-                   <Route
-                     path="event/:id/actions"
-                     element={<EventActionsPage />}
-                   />
+<Route path="event/:id/designate" element={<DesignateMinutes />} />
+                    <Route path="event/:id/actions" element={<EventActionsPage />} />
                    <Route path="event/:id/editor" element={<ShowEditor />} />
                    <Route path="event/:id/invite" element={<InvitePage />} />
 
@@ -281,8 +280,9 @@ const App: React.FC = () => {
           <Route path="/event-manager/events/new/event" element={< CreateEvent eventMeetingType="event" /> } />
           <Route path="/event-manager/events/new/meet" element={< CreateEvent eventMeetingType="meet" /> } />
           <Route path="/event-manager/events/:eventId/edit" element={< CreateEvent eventMeetingType={undefined} /> } />
-          <Route path="/event-manager/events/:eventId/details" element={<ViewEventDetailsDashboard />} />
-          <Route path="/event-manager/events/actions" element={<EventActions />} />
+<Route path="/event-manager/events/:eventId/details" element={<ViewEventDetailsDashboard />} />
+           <Route path="/event-manager/events/:eventId/designate" element={<DesignateMinutes />} />
+           <Route path="/event-manager/events/actions" element={<EventActions />} />
           <Route path="/event-manager/events/:eventId/invite" element={<InvitePage />} />
 
           {/* Booking Requests Routes */}
