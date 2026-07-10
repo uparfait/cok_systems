@@ -10,16 +10,6 @@ const EventValidator = require('../validators/EventValidator');
 const RecurringValidator = require('../validators/RecurringValidator');
 const CalculateMonthlyFirstOccurrence = require('./CalculateMonthlyFirstOccurrence');
 const mongoose = require("mongoose");
-const LiveEvent = require("../models/LiveEvent");
-const UpcomingEvent = require("../models/UpcomingEvent");
-const RecurringEvent = require("../models/RecurringEvent");
-const PastEvent = require("../models/PastEvent");
-const Room = require("../models/Room");
-const GenerateUniqueEventSpecialId = require("../utilities/GenerateUniqueEventSpecialId");
-const CheckRoomAvailability = require("../utilities/CheckRoomAvailability");
-const EventValidator = require("../validators/EventValidator");
-const RecurringValidator = require("../validators/RecurringValidator");
-const CalculateMonthlyFirstOccurrence = require("./CalculateMonthlyFirstOccurrence");
 
 class EventService {
   static async createEvent(eventData, requestId = null) {

@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { FiPhone, FiCheckCircle, FiAlertCircle, FiClock, FiStar, FiMessageSquare } from 'react-icons/fi';
 import { verifyPhone, getFeedbackByPhone } from '../core/services/feedbackService';
 import { useToast } from '../core/contexts/ToastContext';
+import FeedbackModal from '../core/components/Modals/FeedbackModal';
 
 interface AssignedDepartment {
   department_id: string;
@@ -53,6 +54,8 @@ const FeedbackStatusPage: React.FC = () => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isLoadingFeedback, setIsLoadingFeedback] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
 
   const handleVerifyPhone = async () => {
     if (!phone.trim()) {
@@ -119,6 +122,14 @@ const FeedbackStatusPage: React.FC = () => {
 
   const getFeedbackForDepartment = (departmentId: string): FeedbackItem | null => {
     return feedback.find(f => f.department_id === departmentId) || null;
+  };
+
+  const handleOpenFeedbackModal = () => {
+    setIsFeedbackModalOpen(true);
+  };
+
+  const handleCloseFeedbackModal = () => {
+    setIsFeedbackModalOpen(false);
   };
 
   const renderStatusBadge = (departmentId: string) => {
@@ -304,15 +315,24 @@ const FeedbackStatusPage: React.FC = () => {
                           </div>
                         </button>
                       ) : (
-                        <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-100 w-full sm:w-auto">
-                          <div className="flex items-center gap-2 mb-1">
-                            <FiClock className="w-4 h-4 text-yellow-600" />
-                            <span className="text-xs font-semibold text-yellow-700 uppercase">Pending</span>
+                        <button
+                          onClick={handleOpenFeedbackModal}
+                          className="w-full sm:w-auto text-left"
+                        >
+                          <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-100 hover:border-yellow-300 hover:bg-yellow-100 transition-colors cursor-pointer">
+                            <div className="flex items-center gap-2 mb-1">
+                              <FiClock className="w-4 h-4 text-yellow-600" />
+                              <span className="text-xs font-semibold text-yellow-700 uppercase">Pending</span>
+                            </div>
+                            <p className="text-xs text-gray-600 mb-2">
+                              You haven't submitted feedback for this service yet
+                            </p>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-yellow-500 text-white hover:bg-yellow-600 transition-colors">
+                              <FiMessageSquare className="w-3 h-3" />
+                              Submit Feedback
+                            </span>
                           </div>
-                          <p className="text-xs text-gray-600">
-                            You haven't submitted feedback for this service yet
-                          </p>
-                        </div>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -337,6 +357,11 @@ const FeedbackStatusPage: React.FC = () => {
           </div>
         </>
       )}
+
+      <FeedbackModal
+        isOpen={isFeedbackModalOpen}
+        onClose={handleCloseFeedbackModal}
+      />
     </div>
   );
 };
