@@ -1,5 +1,5 @@
-const mongoose = require("mongoose");
 const uuid = require("uuid");
+const withTransaction = require("../utilities/withTransaction");
 const BookingRequest = require("../models/BookingRequest");
 const Room = require("../models/Room");
 const CheckRoomAvailability = require("../utilities/CheckRoomAvailability");
@@ -97,10 +97,7 @@ class BookingRequestService {
   }
 
   static async acceptRequest(requestId) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
+    return withTransaction(async (session) => {
       const request = await BookingRequest.findById(requestId).session(session);
       if (!request) {
         throw new Error("Booking request not found");
@@ -145,8 +142,6 @@ class BookingRequestService {
       request.acceptedEventType = "upcoming";
       await request.save({ session });
 
-      await session.commitTransaction();
-
       return {
         success: true,
         message: "Booking request accepted and event created successfully",
@@ -155,19 +150,11 @@ class BookingRequestService {
           event: result.data,
         },
       };
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
-    }
+    });
   }
 
   static async rejectRequest(requestId, reason) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
+    return withTransaction(async (session) => {
       const request = await BookingRequest.findById(requestId).session(session);
       if (!request) {
         throw new Error("Booking request not found");
@@ -187,19 +174,12 @@ class BookingRequestService {
       request.rejectionReason = reason.trim();
       await request.save({ session });
 
-      await session.commitTransaction();
-
       return {
         success: true,
         message: "Booking request rejected",
         data: request,
       };
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
-    }
+    });
   }
 
   static async cancelRequest(requestId) {

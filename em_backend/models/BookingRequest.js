@@ -125,7 +125,6 @@ const bookingRequestSchema = new mongoose.Schema(
     trackingCode: {
       type: String,
       required: [true, "Tracking code is required"],
-      unique: true,
     },
     status: {
       type: String,
