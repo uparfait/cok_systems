@@ -69,7 +69,7 @@ export default function SideBar({ isOpen, onToggle, isDesktop = true, mockUser }
     links.forEach(link => {
       const children = link.children || [];
       const linkPath = link.pathname;
-      let isLinkActive = location.pathname === linkPath || location.pathname.startsWith(linkPath + '/');
+      let isLinkActive = location.pathname === linkPath || (children.length > 0 && location.pathname.startsWith(linkPath + '/'));
       if (!isLinkActive && children.length > 0) {
         for (const child of children) {
           if (location.pathname === child.pathname || location.pathname.startsWith(child.pathname + '/')) {
@@ -101,7 +101,7 @@ export default function SideBar({ isOpen, onToggle, isDesktop = true, mockUser }
     links.forEach(link => {
       const children = link.children || [];
       const linkPath = link.pathname;
-      let isLinkActive = location.pathname === linkPath || location.pathname.startsWith(linkPath + '/');
+      let isLinkActive = location.pathname === linkPath || (children.length > 0 && location.pathname.startsWith(linkPath + '/'));
       if (!isLinkActive && children.length > 0) {
         for (const child of children) {
           if (location.pathname === child.pathname || location.pathname.startsWith(child.pathname + '/')) {
@@ -169,7 +169,7 @@ export default function SideBar({ isOpen, onToggle, isDesktop = true, mockUser }
       }
     }
 
-    if (currentPathname.startsWith(linkPathname + '/') && linkPathname !== '/') return true;
+    if (currentPathname.startsWith(linkPathname + '/') && linkPathname !== '/' && children && children.length > 0) return true;
 
     if (children && children.length > 0) {
       for (const child of children) {

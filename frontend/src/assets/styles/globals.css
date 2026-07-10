@@ -197,3 +197,49 @@ html, body {
     -ms-overflow-style: none;
   }
 }
+#ToDayAnimatedCalenderBg {
+  position: relative;
+  background: white;
+ 
+  overflow: hidden;
+}
+
+#ToDayAnimatedCalenderBg::before {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  background: conic-gradient(
+    from 0deg,
+    #2196f3,
+    #ffeb3b,
+    #4caf50,
+    #2196f3
+  );
+  animation: rotateBorder 2s linear infinite;
+  filter: blur(6px);
+  opacity: 0.9;
+}
+
+#ToDayAnimatedCalenderBg::after {
+  content: "";
+  position: absolute;
+  inset: 2px; /* Same as border thickness */
+  background: #fcfdff; /* Inner background */
+
+  z-index: 1;
+}
+
+
+#ToDayAnimatedCalenderBg > * {
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes rotateBorder {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

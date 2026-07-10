@@ -37,6 +37,18 @@ const GetAvailableRoomsController = require('../controllers/GetAvailableRoomsCon
  *         description: Mode of the event being checked
  *         example: "live"
  *       - in: query
+ *         name: excludeEventId
+ *         schema:
+ *           type: string
+ *         description: Event special ID to exclude (prevents self-conflict when editing an event)
+ *         example: "550e8400-e29b-41d4-a716-446655440000"
+ *       - in: query
+ *         name: requestId
+ *         schema:
+ *           type: string
+ *         description: Booking request ID to exclude (prevents self-conflict when editing a request)
+ *         example: "60d5f484f1a2c8b1f8e4e1a1"
+ *       - in: query
  *         name: recurringType
  *         schema:
  *           type: string

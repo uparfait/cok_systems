@@ -1,6 +1,3 @@
-// App - Main application component with role-based routing
-// Routes are prefixed with the user's role slug (e.g. /system-admin/, /receptionist/)
-
 import React, { useState, useEffect } from "react";
 import {
   BrowserRouter as Router,
@@ -81,6 +78,7 @@ import InvitePage from "./systems/event-managment/pages/index/InvitePage.jsx";
 import DesignateMinutes from "./systems/event-managment/pages/index/DesignateMinutes.jsx";
 
 import DashboardLayout from "./systems/event-managment/pages/dashboard/DashboardLayout.jsx";
+import DashboardPage from "./systems/event-managment/pages/dashboard/DashboardPage.jsx";
 import CreateRoomForm from "./systems/event-managment/components/CreateRoomForm.jsx";
 import RoomStatistics from "./systems/event-managment/components/RoomStatistics.jsx";
 import CheckAvailability from "./systems/event-managment/components/CheckAvailability.jsx";
@@ -237,7 +235,7 @@ const App: React.FC = () => {
 
                 {/* Separated Private/Authenticated Route View Wrapper */}
         <Route path="/event-manager" element={<DashboardLayout />}>
-          <Route index element={<> Reserved for dashboard </> }/>
+          <Route index element={<DashboardPage />} />
 
           {/* Rooms Management Routes */}
           <Route

@@ -9,13 +9,6 @@ const recurrenceHelper = require('../utilities/recurrenceHelper');
 const MODELS = { live: LiveEvent, upcoming: UpcomingEvent, recurring: RecurringEvent };
 
 class EventSectionUpdateService {
-  /**
-   * Update a specific section of an event.
-   * @param {string} eventId - MongoDB _id
-   * @param {string} eventType - 'live', 'upcoming', 'recurring'
-   * @param {string} section - Section name: 'basic', 'organizer', 'agenda', 'room'
-   * @param {object} data - The partial update data
-   */
   static async execute(eventId, eventType, section, data) {
     const Model = MODELS[eventType];
     if (!Model) throw new Error('Invalid event type');
@@ -35,7 +28,7 @@ class EventSectionUpdateService {
           this._updateAgenda(event, data);
           break;
         case 'room':
-          await this._updateRoom(event, data, session);
+          await this._updateRoom(event, data, session, eventType);
           break;
         default:
           throw new Error('Invalid section. Must be basic, organizer, agenda, or room.');
@@ -69,7 +62,6 @@ class EventSectionUpdateService {
       if (isNaN(val) || val < 1) throw new Error('Expected audience must be at least 1');
       event.expectedAudience = val;
     }
-    // For recurring: update recurring config sub-fields
     if (data.eventRecurring && event.eventRecurring) {
       if (data.eventRecurring.eventStartTime) {
         if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(data.eventRecurring.eventStartTime)) {
@@ -134,18 +126,16 @@ class EventSectionUpdateService {
     event.activityAgenda = sanitized;
   }
 
-  static async _updateRoom(event, data, session) {
+  static async _updateRoom(event, data, session, eventType) {
     if (!data.eventRoom || !data.eventRoom.trim()) {
       throw new Error('Room name is required');
     }
     const newRoom = data.eventRoom.toLowerCase().trim();
 
-    // Verify room exists
     const room = await Room.findOne({ roomName: newRoom, isActive: true }).session(session);
     if (!room) throw new Error('Room not found or is inactive');
 
-    // For recurring events: check ALL future occurrences for conflicts
-    if (event.eventRecurring) {
+    if (eventType === 'recurring' && event.eventRecurring) {
       const { eventStartTime, eventEndTime, recurringEndDate, recurringType, weeklyDays, monthlyDates, monthlyPattern } = event.eventRecurring;
       if (!eventStartTime || !eventEndTime || !recurringEndDate) {
         throw new Error('Recurring event configuration is incomplete for availability check');
@@ -156,13 +146,12 @@ class EventSectionUpdateService {
       const [eH, eM] = eventEndTime.split(':').map(Number);
       const recurrenceEnd = new Date(recurringEndDate);
 
-      // Generate all future occurrence dates
       const occurrenceDates = recurrenceHelper.generateOccurrenceDates(
-        now, 
-        recurrenceEnd, 
-        recurringType, 
-        weeklyDays, 
-        monthlyDates, 
+        now,
+        recurrenceEnd,
+        recurringType,
+        weeklyDays,
+        monthlyDates,
         monthlyPattern
       );
 
@@ -170,21 +159,18 @@ class EventSectionUpdateService {
         throw new Error('No future occurrences found for this recurring event');
       }
 
-      // Check each occurrence for conflicts
       const conflicts = [];
       for (const occDate of occurrenceDates) {
         const occStart = new Date(occDate);
         occStart.setHours(sH, sM, 0, 0);
-        
+
         const occEnd = new Date(occDate);
         occEnd.setHours(eH, eM, 0, 0);
-        
-        // Handle overnight events
+
         if (eH < sH || (eH === sH && eM <= sM)) {
           occEnd.setDate(occEnd.getDate() + 1);
         }
 
-        // Skip if this occurrence is already in the past
         if (occStart <= now) continue;
 
         const avail = await CheckRoomAvailability.execute(newRoom, occStart, occEnd, event.eventSpecialId);
@@ -205,8 +191,7 @@ class EventSectionUpdateService {
         throw new Error(`New room is already reserved during ${conflictDetails}${suffix}`);
       }
     } else {
-      // For live/upcoming: check availability using existing times
-      const start = event.startedAt || event.willStartAt;
+      const start = eventType === 'live' ? new Date() : (event.willStartAt || event.startedAt);
       const end = event.willEndAt;
       if (start && end) {
         const avail = await CheckRoomAvailability.execute(newRoom, start, end, event.eventSpecialId);

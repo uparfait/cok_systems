@@ -360,7 +360,10 @@ class BookingRequestService {
         const eventConflict = await CheckRoomAvailability.execute(
           roomToCheck.toLowerCase(),
           newStart,
-          newEnd
+          newEnd,
+          null,
+          null,
+          requestId
         );
         if (!eventConflict.available) {
           throw new Error(
