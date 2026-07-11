@@ -1,7 +1,8 @@
-import { Outlet, useNavigate, Link } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import IndexHeader from "./components/IndexHeader";
 import { useEffect, useState } from "react";
 import { FiMessageSquare } from "react-icons/fi";
+import FeedbackModal from "../../../../core/components/Modals/FeedbackModal";
 
 export default function Layout() {
 
@@ -9,6 +10,7 @@ export default function Layout() {
   const [UpcomingEventsData, setUpcomingEventsData] = useState([]);
   const [count, setCount] = useState(1)
   const [activeEvent, setActiveEvent] = useState({});
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(()=> {
@@ -65,14 +67,19 @@ useEffect(() => {
           <Outlet context={{LiveEventsData, setLiveEventsData, UpcomingEventsData, setUpcomingEventsData, activeEvent, setActiveEvent}} />
        </div>
 
-       <Link 
-         to="/feedback" 
+       <button
+         onClick={() => setIsFeedbackModalOpen(true)}
          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-full shadow-lg transition-all duration-200 hover:scale-105"
-         title="View Your Service History & Feedback"
+         title="Submit Feedback"
        >
          <FiMessageSquare className="w-5 h-5" />
          <span className="text-sm font-medium hidden sm:inline">Feedback</span>
-       </Link>
+       </button>
+
+       <FeedbackModal
+         isOpen={isFeedbackModalOpen}
+         onClose={() => setIsFeedbackModalOpen(false)}
+       />
      </div>
   );
 }
