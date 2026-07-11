@@ -32,6 +32,19 @@ interface SubmitFeedbackResponse {
   rate: number;
 }
 
+interface SubmitUnservicedFeedbackRequest {
+  telephone?: string;
+  user_name?: string;
+  rate: number;
+  textmessage?: string;
+}
+
+interface SubmitUnservicedFeedbackResponse {
+  success: boolean;
+  feedback_id: string;
+  rate: number;
+}
+
 interface FeedbackItem {
   _id: string;
   feedback_id?: string;
@@ -107,6 +120,22 @@ export const submitFeedback = async (data: SubmitFeedbackRequest): Promise<Submi
 };
 
 /**
+ * Submit unserviced feedback (no service/department required)
+ * POST /feedback/submit-unserviced
+ */
+export const submitUnservicedFeedback = async (data: SubmitUnservicedFeedbackRequest): Promise<SubmitUnservicedFeedbackResponse> => {
+  const response = await post('/feedback/submit-unserviced', data);
+  if (response.success && response.data) {
+    return {
+      success: true,
+      feedback_id: response.data.feedback_id || '',
+      rate: response.data.rate || data.rate
+    };
+  }
+  throw new Error(response.error || 'Failed to submit feedback');
+};
+
+/**
  * Get feedback submitted by a phone number
  * GET /feedback/by-phone/:telephone
  */
@@ -152,5 +181,6 @@ export const getFeedbackByPhone = async (telephone: string): Promise<{feedback: 
 export default {
   verifyPhone,
   submitFeedback,
+  submitUnservicedFeedback,
   getFeedbackByPhone
 };

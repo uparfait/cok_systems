@@ -11,6 +11,7 @@ const searchAllController = require('../../controllers/feedback/search_all');
 const getByIdController = require('../../controllers/feedback/get_by_id');
 const deleteFeedbackController = require('../../controllers/feedback/delete_feedback');
 const getByPhoneController = require('../../controllers/feedback/get_by_phone');
+const submitUnservicedFeedbackController = require('../../controllers/feedback/submit_unserviced_feedback');
 
 /**
  * @swagger
@@ -321,6 +322,52 @@ Router.get('/:id', getByIdController);
  *       500:
  *         description: Internal server error
  */
+/**
+ * @swagger
+ * /feedback/submit-unserviced:
+ *   post:
+ *     summary: "Submit unserviced feedback (no service/department required)"
+ *     description: "Submit a rating and optional comment without requiring a service record or department assignment."
+ *     tags: [Feedback]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - rate
+ *             properties:
+ *               telephone:
+ *                 type: string
+ *                 description: "Optional phone number"
+ *                 example: "+250788123456"
+ *               user_name:
+ *                 type: string
+ *                 description: "Optional name"
+ *                 example: "John Doe"
+ *               rate:
+ *                 type: integer
+ *                 description: "Rating score (1-10)"
+ *                 minimum: 1
+ *                 maximum: 10
+ *                 example: 8
+ *               textmessage:
+ *                 type: string
+ *                 description: "Optional feedback message (max 500 chars)"
+ *                 maxLength: 500
+ *                 example: "The system is easy to use but could be faster."
+ *     responses:
+ *       201:
+ *         description: Feedback submitted successfully
+ *       400:
+ *         description: Validation error - missing or invalid fields
+ *       500:
+ *         description: Internal server error
+ */
+Router.post('/submit-unserviced', submitUnservicedFeedbackController);
+
 Router.delete('/:id', deleteFeedbackController);
 
 module.exports = Router;
