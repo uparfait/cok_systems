@@ -4,6 +4,7 @@
  */
 
 const UnservicedFeedback = require('../../models/unservicedfeedback_db');
+const alertAdminsOfNegativeFeedback = require('../../services/negative_feedback_alert');
 
 async function submitUnservicedFeedback(req, res) {
     try {
@@ -43,6 +44,18 @@ async function submitUnservicedFeedback(req, res) {
         });
 
         await feedback.save();
+
+        // Alert all system admins (email + in-app notification) on negative rating,
+        // without blocking the response
+        if (rate <= 5) {
+            alertAdminsOfNegativeFeedback({
+                rating: rate,
+                department_name: 'General Feedback',
+                user_name: user_name || 'Anonymous',
+                textmessage: textmessage || '',
+                created_date: feedback.created_date || new Date()
+            });
+        }
 
         return res.status(201).json({
             success: true,
