@@ -231,7 +231,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-md transform rounded-2xl bg-white shadow-xl transition-all">
+        <div className="relative w-full max-w-md max-h-[85vh] flex flex-col transform rounded-2xl bg-white shadow-xl transition-all border-2 border-blue-500">
 
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
@@ -248,7 +248,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
           </div>
 
           {/* Content */}
-          <div className="px-6 py-5">
+          <div className="px-6 py-4 overflow-y-auto">
 
             {/* Choice Step */}
             {step === 'choice' && (
@@ -272,7 +272,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                         <p className="text-sm font-bold text-gray-900 group-hover:text-blue-700">I Received a Service</p>
                         <p className="text-xs text-gray-600 mt-1 leading-relaxed">
                           I visited a department and want to rate the service I received.
-                          <span className="block mt-1 text-blue-600 font-medium">→ Requires phone verification</span>
+                          <span className="block mt-1 text-blue-600 font-medium">Requires phone verification</span>
                         </p>
                       </div>
                     </div>
@@ -290,8 +290,8 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                       <div className="flex-1">
                         <p className="text-sm font-bold text-gray-900 group-hover:text-yellow-700">General Feedback</p>
                         <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-                          No service required. Share your experience, suggestion, or complaint directly.
-                          <span className="block mt-1 text-yellow-700 font-medium">→ Skip phone verification, rate and send</span>
+                          No service required. Share your experience & suggestion.
+                          <span className="block mt-1 text-yellow-700 font-medium"> Skip phone verification, rate and send</span>
                         </p>
                       </div>
                     </div>
@@ -478,10 +478,10 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
 
             {/* Step: Rate & Message (Unserviced) */}
             {step === 'unserviced_rate' && (
-              <div className="space-y-5">
-                <div className="text-center mb-4">
-                  <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <FiUser className="w-6 h-6 text-yellow-600" />
+              <div className="space-y-3">
+                <div className="text-center mb-1">
+                  <div className="w-9 h-9 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-1.5">
+                    <FiUser className="w-5 h-5 text-yellow-600" />
                   </div>
                   <p className="text-sm font-medium text-gray-900">Share Your Feedback</p>
                   <p className="text-xs text-gray-500">No service required - tell us about your experience</p>
@@ -561,10 +561,10 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                     value={unservedMessage}
                     onChange={(e) => setUnservedMessage(e.target.value.slice(0, 500))}
                     placeholder="Tell us about your experience..."
-                    rows={3}
+                    rows={2}
                     className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 resize-none"
                   />
-                  <p className="text-xs text-gray-400 mt-1 text-right">{unservedMessage.length}/500</p>
+                  <p className="text-xs text-gray-400 mt-0.5 text-right">{unservedMessage.length}/500</p>
                 </div>
 
                 <div className="flex gap-2">
@@ -764,9 +764,9 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                   <p className="text-sm text-gray-500 mt-1">
                     Your feedback has been submitted successfully.
                   </p>
-                  {feedbackType === 'serviced' && rating <= 5 && (
+                  {((feedbackType === 'serviced' && rating <= 5) || (feedbackType === 'unserviced' && unservedRating <= 5)) && (
                     <p className="text-xs text-orange-500 mt-2">
-                      A notification has been sent to the department head.
+                      A notification has been sent to the management team.
                     </p>
                   )}
                 </div>

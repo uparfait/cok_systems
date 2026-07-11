@@ -2,10 +2,11 @@ const mongoose = require('mongoose');
 
 const notificationSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    task: { type: mongoose.Schema.Types.ObjectId, ref: 'Task', required: true },
+    // task is only required for task-related notification types
+    task: { type: mongoose.Schema.Types.ObjectId, ref: 'Task' },
     type: {
         type: String,
-        enum: ['deadline_reminder', 'task_completed', 'subtask_completed'],
+        enum: ['deadline_reminder', 'task_completed', 'subtask_completed', 'negative_feedback'],
         required: true
     },
     title: { type: String, required: true },
