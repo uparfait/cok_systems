@@ -8,6 +8,7 @@ const ServiceDelivery = require('../../models/service_delivery');
 const Department = require('../../models/department');
 const User = require('../../models/user');
 const { sendNegativeFeedbackAlert } = require('../../utilities/email');
+const alertAdminsOfNegativeFeedback = require('../../services/negative_feedback_alert');
 
 async function submitFeedback(req, res) {
     try {
@@ -124,6 +125,15 @@ async function submitFeedback(req, res) {
                 // Log email error but don't fail the feedback submission
                 console.error('Failed to send negative feedback alert email:', emailError);
             }
+
+            // Alert all system admins (email + in-app notification), without blocking the response
+            alertAdminsOfNegativeFeedback({
+                rating: rate,
+                department_name: assignedDept.department_name,
+                user_name: serviceRecord.full_name,
+                textmessage: textmessage || '',
+                created_date: feedback.created_date
+            });
         }
 
         return res.status(201).json({
