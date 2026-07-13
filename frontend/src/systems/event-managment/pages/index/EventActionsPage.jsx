@@ -94,19 +94,21 @@ export default function EventActionsPage() {
 
   /* fetch event title */
   useEffect(() => {
-    const sources = [
-      axios.get(`${BASE_URL}/live-events`),
-      axios.get(`${BASE_URL}/upcoming-events`),
-      axios.get(`${BASE_URL}/past-events`),
-    ];
-    Promise.allSettled(sources).then(results => {
-      for (const r of results) {
-        if (r.status !== 'fulfilled') continue;
-        const list = r.value?.data?.data || [];
-        const found = list.find(e => e.eventSpecialId === eventSpecialId);
-        if (found) { setEventTitle(found.eventTitle || found.title || ''); return; }
+    const statuses = ['live', 'upcoming', 'recurring', 'past'];
+    (async () => {
+      for (const status of statuses) {
+        try {
+          const res = await axios.get(`${BASE_URL}/events/${status}`, {
+            params: { search: eventSpecialId, searchField: 'eventSpecialId', limit: 1 },
+          });
+          const found = res.data?.data?.[0];
+          if (res.data?.success && found) {
+            setEventTitle(found.eventName || found.eventTitle || found.title || '');
+            return;
+          }
+        } catch { /* try next status */ }
       }
-    });
+    })();
   }, [eventSpecialId]);
 
   function setField(path, value) {
