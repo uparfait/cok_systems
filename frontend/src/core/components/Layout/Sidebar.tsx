@@ -5,7 +5,8 @@ import {
   FiHome, FiGrid, FiTruck, FiUsers, FiSettings, 
   FiMessageSquare, FiBarChart2, FiMapPin, FiLogOut, FiUser,
   FiClipboard, FiUserCheck, FiLogIn, FiLogOut as FiExit, FiList, FiArrowRight,
-  FiChevronRight, FiShield, FiFile, FiStar,FiActivity,FiCheck,FiLayers
+  FiChevronRight, FiShield, FiFile, FiStar,FiActivity,FiCheck,FiLayers,
+  FiCalendar
 } from 'react-icons/fi';
 import { HiOutlineOfficeBuilding } from 'react-icons/hi';
 import { IoExitOutline } from 'react-icons/io5';
@@ -71,6 +72,7 @@ const getIcon = (iconName: string): React.ComponentType<any> => {
     FiParkingIcon,
     FiActivity,FiCheck,FiLayers,
     FiFile,
+    FiCalendar,
   };
   return icons[iconName] || FiGrid;
 };
