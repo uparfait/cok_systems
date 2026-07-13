@@ -221,7 +221,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
 
     // 3. Sub-route matching (e.g., /smart-parking/dashboard/details matches /smart-parking/dashboard)
-    if (currentPathname.startsWith(linkPathname + '/') && linkPathname !== '/') return true;
+    if (currentPathname.startsWith(linkPathname + '/') && linkPathname !== '/' && children && children.length > 0) return true;
 
     // 4. Children matching
     if (children && children.length > 0) {
