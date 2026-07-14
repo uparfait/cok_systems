@@ -34,7 +34,7 @@ class GenerateQrCodeController {
         });
       }
 
-      if(!global.FRONTEND_URL) {
+      if(!process.env.FRONTEND_URL) {
         return res.status(500).json({
         success: false,
         message: 'Error generating QR code ::: no frontend url detected',
@@ -43,7 +43,7 @@ class GenerateQrCodeController {
       }
 
   
-      const attendanceUrl = `${global.FRONTEND_URL}/event/${encodeURIComponent(liveEvent.eventSpecialId)}/attendances/?eventSpecialId=${encodeURIComponent(liveEvent.eventSpecialId)}&eventName=${encodeURIComponent(liveEvent.eventName)}&eventRoom=${encodeURIComponent(liveEvent.eventRoom)}&roomLocation=${encodeURIComponent(room.roomLocation)}&eventType=${encodeURIComponent(liveEvent.eventType)}`;
+      const attendanceUrl = `${process.env.FRONTEND_URL}/event/${encodeURIComponent(liveEvent.eventSpecialId)}/attendances/?eventSpecialId=${encodeURIComponent(liveEvent.eventSpecialId)}&eventName=${encodeURIComponent(liveEvent.eventName)}&eventRoom=${encodeURIComponent(liveEvent.eventRoom)}&roomLocation=${encodeURIComponent(room.roomLocation)}&eventType=${encodeURIComponent(liveEvent.eventType)}`;
 
       const qrCodeDataUrl = await QRCode.toDataURL(attendanceUrl, {
         width: 400,
@@ -63,8 +63,7 @@ class GenerateQrCodeController {
           eventSpecialId: liveEvent.eventSpecialId,
           qrCodeDataUrl,
           attendanceUrl,
-          event: liveEvent,
-          FRONTEND_URL: global.FRONTEND_URL
+          event: liveEvent
         }
       });
     } catch (error) {
