@@ -4,6 +4,7 @@ const InvitedPeople = require('../models/InvitedPeople');
 const UpcomingEvent = require('../models/UpcomingEvent');
 const LiveEvent = require('../models/LiveEvent');
 const RecurringEvent = require('../models/RecurringEvent');
+const PastEvent = require('../models/PastEvent');
 const emailUtil = require('../utilities/email');
 const { firstRecurringOccurrence, fromUTCInstant } = require('../utilities/eventCalendar');
 
@@ -76,13 +77,14 @@ class InviteService {
    */
   static async fetchEventForInvite(eventSpecialId) {
     const id = eventSpecialId.toLowerCase().trim();
-    const [upcoming, live, recurring] = await Promise.all([
+    const [upcoming, live, recurring, past] = await Promise.all([
       UpcomingEvent.findOne({ eventSpecialId: id }).lean(),
       LiveEvent.findOne({ eventSpecialId: id }).lean(),
       RecurringEvent.findOne({ eventSpecialId: id }).lean(),
+      PastEvent.findOne({ eventSpecialId: id }).lean(),
     ]);
 
-    const doc = upcoming || live || recurring;
+    const doc = upcoming || live || recurring || past;
     if (!doc) return null;
 
     if (recurring) {
@@ -99,8 +101,8 @@ class InviteService {
       };
     }
 
-    const start = upcoming ? upcoming.willStartAt : live.startedAt;
-    const end = upcoming ? upcoming.willEndAt : live.willEndAt;
+    const start = upcoming ? upcoming.willStartAt : live ? live.startedAt : past.startedAt;
+    const end = upcoming ? upcoming.willEndAt : live ? live.willEndAt : past.expectedToEndAt;
 
     return {
       eventName: doc.eventName,
@@ -274,14 +276,13 @@ class InviteService {
       const event = await this.fetchEventForInvite(invite.eventSpecialId);
       if (event) {
         if (invite.specificDate && invite.specificDate.start) {
-          // Cancel only this specific occurrence of the series
           const specificEvent = {
             eventName: event.eventName,
             eventDescription: event.eventDescription,
             eventRoom: event.eventRoom,
             eventOrganizer: event.eventOrganizer,
-            start: fromUTCInstant(invite.specificDate.start),
-            end: fromUTCInstant(invite.specificDate.end),
+            start: invite.specificDate.start,
+            end: invite.specificDate.end,
             isRecurring: false,
             recurring: null,
           };
@@ -289,15 +290,13 @@ class InviteService {
             invite.email,
             specificEvent,
             invite.invitationUid,
-            fromUTCInstant(invite.specificDate.start)
+            invite.specificDate.start
           );
-          // Keep the doc, just mark it cancelled (no deletion)
           invite.cancelled = true;
           invite.cancelledAt = new Date();
           await invite.save();
           return { success: true, message: 'Invitation for this date cancelled', cancelled: true };
         }
-        // Cancel the whole schedule / single event
         await emailUtil.sendEventCancellation(invite.email, event, invite.invitationUid);
       }
     }
@@ -326,8 +325,8 @@ class InviteService {
           eventDescription: event.eventDescription,
           eventRoom: event.eventRoom,
           eventOrganizer: event.eventOrganizer,
-          start: fromUTCInstant(invite.specificDate.start),
-          end: fromUTCInstant(invite.specificDate.end),
+          start: invite.specificDate.start,
+          end: invite.specificDate.end,
           isRecurring: false,
           recurring: null,
         };
@@ -335,7 +334,7 @@ class InviteService {
           invite.email,
           specificEvent,
           invite.invitationUid,
-          fromUTCInstant(invite.specificDate.start)
+          invite.specificDate.start
         );
       } else {
         await emailUtil.sendEventInvitation(invite.email, event, invite.invitationUid);
