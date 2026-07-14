@@ -63,7 +63,8 @@ class GenerateQrCodeController {
           eventSpecialId: liveEvent.eventSpecialId,
           qrCodeDataUrl,
           attendanceUrl,
-          event: liveEvent
+          event: liveEvent,
+          FRONTEND_URL: process.env.FRONTEND_URL
         }
       });
     } catch (error) {
