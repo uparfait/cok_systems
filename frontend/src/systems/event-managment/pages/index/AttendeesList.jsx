@@ -203,6 +203,7 @@ export default function AttendeesList() {
                     <td className="px-4 py-3 text-xs text-zinc-400 font-mono">{(page - 1) * PAGE_SIZE + i + 1}</td>
                     <td className="px-4 py-3 font-medium text-zinc-900">{a.attendeeFullName}</td>
                     <td className="px-4 py-3 text-zinc-600">{a.attendeeInstitution || '—'}</td>
+                    <td className="px-4 py-3 text-zinc-600">{a.attendeePosition || '—'}</td>
                     <td className="px-4 py-3">
                       {a.attendeeSignature ? (
                         <img
