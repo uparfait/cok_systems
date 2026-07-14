@@ -17,7 +17,7 @@ const app = express();
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(compression());
 app.use(cors(config.cors));
-app.use(express.json());
+app.use(express.json({ limit: '300kb' })); // allows optional base64 signature in attendance payloads
 app.use(express.urlencoded({ extended: true }));
 
 const limiter = rateLimit({
