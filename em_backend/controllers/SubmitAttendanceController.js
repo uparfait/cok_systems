@@ -11,6 +11,7 @@ class SubmitAttendanceController {
         attendeeInstitution,
         attendeePosition,
         eventSpecialId,
+        attendeeSignature,
       } = req.body;
 
       if (!attendeeFullName || !attendeePhoneNumber || !attendeeInstitution || !attendeePosition || !eventSpecialId) {
@@ -26,6 +27,21 @@ class SubmitAttendanceController {
           return res.status(400).json({
             success: false,
             message: 'Invalid email format'
+          });
+        }
+      }
+
+      if (attendeeSignature) {
+        if (typeof attendeeSignature !== 'string' || !attendeeSignature.startsWith('data:image/png;base64,')) {
+          return res.status(400).json({
+            success: false,
+            message: 'Signature must be a PNG image data URL'
+          });
+        }
+        if (attendeeSignature.length > 200000) {
+          return res.status(400).json({
+            success: false,
+            message: 'Signature image is too large'
           });
         }
       }
@@ -59,6 +75,7 @@ class SubmitAttendanceController {
         attendeePosition: attendeePosition.trim(),
         eventSpecialId,
         attendanceTime: new Date(),
+        attendeeSignature: attendeeSignature || undefined,
       });
 
       await attendance.save();
