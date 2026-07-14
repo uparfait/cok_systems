@@ -126,3 +126,5 @@ connect_db()
     });
     process.exit(1);
   });
+
+  console.log(process.env.FRONTEND_URL);
