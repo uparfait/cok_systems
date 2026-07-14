@@ -24,7 +24,7 @@ class GenerateRoomQrCodeController {
         });
       }
 
-      if (!global.FRONTEND_URL) {
+      if (!process.env.FRONTEND_URL) {
         return res.status(500).json({
           success: false,
           message: 'Error generating QR code: no frontend URL detected',
@@ -33,7 +33,7 @@ class GenerateRoomQrCodeController {
       }
 
       // Build attendance URL with RoomOnly=true — no event data, the attendance form will fetch the live event
-      const attendanceUrl = `${global.FRONTEND_URL}/event/${encodeURIComponent(normalizedRoomName)}/attendances/?RoomOnly=true`;
+      const attendanceUrl = `${process.env.FRONTEND_URL}/event/${encodeURIComponent(normalizedRoomName)}/attendances/?RoomOnly=true`;
 
       const qrCodeDataUrl = await QRCode.toDataURL(attendanceUrl, {
         width: 400,
