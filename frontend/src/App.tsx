@@ -133,10 +133,11 @@ const RoleDashboardPage: React.FC = () => {
 
 // PWA Install Prompt Wrapper
 const PWAInstallPromptWrapper: React.FC = () => {
-  const [showPrompt, setShowPrompt] = useState(false);
-
+  const [showPrompt, setShowPrompt] = useState(true);
+  
   useEffect(() => {
     const handleInstallAvailable = () => {
+     
       const isOnLoginPage =
         window.location.pathname === "/login" ||
         window.location.pathname === "/";
@@ -154,6 +155,8 @@ const PWAInstallPromptWrapper: React.FC = () => {
       window.removeEventListener("pwa-installed", handleInstalled);
     };
   }, []);
+
+  console.log("PWAInstallPromptWrapper: showPrompt =", showPrompt);
 
   return showPrompt ? (
     <PWAInstallPrompt onClose={() => setShowPrompt(false)} />
@@ -666,7 +669,7 @@ function AppWithPWA() {
   return (
     <>
       <App />
-      <PWAInstallPromptWrapper />
+      {/* <PWAInstallPromptWrapper /> */}
     </>
   );
 }
