@@ -39,6 +39,11 @@ const attendanceSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
+  attendeeSignature: {
+    type: String, // drawn signature as "data:image/png;base64,..." — optional
+    required: false,
+    maxlength: [200000, 'Signature image too large']
+  },
 }, { timestamps: true });
 
 attendanceSchema.index({ attendanceTime: 1 });
