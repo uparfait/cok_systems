@@ -84,6 +84,7 @@ export default function AttendeesList() {
       'Full Name': a.attendeeFullName || '',
       'Institution': a.attendeeInstitution || '',
       'Position': a.attendeePosition || '',
+      'Signed': a.attendeeSignature ? 'Yes' : 'No',
       'Submitted At': formatTime(a.createdAt),
     }));
 
@@ -94,7 +95,7 @@ export default function AttendeesList() {
       [],
     ]);
     XLSX.utils.sheet_add_json(ws, rows, { origin: 'A4' });
-    ws['!cols'] = [{ wch: 6 }, { wch: 30 }, { wch: 28 }, { wch: 25 }, { wch: 22 }];
+    ws['!cols'] = [{ wch: 6 }, { wch: 30 }, { wch: 28 }, { wch: 25 }, { wch: 8 }, { wch: 22 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
     XLSX.writeFile(wb, `attendance-${title}.xlsx`);
   }
@@ -192,6 +193,7 @@ export default function AttendeesList() {
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Full Name</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Institution</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Position</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Signature</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Submitted At</th>
                 </tr>
               </thead>
@@ -201,7 +203,17 @@ export default function AttendeesList() {
                     <td className="px-4 py-3 text-xs text-zinc-400 font-mono">{(page - 1) * PAGE_SIZE + i + 1}</td>
                     <td className="px-4 py-3 font-medium text-zinc-900">{a.attendeeFullName}</td>
                     <td className="px-4 py-3 text-zinc-600">{a.attendeeInstitution || '—'}</td>
-                    <td className="px-4 py-3 text-zinc-600">{a.attendeePosition}</td>
+                    <td className="px-4 py-3">
+                      {a.attendeeSignature ? (
+                        <img
+                          src={a.attendeeSignature}
+                          alt={`Signature of ${a.attendeeFullName}`}
+                          className="h-8 max-w-[110px] object-contain"
+                        />
+                      ) : (
+                        <span className="text-zinc-300">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-xs text-zinc-400 whitespace-nowrap">{formatTime(a.createdAt)}</td>
                   </tr>
                 ))}
@@ -229,6 +241,16 @@ export default function AttendeesList() {
                     <span className="text-zinc-400 shrink-0">Position:</span>
                     <span className="font-medium">{a.attendeePosition}</span>
                   </div>
+                  {a.attendeeSignature && (
+                    <div className="flex gap-1 items-center">
+                      <span className="text-zinc-400 shrink-0">Signature:</span>
+                      <img
+                        src={a.attendeeSignature}
+                        alt={`Signature of ${a.attendeeFullName}`}
+                        className="h-7 max-w-[100px] object-contain"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

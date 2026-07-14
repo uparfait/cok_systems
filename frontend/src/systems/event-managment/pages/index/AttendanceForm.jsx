@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import axios from 'axios';
 import SpiralLoader from '../../components/SpiralLoader';
@@ -8,6 +8,102 @@ const BASE_URL = '/cok/api/v1';
 const inputClass =
   'w-full px-4 py-3 border border-gray-300 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all duration-200 bg-white';
 const labelClass = 'block text-sm font-medium text-gray-700 mb-1.5';
+
+function SignaturePad({ onChange }) {
+  const canvasRef = useRef(null);
+  const drawingRef = useRef(false);
+  const hasInkRef = useRef(false);
+  const [hasInk, setHasInk] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = canvas.offsetWidth * ratio;
+    canvas.height = canvas.offsetHeight * ratio;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#1f2937';
+  }, []);
+
+  const getPos = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  const handleDown = (e) => {
+    e.preventDefault();
+    try { canvasRef.current.setPointerCapture(e.pointerId); } catch { /* not supported for this pointer */ }
+    drawingRef.current = true;
+    const { x, y } = getPos(e);
+    const ctx = canvasRef.current.getContext('2d');
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    // dot for a single tap
+    ctx.lineTo(x + 0.1, y + 0.1);
+    ctx.stroke();
+    if (!hasInkRef.current) { hasInkRef.current = true; setHasInk(true); }
+  };
+
+  const handleMove = (e) => {
+    if (!drawingRef.current) return;
+    e.preventDefault();
+    const { x, y } = getPos(e);
+    const ctx = canvasRef.current.getContext('2d');
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const handleUp = () => {
+    if (!drawingRef.current) return;
+    drawingRef.current = false;
+    if (hasInkRef.current) onChange(canvasRef.current.toDataURL('image/png'));
+  };
+
+  const clear = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+    hasInkRef.current = false;
+    setHasInk(false);
+    onChange('');
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <div className="relative border border-gray-300 bg-white">
+        <canvas
+          ref={canvasRef}
+          className="w-full h-36 block cursor-crosshair"
+          style={{ touchAction: 'none' }}
+          onPointerDown={handleDown}
+          onPointerMove={handleMove}
+          onPointerUp={handleUp}
+          onPointerCancel={handleUp}
+        />
+        {!hasInk && (
+          <span className="absolute inset-0 flex items-center justify-center text-sm text-gray-300 pointer-events-none select-none">
+            Sign here
+          </span>
+        )}
+      </div>
+      {hasInk && (
+        <button
+          type="button"
+          onClick={clear}
+          className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+        >
+          Clear signature
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function AttendanceForm() {
   const [searchParams] = useSearchParams();
@@ -87,6 +183,7 @@ export default function AttendanceForm() {
     attendeePosition: '',
   });
 
+  const [signature, setSignature] = useState('');
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState('');
@@ -138,6 +235,7 @@ export default function AttendanceForm() {
         attendeeInstitution: isInternal ? 'City of Kigali' : formData.attendeeInstitution.trim(),
         attendeePosition: formData.attendeePosition.trim(),
         eventSpecialId,
+        attendeeSignature: signature || undefined,
       });
       setSubmitted(true);
     } catch (err) {
@@ -374,6 +472,15 @@ export default function AttendanceForm() {
             {errors.attendeeEmail && (
               <p className="text-xs text-red-500">{errors.attendeeEmail}</p>
             )}
+          </div>
+
+          {/* Digital Signature — optional, drawn while submitting attendance */}
+          <div className="space-y-1.5">
+            <label className={labelClass}>
+              Digital Signature
+              <span className="ml-1.5 text-xs font-normal text-gray-400">(optional — draw with your finger or mouse)</span>
+            </label>
+            <SignaturePad onChange={setSignature} />
           </div>
 
           {/* Submit */}
