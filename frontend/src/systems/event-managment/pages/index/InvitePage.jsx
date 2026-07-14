@@ -19,7 +19,8 @@ const calculateCountdown = (targetTime) => {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function InvitePage() {
-  const { eventId } = useParams();
+  const { eventId: eventIdFromRoute, id } = useParams();
+  const eventId = eventIdFromRoute || id;
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
