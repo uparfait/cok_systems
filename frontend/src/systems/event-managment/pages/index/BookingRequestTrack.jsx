@@ -5,7 +5,7 @@ import axios from "axios";
 import {
   FiClock, FiCheckCircle, FiXCircle, FiSlash,
   FiArrowLeft, FiAlertCircle, FiEdit2, FiTrash2, FiSave,
-  FiMapPin, FiCheck,
+  FiMapPin, FiCheck, FiMail, FiUsers,
 } from "react-icons/fi";
 import ConfirmModal from "../../ui-components/ConfirmModal";
 import CreateEventStepper from "../../components/CreateEventStepper";
@@ -108,6 +108,50 @@ export default function BookingRequestTrack() {
   const [editForm, setEditForm] = useState({});
   const [editError, setEditError] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, variant: "primary", title: "", message: "", onConfirm: null });
+
+  // Invited people (for accepted requests)
+  const [showInvited, setShowInvited] = useState(false);
+  const [invitedPeople, setInvitedPeople] = useState([]);
+  const [invitedCount, setInvitedCount] = useState(0);
+  const [invitedLoading, setInvitedLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null); // { _id, email }
+
+  const removeInvited = async (person) => {
+    try {
+      await axios.delete(`${BASE_URL}/events/invited/${person._id}`);
+      setInvitedPeople((prev) => prev.filter((p) => p._id !== person._id));
+      setInvitedCount((c) => Math.max(0, c - 1));
+    } catch (err) {
+      console.error("Failed to remove invited person:", err);
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
+
+  const fetchInvitedPeople = async (eventSpecialId) => {
+    setInvitedLoading(true);
+    try {
+      const res = await axios.get(`${BASE_URL}/events/${eventSpecialId}/invited`, {
+        params: { limit: 100 },
+      });
+      if (res.data?.success) {
+        setInvitedPeople(res.data.data || []);
+        setInvitedCount(res.data.totalRecords || 0);
+      }
+    } catch (err) {
+      console.error("Failed to fetch invited people:", err);
+    } finally {
+      setInvitedLoading(false);
+    }
+  };
+
+  const toggleInvited = () => {
+    const next = !showInvited;
+    setShowInvited(next);
+    if (next && request?.acceptedEventSpecialId && invitedPeople.length === 0) {
+      fetchInvitedPeople(request.acceptedEventSpecialId);
+    }
+  };
 
   useEffect(() => { if (initialCode) handleSearchWithCode(initialCode); }, []);
 
@@ -231,7 +275,66 @@ export default function BookingRequestTrack() {
               </div>
               {request.eventDescription && <div className="mt-3 pt-3 border-t border-zinc-200"><DetailRow label="Description" value={request.eventDescription} /></div>}
               {request.status === "Rejected" && request.rejectionReason && <div className="mt-3 pt-3 border-t"><div className="bg-red-50 border border-red-200 p-3"><p className="text-xs font-medium text-red-700 uppercase">Reason</p><p className="text-sm text-red-600 mt-1">{request.rejectionReason}</p></div></div>}
-              {request.status === "Accepted" && request.acceptedEventSpecialId && <div className="mt-3 pt-3 border-t"><div className="bg-green-50 border border-green-200 p-3"><p className="text-sm font-medium text-green-700"><FiCheckCircle className="w-4 h-4 inline" />Your Request Has Been Accepted</p></div></div>}
+              {request.status === "Accepted" && request.acceptedEventSpecialId && (
+                <div className="mt-3 pt-3 border-t">
+                  <div className="bg-green-50 border border-green-200 p-3">
+                    <p className="text-sm font-medium text-green-700"><FiCheckCircle className="w-4 h-4 inline" />Your Request Has Been Accepted</p>
+                  </div>
+
+                  {/* View invited people */}
+                  <button
+                    type="button"
+                    onClick={toggleInvited}
+                    className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 border border-blue-300 text-blue-700 bg-white hover:bg-blue-50 text-sm font-medium"
+                  >
+                    <FiUsers className="w-4 h-4" />
+                    {showInvited ? "Hide Invited People" : `View Invited People${invitedCount ? ` (${invitedCount})` : ""}`}
+                  </button>
+
+                  {showInvited && (
+                    <div className="mt-3 border border-zinc-200">
+                      {invitedLoading ? (
+                        <div className="flex items-center justify-center py-6 text-sm text-zinc-400">
+                          <div className="w-4 h-4 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin mr-2" /> Loading…
+                        </div>
+                      ) : invitedPeople.length === 0 ? (
+                        <p className="p-4 text-sm text-zinc-500 text-center">No one has been invited yet.</p>
+                      ) : (
+                        <ul className="divide-y divide-zinc-100 max-h-60 overflow-y-auto">
+                          {invitedPeople.map((person) => (
+                            <li key={person._id} className="flex items-center justify-between px-3 py-2 text-sm">
+                              <span className={`truncate ${person.cancelled ? "line-through text-zinc-400" : "text-zinc-700"}`}>
+                                {person.email}
+                              </span>
+                              <span className="flex items-center gap-2 ml-2 shrink-0">
+                                <span className="text-[10px] text-zinc-400">
+                                  {person.invitedAt ? new Date(person.invitedAt).toLocaleDateString() : ""}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteTarget(person)}
+                                  title="Remove invite"
+                                  className="text-zinc-400 hover:text-red-500 transition-colors"
+                                >
+                                  <FiTrash2 className="w-4 h-4" />
+                                </button>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/event/${request.acceptedEventSpecialId}/invite`)}
+                    className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium"
+                  >
+                    <FiMail className="w-4 h-4" /> Invite People
+                  </button>
+                </div>
+              )}
               {request.status === "Pending" && (
                 <div className="mt-4 pt-3 border-t border-zinc-200 flex justify-end gap-2">
                   <button onClick={() => { setEditStep(1); setCompletedSteps([]); setIsEditing(true); }} className="inline-flex items-center gap-1.5 px-4 py-2 border border-blue-300 text-sm font-medium text-blue-700 hover:bg-blue-50"><FiEdit2 className="w-4 h-4" /> Edit</button>
@@ -287,6 +390,18 @@ export default function BookingRequestTrack() {
         )}
 
         <ConfirmModal isOpen={confirmModal.isOpen} onClose={() => setConfirmModal({ isOpen: false })} onConfirm={async () => { await confirmModal.onConfirm(); setConfirmModal({ isOpen: false }); }} title={confirmModal.title} message={confirmModal.message} confirmText={confirmModal.confirmText || "Confirm"} confirmVariant={confirmModal.variant} loading={loading} />
+
+        {/* Delete invited person confirmation */}
+        <ConfirmModal
+          isOpen={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={() => removeInvited(deleteTarget)}
+          title="Remove Invite"
+          message={`Remove ${deleteTarget?.email || "this person"} from the invited list?`}
+          confirmText="Remove"
+          confirmVariant="danger"
+          loading={loading}
+        />
         {searched && !request && !loading && !error && <div className="mt-4 bg-gray-50 border border-zinc-200 p-6 text-center"><FiAlertCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" /><p className="text-sm text-gray-500">No request found.</p></div>}
       </div>
     </>
