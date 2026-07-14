@@ -57,7 +57,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Handle API requests differently
-  if (url.pathname.startsWith('/cok/api/')) {
+  if (url.pathname.includes('/cok/api/')) {
     event.respondWith(
       fetch(request)
         .then((response) => {
