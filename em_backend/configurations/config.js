@@ -24,6 +24,7 @@ module.exports = {
     version: process.env.API_VERSION || 'v1',
     basePath: process.env.API_BASE_PATH || '/cok/api/v1',
   },
+  frontendUrl: (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, ''),
   jwt: {
     secret: process.env.JWT_SECRET || uuid.v4(),
   },
