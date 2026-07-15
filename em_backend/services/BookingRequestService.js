@@ -5,8 +5,33 @@ const Room = require("../models/Room");
 const CheckRoomAvailability = require("../utilities/CheckRoomAvailability");
 const BookingRequestValidator = require("../validators/BookingRequestValidator");
 const EventService = require("./EventService");
+const emailUtil = require("../utilities/email");
+const config = require("../configurations/config");
 
 class BookingRequestService {
+  /**
+   * Direct link the organizer can use to track / edit / cancel their request.
+   */
+  static _buildTrackUrl(trackingCode) {
+    return `${config.frontendUrl}/book-a-room/track?code=${encodeURIComponent(trackingCode)}`;
+  }
+
+  /**
+   * Human-readable date/time in the City of Kigali timezone for emails.
+   */
+  static _formatWindow(date) {
+    if (!date) return "";
+    return new Date(date).toLocaleString("en-US", {
+      timeZone: "Africa/Kigali",
+      weekday: "short",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
   static async generateTrackingCode() {
     let trackingCode;
     let isUnique = false;
@@ -89,6 +114,23 @@ class BookingRequestService {
 
     await bookingRequest.save();
 
+    // Notify the organizer (if an email is provided) with the tracking code and link
+    try {
+      const organizerEmail = bookingRequest.eventOrganizer?.email;
+      if (organizerEmail) {
+        await emailUtil.sendBookingSubmittedEmail(organizerEmail, {
+          trackingCode: bookingRequest.trackingCode,
+          trackUrl: this._buildTrackUrl(bookingRequest.trackingCode),
+          eventName: bookingRequest.eventName,
+          eventRoom: bookingRequest.eventRoom,
+          start: this._formatWindow(bookingRequest.startTime),
+          end: this._formatWindow(bookingRequest.endTime),
+        });
+      }
+    } catch (emailError) {
+      console.error("Failed to send booking submission email:", emailError.message);
+    }
+
     return {
       success: true,
       message: "Booking request submitted successfully",
@@ -97,7 +139,10 @@ class BookingRequestService {
   }
 
   static async acceptRequest(requestId) {
-    return withTransaction(async (session) => {
+    let notifyEmail = null;
+    let notifyData = null;
+
+    const result = await withTransaction(async (session) => {
       const request = await BookingRequest.findById(requestId).session(session);
       if (!request) {
         throw new Error("Booking request not found");
@@ -142,6 +187,16 @@ class BookingRequestService {
       request.acceptedEventType = "upcoming";
       await request.save({ session });
 
+      notifyEmail = request.eventOrganizer?.email || null;
+      notifyData = {
+        trackingCode: request.trackingCode,
+        trackUrl: this._buildTrackUrl(request.trackingCode),
+        eventName: request.eventName,
+        eventRoom: request.eventRoom,
+        start: this._formatWindow(request.startTime),
+        end: this._formatWindow(request.endTime),
+      };
+
       return {
         success: true,
         message: "Booking request accepted and event created successfully",
@@ -151,10 +206,24 @@ class BookingRequestService {
         },
       };
     });
+
+    // Notify the organizer (if an email is provided) after the transaction commits
+    if (notifyEmail) {
+      try {
+        await emailUtil.sendBookingAcceptedEmail(notifyEmail, notifyData);
+      } catch (emailError) {
+        console.error("Failed to send booking acceptance email:", emailError.message);
+      }
+    }
+
+    return result;
   }
 
   static async rejectRequest(requestId, reason) {
-    return withTransaction(async (session) => {
+    let notifyEmail = null;
+    let notifyData = null;
+
+    const result = await withTransaction(async (session) => {
       const request = await BookingRequest.findById(requestId).session(session);
       if (!request) {
         throw new Error("Booking request not found");
@@ -174,12 +243,32 @@ class BookingRequestService {
       request.rejectionReason = reason.trim();
       await request.save({ session });
 
+      notifyEmail = request.eventOrganizer?.email || null;
+      notifyData = {
+        trackingCode: request.trackingCode,
+        trackUrl: this._buildTrackUrl(request.trackingCode),
+        eventName: request.eventName,
+        eventRoom: request.eventRoom,
+        reason: reason.trim(),
+      };
+
       return {
         success: true,
         message: "Booking request rejected",
         data: request,
       };
     });
+
+    // Notify the organizer (if an email is provided) after the transaction commits
+    if (notifyEmail) {
+      try {
+        await emailUtil.sendBookingRejectedEmail(notifyEmail, notifyData);
+      } catch (emailError) {
+        console.error("Failed to send booking rejection email:", emailError.message);
+      }
+    }
+
+    return result;
   }
 
   static async cancelRequest(requestId) {
