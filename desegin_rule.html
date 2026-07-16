@@ -1,0 +1,661 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>City of Kigali Design Rules</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;1,300&family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        /*DESIGN VARIABLES*/
+        :root {
+            --cok-primary-color: #34A8DB;       /* Sky Blue from CoK Logo */
+            --cok-secondary-color: #FFEB3B;     /* Accent Yellow from CoK*/
+            --cok-success-color: #4CAF50;       /* Accent Green from CoK logo */
+            --cok-warning-color: #FF9800;       /* Attention Alert Amber */
+            --cok-danger-color: #E53935;        /* Critical Notice Red */
+            --cok-tertiary-color: #CDB896;     /* Accent tan from CoK logo (The shields)*/
+            --cok-danger-color: #E74C3C;       /* System Error Red */
+            --cok-warning-color: #F39C12;      /* System Warning Orange */
+            --cok-neutral-dark: #333333;       /* Body Text */
+            --cok-neutral-light: #F7F9FB;      /* Canvas Background */
+            --cok-bg-light-blue: #2980B9;      /* Darker Blue for Footers/Accents */
+            --cok-text-white: #FFFFFF;
+            --cok-bg-white: #FFFFFF;
+            --cok-text-light: #E0E0E0;            
+            --cok-gray-border: #E0E0E0;   
+            --cok-gray-disabled: #9E9E9E; 
+            --cok-font-heading: 'Montserrat', sans-serif;
+            --cok-font-body: 'Merriweather', serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--cok-font-body);
+            font-size: 17px;
+            font-weight: 400;
+            letter-spacing: 0px;
+            line-height: 1.6;
+            color: var(--cok-dark-neutral);
+            background-color: var(--cok-light-neutral);
+            margin: 0;
+            padding: 0;
+        }
+
+        /*TYPOGRAPHY*/
+        h1, .cok-h1 {
+            font-family: var(--cok-font-heading);
+            font-size: 40px; 
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            line-height: 1.2;
+            color: var(--cok-primary-color);
+            margin: 0 0 15px 0;
+        }
+
+        h2, .cok-h2 {
+            font-family: var(--cok-font-heading);
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 0px;
+            line-height: 1.25;
+            color: var(--cok-neutral-dark);
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+
+        h3, h5, .cok-h3, .cok-h5 {
+            font-family: var(--cok-font-heading);
+            font-size: 21px;
+            font-weight: 600;
+            letter-spacing: 0px;
+            line-height: 1.3;
+            color: var(--cok-neutral-dark);
+            margin-bottom: 15px;
+        }
+
+        p, .cok-body {
+            font-family: var(--cok-font-body);
+            font-size: 17px;
+            font-weight: 400;
+            letter-spacing: 0px;
+            line-height: 1.6;
+            color: #555555;
+        }
+
+        label, .cok-label {
+            font-family: var(--cok-font-heading);
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            line-height: 1.4;
+            display: block;
+            color: var(--cok-tertiary-color);
+            text-transform: uppercase; /* Enforces strict ALL-CAPS presentation */
+            margin-bottom: 8px;
+        }
+
+        /*NAVBAR IMPLEMENTATION (IF THERE IS A NAVBAR)*/
+
+        .navbar {
+            padding: 0;
+            background-color: var(--cok-bg-white);
+            box-shadow: 0.5084rem 1.1419rem 2.5rem 0 rgb(0 0 0 / 8%);
+            position: sticky;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 999;
+            transition: 0.3s ease-in-out;
+        }
+
+        .navbar-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            height: 80px;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            gap: 12px;
+        }
+
+        .navbar-brand img {
+            height: 55px;
+            width: auto;
+        }
+
+        .navbar-brand-text {
+            font-family: var(--cok-font-heading);
+            font-weight: 800;
+            font-size: 1.25rem;
+            color: var(--cok-primary-color);
+            letter-spacing: -0.5px;
+        }
+
+        .nav-menu {
+            display: flex;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
+
+        .nav-item {
+            position: relative;
+            display: flex;
+            align-items: center;
+            height: 100%;
+            margin: 0 1rem;
+        }
+
+        .nav-item .nav-link {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--cok-primary-color);
+            font-family: var(--cok-font-heading);
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: color 0.2s ease;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            height: 100%;
+        }
+
+        .nav-item .nav-link:hover,
+        .nav-item .nav-link.active {
+            color: var(--cok-neutral-dark);
+        }
+
+        /*Dropdown*/
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background-color: var(--cok-neutral-light);
+            min-width: 240px;
+            box-shadow: 0.5084rem 1.1419rem 2.5rem 0 rgb(0 0 0 / 8%);
+            border-radius: 0;
+            border: 0;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .nav-item:hover .dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-item {
+            font-family: var(--cok-font-heading);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--cok-neutral-dark);
+            padding: 1rem 1.5rem;
+            text-decoration: none;
+            display: block;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        .dropdown-item:hover {
+            background-color: rgba(52, 168, 219, 0.08);
+            color: var(--cok-primary-color);
+        }
+
+        /* Mega Menu Layout */
+        .mega-menu {
+            position: absolute;
+            top: 100%;
+            right: -150px;
+            width: 600px;
+            background-color: var(--cok-neutral-light);
+            box-shadow: 0.5084rem 1.1419rem 2.5rem 0 rgb(0 0 0 / 8%);
+            border-radius: 0;
+            border: 0;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+            padding: 24px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .nav-item:hover .mega-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .mega-menu-column h4 {
+            font-family: var(--cok-font-heading);
+            font-size: 13px;
+            color: var(--cok-neutral-dark);
+            text-transform: uppercase;
+            margin-top: 0;
+            margin-bottom: 12px;
+            border-bottom: 1px solid var(--cok-gray-border);
+            padding-bottom: 6px;
+        }
+
+        .mega-menu-column a {
+            font-family: var(--cok-font-heading);
+            font-size: 13px;
+            color: var();
+            text-decoration: none;
+            display: block;
+            padding: 6px 0;
+            transition: color 0.2s;
+        }
+
+        .mega-menu-column a:hover {
+            color: var(--cok-primary-color);
+        }
+
+        /* STRUCTURAL LAYOUT MATRIX & CORE FORMS */
+        .main-container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        .portal-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 40px;
+            align-items: start;
+        }
+
+        /* Card Frame */
+        .card {
+            border-radius: 0;
+            background-color: var(--cok-neutral-light);
+            box-shadow: 0.5084rem 1.1419rem 2.5rem 0 rgb(0 0 0 / 8%);
+            border: 0;
+            padding: 40px;
+            transition: all 0.4s;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        /* Input Elements */
+        input, .cok-input, select, .cok-select {
+            font-family: var(--cok-font-heading);
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.2px;
+            line-height: 1.4;
+            width: 100%;
+            padding: 12px 1rem;
+            color: var(--cok-neutral-dark);
+            background-color: var(--cok-neutral-light);
+            box-sizing: border-box;   
+            border: 0;
+            border-radius: 0;
+            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+            outline: none;
+            border: 1px solid transparent;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        input:focus, .cok-input:focus, select:focus, .cok-select:focus {
+            border-color: var(--cok-primary-color);
+            box-shadow: 0px 4px 8px rgba(52, 168, 219, 0.25);
+        }
+
+        select, .cok-select {
+            appearance: none;
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20256%20256%22%3E%3Cpath%20d%3D%22M203.3%20109.3L128%20184.7l-75.3-75.3%22%20fill%3D%22none%22%20stroke%3D%22%23333333%22%20stroke-width%3D%2220%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E');
+            background-repeat: no-repeat;
+            background-position: right 1rem top 50%;
+            background-size: 12px;
+            cursor: pointer;
+        }
+
+        /*INTERACTIVE ACTIONS */
+        .cok-btn-primary, .cok-btn-secondary, .cok-btn-success, .cok-btn-outlined {
+            font-family: var(--cok-font-heading);
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            line-height: 1.4;
+            text-transform: uppercase;
+            text-align: center;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            cursor: pointer;
+            box-sizing: border-box;
+            border: 0;
+            border-radius: 0;
+            transition: background-color 0.2s ease, color 0.2s ease, transform 0.1s ease;
+        }
+
+        .cok-btn-primary:active, .cok-btn-secondary:active, .cok-btn-success:active {
+            transform: translateY(1px);
+        }
+
+        .cok-btn-primary {
+            background-color: var(--cok-primary-color);
+            color: var(--cok-text-white);
+            padding: 0.9rem;
+        }
+
+        .cok-btn-primary:hover {
+            background-color: #248fc2;
+        }
+
+        .cok-btn-secondary {
+            background-color: var(--cok-secondary-color);
+            color: var(--cok-neutral-dark);
+            padding: 0.6rem;
+        }
+
+        .cok-btn-secondary:hover {
+            background-color: #e5d22b;
+        }
+
+        .cok-btn-success {
+            background-color: var(--cok-success-color);
+            color: var(--cok-text-white);
+            padding: 0.9rem;
+        }
+
+        .cok-btn-success:hover {
+            background-color: #388E3C;
+        }
+
+        .cok-btn-outlined {
+            color: var(--cok-primary-color);
+            border: 1px solid var(--cok-primary-color);
+            background-color: transparent;
+            padding: 0.9rem;
+            margin-top: 12px;
+        }
+
+        .cok-btn-outlined:hover {
+            color: var(--cok-neutral-light);
+            background-color: var(--cok-primary-color);
+        }
+
+
+
+        
+        /* Footer */
+        .footer_wrapper {
+            background-color: var(--cok-primary-color);
+            padding: 40px 20px 0 20px;
+            color: var(--cok-text-white);
+            margin-top: 60px;
+        }
+
+        .footer_wrapper h5 {
+            color: var(--cok-text-white);
+            margin-top: 0;
+        }
+
+        .footer_wrapper ul {
+            padding: 0;
+            margin: 0;
+        }
+
+        .footer_wrapper ul li {
+            margin-bottom: .5rem;
+            list-style: none;
+            font-size: .875rem;
+        }
+
+        .footer_wrapper ul li a {
+            color: var(--text-white);
+            text-decoration: none;
+        }
+
+        .footer_wrapper .link-widget li a,
+        .footer_wrapper p {
+            color: var(--cok-text-white);
+            font-size: .875rem;
+            padding-left: 1.5rem;
+            position: relative;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease-out 0s;
+        }
+
+
+        .footer_wrapper .link-widget li a::before {
+            content: '›';
+            font-size: 18px;
+            font-weight: 600;
+            position: absolute;
+            left: 0.3rem;
+            top: 45%;
+            transform: translateY(-50%);
+        }
+
+        .footer_wrapper .link-widget li a:hover {
+            margin-left: .625rem;
+            color: var(--cok-secondary-color);
+        }
+
+        .footer_wrapper .social-network a {
+            width: 2.1875rem;
+            height: 2.1875rem;
+            margin: .5rem;
+            line-height: 2rem;
+            font-size: .875rem;
+            display: inline-block;
+            border: .125rem solid var(--cok-gray-border-color);
+            color: var(--cok-text-white);
+            text-align: center;
+            border-radius: 100%;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+        }
+
+        .footer-text {
+            color: var(--cok-text-white);
+        }
+
+        .footer_wrapper .social-network a:hover {
+            background-color: var(--cok-secondary-color);
+            border-color: var(--cok-secondary-color);
+            color: var(--neutral-dark);
+            transform: translateY(-0.1875rem);
+        }
+
+        .footer_wrapper ::placeholder {
+            color: #A0A0A0;
+        }
+
+        .footer_wrapper .form-control {
+            color: var(--cok-neutral-dark);
+            background-color: #FFFFFF;
+        }
+
+        .footer_wrapper .form-control:focus {
+            outline: none;
+            box-shadow: none;
+            border-color: var(--cok-gray-border-color);
+        }
+
+        .footer_wrapper .copyright-section {
+            background-color: var(--cok-bg-light-blue);
+            padding: 2rem 0 1rem;
+            text-align: center;
+            margin-left: -20px;
+            margin-right: -20px;
+        }
+
+        .footer_wrapper .copyright-section a {
+            color: var(--cok-text-white);
+            font-weight: 600;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAV BAR -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="#" class="navbar-brand">
+                <img src="">
+                <span class="navbar-brand-text">UMUJYI WA KIGALI</span>
+            </a>
+            
+            <ul class="nav-menu">
+                <li class="nav-item"><a class="nav-link active">Home</a></li>
+                
+                <!-- Action Dropdown -->
+                <li class="nav-item">
+                    <span class="nav-link">E-Services</span>
+                    <ul class="dropdown-menu">
+                        <li><a href="#" class="dropdown-item">Construction Permits</a></li>
+                        <li><a href="#" class="dropdown-item">Tax Declarations</a></li>
+                        <li><a href="#" class="dropdown-item">Land Registration</a></li>
+                    </ul>
+                </li>
+                
+                <!-- Mega Menu -->
+                <li class="nav-item">
+                    <span class="nav-link">Municipal Information</span>
+                    <div class="mega-menu">
+                        <div class="mega-menu-column">
+                            <h4>Kigali Urban Development</h4>
+                            <a href="#">Master Plan 2050</a>
+                            <a href="#">Central Business CBD Projects</a>
+                            <a href="#">Infrastructure & Transit</a>
+                        </div>
+                        <div class="mega-menu-column">
+                            <h4>Citizen Engagement</h4>
+                            <a href="#">Community Assembly Schedule</a>
+                            <a href="#">Public Procurement Notices</a>
+                            <a href="#">Report an Issue</a>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- INTERFACE GRID / feel free to follow the existing layout -->
+    <main class="main-container">
+        <header class="portal-header">
+            <h1>Unified Design Rules for CoK Digital Services</h1>
+            <p>Access the city's applications, blablablabla, and official stuff.</p>
+        </header>
+
+        <div class="form-grid">
+            
+            <!-- SAMPLE LOGIN FORM -->
+            <section class="card">
+                <h2>Account Sign-In</h2>
+                <form action="#" method="POST" onsubmit="event.preventDefault();">
+                    <div class="form-group">
+                        <label class="cok-label" for="login-email">Email / National ID Number</label>
+                        <input type="text" id="login-email" placeholder="Enter ID or verified email address" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="cok-label" for="login-password">Security Password</label>
+                        <input type="password" id="login-password" placeholder="••••••••" required>
+                    </div>
+                    
+                    <button type="submit" class="cok-btn-primary">Authenticate</button>
+                    <button type="button" class="cok-btn-outlined">Sign In with Google</button>
+                </form>
+            </section>
+
+            <!-- SAMPLE REGISTRATION FORM -->
+            <section class="card">
+                <h2>Account Creation</h2>
+                <form action="#" method="POST" onsubmit="event.preventDefault();">
+                    <div class="form-group">
+                        <label class="cok-label" for="reg-fullname">Legal Full Name</label>
+                        <input type="text" id="reg-fullname" placeholder="As it appears on National ID" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="cok-label" for="reg-district">Administrative District</label>
+                        <select class="cok-select" id="reg-district" required>
+                            <option value="" disabled selected>Select District location</option>
+                            <option value="gasabo">Gasabo</option>
+                            <option value="kicukiro">Kicukiro</option>
+                            <option value="nyarugenge">Nyarugenge</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="cok-label" for="reg-email">Contact Email Address</label>
+                        <input type="email" id="reg-email" placeholder="citizen@domain.rw" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="cok-label" for="reg-password">Choose Password</label>
+                        <input type="password" id="reg-password" placeholder="Minimum 8 complex characters" required>
+                    </div>
+
+                    <button type="submit" class="cok-btn-success">Register</button>
+                </form>
+            </section>
+        </div>       
+    </main>
+
+    <footer class="footer_wrapper">
+        <div style="max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 30px; padding-bottom: 30px;">
+            <div>
+                <h5>City of Kigali</h5>
+                <p>Digital Services Department Framework Hub.</p>
+            </div>
+            <div>
+                <h5>Quick Links</h5>
+                <ul class="link-widget">
+                    <li><a href="#">Official Decrees</a></li>
+                    <li><a href="#">Land Planning Permits</a></li>
+                    <li><a href="#">Tax Advisory Portals</a></li>
+                </ul>
+            </div>
+            <div>
+                <h5>Newsletter Updates</h5>
+                <div style="display:flex; gap:5px;">
+                    <input type="email" class="form-control" placeholder="yourname@domain.rw">
+                    <button class="cok-btn cok-btn-secondary" style="padding:0 15px;">Join</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="copyright-section">
+            <p class="footer-text">&copy; 2026 <a href="#">City of Kigali</a>. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+</body>
+</html>
