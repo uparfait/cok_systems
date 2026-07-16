@@ -34,10 +34,10 @@ const getChartConfig = (maxValue: number) => {
 };
 
 interface OverviewChartsProps {
-  data: DashboardData;
+  data: typeof DashboardData;
 }
 
-const OverviewCharts: React.FC<OverviewChartsProps> = ({ data }) => {
+const OverviewCharts: React.FC<any> = ({ data }) => {
   const chartsRef = useRef<Map<string, Chart>>(new Map());
 
   useEffect(() => {
