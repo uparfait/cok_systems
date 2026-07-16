@@ -87,8 +87,8 @@ function EditRoomSelector({ editForm, setEditForm, requestId }) {
       setError(null);
       try {
         const params = {
-          startTime: new Date(editForm.startTime).toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
-          endTime: new Date(editForm.endTime).toLocaleDateString("en-US"),
+          startTime: new Date(editForm.startTime).toISOString(),
+          endTime: new Date(editForm.endTime).toISOString(),
           eventMode: 'upcoming',
           ...(requestId ? { requestId } : {}),
         };
@@ -190,7 +190,7 @@ export default function BookingRequestDetails() {
             eventMeetingType: r.eventMeetingType || "event",
             eventName: r.eventName, eventDescription: r.eventDescription, eventType: r.eventType, eventRoom: r.eventRoom,
             organizerNames: r.eventOrganizer?.fullNames || "", organizerEmail: r.eventOrganizer?.email || "", organizerPhone: r.eventOrganizer?.phone || "", organizerInstitution: r.eventOrganizer?.institution || "",
-            startTime: r.startTime ? new Date(r.startTime).toLocaleDateString("en-US").slice(0, 16) : "", endTime: r.endTime ? new Date(r.endTime).toLocaleDateString("en-US").slice(0, 16) : "",
+            startTime: r.startTime ? new Date(r.startTime).toISOString().slice(0, 16) : "", endTime: r.endTime ? new Date(r.endTime).toISOString().slice(0, 16) : "",
             audience: r.expectedAudience || "",
             agenda: (r.activityAgenda && r.activityAgenda.length > 0) ? r.activityAgenda : [{ fromTime: "", toTime: "", title: "", description: "" }],
           });
@@ -262,8 +262,8 @@ export default function BookingRequestDetails() {
       const payload = {
         eventName: editForm.eventName, eventDescription: editForm.eventDescription, eventType: editForm.eventType, eventRoom: editForm.eventRoom,
         eventOrganizer: { fullNames: editForm.organizerNames, email: editForm.organizerEmail, phone: editForm.organizerPhone, institution: editForm.organizerInstitution || "" },
-        startTime: editForm.startTime ? new Date(editForm.startTime).toLocaleDateString("en-US") : undefined,
-        endTime: editForm.endTime ? new Date(editForm.endTime).toLocaleDateString("en-US") : undefined,
+        startTime: editForm.startTime ? new Date(editForm.startTime).toISOString() : undefined,
+        endTime: editForm.endTime ? new Date(editForm.endTime).toISOString() : undefined,
         expectedAudience: Number(editForm.audience),
         activityAgenda: showAgenda ? editForm.agenda.filter((a) => a.title?.trim()) : [],
       };
