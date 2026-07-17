@@ -1,9 +1,39 @@
 import { useState } from 'react';
 import { FiPlus, FiTrash2, FiCheck, FiX, FiAlertCircle } from 'react-icons/fi';
 
-const inputClass = 'w-full px-4 py-2.5 border border-gray-300 ppp-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all duration-200';
-const inputClassDisabled = 'w-full px-4 py-2.5 border border-gray-200 ppp-lg text-sm text-gray-500 bg-gray-50 cursor-not-allowed';
-const inputClassError = 'w-full px-4 py-2.5 border border-red-300 ppp-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all duration-200';
+const PRIMARY = "#056daa";
+const PRIMARY_HOVER = "#045d94";
+const SUCCESS = "#4CAF50";
+const DANGER = "#E74C3C";
+const WARNING = "#F39C12";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const BORDER = "#E0E0E0";
+const TERTIARY = "#CDB896";
+const WHITE = "#FFFFFF";
+const GRAY_DISABLED = "#9E9E9E";
+
+const fontHeading = "'Montserrat', sans-serif";
+
+const inputBase = {
+  fontFamily: fontHeading, fontSize: '14px', fontWeight: 500, letterSpacing: '0.2px',
+  lineHeight: '1.4', width: '100%', padding: '12px 1rem', boxSizing: 'border-box',
+  border: `1px solid ${BORDER}`, borderRadius: 0, outline: 'none',
+  transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
+};
+
+const focusHandlers = (hasError) => ({
+  onFocus: (e) => {
+    e.currentTarget.style.borderColor = hasError ? DANGER : PRIMARY;
+    e.currentTarget.style.boxShadow = hasError
+      ? '0px 4px 8px rgba(231,76,60,0.25)'
+      : '0px 4px 8px rgba(7,142,206,0.25)';
+  },
+  onBlur: (e) => {
+    e.currentTarget.style.borderColor = hasError ? DANGER : BORDER;
+    e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)';
+  },
+});
 
 export default function ActivityAgenda({ agenda, onChange, eventStartTime, eventEndTime, overMidnight = false }) {
   const [editingPhase, setEditingPhase] = useState(null);
@@ -27,7 +57,6 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
   const isTimeOverlapping = (fromTime, toTime, excludeIndex) => {
     const savedRanges = getSavedTimeRanges(excludeIndex);
     for (const range of savedRanges) {
-      // Check if times overlap
       if (fromTime < range.to && toTime > range.from) {
         return { overlapping: true, withPhase: range.index + 1 };
       }
@@ -53,10 +82,6 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
 
     if (phase.fromTime && phase.toTime) {
       if (overMidnight && eventStartTime && eventEndTime) {
-        // Overnight event: valid ranges are:
-        // Range 1: startTime -> 23:59 (before midnight)
-        // Range 2: 00:00 -> endTime (after midnight)
-        // Cross-midnight: from in range 1, to in range 2
         const inRange1 = phase.fromTime >= eventStartTime && phase.fromTime <= '23:59' && phase.toTime >= eventStartTime && phase.toTime <= '23:59';
         const inRange2 = phase.fromTime >= '00:00' && phase.fromTime <= eventEndTime && phase.toTime >= '00:00' && phase.toTime <= eventEndTime;
         const crossMidnight = phase.fromTime >= eventStartTime && phase.fromTime <= '23:59' && phase.toTime >= '00:00' && phase.toTime <= eventEndTime;
@@ -65,7 +90,6 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
           phaseErrors.push(`Times must be between ${eventStartTime}-23:59 or 00:00-${eventEndTime} next day.`);
         }
       } else {
-        // Normal single-day event bound check
         if (eventStartTime && eventEndTime) {
           if (phase.fromTime < eventStartTime) {
             phaseErrors.push(`From time must be at or after ${eventStartTime}`);
@@ -76,15 +100,12 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
         }
       }
 
-      // Check from < to
       if (phase.fromTime >= phase.toTime) {
-        // Only flag if both times are in the same range (not cross-midnight)
         if (!overMidnight || phase.fromTime < phase.toTime) {
           phaseErrors.push('To time must be after From time');
         }
       }
 
-      // Check overlapping with other saved phases
       const { overlapping, withPhase } = isTimeOverlapping(phase.fromTime, phase.toTime, index);
       if (overlapping) {
         phaseErrors.push(`Time overlaps with Phase ${withPhase}`);
@@ -99,7 +120,6 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
     updated[index] = { ...updated[index], [field]: value };
     onChange(updated);
 
-    // Clear errors for this phase on change
     if (errors[index]) {
       const newErrors = { ...errors };
       delete newErrors[index];
@@ -116,7 +136,6 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
     const updated = agenda.filter((_, i) => i !== index);
     onChange(updated);
 
-    // Clean up saved phases
     const newSaved = { ...savedPhases };
     delete newSaved[index];
     const reindexed = {};
@@ -126,7 +145,6 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
     });
     setSavedPhases(reindexed);
 
-    // Clean up errors
     const newErrors = { ...errors };
     delete newErrors[index];
     const reindexedErrors = {};
@@ -149,7 +167,6 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
       return;
     }
 
-    // Clear errors for this phase
     const newErrors = { ...errors };
     delete newErrors[index];
     setErrors(newErrors);
@@ -164,7 +181,6 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
     handleAgendaChange(index, 'title', '');
     handleAgendaChange(index, 'description', '');
 
-    // Clear errors
     const newErrors = { ...errors };
     delete newErrors[index];
     setErrors(newErrors);
@@ -173,7 +189,6 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
   const startEditing = (index) => {
     setSavedPhases(prev => ({ ...prev, [index]: false }));
     setEditingPhase(index);
-    // Clear errors when editing
     const newErrors = { ...errors };
     delete newErrors[index];
     setErrors(newErrors);
@@ -184,7 +199,7 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
 
   return (
     <div className="pt-2 flex flex-col gap-4">
-      <h2 className="text-xs font-bold text-blue-600 uppercase tracking-wider">Activity Agenda</h2>
+      <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: PRIMARY, fontFamily: fontHeading }}>Activity Agenda</h2>
       <div className="flex flex-col gap-4">
         {agenda.map((a, i) => (
           <AgendaItem
@@ -205,10 +220,13 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
         <button
           type="button"
           onClick={addAgendaItem}
-          className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors pt-1"
+          className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide transition-colors pt-1"
+          style={{ color: PRIMARY, fontFamily: fontHeading }}
+          onMouseEnter={(e) => e.currentTarget.style.color = PRIMARY_HOVER}
+          onMouseLeave={(e) => e.currentTarget.style.color = PRIMARY}
         >
           <FiPlus className="w-3.5 h-3.5" />
-          <span>Add new phase</span>
+          <span>Add New Phase</span>
         </button>
       </div>
     </div>
@@ -218,36 +236,59 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
 function AgendaItem({ index, item, isSaved, errors, hasErrors, canRemove, onChange, onSave, onClear, onEdit, onRemove }) {
   const isComplete = item.fromTime && item.toTime && item.title && item.description;
 
+  const cardBg = hasErrors ? '#FFEBEE' : isSaved ? '#E8F5E9' : NEUTRAL_LIGHT;
+  const cardBorder = hasErrors ? DANGER : isSaved ? SUCCESS : BORDER;
+
+  const labelS = {
+    fontFamily: fontHeading, fontSize: '11px', fontWeight: 600,
+    letterSpacing: '0.5px', textTransform: 'uppercase', display: 'block',
+    color: TERTIARY, marginBottom: '8px',
+  };
+
+  const getInputStyle = (hasError) => ({
+    ...inputBase,
+    color: NEUTRAL_DARK,
+    backgroundColor: isSaved ? '#F2F2F2' : NEUTRAL_LIGHT,
+    borderColor: hasError ? DANGER : BORDER,
+  });
+
   return (
-    <div className={`p-4 border ppp-xl relative flex flex-col gap-3 transition-all duration-200 ${
-      hasErrors ? 'bg-red-50 border-red-300' :
-      isSaved ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
-    }`}>
+    <div
+      className="p-4 relative flex flex-col gap-3 transition-all duration-200"
+      style={{ backgroundColor: cardBg, border: `1px solid ${cardBorder}`, borderRadius: 0 }}
+    >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-gray-500">Phase {index + 1}</span>
+          <span className="text-xs font-bold" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Phase {index + 1}</span>
           {isSaved && !hasErrors && (
-            <span className="text-[10px] font-medium text-green-600 bg-green-100 px-2 py-0.5 ppp-full">
+            <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5" style={{ color: WHITE, backgroundColor: SUCCESS }}>
               Saved
             </span>
           )}
           {hasErrors && (
-            <span className="text-[10px] font-medium text-red-600 bg-red-100 px-2 py-0.5 ppp-full">
-              Has errors
+            <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5" style={{ color: WHITE, backgroundColor: DANGER }}>
+              Has Errors
             </span>
           )}
         </div>
         <div className="flex items-center gap-1">
           {isSaved && !hasErrors && (
             <button type="button" onClick={() => onEdit(index)}
-              className="text-xs text-blue-600 hover:text-blue-700 font-medium px-2 py-1">
+              className="text-xs font-semibold uppercase tracking-wide px-2 py-1 transition-colors"
+              style={{ color: PRIMARY, fontFamily: fontHeading }}
+              onMouseEnter={(e) => e.currentTarget.style.color = PRIMARY_HOVER}
+              onMouseLeave={(e) => e.currentTarget.style.color = PRIMARY}>
               Edit
             </button>
           )}
           {canRemove && (
             <button type="button" onClick={() => onRemove(index)}
-              className="p-1.5 text-gray-400 hover:text-red-600 ppp-md hover:bg-white transition-colors">
+              className="p-1.5 transition-colors"
+              style={{ color: GRAY_DISABLED }}
+              onMouseEnter={(e) => e.currentTarget.style.color = DANGER}
+              onMouseLeave={(e) => e.currentTarget.style.color = GRAY_DISABLED}
+              aria-label="Remove phase">
               <FiTrash2 className="w-4 h-4" />
             </button>
           )}
@@ -256,9 +297,9 @@ function AgendaItem({ index, item, isSaved, errors, hasErrors, canRemove, onChan
 
       {/* Error Messages */}
       {hasErrors && (
-        <div className="flex flex-col gap-1 p-2 bg-red-100 border border-red-200 ppp-lg">
+        <div className="flex flex-col gap-1 p-2" style={{ backgroundColor: 'rgba(231,76,60,0.08)', border: `1px solid ${DANGER}` }}>
           {errors.map((error, i) => (
-            <div key={i} className="flex items-start gap-1.5 text-[11px] text-red-700">
+            <div key={i} className="flex items-start gap-1.5 text-[11px]" style={{ color: '#C62828', fontFamily: fontHeading }}>
               <FiAlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
@@ -269,65 +310,68 @@ function AgendaItem({ index, item, isSaved, errors, hasErrors, canRemove, onChan
       {/* Time Fields */}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="block text-[11px] font-medium text-gray-500">From Time</label>
+          <label style={labelS}>From Time</label>
           <input
             type="time"
-            className={hasErrors ? inputClassError : isSaved ? inputClassDisabled : inputClass}
-            value={item.fromTime}
-            onChange={(e) => onChange(index, 'fromTime', e.target.value)}
             disabled={isSaved}
             required
+            style={{ ...getInputStyle(hasErrors), ...focusHandlers(hasErrors) }}
+            value={item.fromTime}
+            onChange={(e) => onChange(index, 'fromTime', e.target.value)}
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="block text-[11px] font-medium text-gray-500">To Time</label>
+          <label style={labelS}>To Time</label>
           <input
             type="time"
-            className={hasErrors ? inputClassError : isSaved ? inputClassDisabled : inputClass}
-            value={item.toTime}
-            onChange={(e) => onChange(index, 'toTime', e.target.value)}
             disabled={isSaved}
             required
+            style={{ ...getInputStyle(hasErrors), ...focusHandlers(hasErrors) }}
+            value={item.toTime}
+            onChange={(e) => onChange(index, 'toTime', e.target.value)}
           />
         </div>
       </div>
 
       {/* Title */}
       <div className="flex flex-col gap-1.5">
-        <label className="block text-[11px] font-medium text-gray-500">Title</label>
+        <label style={labelS}>Title</label>
         <input
           type="text"
-          className={hasErrors ? inputClassError : isSaved ? inputClassDisabled : inputClass}
-          value={item.title}
-          onChange={(e) => onChange(index, 'title', e.target.value)}
-          placeholder="e.g. Introduction"
           disabled={isSaved}
           required
+          placeholder="e.g. Introduction"
+          style={{ ...getInputStyle(hasErrors), ...focusHandlers(hasErrors) }}
+          value={item.title}
+          onChange={(e) => onChange(index, 'title', e.target.value)}
         />
       </div>
 
       {/* Description */}
       <div className="flex flex-col gap-1.5">
-        <label className="block text-[11px] font-medium text-gray-500">Description</label>
+        <label style={labelS}>Description</label>
         <textarea
-          className={`${hasErrors ? inputClassError : isSaved ? inputClassDisabled : inputClass} resize-y min-h-[60px]`}
-          value={item.description}
-          onChange={(e) => onChange(index, 'description', e.target.value)}
-          placeholder="Provide specific agenda item context details..."
-          rows={2}
           disabled={isSaved}
           required
+          rows={2}
+          placeholder="Provide specific agenda item context details..."
+          style={{ ...getInputStyle(hasErrors), ...focusHandlers(hasErrors), resize: 'vertical', minHeight: '60px' }}
+          value={item.description}
+          onChange={(e) => onChange(index, 'description', e.target.value)}
         />
       </div>
 
       {/* Action Buttons */}
       {!isSaved && (
-        <div className="flex items-center gap-2 pt-1 border-t border-gray-200">
+        <div className="flex items-center gap-2 pt-1" style={{ borderTop: `1px solid ${BORDER}` }}>
           <button
             type="button"
             onClick={() => onSave(index)}
             disabled={!isComplete}
-            className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 ppp-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-white px-4 py-2.5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ backgroundColor: PRIMARY, fontFamily: fontHeading, border: '0', borderRadius: 0 }}
+            onMouseEnter={(e) => { if (isComplete) e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = PRIMARY}
           >
             <FiCheck className="w-3.5 h-3.5" />
             Save
@@ -335,7 +379,10 @@ function AgendaItem({ index, item, isSaved, errors, hasErrors, canRemove, onChan
           <button
             type="button"
             onClick={() => onClear(index)}
-            className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 ppp-lg border border-gray-200 transition-colors"
+            className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide px-4 py-2.5 transition-colors"
+            style={{ color: NEUTRAL_DARK, backgroundColor: 'transparent', border: `1px solid ${BORDER}`, borderRadius: 0, fontFamily: fontHeading }}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = NEUTRAL_DARK}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = BORDER}
           >
             <FiX className="w-3.5 h-3.5" />
             Clear

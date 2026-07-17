@@ -666,6 +666,7 @@ const App: React.FC = () => {
 };
 
 import SystemAlert from "./core/components/SystemAlert";
+import SpiralLoader from "./systems/event-managment/components/SpiralLoader.jsx";
 
 
 function AppWithPWA() {
