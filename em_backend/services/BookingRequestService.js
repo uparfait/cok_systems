@@ -295,7 +295,7 @@ class BookingRequestService {
 
   static async getByTrackingCode(trackingCode) {
     const request = await BookingRequest.findOne({
-      trackingCode: trackingCode.toUpperCase(),
+      trackingCode: trackingCode.replace(/^#/, '').trim().toUpperCase(),
     }).lean();
 
     if (!request) {

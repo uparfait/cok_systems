@@ -49,27 +49,22 @@ useEffect(() => {
 
 
   return (
-    <div className="w-[1126px] max-w-full mx-auto text-center h-screen flex flex-col box-border  items-center">
+    <div className="w-full text-center min-h-screen h-max flex flex-col box-border items-center">
       {/* Navigation */}
 
-      <div className="fixed z-[1000] pt-[10px]  left-1/2 -translate-x-1/2 h-16 backdrop-blur-md w-full max-w-[1126px] min-[1126px]:w-[90%]  flex items-center justify-center">
+      <div className="fixed z-[1000] pt-[10px]  left-1/2 -translate-x-1/2 h-16  w-full   flex items-center justify-center">
        <IndexHeader />
       </div>
 
       {/* Pages */}
 
-<div className="w-full  relative flex flex-col items-center p-4">
-         <div className="w-full h-[100px] justify-center items-center relative h-[150px]  bg-transparent">
-             <span className="w-4 h-4 bg-red-500 rounded-full inline-block mr-2"></span>
-             <span className="w-4 h-4 bg-blue-500 rounded-full inline-block mr-2"></span>
-             <span className="w-4 h-4 bg-green-500 rounded-full inline-block"></span>
-         </div>
+<div className="w-full bg-transparent relative flex flex-col pt-13 h-max items-center ">
           <Outlet context={{LiveEventsData, setLiveEventsData, UpcomingEventsData, setUpcomingEventsData, activeEvent, setActiveEvent}} />
        </div>
 
        <button
          onClick={() => setIsFeedbackModalOpen(true)}
-         className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-full shadow-lg transition-all duration-200 hover:scale-105"
+         className="fixed bottom-10 right-6 z-50 flex items-center gap-2 cursor-pointer bg-[#056daa] text-white px-4 py-3 rounded-full shadow-lg transition-all duration-200 hover:scale-105"
          title="Submit Feedback"
        >
          <FiMessageSquare className="w-5 h-5" />
@@ -80,6 +75,34 @@ useEffect(() => {
          isOpen={isFeedbackModalOpen}
          onClose={() => setIsFeedbackModalOpen(false)}
        />
+
+       {/* fotter */}
+
+      <footer style={{
+          backgroundColor: '#078ece',
+          padding: '0px 20px 0 20px',
+          color: '#FFFFFF',
+          width: '100%',
+          marginTop: 'auto'
+        }}>
+          
+        
+          
+          <div style={{
+            backgroundColor: '#2980B9',
+            padding: '2rem 0 1rem',
+            textAlign: 'center',
+            marginLeft: '-20px',
+            marginRight: '-20px'
+          }}>
+            <p style={{
+              fontFamily: "'Montserrat', sans-serif",
+              fontSize: '14px',
+              color: '#FFFFFF',
+              margin: 0
+            }}>&copy; {new Date().getFullYear()} <a href="#" style={{ color: '#FFFFFF', fontWeight: 600, textDecoration: 'none' }}>City of Kigali</a>. All Rights Reserved.</p>
+          </div>
+        </footer>
      </div>
   );
 }
