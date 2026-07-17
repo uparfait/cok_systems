@@ -330,7 +330,9 @@ export default function BookingRequestTrack() {
           <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <input type="text" value={trackingCode} onChange={(e) => setTrackingCode(e.target.value)} placeholder="Enter your booking id"
               className="flex-1 min-w-0 px-3 py-2 text-sm focus:outline-none transition-all duration-200"
-              style={{ ...inputStyle, borderColor: BORDER }} />
+              style={{ ...inputStyle, borderColor: BORDER }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }} />
             <button type="submit" disabled={loading || !trackingCode.trim()} style={getBtnStyle('primary', loading || !trackingCode.trim())} className="w-full sm:w-auto">
               {loading ? "Searching..." : "Track"}
             </button>
