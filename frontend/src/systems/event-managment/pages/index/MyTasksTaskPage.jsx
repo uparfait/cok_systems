@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import {
   FiArrowLeft, FiClock, FiActivity, FiCheckCircle,
   FiCalendar, FiUser, FiBriefcase, FiMapPin,
   FiAlertCircle, FiUpload, FiPaperclip, FiX,
-  FiDownload, FiFileText, FiEye,
+  FiDownload, FiFileText, FiEye, FiUsers, FiEdit3, FiTool,
 } from 'react-icons/fi';
 
 /* ── in-app file viewer ─────────────────────────────────── */
@@ -283,6 +284,100 @@ function ProgressIndicator({ current, onUpdate }) {
   );
 }
 
+/* ── Task tools — capabilities matched to what the task is about ── */
+function detectTaskTools(task) {
+  const text = `${task.title || ''} ${task.actionDescription || ''}`.toLowerCase();
+  return {
+    attendance: /attend/.test(text),
+    minutes: /minute/.test(text),
+  };
+}
+
+function TaskTools({ task }) {
+  const navigate = useNavigate();
+  const [exporting, setExporting] = useState(false);
+  const [exportErr, setExportErr] = useState('');
+  const tools = detectTaskTools(task);
+
+  if (!tools.attendance && !tools.minutes) return null;
+
+  async function exportAttendance() {
+    setExporting(true);
+    setExportErr('');
+    try {
+      const res = await axios.get(`${BASE_URL}/attendance`, {
+        params: { eventSpecialId: task.eventSpecialId, limit: 500 },
+      });
+      const list = res.data?.data || [];
+      if (list.length === 0) {
+        setExportErr('No attendance records yet for this event.');
+        return;
+      }
+      const rows = list.map((a, i) => ({
+        'S/N': i + 1,
+        'Full Name': a.attendeeFullName || '',
+        'Institution': a.attendeeInstitution || '',
+        'Position': a.attendeePosition || '',
+        'Signed': a.attendeeSignature ? 'Yes' : 'No',
+        'Submitted At': fmtFull(a.createdAt),
+      }));
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [{ wch: 6 }, { wch: 30 }, { wch: 28 }, { wch: 25 }, { wch: 8 }, { wch: 22 }];
+      XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
+      XLSX.writeFile(wb, `attendance-${(task.title || 'task').replace(/[^\w\- ]+/g, '')}.xlsx`);
+    } catch {
+      setExportErr('Failed to load attendance records.');
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl p-5">
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+        <FiTool className="w-3 h-3" /> Task Tools
+      </p>
+      <p className="text-xs text-gray-400 mb-4">Shortcuts for carrying out this responsibility</p>
+
+      {exportErr && (
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-xs rounded-lg px-3 py-2 mb-3">
+          <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />{exportErr}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-3">
+        {tools.attendance && (
+          <>
+            <button
+              onClick={() => navigate(`/event/${task.eventSpecialId}/attendees`)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors"
+            >
+              <FiUsers className="w-4 h-4" /> View Attendance
+            </button>
+            <button
+              onClick={exportAttendance}
+              disabled={exporting}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors"
+            >
+              <FiDownload className="w-4 h-4" />
+              {exporting ? 'Exporting…' : 'Export Attendance (Excel)'}
+            </button>
+          </>
+        )}
+        {tools.minutes && (
+          <button
+            onClick={() => navigate(`/event/${task.eventSpecialId}/editor`)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors"
+          >
+            <FiEdit3 className="w-4 h-4" /> Record Minutes
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════ */
 
 export default function MyTasksTaskPage() {
@@ -385,6 +480,9 @@ export default function MyTasksTaskPage() {
                   </p>
                 )}
               </div>
+
+              {/* Task tools — matched to what the task is about */}
+              <TaskTools task={task} />
 
               {/* Progress indicator */}
               <ProgressIndicator current={task.currentStatus?.status} onUpdate={handleUpdate} />
