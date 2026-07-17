@@ -12,7 +12,7 @@
 /* Custom utility styles */
 @layer utilities {
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#056daa] to-purple-600;
   }
 
   /* Animated "COK Official Portal" badge */
@@ -186,14 +186,14 @@ html, body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #1e3a8a, #0357df);
+  background: #056daa;
   border-radius: 10px;
   box-shadow: inset 0 0 4px rgba(44, 13, 181, 0.3);
 }
 
 /* Hover effect */
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #1e40af, #60a5fa);
+  background: #056daa;
 }
 
 /* Align native date pickers, dropdowns & form controls to the brand blue */
@@ -227,18 +227,18 @@ input[type="month"]::-webkit-calendar-picker-indicator {
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: #34A8DB;
   text-decoration: inherit;
 }
 a:hover {
-  color: #535bf2;
+  color: #34A8DB;
 }
 
 
 /* === Firefox === */
 * {
   scrollbar-width: thin; /* makes it small */
-  scrollbar-color: #0357df transparent; /* thumb + track */
+  scrollbar-color: #056daa transparent; /* thumb + track */
 }
 
 
@@ -270,12 +270,12 @@ a:hover {
   content: "";
   position: absolute;
   inset: -50%;
-  background: conic-gradient(
+    background: conic-gradient(
     from 0deg,
-    #2196f3,
+    #056daa,
     #ffeb3b,
     #4caf50,
-    #2196f3
+    #056daa
   );
   animation: rotateBorder 2s linear infinite;
   filter: blur(6px);

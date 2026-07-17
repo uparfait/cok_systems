@@ -389,7 +389,7 @@ export default function BookNow() {
             )}
 
             {step === 3 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid  grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label style={labelStyle}>Start <span style={{ color: DANGER }}>*</span></label>
                   <input style={{ ...inputStyle, borderColor: fieldErrors.startTime ? DANGER : BORDER }}
@@ -401,7 +401,7 @@ export default function BookNow() {
                 <div className="space-y-1.5">
                   <label style={labelStyle}>End <span style={{ color: DANGER }}>*</span></label>
                   <input style={{ ...inputStyle, borderColor: fieldErrors.endTime ? DANGER : BORDER }}
-                    type="datetime-local" name="endTime" value={form.endTime} onChange={handleChange}
+                    type="datetime-local"  name="endTime" value={form.endTime} onChange={handleChange}
                     onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(7,142,206,0.25)'; }}
                     onBlur={(e) => { e.currentTarget.style.borderColor = fieldErrors.endTime ? DANGER : BORDER; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }} />
                   {fieldErrors.endTime && <p className="text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldErrors.endTime}</p>}
@@ -451,10 +451,7 @@ export default function BookNow() {
                 )}
               </div>
               {step > 1 && (
-                <button type="button" onClick={handleBack}
-                  style={{ ...getBtnStyle('outline'), width: '100%', marginTop: '12px' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; e.currentTarget.style.color = WHITE; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = PRIMARY; }}>Back</button>
+                <button type="button" onClick={handleBack} style={{ ...getBtnStyle('outline'), width: '100%', marginTop: '12px' }}>Back</button>
               )}
             </div>
             <p className="text-center text-xs" style={{ color: '#9E9E9E', fontFamily: fontHeading }}>
