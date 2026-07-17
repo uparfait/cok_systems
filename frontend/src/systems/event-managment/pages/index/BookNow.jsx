@@ -429,27 +429,32 @@ export default function BookNow() {
             )}
             
 
-            <div className="flex flex-wrap gap-3 mt-2" style={{ borderTop: `1px solid ${BORDER}`, paddingTop: '20px' }}>
-              <button type="button" onClick={() => navigate("/book-a-room/options")}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-all"
-                style={{ border: `1px solid ${PRIMARY}`, color: PRIMARY, backgroundColor: WHITE, fontFamily: fontHeading, borderRadius: 0 }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; e.currentTarget.style.color = WHITE; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = WHITE; e.currentTarget.style.color = PRIMARY; }}>
-                <FiX className="w-4 h-4" /> Cancel
-              </button>
-              {step > 1 && (
-                <button type="button" onClick={handleBack} style={getBtnStyle('outline')}>Back</button>
-              )}
-              {step < maxSteps ? (
-                <button type="submit" style={{ ...getBtnStyle('primary'), flex: 1 }}>Next</button>
-              ) : (
-                <button type="submit" disabled={submitting} style={getBtnStyle('primary', submitting)} className="flex items-center justify-center gap-2"
-                  onMouseEnter={(e) => { if (!submitting) e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
-                  onMouseLeave={(e) => { if (!submitting) e.currentTarget.style.backgroundColor = PRIMARY; }}>
-                  {submitting ? (
-                    <><div style={{ width: 16, height: 16, border: `2px solid ${WHITE}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', marginRight: '8px' }} />Submitting...</>
-                  ) : (<><FiCheckCircle style={{ width: 16, height: 16 }} /> Submit Booking Request</>)}
+            <div className="mt-2" style={{ borderTop: `1px solid ${BORDER}`, paddingTop: '20px' }}>
+              <div className="flex items-stretch gap-3">
+                <button type="button" onClick={() => navigate("/book-a-room/options")}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-all shrink-0"
+                  style={{ border: `1px solid ${PRIMARY}`, color: PRIMARY, backgroundColor: WHITE, fontFamily: fontHeading, borderRadius: 0 }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; e.currentTarget.style.color = WHITE; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = WHITE; e.currentTarget.style.color = PRIMARY; }}>
+                  <FiX className="w-4 h-4" /> Cancel
                 </button>
+                {step < maxSteps ? (
+                  <button type="submit" style={{ ...getBtnStyle('primary'), flex: 1 }}>Next</button>
+                ) : (
+                  <button type="submit" disabled={submitting} style={{ ...getBtnStyle('primary', submitting), flex: 1 }} className="flex items-center justify-center gap-2"
+                    onMouseEnter={(e) => { if (!submitting) e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+                    onMouseLeave={(e) => { if (!submitting) e.currentTarget.style.backgroundColor = PRIMARY; }}>
+                    {submitting ? (
+                      <><div style={{ width: 16, height: 16, border: `2px solid ${WHITE}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', marginRight: '8px' }} />Submitting...</>
+                    ) : (<><FiCheckCircle style={{ width: 16, height: 16 }} /> Submit Booking Request</>)}
+                  </button>
+                )}
+              </div>
+              {step > 1 && (
+                <button type="button" onClick={handleBack}
+                  style={{ ...getBtnStyle('outline'), width: '100%', marginTop: '12px' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; e.currentTarget.style.color = WHITE; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = PRIMARY; }}>Back</button>
               )}
             </div>
             <p className="text-center text-xs" style={{ color: '#9E9E9E', fontFamily: fontHeading }}>

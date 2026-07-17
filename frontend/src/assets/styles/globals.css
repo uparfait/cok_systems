@@ -196,6 +196,44 @@ html, body {
   background: linear-gradient(180deg, #1e40af, #60a5fa);
 }
 
+/* Align native date pickers, dropdowns & form controls to the brand blue */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="week"],
+input[type="month"],
+select,
+select option {
+  accent-color: #056daa;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="week"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator,
+select::-webkit-inner-spin-button {
+  cursor: pointer;
+}
+
+/* Color the native calendar & dropdown indicator icons with the brand blue */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="week"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator {
+  filter: invert(28%) sepia(89%) saturate(1965%) hue-rotate(176deg) brightness(92%) contrast(91%);
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
+}
+
 
 /* === Firefox === */
 * {

@@ -176,7 +176,7 @@ const App: React.FC = () => {
                   <Route index element={<LiveEvents />} />
 
                   <Route path="upcoming" element={<UpcomingEvents />} />
-                  <Route path="book-a-room" element={<Request />} />
+                  <Route path="book-a-room" element={<BookingOptions />} />
                   <Route
                     path="book-a-room/options"
                     element={<BookingOptions />}
