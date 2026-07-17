@@ -105,10 +105,9 @@ const SystemAlert: React.FC<SystemAlertProps> = ({ isOpen, type, message, onClos
       `}</style>
 
       <div
-        className="system-alert-overlay fixed inset-0 flex items-center justify-center p-4"
+        className="system-alert-overlay fixed bg-white/5 inset-0 flex items-center justify-center p-4"
         style={{
           zIndex: 9999,
-          backgroundColor: config.bg,
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
           WebkitOverflowScrolling: 'touch',

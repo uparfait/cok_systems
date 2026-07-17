@@ -245,7 +245,7 @@ html, body {
 }
 
 body {
-    font-family: var(--cok-font-body);
+    font-family: 'Montserrat', sans-serif;
             font-size: 17px;
             font-weight: 400;
             letter-spacing: 0px;
