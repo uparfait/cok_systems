@@ -156,27 +156,29 @@ export default function BookingRequestTrack() {
     <>
       <Helmet><title>TRACK YOUR BOOK REQUEST</title></Helmet>
       <div className="w-full items-center flex flex-col mx-auto mt-8 px-4">
-        <div className="mt-4 w-full max-w-lg overflow-hidden" style={{ backgroundColor: NEUTRAL_LIGHT, boxShadow: CARD_SHADOW, border: '0', padding: '40px' }}>
-          <h1 className="text-2xl sm:text-3xl font-extrabold mb-1" style={{ color: PRIMARY, fontFamily: fontHeading, letterSpacing: '-0.5px' }}>Track Your Booking</h1>
-          <p className="text-xs font-medium mb-4" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Enter your Booking ID (e.g., BRK-A1B2C3D4).</p>
-          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <input type="text" value={trackingCode} onChange={(e) => setTrackingCode(e.target.value)} placeholder="Enter your booking id"
-              className="flex-1 min-w-0 px-3 py-2 text-sm focus:outline-none transition-all duration-200"
-              style={{ ...inputStyle, borderColor: BORDER }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = FOCUS_SHADOW; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.boxShadow = BLUR_SHADOW; }} />
-            <button type="submit" disabled={loading || !trackingCode.trim()} style={getBtnStyle('primary', loading || !trackingCode.trim())} className="w-full sm:w-auto"
-              onMouseEnter={(e) => { if (!loading && trackingCode.trim()) btnHover(e, PRIMARY_HOVER); }}
-              onMouseLeave={(e) => btnLeavePrimary(e)}>
-              {loading ? "Searching..." : "Track"}
+        {!isEditing && (
+          <div className="mt-4 w-full max-w-lg overflow-hidden" style={{ backgroundColor: NEUTRAL_LIGHT, boxShadow: CARD_SHADOW, border: '0', padding: '40px' }}>
+            <h1 className="text-2xl sm:text-3xl font-extrabold mb-1" style={{ color: PRIMARY, fontFamily: fontHeading, letterSpacing: '-0.5px' }}>Track Your Booking</h1>
+            <p className="text-xs font-medium mb-4" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Enter your Booking ID (e.g., BRK-A1B2C3D4).</p>
+            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <input type="text" value={trackingCode} onChange={(e) => setTrackingCode(e.target.value)} placeholder="Enter your booking id"
+                className="flex-1 min-w-0 px-3 py-2 text-sm focus:outline-none transition-all duration-200"
+                style={{ ...inputStyle, borderColor: BORDER }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = FOCUS_SHADOW; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.boxShadow = BLUR_SHADOW; }} />
+              <button type="submit" disabled={loading || !trackingCode.trim()} style={getBtnStyle('primary', loading || !trackingCode.trim())} className="w-full sm:w-auto"
+                onMouseEnter={(e) => { if (!loading && trackingCode.trim()) btnHover(e, PRIMARY_HOVER); }}
+                onMouseLeave={(e) => btnLeavePrimary(e)}>
+                {loading ? "Searching..." : "Track"}
+              </button>
+            </form>
+            <button type="button" onClick={() => navigate("/book-a-room/options")} className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-all" style={{ border: `1px solid ${PRIMARY}`, color: PRIMARY, backgroundColor: WHITE, fontFamily: fontHeading }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; e.currentTarget.style.color = WHITE; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = WHITE; e.currentTarget.style.color = PRIMARY; }}>
+              <FiArrowLeft className="w-4 h-4" /> Back
             </button>
-          </form>
-          <button type="button" onClick={() => navigate("/book-a-room/options")} className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-all" style={{ border: `1px solid ${PRIMARY}`, color: PRIMARY, backgroundColor: WHITE, fontFamily: fontHeading }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; e.currentTarget.style.color = WHITE; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = WHITE; e.currentTarget.style.color = PRIMARY; }}>
-            <FiArrowLeft className="w-4 h-4" /> Back
-          </button>
-        </div>
+          </div>
+        )}
 
         {error && <div className="mt-4 w-full max-w-lg p-3 flex items-start gap-2" style={{ backgroundColor: '#FFEBEE', border: `1px solid ${DANGER}` }}><FiAlertCircle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: DANGER }} /><p className="text-sm" style={{ color: '#C62828', fontFamily: fontHeading }}>{error}</p></div>}
         <SystemAlert isOpen={systemAlert.isOpen} type={systemAlert.type} message={systemAlert.message} onClose={() => setSystemAlert((s) => ({ ...s, isOpen: false }))} />
