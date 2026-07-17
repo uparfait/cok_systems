@@ -16,6 +16,8 @@ class GetActiveRoomsController {
         isActive: true
       };
 
+      
+
       const sortObject = {};
       switch (sort) {
         case 'name':

@@ -133,10 +133,11 @@ const RoleDashboardPage: React.FC = () => {
 
 // PWA Install Prompt Wrapper
 const PWAInstallPromptWrapper: React.FC = () => {
-  const [showPrompt, setShowPrompt] = useState(false);
-
+  const [showPrompt, setShowPrompt] = useState(true);
+  
   useEffect(() => {
     const handleInstallAvailable = () => {
+     
       const isOnLoginPage =
         window.location.pathname === "/login" ||
         window.location.pathname === "/";
@@ -154,6 +155,8 @@ const PWAInstallPromptWrapper: React.FC = () => {
       window.removeEventListener("pwa-installed", handleInstalled);
     };
   }, []);
+
+  console.log("PWAInstallPromptWrapper: showPrompt =", showPrompt);
 
   return showPrompt ? (
     <PWAInstallPrompt onClose={() => setShowPrompt(false)} />
@@ -662,11 +665,139 @@ const App: React.FC = () => {
   );
 };
 
+import SystemAlert from "./core/components/SystemAlert";
+
+
 function AppWithPWA() {
+  const [alerts, setAlerts] = useState({
+    error: false,
+    systemError: false,
+    warning: false,
+    success: false,
+  });
+
+  const openAlert = (type: keyof typeof alerts) => {
+    setAlerts((prev) => ({ ...prev, [type]: true }));
+  };
+
+  const closeAlert = (type: keyof typeof alerts) => {
+    setAlerts((prev) => ({ ...prev, [type]: false }));
+  };
+
   return (
     <>
       <App />
-      <PWAInstallPromptWrapper />
+      {/* <PWAInstallPromptWrapper /> */}
+
+      {/* <SystemAlert
+        isOpen={alerts.error}
+        type="error"
+        message="This is an error alert."
+        onClose={() => closeAlert("error")}
+      />
+      <SystemAlert
+        isOpen={alerts.systemError}
+        type="systemError"
+        message="This is a system error alert (500)."
+        onClose={() => closeAlert("systemError")}
+      />
+      <SystemAlert
+        isOpen={alerts.warning}
+        type="warning"
+        message="This is a warning alert."
+        onClose={() => closeAlert("warning")}
+      />
+      <SystemAlert
+        isOpen={alerts.success}
+        type="success"
+        message="This is a success alert."
+        onClose={() => closeAlert("success")}
+      />
+
+      <div
+        style={{
+          position: "fixed",
+          bottom: 20,
+          right: 20,
+          zIndex: 10000,
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+        }}
+      >
+        <button
+          onClick={() => openAlert("error")}
+          style={{
+            padding: "8px 14px",
+            fontFamily: "'Montserrat', sans-serif",
+            fontSize: 12,
+            fontWeight: 600,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            border: "none",
+            borderRadius: 0,
+            cursor: "pointer",
+            color: "#fff",
+            backgroundColor: "#E53935",
+          }}
+        >
+          Test Error
+        </button>
+        <button
+          onClick={() => openAlert("systemError")}
+          style={{
+            padding: "8px 14px",
+            fontFamily: "'Montserrat', sans-serif",
+            fontSize: 12,
+            fontWeight: 600,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            border: "none",
+            borderRadius: 0,
+            cursor: "pointer",
+            color: "#fff",
+            backgroundColor: "#E74C3C",
+          }}
+        >
+          Test System Error
+        </button>
+        <button
+          onClick={() => openAlert("warning")}
+          style={{
+            padding: "8px 14px",
+            fontFamily: "'Montserrat', sans-serif",
+            fontSize: 12,
+            fontWeight: 600,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            border: "none",
+            borderRadius: 0,
+            cursor: "pointer",
+            color: "#fff",
+            backgroundColor: "#FF9800",
+          }}
+        >
+          Test Warning
+        </button>
+        <button
+          onClick={() => openAlert("success")}
+          style={{
+            padding: "8px 14px",
+            fontFamily: "'Montserrat', sans-serif",
+            fontSize: 12,
+            fontWeight: 600,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            border: "none",
+            borderRadius: 0,
+            cursor: "pointer",
+            color: "#fff",
+            backgroundColor: "#4CAF50",
+          }}
+        >
+          Test Success
+        </button>
+      </div> */}
     </>
   );
 }

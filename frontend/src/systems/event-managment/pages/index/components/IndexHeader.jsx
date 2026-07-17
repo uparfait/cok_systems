@@ -1,104 +1,250 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import RequiresAccountToLogin from "../../../ui-components/RequiresAccountToLogin";
-import LeftLogo from '../../../assets/logo.png';
 
 const NavigationLinks = [
   { DisplayName: "Live", Link: "/" },
   { DisplayName: "Upcoming", Link: "/upcoming" },
   { DisplayName: "Booking", Link: "/book-a-room/options" },
-  {DisplayName: "My Tasks", Link: "/my-tasks" },
+  { DisplayName: "My Tasks", Link: "/my-tasks" },
 ];
+
+const visibleCount = 3;
+const PRIMARY = '#056daa';
+const PRIMARY_DARK = '#045d94';
 
 export default function IndexHeader() {
   const [isOpen, setIsOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
-  const currentPath = location.pathname; // Accurately tracks route updates without reloads
+  const currentPath = location.pathname;
   const navigate = useNavigate();
 
   const HandleLoginButtonClicked = () => {
-
     navigate('/login');
-  }
+  };
+
+  const visibleLinks = NavigationLinks.slice(0, visibleCount);
+  const moreLinks = NavigationLinks.slice(visibleCount);
+
+  const isLinkActive = (link) => {
+    
+    if (link.Link === "/") return currentPath === "/";
+    return currentPath === link.Link || currentPath.includes(link.Link);
+  };
+
+  const linkBaseStyle = {
+    fontFamily: "'Montserrat', sans-serif",
+    fontSize: '13px',
+    fontWeight: 600,
+    letterSpacing: '0.5px',
+    textTransform: 'uppercase',
+    textDecoration: 'none',
+    transition: 'color 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    height: '100%',
+    background: 'none',
+    border: 'none',
+  };
 
   return (
     <>
-      {/* Outer Wrapper Header */}
-      <header className="navigation-header   fixed top-0 left-0 z-50 flex h-full w-full items-center justify-between  ">
-        
-        {/* LEFT: Logo Container */}
-        <div className="flex translate-x-[50px] items-center justify-start h-full w-[100px]  justify-center items-center ">
-          <Link to="/" className="cursor-pointer  h-full w-full flex items-center justify-center">
-            <img src={LeftLogo} alt="Logo" className="h-full w-full object-contain" />
+      <header className="fixed top-0 left-0 w-full z-[9999] bg-white" style={{ boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)', height: '80px' }}>
+        <div className=" mx-auto h-full flex items-center justify-between px-[20px]  md:px-[75px] ">
+          {/* LEFT: Logo + Text */}
+          <Link to="/" className="flex items-center gap-4 h-full" style={{ textDecoration: 'none' }}>
+            <img src="/LOGO_COK.png" alt="CoK Logo" style={{ height: '71px', width: 'auto' }} />
+            <span className="text-black" style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 620, fontSize: '18px',  letterSpacing: '-0.5px' }}>
+              KIGALI CITY
+            </span>
           </Link>
-        </div>
 
-<nav className="hidden md:flex items-center gap-8 relative h-full">
-          {NavigationLinks.map((link) => {
-            const isActive = currentPath === link.Link;
-            return (
-              <Link
-                key={link.Link}
-                to={link.Link}
-                className="relative py-2 h-full flex justify-center items-center text-sm tracking-[4px]    transition-opacity duration-200 group"
-              >
-                {/* Text Layout: Dynamic Gradient Hover and Active States */}
-                <span className={`inline-block transition-all duration-300 ${
-                  (isActive || (link.DisplayName === "Booking" && currentPath.startsWith("/book-a-room")))
-                    ? "bg-gradient-to-r from-violet-600 via-pink-600 to-amber-500 bg-clip-text text-transparent bg-[size:200%_auto] animate-gradient" 
-                    : "text-black group-hover:bg-gradient-to-r group-hover:from-violet-600 group-hover:via-pink-600 group-hover:to-amber-500 group-hover:bg-clip-text group-hover:text-transparent bg-[size:200%_auto] group-hover:animate-gradient"
-                }`}>
+          {/* Desktop Nav */}
+          <nav className="hidden md:flex items-center" style={{ height: '100%', gap: '32px' }}>
+            {visibleLinks.map((link) => {
+              const active = isLinkActive(link);
+              return (
+                <Link
+                  key={link.Link}
+                  to={link.Link}
+                  className="h-full flex items-center relative group"
+                  style={{
+                    ...linkBaseStyle,
+                    color: active ? PRIMARY : '#00000080',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!active) e.currentTarget.style.color = PRIMARY;
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!active) e.currentTarget.style.color = '#00000080';
+                  }}
+                >
                   {link.DisplayName}
-                </span>
+                  {active && (
+                    <div className="absolute bottom-0 left-0 right-0" style={{ height: '2px', backgroundColor: PRIMARY }} />
+                  )}
+                </Link>
+              );
+            })}
 
-                {/* Desktop Framer Motion Sliding Underline */}
-                {(isActive || (link.DisplayName === "Booking" && currentPath.startsWith("/book-a-room"))) && (
-                  <motion.div
-                    layoutId="desktopActiveUnderline"
-                    className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-violet-600 to-amber-500 rounded-full"
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                  />
-                )}
-              </Link>
-            );
-          })}
+            {moreLinks.length > 0 && (
+              <div 
+                className="relative h-full flex items-center"
+                onMouseEnter={() => setMoreOpen(true)}
+                onMouseLeave={() => setMoreOpen(false)}
+              >
+                <button
+                  className="h-full flex items-center group"
+                  style={{
+                    ...linkBaseStyle,
+                    color: '#00000080',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = PRIMARY;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = '#00000080';
+                  }}
+                >
+                  More
+                  <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ marginTop: '2px', marginLeft: '4px' }}>
+                    <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
 
-        
-        </nav>
+                <AnimatePresence>
+                  {moreOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute top-full left-0"
+                      style={{
+                        minWidth: '200px',
+                        backgroundColor: 'white',
+                        boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)',
+                        border: '1px solid #E0E0E0',
+                        padding: '8px 0',
+                      }}
+                    >
+                      {moreLinks.map((link) => (
+                        <Link
+                          key={link.Link}
+                          to={link.Link}
+                          className="block px-6 py-3"
+                          style={{
+                            fontFamily: "'Montserrat', sans-serif",
+                            fontSize: '13px',
+                            fontWeight: 500,
+                            color: '#00000080',
+                            textDecoration: 'none',
+                            transition: 'background-color 0.2s ease, color 0.2s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = `rgba(0, 0, 0, 0.01)`;
+                            e.currentTarget.style.color = PRIMARY;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                            e.currentTarget.style.color = '#00000080';
+                          }}
+                        >
+                          {link.DisplayName}
+                        </Link>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+          </nav>
 
-        {/* RIGHT: Action & Mobile Icon Toggle */}
-        <div className="flex w-max items-center justify-end h-full">
-          <div className="hidden md:block">
-            <RequiresAccountToLogin onClicked={HandleLoginButtonClicked}/>
+          {/* Right: Login + Mobile Toggle */}
+          <div className="flex items-center h-full gap-4">
+            <div className="hidden md:block">
+              <button
+                onClick={HandleLoginButtonClicked}
+                style={{
+                  fontFamily: "'Montserrat', sans-serif",
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  letterSpacing: '1px',
+                  textTransform: 'uppercase',
+                  color: '#FFFFFF',
+                  backgroundColor: PRIMARY,
+                  border: 'none',
+                  borderRadius: 0,
+                  padding: '0.9rem 1.5rem',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = PRIMARY_DARK;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = PRIMARY;
+                }}
+              >
+                Login
+              </button>
+            </div>
+
+            <div className="md:hidden">
+              <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="relative flex items-center justify-center"
+                style={{ width: 40, height: 40, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
+                aria-label={isOpen ? 'Close Menu' : 'Open Menu'}
+              >
+                <span 
+                  className="absolute"
+                  style={{ 
+                    width: 20,
+                    height: 2,
+                    backgroundColor: isOpen ? PRIMARY : '#333333',
+                    top: isOpen ? 19 : 11,
+                    left: 10,
+                    transform: isOpen ? 'rotate(45deg)' : 'none',
+                    transformOrigin: 'center',
+                    transition: 'all 0.3s ease'
+                  }} 
+                />
+                <span 
+                  className="absolute"
+                  style={{ 
+                    width: 20,
+                    height: 2,
+                    backgroundColor: isOpen ? PRIMARY : '#333333',
+                    top: 19,
+                    left: 10,
+                    opacity: isOpen ? 0 : 1,
+                    transition: 'all 0.3s ease'
+                  }} 
+                />
+                <span 
+                  className="absolute"
+                  style={{ 
+                    width: 20,
+                    height: 2,
+                    backgroundColor: isOpen ? PRIMARY : '#333333',
+                    top: isOpen ? 19 : 27,
+                    left: 10,
+                    transform: isOpen ? 'rotate(-45deg)' : 'none',
+                    transformOrigin: 'center',
+                    transition: 'all 0.3s ease'
+                  }} 
+                />
+              </button>
+            </div>
           </div>
-
-          {/* Mobile Pure CSS Animated Burger Icon Button */}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="flex flex-col justify-center pr-[30px] items-center w-8 h-8 gap-[5px] md:hidden focus:outline-none cursor-pointer z-50"
-            aria-label="Toggle Menu"
-          >
-            <span 
-              className={`w-6 h-[2px] bg-black rounded-full transition-all duration-300 origin-center ${
-                isOpen ? "rotate-45 translate-y-[3.5px]" : ""
-              }`} 
-            />
-            <span 
-              className={`w-6 h-[2px] bg-black rounded-full transition-all duration-200 ${
-                isOpen ? "opacity-0 scale-0" : ""
-              }`} 
-            />
-            <span 
-              className={`w-6 h-[2px] bg-black rounded-full transition-all duration-300 origin-center ${
-                isOpen ? "-rotate-45 -translate-y-[10.5px]" : ""
-              }`} 
-            />
-          </button>
         </div>
       </header>
 
-      {/* MOBILE & TABLET DRAWER: Right-to-Left Slide */}
+      {/* Mobile Drawer */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -106,12 +252,12 @@ export default function IndexHeader() {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 220 }}
-            className="fixed inset-0 z-40 flex flex-col justify-between pt-24 pb-12 px-8 w-screen h-screen md:hidden bg-white border-l border-zinc-200/40"
+            className="fixed inset-0 z-[9998] flex flex-col justify-between pt-24 pb-12 px-8 w-screen h-screen md:hidden"
+            style={{ backgroundColor: '#F7F9FB' }}
           >
-            {/* Center aligned navigation links container matching the small text brand style */}
             <nav className="flex flex-col items-center justify-center gap-8 my-auto w-full">
               {NavigationLinks.map((link, index) => {
-                const isActive = currentPath === link.Link;
+                const active = isLinkActive(link);
                 return (
                   <div key={link.Link} className="relative flex flex-col items-center w-fit py-2">
                     <motion.div
@@ -121,24 +267,29 @@ export default function IndexHeader() {
                     >
                       <Link
                         to={link.Link}
-                        className={`inline-block text-sm tracking-[4px]    py-1 transition-all duration-300 ${
-                          isActive 
-                            ? "bg-gradient-to-r from-violet-600 via-pink-600 to-amber-500 bg-clip-text text-transparent bg-[size:200%_auto] animate-gradient" 
-                            : "text-black"
-                        }`}
+                        className="inline-block text-sm tracking-[4px] py-1 transition-all duration-300"
+                        style={{
+                          fontFamily: "'Montserrat', sans-serif",
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          letterSpacing: '0.5px',
+                          textTransform: 'uppercase',
+                          color: active ? PRIMARY : '#00000080',
+                          textDecoration: 'none',
+                        }}
                         onClick={() => setIsOpen(false)}
                       >
                         {link.DisplayName}
                       </Link>
                     </motion.div>
                     
-                    {/* Full width sliding bottom border indicator matching text width */}
-                    {isActive && (
+                    {active && (
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: "100%" }}
                         transition={{ delay: 0.15, duration: 0.35 }}
-                        className="absolute bottom-0 h-[2px] bg-gradient-to-r from-violet-600 to-amber-500 rounded-full"
+                        className="absolute bottom-0"
+                        style={{ height: '2px', backgroundColor: PRIMARY }}
                       />
                     )}
                   </div>
@@ -146,21 +297,42 @@ export default function IndexHeader() {
               })}
             </nav>
 
-      
-
-            {/* Bottom Section for the login CTA inside mobile view */}
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="w-full flex justify-center pt-4 border-t border-zinc-200/60"
+              className="w-full flex justify-center pt-4"
+              style={{ borderTop: '1px solid #E0E0E0' }}
             >
-              <RequiresAccountToLogin onClicked={HandleLoginButtonClicked}/>
+              <button
+                onClick={HandleLoginButtonClicked}
+                style={{
+                  fontFamily: "'Montserrat', sans-serif",
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  letterSpacing: '1px',
+                  textTransform: 'uppercase',
+                  color: '#FFFFFF',
+                  backgroundColor: PRIMARY,
+                  border: 'none',
+                  borderRadius: 0,
+                  padding: '0.9rem 2rem',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = PRIMARY_DARK;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = PRIMARY;
+                }}
+              >
+                Login
+              </button>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-
     </>
   );
 }

@@ -1,5 +1,7 @@
 const EventAction = require('../models/EventActions');
 const crypto = require('crypto');
+const { sendNotificationEmail } = require('../utilities/email');
+const config = require('../configurations/config');
 
 const tokens = new Map(); // email → { token, expires }
 
@@ -15,12 +17,30 @@ class GetMyTasksController {
         return res.status(404).json({ success: false, message: 'No tasks found for this email address' });
       }
 
-      // 6-character alphanumeric token e.g. A3F9B2
       const token = crypto.randomBytes(3).toString('hex').toUpperCase();
       tokens.set(email.toLowerCase().trim(), { token, expires: Date.now() + 15 * 60 * 1000 });
 
-      // Return token directly (no email service yet)
-      return res.status(200).json({ success: true, token });
+      const frontendUrl = config.frontendUrl || 'http://localhost:3000';
+      const verifyUrl = `${frontendUrl}/my-tasks`;
+
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; color: #1f2937;">
+          <h2 style="color: #1a5276;">Your My Tasks Access Token</h2>
+          <p>Use the token below to access your assigned tasks:</p>
+          <p style="font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #1a5276; background: #f3f4f6; padding: 12px; text-align: center; border-radius: 8px;">${token}</p>
+          <p style="margin-top: 16px;">This token is valid for <strong>15 minutes</strong>.</p>
+          <p style="margin-top: 16px;">You can also verify your token here: <a href="${verifyUrl}" style="color: #2563eb;">${verifyUrl}</a></p>
+          <hr style="margin-top: 24px; border: none; border-top: 1px solid #e5e7eb;" />
+          <p style="font-size: 12px; color: #6b7280;">City of Kigali &mdash; Event Management System</p>
+        </div>`;
+
+      const textContent = `Your My Tasks access token is: ${token}\n\nThis token is valid for 15 minutes.\n\nVerify it at: ${verifyUrl}\n\nCity of Kigali - Event Management System`;
+
+      sendNotificationEmail(email.toLowerCase().trim(), 'Your My Tasks Access Token', htmlContent, textContent).catch(err => {
+        console.error('Failed to send my-tasks token email:', err);
+      });
+
+      return res.status(200).json({ success: true, message: 'Token sent to your email' });
     } catch (error) {
       return res.status(500).json({ success: false, message: error.message });
     }

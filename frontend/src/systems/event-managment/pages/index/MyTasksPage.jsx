@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import axios from 'axios';
 import {
-  FiArrowLeft, FiMail, FiKey, FiAlertCircle,
+  FiArrowLeft, FiMail, FiAlertCircle,
   FiClock, FiActivity, FiCheckCircle, FiCalendar, FiUser, FiChevronRight,
 } from 'react-icons/fi';
 
@@ -32,10 +32,10 @@ export default function MyTasksPage() {
   const [step, setStep]               = useState('email');
   const [email, setEmail]             = useState('');
   const [tokenInput, setTokenInput]   = useState('');
-  const [generatedToken, setGeneratedToken] = useState('');
   const [tasks, setTasks]             = useState([]);
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState('');
+  const [sent, setSent]               = useState(false);
 
   /* Restore cached session so Back from detail returns to board */
   useEffect(() => {
@@ -54,10 +54,28 @@ export default function MyTasksPage() {
     setLoading(true); setError('');
     try {
       const res = await axios.post(`${BASE_URL}/event-actions/my-tasks/request-token`, { email });
-      setGeneratedToken(res.data.token);
-      setStep('token');
+      if (res.data.success) {
+        setSent(true);
+        setStep('token');
+      } else {
+        setError(res.data.message || 'Something went wrong.');
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong.');
+    } finally { setLoading(false); }
+  }
+
+  async function handleResendToken() {
+    setLoading(true); setError('');
+    try {
+      const res = await axios.post(`${BASE_URL}/event-actions/my-tasks/request-token`, { email });
+      if (res.data.success) {
+        setSent(true);
+      } else {
+        setError(res.data.message || 'Failed to resend token.');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to resend token.');
     } finally { setLoading(false); }
   }
 
@@ -77,7 +95,7 @@ export default function MyTasksPage() {
 
   function logout() {
     sessionStorage.removeItem(SESSION_KEY);
-    setStep('email'); setEmail(''); setTokenInput(''); setTasks([]);
+    setStep('email'); setEmail(''); setTokenInput(''); setTasks([]); setSent(false);
   }
 
   const byStatus = (s) => tasks.filter(t => t.currentStatus?.status === s);
@@ -141,27 +159,31 @@ export default function MyTasksPage() {
 
             <div className="flex flex-col items-center gap-2 mb-5">
               <div className="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center">
-                <FiKey className="w-7 h-7 text-green-600" />
+                <FiMail className="w-7 h-7 text-green-600" />
               </div>
-              <h2 className="text-lg font-bold text-gray-900">Enter your token</h2>
-              <p className="text-xs text-gray-500 text-center">Copy the token shown below into the field</p>
+              <h2 className="text-lg font-bold text-gray-900">Check your email</h2>
+              <p className="text-xs text-gray-500 text-center">We sent a 6-character access token to <strong>{email}</strong></p>
             </div>
-            <div className="bg-gray-900 rounded-2xl p-5 mb-5 text-center">
-              <p className="text-[10px] text-gray-400 mb-2 uppercase tracking-widest">Your access token</p>
-              <p className="text-4xl font-mono font-bold text-white tracking-[0.3em]">{generatedToken}</p>
-              <p className="text-xs text-gray-600 mt-2">Valid for 15 minutes</p>
-            </div>
+
             <form onSubmit={handleTokenSubmit} className="space-y-3">
               {error && <ErrorBox>{error}</ErrorBox>}
               <input type="text" required maxLength={6} value={tokenInput}
                 onChange={e => setTokenInput(e.target.value.toUpperCase())}
-                placeholder="6-character token"
+                placeholder="Enter 6-character token"
                 className="w-full px-4 py-3 text-center text-2xl font-mono tracking-[0.4em] border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 bg-gray-50" />
               <button type="submit" disabled={loading}
                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60">
                 {loading ? 'Verifying…' : 'View My Tasks'}
               </button>
             </form>
+
+            <div className="mt-4 text-center">
+              <button type="button" onClick={handleResendToken} disabled={loading}
+                className="text-xs text-blue-600 hover:text-blue-700 font-medium disabled:opacity-60">
+                {loading ? 'Sending…' : 'Resend token'}
+              </button>
+            </div>
+
           </div>
         </div>
       )}

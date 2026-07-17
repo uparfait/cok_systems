@@ -33,4 +33,7 @@ router.get('/:eventSpecialId/invited', InviteController.handleGetInvited);
 // DELETE /events/invited/:inviteId
 router.delete('/invited/:inviteId', InviteController.handleRemoveInvited);
 
+// PATCH /events/invited/:inviteId/reactivate
+router.patch('/invited/:inviteId/reactivate', InviteController.handleReactivate);
+
 module.exports = router;
