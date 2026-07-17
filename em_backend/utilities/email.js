@@ -214,12 +214,75 @@ async function sendEventCancellation(email, event, invitationUid, recurrenceId =
   );
 }
 
+/** Send a plain transactional email (no attachment) via Brevo. */
+async function sendPlainEmail(toEmail, subject, htmlContent, textContent) {
+  const mail = new SibApiV3Sdk.SendSmtpEmail();
+
+  mail.subject = subject;
+  mail.htmlContent = htmlContent;
+  mail.textContent = textContent;
+  mail.sender = SENDER;
+  mail.to = [{ email: toEmail }];
+
+  try {
+    await apiInstance.sendTransacEmail(mail);
+    return { success: true };
+  } catch (error) {
+    console.error('Brevo API Error:', error.response ? error.response.body : error);
+    return { success: false, error: error.message };
+  }
+}
+
+function taskAssignmentHtml(action, eventName, tasksUrl) {
+  const assignedBy = action.createdBy?.name || 'Administrator';
+  const byDetails = [action.createdBy?.role, action.createdBy?.institution].filter(Boolean).join(', ');
+  const due = action.dueDate
+    ? new Date(action.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '—';
+
+  return `
+    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
+      <h2 style="color: #1a5276;">New responsibility assigned to you</h2>
+      <p>Hello ${action.assignedPerson?.name || ''},</p>
+      <p>
+        You have been assigned the responsibility <strong>"${action.title}"</strong>
+        by <strong>${assignedBy}</strong>${byDetails ? ` (${byDetails})` : ''}${eventName ? ` for the event <strong>${eventName}</strong>` : ''}.
+      </p>
+      <p style="background: #f4f6f7; border-left: 4px solid #1a5276; padding: 10px 14px; color: #333;">
+        ${action.actionDescription || ''}
+      </p>
+      <p><strong>Due date:</strong> ${due}</p>
+      ${tasksUrl ? `
+      <p style="margin-top: 20px;">
+        <a href="${tasksUrl}" style="display: inline-block; background: #1a5276; color: #ffffff; padding: 10px 18px; text-decoration: none; border-radius: 4px;">
+          Open My Tasks
+        </a>
+      </p>` : ''}
+      <p style="color: #7f8c8d; font-size: 12px; margin-top: 24px;">City of Kigali — Event Management System</p>
+    </div>`;
+}
+
+/** Notify the assigned person that a responsibility (event action) was assigned to them. */
+async function sendTaskAssignmentEmail(action, eventName) {
+  const tasksUrl = process.env.FRONTEND_URL
+    ? `${process.env.FRONTEND_URL.replace(/\/+$/, '')}/my-tasks`
+    : '';
+  const assignedBy = action.createdBy?.name || 'Administrator';
+  const subject = `New responsibility: ${action.title}`;
+  const text = `You have been assigned "${action.title}" by ${assignedBy}.${eventName ? ` Event: ${eventName}.` : ''} Open My Tasks: ${tasksUrl}`;
+
+  return sendPlainEmail(
+    action.assignedPerson.email,
+    subject,
+    taskAssignmentHtml(action, eventName, tasksUrl),
+    text
+  );
+}
+
 module.exports = {
   sendCalendarEmail,
+  sendPlainEmail,
   sendEventInvitation,
   sendEventCancellation,
-  sendNotificationEmail,
-  sendBookingSubmittedEmail,
-  sendBookingAcceptedEmail,
-  sendBookingRejectedEmail,
+  sendTaskAssignmentEmail,
 };
