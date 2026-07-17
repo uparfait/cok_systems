@@ -188,3 +188,12 @@ button:focus-visible {
 		background-position: 0% 50%;
 	}
 }
+
+/* Hide scrollbar on the booking stepper horizontal scroll (touch scroll still works) */
+.cok-stepper-scroll::-webkit-scrollbar {
+	display: none;
+}
+.cok-stepper-scroll {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
