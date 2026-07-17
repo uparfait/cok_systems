@@ -97,6 +97,30 @@ html, body {
   max-width: 100vw;
 }
 
+        /*DESIGN VARIABLES*/
+        :root {
+            --cok-primary-color: #34A8DB;       /* Sky Blue from CoK Logo */
+            --cok-secondary-color: #FFEB3B;     /* Accent Yellow from CoK*/
+            --cok-success-color: #4CAF50;       /* Accent Green from CoK logo */
+            --cok-warning-color: #FF9800;       /* Attention Alert Amber */
+            --cok-danger-color: #E53935;        /* Critical Notice Red */
+            --cok-tertiary-color: #CDB896;     /* Accent tan from CoK logo (The shields)*/
+            --cok-danger-color: #E74C3C;       /* System Error Red */
+            --cok-warning-color: #F39C12;      /* System Warning Orange */
+            --cok-neutral-dark: #333333;       /* Body Text */
+            --cok-neutral-light: #F7F9FB;      /* Canvas Background */
+            --cok-bg-light-blue: #2980B9;      /* Darker Blue for Footers/Accents */
+            --cok-text-white: #FFFFFF;
+            --cok-bg-white: #FFFFFF;
+            --cok-text-light: #E0E0E0;            
+            --cok-gray-border: #E0E0E0;   
+            --cok-gray-disabled: #9E9E9E; 
+            --cok-font-heading: 'Montserrat', sans-serif;
+            --cok-font-body: 'Merriweather', serif;
+        }
+
+           
+
 /* Responsive tables - horizontal scroll on mobile */
 .table-responsive-container {
   @apply overflow-x-auto;
@@ -218,6 +242,18 @@ html, body {
   animation: rotateBorder 2s linear infinite;
   filter: blur(6px);
   opacity: 0.9;
+}
+
+body {
+    font-family: 'Montserrat', sans-serif;
+            font-size: 17px;
+            font-weight: 400;
+            letter-spacing: 0px;
+            line-height: 1.6;
+            color: var(--cok-dark-neutral);
+            background-color: var(--cok-light-neutral);
+            margin: 0;
+            padding: 0;
 }
 
 #ToDayAnimatedCalenderBg::after {

@@ -1,5 +1,4 @@
-// useSocketNotifications - Custom hook for receiving real-time notifications
-// This hook listens to socket events and provides notification callbacks
+
 
 import { useEffect, useCallback, useState } from 'react';
 import { useSocket } from '../contexts/SocketContext';

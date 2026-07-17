@@ -63,9 +63,134 @@ function cancelHtml(event) {
     </div>`;
 }
 
+/** Send a plain (no .ics attachment) transactional email via Brevo. */
+async function sendNotificationEmail(toEmail, subject, htmlContent, textContent) {
+  const mail = new SibApiV3Sdk.SendSmtpEmail();
+
+  mail.subject = subject;
+  mail.htmlContent = htmlContent;
+  mail.textContent = textContent;
+  mail.sender = SENDER;
+  mail.to = [{ email: toEmail }];
+
+  try {
+    await apiInstance.sendTransacEmail(mail);
+    return { success: true };
+  } catch (error) {
+    console.error('Brevo API Error:', error.response ? error.response.body : error);
+    return { success: false, error: error.message };
+  }
+}
+
+function escapeHtml(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function bookingShell(title, bodyHtml) {
+  return `
+    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; color: #1f2937;">
+      <h2 style="color: #1a5276;">${escapeHtml(title)}</h2>
+      ${bodyHtml}
+      <hr style="margin-top: 24px; border: none; border-top: 1px solid #e5e7eb;" />
+      <p style="font-size: 12px; color: #6b7280;">City of Kigali &mdash; Event Management System</p>
+    </div>`;
+}
+
+/**
+ * Email sent to the organizer right after a room booking request is submitted.
+ * Includes the tracking code and a direct link to track the request.
+ */
+function bookingSubmittedHtml(data) {
+  const { trackingCode, trackUrl, eventName, eventRoom, start, end } = data;
+  const body = `
+    <p>Thank you for your room booking request. We have received it and it is now <strong>pending review</strong>.</p>
+    <p><strong>Event:</strong> ${escapeHtml(eventName)}</p>
+    <p><strong>Room:</strong> ${escapeHtml(eventRoom)}</p>
+    <p><strong>When:</strong> ${escapeHtml(start)} &ndash; ${escapeHtml(end)}</p>
+    <p style="margin-top: 16px;">Your tracking code is:</p>
+    <p style="font-size: 18px; font-weight: bold; letter-spacing: 1px; color: #1a5276;">${escapeHtml(trackingCode)}</p>
+    <p style="margin-top: 16px;">You can track the status of your request (and edit or cancel it) using the link below:</p>
+    <p><a href="${escapeHtml(trackUrl)}" style="color: #2563eb;">${escapeHtml(trackUrl)}</a></p>
+    <p style="font-size: 13px; color: #6b7280;">Keep this code safe &mdash; you will also need it to view your request if you lose this email.</p>`;
+  return bookingShell('Room Booking Request Received', body);
+}
+
+/**
+ * Email sent to the organizer when their booking request is accepted.
+ */
+function bookingAcceptedHtml(data) {
+  const { trackingCode, trackUrl, eventName, eventRoom, start, end } = data;
+  const body = `
+    <p>Good news! Your room booking request has been <strong style="color: #15803d;">accepted</strong>.</p>
+    <p><strong>Event:</strong> ${escapeHtml(eventName)}</p>
+    <p><strong>Room:</strong> ${escapeHtml(eventRoom)}</p>
+    <p><strong>When:</strong> ${escapeHtml(start)} &ndash; ${escapeHtml(end)}</p>
+    <p style="margin-top: 16px;">Tracking code: <strong>${escapeHtml(trackingCode)}</strong></p>
+    <p style="margin-top: 16px;">Track or manage your request here:</p>
+    <p><a href="${escapeHtml(trackUrl)}" style="color: #2563eb;">${escapeHtml(trackUrl)}</a></p>`;
+  return bookingShell('Room Booking Request Accepted', body);
+}
+
+/**
+ * Email sent to the organizer when their booking request is rejected.
+ */
+function bookingRejectedHtml(data) {
+  const { trackingCode, trackUrl, eventName, eventRoom, reason } = data;
+  const reasonBlock = reason
+    ? `<p><strong>Reason:</strong> ${escapeHtml(reason)}</p>`
+    : '';
+  const body = `
+    <p>We regret to inform you that your room booking request was <strong style="color: #b91c1c;">not approved</strong>.</p>
+    <p><strong>Event:</strong> ${escapeHtml(eventName)}</p>
+    <p><strong>Room:</strong> ${escapeHtml(eventRoom)}</p>
+    ${reasonBlock}
+    <p style="margin-top: 16px;">Tracking code: <strong>${escapeHtml(trackingCode)}</strong></p>
+    <p style="margin-top: 16px;">You can review your request here:</p>
+    <p><a href="${escapeHtml(trackUrl)}" style="color: #2563eb;">${escapeHtml(trackUrl)}</a></p>`;
+  return bookingShell('Room Booking Request Rejected', body);
+}
+
+/** Send the "booking submitted" email to the organizer (if an email exists). */
+async function sendBookingSubmittedEmail(email, data) {
+  if (!email) return { success: false, error: 'No organizer email' };
+  return sendNotificationEmail(
+    email,
+    `Room Booking Received – ${data.trackingCode}`,
+    bookingSubmittedHtml(data),
+    `Your room booking request (${data.trackingCode}) is pending review. Track it at ${data.trackUrl}`
+  );
+}
+
+/** Send the "booking accepted" email to the organizer (if an email exists). */
+async function sendBookingAcceptedEmail(email, data) {
+  if (!email) return { success: false, error: 'No organizer email' };
+  return sendNotificationEmail(
+    email,
+    `Room Booking Accepted – ${data.trackingCode}`,
+    bookingAcceptedHtml(data),
+    `Your room booking request (${data.trackingCode}) has been accepted. Track it at ${data.trackUrl}`
+  );
+}
+
+/** Send the "booking rejected" email to the organizer (if an email exists). */
+async function sendBookingRejectedEmail(email, data) {
+  if (!email) return { success: false, error: 'No organizer email' };
+  return sendNotificationEmail(
+    email,
+    `Room Booking Not Approved – ${data.trackingCode}`,
+    bookingRejectedHtml(data),
+    `Your room booking request (${data.trackingCode}) was rejected.${data.reason ? ` Reason: ${data.reason}` : ''} Track it at ${data.trackUrl}`
+  );
+}
+
 /** Send a calendar invitation to a single attendee. */
-async function sendEventInvitation(email, event, invitationUid) {
-  const ics = buildInviteICS(event, invitationUid, 'REQUEST', email);
+async function sendEventInvitation(email, event, invitationUid, recurrenceId = null) {
+  const ics = buildInviteICS(event, invitationUid, 'REQUEST', email, 0, recurrenceId);
   return sendCalendarEmail(
     email,
     `Invitation: ${event.eventName}`,
@@ -77,8 +202,8 @@ async function sendEventInvitation(email, event, invitationUid) {
 }
 
 /** Send a calendar cancellation (METHOD:CANCEL) to a single attendee. */
-async function sendEventCancellation(email, event, invitationUid) {
-  const ics = buildInviteICS(event, invitationUid, 'CANCEL', email);
+async function sendEventCancellation(email, event, invitationUid, recurrenceId = null) {
+  const ics = buildInviteICS(event, invitationUid, 'CANCEL', email, 0, recurrenceId);
   return sendCalendarEmail(
     email,
     `Cancelled: ${event.eventName}`,
@@ -160,4 +285,8 @@ module.exports = {
   sendEventInvitation,
   sendEventCancellation,
   sendTaskAssignmentEmail,
+  sendNotificationEmail,
+  sendBookingSubmittedEmail,
+  sendBookingAcceptedEmail,
+  sendBookingRejectedEmail,
 };

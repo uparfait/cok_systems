@@ -577,7 +577,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                     <div className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                          {task.belongs.itBelongsTo.full_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
+                          {task.belongs.itBelongsTo.full_name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="text-sm font-medium text-gray-900 truncate">

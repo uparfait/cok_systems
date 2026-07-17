@@ -70,7 +70,7 @@ const FeedbackPage: React.FC = () => {
             { label: 'Total Feedback', value: totalFeedback.toLocaleString(), sub: 'All time submissions', icon: FiMessageSquare, color: 'text-blue-600', bg: 'bg-blue-50' },
             { label: 'Average Rating', value: overallAvg.average_rating?.toFixed(1) || '0.0', sub: <div className="flex mt-1">{[1, 2, 3, 4, 5].map(s => <FiStar key={s} className={`w-3 h-3 ${s <= Number(overallAvg.average_rating || 0) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`} />)}</div>, icon: FiStar, color: 'text-yellow-600', bg: 'bg-yellow-50' },
             { label: 'Departments', value: deptRatings.length, sub: 'Receiving feedback', icon: FiTarget, color: 'text-purple-600', bg: 'bg-purple-50' },
-            { label: 'Satisfaction Rate', value: `${(Number(overallAvg.average_rating?.toFixed(2)) || 0) * 10}%`, sub: 'Overall', icon: FiTrendingUp, color: 'text-green-600', bg: 'bg-green-50' },
+            { label: 'Satisfaction Rate', value: `${((Number(overallAvg.average_rating?.toFixed(2)) || 0) * 10).toFixed(2)}%`, sub: 'Overall', icon: FiTrendingUp, color: 'text-green-600', bg: 'bg-green-50' },
           ].map((s, i) => (
             <div key={i} className="bg-white border border-gray-200 p-4">
               <div className="flex items-center justify-between">
