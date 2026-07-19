@@ -22,7 +22,7 @@ export default function BookingOptions() {
   return (
     <>
       <Helmet>
-        <title>Booking</title>
+        <title>BOOKING OPTS</title>
         <meta name="description" content="Manage your room booking." />
       </Helmet>
 

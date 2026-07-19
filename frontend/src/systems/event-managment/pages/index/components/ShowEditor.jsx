@@ -314,7 +314,7 @@ function ShowEditor() {
               </button>
               <button
                 onClick={() => window.location.reload()}
-                className="flex-1 px-4 py-2.5 bg-blue-600 text-white font-medium text-sm hover:bg-blue-700 transition-colors"
+                className="flex-1 px-4 py-2.5 bg-[#056daa] text-white font-medium text-sm hover:bg-blue-700 transition-colors"
               >
                 Try Again
               </button>
