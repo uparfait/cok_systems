@@ -285,4 +285,8 @@ module.exports = {
   sendEventInvitation,
   sendEventCancellation,
   sendTaskAssignmentEmail,
+  sendNotificationEmail,
+  sendBookingSubmittedEmail,
+  sendBookingAcceptedEmail,
+  sendBookingRejectedEmail,
 };
