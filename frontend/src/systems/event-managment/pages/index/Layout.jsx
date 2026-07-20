@@ -58,7 +58,7 @@ useEffect(() => {
 
       {/* Pages */}
 
-<div className="w-full bg-transparent relative flex flex-col pt-13 h-max items-center ">
+<div className="w-full bg-transparent relative flex flex-col pt-13 h-max items-center pb-[50px]">
           <Outlet context={{LiveEventsData, setLiveEventsData, UpcomingEventsData, setUpcomingEventsData, activeEvent, setActiveEvent}} />
        </div>
 
