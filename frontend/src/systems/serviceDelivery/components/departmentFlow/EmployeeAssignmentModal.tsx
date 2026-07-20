@@ -2,17 +2,32 @@
 // Modal for assigning visitors to employees
 
 import React, { useState, useEffect } from 'react';
-import { 
-  FiX, 
-  FiUser, 
-  FiSearch, 
-  FiCheck, 
+import {
+  FiX,
+  FiUser,
+  FiSearch,
+  FiCheck,
   FiAlertCircle,
   FiClock,
   FiUsers,
   FiBriefcase
 } from 'react-icons/fi';
 import { assignVisitorToDepartment } from '../../services/serviceDeliveryService';
+
+// City of Kigali institutional design constants
+const PRIMARY = "#056daa";
+const PRIMARY_HOVER = "#045d94";
+const SUCCESS = "#4CAF50";
+const SUCCESS_HOVER = "#388E3C";
+const DANGER = "#E74C3C";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const BORDER = "#E0E0E0";
+const TERTIARY = "#CDB896";
+const WHITE = "#FFFFFF";
+const GRAY_DISABLED = "#9E9E9E";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
 
 interface Employee {
   _id: string;
@@ -152,18 +167,18 @@ const EmployeeAssignmentModal: React.FC<EmployeeAssignmentModalProps> = ({
   return (
     <>
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+      <div
+        className="fixed inset-0 bg-black/40 z-40 transition-opacity"
         onClick={handleClose}
       />
 
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden">
+        <div className="w-full max-w-lg max-h-[90vh] overflow-hidden" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
           {/* Header */}
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+          <div className="px-6 py-4 flex items-center justify-between" style={{ backgroundColor: NEUTRAL_LIGHT, borderBottom: `1px solid ${BORDER}` }}>
             <div>
-              <h2 className="text-lg font-semibold text-gray-800">Assign Employee</h2>
+              <h2 className="text-lg" style={{ fontFamily: fontHeading, fontWeight: 700, color: NEUTRAL_DARK }}>Assign Employee</h2>
               <p className="text-sm text-gray-500 mt-0.5">
                 Select an employee to handle this visitor
               </p>
@@ -171,7 +186,7 @@ const EmployeeAssignmentModal: React.FC<EmployeeAssignmentModalProps> = ({
             <button
               onClick={handleClose}
               disabled={isSubmitting}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
             >
               <FiX />
             </button>
@@ -179,13 +194,13 @@ const EmployeeAssignmentModal: React.FC<EmployeeAssignmentModalProps> = ({
 
           {/* Visitor Info */}
           {visitor && (
-            <div className="px-6 py-4 bg-blue-50 border-b border-blue-100">
+            <div className="px-6 py-4" style={{ backgroundColor: 'rgba(5,109,170,0.08)', borderBottom: `1px solid ${BORDER}` }}>
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <FiUser className="text-blue-600 text-xl" />
+                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(5,109,170,0.12)' }}>
+                  <FiUser className="text-xl" style={{ color: PRIMARY }} />
                 </div>
                 <div>
-                  <p className="font-medium text-gray-900">{visitor.fullName}</p>
+                  <p className="font-medium" style={{ color: NEUTRAL_DARK }}>{visitor.fullName}</p>
                   <p className="text-sm text-gray-500">{visitor.service}</p>
                 </div>
               </div>
@@ -196,14 +211,14 @@ const EmployeeAssignmentModal: React.FC<EmployeeAssignmentModalProps> = ({
           <div className="p-6">
             {/* Status Messages */}
             {submitStatus === 'success' && (
-              <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3 text-green-700">
+              <div className="mb-4 p-4 flex items-center gap-3" style={{ backgroundColor: 'rgba(76,175,80,0.12)', border: `1px solid ${SUCCESS}`, borderRadius: 0, color: SUCCESS_HOVER }}>
                 <FiCheck className="text-xl" />
                 <span>Employee assigned successfully!</span>
               </div>
             )}
-            
+
             {submitStatus === 'error' && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3 text-red-700">
+              <div className="mb-4 p-4 flex items-center gap-3" style={{ backgroundColor: 'rgba(231,76,60,0.08)', border: `1px solid ${DANGER}`, borderRadius: 0, color: DANGER }}>
                 <FiAlertCircle className="text-xl" />
                 <span>{errorMessage}</span>
               </div>
@@ -211,17 +226,20 @@ const EmployeeAssignmentModal: React.FC<EmployeeAssignmentModalProps> = ({
 
             {/* Search */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block mb-2" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>
                 Search Employees
               </label>
               <div className="relative">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: GRAY_DISABLED }} />
                 <input
                   type="text"
                   placeholder="Search by name, email, or role..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full pl-10 pr-4 py-2.5 focus:outline-none transition-all"
+                  style={{ fontFamily: fontHeading, fontSize: '14px', backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }}
                   disabled={isSubmitting}
                 />
               </div>
@@ -229,10 +247,10 @@ const EmployeeAssignmentModal: React.FC<EmployeeAssignmentModalProps> = ({
 
             {/* Employee List */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block mb-2" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>
                 Available Employees
               </label>
-              <div className="border border-gray-200 rounded-lg max-h-64 overflow-y-auto">
+              <div className="max-h-64 overflow-y-auto" style={{ border: `1px solid ${BORDER}`, borderRadius: 0 }}>
                 {filteredEmployees.length === 0 ? (
                   <div className="px-4 py-8 text-center text-gray-500">
                     <FiUsers className="text-4xl mx-auto mb-2 opacity-50" />
@@ -244,29 +262,29 @@ const EmployeeAssignmentModal: React.FC<EmployeeAssignmentModalProps> = ({
                       key={employee._id}
                       onClick={() => !isSubmitting && handleSelectEmployee(employee)}
                       className={`px-4 py-3 border-b border-gray-100 cursor-pointer transition-colors ${
-                        selectedEmployee?._id === employee._id 
-                          ? 'bg-blue-50 border-l-4 border-l-blue-500' 
+                        selectedEmployee?._id === employee._id
+                          ? 'bg-[rgba(5,109,170,0.08)] border-l-4 border-l-[#056daa]'
                           : 'hover:bg-gray-50'
                       } ${employee.isAvailable ? '' : 'opacity-50'}`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            selectedEmployee?._id === employee._id 
-                              ? 'bg-blue-500 text-white' 
+                            selectedEmployee?._id === employee._id
+                              ? 'bg-[#056daa] text-white'
                               : 'bg-gray-100 text-gray-500'
                           }`}>
                             <FiUser />
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{employee.fullName}</p>
+                            <p className="font-medium" style={{ color: NEUTRAL_DARK }}>{employee.fullName}</p>
                             <p className="text-xs text-gray-500">{employee.role}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           {employee.isAvailable ? (
-                            <span className="flex items-center gap-1 text-xs text-green-600">
-                              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                            <span className="flex items-center gap-1 text-xs" style={{ color: SUCCESS_HOVER }}>
+                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: SUCCESS }}></span>
                               Available
                             </span>
                           ) : (
@@ -276,7 +294,7 @@ const EmployeeAssignmentModal: React.FC<EmployeeAssignmentModalProps> = ({
                             </span>
                           )}
                           {selectedEmployee?._id === employee._id && (
-                            <FiCheck className="text-blue-500" />
+                            <FiCheck style={{ color: PRIMARY }} />
                           )}
                         </div>
                       </div>
@@ -288,7 +306,7 @@ const EmployeeAssignmentModal: React.FC<EmployeeAssignmentModalProps> = ({
 
             {/* Notes */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block mb-2" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>
                 Notes (Optional)
               </label>
               <textarea
@@ -296,25 +314,32 @@ const EmployeeAssignmentModal: React.FC<EmployeeAssignmentModalProps> = ({
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
                 placeholder="Add any notes about this assignment..."
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
+                className="w-full px-4 py-2.5 focus:outline-none transition-all"
+                style={{ fontFamily: fontHeading, fontSize: '14px', backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }}
                 disabled={isSubmitting}
               />
             </div>
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50">
+          <div className="px-6 py-4 flex justify-end gap-3" style={{ backgroundColor: NEUTRAL_LIGHT, borderTop: `1px solid ${BORDER}` }}>
             <button
               onClick={handleClose}
               disabled={isSubmitting}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
+              className="px-4 py-2 transition-colors disabled:opacity-50"
+              style={{ backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
             >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
               disabled={!selectedEmployee || isSubmitting}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2 transition-colors disabled:cursor-not-allowed"
+              style={{ backgroundColor: (!selectedEmployee || isSubmitting) ? GRAY_DISABLED : PRIMARY, color: WHITE, borderRadius: 0, fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = (!selectedEmployee || isSubmitting) ? GRAY_DISABLED : PRIMARY; }}
             >
               {isSubmitting ? (
                 <>

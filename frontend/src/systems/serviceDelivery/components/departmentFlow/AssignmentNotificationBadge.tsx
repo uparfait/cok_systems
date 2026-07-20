@@ -4,6 +4,17 @@
 import React, { useState, useEffect } from 'react';
 import { FiBell, FiX, FiUsers, FiArrowRight } from 'react-icons/fi';
 
+// City of Kigali institutional design constants
+const PRIMARY = "#056daa";
+const PRIMARY_HOVER = "#045d94";
+const DANGER = "#E74C3C";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const BORDER = "#E0E0E0";
+const WHITE = "#FFFFFF";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+
 interface AssignmentNotification {
   _id: string;
   visitorName: string;
@@ -60,11 +71,11 @@ const AssignmentNotificationBadge: React.FC<AssignmentNotificationBadgeProps> = 
   // Handle notification click
   const handleNotificationClick = (notification: AssignmentNotification) => {
     // Mark as read
-    const updated = notifications.map(n => 
+    const updated = notifications.map(n =>
       n._id === notification._id ? { ...n, isRead: true } : n
     );
     setNotifications(updated);
-    
+
     if (onNotificationClick) {
       onNotificationClick(notification);
     }
@@ -115,11 +126,11 @@ const AssignmentNotificationBadge: React.FC<AssignmentNotificationBadgeProps> = 
       {/* Badge Trigger */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+        className="relative p-2 text-gray-600 hover:text-[#056daa] hover:bg-[rgba(5,109,170,0.08)] transition-colors"
       >
         <FiBell className="text-xl" />
         {currentUnreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+          <span className="absolute -top-1 -right-1 w-5 h-5 text-white text-xs rounded-full flex items-center justify-center font-medium" style={{ backgroundColor: DANGER }}>
             {currentUnreadCount > 9 ? '9+' : currentUnreadCount}
           </span>
         )}
@@ -129,22 +140,25 @@ const AssignmentNotificationBadge: React.FC<AssignmentNotificationBadgeProps> = 
       {isOpen && (
         <>
           {/* Backdrop */}
-          <div 
+          <div
             className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           />
-          
+
           {/* Dropdown Content */}
-          <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-200 z-20 overflow-hidden">
+          <div className="absolute right-0 top-full mt-2 w-80 z-20 overflow-hidden" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, border: `1px solid ${BORDER}`, borderRadius: 0 }}>
             {/* Header */}
-            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: NEUTRAL_LIGHT }}>
+              <h3 className="flex items-center gap-2" style={{ fontFamily: fontHeading, fontWeight: 700, color: NEUTRAL_DARK }}>
                 <FiBell /> Assignments
               </h3>
               {currentUnreadCount > 0 && (
                 <button
                   onClick={handleMarkAllRead}
-                  className="text-xs text-blue-600 hover:text-blue-800"
+                  className="text-xs transition-colors"
+                  style={{ color: PRIMARY }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = PRIMARY_HOVER; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = PRIMARY; }}
                 >
                   Mark all read
                 </button>
@@ -164,20 +178,20 @@ const AssignmentNotificationBadge: React.FC<AssignmentNotificationBadgeProps> = 
                     key={notification._id}
                     onClick={() => handleNotificationClick(notification)}
                     className={`px-4 py-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
-                      !notification.isRead ? 'bg-blue-50' : ''
+                      !notification.isRead ? 'bg-[rgba(5,109,170,0.08)]' : ''
                     }`}
                   >
                     <div className="flex items-start gap-3">
                       {/* Icon */}
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        !notification.isRead ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
+                        !notification.isRead ? 'bg-[rgba(5,109,170,0.12)] text-[#056daa]' : 'bg-gray-100 text-gray-500'
                       }`}>
                         <FiUsers />
                       </div>
-                      
+
                       {/* Content */}
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${!notification.isRead ? 'font-medium' : ''} text-gray-900`}>
+                        <p className={`text-sm ${!notification.isRead ? 'font-medium' : ''}`} style={{ color: NEUTRAL_DARK }}>
                           {notification.visitorName}
                         </p>
                         <p className="text-xs text-gray-500 truncate">
@@ -190,7 +204,7 @@ const AssignmentNotificationBadge: React.FC<AssignmentNotificationBadgeProps> = 
 
                       {/* Unread indicator */}
                       {!notification.isRead && (
-                        <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2" />
+                        <div className="w-2 h-2 rounded-full flex-shrink-0 mt-2" style={{ backgroundColor: PRIMARY }} />
                       )}
                     </div>
                   </div>
@@ -200,8 +214,13 @@ const AssignmentNotificationBadge: React.FC<AssignmentNotificationBadgeProps> = 
 
             {/* Footer */}
             {notifications.length > maxDisplay && (
-              <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
-                <button className="w-full text-sm text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1">
+              <div className="px-4 py-3" style={{ borderTop: `1px solid ${BORDER}`, backgroundColor: NEUTRAL_LIGHT }}>
+                <button
+                  className="w-full text-sm flex items-center justify-center gap-1 transition-colors"
+                  style={{ color: PRIMARY }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = PRIMARY_HOVER; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = PRIMARY; }}
+                >
                   View all assignments <FiArrowRight />
                 </button>
               </div>
@@ -216,9 +235,9 @@ const AssignmentNotificationBadge: React.FC<AssignmentNotificationBadgeProps> = 
 // Compact version for inline use
 export const CompactNotificationBadge: React.FC<{ count?: number }> = ({ count = 0 }) => {
   if (count === 0) return null;
-  
+
   return (
-    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+    <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#E74C3C] text-white text-xs rounded-full flex items-center justify-center font-medium">
       {count > 9 ? '9+' : count}
     </span>
   );

@@ -5,6 +5,17 @@ import { useSocket } from '../../../core/contexts/SocketContext';
 import { serviceDeliveryService } from '../../../core/services/adminService';
 import ProvideServicesTab from '../components/employeeFlow/tabs/ProvideServicesTab';
 
+// City of Kigali institutional design constants
+const PRIMARY = "#056daa";
+const SUCCESS = "#4CAF50";
+const WARNING = "#F39C12";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const WHITE = "#FFFFFF";
+const GRAY_DISABLED = "#9E9E9E";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+
 const EmployeeDashboard: React.FC = () => {
   const { user } = useAuth();
   const { socket, isConnected } = useSocket();
@@ -37,19 +48,19 @@ const EmployeeDashboard: React.FC = () => {
   useEffect(() => { if (!socket || !isConnected) return; const h = () => fetchDashboardStats(); socket.on('new_visitor_assigned', h); return () => { socket.off('new_visitor_assigned', h); }; }, [socket, isConnected, fetchDashboardStats]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" style={{ backgroundColor: NEUTRAL_LIGHT }}>
       <div className="flex-1 overflow-auto p-4">
-        <div><h1 className="text-base font-bold text-[#1a2744]">Service Overview</h1><p className="text-xs text-gray-500 mt-1">Manage and track visitor service requests assigned to you.</p></div>
+        <div><h1 className="text-base font-bold" style={{ fontFamily: fontHeading, color: PRIMARY }}>Service Overview</h1><p className="text-xs mt-1" style={{ color: GRAY_DISABLED }}>Manage and track visitor service requests assigned to you.</p></div>
         <div className="flex gap-3 mt-4 mb-4">
           {[
-            { label: 'Pending Requests', value: stats.pending, icon: FiClock, color: '#ff9800', bar: '#ffcc80' },
-            { label: 'Transferred', value: stats.transfered, icon: FiRefreshCw, color: '#1a73e8', bar: '#90caf9' },
-            { label: 'Completed', value: stats.completed, icon: FiCheckCircle, color: '#34a853', bar: '#a8d5b5' },
+            { label: 'Pending Requests', value: stats.pending, icon: FiClock, color: WARNING, bar: 'rgba(243,156,18,0.35)' },
+            { label: 'Transferred', value: stats.transfered, icon: FiRefreshCw, color: PRIMARY, bar: 'rgba(5,109,170,0.35)' },
+            { label: 'Completed', value: stats.completed, icon: FiCheckCircle, color: SUCCESS, bar: 'rgba(76,175,80,0.35)' },
           ].map((s, i) => (
-            <div key={i} className="bg-white border border-gray-200 p-4 flex-1 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-16 h-16"><div className="absolute top-0 right-0 w-32 h-32" style={{ backgroundColor: s.color, opacity: 0.2 }}></div></div>
-              <div className="flex justify-between items-start relative z-10"><span className="text-xs text-gray-500">{s.label}</span><s.icon style={{ color: s.color }} className="w-4 h-4" /></div>
-              {loading && firstLoad ? <div className="h-8 w-14 bg-gray-200 animate-pulse mt-1"></div> : <div className="text-xl font-bold text-[#1a2744] mt-1 relative z-10">{s.value}</div>}
+            <div key={i} className="p-4 flex-1 relative overflow-hidden" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
+              <div className="absolute top-0 right-0 w-16 h-16"><div className="absolute top-0 right-0 w-32 h-32" style={{ backgroundColor: s.color, opacity: 0.1 }}></div></div>
+              <div className="flex justify-between items-start relative z-10"><span className="text-xs" style={{ color: '#555555' }}>{s.label}</span><s.icon style={{ color: s.color }} className="w-4 h-4" /></div>
+              {loading && firstLoad ? <div className="h-8 w-14 bg-gray-200 animate-pulse mt-1"></div> : <div className="text-xl font-bold mt-1 relative z-10" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{s.value}</div>}
               <div className="w-8 h-1 mt-1" style={{ backgroundColor: s.bar }}></div>
             </div>
           ))}

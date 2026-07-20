@@ -17,6 +17,23 @@ import MainLayout from '../../../core/components/Layout/MainLayout';
 import CreateTaskModal from '../../taskManagement/components/CreateTaskModal';
 import { ServeVisitorModal } from '../components/employeeFlow';
 
+// City of Kigali institutional design constants
+const PRIMARY = "#056daa";
+const PRIMARY_HOVER = "#045d94";
+const SUCCESS = "#4CAF50";
+const SUCCESS_HOVER = "#388E3C";
+const WARNING = "#F39C12";
+const DANGER = "#E74C3C";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const BORDER = "#E0E0E0";
+const TERTIARY = "#CDB896";
+const WHITE = "#FFFFFF";
+const GRAY_DISABLED = "#9E9E9E";
+const ACCENT_DARK_BLUE = "#2980B9";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+
 // ======== Additional Interfaces ========
 
 interface TransferEmployee {
@@ -626,11 +643,11 @@ const VisitorDetailsPage: React.FC = () => {
   if (loading) {
     return (
       <MainLayout>
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full" style={{ backgroundColor: NEUTRAL_LIGHT }}>
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-              <FiLoader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
-              <p className="text-gray-600">Loading visitor details...</p>
+              <FiLoader className="w-8 h-8 animate-spin mx-auto mb-4" style={{ color: PRIMARY }} />
+              <p style={{ color: '#555555' }}>Loading visitor details...</p>
             </div>
           </div>
         </div>
@@ -641,14 +658,17 @@ const VisitorDetailsPage: React.FC = () => {
   if (!visitor || !editingVisitor) {
     return (
       <MainLayout>
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full" style={{ backgroundColor: NEUTRAL_LIGHT }}>
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-              <FiX className="w-8 h-8 text-red-600 mx-auto mb-4" />
-              <p className="text-gray-600 mb-4">Visitor not found</p>
+              <FiX className="w-8 h-8 mx-auto mb-4" style={{ color: DANGER }} />
+              <p className="mb-4" style={{ color: '#555555' }}>Visitor not found</p>
               <button
                 onClick={handleBack}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 uppercase transition-colors"
+                style={{ backgroundColor: PRIMARY, color: WHITE, borderRadius: 0, fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '1px' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
               >
                 Back to Employee Dashboard
               </button>
@@ -661,18 +681,19 @@ const VisitorDetailsPage: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full" style={{ backgroundColor: NEUTRAL_LIGHT }}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+        <div className="flex items-center justify-between p-4" style={{ backgroundColor: WHITE, borderBottom: `1px solid ${BORDER}` }}>
           <div className="flex items-center gap-3">
             <button
               onClick={handleBack}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 transition-colors"
               title="Back to Employee Dashboard"
+              style={{ borderRadius: 0, color: NEUTRAL_DARK }}
             >
               <FiArrowLeft className="w-5 h-5" />
             </button>
-              <h1 className="text-lg font-semibold text-[#1a2744]">Visitor Details</h1>
+              <h1 className="text-lg" style={{ fontFamily: fontHeading, fontWeight: 700, color: PRIMARY }}>Visitor Details</h1>
 
 
               {/* Header — In-Progress live counter pill */}
@@ -687,8 +708,8 @@ const VisitorDetailsPage: React.FC = () => {
                 if (!serviceStartTimeVal) return null;
                 const { h, m, s } = getElapsedParts(serviceStartTimeVal, liveElapsed);
                 return (
-                  <span className="inline-flex items-center gap-2 bg-blue-100 border border-blue-300 text-blue-700 px-3.5 py-1.5 rounded-full text-[12px] font-bold tracking-wide">
-                    <FiClock className="w-5 h-5 text-blue-500 animate-pulse" /> Service In Progress — {h}:{m}:{s}
+                  <span className="inline-flex items-center gap-2 px-3.5 py-1.5 text-[12px] font-bold tracking-wide" style={{ backgroundColor: 'rgba(76,175,80,0.12)', border: `1px solid ${SUCCESS}`, color: SUCCESS, borderRadius: 0 }}>
+                    <FiClock className="w-5 h-5 animate-pulse" style={{ color: SUCCESS }} /> Service In Progress — {h}:{m}:{s}
                   </span>
                 );
               })()}
@@ -696,14 +717,20 @@ const VisitorDetailsPage: React.FC = () => {
             <div className="flex gap-2">
               <button
                 onClick={() => setShowCreateTaskModal(true)}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                className="px-4 py-2 uppercase transition-colors flex items-center gap-2"
+                style={{ backgroundColor: SUCCESS, color: WHITE, borderRadius: 0, fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '1px' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SUCCESS_HOVER; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}
               >
                 <FiPlus className="w-4 h-4" />
                 Create Task
               </button>
               <button
                 onClick={() => setIsEditMode(!isEditMode)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                className="px-4 py-2 uppercase transition-colors flex items-center gap-2"
+                style={{ backgroundColor: PRIMARY, color: WHITE, borderRadius: 0, fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '1px' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
               >
                 <FiEdit3 className="w-4 h-4" />
                 {isEditMode ? 'Cancel' : 'Edit'}
@@ -716,32 +743,35 @@ const VisitorDetailsPage: React.FC = () => {
 
           {/* Belongs To Tasks Section */}
           {visitorTasks.length > 0 && (
-            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-sm p-6 border border-purple-100">
-              <h3 className="text-lg font-bold text-[#1a2744] mb-4 flex items-center gap-2">
-                <FiCheckCircle className="w-5 h-5 text-purple-600" />
+            <div className="p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+              <h3 className="text-lg mb-4 flex items-center gap-2" style={{ fontFamily: fontHeading, fontWeight: 700, color: NEUTRAL_DARK }}>
+                <FiCheckCircle className="w-5 h-5" style={{ color: ACCENT_DARK_BLUE }} />
                 Related Tasks ({visitorTasks.length})
               </h3>
               <div className="space-y-3">
                 {visitorTasks.map((task: any) => (
-                  <div key={task._id} className="bg-white rounded-lg p-4 border border-purple-200">
+                  <div key={task._id} className="p-4" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
                     <div className="flex justify-between items-start">
                       <div>
-                        <h4 className="font-medium text-gray-900">{task.title}</h4>
-                        <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                        <h4 className="font-medium" style={{ color: NEUTRAL_DARK }}>{task.title}</h4>
+                        <p className="text-sm mt-1" style={{ color: '#555555' }}>{task.description}</p>
                         <div className="flex items-center gap-2 mt-2">
-                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                            task.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                            task.status === 'In-progress' ? 'bg-blue-100 text-blue-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
+                          <span className="inline-flex px-2 py-1 text-xs font-medium" style={{
+                            backgroundColor: task.status === 'Completed' ? 'rgba(158,158,158,0.15)' :
+                              task.status === 'In-progress' ? 'rgba(5,109,170,0.1)' :
+                              'rgba(243,156,18,0.12)',
+                            color: task.status === 'Completed' ? '#555555' :
+                              task.status === 'In-progress' ? PRIMARY :
+                              WARNING,
+                          }}>
                             {task.status}
                           </span>
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs" style={{ color: GRAY_DISABLED }}>
                             Priority: {task.priority}
                           </span>
                         </div>
                       </div>
-                      <div className="text-right text-xs text-gray-500">
+                      <div className="text-right text-xs" style={{ color: GRAY_DISABLED }}>
                         {task.dueDate && `Due: ${new Date(task.dueDate).toLocaleDateString()}`}
                       </div>
                     </div>
@@ -752,15 +782,15 @@ const VisitorDetailsPage: React.FC = () => {
           )}
 
           {/* Personal Information Section */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-sm p-6 border border-blue-100">
-            <h3 className="text-lg font-bold text-[#1a2744] mb-4 flex items-center gap-2">
-              <FiUser className="w-5 h-5 text-blue-600" />
+          <div className="p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+            <h3 className="text-lg mb-4 flex items-center gap-2" style={{ fontFamily: fontHeading, fontWeight: 700, color: NEUTRAL_DARK }}>
+              <FiUser className="w-5 h-5" style={{ color: PRIMARY }} />
               Personal Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Full Name */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">
+                <label className="block uppercase mb-1" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>
                   Full Name
                 </label>
                   <input
@@ -768,17 +798,20 @@ const VisitorDetailsPage: React.FC = () => {
                     value={editingVisitor.full_name || ''}
                     onChange={(e) => handleInputChange('full_name', e.target.value)}
                     disabled={!isEditMode}
-                    className={`w-full px-3 py-2 border rounded-lg text-sm ${
+                    className={`w-full px-3 py-2 text-sm ${
                       isEditMode
-                        ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
-                        : 'border-gray-200 bg-gray-50 text-gray-700 cursor-not-allowed'
+                        ? ''
+                        : 'cursor-not-allowed'
                     }`}
+                    style={{ fontFamily: fontHeading, fontSize: '14px', backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)', color: NEUTRAL_DARK }}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }}
                   />
               </div>
 
               {/* Telephone */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">
+                <label className="block uppercase mb-1" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>
                   Telephone
                 </label>
                   <input
@@ -786,17 +819,20 @@ const VisitorDetailsPage: React.FC = () => {
                     value={editingVisitor.telephone || ''}
                     onChange={(e) => handleInputChange('telephone', e.target.value)}
                     disabled={!isEditMode}
-                    className={`w-full px-3 py-2 border rounded-lg text-sm ${
+                    className={`w-full px-3 py-2 text-sm ${
                       isEditMode
-                        ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
-                        : 'border-gray-200 bg-gray-50 text-gray-700 cursor-not-allowed'
+                        ? ''
+                        : 'cursor-not-allowed'
                     }`}
+                    style={{ fontFamily: fontHeading, fontSize: '14px', backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)', color: NEUTRAL_DARK }}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }}
                   />
               </div>
 
               {/* Email */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">
+                <label className="block uppercase mb-1" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>
                   Email
                 </label>
                   <input
@@ -804,33 +840,39 @@ const VisitorDetailsPage: React.FC = () => {
                     value={editingVisitor.email || ''}
                     onChange={(e) => handleInputChange('email', e.target.value)}
                     disabled={!isEditMode}
-                    className={`w-full px-3 py-2 border rounded-lg text-sm ${
+                    className={`w-full px-3 py-2 text-sm ${
                       isEditMode
                         ? emailError
-                          ? 'border-red-500 focus:ring-2 focus:ring-red-500 focus:border-red-500'
-                          : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
-                        : 'border-gray-200 bg-gray-50 text-gray-700 cursor-not-allowed'
+                          ? ''
+                          : ''
+                        : 'cursor-not-allowed'
                     }`}
+                    style={{ fontFamily: fontHeading, fontSize: '14px', backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${isEditMode && emailError ? DANGER : 'transparent'}`, borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)', color: NEUTRAL_DARK }}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = isEditMode && emailError ? DANGER : PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = isEditMode && emailError ? DANGER : 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }}
                   />
                   {isEditMode && emailError && (
-                    <p className="mt-1 text-xs text-red-500">{emailError}</p>
+                    <p className="mt-1 text-xs" style={{ color: DANGER }}>{emailError}</p>
                   )}
               </div>
 
               {/* Gender */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">
+                <label className="block uppercase mb-1" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>
                   Gender
                 </label>
                     <select
                       value={editingVisitor.gender || 'Not Specified'}
                       onChange={(e) => handleInputChange('gender', e.target.value)}
                       disabled={!isEditMode}
-                      className={`w-full px-3 py-2 border rounded-lg text-sm ${
+                      className={`w-full px-3 py-2 text-sm ${
                         isEditMode
-                          ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
-                          : 'border-gray-200 bg-gray-50 text-gray-700 cursor-not-allowed'
+                          ? ''
+                          : 'cursor-not-allowed'
                       }`}
+                      style={{ fontFamily: fontHeading, fontSize: '14px', backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)', color: NEUTRAL_DARK }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }}
                     >
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
@@ -840,31 +882,34 @@ const VisitorDetailsPage: React.FC = () => {
 
               {/* Badge Number */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">
+                <label className="block uppercase mb-1" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>
                   Badge Number
                 </label>
                 <input
                   type="text"
                   value={editingVisitor.badge_number || ''}
                   readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 text-sm cursor-not-allowed"
+                  className="w-full px-3 py-2 text-sm cursor-not-allowed" style={{ fontFamily: fontHeading, fontSize: '14px', backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)', color: '#555555' }}
                 />
               </div>
 
               {/* ID Type */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">
+                <label className="block uppercase mb-1" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>
                   ID Type
                 </label>
                 <select
                   value={editingVisitor.identification?.id_type || ''}
                   onChange={(e) => handleInputChange('identification.id_type', e.target.value)}
                   disabled={!isEditMode}
-                  className={`w-full px-3 py-2 border rounded-lg text-sm ${
+                  className={`w-full px-3 py-2 text-sm ${
                     isEditMode
-                      ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
-                      : 'border-gray-200 bg-gray-50 text-gray-700 cursor-not-allowed'
+                      ? ''
+                      : 'cursor-not-allowed'
                   }`}
+                  style={{ fontFamily: fontHeading, fontSize: '14px', backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)', color: NEUTRAL_DARK }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }}
                 >
                   <option value="">Select ID Type</option>
                   <option value="National ID">National ID</option>
@@ -875,7 +920,7 @@ const VisitorDetailsPage: React.FC = () => {
 
               {/* ID Number */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">
+                <label className="block uppercase mb-1" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>
                   {
                      editingVisitor.identification?.id_type === 'National ID' ? (
                       "National ID Number"
@@ -893,42 +938,45 @@ const VisitorDetailsPage: React.FC = () => {
                     value={editingVisitor.identification?.number || ''}
                     onChange={(e) => handleInputChange('identification.number', e.target.value)}
                     disabled={!isEditMode}
-                    className={`w-full px-3 py-2 border rounded-lg text-sm ${
+                    className={`w-full px-3 py-2 text-sm ${
                       isEditMode
                         ? idError
-                          ? 'border-red-500 focus:ring-2 focus:ring-red-500 focus:border-red-500'
-                          : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
-                        : 'border-gray-200 bg-gray-50 text-gray-700 cursor-not-allowed'
+                          ? ''
+                          : ''
+                        : 'cursor-not-allowed'
                     }`}
+                    style={{ fontFamily: fontHeading, fontSize: '14px', backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${isEditMode && idError ? DANGER : 'transparent'}`, borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)', color: NEUTRAL_DARK }}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = isEditMode && idError ? DANGER : PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = isEditMode && idError ? DANGER : 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }}
                   />
                   {isEditMode && idError && (
-                    <p className="mt-1 text-xs text-red-500">{idError}</p>
+                    <p className="mt-1 text-xs" style={{ color: DANGER }}>{idError}</p>
                   )}
                   {isEditMode && editingVisitor.identification?.id_type === 'National ID' &&
                    editingVisitor.identification?.number &&
                    !idError && (
-                    <p className="mt-1 text-xs text-green-600">✓ National ID format valid</p>
+                    <p className="mt-1 text-xs" style={{ color: SUCCESS }}>✓ National ID format valid</p>
                   )}
               </div>
             </div>
           </div>
 
           {/* Vehicle Information Section */}
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-sm p-6 border border-green-100">
-            <h3 className="text-lg font-bold text-[#1a2744] mb-4 flex items-center gap-2">
-              <FiRefreshCw className="w-5 h-5 text-green-600" />
+          <div className="p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+            <h3 className="text-lg mb-4 flex items-center gap-2" style={{ fontFamily: fontHeading, fontWeight: 700, color: NEUTRAL_DARK }}>
+              <FiRefreshCw className="w-5 h-5" style={{ color: SUCCESS }} />
               Vehicle Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Has Vehicle */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">
+                <label className="block uppercase mb-1" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>
                   Has Vehicle
                 </label>
                 <select
                   value={editingVisitor.vehicle_storage?.has_vehicle ? 'true' : 'false'}
                   disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 text-sm cursor-not-allowed"
+                  className="w-full px-3 py-2 text-sm cursor-not-allowed" style={{ fontFamily: fontHeading, fontSize: '14px', backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)', color: '#555555' }}
                 >
                   <option value="true">Yes</option>
                   <option value="false">No</option>
@@ -937,14 +985,14 @@ const VisitorDetailsPage: React.FC = () => {
 
               {/* License Plate */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">
+                <label className="block uppercase mb-1" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>
                   License Plate
                 </label>
                 <input
                   type="text"
                   value={editingVisitor.vehicle_storage?.vehicle_details?.plate_number || ''}
                   readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 text-sm cursor-not-allowed"
+                  className="w-full px-3 py-2 text-sm cursor-not-allowed" style={{ fontFamily: fontHeading, fontSize: '14px', backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)', color: '#555555' }}
                   placeholder="e.g., RAB123A"
                 />
               </div>
@@ -952,35 +1000,36 @@ const VisitorDetailsPage: React.FC = () => {
           </div>
 
           {/* Department Assignments Section */}
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-sm p-6 border border-purple-100">
-            <h3 className="text-lg font-bold text-[#1a2744] mb-4 flex items-center gap-2">
-              <FiCheckCircle className="w-5 h-5 text-purple-600" />
+          <div className="p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+            <h3 className="text-lg mb-4 flex items-center gap-2" style={{ fontFamily: fontHeading, fontWeight: 700, color: NEUTRAL_DARK }}>
+              <FiCheckCircle className="w-5 h-5" style={{ color: ACCENT_DARK_BLUE }} />
               Department Assignments
             </h3>
             <div className="space-y-3">
               {editingVisitor.departments_assigned?.map((dept: any, index: number) => (
-                <div key={index} className="bg-white rounded-lg p-4 border border-purple-200">
+                <div key={index} className="p-4" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                     <div>
-                      <span className="text-xs font-medium text-gray-600 uppercase tracking-wider">Department</span>
-                      <p className="text-sm font-medium text-gray-900">{dept.department_name}</p>
+                      <span className="uppercase" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>Department</span>
+                      <p className="text-sm font-medium" style={{ color: NEUTRAL_DARK }}>{dept.department_name}</p>
                     </div>
                     <div>
-                      <span className="text-xs font-medium text-gray-600 uppercase tracking-wider">Assigned Time</span>
-                      <p className="text-sm text-gray-700">
+                      <span className="uppercase" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>Assigned Time</span>
+                      <p className="text-sm" style={{ color: '#555555' }}>
                         {new Date(dept.assigned_time).toLocaleString()}
                       </p>
                     </div>
                     <div>
-                      <span className="text-xs font-medium text-gray-600 uppercase tracking-wider">Provider</span>
-                      <p className="text-sm text-gray-700">{dept.provider_name || 'N/A'}</p>
+                      <span className="uppercase" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>Provider</span>
+                      <p className="text-sm" style={{ color: '#555555' }}>{dept.provider_name || 'N/A'}</p>
                     </div>
                     <div>
-                      <span className="text-xs font-medium text-gray-600 uppercase tracking-wider block mb-2">Reached</span>
+                      <span className="uppercase block mb-2" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>Reached</span>
                       <div className="flex">
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                          dept.reached_in ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                        }`}>
+                        <span className="inline-flex px-2 py-1 text-xs font-medium" style={{
+                          backgroundColor: dept.reached_in ? 'rgba(76,175,80,0.12)' : 'rgba(243,156,18,0.12)',
+                          color: dept.reached_in ? SUCCESS : WARNING,
+                        }}>
                           {dept.reached_in ? 'Yes' : 'No'}
                         </span>
                       </div>
@@ -1027,19 +1076,19 @@ const VisitorDetailsPage: React.FC = () => {
             // ── COMPLETED ──────────────────────────────────────────────
             if (status === "Completed" || status === "completed") {
               return (
-                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-sm p-6 border border-emerald-100">
-                  <h3 className="text-lg font-bold text-emerald-700 mb-4 flex items-center gap-2">
+                <div className="p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+                  <h3 className="text-lg mb-4 flex items-center gap-2" style={{ fontFamily: fontHeading, fontWeight: 700, color: SUCCESS }}>
                     <FiCheckCircle className="w-5 h-5" />
                     Service Completed
                   </h3>
-                  <div className="flex items-center gap-4 bg-white rounded-lg p-5 border border-emerald-200">
-                    <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                      <FiCheckCircle className="w-7 h-7 text-emerald-600" />
+                  <div className="flex items-center gap-4 p-5" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(76,175,80,0.12)' }}>
+                      <FiCheckCircle className="w-7 h-7" style={{ color: SUCCESS }} />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 font-medium uppercase tracking-wider">Status</p>
-                      <p className="text-xl font-bold text-emerald-700 mt-0.5">✓ Completed</p>
-                      <p className="text-xs text-gray-400 mt-1">Service delivered by {visitor?.services_status?.[0]?.provider_name || "Staff"}</p>
+                      <p className="text-sm uppercase" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>Status</p>
+                      <p className="text-xl font-bold mt-0.5" style={{ fontFamily: fontHeading, color: SUCCESS }}>✓ Completed</p>
+                      <p className="text-xs mt-1" style={{ color: GRAY_DISABLED }}>Service delivered by {visitor?.services_status?.[0]?.provider_name || "Staff"}</p>
                     </div>
                   </div>
                 </div>
@@ -1057,61 +1106,63 @@ const VisitorDetailsPage: React.FC = () => {
 
 
           {/* Notes Section */}
-          <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-sm p-6 border border-gray-100">
-            <h3 className="text-lg font-bold text-[#1a2744] mb-4 flex items-center gap-2">
-              <FiUser className="w-5 h-5 text-gray-600" />
+          <div className="p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+            <h3 className="text-lg mb-4 flex items-center gap-2" style={{ fontFamily: fontHeading, fontWeight: 700, color: NEUTRAL_DARK }}>
+              <FiUser className="w-5 h-5" style={{ color: NEUTRAL_DARK }} />
               Notes & Comments
             </h3>
             <div className="space-y-3">
               {editingVisitor.notes?.map((note: any, index: number) => (
-                <div key={index} className="bg-white rounded-lg p-4 border border-gray-200">
+                <div key={index} className="p-4" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
                   <div className="flex justify-between items-start mb-2">
-                    <span className="text-sm font-medium text-gray-900">{note.writter_name}</span>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-sm font-medium" style={{ color: NEUTRAL_DARK }}>{note.writter_name}</span>
+                    <span className="text-xs" style={{ color: GRAY_DISABLED }}>
                       {new Date(note.timestamp).toLocaleString()}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-700">{note.message}</p>
+                  <p className="text-sm" style={{ color: '#555555' }}>{note.message}</p>
                 </div>
               ))}
               {(!editingVisitor.notes || editingVisitor.notes.length === 0) && (
-                <p className="text-sm text-gray-500 italic">No notes available</p>
+                <p className="text-sm italic" style={{ color: GRAY_DISABLED }}>No notes available</p>
               )}
             </div>
           </div>
 
           {/* Status Information Section */}
-          <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-sm p-6 border border-indigo-100">
-            <h3 className="text-lg font-bold text-[#1a2744] mb-4 flex items-center gap-2">
-              <FiCheckCircle className="w-5 h-5 text-indigo-600" />
+          <div className="p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+            <h3 className="text-lg mb-4 flex items-center gap-2" style={{ fontFamily: fontHeading, fontWeight: 700, color: NEUTRAL_DARK }}>
+              <FiCheckCircle className="w-5 h-5" style={{ color: PRIMARY }} />
               Status Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white rounded-lg p-3 border border-indigo-200">
-                <span className="text-xs font-medium text-gray-600 uppercase tracking-wider block mb-1">Entry Date</span>
-                <p className="text-sm font-medium text-gray-900">
+              <div className="p-3" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+                <span className="uppercase block mb-1" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>Entry Date</span>
+                <p className="text-sm font-medium" style={{ color: NEUTRAL_DARK }}>
                   {editingVisitor.entry_date ? new Date(editingVisitor.entry_date).toLocaleString() : 'N/A'}
                 </p>
               </div>
-              <div className="bg-white rounded-lg p-3 border border-indigo-200">
-                <span className="text-xs font-medium text-gray-600 uppercase tracking-wider block mb-1">Exit Date</span>
-                <p className="text-sm font-medium text-gray-900">
+              <div className="p-3" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+                <span className="uppercase block mb-1" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>Exit Date</span>
+                <p className="text-sm font-medium" style={{ color: NEUTRAL_DARK }}>
                   {editingVisitor.exist_date ? new Date(editingVisitor.exist_date).toLocaleString() : 'Still In-house'}
                 </p>
               </div>
-              <div className="bg-white rounded-lg p-3 border border-indigo-200">
-                <span className="text-xs font-medium text-gray-600 uppercase tracking-wider block mb-1">Is Being Served</span>
-                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                  editingVisitor.is_being_served ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                }`}>
+              <div className="p-3" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+                <span className="uppercase block mb-1" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>Is Being Served</span>
+                <span className="inline-flex px-2 py-1 text-xs font-medium" style={{
+                  backgroundColor: editingVisitor.is_being_served ? 'rgba(76,175,80,0.12)' : 'rgba(231,76,60,0.1)',
+                  color: editingVisitor.is_being_served ? SUCCESS : DANGER,
+                }}>
                   {editingVisitor.is_being_served ? 'Yes' : 'No'}
                 </span>
               </div>
-              <div className="bg-white rounded-lg p-3 border border-indigo-200">
-                <span className="text-xs font-medium text-gray-600 uppercase tracking-wider block mb-1">Still In-house</span>
-                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                  editingVisitor.is_still_inhouse ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                }`}>
+              <div className="p-3" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+                <span className="uppercase block mb-1" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>Still In-house</span>
+                <span className="inline-flex px-2 py-1 text-xs font-medium" style={{
+                  backgroundColor: editingVisitor.is_still_inhouse ? 'rgba(76,175,80,0.12)' : 'rgba(231,76,60,0.1)',
+                  color: editingVisitor.is_still_inhouse ? SUCCESS : DANGER,
+                }}>
                   {editingVisitor.is_still_inhouse ? 'Yes' : 'No'}
                 </span>
               </div>
@@ -1120,13 +1171,16 @@ const VisitorDetailsPage: React.FC = () => {
         </div>
 
         {/* Footer Actions — dual mode: serve buttons (view) / save button (edit) */}
-        <div className="p-6 border-t border-gray-200 bg-gray-50">
+        <div className="p-6" style={{ backgroundColor: WHITE, borderTop: `1px solid ${BORDER}` }}>
           {isEditMode ? (
             <div className="flex justify-end gap-3">
               <button
                 onClick={handleUpdateVisitor}
                 disabled={updating || !!idError || !!emailError}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-2 uppercase transition-colors disabled:opacity-50 flex items-center gap-2"
+                style={{ backgroundColor: SUCCESS, color: WHITE, borderRadius: 0, fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '1px' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SUCCESS_HOVER; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}
               >
                 {updating ? (
                   <>
@@ -1146,14 +1200,20 @@ const VisitorDetailsPage: React.FC = () => {
               <button
                 onClick={handleTransferClick}
                 disabled={isServing}
-                className="flex items-center gap-2 h-10 px-5 bg-[#7b1fa2] text-white text-[13px] font-bold rounded-[8px] hover:bg-[#6a1b9a] transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 h-10 px-5 text-[13px] uppercase transition-colors disabled:opacity-50"
+                style={{ backgroundColor: ACCENT_DARK_BLUE, color: WHITE, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#2471A3'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ACCENT_DARK_BLUE; }}
               >
                 <FiArrowRightCircle className="w-4 h-4" /> Transfer
               </button>
               <button
                 onClick={handleServeClick}
                 disabled={isServing}
-                className="flex items-center gap-2 h-10 px-6 bg-[#1a73e8] text-white text-[13px] font-bold rounded-[8px] hover:bg-[#1558c0] transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 h-10 px-6 text-[13px] uppercase transition-colors disabled:opacity-50"
+                style={{ backgroundColor: PRIMARY, color: WHITE, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
               >
                 {(() => {
                   if (!visitor) return null;
@@ -1190,11 +1250,11 @@ const VisitorDetailsPage: React.FC = () => {
 
         {/* ======== Transfer Visitor Modal ======== */}
         {showTransferModal && visitor && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-[16px] shadow-[0px_10px_30px_rgba(0,0,0,0.1)] w-full max-w-md overflow-visible">
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="w-full max-w-md overflow-visible" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-[#2C3E50] text-[20px] font-semibold">
+                  <h2 className="text-[20px]" style={{ fontFamily: fontHeading, fontWeight: 700, color: NEUTRAL_DARK }}>
                     Transfer Visitor
                   </h2>
                   <button
@@ -1215,18 +1275,18 @@ const VisitorDetailsPage: React.FC = () => {
 
                 {/* Visitor summary card */}
                 <div className="mb-4">
-                  <label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">
+                  <label className="block uppercase mb-2" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>
                     Visitor
                   </label>
-                  <div className="flex items-center gap-3 p-3 bg-[#F7F9FB] rounded-lg">
-                    <div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                  <div className="flex items-center gap-3 p-3" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{ backgroundColor: ACCENT_DARK_BLUE }}>
                       <span>{(visitor.full_name || "?")[0]}</span>
                     </div>
                     <div>
-                      <div className="text-[#2C3E50] text-[14px] font-medium">
+                      <div className="text-[14px] font-medium" style={{ color: NEUTRAL_DARK }}>
                         {visitor.full_name}
                       </div>
-                      <div className="text-[#8A94A6] text-[12px]">
+                      <div className="text-[12px]" style={{ color: GRAY_DISABLED }}>
                         Badge: {visitor.badge_number || "N/A"}
                       </div>
                     </div>
@@ -1235,13 +1295,16 @@ const VisitorDetailsPage: React.FC = () => {
 
                 {/* Select Department */}
                 <div className="mb-4">
-                  <label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">
+                  <label className="block uppercase mb-2" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>
                     Select Department
                   </label>
                   <select
                     value={transferDepartment}
                     onChange={(e) => handleTransferDepartmentChange(e.target.value)}
-                    className="w-full px-3 py-2 h-[42px] border border-[#D9E1EA] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#0284C7] bg-white"
+                    className="w-full px-3 py-2 h-[42px] text-[13px]"
+                    style={{ fontFamily: fontHeading, fontSize: '14px', backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)', color: NEUTRAL_DARK }}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }}
                   >
                     <option value="">Choose a department…</option>
                     {departments.map((dept: any) => (
@@ -1256,19 +1319,22 @@ const VisitorDetailsPage: React.FC = () => {
                 {/* Select Unit (Optional) */}
                 {transferDepartment && (
                   <div className="mb-4">
-                    <label className="block text-[11px] text-[#8A94A6] uppercase tracking-[1px] mb-2">
+                    <label className="block uppercase mb-2" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>
                       Select Unit (Optional)
                     </label>
                     {transferEmployeesLoading ? (
-                      <div className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-sm bg-gray-100 flex items-center justify-center">
-                        <FiLoader className="w-4 h-4 border-2 border-[#0284C7] border-t-transparent rounded-full animate-spin mr-2" />
-                        <span className="text-gray-500">Loading units…</span>
+                      <div className="w-full px-3 py-2 text-sm flex items-center justify-center" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}`, borderRadius: 0 }}>
+                        <FiLoader className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin mr-2" style={{ borderColor: PRIMARY, borderTopColor: 'transparent' }} />
+                        <span style={{ color: GRAY_DISABLED }}>Loading units…</span>
                       </div>
                     ) : (
                       <select
                         value={selectedUnit}
                         onChange={(e) => setSelectedUnit(e.target.value)}
-                        className="w-full px-3 py-2 border border-[#D9E1EA] rounded-[8px] text-[13px] focus:ring-2 focus:ring-[#0284C7] bg-white"
+                        className="w-full px-3 py-2 text-[13px]"
+                        style={{ fontFamily: fontHeading, fontSize: '14px', backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)', color: NEUTRAL_DARK }}
+                        onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
+                        onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }}
                       >
                         <option value="">No specific unit — assign to department only</option>
                         {units.map((unit) => (
@@ -1293,14 +1359,18 @@ const VisitorDetailsPage: React.FC = () => {
                       setUnits([]);
                       setSelectedUnit("");
                     }}
-                    className="flex-1 px-4 py-2 border border-[#D9E1EA] text-[#2C3E50] rounded-[8px] font-medium hover:bg-gray-50 transition-colors"
+                    className="flex-1 px-4 py-2 uppercase hover:bg-gray-50 transition-colors"
+                    style={{ backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '1px' }}
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleTransferVisitor}
                     disabled={!transferDepartment || transferring}
-                    className="flex-1 px-4 py-2 bg-[#0284C7] text-white rounded-[8px] font-medium hover:bg-[#0369A1] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 uppercase transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    style={{ backgroundColor: PRIMARY, color: WHITE, borderRadius: 0, fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '1px' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
                   >
                     {transferring ? (
                       <>

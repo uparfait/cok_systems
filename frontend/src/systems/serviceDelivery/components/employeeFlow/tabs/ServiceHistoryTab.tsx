@@ -6,6 +6,10 @@ import { serviceDeliveryService } from '../../../../../core/services/adminServic
 import Table from '../../../../../core/components/Table';
 import type { TableHeader } from '../../../../../core/components/Table';
 
+const PRIMARY = "#056daa";
+const NEUTRAL_DARK = "#333333";
+const fontHeading = "'Montserrat', sans-serif";
+
 const ServiceHistoryTab: React.FC = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -51,8 +55,8 @@ const ServiceHistoryTab: React.FC = () => {
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-base font-bold text-[#1a2744]">Service History</h1>
-        <div className="text-blue-600 bg-blue-50 px-3 py-1.5 text-xs font-bold">{serviceRecords.length} Records</div>
+        <h1 className="text-base font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Service History</h1>
+        <div className="px-3 py-1.5 text-xs font-bold" style={{ fontFamily: fontHeading, color: PRIMARY, backgroundColor: 'rgba(5,109,170,0.08)' }}>{serviceRecords.length} Records</div>
       </div>
 
       <Table
@@ -70,19 +74,19 @@ const ServiceHistoryTab: React.FC = () => {
         renderCell={(header, record, index) => {
           switch (header.key) {
             case 'visitor':
-              return <span className="font-bold text-[#1a2744]">{record.visitorName}</span>;
+              return <span className="font-bold" style={{ color: NEUTRAL_DARK }}>{record.visitorName}</span>;
             case 'service':
-              return <span className="text-gray-600 text-sm">{record.serviceType}</span>;
+              return <span className="text-[#555555] text-sm">{record.serviceType}</span>;
             case 'status':
               return (
                 <span className={`px-2 py-0.5 text-xs font-bold uppercase ${
-                  record.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                  record.status === 'completed' ? 'bg-[rgba(51,51,51,0.08)] text-[#555555]' : 'bg-[rgba(243,156,18,0.12)] text-[#F39C12]'
                 }`}>
                   {record.status}
                 </span>
               );
             case 'arrival':
-              return <span className="text-xs text-gray-400">{new Date(record.entryDate).toLocaleTimeString()}</span>;
+              return <span className="text-xs text-[#9E9E9E]">{new Date(record.entryDate).toLocaleTimeString()}</span>;
             default:
               return <span>{record[header.key] || '-'}</span>;
           }

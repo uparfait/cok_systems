@@ -1,14 +1,27 @@
 // ServiceTimer - Reusable timer component for service sessions
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
+const PRIMARY = "#056daa";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const TERTIARY = "#CDB896";
+const fontHeading = "'Montserrat', sans-serif";
+
+const timerLabelStyle: React.CSSProperties = {
+  fontFamily: fontHeading,
+  fontWeight: 600,
+  letterSpacing: '1px',
+  color: TERTIARY
+};
+
 export interface ServiceTimerProps {
   isRunning: boolean;
   onTimerUpdate?: (time: { hours: number; minutes: number; seconds: number }) => void;
   initialTime?: { hours: number; minutes: number; seconds: number };
 }
 
-const ServiceTimer: React.FC<ServiceTimerProps> = ({ 
-  isRunning, 
+const ServiceTimer: React.FC<ServiceTimerProps> = ({
+  isRunning,
   onTimerUpdate,
   initialTime = { hours: 0, minutes: 0, seconds: 0 }
 }) => {
@@ -24,7 +37,7 @@ const ServiceTimer: React.FC<ServiceTimerProps> = ({
       setTime(prev => {
         let { hours, minutes, seconds } = prev;
         seconds++;
-        
+
         if (seconds >= 60) {
           seconds = 0;
           minutes++;
@@ -74,30 +87,30 @@ const ServiceTimer: React.FC<ServiceTimerProps> = ({
     <div className="flex items-center justify-center gap-2">
       {/* Hours */}
       <div className="flex flex-col items-center">
-        <div className="w-[90px] h-[90px] bg-[#F4F6F9] rounded-[16px] flex items-center justify-center">
-          <span className="text-[40px] font-bold text-[#1F2D3D]">{formatTime(time.hours)}</span>
+        <div className="w-[90px] h-[90px] flex items-center justify-center" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+          <span className="text-[40px] font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{formatTime(time.hours)}</span>
         </div>
-        <span className="text-[11px] text-[#8A94A6] mt-2 tracking-widest">HOURS</span>
+        <span className="text-[11px] mt-2" style={timerLabelStyle}>HOURS</span>
       </div>
 
-      <span className="text-[40px] font-bold text-[#1F2D3D] mt-[-20px]">:</span>
+      <span className="text-[40px] font-bold mt-[-20px]" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>:</span>
 
       {/* Minutes */}
       <div className="flex flex-col items-center">
-        <div className="w-[90px] h-[90px] bg-[#F4F6F9] rounded-[16px] flex items-center justify-center">
-          <span className="text-[40px] font-bold text-[#1F2D3D]">{formatTime(time.minutes)}</span>
+        <div className="w-[90px] h-[90px] flex items-center justify-center" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+          <span className="text-[40px] font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{formatTime(time.minutes)}</span>
         </div>
-        <span className="text-[11px] text-[#8A94A6] mt-2 tracking-widest">MINUTES</span>
+        <span className="text-[11px] mt-2" style={timerLabelStyle}>MINUTES</span>
       </div>
 
-      <span className="text-[40px] font-bold text-[#1F2D3D] mt-[-20px]">:</span>
+      <span className="text-[40px] font-bold mt-[-20px]" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>:</span>
 
       {/* Seconds */}
       <div className="flex flex-col items-center">
-        <div className="w-[90px] h-[90px] bg-[#F4F6F9] rounded-[16px] flex items-center justify-center">
-          <span className="text-[40px] font-bold text-[#1E88C8]">{formatTime(time.seconds)}</span>
+        <div className="w-[90px] h-[90px] flex items-center justify-center" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+          <span className="text-[40px] font-bold" style={{ fontFamily: fontHeading, color: PRIMARY }}>{formatTime(time.seconds)}</span>
         </div>
-        <span className="text-[11px] text-[#8A94A6] mt-2 tracking-widest">SECONDS</span>
+        <span className="text-[11px] mt-2" style={timerLabelStyle}>SECONDS</span>
       </div>
     </div>
   );
