@@ -14,6 +14,7 @@ export const getRoleSlug = (role: string | undefined): string => {
   if (normalized.includes('receptionist')) return 'receptionist';
   if (normalized.includes('department manager') || normalized.includes('department head') || normalized.includes('head of department') || normalized.includes('director')) return 'department-manager';
   if (normalized.includes('gate') && normalized.includes('vehicle')) return 'gate-officer';
+  if (normalized.includes('event manager') || normalized.includes('event-manager')) return 'event-manager';
   if ((normalized.includes('manager') || normalized.includes('head')) && !normalized.includes('receptionist')) return 'department-manager';
   if (normalized.includes('employee') || normalized.includes('staff') || normalized.includes('officer') || normalized.includes('clerk')) return 'employee';
   if (normalized.includes('admin')) return 'system-admin';
@@ -111,6 +112,49 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       { id: 'performance', label: 'Performance Analytics', path: `/${slug}/dashboard?tab=performance`, icon: 'FiBarChart2' },
       { id: 'history', label: 'Service History', path: `/${slug}/dashboard?tab=history`, icon: 'FiFileText' },
       { id: 'queue', label: 'Department Queue', path: `/${slug}/dashboard?tab=queue`, icon: 'FiList' },
+    ];
+  }
+
+  // EVENT MANAGER INTERCEPTOR
+  if (userRole.includes('event manager') || userRole.includes('event-manager')) {
+    return [
+      { id: 'dashboard', label: 'Dashboard', path: `/${slug}`, icon: 'FiBarChart2' },
+      {
+        id: 'rooms',
+        label: 'Rooms',
+        path: `/${slug}/rooms`,
+        icon: 'FiLayers',
+        children: [
+          { id: 'all-rooms', label: 'All Rooms', path: `/${slug}/rooms/all`, icon: 'FiList' },
+          { id: 'rooms-analytics', label: 'Analytics', path: `/${slug}/rooms/stats`, icon: 'FiBarChart2' },
+          { id: 'new-room', label: 'New Room', path: `/${slug}/rooms/new`, icon: 'FiClipboard' },
+          { id: 'check-availability', label: 'Check Availability', path: `/${slug}/rooms/availability`, icon: 'FiCheck' },
+          { id: 'date-check', label: 'Date Check', path: `/${slug}/rooms/date-check`, icon: 'FiCalendar' }
+        ]
+      },
+      {
+        id: 'events',
+        label: 'Events',
+        path: `/${slug}/events`,
+        icon: 'FiActivity',
+        children: [
+          { id: 'live-events', label: 'Live', path: `/${slug}/events/live`, icon: 'FiActivity' },
+          { id: 'upcoming-events', label: 'Upcoming', path: `/${slug}/events/upcoming`, icon: 'FiArrowRight' },
+          { id: 'recurring-events', label: 'Recurring', path: `/${slug}/events/recurring`, icon: 'FiGrid' },
+          { id: 'past-events', label: 'Completed', path: `/${slug}/events/past`, icon: 'FiFile' },
+          { id: 'new-event', label: 'New', path: `/${slug}/events/new`, icon: 'FiClipboard' },
+          { id: 'event-actions', label: 'Actions', path: `/${slug}/events/actions`, icon: 'FiCheck' }
+        ]
+      },
+      {
+        id: 'booking-requests',
+        label: 'Booking Requests',
+        path: `/${slug}/booking-requests`,
+        icon: 'FiClipboard',
+        children: [
+          { id: 'all-requests', label: 'All Requests', path: `/${slug}/booking-requests/all`, icon: 'FiList' }
+        ]
+      }
     ];
   }
 
@@ -379,7 +423,7 @@ export const getDashboardRoute = (role: string | undefined, _departmentName?: st
   const slug = getRoleSlug(role);
  
   if (normalizedRole.includes('receptionist')) return `/${slug}/dashboard`;
-  if(normalizedRole.includes("event-manager")) return `/event-manager/rooms/all`;
+  if(normalizedRole.includes("event-manager")) return `/event-manager`;
   if (normalizedRole.includes('department manager') || normalizedRole.includes('department head') ||
       normalizedRole.includes('head of department') || normalizedRole.includes('director')) return `/${slug}/dashboard`;
   if ((normalizedRole.includes('manager') || normalizedRole.includes('head')) && !normalizedRole.includes('receptionist')) return `/${slug}/dashboard`;

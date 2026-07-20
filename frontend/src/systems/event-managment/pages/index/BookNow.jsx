@@ -12,9 +12,11 @@ import {
   FiArrowRight,
   FiMapPin,
   FiAlertTriangle,
+  FiX,
 } from "react-icons/fi";
 import SpiralLoader from "../../components/SpiralLoader";
 import ActivityAgenda from "../../components/sub-components/ActivityAgenda";
+import DashboardCalendar from "../dashboard/components/DashboardCalendar";
 
 const BASE_URL = "/cok/api/v1";
 
@@ -213,6 +215,11 @@ export default function BookNow() {
   const [step, setStep] = useState(1);
   const [fieldErrors, setFieldErrors] = useState({});
   const [completedSteps, setCompletedSteps] = useState([]);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [calendarEvents, setCalendarEvents] = useState([]);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
 
   const eventMeetingType = urlType || "event";
   const showAgenda = eventMeetingType === "meet";
@@ -315,6 +322,36 @@ export default function BookNow() {
     }
   }
 
+  async function fetchCalendar(year, month) {
+    setCalendarLoading(true);
+    try {
+      const monthStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+      const response = await axios.get(`${BASE_URL}/events/calendar?month=${encodeURIComponent(monthStr)}`);
+      if (response.data?.success) {
+        setCalendarEvents(response.data.data);
+      } else {
+        setCalendarEvents([]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch calendar events:', err);
+      setCalendarEvents([]);
+    } finally {
+      setCalendarLoading(false);
+    }
+  }
+
+  function handleOpenCalendar() {
+    const now = new Date();
+    setCalendarYear(now.getFullYear());
+    setCalendarMonth(now.getMonth());
+    setShowCalendar(true);
+    fetchCalendar(now.getFullYear(), now.getMonth());
+  }
+
+  function handleCloseCalendar() {
+    setShowCalendar(false);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
@@ -365,11 +402,53 @@ export default function BookNow() {
           <title>Book Now | KCE Portal</title>
           <meta name="description" content="Choose event or meeting type." />
         </Helmet>
-        <div className="min-h-screen bg-gray-50 w-full max-w-[70%] min-w-[300px] flex flex-col items-center justify-start pt-20">
-          <div className="w-full max-w-lg">
-            <div className="text-center mb-8">
-              <p className="text-sm text-zinc-500 font-medium">What would you like to book?</p>
+
+        {showCalendar && (
+          <div className="fixed inset-0 bg-white z-[9999] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+              <h2 className="text-base font-bold text-gray-900">Scheduled Events</h2>
+              <button
+                onClick={handleCloseCalendar}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                aria-label="Close calendar"
+              >
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
+            <div className="flex-1 overflow-auto p-4">
+              <div className="min-w-[700px]">
+                <DashboardCalendar
+                  events={calendarEvents}
+                  loading={calendarLoading}
+                  onMonthChange={(year, month) => {
+                    setCalendarYear(year);
+                    setCalendarMonth(month);
+                    fetchCalendar(year, month);
+                  }}
+                  currentYear={calendarYear}
+                  currentMonth={calendarMonth}
+                  colorMode="eventType"
+                  compact
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="min-h-screen bg-gray-50 w-full max-w-[70%] min-w-[300px] flex flex-col items-center justify-start pt-20">
+        <div className="w-full max-w-lg">
+          <div className="text-center mb-8">
+            <button
+              onClick={handleOpenCalendar}
+              className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors flex items-center gap-1.5 mx-auto"
+            >
+              <FiCalendar className="w-3.5 h-3.5" />
+              View Scheduled Events
+            </button>
+            <p className="text-sm text-zinc-500 font-medium mt-4">What would you like to book?</p>
+          </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <button
                 onClick={() => navigate("/book-a-room/new/event")}

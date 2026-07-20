@@ -4,12 +4,22 @@ import { FiChevronLeft, FiChevronRight, FiMapPin, FiClock, FiLoader } from 'reac
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-function getEventColor(event) {
+function getEventColor(event, colorMode) {
+  if (colorMode === 'eventType') {
+    if (event.eventType === 'Joint') return 'bg-blue-50 border-blue-200 text-blue-700';
+    if (event.eventType === 'Internal') return 'bg-orange-50 border-orange-200 text-orange-700';
+    return 'bg-emerald-50 border-emerald-200 text-emerald-700';
+  }
   if (event.eventMeetingType === 'meet') return 'bg-blue-50 border-blue-200 text-blue-700';
   return 'bg-emerald-50 border-emerald-200 text-emerald-700';
 }
 
-function getEventDotColor(event) {
+function getEventDotColor(event, colorMode) {
+  if (colorMode === 'eventType') {
+    if (event.eventType === 'Joint') return 'bg-blue-500';
+    if (event.eventType === 'Internal') return 'bg-orange-500';
+    return 'bg-emerald-500';
+  }
   if (event.eventMeetingType === 'meet') return 'bg-blue-500';
   return 'bg-emerald-500';
 }
@@ -22,7 +32,7 @@ function formatTimeRange(startIso, endIso) {
   return `${start} - ${end}`;
 }
 
-export default function DashboardCalendar({ events, loading, onMonthChange, currentYear, currentMonth }) {
+export default function DashboardCalendar({ events, loading, onMonthChange, currentYear, currentMonth, colorMode = 'meetingType', compact = false }) {
   const navigate = useNavigate();
   const [internalYear, setInternalYear] = useState(currentYear || new Date().getFullYear());
   const [internalMonth, setInternalMonth] = useState(currentMonth || new Date().getMonth());
@@ -130,7 +140,7 @@ export default function DashboardCalendar({ events, loading, onMonthChange, curr
           <FiLoader className="w-8 h-8 text-blue-600 animate-spin" />
         </div>
       ) : (
-        <div className="grid grid-cols-7 flex-1">
+        <div className="grid grid-cols-7">
           {days.map((day, idx) => {
             if (!day) {
               return <div key={`empty-${idx}`} className="min-h-[80px] sm:min-h-[100px] md:min-h-[120px] border-r border-b border-gray-100 bg-gray-50/50" />;
@@ -160,19 +170,21 @@ export default function DashboardCalendar({ events, loading, onMonthChange, curr
                       <button
                         key={ev._id + (ev.occurrenceDate || '')}
                         onClick={() => handleEventClick(ev)}
-                        className={`w-full text-left text-[10px] sm:text-[11px] leading-tight px-1 sm:px-1.5 py-0.5 sm:py-1 border ${getEventColor(ev)}`}
+                        className={`w-full text-left text-[10px] sm:text-[11px] leading-tight px-1 sm:px-1.5 py-0.5 sm:py-1 border ${getEventColor(ev, colorMode)}`}
                         title={`${ev.eventName}\n${timeRange}\n${ev.eventRoom}`}
                       >
-                        <div className="flex items-center gap-1">
-                          <span className="truncate font-medium">{ev.eventName}</span>
-                        </div>
+                        {!compact && (
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium">{ev.eventName}</span>
+                          </div>
+                        )}
                         <div className="flex items-center gap-1 text-[9px] sm:text-[10px] opacity-80 mt-0.5">
                           <FiClock className="w-2 h-2 sm:w-2.5 sm:h-2.5 shrink-0" />
-                          <span className="truncate">{timeRange}</span>
+                          <span>{timeRange}</span>
                         </div>
-                        <div className="flex items-center gap-1 text-[9px] sm:text-[10px] opacity-80 hidden sm:flex">
+                        <div className="flex items-center gap-1 text-[9px] sm:text-[10px] opacity-80">
                           <FiMapPin className="w-2 h-2 sm:w-2.5 sm:h-2.5 shrink-0" />
-                          <span className="truncate">{ev.eventRoom}</span>
+                          <span>{ev.eventRoom}</span>
                         </div>
                       </button>
                     );

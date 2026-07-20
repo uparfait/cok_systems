@@ -2,6 +2,12 @@ import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 
+const PRIMARY = '#056daa';
+const HOVER = '#045d94';
+const NEUTRAL_DARK = '#333333';
+const NEUTRAL_LIGHT = '#F7F9FB';
+const BORDER = '#E0E0E0';
+
 export default function BookingOptions() {
   const navigate = useNavigate();
   const [trackingId, setTrackingId] = useState('');
@@ -20,79 +26,231 @@ export default function BookingOptions() {
         <meta name="description" content="Manage your room booking." />
       </Helmet>
 
-      <main className="w-full h-max min-h-screen flex flex-col items-center   px-4 py-10">
-        <div className="w-full max-w-lg">
-
+      <main className="w-full min-h-screen flex flex-col items-center px-4 sm:px-6 lg:px-8" style={{ backgroundColor: NEUTRAL_LIGHT, paddingTop: '120px', paddingBottom: '80px' }}>
+        <div className="w-full max-w-[1200px] mx-auto">
+          
           {/* Header */}
-          <div className="text-center mb-8">
-            
-            <p className="text-sm tracking-wide text-zinc-500 font-medium">
+          <div className="text-center mb-10">
+            <h1 style={{
+              fontFamily: "'Montserrat', sans-serif",
+              fontSize: 'clamp(32px, 5vw, 40px)',
+              fontWeight: 800,
+              letterSpacing: '-0.5px',
+              lineHeight: 1.2,
+              color: PRIMARY,
+              margin: '0 0 15px 0'
+            }}>
+              Booking
+            </h1>
+            <p style={{
+              fontFamily: "'Montserrat', sans-serif",
+              fontSize: 'clamp(15px, 2.5vw, 17px)',
+              fontWeight: 400,
+              lineHeight: 1.6,
+              color: '#555555',
+              margin: 0
+            }}>
               What would you like to do?
             </p>
           </div>
 
-          <div className="flex flex-col gap-4">
+          {/* Cards Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-            {/* Top row */}
-            <div className="flex gap-4 items-stretch">
+            {/* Track Your Booking Card */}
+            <div className="w-full" style={{
+              backgroundColor: NEUTRAL_LIGHT,
+              boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)',
+              border: '0',
+              padding: '40px',
+              transition: 'all 0.4s'
+            }}>
+              <p style={{
+                fontFamily: "'Montserrat', sans-serif",
+                fontSize: '21px',
+                fontWeight: 600,
+                color: NEUTRAL_DARK,
+                marginTop: 0,
+                marginBottom: '20px'
+              }}>
+                Track Your Booking
+              </p>
+              <p style={{
+                fontFamily: "'Montserrat', sans-serif",
+                fontSize: '15px',
+                fontWeight: 400,
+                lineHeight: 1.6,
+                color: '#555555',
+                marginBottom: '24px'
+              }}>
+                Enter your Booking ID to check status.
+              </p>
 
-              
-       
-
-              {/* Track Your Booking */}
-              <div className="flex-1 px-6 py-5 fffff-2xl bg-white border-2 border-zinc-200 flex flex-col">
-                
-                <p className="text-sm font-black uppercase tracking-widest text-zinc-800 mb-1">
-                  Track Your Booking
-                </p>
-                <p className="text-xs text-zinc-400 font-medium leading-relaxed mb-3">
-                  Enter your Booking ID to check status.
-                </p>
-                <form onSubmit={handleTrack} className="flex items-center gap-2 mt-auto">
+              <form onSubmit={handleTrack}>
+                <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="text"
                     value={trackingId}
                     onChange={(e) => setTrackingId(e.target.value)}
                     placeholder="Enter your booking id"
-                    className="flex-1 min-w-0 px-3 text-center py-2 fffff-full border-2 border-zinc-200 bg-zinc-50 text-xs text-zinc-800 placeholder-zinc-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all duration-200"
+                    style={{
+                      fontFamily: "'Montserrat', sans-serif",
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      letterSpacing: '0.2px',
+                      padding: '12px 1rem',
+                      color: NEUTRAL_DARK,
+                      backgroundColor: NEUTRAL_LIGHT,
+                      boxSizing: 'border-box',
+                      border: '1px solid transparent',
+                      borderRadius: 0,
+                      boxShadow: '0px 2px 4px rgba(0,0,0,0.1)',
+                      outline: 'none',
+                      flex: 1,
+                      transition: 'border-color 0.3s ease, box-shadow 0.3s ease'
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = PRIMARY;
+                      e.currentTarget.style.boxShadow = '0px 4px 8px rgba(7,142,206,0.25)';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = 'transparent';
+                      e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)';
+                    }}
                   />
                   <button
                     type="submit"
-                    className="flex items-center gap-1 px-3 py-2 fffff-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors duration-200 whitespace-nowrap shadow-sm"
+                    style={{
+                      fontFamily: "'Montserrat', sans-serif",
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      letterSpacing: '1px',
+                      lineHeight: 1.4,
+                      textTransform: 'uppercase',
+                      textAlign: 'center',
+                      color: '#FFFFFF',
+                      backgroundColor: PRIMARY,
+                      border: 'none',
+                      borderRadius: 0,
+                      padding: '12px 20px',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s ease, transform 0.1s ease',
+                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = HOVER;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = PRIMARY;
+                    }}
+                    onMouseDown={(e) => {
+                      e.currentTarget.style.transform = 'translateY(1px)';
+                    }}
+                    onMouseUp={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="m21 21-4.35-4.35" />
                     </svg>
                     Track
                   </button>
-                </form>
-              </div>
-
+                </div>
+              </form>
             </div>
 
-            {/* Book Now — full width */}
+            {/* New Request Card */}
             <button
               onClick={() => navigate('/book-a-room/new')}
-              className="w-full flex items-center justify-between px-6 py-5 fffff-2xl bg-white border-2 border-zinc-200 hover:border-violet-400 hover:shadow-lg transition-all duration-200 group"
+              className="w-full text-left"
+              style={{
+                backgroundColor: NEUTRAL_LIGHT,
+                boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)',
+                border: '0',
+                padding: '40px',
+                cursor: 'pointer',
+                transition: 'all 0.4s',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+              onMouseEnter={(e) => {
+                const target = e.currentTarget;
+                target.style.boxShadow = '0 12px 48px 0 rgba(0,0,0,0.12)';
+              }}
+              onMouseLeave={(e) => {
+                const target = e.currentTarget;
+                target.style.boxShadow = '0 8px 40px 0 rgba(0,0,0,0.08)';
+              }}
             >
-              <div className="flex items-center gap-4">
-                <div className="w-9 h-9 fffff-xl bg-pink-100 group-hover:bg-pink-200 flex items-center justify-center transition-colors duration-200">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-pink-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" />
-                  </svg>
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-black uppercase tracking-widest text-zinc-800 group-hover:text-violet-600 transition-colors duration-200 mb-0.5">
-                   New Request
-                  </p>
-                  <p className="text-xs text-zinc-400 font-medium">
-                    Reserve a room for your upcoming event or meeting.
-                  </p>
-                </div>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                backgroundColor: 'rgba(7,142,206,0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '20px',
+                transition: 'background-color 0.2s ease'
+              }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="0" ry="0" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
               </div>
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-zinc-300 group-hover:text-violet-400 transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
+
+              <p style={{
+                fontFamily: "'Montserrat', sans-serif",
+                fontSize: '21px',
+                fontWeight: 600,
+                color: NEUTRAL_DARK,
+                marginTop: 0,
+                marginBottom: '15px'
+              }}>
+                New Request
+              </p>
+              <p style={{
+                fontFamily: "'Montserrat', sans-serif",
+                fontSize: '15px',
+                fontWeight: 400,
+                lineHeight: 1.6,
+                color: '#555555',
+                marginBottom: '24px'
+              }}>
+                Reserve a room for your upcoming event or meeting.
+              </p>
+
+              <div style={{
+                fontFamily: "'Montserrat', sans-serif",
+                fontSize: '13px',
+                fontWeight: 600,
+                letterSpacing: '1px',
+                textTransform: 'uppercase',
+                color: PRIMARY,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'color 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = HOVER;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = PRIMARY;
+              }}
+              >
+                Create Request
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ marginTop: '1px' }}>
+                  <path d="M5 12h14" />
+                  <path d="m12 5 7 7-7 7" />
+                </svg>
+              </div>
             </button>
 
           </div>

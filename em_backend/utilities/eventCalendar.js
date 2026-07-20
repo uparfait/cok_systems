@@ -147,8 +147,10 @@ function applyRecurrence(event, recurring) {
  * @param {'REQUEST'|'CANCEL'} method
  * @param {string} [attendeeEmail] - Recipient email
  * @param {number} [sequence=0] - Track changes; increment on update/cancel to force update down to clients
+ * @param {Date} [recurrenceId] - For cancelling a single occurrence of a series;
+ *   emits RECURRENCE-ID so clients remove just that instance, not the whole series.
  */
-function buildInviteICS(event, invitationUid, method = 'REQUEST', attendeeEmail = null, sequence = 0) {
+function buildInviteICS(event, invitationUid, method = 'REQUEST', attendeeEmail = null, sequence = 0, recurrenceId = null) {
   const cal = ical({
     method,
     prodid: '-//COK Systems//Event Management//EN',
@@ -175,6 +177,9 @@ function buildInviteICS(event, invitationUid, method = 'REQUEST', attendeeEmail 
     // When upstream DB state isn't supplied yet, default cancel to 1, invite to 0.
     sequence: sequence > 0 ? sequence : method === 'CANCEL' ? 1 : 0,
     timezone: TIMEZONE_NAME,
+    // recurrenceId (only for cancelling a single series occurrence) must be undefined
+    // (not null) so ical-generator skips it when absent.
+    recurrenceId: recurrenceId || undefined,
     stamp: new Date(),
     organizer: {
       name: (event.eventOrganizer && event.eventOrganizer.fullNames) || 'City of Kigali',

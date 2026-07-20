@@ -3,7 +3,7 @@
 /* Custom base styles */
 @layer base {
   html {
-    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+   
     scroll-behavior: smooth;
   }
   
@@ -15,7 +15,7 @@
 /* Custom component styles */
 @layer components {
   .btn-primary {
-    @apply bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors;
+    @apply bg-[#078ece] text-white px-4 py-2 rounded-lg hover:bg-[#056daa] transition-colors;
   }
   
   .btn-secondary {
@@ -30,7 +30,7 @@
 /* Custom utility styles */
 @layer utilities {
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#078ece] to-[#6c5ce7];
   }
 
   /* Animated "COK Official Portal" badge */
