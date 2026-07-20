@@ -26,6 +26,7 @@ function RoomSelector({ form, rooms, onChange, startTime, endTime, errors, event
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searched, setSearched] = useState(false);
+  const [tryAgain, setTryAgain] = useState("0.0001");
 
   const hasDates = startTime && endTime;
 
@@ -52,7 +53,7 @@ function RoomSelector({ form, rooms, onChange, startTime, endTime, errors, event
       }
     };
     checkRooms();
-  }, [startTime, endTime, hasDates]);
+  }, [startTime, endTime, hasDates, tryAgain]);
 
   const isSelected = (roomName) => form.room?.toLowerCase() === roomName.toLowerCase();
 
@@ -62,7 +63,6 @@ function RoomSelector({ form, rooms, onChange, startTime, endTime, errors, event
   return (
     <div className="flex flex-col gap-4 pt-2">
       <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: PRIMARY, fontFamily: fontHeading }}>Room Selection</h2>
-      <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Rooms are checked for availability based on your selected schedule.</p>
 
       {loading && (
         <div className="flex items-center justify-center py-6">
@@ -72,9 +72,10 @@ function RoomSelector({ form, rooms, onChange, startTime, endTime, errors, event
       )}
 
       {error && (
-        <div className="p-3 flex items-start gap-2" style={{ backgroundColor: '#FFEBEE', border: `1px solid ${DANGER}` }}>
+        <div className="p-3 flex items-start gap-2 relative" style={{ backgroundColor: '#FFEBEE', border: `1px solid ${DANGER}` }}>
           <FiAlertCircle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: DANGER }} />
           <p className="text-xs" style={{ color: '#C62828', fontFamily: fontHeading }}>{error}</p>
+          <div className="text-xs absolute right-3 cursor-pointer text-[#c65228] hover:underline" onClick={()=> setTryAgain(`${Math.random()}`)}>Try again</div>
         </div>
       )}
 
