@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import axios from "axios";
-import { Link, useOutletContext } from "react-router-dom";
+import { Link, useOutletContext, useNavigate } from "react-router-dom";
+import EventAccessOverlay from "./EventAccessOverlay";
+import { FiMapPin } from "react-icons/fi";
 
 // Helper: Generates a consistent, aesthetic pastel color from a string
 const generateColorFromName = (name) => {
@@ -23,19 +25,29 @@ const calculateTimeLeft = (endTime) => {
   const hours = Math.floor((totalMs / (1000 * 60 * 60)) % 24);
   const days = Math.floor(totalMs / (1000 * 60 * 60 * 24));
 
-  if (days > 0) return `${days} day${days > 1 ? "s" : ""} left`;
+  if (days > 0) return `${days} day${days > 1 ? "s":""} left`;
   if (hours > 0) return `${hours} hr ${minutes} min left`;
   return `${minutes + 1} min left`;
 };
 
+const formatTime = (date) => {
+  return new Date(date).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
 export default function ShowEvent({ event }) {
   const [timeLeft, setTimeLeft] = useState("");
-  const [qrCodeUrl, setQrCodeUrl] = useState(null);
-  const [isQrLoading, setIsQrLoading] = useState(true);
+  const [attendeeCount, setAttendeeCount] = useState(0);
   const [isClicked, setIsClicked] = useState(false);
+  const [showAccessOverlay, setShowAccessOverlay] = useState(false);
   const { setActiveEvent } = useOutletContext();
+  const navigate = useNavigate();
 
   const brandColor = generateColorFromName(event.eventName || "Event");
+  const displayCount = attendeeCount > 100 ? "99+" : attendeeCount;
 
   // 1. Memory-Safe Live Timer Effect
   useEffect(() => {
@@ -49,49 +61,28 @@ export default function ShowEvent({ event }) {
     return () => clearInterval(timerInterval);
   }, [event.willEndAt]);
 
-  // 2. Memory-Safe API Fetch for QR Code
   useEffect(() => {
-    const abortController = new AbortController();
-
-    async function fetchQrCode() {
-      setIsQrLoading(true);
-      try {
-        const response = await axios.get(
-          `/cok/api/v1/events/${event._id}/qrcode`,
-          { signal: abortController.signal }
-        );
-
-        if (response.data && response.data.success) {
-          setQrCodeUrl(response.data.data.qrCodeDataUrl);
-        } else {
-          setQrCodeUrl(null); // Explicitly null if fails
-        }
-      } catch (error) {
-        if (!axios.isCancel(error)) {
-          console.error("Failed to load QR code:", error);
-          setQrCodeUrl(null);
-        }
-      } finally {
-        setIsQrLoading(false);
-      }
-    }
-
-    if (event._id) {
-      fetchQrCode();
-    } else {
-      setIsQrLoading(false);
-    }
-
-    return () => abortController.abort(); // Cancel network request if component unmounts quickly
-  }, [event._id]);
+    if (!event?.eventSpecialId && !event?._id) return;
+    const fetchCount = () =>
+      axios
+        .get('/cok/api/v1/attendance', { params: { eventSpecialId: event.eventSpecialId || event._id, limit: 1, _t: Date.now() } })
+        .then((res) => setAttendeeCount(res.data?.totalRecords ?? 0))
+        .catch(() => {});
+    fetchCount();
+  }, [event?.eventSpecialId, event?._id, timeLeft ]);
 
   return (
 
     <motion.div
       onClick={() => {
-        setIsClicked(!isClicked);
-        setActiveEvent(event);
+        const stored = localStorage.getItem(`event_access_${event.eventSpecialId}`);
+        if (stored) {
+          navigate(`/event/${event.eventSpecialId}/details`);
+        } else {
+          setShowAccessOverlay(true);
+        }
       }}
+      
       className="relative w-full  max-w-3xl items-start text-left  overflow-hidden cursor-pointer transition-shadow duration-300"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -122,7 +113,7 @@ export default function ShowEvent({ event }) {
               className="w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center text-zinc-100 text-lg shadow-sm"
               style={{ backgroundColor: brandColor }}
             >
-              0
+              {displayCount}
             </div>
             
             <div className="flex flex-col min-w-0">
@@ -137,9 +128,12 @@ export default function ShowEvent({ event }) {
           </div>
 
           {/* Middle Section: Room (Title focus) */}
-          <h2 className="text-xl font-mono md:text-2xl text-blue-600 truncate mb-1">
-            {event.eventRoom}
-          </h2>
+          <div className="flex items-center gap-2 mb-1">
+            <FiMapPin className="w-4 h-4 shrink-0" style={{ color: "#34A8DB" }} />
+            <h2 className="text-xl font-semibold font-mono md:text-2xl uppercase truncate" style={{ color: "#34A8DB" }}>
+              {event.eventRoom}
+            </h2>
+          </div>
 
           {/* Bottom Section: Description */}
           <p className="text-sm text-zinc-600 line-clamp-2 md:line-clamp-3 leading-relaxed">
@@ -147,36 +141,32 @@ export default function ShowEvent({ event }) {
           </p>
         </div>
 
-        {/* Right Side: Dynamic QR Code Container */}
-        <AnimatePresence mode="wait">
-          {(isQrLoading || qrCodeUrl) && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9, width: 0, margin: 0 }} // Smooth collapse if QR fails
-              className="flex-shrink-0 w-24 h-24 md:w-32 md:h-32 bg-zinc-50 overflow-hidden flex items-center justify-center"
-            >
-              {isQrLoading ? (
-                // Pulse Skeleton Loader
-                <motion.div
-                  animate={{ opacity: [0.5, 1, 0.5] }}
-                  transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-                  className="w-full h-full bg-zinc-200"
-                />
-              ) : (
-                // Actual QR Code
-                <img
-                  src={qrCodeUrl}
-                  alt={`QR Code for ${event.eventName}`}
-                  className="w-full h-full object-contain p-2 bg-white"
-                  loading="lazy"
-                />
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Right Side: Time Display */}
+        <div
+          className="flex-shrink-0 w-24 h-24 md:w-32 md:h-32 flex flex-col items-center justify-center"
+          style={{ backgroundColor: "#056daa" }}
+        >
+          <span className="text-white text-xs md:text-sm font-semibold">
+            {formatTime(event.startedAt)}
+          </span>
+          <div className="w-3/4 h-px bg-white my-1" />
+          <span className="text-white text-xs md:text-sm font-semibold">
+            {formatTime(event.willEndAt)}
+          </span>
+        </div>
         
       </div>
+      {showAccessOverlay && (
+        <EventAccessOverlay
+          event={event}
+          isOpen={showAccessOverlay}
+          onVerified={(accessToken) => {
+            setShowAccessOverlay(false);
+            navigate(`/event/${event.eventSpecialId}/details`);
+          }}
+          onClose={() => setShowAccessOverlay(false)}
+        />
+      )}
     </motion.div>
 
   );

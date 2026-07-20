@@ -14,8 +14,10 @@ const scheduledEventRoutes = require('./routes/scheduledEventRoutes');
 const eventActionRoutes = require('./routes/eventActionRoutes');
 const postMeetingMinutesRoutes = require('./routes/postMeetingMinutesRoutes');
 const eventManagementRoutes = require('./routes/eventManagementRoutes');
+const eventAccessRoutes = require('./routes/eventAccessRoutes');
 const GenerateRoomQrCodeController = require('./controllers/GenerateRoomQrCodeController');
 const SectionUpdate = require('./controllers/EventSectionUpdateController');
+const eventAccessAuth = require('./middlewares/eventAccessAuth');
 
 // Mount all routes
 Router.use('/rooms/available', availableRoomRoutes);
@@ -26,14 +28,14 @@ Router.get('/rooms/:roomName/qrcode', GenerateRoomQrCodeController.handle);
 Router.use('/rooms', roomRetrievalRoutes);
 Router.use('/rooms', roomRoutes);
 Router.use('/events', eventRoutes);
-Router.use('/events', qrcodeRoutes);
+Router.use('/events', eventAccessAuth, qrcodeRoutes);
 Router.use('/events', scheduledEventRoutes);
 Router.use('/events', postMeetingMinutesRoutes);
-Router.use('/events/live', liveEventRoutes);
+Router.use('/events/live', eventAccessAuth, liveEventRoutes);
 Router.use('/events/upcoming', upcomingEventRoutes);
 Router.use('/events/recurring', recurringEventRoutes);
 Router.use('/events/past', pastEventRoutes);
-Router.use('/attendance', attendanceRoutes);
+Router.use('/attendance', eventAccessAuth, attendanceRoutes);
 Router.use('/event-actions', eventActionRoutes);
 Router.use('/events', eventManagementRoutes);
 Router.put('/events/section-update', SectionUpdate.handle);
@@ -52,5 +54,8 @@ Router.use('/events', inviteRoutes);
 
 // Booking Request routes
 Router.use('/booking-requests', bookingRequestRoutes);
+
+// Event access routes
+Router.use('/event-access', eventAccessRoutes);
 
 module.exports = Router;
