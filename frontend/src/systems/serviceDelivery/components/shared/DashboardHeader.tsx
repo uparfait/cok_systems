@@ -5,6 +5,13 @@ import { FiActivity } from 'react-icons/fi';
 import { NotificationBell, Profile } from './index';
 import type { Notification as NotificationType } from './Notification';
 
+const PRIMARY = "#056daa";
+const NEUTRAL_DARK = "#333333";
+const BORDER = "#E0E0E0";
+const WHITE = "#FFFFFF";
+const GRAY_DISABLED = "#9E9E9E";
+const fontHeading = "'Montserrat', sans-serif";
+
 export type DashboardRole = 'receptionist' | 'department_manager' | 'employee';
 
 export interface DashboardHeaderProps {
@@ -34,20 +41,20 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   // Get current date/time
   const [currentDate] = useState(new Date());
   const [showProfile, setShowProfile] = useState(false);
-  
+
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: '2-digit', 
-      year: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: '2-digit',
+      year: 'numeric'
     }).toUpperCase();
   };
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
       minute: '2-digit',
-      hour12: true 
+      hour12: true
     }).toUpperCase();
   };
 
@@ -64,7 +71,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         case 'dashboard': return 'DEPARTMENT DASHBOARD';
         case 'status': return (
           <span className="flex items-center gap-2">
-            <FiActivity className="w-5 h-5 text-blue-600" />
+            <FiActivity className="w-5 h-5 text-[#056daa]" />
             SERVICE TRACKING SYSTEM
           </span>
         );
@@ -118,21 +125,30 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 
   return (
     <>
-      <header className="h-16 bg-white shadow-sm border-b border-gray-200 flex items-center justify-between px-6">
+      <header
+        className="h-16 flex items-center justify-between px-6"
+        style={{ backgroundColor: WHITE, borderBottom: `1px solid ${BORDER}` }}
+      >
         <div className="flex items-center gap-6">
           <div>
-            <h1 className="text-lg font-semibold text-gray-700">
+            <h1
+              className="text-lg font-bold"
+              style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}
+            >
               {getTitle()}
             </h1>
           </div>
-          <div className="text-sm text-blue-500 font-semibold text-gray-500">
+          <div
+            className="text-sm font-semibold"
+            style={{ fontFamily: fontHeading, color: PRIMARY }}
+          >
             {formatDate(currentDate)} - {formatTime(currentDate)}
           </div>
         </div>
-        
+
         <div className="flex items-center gap-4">
           {/* Notification Bell */}
-          <NotificationBell 
+          <NotificationBell
             notifications={notifications}
             onMarkAsRead={onMarkAsRead}
             onMarkAllAsRead={onMarkAllAsRead}
@@ -140,26 +156,26 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           />
 
           {/* User Profile Section */}
-          <div className="flex items-center gap-3 border-l border-gray-200 pl-4">
+          <div className="flex items-center gap-3 border-l border-[#E0E0E0] pl-4">
             <div>
-              <p className="text-sm font-medium text-gray-800">{userName}</p>
-              <p className="text-xs text-gray-500">{userTitle}</p>
+              <p className="text-sm font-medium" style={{ color: NEUTRAL_DARK }}>{userName}</p>
+              <p className="text-xs" style={{ color: GRAY_DISABLED }}>{userTitle}</p>
             </div>
-            
+
             {/* Avatar - Clickable to open profile */}
             <button
               onClick={() => setShowProfile(true)}
-              className="relative w-9 h-9 rounded-full flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all"
+              className="relative w-9 h-9 rounded-full flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-[#056daa] transition-colors"
             >
               {userAvatar ? (
-                <img 
-                  src={userAvatar} 
-                  alt="Profile" 
+                <img
+                  src={userAvatar}
+                  alt="Profile"
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full bg-blue-100 flex items-center justify-center">
-                  <span className="text-sm font-medium text-blue-700">{userInitials}</span>
+                <div className="w-full h-full bg-[rgba(5,109,170,0.08)] flex items-center justify-center">
+                  <span className="text-sm font-medium text-[#056daa]">{userInitials}</span>
                 </div>
               )}
             </button>
@@ -169,7 +185,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 
       {/* Profile Modal - Using Shared Profile Component */}
       {showProfile && (
-        <Profile 
+        <Profile
           user={{
             firstName: userInfo.firstName,
             lastName: userInfo.lastName,

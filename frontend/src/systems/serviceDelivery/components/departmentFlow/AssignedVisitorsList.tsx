@@ -3,6 +3,19 @@ import { FiSearch, FiFile, FiFileText, FiEdit, FiFilter, FiCheck, FiArrowRight, 
 import type { AssignedVisitor } from "./sub/AssignedVisitorsHelpers";
 import { statusConfig, getDisplayStatus, getOfficerName, isOfficerAccepted, isServiceCompleted, getInitials, getColorFromName } from "./sub/AssignedVisitorsHelpers";
 
+// City of Kigali institutional design constants
+const PRIMARY = "#056daa";
+const PRIMARY_HOVER = "#045d94";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const BORDER = "#E0E0E0";
+const TERTIARY = "#CDB896";
+const WHITE = "#FFFFFF";
+const GRAY_DISABLED = "#9E9E9E";
+const ACCENT_DARK_BLUE = "#2980B9";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+
 interface AssignedVisitorsListProps { visitors?: AssignedVisitor[]; }
 
 const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: propVisitors }) => {
@@ -76,24 +89,24 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
   return (
     <div className="space-y-4 p-4">
       <div>
-        <h1 className="text-base font-bold text-gray-800">Assigned Visitors Tracking</h1>
-        <p className="text-xs text-gray-500 mt-0.5">Manage real-time visitor flow and service assignments across all government departments.</p>
+        <h1 className="text-base font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Assigned Visitors Tracking</h1>
+        <p className="text-xs mt-0.5" style={{ color: GRAY_DISABLED }}>Manage real-time visitor flow and service assignments across all government departments.</p>
       </div>
 
       <div className="relative min-h-[calc(100vh-200px)]">
         <div className={`${showServicePanel && selectedVisitor ? 'w-[calc(100%-320px)]' : 'w-full'} space-y-4 pr-4 transition-all duration-300`}>
-          <div className="bg-white border border-gray-200 p-3">
+          <div className="p-3" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
             <div className="flex flex-col md:flex-row gap-3 items-center">
               <div className="flex-1 flex gap-2 w-full">
                 <div className="relative flex-1">
-                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-3.5 h-3.5" />
-                  <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSearch()} placeholder="Search by visitor name, ID or badge..." className="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-200 bg-white outline-none" />
+                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: GRAY_DISABLED }} />
+                  <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSearch()} placeholder="Search by visitor name, ID or badge..." className="w-full pl-9 pr-3 py-1.5 outline-none transition-all" style={{ fontFamily: fontHeading, fontSize: '14px', backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' }} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }} />
                 </div>
-                <button onClick={handleSearch} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 flex items-center gap-1.5 shadow-sm"><FiSearch className="w-3.5 h-3.5" />Search</button>
+                <button onClick={handleSearch} className="px-3 py-1.5 flex items-center gap-1.5 shadow-sm transition-colors" style={{ backgroundColor: PRIMARY, color: WHITE, borderRadius: 0, fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}><FiSearch className="w-3.5 h-3.5" />Search</button>
               </div>
               <div className="flex gap-2 flex-wrap">
                 {(['all', 'accepted', 'completed', 'transferred', 'inprogress', 'waiting'] as const).map((filter) => (
-                  <button key={filter} onClick={() => setStatusFilter(filter)} className={`px-3 py-1.5 text-xs font-medium ${statusFilter === filter ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'}`}>
+                  <button key={filter} onClick={() => setStatusFilter(filter)} className="px-3 py-1.5 transition-colors" style={{ fontFamily: fontHeading, fontSize: '12px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', borderRadius: 0, backgroundColor: statusFilter === filter ? PRIMARY : WHITE, color: statusFilter === filter ? WHITE : '#555555', border: statusFilter === filter ? '1px solid transparent' : `1px solid ${BORDER}` }}>
                     {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
                   </button>
                 ))}
@@ -101,13 +114,13 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 overflow-hidden">
+          <div className="overflow-hidden" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-blue-50">
+                <thead style={{ backgroundColor: NEUTRAL_LIGHT }}>
                   <tr>
                     {['VISITOR NAME', 'IDENTITY', 'BADGE NUMBER', 'DEPARTMENT', 'ASSIGNMENT TIME', 'STATUS'].map(h => (
-                      <th key={h} className="text-left text-xs font-semibold text-gray-700 uppercase px-3 py-2.5">{h}</th>
+                      <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider px-3 py-2.5" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -117,17 +130,17 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
                     const status = statusConfig[displayStatus as keyof typeof statusConfig] || statusConfig.waiting;
                     const isActive = activeVisitorId === visitor.id;
                     return (
-                      <tr key={visitor.id} onClick={() => handleRowClick(visitor)} className={`cursor-pointer transition-colors ${isActive ? 'bg-blue-50 border-l-4 border-l-blue-600 shadow-sm' : 'hover:bg-gray-50 border-l-4 border-l-transparent'}`}>
+                      <tr key={visitor.id} onClick={() => handleRowClick(visitor)} className={`cursor-pointer transition-colors ${isActive ? 'bg-[rgba(5,109,170,0.08)] border-l-4 border-l-[#056daa] shadow-sm' : 'hover:bg-gray-50 border-l-4 border-l-transparent'}`}>
                         <td className="px-3 py-2.5">
                           <div className="flex items-center gap-2">
                             <div className={`w-8 h-8 ${getColorFromName(visitor.fullName)} flex items-center justify-center text-white text-xs font-medium`}>{getInitials(visitor.fullName)}</div>
-                            <p className="text-sm font-medium text-gray-800">{visitor.fullName}</p>
+                            <p className="text-sm font-medium" style={{ color: NEUTRAL_DARK }}>{visitor.fullName}</p>
                           </div>
                         </td>
-                        <td className="px-3 py-2.5"><p className="text-xs text-gray-800 font-medium">{visitor.identity || '___'}</p></td>
-                        <td className="px-3 py-2.5"><span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700">{visitor.badgeNumber || '___'}</span></td>
-                        <td className="px-3 py-2.5"><p className="text-xs text-gray-600">{visitor.department}</p></td>
-                        <td className="px-3 py-2.5"><p className="text-xs text-gray-600">{visitor.assignmentTime}</p></td>
+                        <td className="px-3 py-2.5"><p className="text-xs font-medium" style={{ color: NEUTRAL_DARK }}>{visitor.identity || '___'}</p></td>
+                        <td className="px-3 py-2.5"><span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-[rgba(5,109,170,0.1)] text-[#056daa]">{visitor.badgeNumber || '___'}</span></td>
+                        <td className="px-3 py-2.5"><p className="text-xs" style={{ color: '#555555' }}>{visitor.department}</p></td>
+                        <td className="px-3 py-2.5"><p className="text-xs" style={{ color: '#555555' }}>{visitor.assignmentTime}</p></td>
                         <td className="px-3 py-2.5">
                           <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium ${status.bg} ${status.text}`}>
                             <span className={`w-1.5 h-1.5 ${status.dot}`}></span>
@@ -137,18 +150,18 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
                       </tr>
                     );
                   }) : (
-                    <tr><td colSpan={6} className="px-3 py-8 text-center text-gray-500">No visitors found</td></tr>
+                    <tr><td colSpan={6} className="px-3 py-8 text-center" style={{ color: GRAY_DISABLED }}>No visitors found</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
             {filteredVisitors.length > 0 && (
-              <div className="px-3 py-3 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
-                <p className="text-xs text-gray-600">Showing {paginatedVisitors.length} of {filteredVisitors.length} results</p>
+              <div className="px-3 py-3 flex justify-between items-center" style={{ borderTop: `1px solid ${BORDER}`, backgroundColor: NEUTRAL_LIGHT }}>
+                <p className="text-xs" style={{ color: '#555555' }}>Showing {paginatedVisitors.length} of {filteredVisitors.length} results</p>
                 <div className="flex gap-2">
-                  <button onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="px-3 py-1 text-xs border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
-                  <span className="text-xs text-gray-600 py-1 px-2">Page {currentPage} of {totalPages || 1}</span>
-                  <button onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages || totalPages === 0} className="px-3 py-1 text-xs border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
+                  <button onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="px-3 py-1 text-xs bg-transparent hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" style={{ border: `1px solid ${BORDER}`, borderRadius: 0, color: '#555555' }}>Previous</button>
+                  <span className="text-xs py-1 px-2" style={{ color: '#555555' }}>Page {currentPage} of {totalPages || 1}</span>
+                  <button onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages || totalPages === 0} className="px-3 py-1 text-xs bg-transparent hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" style={{ border: `1px solid ${BORDER}`, borderRadius: 0, color: '#555555' }}>Next</button>
                 </div>
               </div>
             )}
@@ -156,53 +169,53 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
         </div>
 
         {showServicePanel && selectedVisitor && (
-          <div className="fixed right-0 top-0 h-full z-40 shadow-2xl overflow-hidden" style={{ width: '320px' }}>
-            <div className="absolute inset-0 bg-gradient-to-br from-white/80 to-blue-50/60"></div>
+          <div className="fixed right-0 top-0 h-full z-40 overflow-hidden" style={{ width: '320px', backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+            <div className="absolute inset-0" style={{ backgroundColor: WHITE }}></div>
             <div className="relative h-full flex flex-col">
-              <div className="px-4 py-3 border-b border-white/30 flex items-center justify-between bg-white/20">
+              <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: WHITE }}>
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md">
+                  <div className="p-1.5" style={{ backgroundColor: PRIMARY, borderRadius: 0 }}>
                     <FiTrendingUp className="w-3.5 h-3.5 text-white" />
                   </div>
-                  <span className="text-xs font-bold text-gray-800">Service Tracking</span>
+                  <span className="text-xs font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Service Tracking</span>
                 </div>
-                <button onClick={handleClosePanel} className="p-1 hover:bg-white/50"><FiX className="w-3.5 h-3.5 text-gray-600" /></button>
+                <button onClick={handleClosePanel} className="p-1 hover:bg-gray-100"><FiX className="w-3.5 h-3.5 text-gray-600" /></button>
               </div>
               <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                <div className="bg-white/40 p-3 shadow-lg border border-white/50">
+                <div className="p-3" style={{ backgroundColor: NEUTRAL_LIGHT, borderRadius: 0 }}>
                   <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-md">
+                    <div className="w-10 h-10 flex items-center justify-center" style={{ backgroundColor: ACCENT_DARK_BLUE, borderRadius: 0 }}>
                       <span className="text-xs font-bold text-white">{getInitials(selectedVisitor?.fullName || '')}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-gray-800 truncate">{selectedVisitor?.fullName}</p>
-                      <p className="text-xs text-gray-500 truncate">{selectedVisitor?.department}</p>
+                      <p className="text-xs font-bold truncate" style={{ color: NEUTRAL_DARK }}>{selectedVisitor?.fullName}</p>
+                      <p className="text-xs truncate" style={{ color: GRAY_DISABLED }}>{selectedVisitor?.department}</p>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200/50">
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#E0E0E0]">
                     <div className="flex items-center gap-1.5">
-                      <div className={`w-1.5 h-1.5 ${isServiceCompleted(selectedVisitor!) ? 'bg-green-500' : isOfficerAccepted(selectedVisitor!) ? 'bg-blue-500 animate-pulse' : 'bg-yellow-500 animate-pulse'}`}></div>
-                      <span className="text-xs font-medium text-gray-600">{isServiceCompleted(selectedVisitor!) ? 'Completed' : isOfficerAccepted(selectedVisitor!) ? 'In Progress' : 'Waiting'}</span>
+                      <div className={`w-1.5 h-1.5 ${isServiceCompleted(selectedVisitor!) ? 'bg-[#4CAF50]' : isOfficerAccepted(selectedVisitor!) ? 'bg-[#056daa] animate-pulse' : 'bg-[#F39C12] animate-pulse'}`}></div>
+                      <span className="text-xs font-medium" style={{ color: '#555555' }}>{isServiceCompleted(selectedVisitor!) ? 'Completed' : isOfficerAccepted(selectedVisitor!) ? 'In Progress' : 'Waiting'}</span>
                     </div>
-                    <div className="text-right"><p className="text-xs text-gray-400">Checked In</p><p className="text-xs font-semibold text-gray-600">{selectedVisitor?.checkedInTime || '---'}</p></div>
+                    <div className="text-right"><p className="text-xs" style={{ color: GRAY_DISABLED }}>Checked In</p><p className="text-xs font-semibold" style={{ color: '#555555' }}>{selectedVisitor?.checkedInTime || '---'}</p></div>
                   </div>
                 </div>
 
-                <div className="bg-white/30 p-3 shadow-lg border border-white/40">
-                  <p className="text-xs font-semibold text-gray-500 mb-2 uppercase">Progress</p>
+                <div className="p-3" style={{ backgroundColor: NEUTRAL_LIGHT, borderRadius: 0 }}>
+                  <p className="mb-2" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Progress</p>
                   <div className="relative">
-                    <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-gradient-to-b from-blue-400 via-blue-400 to-gray-300"></div>
+                    <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-[#E0E0E0]"></div>
                     <div className="space-y-2">
                       {[{ label: 'Checked In', time: selectedVisitor?.checkedInTime || '---', sub: selectedVisitor?.checkedInGate || 'Gate', done: true, icon: FiCheck },
                         { label: 'Transferred', time: selectedVisitor?.assignmentTime || '---', sub: `To ${selectedVisitor?.department?.split(' ')[0] || 'Dept'}`, done: isServiceCompleted(selectedVisitor!) || isOfficerAccepted(selectedVisitor!), icon: FiArrowRightCircle },
                         { label: 'Officer Accepted', time: getOfficerName(selectedVisitor!), sub: undefined, done: isServiceCompleted(selectedVisitor!) || isOfficerAccepted(selectedVisitor!), icon: FiUserCheck },
                         { label: 'Completed', time: '✓ Service done', sub: undefined, done: isServiceCompleted(selectedVisitor!), icon: FiCheckSquare }].map((step, i) => (
                         <div key={i} className="flex items-center gap-2 relative">
-                          <div className={`w-6 h-6 flex items-center justify-center z-10 shadow-sm ${step.done ? 'bg-gradient-to-br from-green-400 to-green-600' : step.label === 'Officer Accepted' && isOfficerAccepted(selectedVisitor!) ? 'bg-white border-2 border-blue-400' : step.label === 'Transferred' && (isServiceCompleted(selectedVisitor!) || isOfficerAccepted(selectedVisitor!)) ? 'bg-gradient-to-br from-blue-400 to-blue-600' : 'bg-gray-100'}`}>
-                            <step.icon className={`w-3 h-3 ${step.done ? 'text-white' : step.label === 'Officer Accepted' && isOfficerAccepted(selectedVisitor!) ? 'text-blue-500' : step.label === 'Transferred' && (isServiceCompleted(selectedVisitor!) || isOfficerAccepted(selectedVisitor!)) ? 'text-white' : 'text-gray-400'}`} />
+                          <div className={`w-6 h-6 flex items-center justify-center z-10 shadow-sm ${step.done ? 'bg-[#4CAF50]' : step.label === 'Officer Accepted' && isOfficerAccepted(selectedVisitor!) ? 'bg-white border-2 border-[#056daa]' : step.label === 'Transferred' && (isServiceCompleted(selectedVisitor!) || isOfficerAccepted(selectedVisitor!)) ? 'bg-[#056daa]' : 'bg-gray-100'}`}>
+                            <step.icon className={`w-3 h-3 ${step.done ? 'text-white' : step.label === 'Officer Accepted' && isOfficerAccepted(selectedVisitor!) ? 'text-[#056daa]' : step.label === 'Transferred' && (isServiceCompleted(selectedVisitor!) || isOfficerAccepted(selectedVisitor!)) ? 'text-white' : 'text-gray-400'}`} />
                           </div>
-                          <div className={`flex-1 p-1.5 shadow-sm ${step.done ? 'bg-green-50/80' : step.label === 'Officer Accepted' && isOfficerAccepted(selectedVisitor!) ? 'bg-blue-50/80' : step.label === 'Transferred' && (isServiceCompleted(selectedVisitor!) || isOfficerAccepted(selectedVisitor!)) ? 'bg-blue-50/80' : 'bg-gray-50/50'}`}>
-                            <p className={`text-xs font-semibold ${step.done ? 'text-green-700' : step.label === 'Officer Accepted' && isOfficerAccepted(selectedVisitor!) ? 'text-blue-700' : step.label === 'Transferred' && (isServiceCompleted(selectedVisitor!) || isOfficerAccepted(selectedVisitor!)) ? 'text-blue-700' : 'text-gray-400'}`}>{step.label}</p>
+                          <div className={`flex-1 p-1.5 shadow-sm ${step.done ? 'bg-[rgba(76,175,80,0.1)]' : step.label === 'Officer Accepted' && isOfficerAccepted(selectedVisitor!) ? 'bg-[rgba(5,109,170,0.08)]' : step.label === 'Transferred' && (isServiceCompleted(selectedVisitor!) || isOfficerAccepted(selectedVisitor!)) ? 'bg-[rgba(5,109,170,0.08)]' : 'bg-white'}`}>
+                            <p className={`text-xs font-semibold ${step.done ? 'text-[#388E3C]' : step.label === 'Officer Accepted' && isOfficerAccepted(selectedVisitor!) ? 'text-[#056daa]' : step.label === 'Transferred' && (isServiceCompleted(selectedVisitor!) || isOfficerAccepted(selectedVisitor!)) ? 'text-[#056daa]' : 'text-gray-400'}`}>{step.label}</p>
                             {step.sub && <p className="text-xs text-gray-500">{step.sub}</p>}
                           </div>
                         </div>

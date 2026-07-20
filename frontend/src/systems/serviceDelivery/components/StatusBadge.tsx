@@ -1,14 +1,16 @@
 import React from 'react';
 
+const fontHeading = "'Montserrat', sans-serif";
+
 export type VisitorStatus = 'pending' | 'assigned' | 'in_service' | 'completed' | 'checked_out' | 'on_leave' | 'cancelled';
 
 interface StatusBadgeProps { status: VisitorStatus; size?: 'sm' | 'md' | 'lg'; showLabel?: boolean; }
 
 const statusColors: Record<VisitorStatus, { bg: string; text: string }> = {
-  pending: { bg: 'bg-yellow-100', text: 'text-yellow-800' }, assigned: { bg: 'bg-blue-100', text: 'text-blue-800' },
-  in_service: { bg: 'bg-green-100', text: 'text-green-800' }, completed: { bg: 'bg-gray-100', text: 'text-gray-800' },
-  checked_out: { bg: 'bg-red-100', text: 'text-red-800' }, on_leave: { bg: 'bg-orange-100', text: 'text-orange-800' },
-  cancelled: { bg: 'bg-red-50', text: 'text-red-600' },
+  pending: { bg: 'bg-[rgba(243,156,18,0.12)]', text: 'text-[#B9770E]' }, assigned: { bg: 'bg-[rgba(5,109,170,0.08)]', text: 'text-[#056daa]' },
+  in_service: { bg: 'bg-[rgba(76,175,80,0.12)]', text: 'text-[#388E3C]' }, completed: { bg: 'bg-[#F0F0F0]', text: 'text-[#555555]' },
+  checked_out: { bg: 'bg-[rgba(231,76,60,0.12)]', text: 'text-[#E74C3C]' }, on_leave: { bg: 'bg-[rgba(243,156,18,0.12)]', text: 'text-[#B9770E]' },
+  cancelled: { bg: 'bg-[rgba(231,76,60,0.12)]', text: 'text-[#E74C3C]' },
 };
 
 const statusLabels: Record<VisitorStatus, string> = { pending: 'Pending', assigned: 'Assigned', in_service: 'In Service', completed: 'Completed', checked_out: 'Checked Out', on_leave: 'On Leave', cancelled: 'Cancelled' };
@@ -16,12 +18,12 @@ const sizeClasses = { sm: 'px-2 py-0.5 text-xs', md: 'px-3 py-1 text-sm', lg: 'p
 
 const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md', showLabel = true }) => {
   const colors = statusColors[status] || statusColors.pending;
-  return <span className={`inline-flex items-center justify-center font-medium ${colors.bg} ${colors.text} ${sizeClasses[size]}`}>{showLabel ? statusLabels[status] || status : <span className={`w-2 h-2 ${status === 'pending' ? 'bg-yellow-500' : status === 'assigned' ? 'bg-blue-500' : status === 'in_service' ? 'bg-green-500' : status === 'completed' ? 'bg-gray-500' : status === 'checked_out' ? 'bg-red-500' : status === 'on_leave' ? 'bg-orange-500' : 'bg-red-400'}`} />}</span>;
+  return <span className={`inline-flex items-center justify-center font-medium ${colors.bg} ${colors.text} ${sizeClasses[size]}`} style={{ fontFamily: fontHeading, borderRadius: 0 }}>{showLabel ? statusLabels[status] || status : <span className={`w-2 h-2 ${status === 'pending' ? 'bg-[#F39C12]' : status === 'assigned' ? 'bg-[#056daa]' : status === 'in_service' ? 'bg-[#4CAF50]' : status === 'completed' ? 'bg-[#9E9E9E]' : status === 'checked_out' ? 'bg-[#E74C3C]' : status === 'on_leave' ? 'bg-[#F39C12]' : 'bg-[#E74C3C]'}`} />}</span>;
 };
 
 export const StatusDot: React.FC<{ status: VisitorStatus; size?: 'sm' | 'md' | 'lg' }> = ({ status, size = 'md' }) => {
   const dotSizes = { sm: 'w-2 h-2', md: 'w-3 h-3', lg: 'w-4 h-4' };
-  const dotColors: Record<VisitorStatus, string> = { pending: 'bg-yellow-500', assigned: 'bg-blue-500', in_service: 'bg-green-500', completed: 'bg-gray-500', checked_out: 'bg-red-500', on_leave: 'bg-orange-500', cancelled: 'bg-red-400' };
+  const dotColors: Record<VisitorStatus, string> = { pending: 'bg-[#F39C12]', assigned: 'bg-[#056daa]', in_service: 'bg-[#4CAF50]', completed: 'bg-[#9E9E9E]', checked_out: 'bg-[#E74C3C]', on_leave: 'bg-[#F39C12]', cancelled: 'bg-[#E74C3C]' };
   return <span className={`${dotSizes[size]} ${dotColors[status] || dotColors.pending}`} />;
 };
 

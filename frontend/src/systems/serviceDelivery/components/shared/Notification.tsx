@@ -2,6 +2,23 @@
 import React, { useState } from 'react';
 import { FiBell, FiCheck, FiUser, FiClock, FiX, FiFileText, FiAlertCircle, FiArrowRight } from 'react-icons/fi';
 
+const PRIMARY = "#056daa";
+const PRIMARY_HOVER = "#045d94";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const TERTIARY = "#CDB896";
+const WHITE = "#FFFFFF";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+
+const labelStyle: React.CSSProperties = {
+  fontFamily: fontHeading,
+  fontSize: '13px',
+  fontWeight: 600,
+  letterSpacing: '0.5px',
+  color: TERTIARY,
+};
+
 export type NotificationType = 'assignment' | 'service_complete' | 'status_change' | 'general';
 
 export interface Notification {
@@ -109,54 +126,54 @@ export const getInitialNotifications = (role: string): Notification[] => {
 
   // Filter based on role
   if (role === 'employee') {
-    return baseNotifications.filter(n => 
+    return baseNotifications.filter(n =>
       n.type === 'assignment' || n.type === 'status_change'
     );
   } else if (role === 'department_manager') {
-    return baseNotifications.filter(n => 
+    return baseNotifications.filter(n =>
       n.type === 'assignment' || n.type === 'service_complete'
     );
   }
-  
+
   return baseNotifications;
 };
 
-const NotificationBell: React.FC<NotificationProps> = ({ 
-  notifications, 
-  onMarkAsRead, 
+const NotificationBell: React.FC<NotificationProps> = ({
+  notifications,
+  onMarkAsRead,
   onMarkAllAsRead,
   userRole,
-  onNotificationClick 
+  onNotificationClick
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
-  
+
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const getNotificationIcon = (type: NotificationType) => {
     switch (type) {
       case 'assignment':
-        return <FiUser className="w-4 h-4 text-[#1a73e8]" />;
+        return <FiUser className="w-4 h-4 text-[#056daa]" />;
       case 'service_complete':
-        return <FiCheck className="w-4 h-4 text-[#34a853]" />;
+        return <FiCheck className="w-4 h-4 text-[#388E3C]" />;
       case 'status_change':
-        return <FiClock className="w-4 h-4 text-[#f57c00]" />;
+        return <FiClock className="w-4 h-4 text-[#F39C12]" />;
       default:
-        return <FiAlertCircle className="w-4 h-4 text-[#666]" />;
+        return <FiAlertCircle className="w-4 h-4 text-[#555555]" />;
     }
   };
 
   const getNotificationColor = (type: NotificationType) => {
     switch (type) {
       case 'assignment':
-        return 'bg-[#e3f2fd]';
+        return 'bg-[rgba(5,109,170,0.08)]';
       case 'service_complete':
-        return 'bg-[#e8f5e9]';
+        return 'bg-[rgba(76,175,80,0.12)]';
       case 'status_change':
-        return 'bg-[#fff3e0]';
+        return 'bg-[rgba(243,156,18,0.12)]';
       default:
-        return 'bg-gray-100';
+        return 'bg-[#F0F0F0]';
     }
   };
 
@@ -165,11 +182,11 @@ const NotificationBell: React.FC<NotificationProps> = ({
     if (!notification.read) {
       onMarkAsRead(notification.id);
     }
-    
+
     // Show detail modal
     setSelectedNotification(notification);
     setShowDetailModal(true);
-    
+
     // Call callback if provided
     if (onNotificationClick) {
       onNotificationClick(notification);
@@ -195,11 +212,11 @@ const NotificationBell: React.FC<NotificationProps> = ({
         {/* Notification Bell Button */}
         <button
           onClick={() => setShowDropdown(!showDropdown)}
-          className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          className="relative p-2 hover:bg-gray-100 transition-colors"
         >
-          <FiBell className="w-5 h-5 text-[#555]" />
+          <FiBell className="w-5 h-5 text-[#555555]" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#e53935] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#E74C3C] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
               {unreadCount}
             </span>
           )}
@@ -209,25 +226,28 @@ const NotificationBell: React.FC<NotificationProps> = ({
         {showDropdown && (
           <>
             {/* Backdrop */}
-            <div 
-              className="fixed inset-0 z-40" 
+            <div
+              className="fixed inset-0 z-40"
               onClick={() => setShowDropdown(false)}
             />
-            
+
             {/* Dropdown Content */}
-            <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-[12px] shadow-xl border border-gray-100 z-50 overflow-hidden">
+            <div
+              className="absolute right-0 top-full mt-2 w-80 z-50 overflow-hidden"
+              style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}
+            >
               {/* Header */}
-              <div className="flex justify-between items-center p-4 border-b border-gray-100">
+              <div className="flex justify-between items-center p-4 border-b border-[#E0E0E0]">
                 <div>
-                  <h3 className="text-[#1a2744] text-[14px] font-bold">Notifications</h3>
-                  <p className="text-[#888] text-[11px]">
+                  <h3 className="text-[14px] font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Notifications</h3>
+                  <p className="text-[#9E9E9E] text-[11px]">
                     {unreadCount} unread
                   </p>
                 </div>
                 {unreadCount > 0 && (
                   <button
                     onClick={onMarkAllAsRead}
-                    className="text-[#1a73e8] text-[12px] hover:underline"
+                    className="text-[#056daa] text-[12px] hover:underline"
                   >
                     Mark all read
                   </button>
@@ -238,16 +258,16 @@ const NotificationBell: React.FC<NotificationProps> = ({
               <div className="max-h-80 overflow-y-auto">
                 {notifications.length === 0 ? (
                   <div className="p-6 text-center">
-                    <FiBell className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                    <p className="text-[#888] text-[13px]">No notifications</p>
+                    <FiBell className="w-8 h-8 text-[#9E9E9E] mx-auto mb-2" />
+                    <p className="text-[#9E9E9E] text-[13px]">No notifications</p>
                   </div>
                 ) : (
                   notifications.map((notification) => (
                     <div
                       key={notification.id}
                       onClick={() => handleNotificationClick(notification)}
-                      className={`p-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors ${
-                        !notification.read ? 'bg-[#f8faff]' : ''
+                      className={`p-4 border-b border-[#E0E0E0] hover:bg-gray-50 cursor-pointer transition-colors ${
+                        !notification.read ? 'bg-[rgba(5,109,170,0.04)]' : ''
                       }`}
                     >
                       <div className="flex gap-3">
@@ -256,22 +276,22 @@ const NotificationBell: React.FC<NotificationProps> = ({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start">
-                            <p className="text-[#333] text-[13px] font-medium truncate">
+                            <p className="text-[#333333] text-[13px] font-medium truncate">
                               {notification.title}
                             </p>
                             {!notification.read && (
-                              <span className="w-2 h-2 bg-[#1a73e8] rounded-full flex-shrink-0 ml-2" />
+                              <span className="w-2 h-2 bg-[#056daa] rounded-full flex-shrink-0 ml-2" />
                             )}
                           </div>
-                          <p className="text-[#666] text-[12px] mt-0.5 truncate">
+                          <p className="text-[#555555] text-[12px] mt-0.5 truncate">
                             {notification.message}
                           </p>
                           {notification.visitorName && (
-                            <p className="text-[#1a73e8] text-[11px] mt-1">
+                            <p className="text-[#056daa] text-[11px] mt-1">
                               Visitor: {notification.visitorName}
                             </p>
                           )}
-                          <p className="text-[#999] text-[10px] mt-1">
+                          <p className="text-[#9E9E9E] text-[10px] mt-1">
                             {notification.time}
                           </p>
                         </div>
@@ -282,8 +302,8 @@ const NotificationBell: React.FC<NotificationProps> = ({
               </div>
 
               {/* Footer */}
-              <div className="p-3 border-t border-gray-100 bg-gray-50">
-                <button className="w-full text-center text-[#1a73e8] text-[12px] hover:underline">
+              <div className="p-3 border-t border-[#E0E0E0]" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+                <button className="w-full text-center text-[#056daa] text-[12px] hover:underline">
                   View All Notifications
                 </button>
               </div>
@@ -295,13 +315,16 @@ const NotificationBell: React.FC<NotificationProps> = ({
       {/* Notification Detail Modal */}
       {showDetailModal && selectedNotification && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-[16px] w-[480px] max-h-[90vh] overflow-hidden shadow-xl">
+          <div
+            className="w-[480px] max-h-[90vh] overflow-hidden"
+            style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}
+          >
             {/* Header */}
             <div className={`p-6 ${
-              selectedNotification.type === 'assignment' ? 'bg-[#e3f2fd]' :
-              selectedNotification.type === 'service_complete' ? 'bg-[#e8f5e9]' :
-              selectedNotification.type === 'status_change' ? 'bg-[#fff3e0]' :
-              'bg-gray-100'
+              selectedNotification.type === 'assignment' ? 'bg-[rgba(5,109,170,0.08)]' :
+              selectedNotification.type === 'service_complete' ? 'bg-[rgba(76,175,80,0.12)]' :
+              selectedNotification.type === 'status_change' ? 'bg-[rgba(243,156,18,0.12)]' :
+              'bg-[#F0F0F0]'
             }`}>
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
@@ -309,11 +332,11 @@ const NotificationBell: React.FC<NotificationProps> = ({
                     {getNotificationIcon(selectedNotification.type)}
                   </div>
                   <div>
-                    <h2 className="text-[#1a2744] text-[18px] font-bold">{selectedNotification.title}</h2>
-                    <p className="text-[#666] text-[12px] mt-0.5">{getTypeLabel(selectedNotification.type)} • {selectedNotification.time}</p>
+                    <h2 className="text-[18px] font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{selectedNotification.title}</h2>
+                    <p className="text-[#555555] text-[12px] mt-0.5">{getTypeLabel(selectedNotification.type)} • {selectedNotification.time}</p>
                   </div>
                 </div>
-                <button onClick={() => setShowDetailModal(false)} className="text-[#666] hover:text-[#333]">
+                <button onClick={() => setShowDetailModal(false)} className="text-[#555555] hover:text-[#333333]">
                   <FiX className="w-6 h-6" />
                 </button>
               </div>
@@ -323,17 +346,17 @@ const NotificationBell: React.FC<NotificationProps> = ({
             <div className="p-6 space-y-4">
               {/* Main Message */}
               <div>
-                <label className="text-[#999] text-[11px] uppercase tracking-wider">Message</label>
-                <p className="text-[#333] text-[14px] mt-1">{selectedNotification.message}</p>
+                <label className="uppercase" style={labelStyle}>Message</label>
+                <p className="text-[#333333] text-[14px] mt-1">{selectedNotification.message}</p>
               </div>
 
               {/* Visitor Info */}
               {selectedNotification.visitorName && (
                 <div>
-                  <label className="text-[#999] text-[11px] uppercase tracking-wider">Visitor</label>
+                  <label className="uppercase" style={labelStyle}>Visitor</label>
                   <div className="flex items-center gap-2 mt-1">
-                    <FiUser className="w-4 h-4 text-[#1a73e8]" />
-                    <p className="text-[#1a2744] text-[14px] font-medium">{selectedNotification.visitorName}</p>
+                    <FiUser className="w-4 h-4 text-[#056daa]" />
+                    <p className="text-[#333333] text-[14px] font-medium">{selectedNotification.visitorName}</p>
                   </div>
                 </div>
               )}
@@ -341,10 +364,10 @@ const NotificationBell: React.FC<NotificationProps> = ({
               {/* Service Type */}
               {selectedNotification.serviceType && (
                 <div>
-                  <label className="text-[#999] text-[11px] uppercase tracking-wider">Service Type</label>
+                  <label className="uppercase" style={labelStyle}>Service Type</label>
                   <div className="flex items-center gap-2 mt-1">
-                    <FiFileText className="w-4 h-4 text-[#34a853]" />
-                    <p className="text-[#1a2744] text-[14px]">{selectedNotification.serviceType}</p>
+                    <FiFileText className="w-4 h-4 text-[#388E3C]" />
+                    <p className="text-[#333333] text-[14px]">{selectedNotification.serviceType}</p>
                   </div>
                 </div>
               )}
@@ -354,14 +377,14 @@ const NotificationBell: React.FC<NotificationProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                   {selectedNotification.department && (
                     <div>
-                      <label className="text-[#999] text-[11px] uppercase tracking-wider">Department</label>
-                      <p className="text-[#1a2744] text-[14px] mt-1">{selectedNotification.department}</p>
+                      <label className="uppercase" style={labelStyle}>Department</label>
+                      <p className="text-[#333333] text-[14px] mt-1">{selectedNotification.department}</p>
                     </div>
                   )}
                   {selectedNotification.room && (
                     <div>
-                      <label className="text-[#999] text-[11px] uppercase tracking-wider">Location</label>
-                      <p className="text-[#1a2744] text-[14px] mt-1">{selectedNotification.room}</p>
+                      <label className="uppercase" style={labelStyle}>Location</label>
+                      <p className="text-[#333333] text-[14px] mt-1">{selectedNotification.room}</p>
                     </div>
                   )}
                 </div>
@@ -372,17 +395,17 @@ const NotificationBell: React.FC<NotificationProps> = ({
                 <>
                   {selectedNotification.details.assignedTo && (
                     <div>
-                      <label className="text-[#999] text-[11px] uppercase tracking-wider">Assigned To</label>
-                      <p className="text-[#1a2744] text-[14px] mt-1">{selectedNotification.details.assignedTo}</p>
+                      <label className="uppercase" style={labelStyle}>Assigned To</label>
+                      <p className="text-[#333333] text-[14px] mt-1">{selectedNotification.details.assignedTo}</p>
                     </div>
                   )}
                   {selectedNotification.details.priority && (
                     <div>
-                      <label className="text-[#999] text-[11px] uppercase tracking-wider">Priority</label>
-                      <span className={`inline-block mt-1 px-2 py-1 rounded text-[12px] font-medium ${
-                        selectedNotification.details.priority === 'High' ? 'bg-red-100 text-red-700' :
-                        selectedNotification.details.priority === 'Normal' ? 'bg-blue-100 text-blue-700' :
-                        'bg-gray-100 text-gray-700'
+                      <label className="uppercase" style={labelStyle}>Priority</label>
+                      <span className={`inline-block mt-1 px-2 py-1 text-[12px] font-medium ${
+                        selectedNotification.details.priority === 'High' ? 'bg-[rgba(231,76,60,0.12)] text-[#E74C3C]' :
+                        selectedNotification.details.priority === 'Normal' ? 'bg-[rgba(5,109,170,0.08)] text-[#056daa]' :
+                        'bg-[#F0F0F0] text-[#555555]'
                       }`}>
                         {selectedNotification.details.priority}
                       </span>
@@ -390,8 +413,8 @@ const NotificationBell: React.FC<NotificationProps> = ({
                   )}
                   {selectedNotification.details.notes && (
                     <div>
-                      <label className="text-[#999] text-[11px] uppercase tracking-wider">Notes</label>
-                      <p className="text-[#666] text-[13px] mt-1 bg-gray-50 p-3 rounded-lg">
+                      <label className="uppercase" style={labelStyle}>Notes</label>
+                      <p className="text-[#555555] text-[13px] mt-1 p-3" style={{ backgroundColor: NEUTRAL_LIGHT }}>
                         {selectedNotification.details.notes}
                       </p>
                     </div>
@@ -402,17 +425,27 @@ const NotificationBell: React.FC<NotificationProps> = ({
               {/* Timestamp */}
               {selectedNotification.timestamp && (
                 <div>
-                  <label className="text-[#999] text-[11px] uppercase tracking-wider">Received</label>
-                  <p className="text-[#999] text-[12px] mt-1">{selectedNotification.timestamp}</p>
+                  <label className="uppercase" style={labelStyle}>Received</label>
+                  <p className="text-[#9E9E9E] text-[12px] mt-1">{selectedNotification.timestamp}</p>
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-gray-100 flex gap-3">
+            <div className="p-4 border-t border-[#E0E0E0] flex gap-3">
               <button
                 onClick={() => setShowDetailModal(false)}
-                className="flex-1 h-10 bg-gray-100 text-[#333] text-[13px] font-medium rounded-[8px] hover:bg-gray-200"
+                className="flex-1 h-10 uppercase hover:bg-[rgba(5,109,170,0.08)] transition-colors"
+                style={{
+                  backgroundColor: 'transparent',
+                  border: `1px solid ${PRIMARY}`,
+                  color: PRIMARY,
+                  borderRadius: 0,
+                  fontFamily: fontHeading,
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  letterSpacing: '1px',
+                }}
               >
                 Close
               </button>
@@ -421,7 +454,18 @@ const NotificationBell: React.FC<NotificationProps> = ({
                   setShowDetailModal(false);
                   setShowDropdown(false);
                 }}
-                className="flex-1 h-10 bg-[#1a73e8] text-white text-[13px] font-medium rounded-[8px] hover:bg-[#1558c0] flex items-center justify-center gap-2"
+                className="flex-1 h-10 uppercase flex items-center justify-center gap-2 transition-colors"
+                style={{
+                  backgroundColor: PRIMARY,
+                  color: WHITE,
+                  borderRadius: 0,
+                  fontFamily: fontHeading,
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  letterSpacing: '1px',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
               >
                 View Details <FiArrowRight className="w-4 h-4" />
               </button>

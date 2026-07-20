@@ -2,6 +2,12 @@
 import React from 'react';
 import { FiLogOut } from 'react-icons/fi';
 
+const PRIMARY = "#056daa";
+const NEUTRAL_DARK = "#333333";
+const BORDER = "#E0E0E0";
+const WHITE = "#FFFFFF";
+const fontHeading = "'Montserrat', sans-serif";
+
 export type DashboardRole = 'receptionist' | 'department_manager' | 'employee';
 
 export interface NavItem {
@@ -72,20 +78,23 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   };
 
   return (
-    <aside className="w-[220px] bg-white border-r border-[#e8eaed] flex flex-col h-full">
+    <aside
+      className="w-[220px] flex flex-col h-full"
+      style={{ backgroundColor: WHITE, borderRight: `1px solid ${BORDER}` }}
+    >
       {/* Logo Block */}
-      <div className="p-4 border-b border-[#e8eaed]">
+      <div className="p-4" style={{ borderBottom: `1px solid ${BORDER}` }}>
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center">
-            <img 
-              src="/src/assets/LOGO_COK.jpg" 
-              alt="Logo" 
-              className="w-8 h-8 object-contain" 
+          <div className="w-8 h-8 flex items-center justify-center">
+            <img
+              src="/src/assets/LOGO_COK.jpg"
+              alt="Logo"
+              className="w-8 h-8 object-contain"
             />
           </div>
           <div>
-            <div className="text-[#1a2744] font-bold text-[13px]">KSESM</div>
-            <div className="text-[#1a73e8] font-bold text-[11px] uppercase tracking-wide">
+            <div className="font-bold text-[13px]" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>KSESM</div>
+            <div className="font-bold text-[11px] uppercase tracking-wide" style={{ fontFamily: fontHeading, color: PRIMARY }}>
               CITY OF KIGALI
             </div>
           </div>
@@ -100,10 +109,10 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
             <button
               key={item.id}
               onClick={() => onTabChange(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 mx-0 my-0.5 rounded-lg transition-all ${
-                isActive 
-                  ? 'bg-[#1a73e8] text-white shadow-md font-medium' 
-                  : 'text-[#555] hover:bg-gray-100'
+              className={`w-full flex items-center gap-3 px-4 py-3 mx-0 my-0.5 transition-colors ${
+                isActive
+                  ? 'bg-[#056daa] text-white font-medium'
+                  : 'text-[#555555] hover:bg-gray-100'
               }`}
             >
               <span className="text-[13px]">{item.label}</span>
@@ -113,18 +122,18 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
       </nav>
 
       {/* User Card - Blue Background */}
-      <div className="p-4 bg-[#1a73e8] mx-4 mb-4 rounded-[12px]">
+      <div className="p-4 mx-4 mb-4" style={{ backgroundColor: PRIMARY, borderRadius: 0 }}>
         <div className="flex items-center gap-3">
           {/* User Avatar */}
           <button
             onClick={onProfileClick}
             className="w-9 h-9 rounded-full bg-white flex items-center justify-center"
           >
-            <span className="text-[#1a73e8] text-sm font-bold">
+            <span className="text-sm font-bold" style={{ color: PRIMARY }}>
               {userInitials}
             </span>
           </button>
-          
+
           {/* User Info */}
           <div className="flex-1">
             <p className="text-white text-[13px] font-medium truncate">
@@ -134,11 +143,11 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
               {getRoleLabel(role)}
             </p>
           </div>
-          
+
           {/* Logout Button */}
-          <button 
-            onClick={onLogout} 
-            className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+          <button
+            onClick={onLogout}
+            className="p-2 text-white/80 hover:text-white transition-colors"
           >
             <FiLogOut className="w-4 h-4" />
           </button>

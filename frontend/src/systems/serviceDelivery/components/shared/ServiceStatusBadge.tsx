@@ -3,15 +3,17 @@
 
 import React from 'react';
 
+const fontHeading = "'Montserrat', sans-serif";
+
 // Export types for status values
-export type ServiceStatus = 
-  | 'pending' 
-  | 'waiting' 
+export type ServiceStatus =
+  | 'pending'
+  | 'waiting'
   | 'assigned'
-  | 'In_progress' 
+  | 'In_progress'
   | 'in_progress'
   | 'In-Progress'
-  | 'completed' 
+  | 'completed'
   | 'Completed'
   | 'transferred'
   | 'Transferred';
@@ -25,28 +27,28 @@ export interface ServiceStatusBadgeProps {
 
 // Receptionist Dashboard style (from getStatusBadge)
 const receptionistStyles: Record<string, { bg: string; text: string; label: string }> = {
-  pending: { bg: 'bg-orange-100', text: 'text-orange-500', label: 'PENDING' },
-  waiting: { bg: 'bg-green-400', text: 'text-green-700', label: 'ASSIGNED' },
-  In_progress: { bg: 'bg-green-100', text: 'text-green-700', label: 'IN_PROGRESS' },
-  in_progress: { bg: 'bg-green-100', text: 'text-green-700', label: 'IN_PROGRESS' },
-  completed: { bg: 'bg-orange-300', text: 'text-white', label: 'COMPLETED' },
+  pending: { bg: 'bg-[rgba(243,156,18,0.12)]', text: 'text-[#B9770E]', label: 'PENDING' },
+  waiting: { bg: 'bg-[rgba(5,109,170,0.08)]', text: 'text-[#056daa]', label: 'ASSIGNED' },
+  In_progress: { bg: 'bg-[rgba(76,175,80,0.12)]', text: 'text-[#388E3C]', label: 'IN_PROGRESS' },
+  in_progress: { bg: 'bg-[rgba(76,175,80,0.12)]', text: 'text-[#388E3C]', label: 'IN_PROGRESS' },
+  completed: { bg: 'bg-[#F0F0F0]', text: 'text-[#555555]', label: 'COMPLETED' },
 };
 
 // Department Manager / Service Status style (from ServiceDetailsModal)
 const managerStyles: Record<string, { bg: string; text: string; label: string }> = {
-  Pending: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Pending' },
-  'In-Progress': { bg: 'bg-blue-100', text: 'text-blue-700', label: 'In Progress' },
-  In_Progress: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'In Progress' },
-  Completed: { bg: 'bg-green-100', text: 'text-green-700', label: 'Completed' },
-  Transferred: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Transferred' },
+  Pending: { bg: 'bg-[rgba(243,156,18,0.12)]', text: 'text-[#B9770E]', label: 'Pending' },
+  'In-Progress': { bg: 'bg-[rgba(5,109,170,0.08)]', text: 'text-[#056daa]', label: 'In Progress' },
+  In_Progress: { bg: 'bg-[rgba(5,109,170,0.08)]', text: 'text-[#056daa]', label: 'In Progress' },
+  Completed: { bg: 'bg-[rgba(76,175,80,0.12)]', text: 'text-[#388E3C]', label: 'Completed' },
+  Transferred: { bg: 'bg-[rgba(41,128,185,0.12)]', text: 'text-[#2980B9]', label: 'Transferred' },
 };
 
 // Employee Dashboard style (from ProvideServicesTab)
 const employeeStyles: Record<string, { bg: string; text: string; label: string }> = {
-  waiting: { bg: 'bg-[#e3f2fd]', text: 'text-[#1565c0]', label: 'Waiting' },
-  'in-progress': { bg: 'bg-[#fff3e0]', text: 'text-[#e65100]', label: 'In Progress' },
-  in_progress: { bg: 'bg-[#fff3e0]', text: 'text-[#e65100]', label: 'In Progress' },
-  completed: { bg: 'bg-[#e8f5e9]', text: 'text-[#2e7d32]', label: 'Completed' },
+  waiting: { bg: 'bg-[rgba(5,109,170,0.08)]', text: 'text-[#056daa]', label: 'Waiting' },
+  'in-progress': { bg: 'bg-[rgba(243,156,18,0.12)]', text: 'text-[#B9770E]', label: 'In Progress' },
+  in_progress: { bg: 'bg-[rgba(243,156,18,0.12)]', text: 'text-[#B9770E]', label: 'In Progress' },
+  completed: { bg: 'bg-[rgba(76,175,80,0.12)]', text: 'text-[#388E3C]', label: 'Completed' },
 };
 
 const sizeClasses = {
@@ -55,15 +57,15 @@ const sizeClasses = {
   lg: 'px-4 py-1.5 text-sm',
 };
 
-const ServiceStatusBadge: React.FC<ServiceStatusBadgeProps> = ({ 
-  status, 
+const ServiceStatusBadge: React.FC<ServiceStatusBadgeProps> = ({
+  status,
   variant = 'receptionist',
   size = 'md',
   showLabel = true
 }) => {
   // Normalize status for comparison (handle different formats)
   const normalizedStatus = status.toLowerCase().replace('-', '_').replace(' ', '_');
-  
+
   // Get styles based on variant
   let styles = receptionistStyles;
   if (variant === 'manager') {
@@ -71,13 +73,13 @@ const ServiceStatusBadge: React.FC<ServiceStatusBadgeProps> = ({
   } else if (variant === 'employee') {
     styles = employeeStyles;
   }
-  
+
   // Try to find matching style
   let style = styles[status] || styles[normalizedStatus] || styles[status.replace('_', '')];
-  
+
   // Default fallback
   if (!style) {
-    style = { bg: 'bg-gray-100', text: 'text-gray-700', label: status };
+    style = { bg: 'bg-[#F0F0F0]', text: 'text-[#555555]', label: status };
   }
 
   return (
@@ -87,6 +89,7 @@ const ServiceStatusBadge: React.FC<ServiceStatusBadgeProps> = ({
         ${style.bg} ${style.text}
         ${sizeClasses[size]}
       `}
+      style={{ fontFamily: fontHeading, borderRadius: 0 }}
     >
       {showLabel && style.label}
     </span>
@@ -98,9 +101,9 @@ export const getStatusInfo = (status: string, variant: 'receptionist' | 'manager
   let styles = receptionistStyles;
   if (variant === 'manager') styles = managerStyles;
   else if (variant === 'employee') styles = employeeStyles;
-  
+
   const normalizedStatus = status.toLowerCase().replace('-', '_').replace(' ', '_');
-  return styles[status] || styles[normalizedStatus] || { bg: 'bg-gray-100', text: 'text-gray-700', label: status };
+  return styles[status] || styles[normalizedStatus] || { bg: 'bg-[#F0F0F0]', text: 'text-[#555555]', label: status };
 };
 
 export default ServiceStatusBadge;
