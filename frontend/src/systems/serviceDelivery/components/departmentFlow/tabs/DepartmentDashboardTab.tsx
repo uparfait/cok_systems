@@ -11,6 +11,17 @@ import { serviceDeliveryService } from '../../../../../core/services/adminServic
 // Import shared components
 import { Pagination } from '../../shared';
 
+// City of Kigali institutional design constants
+const PRIMARY = "#056daa";
+const SUCCESS = "#4CAF50";
+const WARNING = "#F39C12";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const TERTIARY = "#CDB896";
+const GRAY_DISABLED = "#9E9E9E";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+
 // Service record interface
 interface ServiceRecord {
   id: string;
@@ -24,9 +35,9 @@ interface ServiceRecord {
 
 // Status styles for rendering
 const statusStyles = {
-  pending: { bg: 'bg-[#fff3e0]', text: 'text-[#f57c00]', label: 'Pending' },
-  completed: { bg: 'bg-[#e8f5e9]', text: 'text-[#2e7d32]', label: 'Completed' },
-  transferred: { bg: 'bg-[#e3f2fd]', text: 'text-[#1565c0]', label: 'Transferred' },
+  pending: { bg: 'bg-[rgba(243,156,18,0.12)]', text: 'text-[#F39C12]', label: 'Pending' },
+  completed: { bg: 'bg-[rgba(51,51,51,0.08)]', text: 'text-[#333333]', label: 'Completed' },
+  transferred: { bg: 'bg-[rgba(5,109,170,0.1)]', text: 'text-[#056daa]', label: 'Transferred' },
 };
 
 const EmployeeDashboardTab: React.FC = () => {
@@ -87,7 +98,7 @@ const EmployeeDashboardTab: React.FC = () => {
             status = 'pending'; 
           }
           
-          const colors = ['bg-purple-500', 'bg-pink-500', 'bg-yellow-400', 'bg-teal-500', 'bg-lavender-400', 'bg-blue-500', 'bg-green-500'];
+          const colors = ['bg-[#2980B9]', 'bg-[#E74C3C]', 'bg-[#F39C12]', 'bg-[#4CAF50]', 'bg-[#CDB896]', 'bg-[#056daa]', 'bg-[#388E3C]'];
           const visitorName = visitor.full_name || visitor.name || visitor.visitorName || 'Unknown';
           const colorIndex = visitorName.charCodeAt(0) % colors.length;
           
@@ -145,7 +156,7 @@ const EmployeeDashboardTab: React.FC = () => {
   if (loading) {
     return (
       <div className="p-7 flex items-center justify-center h-64">
-        <div className="text-[#888]">Loading your assignments...</div>
+        <div className="text-[#9E9E9E]">Loading your assignments...</div>
       </div>
     );
   }
@@ -153,56 +164,56 @@ const EmployeeDashboardTab: React.FC = () => {
   return (
     <div className="p-7">
       <div>
-        <h1 className="text-[#1a2744] text-[28px] font-extrabold">Service Overview</h1>
-        <p className="text-[#888] text-[13px] mt-1.5">Manage and track visitor service requests assigned to you today.</p>
+        <h1 className="text-[28px] font-extrabold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Service Overview</h1>
+        <p className="text-[13px] mt-1.5" style={{ color: GRAY_DISABLED }}>Manage and track visitor service requests assigned to you today.</p>
       </div>
 
       <div className="flex gap-5 mt-7">
-        <div className="bg-white rounded-[14px] p-[22px_24px] shadow-[0_1px_4px_rgba(0,0,0,0.07)] h-[110px] w-[33%] relative overflow-hidden">
+        <div className="bg-white p-[22px_24px] h-[110px] w-[33%] relative overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
           <div className="absolute top-0 right-0 w-16 h-16 overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#ff9800] rounded-full opacity-20 -translate-x-8 -translate-y-8"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#F39C12] opacity-10 -translate-x-8 -translate-y-8"></div>
           </div>
           <div className="flex justify-between items-start relative z-10">
-            <span className="text-[#888] text-[12px]">Pending Requests</span>
-            <FiClock className="text-[#ff9800] w-5 h-5" />
+            <span className="text-[12px] font-semibold" style={{ fontFamily: fontHeading, color: WARNING }}>Pending Requests</span>
+            <FiClock className="text-[#F39C12] w-5 h-5" />
           </div>
-          <div className="text-[#1a2744] text-[36px] font-extrabold mt-2 relative z-10">{stats.pending}</div>
-          <div className="w-10 h-1.5 bg-[#ffcc80] rounded-[3px] mt-1"></div>
+          <div className="text-[36px] font-extrabold mt-2 relative z-10" style={{ fontFamily: fontHeading, color: WARNING }}>{stats.pending}</div>
+          <div className="w-10 h-1.5 bg-[#F39C12] mt-1"></div>
         </div>
 
-        <div className="bg-white rounded-[14px] p-[22px_24px] shadow-[0_1px_4px_rgba(0,0,0,0.07)] h-[110px] w-[33%] relative overflow-hidden">
+        <div className="bg-white p-[22px_24px] h-[110px] w-[33%] relative overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
           <div className="absolute top-0 right-0 w-16 h-16 overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#1a73e8] rounded-full opacity-20 -translate-x-8 -translate-y-8"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#056daa] opacity-10 -translate-x-8 -translate-y-8"></div>
           </div>
           <div className="flex justify-between items-start relative z-10">
-            <span className="text-[#888] text-[12px]">Transferred</span>
-            <div className="text-[#1a73e8]">
+            <span className="text-[12px] font-semibold" style={{ fontFamily: fontHeading, color: PRIMARY }}>Transferred</span>
+            <div className="text-[#056daa]">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
                 <path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
               </svg>
             </div>
           </div>
-          <div className="text-[#1a2744] text-[36px] font-extrabold mt-2 relative z-10">{stats.transferred}</div>
-          <div className="w-10 h-1.5 bg-[#90caf9] rounded-[3px] mt-1"></div>
+          <div className="text-[36px] font-extrabold mt-2 relative z-10" style={{ fontFamily: fontHeading, color: PRIMARY }}>{stats.transferred}</div>
+          <div className="w-10 h-1.5 bg-[#056daa] mt-1"></div>
         </div>
 
-        <div className="bg-white rounded-[14px] p-[22px_24px] shadow-[0_1px_4px_rgba(0,0,0,0.07)] h-[110px] w-[33%] relative overflow-hidden">
+        <div className="bg-white p-[22px_24px] h-[110px] w-[33%] relative overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
           <div className="absolute top-0 right-0 w-16 h-16 overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#34a853] rounded-full opacity-20 -translate-x-8 -translate-y-8"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#4CAF50] opacity-10 -translate-x-8 -translate-y-8"></div>
           </div>
           <div className="flex justify-between items-start relative z-10">
-            <span className="text-[#888] text-[12px]">Completed</span>
-            <FiCheckCircle className="text-[#34a853] w-5 h-5" />
+            <span className="text-[12px] font-semibold" style={{ fontFamily: fontHeading, color: SUCCESS }}>Completed</span>
+            <FiCheckCircle className="text-[#4CAF50] w-5 h-5" />
           </div>
-          <div className="text-[#1a2744] text-[36px] font-extrabold mt-2 relative z-10">{stats.completed}</div>
-          <div className="w-10 h-1.5 bg-[#a8d5b5] rounded-[3px] mt-1"></div>
+          <div className="text-[36px] font-extrabold mt-2 relative z-10" style={{ fontFamily: fontHeading, color: SUCCESS }}>{stats.completed}</div>
+          <div className="w-10 h-1.5 bg-[#4CAF50] mt-1"></div>
         </div>
       </div>
 
-      <div className="bg-white rounded-[14px] p-6 mt-6 shadow-[0_1px_4px_rgba(0,0,0,0.07)]">
+      <div className="bg-white p-6 mt-6" style={{ boxShadow: CARD_SHADOW }}>
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-[#1a2744] text-[16px] font-bold">Service History</h2>
+          <h2 className="text-[16px] font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Service History</h2>
           <div className="flex gap-3">
             <div className="relative">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -211,12 +222,22 @@ const EmployeeDashboardTab: React.FC = () => {
                 placeholder="Search visitor or ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-[220px] h-9 border border-[#e0e0e0] rounded-[20px] pl-10 pr-4 text-[12px] focus:outline-none focus:ring-2 focus:ring-[#1a73e8] focus:border-transparent"
+                className="w-[220px] h-9 pl-10 pr-4 text-[12px] focus:outline-none"
+                style={{ fontFamily: fontHeading, background: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' }}
+                onFocus={(e) => {
+                  e.currentTarget.style.border = `1px solid ${PRIMARY}`;
+                  e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.border = '1px solid transparent';
+                  e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)';
+                }}
               />
             </div>
             <button 
               onClick={fetchAssignedVisitors}
-              className="flex items-center gap-2 h-9 px-4 border border-[#e0e0e0] rounded-[8px] bg-white text-[#333] text-[13px] hover:bg-gray-50"
+              className="flex items-center gap-2 h-9 px-4 bg-transparent text-[13px] font-semibold uppercase transition-colors hover:bg-[rgba(5,109,170,0.08)]"
+              style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}
             >
               <FiClock className="w-4 h-4" /> Refresh
             </button>
@@ -225,18 +246,18 @@ const EmployeeDashboardTab: React.FC = () => {
 
         <table className="w-full">
           <thead>
-            <tr className="border-b border-[#f0f0f0]">
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">Visitor Name ↕</th>
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">Service ID ↕</th>
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">Status ↕</th>
-              <th className="text-left py-3 px-0 text-[#999] text-[11px] uppercase tracking-wider font-medium">Assignment Time ↕</th>
+            <tr className="border-b border-[#E0E0E0]">
+              <th className="text-left py-3 px-0 text-[11px] uppercase tracking-wider font-semibold" style={{ fontFamily: fontHeading, color: TERTIARY, letterSpacing: '0.5px' }}>Visitor Name ↕</th>
+              <th className="text-left py-3 px-0 text-[11px] uppercase tracking-wider font-semibold" style={{ fontFamily: fontHeading, color: TERTIARY, letterSpacing: '0.5px' }}>Service ID ↕</th>
+              <th className="text-left py-3 px-0 text-[11px] uppercase tracking-wider font-semibold" style={{ fontFamily: fontHeading, color: TERTIARY, letterSpacing: '0.5px' }}>Status ↕</th>
+              <th className="text-left py-3 px-0 text-[11px] uppercase tracking-wider font-semibold" style={{ fontFamily: fontHeading, color: TERTIARY, letterSpacing: '0.5px' }}>Assignment Time ↕</th>
             </tr>
           </thead>
           <tbody>
             {paginatedRecords.length > 0 ? paginatedRecords.map((record) => {
               const status = statusStyles[record.status];
               return (
-                <tr key={record.id} className="border-b border-[#f8f8f8] h-14">
+                <tr key={record.id} className="border-b border-[#E0E0E0] h-14">
                   <td className="py-3">
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-full ${record.avatarColor} flex items-center justify-center text-white text-[12px] font-bold`}>
@@ -247,16 +268,16 @@ const EmployeeDashboardTab: React.FC = () => {
                   </td>
                   <td className="py-3 text-[#333] text-[13px]">{record.serviceId}</td>
                   <td className="py-3">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-[20px] text-[12px] font-bold uppercase tracking-wide ${status.bg} ${status.text}`}>
+                    <span className={`inline-flex items-center px-3 py-1 text-[12px] font-bold uppercase tracking-wide ${status.bg} ${status.text}`}>
                       {status.label}
                     </span>
                   </td>
-                  <td className="py-3 text-[#666] text-[13px] font-medium">{record.assignmentTime}</td>
+                  <td className="py-3 text-[#555555] text-[13px] font-medium">{record.assignmentTime}</td>
                 </tr>
               );
             }) : (
               <tr>
-                <td colSpan={4} className="py-8 text-center text-[#888]">
+                <td colSpan={4} className="py-8 text-center text-[#9E9E9E]">
                   No visitors assigned to you yet. Pull from Reception.
                 </td>
               </tr>

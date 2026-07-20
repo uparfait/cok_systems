@@ -2,6 +2,27 @@
 import React, { useState } from 'react';
 import { FiInfo, FiCheckCircle } from 'react-icons/fi';
 
+const PRIMARY = "#056daa";
+const PRIMARY_HOVER = "#045d94";
+const SUCCESS = "#4CAF50";
+const SUCCESS_HOVER = "#388E3C";
+const DANGER = "#E74C3C";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const TERTIARY = "#CDB896";
+const GRAY_DISABLED = "#9E9E9E";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+
+const labelStyle: React.CSSProperties = {
+  fontFamily: fontHeading,
+  fontSize: '13px',
+  fontWeight: 600,
+  letterSpacing: '0.5px',
+  textTransform: 'uppercase',
+  color: TERTIARY
+};
+
 type StatusType = 'active' | 'away';
 
 const AvailabilityTab: React.FC = () => {
@@ -27,55 +48,55 @@ const AvailabilityTab: React.FC = () => {
     <div className="p-7">
       {/* Page Title Block */}
       <div>
-        <h1 className="text-[#1a2744] text-[30px] font-extrabold">Status Settings</h1>
-        <p className="text-[#888] text-[13px] mt-1.5">Manage your current availability and queue visibility for the City of Kigali KSESM.</p>
+        <h1 className="text-[30px] font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Status Settings</h1>
+        <p className="text-[#555555] text-[13px] mt-1.5">Manage your current availability and queue visibility for the City of Kigali KSESM.</p>
       </div>
 
       {/* Dark Hero Banner Card */}
-      <div className="mt-6 bg-gradient-to-r from-[#1a2744] via-[#2c3e55] to-[#3a4a5c] rounded-[16px] p-8 h-[120px] relative overflow-hidden">
+      <div className="mt-6 p-8 h-[120px] relative overflow-hidden" style={{ backgroundColor: PRIMARY, boxShadow: CARD_SHADOW }}>
         <div className="relative z-10">
-          <h2 className="text-white text-[22px] font-bold">Set Availability</h2>
-          <p className="text-[#ccc] text-[13px] mt-1.5">Update your status to inform the queue system.</p>
+          <h2 className="text-white text-[22px] font-bold" style={{ fontFamily: fontHeading }}>Set Availability</h2>
+          <p className="text-white/80 text-[13px] mt-1.5">Update your status to inform the queue system.</p>
         </div>
         {/* Decorative blobs */}
-        <div className="absolute top-0 right-0 w-48 h-48 bg-teal-900/30 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-        <div className="absolute bottom-0 right-20 w-32 h-32 bg-gray-700/30 rounded-full translate-y-1/2"></div>
+        <div className="absolute top-0 right-0 w-48 h-48 bg-[rgba(255,255,255,0.08)] rounded-full -translate-y-1/2 translate-x-1/2"></div>
+        <div className="absolute bottom-0 right-20 w-32 h-32 bg-[rgba(255,255,255,0.06)] rounded-full translate-y-1/2"></div>
       </div>
 
       {/* Status Selection Card */}
-      <div className="bg-white rounded-[14px] p-7 mt-4 shadow-[0_1px_4px_rgba(0,0,0,0.07)]">
-        <label className="text-[#999] text-[11px] uppercase tracking-wider">CURRENT STATUS</label>
-        
+      <div className="bg-white p-7 mt-4" style={{ boxShadow: CARD_SHADOW }}>
+        <label style={labelStyle}>CURRENT STATUS</label>
+
         {/* Status Options */}
         <div className="flex justify-center gap-4 mt-4">
           {/* Active / Available Option */}
           <button
             onClick={() => handleStatusChange('active')}
-            className={`w-[280px] h-[70px] rounded-[14px] p-5 flex items-center gap-4 transition-all ${
+            className={`w-[280px] h-[70px] p-5 flex items-center gap-4 transition-colors ${
               currentStatus === 'active'
-                ? 'bg-white border-2 border-[#34a853] shadow-md'
-                : 'bg-gray-50 border border-[#e0e0e0]'
+                ? 'bg-white border-2 border-[#4CAF50] shadow-md'
+                : 'bg-[#F7F9FB] border border-[#E0E0E0]'
             }`}
           >
-            <div className={`w-4 h-4 rounded-full ${currentStatus === 'active' ? 'bg-[#34a853]' : 'border-2 border-gray-400'}`}></div>
+            <div className={`w-4 h-4 rounded-full ${currentStatus === 'active' ? 'bg-[#4CAF50]' : 'border-2 border-gray-400'}`}></div>
             <div className="text-left">
-              <p className="text-[#1a2744] text-[14px] font-bold">Active / Available</p>
-              <p className="text-[#888] text-[12px]">Ready to serve new visitors.</p>
+              <p className="text-[14px] font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Active / Available</p>
+              <p className="text-[#555555] text-[12px]">Ready to serve new visitors.</p>
             </div>
           </button>
 
           {/* Away / On Break Option */}
           <button
             onClick={() => handleStatusChange('away')}
-            className={`w-[280px] h-[70px] rounded-[14px] p-5 flex items-center gap-4 transition-all ${
+            className={`w-[280px] h-[70px] p-5 flex items-center gap-4 transition-colors ${
               currentStatus === 'away'
-                ? 'bg-[#cc4400] border-2 border-[#cc4400]'
-                : 'bg-[#c0392b] border-2 border-transparent'
+                ? 'bg-[#F39C12] border-2 border-[#F39C12]'
+                : 'bg-[#D68910] border-2 border-transparent'
             }`}
           >
             <div className={`w-4 h-4 rounded-full ${currentStatus === 'away' ? 'bg-white' : 'border-2 border-white/60'}`}></div>
             <div className="text-left">
-              <p className="text-white text-[14px] font-bold">Away / On Break</p>
+              <p className="text-white text-[14px] font-bold" style={{ fontFamily: fontHeading }}>Away / On Break</p>
               <p className="text-white/80 text-[12px]">Temporarily unavailable.</p>
             </div>
           </button>
@@ -83,21 +104,27 @@ const AvailabilityTab: React.FC = () => {
 
         {/* Reason / Note Section */}
         <div className="mt-6">
-          <label className="text-[#999] text-[11px] uppercase tracking-wider">REASON / NOTE (OPTIONAL)</label>
+          <label style={labelStyle}>REASON / NOTE (OPTIONAL)</label>
           <textarea
             value={reasonNote}
             onChange={(e) => setReasonNote(e.target.value.slice(0, 140))}
             placeholder="e.g., Taking a 30 min lunch break, Technical issue with printer..."
-            className="w-full h-[90px] border border-[#e0e0e0] rounded-[10px] p-3.5 mt-3 text-[13px] resize-none focus:outline-none focus:ring-2 focus:ring-[#1a73e8]"
+            className="w-full h-[90px] p-3.5 mt-3 resize-none focus:outline-none"
+            style={{ fontFamily: fontHeading, fontSize: '14px', backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' }}
+            onFocus={(e) => { e.currentTarget.style.border = `1px solid ${PRIMARY}`; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
+            onBlur={(e) => { e.currentTarget.style.border = '1px solid transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }}
           />
-          <p className="text-[#bbb] text-[11px] text-right mt-1">{reasonNote.length}/140</p>
+          <p className="text-[11px] text-right mt-1" style={{ color: GRAY_DISABLED }}>{reasonNote.length}/140</p>
         </div>
 
         {/* Update Status Button */}
         <div className="flex justify-end mt-5">
           <button
             onClick={handleUpdateStatus}
-            className="bg-[#e53935] hover:bg-[#c62828] text-white text-[14px] font-bold w-[160px] h-[46px] rounded-[24px] shadow-[0_2px_8px_rgba(229,57,53,0.3)] transition-colors"
+            className="text-white text-[13px] uppercase w-[160px] h-[46px] transition-colors"
+            style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', backgroundColor: PRIMARY, borderRadius: 0 }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
           >
             Update Status
           </button>
@@ -107,11 +134,11 @@ const AvailabilityTab: React.FC = () => {
       {/* Success Toast */}
       {showToast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
-          <div className="bg-[#e8f5e9] border border-[#a5d6a7] rounded-[10px] px-5 py-3.5 flex items-center gap-3 shadow-[0_2px_12px_rgba(52,168,83,0.2)]">
-            <FiCheckCircle className="w-[18px] h-[18px] text-[#34a853]" />
+          <div className="bg-white px-5 py-3.5 flex items-center gap-3" style={{ border: `1px solid ${SUCCESS}`, boxShadow: CARD_SHADOW }}>
+            <FiCheckCircle className="w-[18px] h-[18px]" style={{ color: SUCCESS }} />
             <div>
-              <p className="text-[#2e7d32] text-[14px] font-bold">Status updated successfully!</p>
-              <p className="text-[#388e3c] text-[12px]">Your availability has been updated and the head of department has been notified.</p>
+              <p className="text-[14px] font-bold" style={{ fontFamily: fontHeading, color: SUCCESS_HOVER }}>Status updated successfully!</p>
+              <p className="text-[#555555] text-[12px]">Your availability has been updated and the head of department has been notified.</p>
             </div>
           </div>
         </div>
@@ -119,14 +146,14 @@ const AvailabilityTab: React.FC = () => {
 
       {/* Waiting Card */}
       <div className="flex justify-center mt-8">
-        <div className="bg-white rounded-[16px] p-5 w-[300px] shadow-[0_2px_12px_rgba(0,0,0,0.08)] flex items-center justify-between">
+        <div className="bg-white p-5 w-[300px] flex items-center justify-between" style={{ boxShadow: CARD_SHADOW }}>
           <div>
-            <p className="text-[#888] text-[12px]">Waiting for you</p>
-            <p className="text-[#1a2744] text-[36px] font-extrabold">{waitingCount}</p>
-            <p className="text-[#e53935] text-[12px] mt-1">High demand</p>
+            <p className="text-[#555555] text-[12px]">Waiting for you</p>
+            <p className="text-[36px] font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{waitingCount}</p>
+            <p className="text-[12px] mt-1" style={{ color: DANGER }}>High demand</p>
           </div>
-          <div className="w-13 h-13 w-[52px] h-[52px] rounded-full bg-[#fce8e6] flex items-center justify-center">
-            <svg className="w-6 h-6 text-[#e53935]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <div className="w-13 h-13 w-[52px] h-[52px] rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(231,76,60,0.1)' }}>
+            <svg className="w-6 h-6" style={{ color: DANGER }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
             </svg>

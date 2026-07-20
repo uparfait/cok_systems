@@ -2,10 +2,10 @@
 // Panel with actions for visitor service management
 
 import React, { useState } from 'react';
-import { 
-  FiCheckCircle, 
-  FiClock, 
-  FiAlertTriangle, 
+import {
+  FiCheckCircle,
+  FiClock,
+  FiAlertTriangle,
   FiUserPlus,
   FiMessageSquare,
   FiFileText,
@@ -18,6 +18,23 @@ import {
   FiChevronUp
 } from 'react-icons/fi';
 import { toggleServiceStatus, toggleEmergencyLeaveReturn } from '../../services/serviceDeliveryService';
+
+// City of Kigali institutional design constants
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const BORDER = "#E0E0E0";
+const TERTIARY = "#CDB896";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+
+const labelStyle: React.CSSProperties = {
+  fontFamily: fontHeading,
+  fontSize: '13px',
+  fontWeight: 600,
+  letterSpacing: '0.5px',
+  textTransform: 'uppercase',
+  color: TERTIARY,
+};
 
 interface Visitor {
   _id: string;
@@ -45,7 +62,7 @@ interface ServiceActionPanelProps {
   isLoading?: boolean;
 }
 
-type ServiceAction = 
+type ServiceAction =
   | 'start_service'
   | 'pause_service'
   | 'resume_service'
@@ -69,46 +86,46 @@ const ServiceActionPanel: React.FC<ServiceActionPanelProps> = ({
   // Get available actions based on current status
   const getAvailableActions = () => {
     const { status } = visitor;
-    
+
     switch (status) {
       case 'assigned':
         return [
-          { 
-            id: 'start_service', 
-            label: 'Start Service', 
+          {
+            id: 'start_service',
+            label: 'Start Service',
             icon: FiPlay,
-            color: 'bg-green-500 hover:bg-green-600',
+            color: 'bg-[#4CAF50] hover:bg-[#388E3C]',
             description: 'Begin serving this visitor'
           },
-          { 
-            id: 'emergency_leave', 
-            label: 'Emergency Leave', 
+          {
+            id: 'emergency_leave',
+            label: 'Emergency Leave',
             icon: FiAlertTriangle,
-            color: 'bg-orange-500 hover:bg-orange-600',
+            color: 'bg-[#F39C12] hover:bg-[#D68910]',
             description: 'Allow visitor to leave temporarily'
           },
         ];
       case 'in_service':
         return [
-          { 
-            id: 'pause_service', 
-            label: 'Pause Service', 
+          {
+            id: 'pause_service',
+            label: 'Pause Service',
             icon: FiPause,
-            color: 'bg-yellow-500 hover:bg-yellow-600',
+            color: 'bg-[#F39C12] hover:bg-[#D68910]',
             description: 'Temporarily pause service'
           },
-          { 
-            id: 'complete_service', 
-            label: 'Complete Service', 
+          {
+            id: 'complete_service',
+            label: 'Complete Service',
             icon: FiCheckCircle,
-            color: 'bg-blue-500 hover:bg-blue-600',
+            color: 'bg-[#056daa] hover:bg-[#045d94]',
             description: 'Mark service as completed'
           },
-          { 
-            id: 'emergency_leave', 
-            label: 'Emergency Leave', 
+          {
+            id: 'emergency_leave',
+            label: 'Emergency Leave',
             icon: FiAlertTriangle,
-            color: 'bg-orange-500 hover:bg-orange-600',
+            color: 'bg-[#F39C12] hover:bg-[#D68910]',
             description: 'Allow visitor to leave temporarily'
           },
         ];
@@ -126,7 +143,7 @@ const ServiceActionPanel: React.FC<ServiceActionPanelProps> = ({
 
     try {
       let response;
-      
+
       switch (action) {
         case 'start_service':
         case 'complete_service':
@@ -159,7 +176,7 @@ const ServiceActionPanel: React.FC<ServiceActionPanelProps> = ({
           if (action === 'complete_service') newStatus = 'completed';
           if (action === 'emergency_leave') newStatus = 'on_leave';
           if (action === 'emergency_return') newStatus = 'in_service';
-          
+
           onStatusChange(newStatus);
         }
       }
@@ -172,7 +189,7 @@ const ServiceActionPanel: React.FC<ServiceActionPanelProps> = ({
         if (action === 'complete_service') newStatus = 'completed';
         if (action === 'emergency_leave') newStatus = 'on_leave';
         if (action === 'emergency_return') newStatus = 'in_service';
-        
+
         onStatusChange(newStatus);
       }
     } finally {
@@ -184,17 +201,17 @@ const ServiceActionPanel: React.FC<ServiceActionPanelProps> = ({
   const getStatusInfo = () => {
     switch (visitor.status) {
       case 'pending':
-        return { label: 'Pending', color: 'bg-yellow-100 text-yellow-800', icon: FiClock };
+        return { label: 'Pending', color: 'bg-[rgba(243,156,18,0.12)] text-[#F39C12]', icon: FiClock };
       case 'assigned':
-        return { label: 'Assigned', color: 'bg-blue-100 text-blue-800', icon: FiUserPlus };
+        return { label: 'Assigned', color: 'bg-[rgba(5,109,170,0.1)] text-[#056daa]', icon: FiUserPlus };
       case 'in_service':
-        return { label: 'In Service', color: 'bg-green-100 text-green-800', icon: FiCheckCircle };
+        return { label: 'In Service', color: 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]', icon: FiCheckCircle };
       case 'completed':
-        return { label: 'Completed', color: 'bg-gray-100 text-gray-800', icon: FiCheck };
+        return { label: 'Completed', color: 'bg-[#F7F9FB] text-[#555555]', icon: FiCheck };
       case 'checked_out':
-        return { label: 'Checked Out', color: 'bg-red-100 text-red-800', icon: FiTruck };
+        return { label: 'Checked Out', color: 'bg-[rgba(231,76,60,0.1)] text-[#E74C3C]', icon: FiTruck };
       default:
-        return { label: 'Unknown', color: 'bg-gray-100 text-gray-800', icon: FiClock };
+        return { label: 'Unknown', color: 'bg-[#F7F9FB] text-[#555555]', icon: FiClock };
     }
   };
 
@@ -202,18 +219,19 @@ const ServiceActionPanel: React.FC<ServiceActionPanelProps> = ({
   const StatusIcon = statusInfo.icon;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white overflow-hidden" style={{ borderRadius: 0, boxShadow: CARD_SHADOW }}>
       {/* Header */}
-      <div 
-        className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between cursor-pointer"
+      <div
+        className="px-4 py-3 border-b flex items-center justify-between cursor-pointer"
+        style={{ backgroundColor: NEUTRAL_LIGHT, borderColor: BORDER }}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-3">
-          <StatusIcon className="text-gray-500" />
-          <h3 className="font-medium text-gray-800">Service Actions</h3>
+          <StatusIcon className="text-[#9E9E9E]" />
+          <h3 className="font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Service Actions</h3>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
+          <span className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider ${statusInfo.color}`} style={{ fontFamily: fontHeading, borderRadius: 0 }}>
             {statusInfo.label}
           </span>
           {isExpanded ? <FiChevronUp /> : <FiChevronDown />}
@@ -229,63 +247,69 @@ const ServiceActionPanel: React.FC<ServiceActionPanelProps> = ({
             <button
               onClick={onAssignEmployee}
               disabled={isLoading || visitor.status === 'completed' || visitor.status === 'checked_out'}
-              className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-[#E0E0E0] hover:border-[#056daa] hover:bg-[rgba(5,109,170,0.08)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ borderRadius: 0 }}
             >
-              <FiUserPlus className="text-2xl text-blue-500 mb-2" />
-              <span className="text-sm font-medium text-gray-700">Assign Employee</span>
+              <FiUserPlus className="text-2xl text-[#056daa] mb-2" />
+              <span className="text-sm font-medium text-[#333333]" style={{ fontFamily: fontHeading }}>Assign Employee</span>
             </button>
 
             {/* Add Note */}
             <button
               onClick={onAddNote}
               disabled={isLoading}
-              className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-[#E0E0E0] hover:border-[#056daa] hover:bg-[rgba(5,109,170,0.08)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ borderRadius: 0 }}
             >
-              <FiMessageSquare className="text-2xl text-blue-500 mb-2" />
-              <span className="text-sm font-medium text-gray-700">Add Note</span>
+              <FiMessageSquare className="text-2xl text-[#056daa] mb-2" />
+              <span className="text-sm font-medium text-[#333333]" style={{ fontFamily: fontHeading }}>Add Note</span>
             </button>
 
             {/* View History */}
             <button
               onClick={() => {}}
-              className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
+              className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-[#E0E0E0] hover:border-[#056daa] hover:bg-[rgba(5,109,170,0.08)] transition-colors"
+              style={{ borderRadius: 0 }}
             >
-              <FiFileText className="text-2xl text-blue-500 mb-2" />
-              <span className="text-sm font-medium text-gray-700">View History</span>
+              <FiFileText className="text-2xl text-[#056daa] mb-2" />
+              <span className="text-sm font-medium text-[#333333]" style={{ fontFamily: fontHeading }}>View History</span>
             </button>
 
             {/* Contact Visitor */}
             <button
               onClick={() => {}}
-              className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
+              className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-[#E0E0E0] hover:border-[#056daa] hover:bg-[rgba(5,109,170,0.08)] transition-colors"
+              style={{ borderRadius: 0 }}
             >
-              <FiPhone className="text-2xl text-blue-500 mb-2" />
-              <span className="text-sm font-medium text-gray-700">Contact</span>
+              <FiPhone className="text-2xl text-[#056daa] mb-2" />
+              <span className="text-sm font-medium text-[#333333]" style={{ fontFamily: fontHeading }}>Contact</span>
             </button>
           </div>
 
           {/* Status Actions */}
           {availableActions.length > 0 && (
-            <div className="border-t border-gray-200 pt-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">Service Management</h4>
+            <div className="border-t pt-4" style={{ borderColor: BORDER }}>
+              <h4 className="mb-3" style={labelStyle}>Service Management</h4>
               <div className="space-y-2">
                 {availableActions.map((action) => (
                   <div key={action.id}>
                     {showConfirm === action.id ? (
-                      <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                        <span className="text-sm text-gray-600 flex-1">
+                      <div className="flex items-center gap-2 p-3 bg-[#F7F9FB]" style={{ borderRadius: 0 }}>
+                        <span className="text-sm text-[#555555] flex-1">
                           Confirm: {action.label}?
                         </span>
                         <button
                           onClick={() => handleAction(action.id as ServiceAction)}
                           disabled={isProcessing === action.id}
-                          className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600 disabled:opacity-50"
+                          className="px-3 py-1 bg-[#4CAF50] text-white text-sm font-semibold uppercase tracking-wider hover:bg-[#388E3C] disabled:opacity-50"
+                          style={{ borderRadius: 0, fontFamily: fontHeading }}
                         >
                           {isProcessing === action.id ? '...' : 'Yes'}
                         </button>
                         <button
                           onClick={() => setShowConfirm(null)}
-                          className="px-3 py-1 bg-gray-300 text-gray-700 text-sm rounded hover:bg-gray-400"
+                          className="px-3 py-1 border border-[#056daa] text-[#056daa] text-sm font-semibold uppercase tracking-wider bg-transparent hover:bg-[rgba(5,109,170,0.08)]"
+                          style={{ borderRadius: 0, fontFamily: fontHeading }}
                         >
                           No
                         </button>
@@ -294,11 +318,12 @@ const ServiceActionPanel: React.FC<ServiceActionPanelProps> = ({
                       <button
                         onClick={() => setShowConfirm(action.id as ServiceAction)}
                         disabled={isLoading}
-                        className={`w-full flex items-center gap-3 p-3 text-white rounded-lg transition-colors disabled:opacity-50 ${action.color}`}
+                        className={`w-full flex items-center gap-3 p-3 text-white transition-colors disabled:opacity-50 ${action.color}`}
+                        style={{ borderRadius: 0, fontFamily: fontHeading }}
                       >
                         <action.icon />
                         <div className="text-left">
-                          <span className="font-medium">{action.label}</span>
+                          <span className="font-semibold uppercase tracking-wide text-[13px]">{action.label}</span>
                           <p className="text-xs opacity-80">{action.description}</p>
                         </div>
                       </button>
@@ -311,28 +336,30 @@ const ServiceActionPanel: React.FC<ServiceActionPanelProps> = ({
 
           {/* Checkout Button */}
           {(visitor.status === 'completed' || visitor.status === 'in_service') && (
-            <div className="border-t border-gray-200 pt-4 mt-4">
+            <div className="border-t pt-4 mt-4" style={{ borderColor: BORDER }}>
               <button
                 onClick={onCheckout}
                 disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 p-3 bg-[#4CAF50] text-white hover:bg-[#388E3C] transition-colors disabled:opacity-50"
+                style={{ borderRadius: 0, fontFamily: fontHeading }}
               >
                 <FiTruck />
-                <span className="font-medium">Check Out Visitor</span>
+                <span className="font-semibold uppercase tracking-wide text-[13px]">Check Out Visitor</span>
               </button>
             </div>
           )}
 
           {/* Emergency Leave/Return */}
           {visitor.status === 'on_leave' && (
-            <div className="border-t border-gray-200 pt-4 mt-4">
+            <div className="border-t pt-4 mt-4" style={{ borderColor: BORDER }}>
               <button
                 onClick={() => handleAction('emergency_return')}
                 disabled={isProcessing !== null}
-                className="w-full flex items-center justify-center gap-2 p-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 p-3 bg-[#F39C12] text-white hover:bg-[#D68910] transition-colors disabled:opacity-50"
+                style={{ borderRadius: 0, fontFamily: fontHeading }}
               >
                 <FiPower />
-                <span className="font-medium">Record Return</span>
+                <span className="font-semibold uppercase tracking-wide text-[13px]">Record Return</span>
               </button>
             </div>
           )}

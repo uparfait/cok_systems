@@ -21,10 +21,10 @@ const formatTime = (b: TimeBreakdown, variant: string): string => {
 };
 
 const getTimerColor = (b: TimeBreakdown, timeoutMinutes?: number): string => {
-  if (b.isExpired) return 'text-red-600';
-  if (timeoutMinutes && b.totalMinutes >= timeoutMinutes * 0.8) return 'text-orange-500';
-  if (b.totalMinutes >= 60) return 'text-yellow-600';
-  return 'text-green-600';
+  if (b.isExpired) return 'text-[#E74C3C]';
+  if (timeoutMinutes && b.totalMinutes >= timeoutMinutes * 0.8) return 'text-[#F39C12]';
+  if (b.totalMinutes >= 60) return 'text-[#B9770E]';
+  return 'text-[#388E3C]';
 };
 
 const ServiceTimer: React.FC<ServiceTimerProps> = ({ checkInTime, showIcon = true, variant = 'default', onTimeout, timeoutMinutes }) => {
@@ -43,8 +43,8 @@ export const CompactTimer: React.FC<{ checkInTime: string | Date; timeoutMinutes
 export const TimerWithProgress: React.FC<{ checkInTime: string | Date; timeoutMinutes: number; onTimeout?: () => void }> = ({ checkInTime, timeoutMinutes, onTimeout }) => {
   const [progress, setProgress] = useState(0); const [isExpired, setIsExpired] = useState(false);
   useEffect(() => { const update = () => { const b = calculateTimeBreakdown(checkInTime, timeoutMinutes); setProgress(Math.min((b.totalMinutes / timeoutMinutes) * 100, 100)); setIsExpired(b.isExpired); if (b.isExpired && onTimeout) onTimeout(); }; update(); const i = setInterval(update, 1000); return () => clearInterval(i); }, [checkInTime, timeoutMinutes, onTimeout]);
-  const getColor = () => { if (isExpired) return 'bg-red-500'; if (progress >= 80) return 'bg-orange-500'; if (progress >= 50) return 'bg-yellow-500'; return 'bg-green-500'; };
-  return <div className="w-full"><div className="flex justify-between text-xs text-gray-600 mb-1"><span>Service Time</span><span>{Math.round(progress)}%</span></div><div className="w-full bg-gray-200 h-2"><div className={`h-2 transition-all duration-1000 ${getColor()}`} style={{ width: `${progress}%` }} /></div></div>;
+  const getColor = () => { if (isExpired) return 'bg-[#E74C3C]'; if (progress >= 80) return 'bg-[#F39C12]'; if (progress >= 50) return 'bg-[#F39C12]'; return 'bg-[#4CAF50]'; };
+  return <div className="w-full"><div className="flex justify-between text-xs text-[#555555] mb-1"><span>Service Time</span><span>{Math.round(progress)}%</span></div><div className="w-full bg-[#E0E0E0] h-2"><div className={`h-2 transition-all duration-1000 ${getColor()}`} style={{ width: `${progress}%` }} /></div></div>;
 };
 
 export default ServiceTimer;

@@ -24,12 +24,12 @@ export interface AssignedVisitor {
 }
 
 export const statusConfig: Record<string, { bg: string; text: string; dot: string; label: string }> = {
-  accepted: { bg: "bg-yellow-100", text: "text-yellow-700", dot: "bg-yellow-500", label: "ACCEPTED" },
-  completed: { bg: "bg-green-100", text: "text-green-700", dot: "bg-green-500", label: "COMPLETED" },
-  transferred: { bg: "bg-gray-100", text: "text-gray-700", dot: "bg-gray-500", label: "TRANSFERRED" },
-  inprogress: { bg: "bg-blue-100", text: "text-blue-700", dot: "bg-blue-500", label: "IN PROGRESS" },
-  waiting: { bg: "bg-purple-100", text: "text-purple-700", dot: "bg-purple-500", label: "WAITING" },
-  'not started': { bg: "bg-purple-100", text: "text-purple-700", dot: "bg-purple-500", label: "NOT STARTED" },
+  accepted: { bg: "bg-[rgba(243,156,18,0.12)]", text: "text-[#F39C12]", dot: "bg-[#F39C12]", label: "ACCEPTED" },
+  completed: { bg: "bg-[#F7F9FB]", text: "text-[#555555]", dot: "bg-[#9E9E9E]", label: "COMPLETED" },
+  transferred: { bg: "bg-[rgba(41,128,185,0.1)]", text: "text-[#2980B9]", dot: "bg-[#2980B9]", label: "TRANSFERRED" },
+  inprogress: { bg: "bg-[rgba(76,175,80,0.12)]", text: "text-[#388E3C]", dot: "bg-[#4CAF50]", label: "IN PROGRESS" },
+  waiting: { bg: "bg-[rgba(5,109,170,0.1)]", text: "text-[#056daa]", dot: "bg-[#056daa]", label: "WAITING" },
+  'not started': { bg: "bg-[rgba(5,109,170,0.1)]", text: "text-[#056daa]", dot: "bg-[#056daa]", label: "NOT STARTED" },
 };
 
 export const getDisplayStatus = (visitor: AssignedVisitor): string => {
@@ -64,7 +64,7 @@ export const getInitials = (name: string) => {
 };
 
 export const getColorFromName = (name: string) => {
-  if (!name) return 'bg-gray-500';
-  const colors = ['bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500'];
+  if (!name) return 'bg-[#9E9E9E]';
+  const colors = ['bg-[#E74C3C]', 'bg-[#056daa]', 'bg-[#4CAF50]', 'bg-[#F39C12]', 'bg-[#2980B9]', 'bg-[#CDB896]', 'bg-[#045d94]', 'bg-[#388E3C]'];
   return colors[name.charCodeAt(0) % colors.length];
 };
