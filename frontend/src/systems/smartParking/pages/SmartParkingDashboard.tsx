@@ -1,5 +1,5 @@
 ﻿// SmartParkingDashboard - Smart Parking System Dashboard
-// Gate Officer Dashboard with Modern Glassmorphism Design
+// Gate Officer Dashboard with City of Kigali (CoK) institutional design
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -16,6 +16,23 @@ import { BsShieldCheck, BsExclamationTriangle } from 'react-icons/bs';
 import { MdOutlineLocalParking, MdOutlineWarning } from 'react-icons/md';
 import { FaRegIdCard } from 'react-icons/fa';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+// City of Kigali (CoK) institutional design constants
+const PRIMARY = "#056daa";
+const PRIMARY_HOVER = "#045d94";
+const SUCCESS = "#4CAF50";
+const SUCCESS_HOVER = "#388E3C";
+const WARNING = "#F39C12";
+const DANGER = "#E74C3C";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const BORDER = "#E0E0E0";
+const TERTIARY = "#CDB896";
+const WHITE = "#FFFFFF";
+const GRAY_DISABLED = "#9E9E9E";
+const ACCENT_DARK_BLUE = "#2980B9";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
 
 interface VehicleData {
   plate_number?: string;
@@ -319,37 +336,37 @@ const SmartParkingDashboard: React.FC = () => {
   // Helper function to get background color based on duration
   const getDurationBgColor = (duration: string) => {
     const hours = parseFloat(duration.replace(/[^0-9.]/g, ''));
-    if (hours >= 9) return 'bg-red-500/20 text-red-600 border border-red-200';
-    if (hours >= 5) return 'bg-orange-500/20 text-orange-600 border border-orange-200';
-    return 'bg-gray-500/20 text-gray-600 border border-gray-200';
+    if (hours >= 9) return 'bg-[rgba(231,76,60,0.12)] text-[#E74C3C] border border-[#E0E0E0]';
+    if (hours >= 5) return 'bg-[rgba(243,156,18,0.12)] text-[#F39C12] border border-[#E0E0E0]';
+    return 'bg-[rgba(51,51,51,0.08)] text-[#555555] border border-[#E0E0E0]';
   };
 
   // Helper function to get card colors based on occupancy percentage
   const getOccupancyColors = (occupied: number, total: number) => {
     const percentage = (occupied / total) * 100;
     if (percentage >= 100) return {
-      bg: 'bg-gradient-to-br from-red-500/20 to-red-600/20',
-      text: 'text-red-700',
-      border: 'border-red-200',
-      icon: 'text-red-700'
+      bg: 'bg-[rgba(231,76,60,0.12)]',
+      text: 'text-[#E74C3C]',
+      border: 'border-[#E0E0E0]',
+      icon: 'text-[#E74C3C]'
     };
     if (percentage >= 90) return {
-      bg: 'bg-gradient-to-br from-orange-500/20 to-orange-600/20',
-      text: 'text-orange-700',
-      border: 'border-orange-200',
-      icon: 'text-orange-700'
+      bg: 'bg-[rgba(243,156,18,0.12)]',
+      text: 'text-[#F39C12]',
+      border: 'border-[#E0E0E0]',
+      icon: 'text-[#F39C12]'
     };
     if (percentage >= 80) return {
-      bg: 'bg-gradient-to-br from-yellow-500/20 to-yellow-600/20',
-      text: 'text-yellow-700',
-      border: 'border-yellow-200',
-      icon: 'text-yellow-700'
+      bg: 'bg-[rgba(243,156,18,0.1)]',
+      text: 'text-[#F39C12]',
+      border: 'border-[#E0E0E0]',
+      icon: 'text-[#F39C12]'
     };
     return {
-      bg: 'bg-gradient-to-br from-blue-500/20 to-blue-600/20',
-      text: 'text-blue-700',
-      border: 'border-blue-200',
-      icon: 'text-blue-700'
+      bg: 'bg-[rgba(5,109,170,0.12)]',
+      text: 'text-[#056daa]',
+      border: 'border-[#E0E0E0]',
+      icon: 'text-[#056daa]'
     };
   };
 
@@ -494,8 +511,8 @@ const SmartParkingDashboard: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading Dashboard...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-[#056daa] border-t-transparent mx-auto mb-4"></div>
+          <p className="text-[#555555] font-medium">Loading Dashboard...</p>
         </div>
       </div>
     );
@@ -503,105 +520,108 @@ const SmartParkingDashboard: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30 p-2 sm:p-3 md:p-4 lg:p-6">
+      <div className="min-h-screen p-2 sm:p-3 md:p-4 lg:p-6" style={{ backgroundColor: NEUTRAL_LIGHT }}>
 
         {/* Main Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-4">
-          <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
+          <div className="p-5 transition-shadow duration-300" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-blue-700 text-sm font-medium mb-1">Available Slots</p>
+                <p className="text-sm font-medium mb-1" style={{ color: PRIMARY, fontFamily: fontHeading }}>Available Slots</p>
                 {statsLoading ? (
-                  <div className="h-9 w-16 bg-blue-200/50 rounded animate-pulse mt-1"></div>
+                  <div className="h-9 w-16 animate-pulse mt-1" style={{ backgroundColor: 'rgba(5,109,170,0.12)' }}></div>
                 ) : (
-                  <h3 className="text-3xl font-bold text-blue-700">{stats.availableSlots}</h3>
+                  <h3 className="text-3xl font-bold" style={{ color: PRIMARY, fontFamily: fontHeading }}>{stats.availableSlots}</h3>
                 )}
-                <p className="text-gray-600 text-xs mt-2 flex items-center gap-1">
+                <p className="text-[#555555] text-xs mt-2 flex items-center gap-1">
                   <FiMapPin className="w-3 h-3" />
                   Out of {stats.totalSlots} total
                 </p>
               </div>
-              <div className="p-3 bg-white/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
-                <MdOutlineLocalParking className="w-6 h-6 text-blue-700" />
+              <div className="p-3" style={{ backgroundColor: 'rgba(5,109,170,0.08)' }}>
+                <MdOutlineLocalParking className="w-6 h-6" style={{ color: PRIMARY }} />
               </div>
             </div>
 </div>
 
-          <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
+          <div className="p-5 transition-shadow duration-300" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-emerald-700 text-sm font-medium mb-1">Regular Available</p>
+                <p className="text-sm font-medium mb-1" style={{ color: SUCCESS_HOVER, fontFamily: fontHeading }}>Regular Available</p>
                 {statsLoading ? (
-                  <div className="h-9 w-16 bg-emerald-200/50 rounded animate-pulse mt-1"></div>
+                  <div className="h-9 w-16 animate-pulse mt-1" style={{ backgroundColor: 'rgba(76,175,80,0.12)' }}></div>
                 ) : (
-                  <h3 className="text-3xl font-bold text-emerald-700">{stats.regularAvailable}</h3>
+                  <h3 className="text-3xl font-bold" style={{ color: SUCCESS_HOVER, fontFamily: fontHeading }}>{stats.regularAvailable}</h3>
                 )}
-                <p className="text-gray-600 text-xs mt-2 flex items-center gap-1">
+                <p className="text-[#555555] text-xs mt-2 flex items-center gap-1">
                   <FiMapPin className="w-3 h-3" /> {stats.regularTotal} allocated
                 </p>
               </div>
-              <div className="p-3 bg-white/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
-                <FiTruck className="w-6 h-6 text-emerald-700" />
+              <div className="p-3" style={{ backgroundColor: 'rgba(76,175,80,0.1)' }}>
+                <FiTruck className="w-6 h-6" style={{ color: SUCCESS }} />
               </div>
             </div>
           </div>
 
 
           {/* Staff Reserved */}
-          <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
+          <div className="p-5 transition-shadow duration-300" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-purple-700 text-sm font-medium mb-1">Staff Reserved</p>
+                <p className="text-sm font-medium mb-1" style={{ color: ACCENT_DARK_BLUE, fontFamily: fontHeading }}>Staff Reserved</p>
 {statsLoading ? (
-                   <div className="h-9 w-16 bg-purple-200/50 rounded animate-pulse mt-1"></div>
+                   <div className="h-9 w-16 animate-pulse mt-1" style={{ backgroundColor: 'rgba(41,128,185,0.12)' }}></div>
                  ) : (
-                   <h3 className="text-3xl font-bold text-purple-700">{stats.staffAvailableSlots}</h3>
+                   <h3 className="text-3xl font-bold" style={{ color: ACCENT_DARK_BLUE, fontFamily: fontHeading }}>{stats.staffAvailableSlots}</h3>
                  )}
-                 <p className="text-gray-700 text-xs mt-2 flex items-center gap-1">
+                 <p className="text-[#333333] text-xs mt-2 flex items-center gap-1">
                     <FiUsers className="w-3 h-3" />
                     {stats.staffReservedSlots} allocated
                   </p>
                </div>
-              <div className="p-3 bg-white/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
-                <FiShield className="w-6 h-6 text-purple-700" />
+              <div className="p-3" style={{ backgroundColor: 'rgba(41,128,185,0.1)' }}>
+                <FiShield className="w-6 h-6" style={{ color: ACCENT_DARK_BLUE }} />
               </div>
             </div>
           </div>
 
           {/* Visitor Reserved */}
-          <div className="group backdrop-blur-xl bg-white/80 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-white/20">
+          <div className="p-5 transition-shadow duration-300" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-amber-700 text-sm font-medium mb-1">Visitor Reserved</p>
+                <p className="text-sm font-medium mb-1" style={{ color: WARNING, fontFamily: fontHeading }}>Visitor Reserved</p>
 {statsLoading ? (
-                   <div className="h-9 w-16 bg-amber-200/50 rounded animate-pulse mt-1"></div>
+                   <div className="h-9 w-16 animate-pulse mt-1" style={{ backgroundColor: 'rgba(243,156,18,0.12)' }}></div>
                  ) : (
-                   <h3 className="text-3xl font-bold text-amber-700">{stats.visitorAvailableSlots}</h3>
+                   <h3 className="text-3xl font-bold" style={{ color: WARNING, fontFamily: fontHeading }}>{stats.visitorAvailableSlots}</h3>
                  )}
-                  <p className="text-gray-700 text-xs mt-2 flex items-center gap-1">
+                  <p className="text-[#333333] text-xs mt-2 flex items-center gap-1">
                     <FiTrendingUp className="w-3 h-3" />
                     {stats.visitorReservedSlots} allocated
                   </p>
                </div>
-              <div className="p-3 bg-white/20 backdrop-blur rounded-xl group-hover:scale-110 transition-transform">
-                <FiUserPlus className="w-6 h-6 text-amber-700" />
+              <div className="p-3" style={{ backgroundColor: 'rgba(243,156,18,0.1)' }}>
+                <FiUserPlus className="w-6 h-6" style={{ color: WARNING }} />
               </div>
             </div>
           </div>
         </div>
 
         {/* Hourly Analytics Graph */}
-        <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-xl border border-white/30 p-4 sm:p-5 mb-6">
+        <div className="p-4 sm:p-5 mb-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-xl">
-                <FiTrendingUp className="w-5 h-5 text-blue-600" />
+              <div className="p-2" style={{ backgroundColor: 'rgba(5,109,170,0.1)' }}>
+                <FiTrendingUp className="w-5 h-5 text-[#056daa]" />
               </div>
-              <h2 className="text-lg font-semibold text-gray-800">Hourly Parking Analytics</h2>
+              <h2 className="text-lg font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Hourly Parking Analytics</h2>
             </div>
             <button
               onClick={fetchHourlyAnalytics}
-              className="text-sm px-3 py-1.5 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 hover:from-blue-500/20 hover:to-indigo-500/20 rounded-full text-blue-600 font-medium transition-all flex items-center gap-1"
+              className="px-3 py-1.5 text-white transition-colors flex items-center gap-1"
+              style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontSize: 13, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
             >
               <FiActivity className="w-3.5 h-3.5" />
               Refresh
@@ -610,7 +630,7 @@ const SmartParkingDashboard: React.FC = () => {
 
           {(analyticsLoading && firstLoad) ? (
             <div className="flex items-center justify-center h-48">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#056daa] border-t-transparent"></div>
             </div>
           ) : hourlyParkingData.length > 0 ? (
             <div className="overflow-x-auto">
@@ -619,59 +639,59 @@ const SmartParkingDashboard: React.FC = () => {
                   <AreaChart data={hourlyParkingData} margin={{ top: 20, right: 30, left: 20, bottom: 25 }}>
                     <defs>
                       <linearGradient id="colorCheckIn" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#00aaff" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#00aaff" stopOpacity={0.02} />
+                        <stop offset="5%" stopColor="#056daa" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#056daa" stopOpacity={0.02} />
                       </linearGradient>
                       <linearGradient id="colorCheckOut" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
+                        <stop offset="5%" stopColor="#E74C3C" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#E74C3C" stopOpacity={0.02} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
                     <XAxis
                       dataKey="hour"
                       tickFormatter={(value: number) => `${value.toString().padStart(2, '0')}:00`}
-                      stroke="#9ca3af"
-                      tick={{ fontSize: 12 }}
+                      stroke={GRAY_DISABLED}
+                      tick={{ fontSize: 12, fill: GRAY_DISABLED }}
                       axisLine={false}
                       tickLine={false}
                     />
                     <YAxis
-                      stroke="#9ca3af"
-                      tick={{ fontSize: 12 }}
+                      stroke={GRAY_DISABLED}
+                      tick={{ fontSize: 12, fill: GRAY_DISABLED }}
                       axisLine={false}
                       tickLine={false}
                       label={{
                         value: 'Number of Vehicles',
                         angle: -90,
                         position: 'insideLeft',
-                        style: { fill: '#6b7280', fontSize: 12, fontWeight: 500, textAnchor: 'middle' },
+                        style: { fill: NEUTRAL_DARK, fontSize: 12, fontWeight: 500, textAnchor: 'middle' },
                         offset: 0
                       }}
                     />
                     <Tooltip contentStyle={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                      backgroundColor: WHITE,
+                      border: `1px solid ${BORDER}`,
+                      borderRadius: 0,
+                      boxShadow: CARD_SHADOW
                     }} />
                     <Legend />
-                    <Area type="monotone" dataKey="check_in" name="Check-ins" stroke="#00aaff" strokeWidth={2} fillOpacity={1} fill="url(#colorCheckIn)" dot={{ r: 4, fill: '#fff', stroke: '#00aaff', strokeWidth: 2 }} />
-                    <Area type="monotone" dataKey="check_out" name="Check-outs" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorCheckOut)" dot={{ r: 4, fill: '#fff', stroke: '#ef4444', strokeWidth: 2 }} />
+                    <Area type="monotone" dataKey="check_in" name="Check-ins" stroke="#056daa" strokeWidth={2} fillOpacity={1} fill="url(#colorCheckIn)" dot={{ r: 4, fill: '#fff', stroke: '#056daa', strokeWidth: 2 }} />
+                    <Area type="monotone" dataKey="check_out" name="Check-outs" stroke="#E74C3C" strokeWidth={2} fillOpacity={1} fill="url(#colorCheckOut)" dot={{ r: 4, fill: '#fff', stroke: '#E74C3C', strokeWidth: 2 }} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-100">
+              <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-[#E0E0E0]">
                 <div className="text-center">
-                  <p className="text-sm text-gray-500">Total Check-ins Today</p>
-                  <p className="text-2xl font-bold text-blue-600">
+                  <p className="text-sm text-[#555555]">Total Check-ins Today</p>
+                  <p className="text-2xl font-bold text-[#056daa]" style={{ fontFamily: fontHeading }}>
                     {hourlyParkingData.reduce((sum, d) => sum + d.check_in, 0)}
                   </p>
                 </div>
                 <div className="text-center">
-                  <p className="text-sm text-gray-500">Total Check-outs Today</p>
-                  <p className="text-2xl font-bold text-red-600">
+                  <p className="text-sm text-[#555555]">Total Check-outs Today</p>
+                  <p className="text-2xl font-bold text-[#E74C3C]" style={{ fontFamily: fontHeading }}>
                     {hourlyParkingData.reduce((sum, d) => sum + d.check_out, 0)}
                   </p>
             </div>
@@ -680,12 +700,12 @@ const SmartParkingDashboard: React.FC = () => {
           
         </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-48 text-gray-400">
+            <div className="flex flex-col items-center justify-center h-48 text-[#9E9E9E]">
               <FiTrendingUp className="w-12 h-12 mb-2 opacity-50" />
               <p className="text-sm">No hourly data available</p>
               <button
                 onClick={fetchHourlyAnalytics}
-                className="mt-2 text-sm text-blue-600 hover:underline"
+                className="mt-2 text-sm text-[#056daa] hover:underline"
               >
                 Click to refresh
               </button>
@@ -694,17 +714,17 @@ const SmartParkingDashboard: React.FC = () => {
         </div>
 
         {/* Flagged Vehicles Section */}
-        <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-xl border border-white/30 p-4 sm:p-5">
+        <div className="p-4 sm:p-5" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-xl">
-                <BsExclamationTriangle className="w-5 h-5 text-red-600" />
+              <div className="p-2" style={{ backgroundColor: 'rgba(231,76,60,0.1)' }}>
+                <BsExclamationTriangle className="w-5 h-5 text-[#E74C3C]" />
               </div>
-              <h2 className="text-lg font-semibold text-gray-800">Flagged Vehicles</h2>
+              <h2 className="text-lg font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Flagged Vehicles</h2>
             </div>
             <div className="flex items-center gap-2">
               {flaggedTotal > 0 && (
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-[#555555]">
                   Page {flaggedPage} of {Math.ceil(flaggedTotal / flaggedLimit)}
                 </span>
               )}
@@ -714,7 +734,10 @@ const SmartParkingDashboard: React.FC = () => {
                   setModalFlaggedVehicles(flaggedVehicles);
                   setShowFlaggedModal(true);
                 }}
-                className="text-sm px-3 py-1.5 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 hover:from-blue-500/20 hover:to-indigo-500/20 rounded-full text-blue-600 font-medium transition-all"
+                className="px-3 py-1.5 text-white transition-colors"
+                style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontSize: 13, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
               >
                 View All ({flaggedTotal})
               </button>
@@ -722,40 +745,40 @@ const SmartParkingDashboard: React.FC = () => {
           </div>
 
           {flaggedLoading ? (
-            <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mb-2"></div>
+            <div className="flex flex-col items-center justify-center py-8 text-[#9E9E9E]">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#056daa] border-t-transparent mb-2"></div>
               <p className="text-sm">Loading flagged vehicles...</p>
             </div>
           ) : flaggedVehicles.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+            <div className="flex flex-col items-center justify-center py-8 text-[#9E9E9E]">
               <BsShieldCheck className="w-12 h-12 mb-2 opacity-50" />
               <p className="text-sm">No flagged vehicles at the moment</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gradient-to-r from-red-600/10 to-red-500/10">
+                <thead className="bg-[rgba(231,76,60,0.06)]">
                   <tr>
-                    <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Plate No.</th>
-                    <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Driver</th>
-                    <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Type</th>
-                    <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Entry Time</th>
-                    <th className="text-left py-3 px-2 text-red-700 font-semibold text-xs uppercase tracking-wide">Duration</th>
-                    <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Status</th>
-                    <th className="text-right py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Action</th>
+                    <th className="text-left py-3 px-4 text-[#E74C3C] font-semibold text-xs uppercase tracking-wide">Plate No.</th>
+                    <th className="text-left py-3 px-4 text-[#E74C3C] font-semibold text-xs uppercase tracking-wide">Driver</th>
+                    <th className="text-left py-3 px-4 text-[#E74C3C] font-semibold text-xs uppercase tracking-wide">Type</th>
+                    <th className="text-left py-3 px-4 text-[#E74C3C] font-semibold text-xs uppercase tracking-wide">Entry Time</th>
+                    <th className="text-left py-3 px-2 text-[#E74C3C] font-semibold text-xs uppercase tracking-wide">Duration</th>
+                    <th className="text-left py-3 px-4 text-[#E74C3C] font-semibold text-xs uppercase tracking-wide">Status</th>
+                    <th className="text-right py-3 px-4 text-[#E74C3C] font-semibold text-xs uppercase tracking-wide">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-red-100">
+                <tbody className="divide-y divide-[#E0E0E0]">
                   {flaggedVehicles.slice(0, 1).map((vehicle, index) => (
-                    <tr key={index} className="hover:bg-red-50 cursor-pointer transition-colors" onClick={() => handleCheckoutClick(vehicle)}>
-                      <td className="py-3 px-4 font-mono font-bold text-red-600 text-sm">{vehicle.plate_no}</td>
-                      <td className="py-3 px-4 text-gray-700 text-sm">{vehicle.driver_name || '-'}</td>
+                    <tr key={index} className="hover:bg-[#F7F9FB] cursor-pointer transition-colors" onClick={() => handleCheckoutClick(vehicle)}>
+                      <td className="py-3 px-4 font-mono font-bold text-[#E74C3C] text-sm">{vehicle.plate_no}</td>
+                      <td className="py-3 px-4 text-[#333333] text-sm">{vehicle.driver_name || '-'}</td>
                       <td className="py-3 px-4">
-                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                        <span className="px-2.5 py-1 text-xs font-medium bg-[rgba(51,51,51,0.08)] text-[#333333]">
                           {vehicle.driver_type || '-'}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-gray-600 text-xs">
+                      <td className="py-3 px-4 text-[#555555] text-xs">
                         {vehicle.entry_time ? new Date(vehicle.entry_time).toLocaleString('en-US', {
                           month: 'short',
                           day: 'numeric',
@@ -765,14 +788,14 @@ const SmartParkingDashboard: React.FC = () => {
                         }) : '-'}
                       </td>
                       <td className="py-3 px-4">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getDurationBgColor(vehicle.duration)}`}>
+                        <span className={`px-2.5 py-1 text-xs font-medium ${getDurationBgColor(vehicle.duration)}`}>
                           {vehicle.duration || '-'}
                         </span>
                       </td>
                       <td className="py-3 px-4">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${vehicle.status === 'active'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-500'
+                        <span className={`px-2.5 py-1 text-xs font-medium ${vehicle.status === 'active'
+                            ? 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]'
+                            : 'bg-[rgba(51,51,51,0.08)] text-[#555555]'
                           }`}>
                           {vehicle.status === 'active' ? 'Inside' : 'Out'}
                         </span>
@@ -784,12 +807,15 @@ const SmartParkingDashboard: React.FC = () => {
                               e.stopPropagation();
                               handleCheckoutClick(vehicle);
                             }}
-                            className="px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all shadow-sm"
+                            className="px-3 py-1.5 text-xs text-white transition-colors"
+                            style={{ backgroundColor: DANGER, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#C0392B'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = DANGER; }}
                           >
                             Checkout
                           </button>
                         ) : (
-                          <span className="text-xs text-gray-400">-</span>
+                          <span className="text-xs text-[#9E9E9E]">-</span>
                         )}
                       </td>
                     </tr>
@@ -803,47 +829,47 @@ const SmartParkingDashboard: React.FC = () => {
 
       {/* Found Vehicle Modal */}
       {showFoundModal && verifiedData && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-lg mx-2 sm:mx-auto overflow-hidden border border-white/50 animate-scaleIn">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="w-full max-w-lg mx-2 sm:mx-auto overflow-hidden animate-scaleIn" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
             <div className={`px-4 sm:px-6 py-4 flex items-center justify-between border-b ${
               verifiedData.is_flagged && verifiedData.is_currently_parked
-                ? 'bg-gradient-to-r from-red-500/20 to-red-600/20 border-red-200'
+                ? 'bg-[rgba(231,76,60,0.1)] border-[#E0E0E0]'
                 : verifiedData.was_ever_flagged && !verifiedData.is_currently_parked
-                  ? 'bg-gradient-to-r from-orange-500/20 to-amber-500/20 border-orange-200'
+                  ? 'bg-[rgba(243,156,18,0.1)] border-[#E0E0E0]'
                   : verifiedData.is_currently_parked
-                    ? 'bg-gradient-to-r from-orange-500/20 to-amber-500/20 border-orange-200'
-                    : 'bg-gradient-to-r from-emerald-500/20 to-green-500/20 border-green-200'
+                    ? 'bg-[rgba(243,156,18,0.1)] border-[#E0E0E0]'
+                    : 'bg-[rgba(76,175,80,0.1)] border-[#E0E0E0]'
             }`}>
               <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-xl backdrop-blur-sm ${
+                <div className={`p-3 ${
                   verifiedData.is_flagged && verifiedData.is_currently_parked
-                    ? 'bg-red-500/20'
+                    ? 'bg-[rgba(231,76,60,0.15)]'
                     : verifiedData.was_ever_flagged && !verifiedData.is_currently_parked
-                      ? 'bg-orange-500/20'
+                      ? 'bg-[rgba(243,156,18,0.15)]'
                       : verifiedData.is_currently_parked
-                        ? 'bg-orange-500/20'
-                        : 'bg-emerald-500/20'
+                        ? 'bg-[rgba(243,156,18,0.15)]'
+                        : 'bg-[rgba(76,175,80,0.15)]'
                 }`}>
                   {verifiedData.is_flagged && verifiedData.is_currently_parked ? (
-                    <FiAlertTriangle className="w-6 h-6 text-red-600" />
+                    <FiAlertTriangle className="w-6 h-6 text-[#E74C3C]" />
                   ) : verifiedData.was_ever_flagged && !verifiedData.is_currently_parked ? (
-                    <FiAlertTriangle className="w-6 h-6 text-orange-600" />
+                    <FiAlertTriangle className="w-6 h-6 text-[#F39C12]" />
                   ) : verifiedData.is_currently_parked ? (
-                    <MdOutlineWarning className="w-6 h-6 text-orange-600" />
+                    <MdOutlineWarning className="w-6 h-6 text-[#F39C12]" />
                   ) : (
-                    <FiCheckCircle className="w-6 h-6 text-emerald-600" />
+                    <FiCheckCircle className="w-6 h-6 text-[#388E3C]" />
                   )}
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">Vehicle Verification</h3>
+                  <h3 className="text-xl font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Vehicle Verification</h3>
                   <p className={`text-sm ${
                     verifiedData.is_flagged && verifiedData.is_currently_parked
-                      ? 'text-red-600'
+                      ? 'text-[#E74C3C]'
                       : verifiedData.was_ever_flagged && !verifiedData.is_currently_parked
-                        ? 'text-orange-600'
+                        ? 'text-[#F39C12]'
                         : verifiedData.is_currently_parked
-                          ? 'text-orange-600'
-                          : 'text-emerald-600'
+                          ? 'text-[#F39C12]'
+                          : 'text-[#388E3C]'
                   }`}>
                     {verifiedData.is_flagged && verifiedData.is_currently_parked
                       ? 'Vehicle is flagged'
@@ -855,34 +881,34 @@ const SmartParkingDashboard: React.FC = () => {
                   </p>
                 </div>
               </div>
-              <button onClick={closeAllModals} className="p-2 hover:bg-white/20 rounded-full transition-colors">
-                <FiX className="w-5 h-5 text-gray-600" />
+              <button onClick={closeAllModals} className="p-2 hover:bg-black/5 transition-colors">
+                <FiX className="w-5 h-5 text-[#555555]" />
               </button>
             </div>
 
             <div className="p-4 sm:p-6">
               <div className="flex flex-col items-center mb-6">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-xl mb-3">
-                  <span className="text-3xl font-bold text-white">
+                <div className="w-24 h-24 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: PRIMARY, boxShadow: CARD_SHADOW }}>
+                  <span className="text-3xl font-bold text-white" style={{ fontFamily: fontHeading }}>
                     {(driverInfo.name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                   </span>
                 </div>
                 {verifiedData.staff_details?.department_name && (
-                  <div className="px-3 py-1 bg-gradient-to-r from-purple-500/10 to-pink-500/10 backdrop-blur-sm rounded-full border border-purple-200">
-                    <span className="text-xs font-medium text-purple-600">
+                  <div className="px-3 py-1 bg-[rgba(41,128,185,0.1)] border border-[#E0E0E0]">
+                    <span className="text-xs font-medium text-[#2980B9]">
                       {verifiedData.staff_details.department_name}
                     </span>
                   </div>
                 )}
               </div>
 
-              <div className="mb-4 bg-gradient-to-br from-gray-500/5 to-gray-500/10 backdrop-blur-sm rounded-xl p-4 border border-white/50">
+              <div className="mb-4 p-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <FiUser className="w-4 h-4 text-blue-500" />
+                  <h4 className="text-sm font-semibold flex items-center gap-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
+                    <FiUser className="w-4 h-4 text-[#056daa]" />
                     Driver Information
                     {verifiedData.is_reserved && (
-                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+                      <span className="px-2 py-0.5 bg-[rgba(76,175,80,0.12)] text-[#388E3C] text-xs font-medium">
                         Reserved
                       </span>
                     )}
@@ -890,7 +916,8 @@ const SmartParkingDashboard: React.FC = () => {
                   {!verifiedData.is_currently_parked && !verifiedData.is_reserved && (
                     <button
                       onClick={() => setIsEditingDriver(!isEditingDriver)}
-                      className="text-xs flex items-center gap-1 px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg text-blue-600 transition-colors"
+                      className="text-xs flex items-center gap-1 px-2 py-1 bg-[rgba(5,109,170,0.08)] hover:bg-[rgba(5,109,170,0.15)] text-[#056daa] transition-colors"
+                      style={{ fontFamily: fontHeading, fontWeight: 600 }}
                     >
                       <FiEdit className="w-3 h-3" />
                       {isEditingDriver ? 'Cancel' : 'Edit'}
@@ -906,7 +933,10 @@ const SmartParkingDashboard: React.FC = () => {
                       value={driverInfo.name}
                       onChange={handleDriverInfoChange}
                       placeholder="Driver name"
-                      className="w-full px-3 py-2 bg-white/50 backdrop-blur border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                      className="w-full px-3 py-2 text-sm"
+                      style={{ fontFamily: fontHeading, fontSize: 14, backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }}
                     />
                     <input
                       type="tel"
@@ -914,7 +944,10 @@ const SmartParkingDashboard: React.FC = () => {
                       value={driverInfo.telephone}
                       onChange={handleDriverInfoChange}
                       placeholder="Phone number"
-                      className="w-full px-3 py-2 bg-white/50 backdrop-blur border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                      className="w-full px-3 py-2 text-sm"
+                      style={{ fontFamily: fontHeading, fontSize: 14, backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }}
                     />
                     <div>
                       <input
@@ -923,10 +956,13 @@ const SmartParkingDashboard: React.FC = () => {
                         value={driverInfo.badge_number}
                         onChange={handleDriverInfoChange}
                         placeholder={verifiedData.is_reserved ? "Badge number (optional for reserved)" : "Badge number *"}
-                        className="w-full px-3 py-2 bg-white/50 backdrop-blur border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                        className="w-full px-3 py-2 text-sm"
+                      style={{ fontFamily: fontHeading, fontSize: 14, backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }}
                         required={!verifiedData.is_reserved}
                       />
-                      <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                      <p className="text-xs text-[#555555] mt-1 flex items-center gap-1">
                         <FiInfo className="w-3 h-3" />
                         {verifiedData.is_reserved ? 'Optional for reserved vehicles' : 'Required for check-in'}
                       </p>
@@ -934,17 +970,17 @@ const SmartParkingDashboard: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <div className="flex items-center gap-3 p-2 bg-white/50 backdrop-blur rounded-lg">
-                      <FiUser className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-700">{driverInfo.name || 'Not specified'}</span>
+                    <div className="flex items-center gap-3 p-2 bg-white">
+                      <FiUser className="w-4 h-4 text-[#9E9E9E]" />
+                      <span className="text-sm text-[#333333]">{driverInfo.name || 'Not specified'}</span>
                     </div>
-                    <div className="flex items-center gap-3 p-2 bg-white/50 backdrop-blur rounded-lg">
-                      <FiPhone className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-700">{driverInfo.telephone || 'Not specified'}</span>
+                    <div className="flex items-center gap-3 p-2 bg-white">
+                      <FiPhone className="w-4 h-4 text-[#9E9E9E]" />
+                      <span className="text-sm text-[#333333]">{driverInfo.telephone || 'Not specified'}</span>
                     </div>
-                    <div className="flex items-center gap-3 p-2 bg-white/50 backdrop-blur rounded-lg">
-                      <FaRegIdCard className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-700 font-medium">
+                    <div className="flex items-center gap-3 p-2 bg-white">
+                      <FaRegIdCard className="w-4 h-4 text-[#9E9E9E]" />
+                      <span className="text-sm text-[#333333] font-medium">
                         Badge: {driverInfo.badge_number || (verifiedData.is_reserved ? '___ (Reserved)' : 'Not specified')}
                       </span>
                     </div>
@@ -952,17 +988,17 @@ const SmartParkingDashboard: React.FC = () => {
                 )}
               </div>
 
-              <div className="bg-gradient-to-r from-gray-500/5 to-gray-500/10 backdrop-blur-sm rounded-xl p-4 mb-4 border border-white/50">
+              <div className="p-4 mb-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Vehicle Type</p>
-                    <p className="text-lg font-semibold text-gray-900">
+                    <p className="mb-1" style={{ fontFamily: fontHeading, fontSize: 13, fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Vehicle Type</p>
+                    <p className="text-lg font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
                       {verifiedData.vehicle_category || 'Staff Vehicle'}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Plate Number</p>
-                    <p className="text-xl font-mono font-bold text-gray-900 tracking-wide">
+                    <p className="mb-1" style={{ fontFamily: fontHeading, fontSize: 13, fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Plate Number</p>
+                    <p className="text-xl font-mono font-bold text-[#333333] tracking-wide">
                       {verifiedData.plate_number}
                     </p>
                   </div>
@@ -972,11 +1008,14 @@ const SmartParkingDashboard: React.FC = () => {
               <button
                 onClick={handleConfirmEntry}
                 disabled={verifiedData.is_currently_parked}
-                className={`w-full py-3 px-4 rounded-xl font-semibold text-sm sm:text-base transition-all flex items-center justify-center gap-2 ${
+                className={`w-full py-3 px-4 font-semibold text-sm sm:text-base transition-colors flex items-center justify-center gap-2 ${
                   verifiedData.is_currently_parked
-                    ? 'bg-gray-300 cursor-not-allowed text-gray-600'
-                    : 'bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white shadow-lg hover:shadow-xl'
+                    ? 'cursor-not-allowed'
+                    : ''
                 }`}
+                style={{ backgroundColor: verifiedData.is_currently_parked ? GRAY_DISABLED : SUCCESS, color: WHITE, borderRadius: 0, fontFamily: fontHeading, letterSpacing: '1px', textTransform: 'uppercase' }}
+                onMouseEnter={(e) => { if (!verifiedData.is_currently_parked) e.currentTarget.style.backgroundColor = SUCCESS_HOVER; }}
+                onMouseLeave={(e) => { if (!verifiedData.is_currently_parked) e.currentTarget.style.backgroundColor = SUCCESS; }}
               >
                 <FiCheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                 {verifiedData.is_currently_parked ? 'Already Checked In' : 'Confirm Entry & Open Gate'}
@@ -984,7 +1023,10 @@ const SmartParkingDashboard: React.FC = () => {
 
               <button
                 onClick={closeAllModals}
-                className="w-full mt-2 py-2 px-4 bg-white/50 backdrop-blur hover:bg-white/80 border border-gray-200 text-gray-700 rounded-xl font-medium transition-all flex items-center justify-center gap-2"
+                className="w-full mt-2 py-2 px-4 font-medium transition-colors flex items-center justify-center gap-2"
+                style={{ backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontSize: 13, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(5,109,170,0.08)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
               >
                 <FiX className="w-3 h-3 sm:w-4 sm:h-4" />
                 Close
@@ -996,56 +1038,56 @@ const SmartParkingDashboard: React.FC = () => {
 
       {/* Checkout Confirmation Modal */}
       {showCheckoutConfirmModal && checkoutVehicle && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-sm mx-2 sm:mx-auto p-4 sm:p-6 border border-white/50 animate-scaleIn">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="w-full max-w-sm mx-2 sm:mx-auto p-4 sm:p-6 animate-scaleIn" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
             <div className="text-center mb-4 sm:mb-6">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 bg-gradient-to-r from-red-500/20 to-orange-500/20 rounded-full flex items-center justify-center">
-                <FiAlertTriangle className="w-6 h-6 sm:w-8 sm:h-8 text-red-600" />
+              <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 bg-[rgba(231,76,60,0.12)] rounded-full flex items-center justify-center">
+                <FiAlertTriangle className="w-6 h-6 sm:w-8 sm:h-8 text-[#E74C3C]" />
               </div>
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">Confirm Checkout</h3>
-              <p className="text-sm sm:text-base text-gray-600">Are you sure you want to check out this flagged vehicle?</p>
+              <h3 className="text-lg sm:text-xl font-bold mb-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Confirm Checkout</h3>
+              <p className="text-sm sm:text-base text-[#555555]">Are you sure you want to check out this flagged vehicle?</p>
             </div>
 
-            <div className="bg-gradient-to-r from-red-500/5 to-orange-500/5 backdrop-blur-sm rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-red-200">
+            <div className="p-3 sm:p-4 mb-4 sm:mb-6 border border-[#E0E0E0]" style={{ backgroundColor: NEUTRAL_LIGHT }}>
               <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: DANGER }}>
                   <FiTruck className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
                 <div className="min-w-0">
-                  <div className="font-mono font-bold text-gray-900 text-sm sm:text-base truncate">{checkoutVehicle.plate_no}</div>
-                  <div className="text-xs sm:text-sm text-gray-600 truncate">{checkoutVehicle.driver_name || 'Unknown Driver'}</div>
+                  <div className="font-mono font-bold text-[#333333] text-sm sm:text-base truncate">{checkoutVehicle.plate_no}</div>
+                  <div className="text-xs sm:text-sm text-[#555555] truncate">{checkoutVehicle.driver_name || 'Unknown Driver'}</div>
                 </div>
               </div>
 
               <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm">
-                <div className="flex justify-between items-center py-1 sm:py-2 border-t border-red-100">
-                  <span className="text-gray-500 flex items-center gap-1">
+                <div className="flex justify-between items-center py-1 sm:py-2 border-t border-[#E0E0E0]">
+                  <span className="text-[#555555] flex items-center gap-1">
                     <FiClock className="w-3 h-3 sm:w-4 sm:h-4" />
                     Duration:
                   </span>
-                  <span className="font-medium text-red-600">{checkoutVehicle.duration || 'N/A'}</span>
+                  <span className="font-medium text-[#E74C3C]">{checkoutVehicle.duration || 'N/A'}</span>
                 </div>
-                <div className="flex justify-between items-center py-1 sm:py-2 border-t border-red-100">
-                  <span className="text-gray-500 flex items-center gap-1">
+                <div className="flex justify-between items-center py-1 sm:py-2 border-t border-[#E0E0E0]">
+                  <span className="text-[#555555] flex items-center gap-1">
                     <FiUser className="w-3 h-3 sm:w-4 sm:h-4" />
                     Driver Type:
                   </span>
-                  <span className="font-medium text-gray-700">{checkoutVehicle.driver_type || 'Unknown'}</span>
+                  <span className="font-medium text-[#333333]">{checkoutVehicle.driver_type || 'Unknown'}</span>
                 </div>
-                <div className="flex justify-between items-center py-1 sm:py-2 border-t border-red-100">
-                  <span className="text-gray-500 flex items-center gap-1">
+                <div className="flex justify-between items-center py-1 sm:py-2 border-t border-[#E0E0E0]">
+                  <span className="text-[#555555] flex items-center gap-1">
                     <FiActivity className="w-3 h-3 sm:w-4 sm:h-4" />
                     Status:
                   </span>
-                  <span className="font-medium text-green-600 text-xs sm:text-sm">Inside (Active)</span>
+                  <span className="font-medium text-[#388E3C] text-xs sm:text-sm">Inside (Active)</span>
                 </div>
                 {checkoutVehicle.entry_time && (
-                  <div className="flex justify-between items-center py-1 sm:py-2 border-t border-red-100">
-                    <span className="text-gray-500 flex items-center gap-1">
+                  <div className="flex justify-between items-center py-1 sm:py-2 border-t border-[#E0E0E0]">
+                    <span className="text-[#555555] flex items-center gap-1">
                       <FiCalendar className="w-3 h-3 sm:w-4 sm:h-4" />
                       Entry Time:
                     </span>
-                    <span className="font-medium text-gray-700 text-xs sm:text-sm">
+                    <span className="font-medium text-[#333333] text-xs sm:text-sm">
                       {new Date(checkoutVehicle.entry_time).toLocaleString('en-US', {
                         month: 'short',
                         day: 'numeric',
@@ -1062,14 +1104,20 @@ const SmartParkingDashboard: React.FC = () => {
             <div className="flex gap-2 sm:gap-3">
               <button
                 onClick={closeAllModals}
-                className="flex-1 py-2 sm:py-3 bg-white/50 backdrop-blur hover:bg-white/80 border border-gray-200 text-gray-700 rounded-xl font-medium transition-all text-sm sm:text-base"
+                className="flex-1 py-2 sm:py-3 font-medium transition-colors text-sm sm:text-base"
+                style={{ backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontSize: 13, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(5,109,170,0.08)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmCheckout}
                 disabled={loading}
-                className="flex-1 py-2 sm:py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-1 sm:gap-2 disabled:opacity-50 text-sm sm:text-base"
+                className="flex-1 py-2 sm:py-3 text-white font-medium transition-colors flex items-center justify-center gap-1 sm:gap-2 disabled:opacity-50 text-sm sm:text-base"
+                style={{ backgroundColor: DANGER, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#C0392B'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = DANGER; }}
               >
                 {loading ? (
                   <>
@@ -1091,36 +1139,36 @@ const SmartParkingDashboard: React.FC = () => {
 
       {/* Flagged Vehicles Modal */}
       {showFlaggedModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-5xl mx-2 sm:mx-auto overflow-hidden border border-white/50 animate-scaleIn">
-            <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 px-4 sm:px-6 py-4 border-b border-red-200 flex items-center justify-between">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="w-full max-w-5xl mx-2 sm:mx-auto overflow-hidden animate-scaleIn" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+            <div className="bg-[rgba(231,76,60,0.1)] px-4 sm:px-6 py-4 border-b border-[#E0E0E0] flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-red-500/20 rounded-xl">
-                  <BsExclamationTriangle className="w-6 h-6 text-red-600" />
+                <div className="p-3 bg-[rgba(231,76,60,0.15)]">
+                  <BsExclamationTriangle className="w-6 h-6 text-[#E74C3C]" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">Flagged Vehicles</h3>
-                  <p className="text-sm text-gray-600">
+                  <h3 className="text-xl font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Flagged Vehicles</h3>
+                  <p className="text-sm text-[#555555]">
                     {flaggedTotal} flagged vehicle{flaggedTotal !== 1 ? 's' : ''} currently inside
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowFlaggedModal(false)}
-                className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                className="p-2 hover:bg-black/5 transition-colors"
               >
-                <FiX className="w-5 h-5 text-gray-600" />
+                <FiX className="w-5 h-5 text-[#555555]" />
               </button>
             </div>
 
             <div className="p-4 sm:p-6">
               {modalFlaggedLoading ? (
-                <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mb-2"></div>
+                <div className="flex flex-col items-center justify-center py-12 text-[#9E9E9E]">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#056daa] border-t-transparent mb-2"></div>
                   <p className="text-sm">Loading flagged vehicles...</p>
                 </div>
               ) : modalFlaggedVehicles.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                <div className="flex flex-col items-center justify-center py-12 text-[#9E9E9E]">
                   <BsShieldCheck className="w-16 h-16 mb-3 opacity-50" />
                   <p className="text-sm">No flagged vehicles currently inside the parking</p>
                 </div>
@@ -1128,28 +1176,28 @@ const SmartParkingDashboard: React.FC = () => {
                 <>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                      <thead className="bg-gradient-to-r from-red-600/10 to-red-500/10 sticky top-0">
+                      <thead className="bg-[rgba(231,76,60,0.06)] sticky top-0">
                         <tr>
-                          <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Plate No.</th>
-                          <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Driver</th>
-                          <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Type</th>
-                          <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Entry Time</th>
-                          <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Duration</th>
-                          <th className="text-left py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Status</th>
-                          <th className="text-right py-3 px-4 text-red-700 font-semibold text-xs uppercase tracking-wide">Action</th>
+                          <th className="text-left py-3 px-4 text-[#E74C3C] font-semibold text-xs uppercase tracking-wide">Plate No.</th>
+                          <th className="text-left py-3 px-4 text-[#E74C3C] font-semibold text-xs uppercase tracking-wide">Driver</th>
+                          <th className="text-left py-3 px-4 text-[#E74C3C] font-semibold text-xs uppercase tracking-wide">Type</th>
+                          <th className="text-left py-3 px-4 text-[#E74C3C] font-semibold text-xs uppercase tracking-wide">Entry Time</th>
+                          <th className="text-left py-3 px-4 text-[#E74C3C] font-semibold text-xs uppercase tracking-wide">Duration</th>
+                          <th className="text-left py-3 px-4 text-[#E74C3C] font-semibold text-xs uppercase tracking-wide">Status</th>
+                          <th className="text-right py-3 px-4 text-[#E74C3C] font-semibold text-xs uppercase tracking-wide">Action</th>
                          </tr>
                       </thead>
-                      <tbody className="divide-y divide-red-100">
+                      <tbody className="divide-y divide-[#E0E0E0]">
                         {modalFlaggedVehicles.map((vehicle, index) => (
-                          <tr key={index} className="hover:bg-red-50 transition-colors">
-                            <td className="py-3 px-4 font-mono font-bold text-red-600">{vehicle.plate_no}</td>
-                            <td className="py-3 px-4 text-gray-700">{vehicle.driver_name || '-'}</td>
+                          <tr key={index} className="hover:bg-[#F7F9FB] transition-colors">
+                            <td className="py-3 px-4 font-mono font-bold text-[#E74C3C]">{vehicle.plate_no}</td>
+                            <td className="py-3 px-4 text-[#333333]">{vehicle.driver_name || '-'}</td>
                             <td className="py-3 px-4">
-                              <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                              <span className="px-2.5 py-1 text-xs font-medium bg-[rgba(51,51,51,0.08)] text-[#333333]">
                                 {vehicle.driver_type || '-'}
                               </span>
                             </td>
-                            <td className="py-3 px-4 text-gray-600 text-xs">
+                            <td className="py-3 px-4 text-[#555555] text-xs">
                               {vehicle.entry_time ? new Date(vehicle.entry_time).toLocaleString('en-US', {
                                 month: 'short',
                                 day: 'numeric',
@@ -1159,15 +1207,15 @@ const SmartParkingDashboard: React.FC = () => {
                               }) : '-'}
                             </td>
                             <td className="py-3 px-4">
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getDurationBgColor(vehicle.duration)}`}>
+                              <span className={`px-2.5 py-1 text-xs font-medium ${getDurationBgColor(vehicle.duration)}`}>
                                 {vehicle.duration || '-'}
                               </span>
                             </td>
                             <td className="py-3 px-4">
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                              <span className={`px-2.5 py-1 text-xs font-medium ${
                                 vehicle.status === 'active'
-                                  ? 'bg-green-100 text-green-700'
-                                  : 'bg-gray-100 text-gray-500'
+                                  ? 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]'
+                                  : 'bg-[rgba(51,51,51,0.08)] text-[#555555]'
                               }`}>
                                 {vehicle.status === 'active' ? 'Inside' : 'Out'}
                               </span>
@@ -1179,12 +1227,15 @@ const SmartParkingDashboard: React.FC = () => {
                                     setShowFlaggedModal(false);
                                     handleCheckoutClick(vehicle);
                                   }}
-                                  className="px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all shadow-sm"
+                                  className="px-3 py-1.5 text-xs text-white transition-colors"
+                            style={{ backgroundColor: DANGER, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#C0392B'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = DANGER; }}
                                 >
                                   Checkout
                                 </button>
                               ) : (
-                                <span className="text-xs text-gray-400">-</span>
+                                <span className="text-xs text-[#9E9E9E]">-</span>
                               )}
                             </td>
                           </tr>
@@ -1195,21 +1246,23 @@ const SmartParkingDashboard: React.FC = () => {
                   
                   {/* Pagination Controls */}
                   {flaggedTotal > flaggedLimit && (
-                    <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
+                    <div className="flex justify-between items-center mt-4 pt-4 border-t border-[#E0E0E0]">
                       <button
                         onClick={() => handleModalFlaggedPageChange(Math.max(1, modalFlaggedPage - 1))}
                         disabled={modalFlaggedPage === 1 || modalFlaggedLoading}
-                        className="px-3 py-1 text-sm bg-white/50 backdrop-blur rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/80"
+                        className="px-3 py-1 text-sm bg-white border border-[#E0E0E0] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#F7F9FB] transition-colors"
+                        style={{ borderRadius: 0, fontFamily: fontHeading, color: NEUTRAL_DARK }}
                       >
                         Previous
                       </button>
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-[#555555]">
                         Page {modalFlaggedPage} of {Math.ceil(flaggedTotal / flaggedLimit)}
                       </span>
                       <button
                         onClick={() => handleModalFlaggedPageChange(Math.min(Math.ceil(flaggedTotal / flaggedLimit), modalFlaggedPage + 1))}
                         disabled={modalFlaggedPage >= Math.ceil(flaggedTotal / flaggedLimit) || modalFlaggedLoading}
-                        className="px-3 py-1 text-sm bg-white/50 backdrop-blur rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/80"
+                        className="px-3 py-1 text-sm bg-white border border-[#E0E0E0] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#F7F9FB] transition-colors"
+                        style={{ borderRadius: 0, fontFamily: fontHeading, color: NEUTRAL_DARK }}
                       >
                         Next
                       </button>

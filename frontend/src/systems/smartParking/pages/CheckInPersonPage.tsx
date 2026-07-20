@@ -8,6 +8,57 @@ import { useSocket } from '../../../core/contexts/SocketContext';
 import { serviceDeliveryService } from '../../../core/services/adminService';
 import { FiPlus, FiPhone, FiCreditCard, FiUser, FiMail } from 'react-icons/fi';
 
+// City of Kigali (CoK) institutional design constants
+const PRIMARY = "#056daa";
+const PRIMARY_HOVER = "#045d94";
+const SUCCESS = "#4CAF50";
+const DANGER = "#E74C3C";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const TERTIARY = "#CDB896";
+const WHITE = "#FFFFFF";
+const GRAY_DISABLED = "#9E9E9E";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+
+const labelStyle: React.CSSProperties = {
+  fontFamily: fontHeading,
+  fontSize: '13px',
+  fontWeight: 600,
+  letterSpacing: '0.5px',
+  textTransform: 'uppercase',
+  color: TERTIARY,
+};
+
+const inputStyle: React.CSSProperties = {
+  fontFamily: fontHeading,
+  fontSize: '14px',
+  backgroundColor: NEUTRAL_LIGHT,
+  border: '1px solid transparent',
+  borderRadius: 0,
+  boxShadow: '0px 2px 4px rgba(0,0,0,0.1)',
+  color: NEUTRAL_DARK,
+};
+
+const buttonBaseStyle: React.CSSProperties = {
+  fontFamily: fontHeading,
+  fontSize: '13px',
+  fontWeight: 600,
+  letterSpacing: '1px',
+  textTransform: 'uppercase',
+  borderRadius: 0,
+};
+
+const handleInputFocus = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+  e.currentTarget.style.borderColor = PRIMARY;
+  e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)';
+};
+
+const handleInputBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+  e.currentTarget.style.borderColor = 'transparent';
+  e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)';
+};
+
 interface VisitorFormData {
   full_name: string;
   telephone: string;
@@ -282,24 +333,27 @@ const CheckInPersonPage: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="p-6">
+      <div className="p-6" style={{ backgroundColor: NEUTRAL_LIGHT, minHeight: '100%' }}>
         <div className="max-w-2xl mx-auto">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Full Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Full Name <span className="text-red-500">*</span>
+                <label className="block mb-1" style={labelStyle}>
+                  Full Name <span style={{ color: DANGER }}>*</span>
                 </label>
                 <div className="relative">
-                  <FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" style={{ color: GRAY_DISABLED }} />
                   <input
                     type="text"
                     name="full_name"
                     value={formData.full_name}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full pl-10 pr-4 py-2 focus:outline-none"
+                    style={inputStyle}
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
                     placeholder="Enter full name"
                   />
                 </div>
@@ -308,40 +362,49 @@ const CheckInPersonPage: React.FC = () => {
               {/* Phone and Email */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone Number <span className="text-red-500">*</span>
+                  <label className="block mb-1" style={labelStyle}>
+                    Phone Number <span style={{ color: DANGER }}>*</span>
                   </label>
                   <div className="relative">
-                    <FiPhone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <FiPhone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" style={{ color: GRAY_DISABLED }} />
                     <input
                       type="tel"
                       name="telephone"
                       value={formData.telephone}
                       onChange={handleChange}
                       required
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full pl-10 pr-4 py-2 focus:outline-none"
+                      style={inputStyle}
+                      onFocus={handleInputFocus}
+                      onBlur={handleInputBlur}
                       placeholder="Phone number"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block mb-1" style={labelStyle}>
                     Email
                   </label>
                   <div className="relative">
-                    <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" style={{ color: GRAY_DISABLED }} />
                     <input
                       type="email"
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
-                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${emailError ? 'border-red-500' : 'border-gray-300'}`}
+                      className="w-full pl-10 pr-4 py-2 focus:outline-none"
+                      style={{ ...inputStyle, border: emailError ? `1px solid ${DANGER}` : '1px solid transparent' }}
+                      onFocus={handleInputFocus}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = emailError ? DANGER : 'transparent';
+                        e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)';
+                      }}
                       placeholder="Email address"
                     />
                   </div>
                   {emailError && (
-                    <p className="mt-1 text-xs text-red-500">{emailError}</p>
+                    <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{emailError}</p>
                   )}
                 </div>
               </div>
@@ -349,14 +412,17 @@ const CheckInPersonPage: React.FC = () => {
               {/* ID Type and ID Number */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block mb-1" style={labelStyle}>
                     ID Type
                   </label>
                   <select
                     name="id_type"
                     value={formData.id_type}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-2 focus:outline-none"
+                    style={inputStyle}
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
                   >
                     <option value="National ID">National ID</option>
                     <option value="Passport">Passport</option>
@@ -365,25 +431,31 @@ const CheckInPersonPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block mb-1" style={labelStyle}>
                     ID Number
                   </label>
                   <div className="relative">
-                    <FiCreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <FiCreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" style={{ color: GRAY_DISABLED }} />
                     <input
                       type="text"
                       name="id_number"
                       value={formData.id_number}
                       onChange={handleChange}
-                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${idError ? 'border-red-500' : 'border-gray-300'}`}
+                      className="w-full pl-10 pr-4 py-2 focus:outline-none"
+                      style={{ ...inputStyle, border: idError ? `1px solid ${DANGER}` : '1px solid transparent' }}
+                      onFocus={handleInputFocus}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = idError ? DANGER : 'transparent';
+                        e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)';
+                      }}
                       placeholder={formData.id_type === 'National ID' ? 'Enter 16_digit national ID' : 'Enter ID number'}
                     />
                   </div>
                   {idError && (
-                    <p className="mt-1 text-xs text-red-500">{idError}</p>
+                    <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{idError}</p>
                   )}
                   {formData.id_type === 'National ID' && formData.id_number && !idError && (
-                    <p className="mt-1 text-xs text-green-600">✓ National ID format valid</p>
+                    <p className="mt-1 text-xs" style={{ color: SUCCESS, fontFamily: fontHeading }}>✓ National ID format valid</p>
                   )}
                 </div>
               </div>
@@ -391,14 +463,17 @@ const CheckInPersonPage: React.FC = () => {
               {/* Gender and Badge Number */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block mb-1" style={labelStyle}>
                     Gender
                   </label>
                   <select
                     name="gender"
                     value={formData.gender}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-2 focus:outline-none"
+                    style={inputStyle}
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
                   >
                     <option value="Not specified">Not specified</option>
                     <option value="Male">Male</option>
@@ -407,7 +482,7 @@ const CheckInPersonPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block mb-1" style={labelStyle}>
                     Badge Number
                   </label>
                   <input
@@ -415,7 +490,10 @@ const CheckInPersonPage: React.FC = () => {
                     name="badge_number"
                     value={formData.badge_number}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-2 focus:outline-none"
+                    style={inputStyle}
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
                     placeholder="Badge number"
                   />
                 </div>
@@ -438,14 +516,20 @@ const CheckInPersonPage: React.FC = () => {
                     setIdError(null);
                     setEmailError(null);
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-100 font-medium text-sm transition-colors"
+                  className="flex-1 px-4 py-2 transition-colors"
+                  style={{ ...buttonBaseStyle, backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(5,109,170,0.08)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                 >
                   Reset
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium text-sm flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+                  style={{ ...buttonBaseStyle, backgroundColor: PRIMARY, color: WHITE, border: 'none' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
                 >
                   {loading ? (
                     <>
