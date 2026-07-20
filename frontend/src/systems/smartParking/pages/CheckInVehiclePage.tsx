@@ -13,6 +13,51 @@ import {
 } from 'react-icons/fi';
 import { BsShieldCheck } from 'react-icons/bs';
 
+// City of Kigali (CoK) institutional design constants
+const PRIMARY = "#056daa";
+const PRIMARY_HOVER = "#045d94";
+const SUCCESS = "#4CAF50";
+const WARNING = "#F39C12";
+const DANGER = "#E74C3C";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const BORDER = "#E0E0E0";
+const TERTIARY = "#CDB896";
+const WHITE = "#FFFFFF";
+const GRAY_DISABLED = "#9E9E9E";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+const INPUT_SHADOW = "0px 2px 4px rgba(0,0,0,0.1)";
+const INPUT_FOCUS_SHADOW = "0px 4px 8px rgba(5,109,170,0.25)";
+
+const labelStyle: React.CSSProperties = {
+  fontFamily: fontHeading,
+  fontSize: '13px',
+  fontWeight: 600,
+  letterSpacing: '0.5px',
+  textTransform: 'uppercase',
+  color: TERTIARY,
+};
+
+const inputStyle: React.CSSProperties = {
+  fontFamily: fontHeading,
+  fontSize: '14px',
+  backgroundColor: NEUTRAL_LIGHT,
+  border: '1px solid transparent',
+  borderRadius: 0,
+  boxShadow: INPUT_SHADOW,
+  color: NEUTRAL_DARK,
+};
+
+const buttonFont: React.CSSProperties = {
+  borderRadius: 0,
+  textTransform: 'uppercase',
+  fontFamily: fontHeading,
+  fontSize: '13px',
+  fontWeight: 600,
+  letterSpacing: '1px',
+};
+
 interface VehicleData {
   plate_number?: string;
   vehicle_category?: string;
@@ -424,8 +469,8 @@ const CheckInVehiclePage: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: PRIMARY }}></div>
+          <p style={{ color: '#555555' }}>Loading...</p>
         </div>
       </div>
     );
@@ -433,37 +478,40 @@ const CheckInVehiclePage: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="p-6">
+      <div className="p-6" style={{ backgroundColor: NEUTRAL_LIGHT }}>
         <div className="flex justify-center">
           <div className="w-full max-w-md">
             {/* Manual Verification Panel - Centered */}
-            <div className="bg-white rounded-[20px] p-6 shadow-sm border border-gray-100">
-              <div className="rounded-t-[17px] -mx-6 -mt-6 px-6 pt-6 pb-4 mb-4" style={{ backgroundColor: '#F1F5F9' }}>
-                <h2 className="text-lg font-bold mb-1" style={{ color: '#0F172A' }}>Manual Verification</h2>
-                <p className="text-xs text-gray-500">Enter plate number manually</p>
+            <div className="p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+              <div className="-mx-6 -mt-6 px-6 pt-6 pb-4 mb-4" style={{ backgroundColor: NEUTRAL_LIGHT, borderBottom: `1px solid ${BORDER}` }}>
+                <h2 className="text-lg font-bold mb-1" style={{ color: PRIMARY, fontFamily: fontHeading }}>Manual Verification</h2>
+                <p className="text-xs" style={{ color: '#555555' }}>Enter plate number manually</p>
               </div>
               
               <div className="mb-4">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">License Plate Number</label>
+                <label className="block mb-2" style={labelStyle}>License Plate Number</label>
                 <input
                   type="text"
                   value={plateNumber}
                   onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
                   onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
                   placeholder=".........................."
-                  className="w-full p-3 border border-gray-200 rounded-lg text-sm font-bold uppercase tracking-wider focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full p-3 font-bold uppercase tracking-wider focus:outline-none"
+                  style={inputStyle}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }}
                 />
               </div>
 
               {verifiedData ? (
-                <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                  <div className="font-semibold text-gray-800 text-sm">{verifiedData.driver_details?.name || verifiedData.driver_name || 'Unknown'}</div>
-                  <div className="text-xs text-gray-400">{verifiedData.driver_type || '___'}</div>
-                  <div className="text-green-600 font-medium text-xs mt-1">ALLOWED</div>
+                <div className="p-3 mb-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+                  <div className="font-semibold text-sm" style={{ color: NEUTRAL_DARK }}>{verifiedData.driver_details?.name || verifiedData.driver_name || 'Unknown'}</div>
+                  <div className="text-xs" style={{ color: GRAY_DISABLED }}>{verifiedData.driver_type || '___'}</div>
+                  <div className="font-medium text-xs mt-1" style={{ color: SUCCESS }}>ALLOWED</div>
                 </div>
               ) : (
-                <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                  <div className="text-xs text-gray-400 text-center">Enter plate number to verify</div>
+                <div className="p-3 mb-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+                  <div className="text-xs text-center" style={{ color: GRAY_DISABLED }}>Enter plate number to verify</div>
                 </div>
               )}
 
@@ -471,7 +519,10 @@ const CheckInVehiclePage: React.FC = () => {
                 type="button"
                 onClick={() => handleVerify()}
                 disabled={verifying || !plateNumber.trim()}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-1 transition-colors"
+                className="w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-1 transition-colors"
+                style={{ ...buttonFont, border: 'none', backgroundColor: PRIMARY, color: WHITE }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
               >
                 {verifying ? (
                   <span className="flex items-center gap-2">
@@ -484,7 +535,7 @@ const CheckInVehiclePage: React.FC = () => {
                       <BsShieldCheck className="w-5 h-5" />
                       <span>Verify & Open</span>
                     </div>
-                    <span className="text-xs font-normal text-blue-200">Click to simulate</span>
+                    <span className="text-xs font-normal" style={{ color: 'rgba(255,255,255,0.75)', textTransform: 'none', letterSpacing: 'normal' }}>Click to simulate</span>
                   </>
                 )}
               </button>
@@ -493,7 +544,10 @@ const CheckInVehiclePage: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleDenyEntry}
-                  className="w-full mt-3 border border-red-300 text-red-600 hover:bg-red-50 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                  className="w-full mt-3 py-2 transition-colors flex items-center justify-center gap-2"
+                  style={{ ...buttonFont, backgroundColor: 'transparent', border: `1px solid ${DANGER}`, color: DANGER }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(231,76,60,0.08)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                 >
                   <FiX className="w-4 h-4" />
                   Cancel Verification
@@ -504,7 +558,10 @@ const CheckInVehiclePage: React.FC = () => {
                 <button 
                   type="button"
                   onClick={handleDenyEntry}
-                  className="flex-1 border border-gray-300 text-gray-700 hover:bg-gray-100 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 py-2 transition-colors flex items-center justify-center gap-2"
+                  style={{ ...buttonFont, backgroundColor: 'transparent', border: `1px solid ${BORDER}`, color: NEUTRAL_DARK }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = NEUTRAL_LIGHT; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                 >
                   <FiSlash className="w-4 h-4" />
                   Deny Entry
@@ -513,7 +570,10 @@ const CheckInVehiclePage: React.FC = () => {
                   type="button"
                   onClick={handleFlagIssue}
                   disabled={loading || !verifiedData}
-                  className="flex-1 border border-gray-300 text-gray-700 hover:bg-red-500 hover:text-white py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex-1 py-2 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  style={{ ...buttonFont, backgroundColor: 'transparent', border: `1px solid ${BORDER}`, color: NEUTRAL_DARK }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = DANGER; e.currentTarget.style.color = WHITE; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = NEUTRAL_DARK; }}
                 >
                   <FiFlag className="w-4 h-4" />
                   Flag Issue
@@ -525,8 +585,8 @@ const CheckInVehiclePage: React.FC = () => {
 
         {/* Connection Status */}
         <div className="mt-6 flex items-center justify-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-          <span className="text-sm text-gray-500">
+          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: isConnected ? SUCCESS : DANGER }} />
+          <span className="text-sm" style={{ color: '#555555' }}>
             {isConnected ? 'Real-time connection active' : 'Disconnected - Enter plate manually'}
           </span>
         </div>
@@ -535,25 +595,25 @@ const CheckInVehiclePage: React.FC = () => {
       {/* Found Vehicle Modal */}
       {showFoundModal && verifiedData && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden max-h-[90vh] overflow-y-auto">
-            <div className={`px-6 py-4 flex items-center justify-between ${verifiedData.is_reserved ? 'bg-blue-100' : (verifiedData.is_flagged && verifiedData.is_currently_parked) ? 'bg-red-100' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'bg-orange-100' : verifiedData.is_currently_parked ? 'bg-orange-100' : 'bg-green-100'}`}>
+          <div className="w-full max-w-md mx-4 overflow-hidden max-h-[90vh] overflow-y-auto" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+            <div className="px-6 py-4 flex items-center justify-between" style={{ backgroundColor: verifiedData.is_reserved ? 'rgba(5,109,170,0.10)' : (verifiedData.is_flagged && verifiedData.is_currently_parked) ? 'rgba(231,76,60,0.10)' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'rgba(243,156,18,0.10)' : verifiedData.is_currently_parked ? 'rgba(243,156,18,0.10)' : 'rgba(76,175,80,0.10)' }}>
               <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${verifiedData.is_reserved ? 'bg-blue-200' : (verifiedData.is_flagged && verifiedData.is_currently_parked) ? 'bg-red-200' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'bg-orange-200' : verifiedData.is_currently_parked ? 'bg-orange-200' : 'bg-green-200'}`}>
+                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: verifiedData.is_reserved ? 'rgba(5,109,170,0.12)' : (verifiedData.is_flagged && verifiedData.is_currently_parked) ? 'rgba(231,76,60,0.12)' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'rgba(243,156,18,0.12)' : verifiedData.is_currently_parked ? 'rgba(243,156,18,0.12)' : 'rgba(76,175,80,0.12)' }}>
                   {verifiedData.is_reserved ? (
-                    <FiAward className="w-6 h-6 text-blue-600" />
+                    <FiAward className="w-6 h-6" style={{ color: PRIMARY }} />
                   ) : verifiedData.is_flagged && verifiedData.is_currently_parked ? (
-                    <FiAlertTriangle className="w-6 h-6 text-red-600" />
+                    <FiAlertTriangle className="w-6 h-6" style={{ color: DANGER }} />
                   ) : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? (
-                    <FiAlertTriangle className="w-6 h-6 text-orange-600" />
+                    <FiAlertTriangle className="w-6 h-6" style={{ color: WARNING }} />
                   ) : verifiedData.is_currently_parked ? (
-                    <FiAlertCircle className="w-6 h-6 text-orange-600" />
+                    <FiAlertCircle className="w-6 h-6" style={{ color: WARNING }} />
                   ) : (
-                    <BsShieldCheck className="w-6 h-6 text-green-600" />
+                    <BsShieldCheck className="w-6 h-6" style={{ color: SUCCESS }} />
                   )}
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">Vehicle Verification</h3>
-                  <p className={`text-sm ${verifiedData.is_reserved ? 'text-blue-700' : (verifiedData.is_flagged && verifiedData.is_currently_parked) ? 'text-red-700' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'text-orange-700' : verifiedData.is_currently_parked ? 'text-orange-700' : 'text-green-700'}`}>
+                  <h3 className="text-lg font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Vehicle Verification</h3>
+                  <p className="text-sm" style={{ color: verifiedData.is_reserved ? PRIMARY : (verifiedData.is_flagged && verifiedData.is_currently_parked) ? DANGER : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? WARNING : verifiedData.is_currently_parked ? WARNING : SUCCESS }}>
                     {verifiedData.is_reserved ? 'Reserved Vehicle' : verifiedData.is_flagged && verifiedData.is_currently_parked ? 'Vehicle is flagged' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'Vehicle was flagged in the past' : verifiedData.is_currently_parked ? 'Already inside parking' : 'Auto-scan successful'}
                   </p>
                 </div>
@@ -563,32 +623,32 @@ const CheckInVehiclePage: React.FC = () => {
             <div className="p-6">
               {/* Avatar */}
               <div className="flex flex-col items-center mb-4">
-                <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center mb-2">
-                  <span className="text-3xl font-bold text-blue-600">
+                <div className="w-20 h-20 rounded-full flex items-center justify-center mb-2" style={{ backgroundColor: 'rgba(5,109,170,0.10)' }}>
+                  <span className="text-3xl font-bold" style={{ color: PRIMARY, fontFamily: fontHeading }}>
                     {(verifiedData.driver_details?.name || verifiedData.driver_name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                   </span>
                 </div>
                 {(verifiedData.staff_details?.department_name) && (
-                  <div className="px-3 py-1 bg-green-100 rounded-full">
-                    <span className="text-xs font-medium text-gray-600">{verifiedData.staff_details?.department_name}</span>
+                  <div className="px-3 py-1" style={{ backgroundColor: 'rgba(76,175,80,0.10)' }}>
+                    <span className="text-xs font-medium" style={{ color: SUCCESS }}>{verifiedData.staff_details?.department_name}</span>
                   </div>
                 )}
               </div>
 
               {/* Driver Info */}
-              <div className="mb-4 bg-gray-50 p-3 rounded-lg">
+              <div className="mb-4 p-3" style={{ backgroundColor: NEUTRAL_LIGHT }}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-semibold text-gray-700">Driver Information</h4>
+                    <h4 className="text-sm font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Driver Information</h4>
                     {verifiedData.is_reserved && (
-                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+                      <span className="px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'rgba(76,175,80,0.10)', color: SUCCESS }}>
                         Reserved
                       </span>
                     )}
                   </div>
                   {/* Only show edit button if vehicle is not currently parked AND not reserved */}
                   {!verifiedData.is_currently_parked && !verifiedData.is_reserved && (
-                    <button type="button" onClick={() => setIsEditingDriver(!isEditingDriver)} className="text-xs flex items-center gap-1 text-blue-600">
+                    <button type="button" onClick={() => setIsEditingDriver(!isEditingDriver)} className="text-xs flex items-center gap-1" style={{ color: PRIMARY }}>
                       <FiEdit className="w-3 h-3" />
                       {isEditingDriver ? 'Cancel' : 'Edit'}
                     </button>
@@ -598,15 +658,15 @@ const CheckInVehiclePage: React.FC = () => {
                 {isEditingDriver ? (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs text-gray-500">Name</label>
-                      <input type="text" name="name" value={driverInfo.name} onChange={handleDriverInfoChange} className="w-full px-2 py-1 text-sm border rounded" />
+                      <label style={labelStyle}>Name</label>
+                      <input type="text" name="name" value={driverInfo.name} onChange={handleDriverInfoChange} className="w-full px-2 py-1 focus:outline-none" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} />
                     </div>
                     <div>
-                      <label className="text-xs text-gray-500">Phone</label>
-                      <input type="tel" name="telephone" value={driverInfo.telephone} onChange={handleDriverInfoChange} className="w-full px-2 py-1 text-sm border rounded" />
+                      <label style={labelStyle}>Phone</label>
+                      <input type="tel" name="telephone" value={driverInfo.telephone} onChange={handleDriverInfoChange} className="w-full px-2 py-1 focus:outline-none" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} />
                     </div>
                     <div className="col-span-2">
-                      <label className="text-xs text-gray-500">
+                      <label style={labelStyle}>
                         Badge Number {verifiedData.is_reserved ? '(Optional for reserved)' : '*'}
                       </label>
                       <input 
@@ -614,23 +674,23 @@ const CheckInVehiclePage: React.FC = () => {
                         name="badge_number" 
                         value={driverInfo.badge_number} 
                         onChange={handleDriverInfoChange} 
-                        className="w-full px-2 py-1 text-sm border rounded" 
+                        className="w-full px-2 py-1 focus:outline-none" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }}
                         required={!verifiedData.is_reserved}
                       />
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-sm text-gray-700">
-                      <FiUser className="w-4 h-4 text-gray-400" />
+                    <div className="flex items-center gap-2 text-sm" style={{ color: NEUTRAL_DARK }}>
+                      <FiUser className="w-4 h-4" style={{ color: GRAY_DISABLED }} />
                       {driverInfo.name || 'Not specified'}
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-700">
-                      <FiPhone className="w-4 h-4 text-gray-400" />
+                    <div className="flex items-center gap-2 text-sm" style={{ color: NEUTRAL_DARK }}>
+                      <FiPhone className="w-4 h-4" style={{ color: GRAY_DISABLED }} />
                       {driverInfo.telephone || 'Not specified'}
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-700 font-medium">
-                      <FiAward className="w-4 h-4 text-gray-400" />
+                    <div className="flex items-center gap-2 text-sm font-medium" style={{ color: NEUTRAL_DARK }}>
+                      <FiAward className="w-4 h-4" style={{ color: GRAY_DISABLED }} />
                       Badge: {driverInfo.badge_number || (verifiedData.is_reserved ? '___ (Reserved)' : 'Not specified')}
                     </div>
                   </div>
@@ -638,14 +698,14 @@ const CheckInVehiclePage: React.FC = () => {
               </div>
 
               {/* Vehicle Info */}
-              <div className="flex justify-between items-center bg-gray-100 p-3 rounded-lg mb-4">
+              <div className="flex justify-between items-center p-3 mb-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
                 <div>
-                  <p className="text-xs text-gray-500 uppercase">Vehicle</p>
-                  <p className="font-semibold text-gray-900">{verifiedData.vehicle_category || 'Staff Vehicle'}</p>
+                  <p style={labelStyle}>Vehicle</p>
+                  <p className="font-semibold" style={{ color: NEUTRAL_DARK }}>{verifiedData.vehicle_category || 'Staff Vehicle'}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-gray-500 uppercase">Plate</p>
-                  <p className="font-bold text-gray-900">{verifiedData.plate_number}</p>
+                  <p style={labelStyle}>Plate</p>
+                  <p className="font-bold" style={{ color: NEUTRAL_DARK }}>{verifiedData.plate_number}</p>
                 </div>
               </div>
 
@@ -653,13 +713,16 @@ const CheckInVehiclePage: React.FC = () => {
                 type="button"
                 onClick={handleConfirmEntry}
                 disabled={verifiedData.is_currently_parked}
-                className={`w-full py-3 text-white rounded-lg font-semibold flex items-center justify-center gap-2 ${verifiedData.is_currently_parked ? 'bg-gray-400 cursor-not-allowed' : verifiedData.is_reserved ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                className={`w-full py-3 flex items-center justify-center gap-2 transition-colors ${verifiedData.is_currently_parked ? 'cursor-not-allowed' : ''}`}
+                style={{ ...buttonFont, border: 'none', backgroundColor: verifiedData.is_currently_parked ? GRAY_DISABLED : PRIMARY, color: WHITE }}
+                onMouseEnter={(e) => { if (!verifiedData.is_currently_parked) e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+                onMouseLeave={(e) => { if (!verifiedData.is_currently_parked) e.currentTarget.style.backgroundColor = PRIMARY; }}
               >
                 <FiCheckCircle className="w-5 h-5" />
                 {verifiedData.is_currently_parked ? 'Already Checked In' : verifiedData.is_reserved ? 'Confirm Entry (Reserved Vehicle)' : 'Confirm Entry & Open Gate'}
               </button>
 
-              <button type="button" onClick={closeAllModals} className="w-full mt-2 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium flex items-center justify-center gap-2">
+              <button type="button" onClick={closeAllModals} className="w-full mt-2 py-2 flex items-center justify-center gap-2 transition-colors" style={{ ...buttonFont, backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY }}>
                 <FiX className="w-4 h-4" />
                 {verifiedData.is_currently_parked ? 'Close' : 'Cancel'}
               </button>
@@ -671,35 +734,35 @@ const CheckInVehiclePage: React.FC = () => {
       {/* Unknown Vehicle Modal */}
       {showUnknownModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden max-h-[90vh] overflow-y-auto">
-            <div className="bg-red-50 px-6 py-4">
+          <div className="w-full max-w-2xl mx-4 overflow-hidden max-h-[90vh] overflow-y-auto" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+            <div className="px-6 py-4" style={{ backgroundColor: 'rgba(231,76,60,0.08)' }}>
               <div className="flex items-center gap-2">
-                <FiAlertCircle className="w-6 h-6 text-red-600" />
+                <FiAlertCircle className="w-6 h-6" style={{ color: DANGER }} />
                 <div>
-                  <h3 className="text-base font-bold text-gray-900">Vehicle Not Found</h3>
-                  <p className="text-gray-500 text-xs">This vehicle is not registered in the system</p>
+                  <h3 className="text-base font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Vehicle Not Found</h3>
+                  <p className="text-xs" style={{ color: '#555555' }}>This vehicle is not registered in the system</p>
                 </div>
               </div>
             </div>
             
-            <div className="bg-red-100 px-6 py-2">
-              <p className="text-red-800 text-xs text-center">This vehicle is not registered. Please register visitor details to grant one-time access.</p>
+            <div className="px-6 py-2" style={{ backgroundColor: 'rgba(231,76,60,0.12)' }}>
+              <p className="text-xs text-center" style={{ color: DANGER }}>This vehicle is not registered. Please register visitor details to grant one-time access.</p>
             </div>
             
             <div className="p-6">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Plate Number</label>
-                  <input type="text" name="plate_number" value={unknownForm.plate_number} disabled placeholder="Enter plate number" className="w-full px-3 py-2 border rounded-lg bg-gray-100 text-gray-700 font-semibold uppercase" />
+                  <label className="block mb-1" style={labelStyle}>Plate Number</label>
+                  <input type="text" name="plate_number" value={unknownForm.plate_number} disabled placeholder="Enter plate number" className="w-full px-3 py-2 font-semibold uppercase" style={inputStyle} />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">ID Type</label>
+                  <label className="block mb-1" style={labelStyle}>ID Type</label>
                   <select
                     name="id_type"
                     value={unknownForm.id_type}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 focus:outline-none" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }}
                   >
                     <option value="National ID">National ID</option>
                     <option value="Passport">Passport</option>
@@ -708,7 +771,7 @@ const CheckInVehiclePage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                  <label className="block mb-1" style={labelStyle}>
                     {unknownForm.id_type === 'National ID' ? 'National ID (16 digits)' : 'ID Number'}
                   </label>
                   <input 
@@ -717,51 +780,51 @@ const CheckInVehiclePage: React.FC = () => {
                     value={unknownForm.id_number || ''} 
                     onChange={handleInputChange} 
                     placeholder={unknownForm.id_type === 'National ID' ? 'Enter 16_digit national ID' : 'Enter ID number'} 
-                    className={`w-full px-3 py-2 border rounded-lg ${idError ? 'border-red-500' : ''}`} 
+                    className="w-full px-3 py-2 focus:outline-none" style={{ ...inputStyle, borderColor: idError ? DANGER : 'transparent' }} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = idError ? DANGER : 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} 
                   />
                   {idError && (
-                    <p className="mt-1 text-xs text-red-500">{idError}</p>
+                    <p className="mt-1 text-xs" style={{ color: DANGER }}>{idError}</p>
                   )}
                   {unknownForm.id_type === 'National ID' && unknownForm.id_number && !idError && (
-                    <p className="mt-1 text-xs text-green-600">✓ National ID format valid</p>
+                    <p className="mt-1 text-xs" style={{ color: SUCCESS }}>✓ National ID format valid</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Full Names</label>
-                  <input type="text" name="driver_name" value={unknownForm.driver_name} onChange={handleInputChange} placeholder="Enter full names" className="w-full px-3 py-2 border rounded-lg" />
+                  <label className="block mb-1" style={labelStyle}>Full Names</label>
+                  <input type="text" name="driver_name" value={unknownForm.driver_name} onChange={handleInputChange} placeholder="Enter full names" className="w-full px-3 py-2 focus:outline-none" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Phone Number</label>
-                  <input type="tel" name="driver_telephone" value={unknownForm.driver_telephone} onChange={handleInputChange} placeholder="Enter phone number" className="w-full px-3 py-2 border rounded-lg" />
+                  <label className="block mb-1" style={labelStyle}>Phone Number</label>
+                  <input type="tel" name="driver_telephone" value={unknownForm.driver_telephone} onChange={handleInputChange} placeholder="Enter phone number" className="w-full px-3 py-2 focus:outline-none" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email Address</label>
+                  <label className="block mb-1" style={labelStyle}>Email Address</label>
                   <input 
                     type="email" 
                     name="driver_email" 
                     value={unknownForm.driver_email || ''} 
                     onChange={handleInputChange} 
                     placeholder="Enter email (optional)" 
-                    className={`w-full px-3 py-2 border rounded-lg ${emailError ? 'border-red-500' : ''}`} 
+                    className="w-full px-3 py-2 focus:outline-none" style={{ ...inputStyle, borderColor: emailError ? DANGER : 'transparent' }} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = emailError ? DANGER : 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} 
                   />
                   {emailError && (
-                    <p className="mt-1 text-xs text-red-500">{emailError}</p>
+                    <p className="mt-1 text-xs" style={{ color: DANGER }}>{emailError}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Badge Number</label>
-                  <input type="text" name="badge_number" value={unknownForm.badge_number || ''} onChange={handleInputChange} placeholder="Enter badge number" className="w-full px-3 py-2 border rounded-lg" />
+                  <label className="block mb-1" style={labelStyle}>Badge Number</label>
+                  <input type="text" name="badge_number" value={unknownForm.badge_number || ''} onChange={handleInputChange} placeholder="Enter badge number" className="w-full px-3 py-2 focus:outline-none" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Gender</label>
+                  <label className="block mb-1" style={labelStyle}>Gender</label>
                   <div className="flex gap-2">
                     {['Male', 'Female'].map((gender) => (
-                      <button key={gender} type="button" onClick={() => handleInputChange({ target: { name: 'driver_gender', value: gender } } as any)} className={`flex-1 py-2 rounded-lg text-sm font-medium ${unknownForm.driver_gender === gender ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>
+                      <button key={gender} type="button" onClick={() => handleInputChange({ target: { name: 'driver_gender', value: gender } } as any)} className="flex-1 py-2 transition-colors" style={{ ...buttonFont, border: 'none', backgroundColor: unknownForm.driver_gender === gender ? PRIMARY : NEUTRAL_LIGHT, color: unknownForm.driver_gender === gender ? WHITE : NEUTRAL_DARK }}>
                         {gender}
                       </button>
                     ))}
@@ -769,7 +832,7 @@ const CheckInVehiclePage: React.FC = () => {
                 </div>
 
                 {/* <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Visitor Type</label>
+                  <label className="block mb-1" style={labelStyle}>Visitor Type</label>
                   <div className="flex gap-2 flex-wrap">
                     {['Visitor', 'Regular', 'Staff'].map((type) => (
                       <button key={type} type="button" onClick={() => handleInputChange({ target: { name: 'driver_type', value: type } } as any)} className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium ${unknownForm.driver_type === type ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>
@@ -782,8 +845,8 @@ const CheckInVehiclePage: React.FC = () => {
               </div>
 
               <div className="flex gap-2 pt-4 mt-2">
-                <button type="button" onClick={closeAllModals} className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-medium text-sm">Cancel</button>
-                <button type="button" onClick={handleRegisterUnknown} disabled={loading || !unknownForm.driver_name || !unknownForm.driver_telephone} className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-50">
+                <button type="button" onClick={closeAllModals} className="flex-1 px-4 py-2.5 transition-colors" style={{ ...buttonFont, backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY }}>Cancel</button>
+                <button type="button" onClick={handleRegisterUnknown} disabled={loading || !unknownForm.driver_name || !unknownForm.driver_telephone} className="flex-1 px-4 py-2.5 flex items-center justify-center gap-2 disabled:opacity-50 transition-colors" style={{ ...buttonFont, border: 'none', backgroundColor: PRIMARY, color: WHITE }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}>
                   {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiPlus className="w-4 h-4" />}
                   Register & Check In
                 </button>
@@ -796,35 +859,35 @@ const CheckInVehiclePage: React.FC = () => {
       {/* Already Parked Modal */}
       {showAlreadyParkedModal && verifiedData && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+          <div className="max-w-md w-full p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
-                <FiAlertCircle className="w-8 h-8 text-orange-600" />
+              <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(243,156,18,0.12)' }}>
+                <FiAlertCircle className="w-8 h-8" style={{ color: WARNING }} />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Vehicle Already Inside</h3>
-                <p className="text-gray-500">{verifiedData.plate_number}</p>
+                <h3 className="text-xl font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Vehicle Already Inside</h3>
+                <p style={{ color: '#555555' }}>{verifiedData.plate_number}</p>
               </div>
             </div>
 
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
-              <p className="text-orange-800 font-medium">⚠️ This vehicle is already checked in the parking facility.</p>
+            <div className="p-4 mb-4" style={{ backgroundColor: 'rgba(243,156,18,0.10)' }}>
+              <p className="font-medium" style={{ color: WARNING }}>⚠️ This vehicle is already checked in the parking facility.</p>
             </div>
 
-            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+            <div className="p-4 mb-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-gray-500">Driver:</span>
-                  <p className="font-medium">{verifiedData.driver_details?.name || verifiedData.driver_name || '___'}</p>
+                  <span style={{ color: '#555555' }}>Driver:</span>
+                  <p className="font-medium" style={{ color: NEUTRAL_DARK }}>{verifiedData.driver_details?.name || verifiedData.driver_name || '___'}</p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Type:</span>
-                  <p className="font-medium">{verifiedData.driver_type || '___'}</p>
+                  <span style={{ color: '#555555' }}>Type:</span>
+                  <p className="font-medium" style={{ color: NEUTRAL_DARK }}>{verifiedData.driver_type || '___'}</p>
                 </div>
               </div>
             </div>
 
-            <button onClick={closeAllModals} className="w-full px-4 py-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium">Close</button>
+            <button onClick={closeAllModals} className="w-full px-4 py-2.5 transition-colors" style={{ ...buttonFont, border: 'none', backgroundColor: PRIMARY, color: WHITE }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}>Close</button>
           </div>
         </div>
       )}
@@ -832,25 +895,25 @@ const CheckInVehiclePage: React.FC = () => {
       {/* Flagged Vehicle Modal */}
       {showFlaggedModal && verifiedData && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+          <div className="max-w-md w-full p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-                <FiFlag className="w-8 h-8 text-red-600" />
+              <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(231,76,60,0.12)' }}>
+                <FiFlag className="w-8 h-8" style={{ color: DANGER }} />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Vehicle Flagged</h3>
-                <p className="text-gray-500">{verifiedData.plate_number}</p>
+                <h3 className="text-xl font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Vehicle Flagged</h3>
+                <p style={{ color: '#555555' }}>{verifiedData.plate_number}</p>
               </div>
             </div>
 
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-              <p className="text-red-800 font-medium">⚠️ This vehicle has been flagged in the system!</p>
-              <p className="text-red-600 text-sm mt-1">Please verify vehicle and driver details before allowing entry</p>
+            <div className="p-4 mb-4" style={{ backgroundColor: 'rgba(231,76,60,0.08)' }}>
+              <p className="font-medium" style={{ color: DANGER }}>⚠️ This vehicle has been flagged in the system!</p>
+              <p className="text-sm mt-1" style={{ color: DANGER }}>Please verify vehicle and driver details before allowing entry</p>
             </div>
 
             <div className="flex gap-3">
-              <button onClick={closeAllModals} className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">Deny Entry</button>
-              <button onClick={() => { setShowFlaggedModal(false); setShowUnknownModal(true); }} className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">Allow Entry</button>
+              <button onClick={closeAllModals} className="flex-1 px-4 py-2.5 transition-colors" style={{ ...buttonFont, backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(5,109,170,0.08)'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}>Deny Entry</button>
+              <button onClick={() => { setShowFlaggedModal(false); setShowUnknownModal(true); }} className="flex-1 px-4 py-2.5 transition-colors" style={{ ...buttonFont, border: 'none', backgroundColor: DANGER, color: WHITE }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#C0392B'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = DANGER; }}>Allow Entry</button>
             </div>
           </div>
         </div>
