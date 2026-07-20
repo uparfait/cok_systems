@@ -7,6 +7,55 @@ import { FiX, FiPhone, FiCheckCircle, FiAlertCircle, FiStar, FiMessageSquare, Fi
 import { verifyPhone, submitFeedback, submitUnservicedFeedback, getFeedbackByPhone } from '../../services/feedbackService';
 import { useToast } from '../../contexts/ToastContext';
 
+// City of Kigali (CoK) institutional design constants
+const PRIMARY = "#056daa";
+const PRIMARY_HOVER = "#045d94";
+const SUCCESS = "#4CAF50";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const TERTIARY = "#CDB896";
+const WHITE = "#FFFFFF";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+
+const labelStyle: React.CSSProperties = {
+  fontFamily: fontHeading,
+  fontSize: '13px',
+  fontWeight: 600,
+  letterSpacing: '0.5px',
+  textTransform: 'uppercase',
+  color: TERTIARY,
+};
+
+const inputStyle: React.CSSProperties = {
+  fontFamily: fontHeading,
+  fontSize: '14px',
+  backgroundColor: NEUTRAL_LIGHT,
+  border: '1px solid transparent',
+  borderRadius: 0,
+  boxShadow: '0px 2px 4px rgba(0,0,0,0.1)',
+  color: NEUTRAL_DARK,
+};
+
+const buttonBaseStyle: React.CSSProperties = {
+  fontFamily: fontHeading,
+  fontSize: '13px',
+  fontWeight: 600,
+  letterSpacing: '1px',
+  textTransform: 'uppercase',
+  borderRadius: 0,
+};
+
+const handleInputFocus = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  e.currentTarget.style.borderColor = PRIMARY;
+  e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)';
+};
+
+const handleInputBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  e.currentTarget.style.borderColor = 'transparent';
+  e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)';
+};
+
 interface AssignedDepartment {
   department_id: string;
   department_name: string;
@@ -231,17 +280,17 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-md max-h-[85vh] flex flex-col transform rounded-2xl bg-white shadow-xl transition-all border-2 border-blue-500">
+        <div className="relative w-full max-w-md max-h-[85vh] flex flex-col transform bg-white transition-all" style={{ borderRadius: 0, border: `2px solid ${PRIMARY}`, boxShadow: CARD_SHADOW }}>
 
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <FiMessageSquare className="w-5 h-5 text-yellow-500" />
+            <h2 className="text-lg font-bold flex items-center gap-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
+              <FiMessageSquare className="w-5 h-5" style={{ color: PRIMARY }} />
               {step === 'success' ? 'Feedback Submitted' : 'Submit Feedback'}
             </h2>
             <button
               onClick={handleClose}
-              className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+              className="p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors" style={{ borderRadius: 0 }}
             >
               <FiX className="w-5 h-5" />
             </button>
@@ -254,7 +303,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
             {step === 'choice' && (
               <div className="space-y-4">
                 <div className="text-center">
-                  <h3 className="text-base font-semibold text-gray-900">How would you like to submit your feedback?</h3>
+                  <h3 className="text-base font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>How would you like to submit your feedback?</h3>
                   <p className="text-xs text-gray-500 mt-1">Choose the option that matches your situation</p>
                 </div>
 
@@ -262,17 +311,20 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                   {/* Service Provided Option */}
                   <button
                     onClick={handleSelectServiced}
-                    className="w-full p-5 rounded-xl border-2 border-blue-200 bg-blue-50/50 hover:border-blue-500 hover:bg-blue-50 transition-all text-left group"
+                    className="w-full p-5 border-2 transition-all text-left group"
+                    style={{ borderRadius: 0, borderColor: 'rgba(5,109,170,0.25)', backgroundColor: NEUTRAL_LIGHT }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = PRIMARY; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(5,109,170,0.25)'; }}
                   >
                     <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-blue-200 transition-colors">
-                        <FiUsers className="w-6 h-6 text-blue-600" />
+                      <div className="w-12 h-12 flex items-center justify-center flex-shrink-0 transition-colors" style={{ borderRadius: 0, backgroundColor: 'rgba(5,109,170,0.12)' }}>
+                        <FiUsers className="w-6 h-6" style={{ color: PRIMARY }} />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-bold text-gray-900 group-hover:text-blue-700">I Received a Service</p>
+                        <p className="text-sm font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>I Received a Service</p>
                         <p className="text-xs text-gray-600 mt-1 leading-relaxed">
                           I visited a department and want to rate the service I received.
-                          <span className="block mt-1 text-blue-600 font-medium">Requires phone verification</span>
+                          <span className="block mt-1 font-medium" style={{ color: PRIMARY }}>Requires phone verification</span>
                         </p>
                       </div>
                     </div>
@@ -281,17 +333,20 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                   {/* Custom Feedback Option */}
                   <button
                     onClick={handleSelectUnserviced}
-                    className="w-full p-5 rounded-xl border-2 border-yellow-300 bg-yellow-50/50 hover:border-yellow-500 hover:bg-yellow-50 transition-all text-left group"
+                    className="w-full p-5 border-2 transition-all text-left group"
+                    style={{ borderRadius: 0, borderColor: 'rgba(205,184,150,0.6)', backgroundColor: NEUTRAL_LIGHT }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = TERTIARY; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(205,184,150,0.6)'; }}
                   >
                     <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-yellow-200 transition-colors">
-                        <FiUser className="w-6 h-6 text-yellow-600" />
+                      <div className="w-12 h-12 flex items-center justify-center flex-shrink-0 transition-colors" style={{ borderRadius: 0, backgroundColor: 'rgba(205,184,150,0.25)' }}>
+                        <FiUser className="w-6 h-6" style={{ color: TERTIARY }} />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-bold text-gray-900 group-hover:text-yellow-700">General Feedback</p>
+                        <p className="text-sm font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>General Feedback</p>
                         <p className="text-xs text-gray-600 mt-1 leading-relaxed">
                           No service required. Share your experience & suggestion.
-                          <span className="block mt-1 text-yellow-700 font-medium"> Skip phone verification, rate and send</span>
+                          <span className="block mt-1 font-medium" style={{ color: '#b09468' }}> Skip phone verification, rate and send</span>
                         </p>
                       </div>
                     </div>
@@ -304,15 +359,15 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
             {step === 'phone' && (
               <div className="space-y-4">
                 <div className="text-center mb-2">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <FiPhone className="w-6 h-6 text-blue-600" />
+                  <div className="w-12 h-12 bg-[#e6f1f8] rounded-full flex items-center justify-center mx-auto mb-2">
+                    <FiPhone className="w-6 h-6 text-[#056daa]" />
                   </div>
-                  <p className="text-sm font-medium text-gray-900">Enter Your Phone Number</p>
+                  <p className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Enter Your Phone Number</p>
                   <p className="text-xs text-gray-500">Use the phone number from your service visit</p>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5 tracking-wide uppercase">
+                  <label className="block mb-1.5" style={labelStyle}>
                     Phone Number
                   </label>
                   <div className="relative">
@@ -324,7 +379,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="Enter phone number"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                      className="w-full pl-10 pr-4 py-2.5 focus:outline-none" style={inputStyle} onFocus={handleInputFocus} onBlur={handleInputBlur}
                       onKeyDown={(e) => e.key === 'Enter' && handleVerifyPhone()}
                     />
                   </div>
@@ -333,7 +388,10 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                 <button
                   onClick={handleVerifyPhone}
                   disabled={isVerifying || !phone.trim()}
-                  className="w-full py-2.5 px-4 rounded-lg bg-yellow-500 text-white font-semibold text-sm hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-2.5 px-4 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                  style={{ ...buttonBaseStyle, backgroundColor: PRIMARY, color: WHITE, border: 'none' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
                 >
                   {isVerifying ? (
                     <>
@@ -361,7 +419,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                   <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
                     <FiCheckCircle className="w-6 h-6 text-green-600" />
                   </div>
-                  <p className="text-sm font-medium text-gray-900">Welcome, {visitorName}</p>
+                  <p className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Welcome, {visitorName}</p>
                   <p className="text-xs text-gray-500">Select a department to rate</p>
                 </div>
 
@@ -373,7 +431,8 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                         key={dept.department_id}
                         onClick={() => handleSelectDepartment(dept)}
                         disabled={!!hasFeedback}
-                        className={`w-full p-3 rounded-lg border transition-all text-left ${hasFeedback ? 'border-green-200 bg-green-50 cursor-not-allowed' : 'border-gray-200 hover:border-yellow-400 hover:bg-yellow-50'}`}
+                        className={`w-full p-3 border transition-all text-left ${hasFeedback ? 'border-green-200 bg-green-50 cursor-not-allowed' : 'border-gray-200 hover:border-[#056daa] hover:bg-[#F7F9FB]'}`}
+                        style={{ borderRadius: 0 }}
                       >
                         <div className="flex items-center justify-between">
                           <div>
@@ -407,13 +466,13 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
             {step === 'rate' && selectedDepartment && (
               <div className="space-y-5">
                 <div className="text-center">
-                  <p className="text-sm font-medium text-gray-900">{selectedDepartment.department_name}</p>
+                  <p className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{selectedDepartment.department_name}</p>
                   <p className="text-xs text-gray-500">Rate your experience</p>
                 </div>
 
                 {/* Rating */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-2 tracking-wide uppercase text-center">
+                  <label className="block mb-2 text-center" style={labelStyle}>
                     Rating: {rating}/10
                   </label>
                   <div className="flex items-center justify-center gap-1">
@@ -445,7 +504,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
 
                 {/* Message */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5 tracking-wide uppercase">
+                  <label className="block mb-1.5" style={labelStyle}>
                     Your Feedback (Optional)
                   </label>
                   <textarea
@@ -453,7 +512,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                     onChange={(e) => setMessage(e.target.value.slice(0, 500))}
                     placeholder="Tell us about your experience..."
                     rows={3}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 resize-none"
+                    className="w-full px-3 py-2 focus:outline-none resize-none" style={inputStyle} onFocus={handleInputFocus} onBlur={handleInputBlur}
                   />
                   <p className="text-xs text-gray-400 mt-1 text-right">{message.length}/500</p>
                 </div>
@@ -461,13 +520,19 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                 <div className="flex gap-2">
                   <button
                     onClick={handleGoBack}
-                    className="flex-1 py-2.5 px-4 rounded-lg border border-gray-300 text-gray-700 font-medium text-sm hover:bg-gray-50 transition-colors"
+                    className="flex-1 py-2.5 px-4 transition-colors"
+                    style={{ ...buttonBaseStyle, backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(5,109,170,0.08)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                   >
                     Back
                   </button>
                   <button
                     onClick={handlePreview}
-                    className="flex-1 py-2.5 px-4 rounded-lg bg-yellow-500 text-white font-semibold text-sm hover:bg-yellow-600 transition-colors flex items-center justify-center gap-2"
+                    className="flex-1 py-2.5 px-4 transition-colors flex items-center justify-center gap-2"
+                    style={{ ...buttonBaseStyle, backgroundColor: PRIMARY, color: WHITE, border: 'none' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
                   >
                     <FiEye className="w-4 h-4" />
                     Preview
@@ -480,16 +545,16 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
             {step === 'unserviced_rate' && (
               <div className="space-y-3">
                 <div className="text-center mb-1">
-                  <div className="w-9 h-9 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-1.5">
-                    <FiUser className="w-5 h-5 text-yellow-600" />
+                  <div className="w-9 h-9 bg-[#f5eede] rounded-full flex items-center justify-center mx-auto mb-1.5">
+                    <FiUser className="w-5 h-5 text-[#b09468]" />
                   </div>
-                  <p className="text-sm font-medium text-gray-900">Share Your Feedback</p>
+                  <p className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Share Your Feedback</p>
                   <p className="text-xs text-gray-500">No service required - tell us about your experience</p>
                 </div>
 
                 {/* Optional Name */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5 tracking-wide uppercase">
+                  <label className="block mb-1.5" style={labelStyle}>
                     Your Name (Optional)
                   </label>
                   <input
@@ -497,13 +562,13 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                     value={unservedName}
                     onChange={(e) => setUnservedName(e.target.value.slice(0, 200))}
                     placeholder="Enter your name"
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                    className="w-full px-3 py-2 focus:outline-none" style={inputStyle} onFocus={handleInputFocus} onBlur={handleInputBlur}
                   />
                 </div>
 
                 {/* Optional Phone */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5 tracking-wide uppercase">
+                  <label className="block mb-1.5" style={labelStyle}>
                     Phone Number (Optional)
                   </label>
                   <div className="relative">
@@ -515,14 +580,14 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                       value={unservedPhone}
                       onChange={(e) => setUnservedPhone(e.target.value)}
                       placeholder="Enter phone number"
-                      className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                      className="w-full pl-10 pr-4 py-2 focus:outline-none" style={inputStyle} onFocus={handleInputFocus} onBlur={handleInputBlur}
                     />
                   </div>
                 </div>
 
                 {/* Rating */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-2 tracking-wide uppercase text-center">
+                  <label className="block mb-2 text-center" style={labelStyle}>
                     Rating: {unservedRating}/10
                   </label>
                   <div className="flex items-center justify-center gap-1">
@@ -554,7 +619,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
 
                 {/* Message */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5 tracking-wide uppercase">
+                  <label className="block mb-1.5" style={labelStyle}>
                     Your Feedback (Optional)
                   </label>
                   <textarea
@@ -562,7 +627,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                     onChange={(e) => setUnservedMessage(e.target.value.slice(0, 500))}
                     placeholder="Tell us about your experience..."
                     rows={2}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 resize-none"
+                    className="w-full px-3 py-2 focus:outline-none resize-none" style={inputStyle} onFocus={handleInputFocus} onBlur={handleInputBlur}
                   />
                   <p className="text-xs text-gray-400 mt-0.5 text-right">{unservedMessage.length}/500</p>
                 </div>
@@ -570,13 +635,19 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                 <div className="flex gap-2">
                   <button
                     onClick={handleGoBack}
-                    className="flex-1 py-2.5 px-4 rounded-lg border border-gray-300 text-gray-700 font-medium text-sm hover:bg-gray-50 transition-colors"
+                    className="flex-1 py-2.5 px-4 transition-colors"
+                    style={{ ...buttonBaseStyle, backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(5,109,170,0.08)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                   >
                     Back
                   </button>
                   <button
                     onClick={handleUnservicedPreview}
-                    className="flex-1 py-2.5 px-4 rounded-lg bg-yellow-500 text-white font-semibold text-sm hover:bg-yellow-600 transition-colors flex items-center justify-center gap-2"
+                    className="flex-1 py-2.5 px-4 transition-colors flex items-center justify-center gap-2"
+                    style={{ ...buttonBaseStyle, backgroundColor: PRIMARY, color: WHITE, border: 'none' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
                   >
                     <FiEye className="w-4 h-4" />
                     Preview
@@ -589,16 +660,16 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
             {step === 'preview' && selectedDepartment && (
               <div className="space-y-4">
                 <div className="text-center mb-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <FiMessageSquare className="w-6 h-6 text-blue-600" />
+                  <div className="w-12 h-12 bg-[#e6f1f8] rounded-full flex items-center justify-center mx-auto mb-2">
+                    <FiMessageSquare className="w-6 h-6 text-[#056daa]" />
                   </div>
-                  <p className="text-sm font-medium text-gray-900">Preview Your Feedback</p>
+                  <p className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Preview Your Feedback</p>
                 </div>
 
-                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                <div className="p-4 space-y-3" style={{ backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid #E0E0E0' }}>
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-500 uppercase tracking-wide">Department</span>
-                    <span className="text-sm font-medium text-gray-900">{selectedDepartment.department_name}</span>
+                    <span className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{selectedDepartment.department_name}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-500 uppercase tracking-wide">Provider</span>
@@ -642,14 +713,20 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                   <button
                     onClick={handleGoBack}
                     disabled={isSubmitting}
-                    className="flex-1 py-2.5 px-4 rounded-lg border border-gray-300 text-gray-700 font-medium text-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                    className="flex-1 py-2.5 px-4 disabled:opacity-50 transition-colors"
+                    style={{ ...buttonBaseStyle, backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(5,109,170,0.08)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                   >
                     Edit
                   </button>
                   <button
                     onClick={handleSubmit}
                     disabled={isSubmitting}
-                    className="flex-1 py-2.5 px-4 rounded-lg bg-green-600 text-white font-semibold text-sm hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                    className="flex-1 py-2.5 px-4 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                    style={{ ...buttonBaseStyle, backgroundColor: SUCCESS, color: WHITE, border: 'none' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#3d8b40'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}
                   >
                     {isSubmitting ? (
                       <>
@@ -671,24 +748,24 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
             {step === 'unserviced_preview' && (
               <div className="space-y-4">
                 <div className="text-center mb-4">
-                  <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <FiMessageSquare className="w-6 h-6 text-yellow-600" />
+                  <div className="w-12 h-12 bg-[#f5eede] rounded-full flex items-center justify-center mx-auto mb-2">
+                    <FiMessageSquare className="w-6 h-6 text-[#b09468]" />
                   </div>
-                  <p className="text-sm font-medium text-gray-900">Preview Your Feedback</p>
+                  <p className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Preview Your Feedback</p>
                 </div>
 
-                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                <div className="p-4 space-y-3" style={{ backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid #E0E0E0' }}>
                   {(unservedName || unservedPhone) && (
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-500 uppercase tracking-wide">From</span>
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
                         {unservedName}{unservedName && unservedPhone ? ' | ' : ''}{unservedPhone}
                       </span>
                     </div>
                   )}
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-500 uppercase tracking-wide">Type</span>
-                    <span className="text-sm font-medium text-gray-900">General Feedback</span>
+                    <span className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>General Feedback</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-500 uppercase tracking-wide">Rating</span>
@@ -728,14 +805,20 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                   <button
                     onClick={handleGoBack}
                     disabled={isSubmitting}
-                    className="flex-1 py-2.5 px-4 rounded-lg border border-gray-300 text-gray-700 font-medium text-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                    className="flex-1 py-2.5 px-4 disabled:opacity-50 transition-colors"
+                    style={{ ...buttonBaseStyle, backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(5,109,170,0.08)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                   >
                     Edit
                   </button>
                   <button
                     onClick={handleUnservicedSubmit}
                     disabled={isSubmitting}
-                    className="flex-1 py-2.5 px-4 rounded-lg bg-green-600 text-white font-semibold text-sm hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                    className="flex-1 py-2.5 px-4 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                    style={{ ...buttonBaseStyle, backgroundColor: SUCCESS, color: WHITE, border: 'none' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#3d8b40'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}
                   >
                     {isSubmitting ? (
                       <>
@@ -760,7 +843,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                   <FiCheckCircle className="w-8 h-8 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-lg font-semibold text-gray-900">Thank You!</p>
+                  <p className="text-lg font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Thank You!</p>
                   <p className="text-sm text-gray-500 mt-1">
                     Your feedback has been submitted successfully.
                   </p>
@@ -772,7 +855,10 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                 </div>
                 <button
                   onClick={handleClose}
-                  className="w-full py-2.5 px-4 rounded-lg bg-green-600 text-white font-semibold text-sm hover:bg-green-700 transition-colors"
+                  className="w-full py-2.5 px-4 transition-colors"
+                  style={{ ...buttonBaseStyle, backgroundColor: SUCCESS, color: WHITE, border: 'none' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#3d8b40'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}
                 >
                   Done
                 </button>
@@ -786,14 +872,17 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                   <FiAlertCircle className="w-8 h-8 text-red-600" />
                 </div>
                 <div>
-                  <p className="text-lg font-semibold text-gray-900">{errorMessage || 'Unable to Submit'}</p>
+                  <p className="text-lg font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{errorMessage || 'Unable to Submit'}</p>
                   <p className="text-xs text-gray-400 mt-2">
                     Note: You can only submit feedback for departments you were assigned to during your visit.
                   </p>
                 </div>
                 <button
                   onClick={handleGoBack}
-                  className="w-full py-2.5 px-4 rounded-lg bg-yellow-500 text-white font-semibold text-sm hover:bg-yellow-600 transition-colors"
+                  className="w-full py-2.5 px-4 transition-colors"
+                  style={{ ...buttonBaseStyle, backgroundColor: PRIMARY, color: WHITE, border: 'none' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
                 >
                   Try Again
                 </button>
@@ -815,8 +904,9 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                           <React.Fragment key={`unserviced-${i}`}>
                             <div
                               className={`h-1.5 rounded-full transition-all ${
-                                i <= currentIndex ? 'w-4 bg-yellow-500' : 'w-1.5 bg-gray-200'
+                                i <= currentIndex ? 'w-4' : 'w-1.5'
                               }`}
+                              style={{ backgroundColor: i <= currentIndex ? PRIMARY : '#E5E7EB' }}
                             />
                             {i < 2 && <div className="w-2" />}
                           </React.Fragment>
@@ -832,8 +922,9 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                           <React.Fragment key={`serviced-${i}`}>
                             <div
                               className={`h-1.5 rounded-full transition-all ${
-                                i <= currentIndex ? 'w-4 bg-yellow-500' : 'w-1.5 bg-gray-200'
+                                i <= currentIndex ? 'w-4' : 'w-1.5'
                               }`}
+                              style={{ backgroundColor: i <= currentIndex ? PRIMARY : '#E5E7EB' }}
                             />
                             {i < 4 && <div className="w-2" />}
                           </React.Fragment>
