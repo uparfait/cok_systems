@@ -8,9 +8,24 @@ import { useSocket } from '../../../core/contexts/SocketContext';
 import { smartParkingService } from '../../../core/services/adminService';
 import { useParkingEvents } from '../../../core/hooks/useParkingEvents';
 import MainLayout from '../../../core/components/Layout/MainLayout';
-import { 
+import {
   FiSearch, FiTruck, FiCheckCircle, FiLogOut, FiClock, FiX, FiFilter
 } from 'react-icons/fi';
+
+// City of Kigali institutional design constants
+const PRIMARY = "#056daa";
+const PRIMARY_HOVER = "#045d94";
+const SUCCESS = "#4CAF50";
+const DANGER = "#E74C3C";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const BORDER = "#E0E0E0";
+const TERTIARY = "#CDB896";
+const WHITE = "#FFFFFF";
+const GRAY_DISABLED = "#9E9E9E";
+const ACCENT_DARK_BLUE = "#2980B9";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
 
 interface ParkingRecord {
   _id?: string;
@@ -287,7 +302,19 @@ const CheckOutVehiclePage: React.FC = () => {
     return (
       <button
         onClick={() => openCheckoutModal(record)}
-        className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+        className="inline-flex items-center gap-1 px-3 py-1.5 transition-colors"
+        style={{
+          backgroundColor: DANGER,
+          color: WHITE,
+          borderRadius: 0,
+          fontFamily: fontHeading,
+          fontSize: '13px',
+          fontWeight: 600,
+          letterSpacing: '1px',
+          textTransform: 'uppercase'
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#C0392B'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = DANGER; }}
       >
         <FiLogOut className="w-4 h-4" />
         Checkout
@@ -296,41 +323,68 @@ const CheckOutVehiclePage: React.FC = () => {
   };
 
   const getFilterButtonClass = (filter: string) => {
-    return `px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-      typeFilter === filter 
-        ? 'bg-blue-600 text-white shadow-md' 
-        : 'bg-white/50 text-gray-700 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50'
+    return `px-4 py-2 transition-all ${
+      typeFilter === filter ? 'shadow-md' : ''
     }`;
   };
 
   return (
     <MainLayout>
-      <div className="p-2">
+      <div className="p-2" style={{ backgroundColor: NEUTRAL_LIGHT }}>
         {/* Search and Filters */}
-        <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-lg border border-white/30 p-3 mb-3">
+        <div className="p-3 mb-3" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
           <div className="flex flex-col md:flex-row gap-3 items-center">
             {/* Search Input */}
             <div className="flex-1 flex gap-2 w-full">
               <div className="relative flex-1">
-                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4" />
+                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: GRAY_DISABLED }} />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   placeholder="Search by plate, name, or badge..."
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200/50 rounded-lg bg-white/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all backdrop-blur-sm"
+                  className="w-full pl-9 pr-3 py-2 outline-none transition-all"
+                  style={{
+                    fontFamily: fontHeading,
+                    fontSize: '14px',
+                    backgroundColor: NEUTRAL_LIGHT,
+                    border: '1px solid transparent',
+                    borderRadius: 0,
+                    boxShadow: '0px 2px 4px rgba(0,0,0,0.1)',
+                    color: NEUTRAL_DARK
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = PRIMARY;
+                    e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = 'transparent';
+                    e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)';
+                  }}
                 />
               </div>
               <button
                 onClick={handleSearch}
-                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2 shadow-md transition-all"
+                className="px-4 py-2 flex items-center gap-2 shadow-md transition-all"
+                style={{
+                  backgroundColor: PRIMARY,
+                  color: WHITE,
+                  borderRadius: 0,
+                  fontFamily: fontHeading,
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  letterSpacing: '1px',
+                  textTransform: 'uppercase'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
               >
                 <FiSearch className="w-4 h-4" />
                 Search
               </button>
             </div>
-            
+
             {/* Filter Buttons - Fixed: Added all filter options */}
             <div className="flex gap-2 flex-wrap">
               {(['all', 'staff', 'visitors', 'regular'] as const).map((filter) => (
@@ -338,6 +392,17 @@ const CheckOutVehiclePage: React.FC = () => {
                   key={filter}
                   onClick={() => handleFilterChange(filter)}
                   className={getFilterButtonClass(filter)}
+                  style={{
+                    borderRadius: 0,
+                    fontFamily: fontHeading,
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    letterSpacing: '1px',
+                    textTransform: 'uppercase',
+                    border: `1px solid ${PRIMARY}`,
+                    backgroundColor: typeFilter === filter ? PRIMARY : 'transparent',
+                    color: typeFilter === filter ? WHITE : PRIMARY
+                  }}
                 >
                   {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
                 </button>
@@ -347,118 +412,124 @@ const CheckOutVehiclePage: React.FC = () => {
         </div>
 
         {/* Table */}
-        <div className="backdrop-blur-xl bg-white/80 rounded-2xl shadow-lg border border-white/30 overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 140px)' }}>
+        <div className="overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 140px)', backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
           <div className="overflow-auto flex-1">
             <table className="w-full min-w-[1100px]">
-              <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
+              <thead className="sticky top-0 z-10 shadow-sm" style={{ backgroundColor: NEUTRAL_LIGHT }}>
                 <tr>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
                     Plate Number
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
                     Driver Name
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
                     Badge
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
                     Telephone
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
                     ID Number
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
                     Type
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
                     Check-in
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
                     Duration
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100/50">
+              <tbody className="divide-y divide-gray-200">
                 {(loading && firstLoad) ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-8 text-center text-gray-500 text-sm">
+                    <td colSpan={9} className="px-3 py-8 text-center text-sm" style={{ color: GRAY_DISABLED }}>
                       Loading...
                     </td>
                   </tr>
                 ) : isSearching ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-8 text-center text-blue-600 text-sm font-medium">
+                    <td colSpan={9} className="px-3 py-8 text-center text-sm font-medium" style={{ color: PRIMARY }}>
                       Searching...
                     </td>
                   </tr>
                 ) : paginationLoading ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-8 text-center text-gray-500 text-sm">
+                    <td colSpan={9} className="px-3 py-8 text-center text-sm" style={{ color: GRAY_DISABLED }}>
                       Loading page...
                     </td>
                   </tr>
                 ) : filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-8 text-center text-gray-500 text-sm">
+                    <td colSpan={9} className="px-3 py-8 text-center text-sm" style={{ color: GRAY_DISABLED }}>
                       No records found
                     </td>
                   </tr>
                 ) : (
                   filteredRecords.map((record, index) => (
-                    <tr key={record._id || index} className="hover:bg-blue-50/50 transition-colors duration-200">
+                    <tr key={record._id || index} className="hover:bg-gray-50 transition-colors duration-200">
                       <td className="px-3 py-3 whitespace-nowrap">
-                        <span className={`font-medium text-sm ${record.is_flagged ? 'text-red-600' : 'text-blue-600'}`}>
+                        <span className="font-medium text-sm" style={{ color: record.is_flagged ? DANGER : PRIMARY }}>
                           {record.plate_number || '-'}
                         </span>
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap">
-                        <span className="text-gray-800 text-sm">
+                        <span className="text-sm" style={{ color: NEUTRAL_DARK }}>
                           {record.driver_name || '-'}
                         </span>
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap">
-                        <span className="text-gray-600 text-sm">
+                        <span className="text-sm" style={{ color: '#555555' }}>
                           {record.badge_number || '_____'}
                         </span>
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap">
-                        <span className="text-gray-600 text-sm">
+                        <span className="text-sm" style={{ color: '#555555' }}>
                           {record.driver_telephone || '-'}
                         </span>
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap">
-                        <span className="text-gray-600 text-sm">
-                          {typeof record.driver_identification === 'object' 
-                            ? record.driver_identification?.number || '_____' 
+                        <span className="text-sm" style={{ color: '#555555' }}>
+                          {typeof record.driver_identification === 'object'
+                            ? record.driver_identification?.number || '_____'
                             : record.driver_identification || '_____'}
                         </span>
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap">
-                        <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-                          record.driver_type === 'Staff' 
-                            ? 'bg-blue-100 text-blue-800' 
+                        <span className="px-2.5 py-1 text-xs font-medium" style={{
+                          borderRadius: 0,
+                          backgroundColor: record.driver_type === 'Staff'
+                            ? 'rgba(5,109,170,0.1)'
                             : record.driver_type === 'Regular'
-                            ? 'bg-purple-100 text-purple-800'
-                            : 'bg-green-100 text-green-800'
-                        }`}>
+                            ? 'rgba(41,128,185,0.1)'
+                            : 'rgba(76,175,80,0.1)',
+                          color: record.driver_type === 'Staff'
+                            ? PRIMARY
+                            : record.driver_type === 'Regular'
+                            ? ACCENT_DARK_BLUE
+                            : SUCCESS
+                        }}>
                           {record.driver_type || 'Visitor'}
                         </span>
                       </td>
-                      <td className="px-3 py-3 whitespace-nowrap text-gray-600 text-sm">
+                      <td className="px-3 py-3 whitespace-nowrap text-sm" style={{ color: '#555555' }}>
                         {formatDate(record.check_in)}
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-1">
-                          <span className={`text-xs ${
-                            record.is_over_limit ? 'text-red-600 font-medium' : 'text-gray-600'
-                          }`}>
+                          <span className={`text-xs ${record.is_over_limit ? 'font-medium' : ''}`} style={{
+                            color: record.is_over_limit ? DANGER : '#555555'
+                          }}>
                             {formatDuration(record.current_duration)}
                           </span>
                           {record.is_over_limit && (
-                            <FiClock className="w-3 h-3 text-red-500" title="Over time" />
+                            <FiClock className="w-3 h-3" style={{ color: DANGER }} title="Over time" />
                           )}
                         </div>
                       </td>
@@ -473,25 +544,45 @@ const CheckOutVehiclePage: React.FC = () => {
           </div>
           
           {/* Pagination - Fixed: Proper page navigation */}
-          <div className="px-2 py-2 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
-            <p className="text-xs text-gray-600">
+          <div className="px-2 py-2 flex justify-between items-center" style={{ borderTop: `1px solid ${BORDER}`, backgroundColor: NEUTRAL_LIGHT }}>
+            <p className="text-xs" style={{ color: '#555555' }}>
               Showing {filteredRecords.length} of {totalCount} results
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1 || paginationLoading}
-                className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="px-3 py-1 bg-transparent hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                style={{
+                  border: `1px solid ${PRIMARY}`,
+                  color: PRIMARY,
+                  borderRadius: 0,
+                  fontFamily: fontHeading,
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  letterSpacing: '1px',
+                  textTransform: 'uppercase'
+                }}
               >
                 Previous
               </button>
-              <span className="text-sm text-gray-600 py-1 px-3">
+              <span className="text-sm py-1 px-3" style={{ color: '#555555' }}>
                 Page {currentPage} of {totalPages || 1}
               </span>
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage >= totalPages || paginationLoading}
-                className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="px-3 py-1 bg-transparent hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                style={{
+                  border: `1px solid ${PRIMARY}`,
+                  color: PRIMARY,
+                  borderRadius: 0,
+                  fontFamily: fontHeading,
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  letterSpacing: '1px',
+                  textTransform: 'uppercase'
+                }}
               >
                 Next
               </button>
@@ -502,14 +593,14 @@ const CheckOutVehiclePage: React.FC = () => {
         {/* Action Modal */}
         {showActionModal && selectedRecord && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-4 p-4 border-b border-gray-100">
+            <div className="w-full max-w-md max-h-[90vh] overflow-y-auto" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
+              <div className="flex items-center justify-between mb-4 p-4" style={{ borderBottom: `1px solid ${BORDER}` }}>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <FiLogOut className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(231,76,60,0.1)', borderRadius: 0 }}>
+                    <FiLogOut className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: DANGER }} />
                   </div>
                   <div>
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">Confirm Checkout</h3>
+                    <h3 className="text-base sm:text-lg" style={{ fontFamily: fontHeading, fontWeight: 700, color: NEUTRAL_DARK }}>Confirm Checkout</h3>
                   </div>
                 </div>
                 <button
@@ -523,27 +614,27 @@ const CheckOutVehiclePage: React.FC = () => {
                 </button>
               </div>
 
-              <div className="bg-gray-50 rounded-lg p-3 sm:p-4 mb-4 mx-4">
+              <div className="p-3 sm:p-4 mb-4 mx-4" style={{ backgroundColor: NEUTRAL_LIGHT, borderRadius: 0 }}>
                 <div className="grid grid-cols-2 gap-2 sm:gap-3 text-xs sm:text-sm">
                   <div>
-                    <span className="text-gray-500 text-xs sm:text-sm">Plate Number:</span>
-                    <p className="font-medium text-sm sm:text-base">{selectedRecord.plate_number}</p>
+                    <span style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Plate Number:</span>
+                    <p className="font-medium text-sm sm:text-base" style={{ color: NEUTRAL_DARK }}>{selectedRecord.plate_number}</p>
                   </div>
                   <div>
-                    <span className="text-gray-500 text-xs sm:text-sm">Driver:</span>
-                    <p className="font-medium text-sm sm:text-base">{selectedRecord.driver_name}</p>
+                    <span style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Driver:</span>
+                    <p className="font-medium text-sm sm:text-base" style={{ color: NEUTRAL_DARK }}>{selectedRecord.driver_name}</p>
                   </div>
                   <div>
-                    <span className="text-gray-500 text-xs sm:text-sm">Phone:</span>
-                    <p className="font-medium text-sm sm:text-base">{selectedRecord.driver_telephone}</p>
+                    <span style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Phone:</span>
+                    <p className="font-medium text-sm sm:text-base" style={{ color: NEUTRAL_DARK }}>{selectedRecord.driver_telephone}</p>
                   </div>
                   <div>
-                    <span className="text-gray-500 text-xs sm:text-sm">Type:</span>
-                    <p className="font-medium text-sm sm:text-base">{selectedRecord.driver_type || 'Visitor'}</p>
+                    <span style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Type:</span>
+                    <p className="font-medium text-sm sm:text-base" style={{ color: NEUTRAL_DARK }}>{selectedRecord.driver_type || 'Visitor'}</p>
                   </div>
                   <div className="col-span-2">
-                    <span className="text-gray-500 text-xs sm:text-sm">Check-in:</span>
-                    <p className="font-medium text-sm sm:text-base">{formatDate(selectedRecord.check_in)}</p>
+                    <span style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Check-in:</span>
+                    <p className="font-medium text-sm sm:text-base" style={{ color: NEUTRAL_DARK }}>{formatDate(selectedRecord.check_in)}</p>
                   </div>
                 </div>
               </div>
@@ -554,14 +645,36 @@ const CheckOutVehiclePage: React.FC = () => {
                     setShowActionModal(false);
                     setSelectedRecord(null);
                   }}
-                  className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm sm:text-base"
+                  className="flex-1 px-3 sm:px-4 py-2 bg-transparent hover:bg-gray-100 transition-colors"
+                  style={{
+                    border: `1px solid ${PRIMARY}`,
+                    color: PRIMARY,
+                    borderRadius: 0,
+                    fontFamily: fontHeading,
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    letterSpacing: '1px',
+                    textTransform: 'uppercase'
+                  }}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleCheckout}
                   disabled={actionLoading}
-                  className="flex-1 px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 font-medium flex items-center justify-center gap-2 text-sm sm:text-base"
+                  className="flex-1 px-3 sm:px-4 py-2 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+                  style={{
+                    backgroundColor: DANGER,
+                    color: WHITE,
+                    borderRadius: 0,
+                    fontFamily: fontHeading,
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    letterSpacing: '1px',
+                    textTransform: 'uppercase'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#C0392B'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = DANGER; }}
                 >
                   {actionLoading ? (
                     <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
