@@ -126,3 +126,5 @@ connect_db()
     });
     process.exit(1);
   });
+
+  global.FRONTEND_URL = process.env.FRONTEND_URL;

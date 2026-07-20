@@ -3,36 +3,37 @@ const LiveEvent = require('../models/LiveEvent');
 const UpcomingEvent = require('../models/UpcomingEvent');
 const RecurringEvent = require('../models/RecurringEvent');
 const PastEvent = require('../models/PastEvent');
+const InvitedPeople = require('../models/InvitedPeople');
 const BookRequestModel = require('../models/BookingRequest');
+const emailUtil = require('../utilities/email');
+const { firstRecurringOccurrence, fromUTCInstant } = require('../utilities/eventCalendar');
 
-/**
- * Service to handle event cancellation.
- * Cancelled events are moved to PastEvent collection with isCancelled=true.
- */
 class CancelEventService {
-  /**
-   * Cancel an event by its MongoDB _id and event type.
-   * @param {string} eventId - MongoDB _id of the event
-   * @param {string} eventType - 'live', 'upcoming', or 'recurring'
-   * @param {string} reason - Optional cancellation reason
-   * @returns {Promise<object>} - The created PastEvent document
-   */
   static async execute(eventId, eventType, reason = '') {
     return withTransaction(async (session) => {
       let pastEventData;
+      let originalEventSpecialId;
 
       switch (eventType) {
         case 'live':
-          pastEventData = await this._cancelLiveEvent(eventId, reason, session);
+          ({ pastEventData, originalEventSpecialId } = await this._cancelLiveEvent(eventId, reason, session));
           break;
         case 'upcoming':
-          pastEventData = await this._cancelUpcomingEvent(eventId, reason, session);
+          ({ pastEventData, originalEventSpecialId } = await this._cancelUpcomingEvent(eventId, reason, session));
           break;
         case 'recurring':
-          pastEventData = await this._cancelRecurringEvent(eventId, reason, session);
+          ({ pastEventData, originalEventSpecialId } = await this._cancelRecurringEvent(eventId, reason, session));
           break;
         default:
           throw new Error('Invalid event type. Must be live, upcoming, or recurring.');
+      }
+
+      if (originalEventSpecialId && pastEventData) {
+        try {
+          await this._sendCancellationEmails(originalEventSpecialId, pastEventData, eventType);
+        } catch (emailError) {
+          console.error('Failed to send some cancellation emails:', emailError.message);
+        }
       }
 
       return { success: true, data: pastEventData };
@@ -65,16 +66,14 @@ class CancelEventService {
     await pastEvent.save({ session });
     await LiveEvent.findByIdAndDelete(eventId, { session });
 
-    // Also cancel any associated booking requests
     const bookingRequest = await BookRequestModel.findOne({ acceptedEventSpecialId: liveEvent.eventSpecialId }).session(session);
-
     if (bookingRequest) {
       bookingRequest.status = 'Cancelled';
       bookingRequest.cancellationReason = reason;
       await bookingRequest.save({ session });
     }
 
-    return pastEvent;
+    return { pastEventData: pastEvent.toObject(), originalEventSpecialId: liveEvent.eventSpecialId };
   }
 
   static async _cancelUpcomingEvent(eventId, reason, session) {
@@ -103,32 +102,107 @@ class CancelEventService {
     await pastEvent.save({ session });
     await UpcomingEvent.findByIdAndDelete(eventId, { session });
 
-    // Also cancel any associated booking requests
     const bookingRequest = await BookRequestModel.findOne({ acceptedEventSpecialId: upcomingEvent.eventSpecialId }).session(session);
-    console.log('Booking request found for upcoming event:', bookingRequest);
     if (bookingRequest) {
       bookingRequest.status = 'Cancelled';
       bookingRequest.cancellationReason = reason;
       await bookingRequest.save({ session });
     }
 
-    return pastEvent;
+    return { pastEventData: pastEvent.toObject(), originalEventSpecialId: upcomingEvent.eventSpecialId };
   }
 
   static async _cancelRecurringEvent(eventId, reason, session) {
     const recurringEvent = await RecurringEvent.findById(eventId).session(session);
     if (!recurringEvent) {
       throw new Error('Recurring event not found');
-    }    
+    }
+
+    const eventData = {
+      eventName: recurringEvent.eventName,
+      eventDescription: recurringEvent.eventDescription,
+      eventRoom: recurringEvent.eventRoom,
+      eventOrganizer: recurringEvent.eventOrganizer,
+      eventRecurring: recurringEvent.eventRecurring,
+    };
+
     await recurringEvent.deleteOne({ session });
 
-    // Also cancel any upcoming occurrences of this recurring event
     await UpcomingEvent.deleteMany(
       { eventSpecialId: { $regex: `^${recurringEvent.eventSpecialId}` } },
       { session }
     );
 
-    return {};
+    return { pastEventData: eventData, originalEventSpecialId: recurringEvent.eventSpecialId };
+  }
+
+  static async _sendCancellationEmails(originalEventSpecialId, eventData, eventType) {
+    const invites = await InvitedPeople.find({ eventSpecialId: originalEventSpecialId });
+    if (invites.length === 0) return;
+
+    let eventForEmail;
+
+    if (eventType === 'recurring') {
+      const occ = firstRecurringOccurrence(eventData.eventRecurring);
+      eventForEmail = {
+        eventName: eventData.eventName,
+        eventDescription: eventData.eventDescription || '',
+        eventRoom: eventData.eventRoom,
+        eventOrganizer: eventData.eventOrganizer,
+        start: occ.start,
+        end: occ.end,
+        isRecurring: true,
+        recurring: eventData.eventRecurring,
+      };
+    } else {
+      eventForEmail = {
+        eventName: eventData.eventName,
+        eventDescription: eventData.eventDescription || '',
+        eventRoom: eventData.eventRoom,
+        eventOrganizer: eventData.eventOrganizer,
+        start: fromUTCInstant(eventData.startedAt),
+        end: fromUTCInstant(eventData.expectedToEndAt),
+        isRecurring: false,
+        recurring: null,
+      };
+    }
+
+    for (const invite of invites) {
+      try {
+        if (invite.specificDate && invite.specificDate.start) {
+          const specificEvent = {
+            eventName: eventForEmail.eventName,
+            eventDescription: eventForEmail.eventDescription,
+            eventRoom: eventForEmail.eventRoom,
+            eventOrganizer: eventForEmail.eventOrganizer,
+            start: invite.specificDate.start,
+            end: invite.specificDate.end,
+            isRecurring: false,
+            recurring: null,
+          };
+          await emailUtil.sendEventCancellation(
+            invite.email,
+            specificEvent,
+            invite.invitationUid,
+            invite.specificDate.start
+          );
+        } else {
+          await emailUtil.sendEventCancellation(
+            invite.email,
+            eventForEmail,
+            invite.invitationUid
+          );
+        }
+
+        if (!invite.cancelled) {
+          invite.cancelled = true;
+          invite.cancelledAt = new Date();
+          await invite.save();
+        }
+      } catch (err) {
+        console.error(`Failed to send cancellation to ${invite.email}:`, err.message);
+      }
+    }
   }
 }
 

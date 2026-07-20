@@ -71,14 +71,14 @@ export default function LiveEvents() {
   return (
     <>
       <Helmet>
-        <title>Live Events Page</title>
+        <title>Happening now</title>
         <meta
           name="description"
           content="Discover and attend in live events happening right now!"
         />
       </Helmet>
 
-      <main className="w-full min-h-[calc(100vh-80px)] pt-20 flex flex-col items-center bg-white px-4">
+      <main className="w-full min-h-[calc(100vh-80px)] pt-20 flex flex-col items-center bg-white">
         <div className="w-full flex flex-col items-center gap-3">
 
           {
