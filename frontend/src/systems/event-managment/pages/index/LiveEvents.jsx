@@ -21,8 +21,6 @@ export default function LiveEvents() {
   const { LiveEventsData, setLiveEventsData, activeEvent, setActiveEvent } = useOutletContext();
   const [isEmpty, setIsEmpty] = useState(false);
 
-  
-
   useEffect(() => {
     async function FetchLiveEvents() {
       try {
@@ -46,7 +44,6 @@ export default function LiveEvents() {
 
           if(response.data.data.length === 0) { setIsEmpty(true) }
 
-       
         }
 
       } catch (error) {
@@ -57,7 +54,7 @@ export default function LiveEvents() {
         setInitialLoad(false);
       }
     }
-    
+
 
     FetchLiveEvents()
 
@@ -66,7 +63,7 @@ export default function LiveEvents() {
     return () => {
       window.ACTIVE_FUNCTION = undefined;
     };
-  }, []); 
+  }, []);
 
   return (
     <>
