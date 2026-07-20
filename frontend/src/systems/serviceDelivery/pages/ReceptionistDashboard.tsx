@@ -11,6 +11,22 @@ import AssignVisitorModal from "../components/departmentFlow/AssignVisitorModal"
 import Table from "../../../core/components/Table";
 import { SkeletonCard, SkeletonTableRow } from "./sub/ReceptionistSkeleton";
 
+// City of Kigali institutional design constants
+const PRIMARY = "#056daa";
+const PRIMARY_HOVER = "#045d94";
+const SUCCESS = "#4CAF50";
+const WARNING = "#F39C12";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const BORDER = "#E0E0E0";
+const WHITE = "#FFFFFF";
+const GRAY_DISABLED = "#9E9E9E";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+const inputStyle: React.CSSProperties = { fontFamily: fontHeading, fontSize: "14px", backgroundColor: NEUTRAL_LIGHT, border: "1px solid transparent", borderRadius: 0, boxShadow: "0px 2px 4px rgba(0,0,0,0.1)", color: NEUTRAL_DARK };
+const focusInput = (e: React.FocusEvent<HTMLElement>) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = "0px 4px 8px rgba(5,109,170,0.25)"; };
+const blurInput = (e: React.FocusEvent<HTMLElement>) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.boxShadow = "0px 2px 4px rgba(0,0,0,0.1)"; };
+
 interface Visitor { _id?: string; id?: string; name?: string; full_name?: string; visitorName?: string; badge_number?: string; badge?: string; identification?: string | { number?: string }; telephone?: string; email?: string; status: string; checkInTime?: string; check_in_time?: string; entry_date?: string; department?: string; departmentName?: string; departments_assigned?: Array<{ department_id: string; department_name?: string; status: string; provider_name?: string; provider_id?: string }>; services_status?: Array<{ department_id: string; department_name?: string; s_type?: string; provider_name?: string; provider_id?: string }>; }
 
 const ReceptionistDashboard: React.FC = () => {
@@ -92,44 +108,44 @@ const ReceptionistDashboard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
       {activeTab === "dashboard" && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {firstLoad ? <><SkeletonCard /><SkeletonCard /><SkeletonCard /></>
-              : [{ label: "Total Current Visitors", value: totalCount, icon: FiUsers, color: "text-blue-700" }, { label: "Total Departments", value: totalDepartments, icon: FiGrid, color: "text-emerald-700" }, { label: "Total Assigned", value: assignedCount, icon: FiCheckCircle, color: "text-teal-700" }].map((s, i) => (
-                  <div key={i} className="bg-white border border-gray-200 p-4">
+              : [{ label: "Total Current Visitors", value: totalCount, icon: FiUsers, color: PRIMARY }, { label: "Total Departments", value: totalDepartments, icon: FiGrid, color: SUCCESS }, { label: "Total Assigned", value: assignedCount, icon: FiCheckCircle, color: SUCCESS }].map((s, i) => (
+                  <div key={i} className="p-4" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
                     <div className="flex items-start justify-between">
-                      <div><p className="text-xs font-medium mb-0.5" style={{ color: s.color }}>{s.label}</p><h3 className="text-xl font-bold" style={{ color: s.color }}>{s.value}</h3></div>
-                      <div className="p-2 bg-gray-50"><s.icon className={`w-5 h-5 ${s.color}`} /></div>
+                      <div><p className="text-xs font-medium mb-0.5" style={{ fontFamily: fontHeading, color: s.color }}>{s.label}</p><h3 className="text-xl font-bold" style={{ fontFamily: fontHeading, color: s.color }}>{s.value}</h3></div>
+                      <div className="p-2" style={{ backgroundColor: NEUTRAL_LIGHT, borderRadius: 0 }}><s.icon className="w-5 h-5" style={{ color: s.color }} /></div>
                     </div>
                   </div>
                 ))}
           </div>
 
-          <div className="bg-white border border-gray-200 p-4">
-            <div className="flex items-center gap-2 mb-3"><div className="p-1.5 bg-gray-50"><FiClock className="w-4 h-4 text-blue-600" /></div><div><h3 className="text-sm font-semibold text-gray-800">Daily Insights</h3><p className="text-xs text-gray-500">Visitor traffic by hour</p></div></div>
-            {hourlyDataLoading && firstLoad ? <div className="h-48 flex items-center justify-center"><div className="animate-spin h-6 w-6 border-2 border-blue-500 border-t-transparent"></div></div>
-              : hourlyData.length > 0 ? <div className="h-48"><ResponsiveContainer width="100%" height="100%"><AreaChart data={hourlyData}><CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" /><XAxis dataKey="hour" tickFormatter={(v: number) => `${v}:00`} tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Area type="monotone" dataKey="visitors_checked_in" stroke="#00aaff" fill="rgba(0,170,255,0.1)" /></AreaChart></ResponsiveContainer></div>
-                : <div className="h-48 flex items-center justify-center text-xs text-gray-400">No data</div>}
+          <div className="p-4" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
+            <div className="flex items-center gap-2 mb-3"><div className="p-1.5" style={{ backgroundColor: 'rgba(5,109,170,0.08)', borderRadius: 0 }}><FiClock className="w-4 h-4" style={{ color: PRIMARY }} /></div><div><h3 className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Daily Insights</h3><p className="text-xs" style={{ color: GRAY_DISABLED }}>Visitor traffic by hour</p></div></div>
+            {hourlyDataLoading && firstLoad ? <div className="h-48 flex items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-2 border-t-transparent" style={{ borderColor: PRIMARY, borderTopColor: 'transparent' }}></div></div>
+              : hourlyData.length > 0 ? <div className="h-48"><ResponsiveContainer width="100%" height="100%"><AreaChart data={hourlyData}><CartesianGrid strokeDasharray="3 3" stroke={BORDER} /><XAxis dataKey="hour" tickFormatter={(v: number) => `${v}:00`} tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Area type="monotone" dataKey="visitors_checked_in" stroke={PRIMARY} fill="rgba(5,109,170,0.1)" /></AreaChart></ResponsiveContainer></div>
+                : <div className="h-48 flex items-center justify-center text-xs" style={{ color: GRAY_DISABLED }}>No data</div>}
           </div>
 
-          <div className="bg-white border border-gray-200 overflow-hidden">
-            <div className="px-4 py-3 border-b flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-xs font-bold text-blue-600 uppercase tracking-wide">Search Visitors</h2>
-              <div className="relative"><FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" /><input type="text" placeholder="Search Badge, Name, Phone..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-8 pr-3 py-1.5 w-48 border border-gray-200 text-xs" /></div>
+          <div className="overflow-hidden" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
+            <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-3" style={{ borderBottom: `1px solid ${BORDER}` }}>
+              <h2 className="text-xs font-bold uppercase tracking-wide" style={{ fontFamily: fontHeading, color: PRIMARY }}>Search Visitors</h2>
+              <div className="relative"><FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: GRAY_DISABLED }} /><input type="text" placeholder="Search Badge, Name, Phone..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-8 pr-3 py-1.5 w-48 text-xs outline-none transition-all" style={inputStyle} onFocus={focusInput} onBlur={blurInput} /></div>
             </div>
             <Table headers={[{ key: 'badge_number', label: 'BADGE' }, { key: 'full_name', label: 'NAME' }, { key: 'identification', label: 'ID' }, { key: 'status', label: 'STATUS' }, { key: 'time', label: 'TIME' }, { key: 'telephone', label: 'PHONE' }, { key: 'actions', label: 'ACTIONS' }]} data={paginatedVisitors} loading={isLoading && firstLoad} emptyMessage="No visitors."
               renderCell={(header, v: any) => {
                 switch (header.key) {
-                  case 'badge_number': return <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700">{v.badge_number || v.badge || "---"}</span>;
-                  case 'full_name': return <div className="flex items-center gap-2"><div className="w-7 h-7 bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600">{getVisitorName(v).substring(0, 2).toUpperCase()}</div><span className="text-sm font-semibold text-gray-800">{getVisitorName(v)}</span></div>;
-                  case 'identification': return <span className="text-xs text-gray-600">{getIdentification(v)}</span>;
-                  case 'status': return <span className={`text-xs px-2 py-0.5 font-bold uppercase ${v.status === "In_progress" || v.status === "Inside" ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-600"}`}>{v.status || "Pending"}</span>;
-                  case 'time': return <span className="text-xs font-semibold text-gray-800">{getCheckInTime(v)}</span>;
-                  case 'telephone': return <span className="text-xs text-gray-600">{v.telephone || "---"}</span>;
-                  case 'actions': return v.status === "In_progress" || v.status === "Inside" ? <button className="p-1.5 text-gray-400 cursor-not-allowed"><FiMoreVertical className="w-3.5 h-3.5" /></button> : <button onClick={() => handleAssignClick(v)} className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold">Assign</button>;
-                  default: return <span className="text-xs">{v[header.key] || '-'}</span>;
+                  case 'badge_number': return <span className="text-xs px-2 py-0.5" style={{ backgroundColor: 'rgba(5,109,170,0.1)', color: PRIMARY, borderRadius: 0 }}>{v.badge_number || v.badge || "---"}</span>;
+                  case 'full_name': return <div className="flex items-center gap-2"><div className="w-7 h-7 flex items-center justify-center text-xs font-bold" style={{ backgroundColor: 'rgba(5,109,170,0.1)', color: PRIMARY, borderRadius: 0 }}>{getVisitorName(v).substring(0, 2).toUpperCase()}</div><span className="text-sm font-semibold" style={{ color: NEUTRAL_DARK }}>{getVisitorName(v)}</span></div>;
+                  case 'identification': return <span className="text-xs" style={{ color: '#555555' }}>{getIdentification(v)}</span>;
+                  case 'status': return <span className="text-xs px-2 py-0.5 font-bold uppercase" style={{ borderRadius: 0, backgroundColor: v.status === "In_progress" || v.status === "Inside" ? 'rgba(76,175,80,0.12)' : 'rgba(243,156,18,0.12)', color: v.status === "In_progress" || v.status === "Inside" ? SUCCESS : WARNING }}>{v.status || "Pending"}</span>;
+                  case 'time': return <span className="text-xs font-semibold" style={{ color: NEUTRAL_DARK }}>{getCheckInTime(v)}</span>;
+                  case 'telephone': return <span className="text-xs" style={{ color: '#555555' }}>{v.telephone || "---"}</span>;
+                  case 'actions': return v.status === "In_progress" || v.status === "Inside" ? <button className="p-1.5 cursor-not-allowed" style={{ color: GRAY_DISABLED }}><FiMoreVertical className="w-3.5 h-3.5" /></button> : <button onClick={() => handleAssignClick(v)} className="px-3 py-1 text-xs transition-colors" style={{ backgroundColor: PRIMARY, color: WHITE, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}>Assign</button>;
+                  default: return <span className="text-xs" style={{ color: '#555555' }}>{v[header.key] || '-'}</span>;
                 }
               }}
               pagination={{ currentPage, totalPages: Math.ceil(totalCount / 50), totalCount, itemsPerPage: 50, onPageChange: (p) => setCurrentPage(p), loading: isLoading }}

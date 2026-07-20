@@ -2,6 +2,8 @@
 import React from 'react';
 import { FiArrowLeft, FiArrowRight, FiLoader } from 'react-icons/fi';
 
+const fontHeading = "'Montserrat', sans-serif";
+
 export type PaginationStyle = 'arrows-only' | 'arrows-with-numbers' | 'prev-next';
 
 export interface PaginationProps {
@@ -61,13 +63,13 @@ const Pagination: React.FC<PaginationProps> = ({
   // Common button classes
   const getButtonClasses = (isActive: boolean = false, isDisabled: boolean = false) => {
     const baseClasses = 'flex items-center justify-center transition-colors';
-    const disabledClasses = 'disabled:opacity-50 disabled:cursor-not-allowed';
-    
+    const disabledClasses = 'disabled:opacity-50 disabled:cursor-not-allowed disabled:text-[#9E9E9E]';
+
     if (isActive) {
-      return `${baseClasses} ${activeButtonClassName || 'bg-[#1a73e8] text-white'} ${disabledClasses}`;
+      return `${baseClasses} ${activeButtonClassName || 'bg-[#056daa] text-white'} ${disabledClasses}`;
     }
-    
-    return `${baseClasses} ${buttonClassName || 'border border-[#e0e0e0] text-gray-500 hover:bg-gray-100'} ${disabledClasses}`;
+
+    return `${baseClasses} ${buttonClassName || 'bg-white border border-[#E0E0E0] text-[#555555] hover:bg-gray-100'} ${disabledClasses}`;
   };
 
   // Style: Arrows Only (like in ProvideServicesTab)
@@ -75,7 +77,7 @@ const Pagination: React.FC<PaginationProps> = ({
     return (
       <div className={`flex justify-between items-center mt-6 ${containerClassName}`}>
         {showPageInfo && (
-          <div className="text-[#888] text-[12px]">
+          <div className="text-[#9E9E9E] text-[12px]">
             Page {currentPage} of {totalPages}
           </div>
         )}
@@ -83,7 +85,8 @@ const Pagination: React.FC<PaginationProps> = ({
           <button
             onClick={handlePrevClick}
             disabled={currentPage === 1 || isLoading}
-            className={`flex items-center gap-1 h-8 px-3 rounded-[6px] text-[12px] ${getButtonClasses(false, currentPage === 1 || isLoading)}`}
+            className={`flex items-center gap-1 h-8 px-3 text-[12px] ${getButtonClasses(false, currentPage === 1 || isLoading)}`}
+            style={{ fontFamily: fontHeading, borderRadius: 0 }}
           >
             {isLoading ? (
               <FiLoader className="w-3 h-3 animate-spin" />
@@ -95,7 +98,8 @@ const Pagination: React.FC<PaginationProps> = ({
           <button
             onClick={handleNextClick}
             disabled={currentPage === totalPages || isLoading}
-            className={`flex items-center gap-1 h-8 px-3 rounded-[6px] text-[12px] ${getButtonClasses(false, currentPage === totalPages || isLoading)}`}
+            className={`flex items-center gap-1 h-8 px-3 text-[12px] ${getButtonClasses(false, currentPage === totalPages || isLoading)}`}
+            style={{ fontFamily: fontHeading, borderRadius: 0 }}
           >
             {nextLabel}
             {isLoading ? (
@@ -115,7 +119,7 @@ const Pagination: React.FC<PaginationProps> = ({
     const getVisiblePages = () => {
       const pages: (number | string)[] = [];
       const maxVisible = 3;
-      
+
       if (totalPages <= maxVisible + 2) {
         // Show all pages
         for (let i = 1; i <= totalPages; i++) {
@@ -124,27 +128,27 @@ const Pagination: React.FC<PaginationProps> = ({
       } else {
         // Always show first page
         pages.push(1);
-        
+
         if (currentPage > 3) {
           pages.push('...');
         }
-        
+
         // Show pages around current
         const start = Math.max(2, currentPage - 1);
         const end = Math.min(totalPages - 1, currentPage + 1);
-        
+
         for (let i = start; i <= end; i++) {
           pages.push(i);
         }
-        
+
         if (currentPage < totalPages - 2) {
           pages.push('...');
         }
-        
+
         // Always show last page
         pages.push(totalPages);
       }
-      
+
       return pages;
     };
 
@@ -153,7 +157,7 @@ const Pagination: React.FC<PaginationProps> = ({
     return (
       <div className={`flex justify-between items-center pt-4 mt-2 ${containerClassName}`}>
         {showPageInfo && totalItems && (
-          <p className="text-[#888] text-[12px]">
+          <p className="text-[#9E9E9E] text-[12px]">
             Showing <span className="font-bold">{showingFrom}</span>-<span className="font-bold">{showingTo}</span> of <span className="font-bold">{totalItems}</span> results
           </p>
         )}
@@ -161,7 +165,8 @@ const Pagination: React.FC<PaginationProps> = ({
           <button
             onClick={handlePrevClick}
             disabled={currentPage === 1 || isLoading}
-            className={`w-8 h-8 rounded-[6px] ${getButtonClasses(false, currentPage === 1 || isLoading)}`}
+            className={`w-8 h-8 ${getButtonClasses(false, currentPage === 1 || isLoading)}`}
+            style={{ borderRadius: 0 }}
           >
             {isLoading ? (
               <FiLoader className="w-4 h-4 animate-spin" />
@@ -169,34 +174,36 @@ const Pagination: React.FC<PaginationProps> = ({
               <FiArrowLeft className="w-4 h-4" />
             )}
           </button>
-          
+
           {visiblePages.map((page, index) => {
             if (page === '...') {
               return (
-                <span key={`ellipsis-${index}`} className="text-gray-400 px-1">
+                <span key={`ellipsis-${index}`} className="text-[#9E9E9E] px-1">
                   ...
                 </span>
               );
             }
-            
+
             const pageNum = page as number;
             const isActive = pageNum === currentPage;
-            
+
             return (
               <button
                 key={pageNum}
                 onClick={() => onPageChange(pageNum)}
-                className={`w-8 h-8 rounded-full text-[12px] font-medium ${getButtonClasses(isActive)}`}
+                className={`w-8 h-8 text-[12px] font-medium ${getButtonClasses(isActive)}`}
+                style={{ fontFamily: fontHeading, borderRadius: 0 }}
               >
                 {pageNum}
               </button>
             );
           })}
-          
+
           <button
             onClick={handleNextClick}
             disabled={currentPage === totalPages || isLoading}
-            className={`w-8 h-8 rounded-[6px] ${getButtonClasses(false, currentPage === totalPages || isLoading)}`}
+            className={`w-8 h-8 ${getButtonClasses(false, currentPage === totalPages || isLoading)}`}
+            style={{ borderRadius: 0 }}
           >
             {isLoading ? (
               <FiLoader className="w-4 h-4 animate-spin" />
@@ -215,9 +222,9 @@ const Pagination: React.FC<PaginationProps> = ({
     const pageButtons = Array.from({ length: Math.min(3, totalPages) }, (_, i) => i + 1);
 
     return (
-      <div className={`px-6 py-4 border-t border-gray-100 flex items-center justify-between ${containerClassName}`}>
+      <div className={`px-6 py-4 border-t border-[#E0E0E0] flex items-center justify-between ${containerClassName}`}>
         {showPageInfo && totalItems && (
-          <p className="text-[13px] text-[#64748B]">
+          <p className="text-[13px] text-[#555555]">
             Showing {showingFrom} to {showingTo} of {totalItems} requests
           </p>
         )}
@@ -225,38 +232,41 @@ const Pagination: React.FC<PaginationProps> = ({
           <button
             onClick={handlePrevClick}
             disabled={currentPage === 1 || isLoading}
-            className={`w-7 h-7 rounded-[4px] ${getButtonClasses(false, currentPage === 1 || isLoading)}`}
+            className={`w-7 h-7 ${getButtonClasses(false, currentPage === 1 || isLoading)}`}
+            style={{ borderRadius: 0 }}
           >
             {isLoading ? (
               <FiLoader className="w-4 h-4 animate-spin" />
             ) : (
-              <FiArrowRight className="w-4 h-4 text-[#475569] rotate-180" />
+              <FiArrowRight className="w-4 h-4 text-[#555555] rotate-180" />
             )}
           </button>
-          
+
           {pageButtons.map((page) => (
             <button
               key={page}
               onClick={() => onPageChange(page)}
-              className={`w-7 h-7 text-[13px] font-medium rounded-[4px] transition-colors ${
+              className={`w-7 h-7 text-[13px] font-medium transition-colors ${
                 currentPage === page
-                  ? 'bg-[#0284C7] text-white'
-                  : 'bg-[#F1F5F9] text-[#475569] hover:bg-gray-200'
+                  ? 'bg-[#056daa] text-white'
+                  : 'bg-white border border-[#E0E0E0] text-[#555555] hover:bg-gray-100'
               }`}
+              style={{ fontFamily: fontHeading, borderRadius: 0 }}
             >
               {page}
             </button>
           ))}
-          
+
           <button
             onClick={handleNextClick}
             disabled={currentPage === totalPages || isLoading}
-            className={`w-7 h-7 rounded-[4px] ${getButtonClasses(false, currentPage === totalPages || isLoading)}`}
+            className={`w-7 h-7 ${getButtonClasses(false, currentPage === totalPages || isLoading)}`}
+            style={{ borderRadius: 0 }}
           >
             {isLoading ? (
               <FiLoader className="w-4 h-4 animate-spin" />
             ) : (
-              <FiArrowRight className="w-4 h-4 text-[#475569]" />
+              <FiArrowRight className="w-4 h-4 text-[#555555]" />
             )}
           </button>
         </div>

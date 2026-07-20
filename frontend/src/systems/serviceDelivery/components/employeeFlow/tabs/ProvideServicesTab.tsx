@@ -6,6 +6,15 @@ import { serviceDeliveryService, departmentService, employeeService } from "../.
 import { useToast } from "../../../../../core/contexts/ToastContext";
 import { SearchableSelect, LiveTimer, TransferModal } from "./sub";
 
+const PRIMARY = "#056daa";
+const WHITE = "#FFFFFF";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+
+const cardStyle: React.CSSProperties = { backgroundColor: WHITE, boxShadow: CARD_SHADOW };
+const btnTypography: React.CSSProperties = { fontFamily: fontHeading, fontSize: 13, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' };
+const inputTypography: React.CSSProperties = { fontFamily: fontHeading, fontSize: 14 };
+
 export interface ProvideServicesTabProps { isDashboardView?: boolean; }
 
 const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView = false }) => {
@@ -40,7 +49,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
 
   const formatVisitors = (allVisitors: any[]) => {
     return allVisitors.map((v: any) => {
-      const colors = ["bg-purple-500","bg-pink-500","bg-yellow-400","bg-teal-500","bg-lavender-400","bg-blue-500"];
+      const colors = ["bg-[#2980B9]","bg-[#E74C3C]","bg-[#F39C12]","bg-[#4CAF50]","bg-[#CDB896]","bg-[#056daa]"];
       const visitorName = v.full_name || v.name || v.visitorName || "Unknown";
       const colorIndex = visitorName.charCodeAt(0) % colors.length;
       const initials = visitorName.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase();
@@ -74,7 +83,7 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
       if (response && response.success) {
         const allVisitors: any[] = response.data || [];
         const formattedSuggestions = allVisitors.map((v: any) => {
-          const colors = ["bg-purple-500","bg-pink-500","bg-yellow-400","bg-teal-500","bg-lavender-400","bg-blue-500"];
+          const colors = ["bg-[#2980B9]","bg-[#E74C3C]","bg-[#F39C12]","bg-[#4CAF50]","bg-[#CDB896]","bg-[#056daa]"];
           const visitorName = v.full_name || v.name || v.visitorName || "Unknown";
           const colorIndex = visitorName.charCodeAt(0) % colors.length;
           const initials = visitorName.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase();
@@ -171,24 +180,24 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
 
   return (
     <div className={isDashboardView ? "" : "p-4"}>
-      <div className={`bg-white p-4 shadow-sm ${!isDashboardView ? "mt-4" : ""}`}>
+      <div className={`p-4 ${!isDashboardView ? "mt-4" : ""}`} style={cardStyle}>
         <div className="flex items-center gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex">
               <div className="flex-1 relative min-w-0">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input type="text" placeholder="Search by visitor name, ID, or badge..." value={searchTerm} onChange={(e) => handleSearchTyping(e.target.value)} className="w-full h-10 pl-9 pr-3 border border-gray-200 text-xs" onFocus={() => searchTerm && searchTerm?.trim()?.length >= 1 && setShowSearchPreview(true)} />
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9E9E9E] w-4 h-4" />
+                <input type="text" placeholder="Search by visitor name, ID, or badge..." value={searchTerm} onChange={(e) => handleSearchTyping(e.target.value)} className="w-full h-10 pl-9 pr-3 bg-[#F7F9FB] border border-transparent shadow-[0px_2px_4px_rgba(0,0,0,0.1)] focus:outline-none focus:border-[#056daa] focus:shadow-[0px_4px_8px_rgba(5,109,170,0.25)]" style={inputTypography} onFocus={() => searchTerm && searchTerm?.trim()?.length >= 1 && setShowSearchPreview(true)} />
                 {showSearchPreview && searchSuggestions.length > 0 && (
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 shadow-lg max-h-60 overflow-y-auto" style={{ minWidth: "400px" }}>
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-[#E0E0E0] max-h-60 overflow-y-auto" style={{ minWidth: "400px", boxShadow: CARD_SHADOW }}>
                     <div className="py-1">{searchSuggestions.map((suggestion) => (
-                      <div key={suggestion.id} onClick={() => handleSuggestionClick(suggestion)} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-blue-50">
+                      <div key={suggestion.id} onClick={() => handleSuggestionClick(suggestion)} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-[rgba(5,109,170,0.08)]">
                         <div className={`w-8 h-8 ${suggestion.avatarColor} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>{suggestion.initials}</div>
-                        <div className="flex-1 min-w-0"><div className="text-gray-800 text-xs font-medium truncate">{suggestion.visitorName}</div><div className="text-gray-500 text-xs truncate">ID: {suggestion.visitorId}</div></div>
-                        <div className="text-gray-600 text-xs whitespace-nowrap">
-                          {suggestion.status === "Not started" && <span className="text-orange-600">Not started</span>}
-                          {suggestion.status === "inprogress" && <span className="text-blue-600">In progress</span>}
-                          {suggestion.status === "completed" && <span className="text-green-700">Completed</span>}
-                          {suggestion.status === "transfered" && <span className="text-purple-700">Transferred</span>}
+                        <div className="flex-1 min-w-0"><div className="text-[#333333] text-xs font-medium truncate">{suggestion.visitorName}</div><div className="text-[#9E9E9E] text-xs truncate">ID: {suggestion.visitorId}</div></div>
+                        <div className="text-[#555555] text-xs whitespace-nowrap">
+                          {suggestion.status === "Not started" && <span className="text-[#F39C12]">Not started</span>}
+                          {suggestion.status === "inprogress" && <span className="text-[#4CAF50]">In progress</span>}
+                          {suggestion.status === "completed" && <span className="text-[#555555]">Completed</span>}
+                          {suggestion.status === "transfered" && <span className="text-[#2980B9]">Transferred</span>}
                         </div>
                       </div>
                     ))}</div>
@@ -196,30 +205,30 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
                 )}
                 {showSearchPreview && <div className="fixed inset-0 z-40" onClick={() => setShowSearchPreview(false)} />}
               </div>
-              <button onClick={() => { setCurrentPage(1); setShowSearchPreview(false); setSearchSuggestions([]); fetchAssignedVisitors(false, 1, searchTerm); }} disabled={loading} className="h-10 px-4 bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 justify-center">
+              <button onClick={() => { setCurrentPage(1); setShowSearchPreview(false); setSearchSuggestions([]); fetchAssignedVisitors(false, 1, searchTerm); }} disabled={loading} className="h-10 px-4 bg-[#056daa] text-white hover:bg-[#045d94] disabled:bg-[#9E9E9E] disabled:cursor-not-allowed flex items-center gap-1.5 justify-center" style={btnTypography}>
                 {loading && searchTerm ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : null}
                 {loading && searchTerm ? "Searching..." : "Search"}
               </button>
             </div>
           </div>
-          <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }} className="h-10 px-3 border border-gray-200 text-xs bg-white">
+          <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }} className="h-10 px-3 bg-[#F7F9FB] border border-transparent shadow-[0px_2px_4px_rgba(0,0,0,0.1)] focus:outline-none focus:border-[#056daa] focus:shadow-[0px_4px_8px_rgba(5,109,170,0.25)]" style={inputTypography}>
             <option value="all">All Status</option>
             <option value="not-started">Not Started</option>
             <option value="inprogress">In Progress</option>
             <option value="completed">Completed</option>
           </select>
           {isDashboardView && (
-            <button onClick={() => { setShowSearchPreview(false); setSearchSuggestions([]); if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); fetchAssignedVisitors(false); }} className="flex items-center gap-1.5 h-10 px-3 border border-gray-200 bg-white text-gray-700 text-xs hover:bg-gray-50 justify-center">
+            <button onClick={() => { setShowSearchPreview(false); setSearchSuggestions([]); if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); fetchAssignedVisitors(false); }} className="flex items-center gap-1.5 h-10 px-3 border border-[#056daa] bg-transparent text-[#056daa] hover:bg-[rgba(5,109,170,0.08)] justify-center" style={btnTypography}>
               <FiRefreshCw className={loading ? "animate-spin" : ""} /> Refresh
             </button>
           )}
         </div>
       </div>
 
-      <div className="bg-white p-4 mt-4 shadow-sm overflow-x-auto">
+      <div className="p-4 mt-4 overflow-x-auto" style={cardStyle}>
         <table className="w-full min-w-[800px]">
           <thead>
-            <tr className="bg-blue-600 border-b border-gray-200">
+            <tr className="border-b border-[#E0E0E0]" style={{ backgroundColor: PRIMARY }}>
               <th className="text-left text-xs font-semibold text-white uppercase px-3 py-2.5 w-[5%]">NAME / TEL</th>
               <th className="text-left text-xs font-semibold text-white uppercase px-3 py-2.5 w-[15%]">BADGE / ID</th>
               <th className="text-left text-xs font-semibold text-white uppercase px-3 py-2.5 w-[12%]">SERVICE</th>
@@ -230,49 +239,49 @@ const ProvideServicesTab: React.FC<ProvideServicesTabProps> = ({ isDashboardView
           </thead>
           <tbody>
             {loading && requests.length === 0 ? (
-              <tr><td colSpan={6} className="py-8 text-center text-gray-500"><div className="flex items-center justify-center p-8"><div className="h-6 w-6   mx-auto"> <FiLoader className="animate-spin h-6 w-6 text-blue-600" /> </div></div></td></tr>
+              <tr><td colSpan={6} className="py-8 text-center text-[#9E9E9E]"><div className="flex items-center justify-center p-8"><div className="h-6 w-6   mx-auto"> <FiLoader className="animate-spin h-6 w-6" style={{ color: PRIMARY }} /> </div></div></td></tr>
             ) : paginatedRequests.length > 0 ? (
               paginatedRequests.map((request) => (
-                <tr title="Click to view visitor details" key={request.id} className="border-b border-gray-100 h-12 cursor-pointer hover:bg-gray-50" onClick={() => handleVisitorClick(request)}>
+                <tr title="Click to view visitor details" key={request.id} className="border-b border-[#E0E0E0] h-12 cursor-pointer hover:bg-[#F7F9FB]" onClick={() => handleVisitorClick(request)}>
                   <td className="py-2.5 px-2">
                     <div className="flex items-center gap-2">
                       <div className={`w-8 h-8 ${request.avatarColor} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>{request.initials}</div>
                       <div className="min-w-0 flex-1">
-                        <div onClick={() => handleVisitorClick(request)} className="text-gray-800 text-xs font-medium truncate cursor-pointer hover:text-blue-600 hover:underline inline-flex items-center gap-1">{request.visitorName}</div>
-                        <div className="text-gray-500 text-xs truncate">{request.telephone !== "____" ? request.telephone : "No phone"}</div>
+                        <div onClick={() => handleVisitorClick(request)} className="text-[#333333] text-xs font-medium truncate cursor-pointer hover:text-[#056daa] hover:underline inline-flex items-center gap-1">{request.visitorName}</div>
+                        <div className="text-[#9E9E9E] text-xs truncate">{request.telephone !== "____" ? request.telephone : "No phone"}</div>
                       </div>
                     </div>
                   </td>
                   <td className="py-2.5 px-2">
-                    <div className="text-gray-800 text-xs font-medium">{request.badgeNumber ? `Badge: ${request.badgeNumber}` : "No Badge"}</div>
-                    <div className="text-gray-500 text-xs">ID: {request.visitorId}</div>
+                    <div className="text-[#333333] text-xs font-medium">{request.badgeNumber ? `Badge: ${request.badgeNumber}` : "No Badge"}</div>
+                    <div className="text-[#9E9E9E] text-xs">ID: {request.visitorId}</div>
                   </td>
-                  <td className="py-2.5 px-2 text-gray-800 text-xs font-medium">{request.assignedTo}</td>
-                  <td className="py-2.5 px-2 text-gray-600 text-xs font-medium">{request.waitTime}</td>
+                  <td className="py-2.5 px-2 text-[#333333] text-xs font-medium">{request.assignedTo}</td>
+                  <td className="py-2.5 px-2 text-[#555555] text-xs font-medium">{request.waitTime}</td>
                   <td className="py-2.5 px-2">
-                    {request.status === "Not started" && <span className="inline-flex items-center px-2 py-0.5 text-xs font-bold bg-orange-100 text-orange-700">Not Started</span>}
-                    {request.status === "inprogress" && <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-bold bg-blue-100 text-blue-700"><FiClock className="w-3 h-3 animate-pulse" /><LiveTimer startTime={request.serviceStartTime} /></span>}
-                    {request.status === "completed" && <span className="inline-flex items-center px-2 py-0.5 text-xs font-bold bg-green-100 text-green-700">Completed</span>}
-                    {request.status === "transfered" && <span className="inline-flex items-center px-2 py-0.5 text-xs font-bold bg-purple-100 text-purple-700">Transferred</span>}
+                    {request.status === "Not started" && <span className="inline-flex items-center px-2 py-0.5 text-xs font-bold bg-[rgba(243,156,18,0.12)] text-[#F39C12]">Not Started</span>}
+                    {request.status === "inprogress" && <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-bold bg-[rgba(76,175,80,0.12)] text-[#388E3C]"><FiClock className="w-3 h-3 animate-pulse" /><LiveTimer startTime={request.serviceStartTime} /></span>}
+                    {request.status === "completed" && <span className="inline-flex items-center px-2 py-0.5 text-xs font-bold bg-[rgba(51,51,51,0.08)] text-[#555555]">Completed</span>}
+                    {request.status === "transfered" && <span className="inline-flex items-center px-2 py-0.5 text-xs font-bold bg-[rgba(41,128,185,0.12)] text-[#2980B9]">Transferred</span>}
                   </td>
                   <td className="py-2.5 px-2">
-                    {request.status === "completed" ? <span className="text-green-600 text-xs font-medium">✓ Served</span>
-                    : <button title="Click to transfer visitor" onClick={(e) => handleTransferClick(e, request)} disabled={isServing} className="h-7 w-18 bg-purple-700 text-white text-xs font-bold hover:bg-purple-800 disabled:opacity-50 flex items-center justify-center gap-1"><FiArrowRightCircle className="w-3 h-3" /> Transfer</button>}
+                    {request.status === "completed" ? <span className="text-[#4CAF50] text-xs font-medium">✓ Served</span>
+                    : <button title="Click to transfer visitor" onClick={(e) => handleTransferClick(e, request)} disabled={isServing} className="h-7 w-18 bg-[#2980B9] text-white text-xs hover:bg-[#2471A3] disabled:bg-[#9E9E9E] flex items-center justify-center gap-1" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}><FiArrowRightCircle className="w-3 h-3" /> Transfer</button>}
                   </td>
                 </tr>
               ))
             ) : (
-              <tr><td colSpan={6} className="text-center py-8 text-gray-500">{searchTerm ? "No visitors found matching your search." : "No visitors found for your department."}</td></tr>
+              <tr><td colSpan={6} className="text-center py-8 text-[#9E9E9E]">{searchTerm ? "No visitors found matching your search." : "No visitors found for your department."}</td></tr>
             )}
           </tbody>
         </table>
         {totalPages > 1 && (
-          <div className="flex justify-between items-center mt-4 pt-2 border-t border-gray-100">
-            <div className="text-gray-600 text-xs">Showing {(currentPage - 1) * 20 + 1} to {Math.min(currentPage * 20, totalCount)} of {totalCount} visitors</div>
+          <div className="flex justify-between items-center mt-4 pt-2 border-t border-[#E0E0E0]">
+            <div className="text-[#555555] text-xs">Showing {(currentPage - 1) * 20 + 1} to {Math.min(currentPage * 20, totalCount)} of {totalCount} visitors</div>
             <div className="flex gap-2">
-              <button onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))} disabled={currentPage === 1} className="px-3 py-1.5 border border-gray-200 text-gray-600 text-xs hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
-              <span className="px-3 py-1.5 text-xs font-medium text-gray-700">Page {currentPage} of {totalPages}</span>
-              <button onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="px-3 py-1.5 border border-gray-200 text-gray-600 text-xs hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
+              <button onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))} disabled={currentPage === 1} className="px-3 py-1.5 border border-[#056daa] bg-transparent text-[#056daa] text-xs hover:bg-[rgba(5,109,170,0.08)] disabled:border-[#9E9E9E] disabled:text-[#9E9E9E] disabled:cursor-not-allowed" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>Previous</button>
+              <span className="px-3 py-1.5 text-xs font-medium text-[#555555]">Page {currentPage} of {totalPages}</span>
+              <button onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="px-3 py-1.5 border border-[#056daa] bg-transparent text-[#056daa] text-xs hover:bg-[rgba(5,109,170,0.08)] disabled:border-[#9E9E9E] disabled:text-[#9E9E9E] disabled:cursor-not-allowed" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>Next</button>
             </div>
           </div>
         )}

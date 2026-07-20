@@ -1,20 +1,31 @@
 // QueueStatusModal Component - Shows departmental queue status
 
 import { useState } from "react";
-import { 
+import {
   FiX, FiRefreshCw, FiClock, FiUsers, FiCheckCircle,
   FiChevronLeft, FiChevronRight, FiPrinter, FiArrowUp
 } from "react-icons/fi";
+
+// City of Kigali institutional design constants
+const PRIMARY = "#056daa";
+const PRIMARY_HOVER = "#045d94";
+const SUCCESS = "#4CAF50";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const BORDER = "#E0E0E0";
+const WHITE = "#FFFFFF";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
 
 // Queue visitor avatar colors based on status
 const getAvatarColorByStatus = (status: string) => {
   switch (status) {
     case 'in_progress':
-      return 'bg-blue-500';
+      return 'bg-[#056daa]';
     case 'next':
-      return 'bg-red-500';
+      return 'bg-[#E74C3C]';
     case 'waiting':
-      return 'bg-purple-500';
+      return 'bg-[#2980B9]';
     default:
       return 'bg-gray-500';
   }
@@ -72,54 +83,54 @@ const QueueStatusModal: React.FC<QueueStatusModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    // Fixed overlay with backdrop blur effect
+    // Fixed overlay
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop with blur */}
-      <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
+      {/* Backdrop - plain, no blur */}
+      <div
+        className="absolute inset-0 bg-black/40"
         onClick={onClose}
       ></div>
 
       {/* Modal Content */}
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 overflow-hidden max-h-[90vh] flex flex-col">
+      <div className="relative w-full max-w-4xl mx-4 overflow-hidden max-h-[90vh] flex flex-col" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
         {/* Header */}
-        <div className="px-6 py-4 bg-white flex items-center justify-between flex-shrink-0">
+        <div className="px-6 py-4 flex items-center justify-between flex-shrink-0" style={{ backgroundColor: WHITE }}>
           <div>
-            <h2 className="text-xl font-bold text-black">Departmental Queue Status</h2>
+            <h2 className="text-xl" style={{ fontFamily: fontHeading, fontWeight: 700, color: NEUTRAL_DARK }}>Departmental Queue Status</h2>
             <div className="flex items-center gap-2 mt-1">
-              <FiUsers className="text-blue-300" />
-              <span className="text-black-100">{departmentName} Live Queue</span>
+              <FiUsers style={{ color: PRIMARY }} />
+              <span style={{ color: '#555555' }}>{departmentName} Live Queue</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button 
+            <button
               onClick={handleRefresh}
-              className="p-2 hover:bg-blue-700 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 transition-colors"
             >
-              <FiRefreshCw className={`text-white ${isRefreshing ? 'animate-spin' : ''}`} />
+              <FiRefreshCw className={isRefreshing ? 'animate-spin' : ''} style={{ color: PRIMARY }} />
             </button>
-            <button 
+            <button
               onClick={onClose}
-              className="p-2 hover:bg-blue-700 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 transition-colors"
             >
-              <FiX className="text-white text-xl" />
+              <FiX className="text-xl" style={{ color: NEUTRAL_DARK }} />
             </button>
           </div>
         </div>
 
-        {/* KPI Cards - Sky Blue Background */}
-        <div className="bg-sky-50 px-6 py-4 flex gap-4 flex-shrink-0">
+        {/* KPI Cards */}
+        <div className="px-6 py-4 flex gap-4 flex-shrink-0" style={{ backgroundColor: NEUTRAL_LIGHT }}>
           {/* Est. Wait Time Card */}
-          <div className="flex-1 bg-white rounded-lg p-4 shadow-sm">
+          <div className="flex-1 p-4" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center">
-                <FiClock className="text-blue-600" />
+              <div className="w-8 h-8 flex items-center justify-center" style={{ backgroundColor: 'rgba(5,109,170,0.1)', borderRadius: 0 }}>
+                <FiClock style={{ color: PRIMARY }} />
               </div>
               <span className="text-sm text-gray-600">Est. Wait Time</span>
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-2xl font-bold text-gray-800">12 MINS</span>
-              <span className="text-sm text-green-600 flex items-center">
+              <span className="text-2xl font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>12 MINS</span>
+              <span className="text-sm flex items-center" style={{ color: SUCCESS }}>
                 <FiArrowUp className="rotate-180" />
                 -2m
               </span>
@@ -127,30 +138,30 @@ const QueueStatusModal: React.FC<QueueStatusModalProps> = ({
           </div>
 
           {/* People Waiting Card */}
-          <div className="flex-1 bg-white rounded-lg p-4 shadow-sm">
+          <div className="flex-1 p-4" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center">
-                <FiUsers className="text-blue-600" />
+              <div className="w-8 h-8 flex items-center justify-center" style={{ backgroundColor: 'rgba(5,109,170,0.1)', borderRadius: 0 }}>
+                <FiUsers style={{ color: PRIMARY }} />
               </div>
               <span className="text-sm text-gray-600">People Waiting</span>
             </div>
             <div className="flex items-end gap-1">
-              <span className="text-2xl font-bold text-gray-800">8</span>
+              <span className="text-2xl font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>8</span>
               <span className="text-sm text-gray-500">visitors</span>
             </div>
           </div>
 
           {/* Completed Today Card */}
-          <div className="flex-1 bg-white rounded-lg p-4 shadow-sm">
+          <div className="flex-1 p-4" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center">
-                <FiCheckCircle className="text-blue-600" />
+              <div className="w-8 h-8 flex items-center justify-center" style={{ backgroundColor: 'rgba(5,109,170,0.1)', borderRadius: 0 }}>
+                <FiCheckCircle style={{ color: PRIMARY }} />
               </div>
               <span className="text-sm text-gray-600">Completed Today</span>
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-2xl font-bold text-gray-800">42</span>
-              <span className="text-sm text-green-600">+12%</span>
+              <span className="text-2xl font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>42</span>
+              <span className="text-sm" style={{ color: SUCCESS }}>+12%</span>
             </div>
           </div>
         </div>
@@ -159,19 +170,19 @@ const QueueStatusModal: React.FC<QueueStatusModalProps> = ({
         <div className="flex-1 overflow-auto p-6">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider px-4 py-3">POS</th>
-                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider px-4 py-3">VISITOR NAME</th>
-                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider px-4 py-3">SERVICE TYPE</th>
-                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider px-4 py-3">WAIT TIME</th>
-                <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider px-4 py-3">STATUS</th>
+              <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                <th className="text-left text-xs font-semibold uppercase tracking-wider px-4 py-3" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>POS</th>
+                <th className="text-left text-xs font-semibold uppercase tracking-wider px-4 py-3" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>VISITOR NAME</th>
+                <th className="text-left text-xs font-semibold uppercase tracking-wider px-4 py-3" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>SERVICE TYPE</th>
+                <th className="text-left text-xs font-semibold uppercase tracking-wider px-4 py-3" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>WAIT TIME</th>
+                <th className="text-left text-xs font-semibold uppercase tracking-wider px-4 py-3" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>STATUS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {QUEUE_DATA.map((visitor) => (
                 <tr key={visitor.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
-                    <span className="text-sm font-medium text-gray-800">#{visitor.pos}</span>
+                    <span className="text-sm font-medium" style={{ color: NEUTRAL_DARK }}>#{visitor.pos}</span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -179,30 +190,30 @@ const QueueStatusModal: React.FC<QueueStatusModalProps> = ({
                         {visitor.initials}
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-800">{visitor.name}</p>
+                        <p className="text-sm font-medium" style={{ color: NEUTRAL_DARK }}>{visitor.name}</p>
                         <p className="text-xs text-gray-500">ID: {visitor.nationalId}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-sm text-gray-600">{visitor.serviceType}</span>
+                    <span className="text-sm" style={{ color: '#555555' }}>{visitor.serviceType}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-sm text-gray-600">{visitor.waitTime}</span>
+                    <span className="text-sm" style={{ color: '#555555' }}>{visitor.waitTime}</span>
                   </td>
                   <td className="px-4 py-3">
                     {visitor.status === 'in_progress' && (
-                      <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                      <span className="px-3 py-1 bg-[rgba(76,175,80,0.12)] text-[#388E3C] text-xs font-medium">
                         In Progress
                       </span>
                     )}
                     {visitor.status === 'next' && (
-                      <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+                      <span className="px-3 py-1 bg-[rgba(231,76,60,0.12)] text-[#E74C3C] text-xs font-medium">
                         Next
                       </span>
                     )}
                     {visitor.status === 'waiting' && (
-                      <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
+                      <span className="px-3 py-1 bg-[rgba(41,128,185,0.12)] text-[#2980B9] text-xs font-medium">
                         Waiting
                       </span>
                     )}
@@ -214,13 +225,14 @@ const QueueStatusModal: React.FC<QueueStatusModalProps> = ({
         </div>
 
         {/* Pagination */}
-        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between flex-shrink-0">
+        <div className="px-6 py-4 flex items-center justify-between flex-shrink-0" style={{ borderTop: `1px solid ${BORDER}` }}>
           <p className="text-sm text-gray-500">
             Showing 1 to 5 of {totalResults} results
           </p>
           <div className="flex items-center gap-2">
-            <button 
-              className="w-8 h-8 flex items-center justify-center text-gray-600 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50"
+            <button
+              className="w-8 h-8 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50"
+              style={{ border: `1px solid ${BORDER}`, borderRadius: 0, color: '#555555' }}
               disabled={currentPage === 1}
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
             >
@@ -230,17 +242,17 @@ const QueueStatusModal: React.FC<QueueStatusModalProps> = ({
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`w-8 h-8 flex items-center justify-center rounded text-sm font-medium transition-colors ${
-                  currentPage === page
-                    ? "bg-blue-600 text-white"
-                    : "border border-gray-200 text-gray-600 hover:bg-gray-50"
-                }`}
+                className="w-8 h-8 flex items-center justify-center text-sm font-medium transition-colors"
+                style={currentPage === page
+                  ? { backgroundColor: PRIMARY, color: WHITE, borderRadius: 0 }
+                  : { border: `1px solid ${BORDER}`, color: '#555555', borderRadius: 0 }}
               >
                 {page}
               </button>
             ))}
-            <button 
-              className="w-8 h-8 flex items-center justify-center text-gray-600 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50"
+            <button
+              className="w-8 h-8 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50"
+              style={{ border: `1px solid ${BORDER}`, borderRadius: 0, color: '#555555' }}
               disabled={currentPage === totalPages}
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
             >
@@ -250,16 +262,20 @@ const QueueStatusModal: React.FC<QueueStatusModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3 flex-shrink-0">
+        <div className="px-6 py-4 flex items-center justify-end gap-3 flex-shrink-0" style={{ borderTop: `1px solid ${BORDER}` }}>
           <button
             onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+            className="px-4 py-2 transition-colors"
+            style={{ backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
           >
             Close
           </button>
           <button
             onClick={handlePrint}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            className="px-4 py-2 flex items-center gap-2 transition-colors"
+            style={{ backgroundColor: PRIMARY, color: WHITE, borderRadius: 0, fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
           >
             <FiPrinter className="w-4 h-4" />
             Print Schedule
