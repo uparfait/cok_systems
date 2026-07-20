@@ -543,51 +543,48 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
 
             {/* Step: Rate & Message (Unserviced) */}
             {step === 'unserviced_rate' && (
-              <div className="space-y-3">
-                <div className="text-center mb-1">
-                  <div className="w-9 h-9 bg-[#f5eede] rounded-full flex items-center justify-center mx-auto mb-1.5">
-                    <FiUser className="w-5 h-5 text-[#b09468]" />
-                  </div>
+              <div className="space-y-2">
+                <div className="text-center">
                   <p className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Share Your Feedback</p>
                   <p className="text-xs text-gray-500">No service required - tell us about your experience</p>
                 </div>
 
-                {/* Optional Name */}
-                <div>
-                  <label className="block mb-1.5" style={labelStyle}>
-                    Your Name (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={unservedName}
-                    onChange={(e) => setUnservedName(e.target.value.slice(0, 200))}
-                    placeholder="Enter your name"
-                    className="w-full px-3 py-2 focus:outline-none" style={inputStyle} onFocus={handleInputFocus} onBlur={handleInputBlur}
-                  />
-                </div>
-
-                {/* Optional Phone */}
-                <div>
-                  <label className="block mb-1.5" style={labelStyle}>
-                    Phone Number (Optional)
-                  </label>
-                  <div className="relative">
-                    <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                      <FiPhone className="w-4 h-4" />
-                    </span>
+                {/* Optional Name & Phone */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block mb-1" style={labelStyle}>
+                      Name (Optional)
+                    </label>
                     <input
-                      type="tel"
-                      value={unservedPhone}
-                      onChange={(e) => setUnservedPhone(e.target.value)}
-                      placeholder="Enter phone number"
-                      className="w-full pl-10 pr-4 py-2 focus:outline-none" style={inputStyle} onFocus={handleInputFocus} onBlur={handleInputBlur}
+                      type="text"
+                      value={unservedName}
+                      onChange={(e) => setUnservedName(e.target.value.slice(0, 200))}
+                      placeholder="Enter your name"
+                      className="w-full px-3 py-1.5 focus:outline-none" style={inputStyle} onFocus={handleInputFocus} onBlur={handleInputBlur}
                     />
+                  </div>
+                  <div>
+                    <label className="block mb-1" style={labelStyle}>
+                      Phone (Optional)
+                    </label>
+                    <div className="relative">
+                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                        <FiPhone className="w-4 h-4" />
+                      </span>
+                      <input
+                        type="tel"
+                        value={unservedPhone}
+                        onChange={(e) => setUnservedPhone(e.target.value)}
+                        placeholder="Phone number"
+                        className="w-full pl-9 pr-3 py-1.5 focus:outline-none" style={inputStyle} onFocus={handleInputFocus} onBlur={handleInputBlur}
+                      />
+                    </div>
                   </div>
                 </div>
 
                 {/* Rating */}
                 <div>
-                  <label className="block mb-2 text-center" style={labelStyle}>
+                  <label className="block mb-1 text-center" style={labelStyle}>
                     Rating: {unservedRating}/10
                   </label>
                   <div className="flex items-center justify-center gap-1">
@@ -595,7 +592,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                       <button
                         key={value}
                         onClick={() => setUnservedRating(value)}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all ${
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium transition-all ${
                           value <= unservedRating
                             ? value <= 3
                               ? 'bg-red-500 text-white'
@@ -611,7 +608,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                       </button>
                     ))}
                   </div>
-                  <div className="flex justify-between text-xs text-gray-400 mt-1 px-1">
+                  <div className="flex justify-between text-xs text-gray-400 mt-0.5 px-1">
                     <span>Poor</span>
                     <span>Excellent</span>
                   </div>
@@ -619,7 +616,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
 
                 {/* Message */}
                 <div>
-                  <label className="block mb-1.5" style={labelStyle}>
+                  <label className="block mb-1" style={labelStyle}>
                     Your Feedback (Optional)
                   </label>
                   <textarea
@@ -627,7 +624,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                     onChange={(e) => setUnservedMessage(e.target.value.slice(0, 500))}
                     placeholder="Tell us about your experience..."
                     rows={2}
-                    className="w-full px-3 py-2 focus:outline-none resize-none" style={inputStyle} onFocus={handleInputFocus} onBlur={handleInputBlur}
+                    className="w-full px-3 py-1.5 focus:outline-none resize-none" style={inputStyle} onFocus={handleInputFocus} onBlur={handleInputBlur}
                   />
                   <p className="text-xs text-gray-400 mt-0.5 text-right">{unservedMessage.length}/500</p>
                 </div>
@@ -635,7 +632,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                 <div className="flex gap-2">
                   <button
                     onClick={handleGoBack}
-                    className="flex-1 py-2.5 px-4 transition-colors"
+                    className="flex-1 py-2 px-4 transition-colors"
                     style={{ ...buttonBaseStyle, backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY }}
                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(5,109,170,0.08)'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
@@ -644,7 +641,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                   </button>
                   <button
                     onClick={handleUnservicedPreview}
-                    className="flex-1 py-2.5 px-4 transition-colors flex items-center justify-center gap-2"
+                    className="flex-1 py-2 px-4 transition-colors flex items-center justify-center gap-2"
                     style={{ ...buttonBaseStyle, backgroundColor: PRIMARY, color: WHITE, border: 'none' }}
                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
