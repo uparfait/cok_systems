@@ -1,6 +1,3 @@
-// FeedbackModal - Multi-step feedback form for visitors
-// Choice: Service Provided → phone → department → rate → preview → submit
-// Choice: Custom Feedback (No Service) → rate → preview → submit
 
 import React, { useState, useEffect } from 'react';
 import { FiX, FiPhone, FiCheckCircle, FiAlertCircle, FiStar, FiMessageSquare, FiEye, FiUsers, FiUser } from 'react-icons/fi';
@@ -274,7 +271,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto">
+    <div className="fixed inset-0 z-[9999]  overflow-y-auto">
       {/* Backdrop */}
       <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity" onClick={handleClose} />
 
