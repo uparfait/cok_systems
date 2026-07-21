@@ -341,7 +341,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>General Feedback</p>
-                        <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                        <p className="text-xs text-gray-700 mt-1 leading-relaxed">
                           No service required. Share your experience & suggestion.
                           <span className="block mt-1 font-medium" style={{ color: '#b09468' }}> Skip phone verification, rate and send</span>
                         </p>
