@@ -53,7 +53,8 @@ class UpdateLiveEventController {
     } catch (error) {
       return res.status(400).json({
         success: false,
-        message: error.message
+        message: "Something went wrong while updating the live event. Please try again.",
+        error: error.something
       });
     }
   }

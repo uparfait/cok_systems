@@ -24,7 +24,7 @@ export default function EventTimeFields({ eventMode, formData, recurringType, mo
             <div className="relative">
               <FiCalendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input type="datetime-local" id="startedAt" value={formData.startedAt}
-                onChange={(e) => onChange('startedAt', e.target.value)} required min={getMinDateTime()}
+                onChange={(e) => onChange('startedAt', e.target.value)} required 
                 className={`${inputClass} pl-10`} />
             </div>
           </div>
@@ -34,7 +34,7 @@ export default function EventTimeFields({ eventMode, formData, recurringType, mo
               <FiClock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input type="datetime-local" id="willEndAt" value={formData.willEndAt}
                 onChange={(e) => onChange('willEndAt', e.target.value)} required
-                min={formData.startedAt || getMinDateTime()} className={`${inputClass} pl-10`} />
+                 className={`${inputClass} pl-10`} />
             </div>
           </div>
         </div>
