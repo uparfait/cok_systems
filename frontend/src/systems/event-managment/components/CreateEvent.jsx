@@ -32,6 +32,7 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
   const [recurringType, setRecurringType] = useState('');
   const [monthlyPattern, setMonthlyPattern] = useState('specific');
   const [editEventType, setEditEventType] = useState('');
+  const [event_id, setEvent_ID] = useState(null);
 
   const initialFormState = {
     eventName: '', eventDescription: '', eventType: '', expectedAudience: '',
@@ -78,6 +79,8 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
         const org = typeof foundEvent.eventOrganizer === 'object'
           ? foundEvent.eventOrganizer
           : { fullNames: '', email: '', phone: '', institution: '' };
+
+          setEvent_ID(foundEvent._id || null);
 
         setFormData({
           eventMeetingType: foundEvent.eventMeetingType || 'event',
@@ -234,7 +237,7 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
     try {
       let response;
       if (isEditMode) {
-        response = await axios.put(`${BASE_URL}/events/${editEventType}/${eventId}`, data);
+        response = await axios.put(`${BASE_URL}/events/${editEventType}/${event_id}`, data);
       } else {
         response = await axios.post(`${BASE_URL}/events`, data);
       }
