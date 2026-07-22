@@ -225,7 +225,10 @@ const LoginPage = () => {
 
           <div className="relative z-10 flex flex-col justify-end p-7 lg:p-14  text-white w-full h-full">
             {/* COK OFFICIAL PORTAL pill */}
-            <div className="inline-flex  items-center px-3 py-1.5 mb-6 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 text-xs font-semibold tracking-wide uppercase w-max cok-badge-animated">
+            <div
+              className="inline-flex items-center px-3 py-1.5 mb-6 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 text-xs tracking-wide uppercase w-max cok-badge-animated"
+              style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, letterSpacing: '0.5px' }}
+            >
               <span className="mr-1.5 inline-flex h-3 w-3 items-center justify-center rounded-full border border-white/60">
                 <span className="h-1.5 w-1.5 rounded-full bg-white" />
               </span>
@@ -248,9 +251,12 @@ const LoginPage = () => {
         </div>
 
         {/* Right side - Authenticating component */}
-        <div className="w-full md:w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-white">
-          <div className="w-full max-w-lg px-2 sm:px-4">
-            <div className="bg-white">
+        <div
+          className="w-full md:w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-8"
+          style={{ backgroundColor: '#F7F9FB' }}
+        >
+          <div className="w-full max-w-lg">
+            <div className="cok-auth-card px-5 py-6 sm:px-10 sm:py-8">
               {/* Logo and authenticating text */}
               <div className="text-center mb-4 sm:mb-5">
                 <img
@@ -258,7 +264,10 @@ const LoginPage = () => {
                   alt="City of Kigali"
                   className="h-16 sm:h-20 md:h-24 w-auto mx-auto mb-2"
                 />
-                <p className="text-base sm:text-lg font-bold text-[#0D141C]">
+                <p
+                  className="text-base sm:text-lg"
+                  style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, color: '#333333' }}
+                >
                   Authenticating...
                 </p>
               </div>
@@ -266,10 +275,15 @@ const LoginPage = () => {
               {/* Loading spinner */}
               <div className="flex flex-col items-center justify-center py-8">
                 <div className="relative">
-                  <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-                  
+                  <div
+                    className="w-16 h-16 border-4 rounded-full animate-spin"
+                    style={{ borderColor: '#E6F1F8', borderTopColor: '#056daa' }}
+                  ></div>
                 </div>
-                <p className="mt-4 text-sm text-gray-600 font-medium">
+                <p
+                  className="mt-4 text-sm"
+                  style={{ fontFamily: "'Merriweather', serif", color: '#555555' }}
+                >
                   waiting...
                 </p>
               </div>
@@ -294,20 +308,31 @@ const LoginPage = () => {
 
         <div className="relative z-10 flex flex-col justify-end p-7 lg:p-14  text-white w-full h-full">
           {/* COK OFFICIAL PORTAL pill */}
-          <div className="inline-flex  items-center px-3 py-1.5 mb-6 bg-white/10 backdrop-blur-sm  border border-white/20 text-xs font-semibold tracking-wide uppercase w-max cok-badge-animated">
-
-            <span className="font-bold">COK Official Portal</span>
+          <div
+            className="inline-flex items-center px-3 py-1.5 mb-6 bg-white/10 backdrop-blur-sm border border-white/20 text-xs tracking-wide uppercase w-max cok-badge-animated"
+            style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, letterSpacing: '0.5px' }}
+          >
+            <span>COK Official Portal</span>
           </div>
 
           {/* Main heading and description */}
           <div className="space-y-2 max-w-xl ">
-            <h1 className="poetsen-one-regular text-2xl md:text-3xl lg:text-4xl tracking-tight leading-snug">
+            <h1
+              className="text-2xl md:text-3xl lg:text-4xl leading-snug"
+              style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 800, letterSpacing: '-0.5px' }}
+            >
               Smart Entry & <br/> Service Management
             </h1>
-            <p className="public-sans-regular text-xs md:text-sm text-[#EFF6FF] font-semibold">
+            <p
+              className="text-xs md:text-sm text-[#EFF6FF]"
+              style={{ fontFamily: "'Merriweather', serif" }}
+            >
               Serving the City of Kigali with efficiency and security.
             </p>
-            <p className="public-sans-regular text-xs text-[#EFF6FF] font-semibold max-w-md">
+            <p
+              className="text-xs text-[#EFF6FF] max-w-md"
+              style={{ fontFamily: "'Merriweather', serif" }}
+            >
               Access the KSESM portal to manage administrative tasks and secure entry logs.
             </p>
           </div>
@@ -315,9 +340,12 @@ const LoginPage = () => {
       </div>
 
       {/* Right side - Login form card */}
-      <div className="w-full md:w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="w-full max-w-lg px-2 sm:px-4">
-          <div className="bg-white">
+      <div
+        className="w-full md:w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-8"
+        style={{ backgroundColor: '#F7F9FB' }}
+      >
+        <div className="w-full max-w-lg">
+          <div className="cok-auth-card px-5 py-6 sm:px-10 sm:py-8">
             {/* Logo and intro text */}
             <div className="text-center mb-4 sm:mb-5">
               <img
@@ -325,10 +353,22 @@ const LoginPage = () => {
                 alt="City of Kigali"
                 className="h-16 sm:h-20 md:h-24 w-auto mx-auto mb-2"
               />
-              <p className="text-base sm:text-lg font-bold text-[#0D141C]">
+              <p
+                style={{
+                  fontFamily: "'Montserrat', sans-serif",
+                  fontSize: 24,
+                  fontWeight: 800,
+                  letterSpacing: '-0.5px',
+                  color: '#056daa',
+                  margin: 0,
+                }}
+              >
                 Welcome Back
               </p>
-              <p className="mt-0.5 text-xs sm:text-sm text-gray-600">
+              <p
+                className="mt-1 text-xs sm:text-sm"
+                style={{ fontFamily: "'Merriweather', serif", color: '#555555' }}
+              >
                 Please enter your credentials to continue.
               </p>
             </div>
@@ -337,11 +377,8 @@ const LoginPage = () => {
             <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               {/* Email/Username field */}
               <div>
-                <label
-                  htmlFor="email"
-                  className="block text-xs font-semibold text-gray-700 mb-1 tracking-wide"
-                >
-                  EMAIL OR USERNAME
+                <label htmlFor="email" className="cok-auth-label">
+                  Email or Username
                 </label>
                 <div className="relative">
                   <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 sm:pl-3 text-[#9CA3AF]">
@@ -365,7 +402,7 @@ const LoginPage = () => {
                     name="email"
                     type="text"
                     required
-                    className="w-full pl-9 sm:pl-10 pr-3 py-2 rounded-lg text-sm bg-[#F9FAFB] border border-[#E5E7EB] text-[#0D141C] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#9CA3AF] focus:border-[#E5E7EB]"
+                    className="cok-auth-input pl-9 sm:pl-10 pr-3 py-3 placeholder:text-gray-400"
                     placeholder="e.g. user@kigali.rw"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -375,11 +412,8 @@ const LoginPage = () => {
 
               {/* Password field */}
               <div>
-                <label
-                  htmlFor="password"
-                  className="block text-xs font-semibold text-gray-700 mb-1 tracking-wide"
-                >
-                  PASSWORD
+                <label htmlFor="password" className="cok-auth-label">
+                  Password
                 </label>
                 <div className="relative">
                   <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-[#9CA3AF]">
@@ -445,7 +479,7 @@ const LoginPage = () => {
                     name="password"
                     type={showPassword ? 'text' : 'password'}
                     required
-                    className="w-full pl-10 pr-10 py-2 sm:py-2.5 rounded-lg text-sm bg-[#F9FAFB] border border-[#E5E7EB] text-[#0D141C] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#9CA3AF] focus:border-[#E5E7EB]"
+                    className="cok-auth-input pl-10 pr-10 py-3 placeholder:text-gray-400"
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -460,17 +494,19 @@ const LoginPage = () => {
                     id="remember-me"
                     name="remember-me"
                     type="checkbox"
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-4 w-4 border-gray-300"
+                    style={{ accentColor: '#056daa' }}
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
                   />
-                  <span className="text-gray-700">Remember me</span>
+                  <span style={{ fontFamily: "'Merriweather', serif", color: '#555555' }}>Remember me</span>
                 </label>
 
                 <a
                   href="#"
                   onClick={handleForgotPassword}
-                  className="font-semibold text-blue-600 hover:text-blue-500 transition-colors"
+                  className="transition-colors hover:opacity-80"
+                  style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 600, color: '#056daa' }}
                 >
                   Forgot Password?
                 </a>
@@ -480,10 +516,8 @@ const LoginPage = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full flex items-center justify-center gap-1 py-2.5 sm:py-3 px-3 sm:px-4 text-white text-sm font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ${
-                  isLoading 
-                    ? 'bg-blue-500 cursor-wait animate-pulse' 
-                    : 'bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                className={`cok-auth-btn-primary flex items-center justify-center gap-1 ${
+                  isLoading ? 'cursor-wait animate-pulse' : 'disabled:opacity-50 disabled:cursor-not-allowed'
                 }`}
               >
                 <span className="inline-flex h-4 w-4 items-center justify-center mr-1">
@@ -516,24 +550,28 @@ const LoginPage = () => {
             </form>
             {/* First time logging in section */}
             <div className="mt-4 sm:mt-5">
-              <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 sm:px-4 py-2.5 sm:py-3 text-center">
-                <p className="text-xs text-gray-700">
+              <div
+                className="px-3 sm:px-4 py-2.5 sm:py-3 text-center"
+                style={{ backgroundColor: '#F7F9FB', border: '1px solid #E0E0E0' }}
+              >
+                <p className="text-xs" style={{ fontFamily: "'Merriweather', serif", color: '#555555' }}>
                   First time logging in?
                 </p>
                 <button
                   onClick={handleOTPLogin}
-                  className="mt-1.5 sm:mt-2 inline-flex items-center justify-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-blue-600 text-xs font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
+                  className="cok-auth-btn-outlined mt-2 inline-flex items-center justify-center"
                 >
-                  <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-md bg-blue-500">
-                    <FiLogIn className="h-3.5 w-3.5" />
-                  </span>
+                  <FiLogIn className="h-3.5 w-3.5 mr-2" />
                   Login with OTP (One-Time PIN)
                 </button>
               </div>
             </div>
 
             {/* Footer copyright */}
-            <p className="text-center text-xs text-gray-400 mt-5 sm:mt-6">
+            <p
+              className="text-center text-xs mt-5 sm:mt-6"
+              style={{ fontFamily: "'Merriweather', serif", color: '#9E9E9E' }}
+            >
               © {new Date().getFullYear()} City of Kigali. All rights reserved.
             </p>
 
