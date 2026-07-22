@@ -23,7 +23,7 @@ export const CokLabel = ({ children }: { children: React.ReactNode }) => (
       fontSize: 12,
       fontWeight: 600,
       letterSpacing: '0.5px',
-      color: COK.tertiary,
+      color: COK.neutralDark,
       margin: 0,
     }}
   >
@@ -116,8 +116,8 @@ export const CokBadge = ({ label, color }: { label: string; color: string }) => 
 // in the CoK primary color
 export const CokTh = ({ children, center }: { children: React.ReactNode; center?: boolean }) => (
   <th
-    className={`px-4 py-3.5 ${center ? 'text-center' : 'text-left'} text-xs font-bold uppercase tracking-widest text-white border-r last:border-r-0`}
-    style={{ backgroundColor: COK.primary, borderColor: 'rgba(255,255,255,0.3)', fontFamily: COK.headingFont }}
+    className={`px-4 py-3.5 ${center ? 'text-center' : 'text-left'} text-xs font-bold uppercase tracking-widest border-r last:border-r-0`}
+    style={{ backgroundColor: COK.primary, color: '#FFFFFF', borderColor: 'rgba(255,255,255,0.3)', fontFamily: COK.headingFont }}
   >
     {children}
   </th>
