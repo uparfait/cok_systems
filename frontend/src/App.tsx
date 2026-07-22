@@ -38,6 +38,7 @@ import {
   FeedbackPage,
   OverviewPage,
   SystemAuditPage,
+  MayorEventsPage,
 } from "./systems/admin";
 
 // Smart Parking imports
@@ -223,10 +224,10 @@ const App: React.FC = () => {
                   }
                 />
                 <Route
-                  path="/mayor/overview"
+                  path="/mayor/events"
                   element={
                     <ProtectedRoute>
-                      <AdminDashboard />
+                      <MayorEventsPage />
                     </ProtectedRoute>
                   }
                 />
