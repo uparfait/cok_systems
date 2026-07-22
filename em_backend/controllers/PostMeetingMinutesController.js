@@ -1,5 +1,8 @@
 const PostMeeting = require('../models/PostMeeting');
 const LiveEvent = require('../models/LiveEvent');
+const UpcomingEvent = require('../models/UpcomingEvent');
+const RecurringEvent = require('../models/RecurringEvent');
+const PastEvent = require('../models/PastEvent');
 
 class PostMeetingMinutesController {
   
@@ -91,7 +94,18 @@ class PostMeetingMinutesController {
     }
   }
 
- 
+  
+  static async findEventBySpecialId(eventSpecialId) {
+    const collections = [LiveEvent, UpcomingEvent, RecurringEvent, PastEvent];
+    for (const Model of collections) {
+      const event = await Model.findOne({ eventSpecialId })
+        .select('eventName eventSpecialId startedAt willStartAt willEndAt eventOrganizer eventType eventMeetingType')
+        .lean();
+      if (event) return event;
+    }
+    return null;
+  }
+
   static async getMinutes(req, res) {
     try {
       const { eventSpecialId } = req.params;
@@ -103,28 +117,23 @@ class PostMeetingMinutesController {
         });
       }
 
-      // Find the live event first to ensure it exists
-      const liveEvent = await LiveEvent.findOne({ eventSpecialId })
-        .select('eventName eventSpecialId startedAt willEndAt eventOrganizer eventType')
-        .lean();
+      const event = await this.findEventBySpecialId(eventSpecialId);
 
-      if (!liveEvent) {
+      if (!event) {
         return res.status(404).json({
           success: false,
           message: 'Event not found with the provided special ID'
         });
       }
 
-      // Find post-meeting minutes
       const postMeeting = await PostMeeting.findOne({ eventSpecialId }).lean();
 
       if (!postMeeting) {
-        // Return event info but indicate no minutes exist yet
         return res.status(200).json({
           success: true,
           message: 'No minutes found for this event yet',
           data: {
-            event: liveEvent,
+            event,
             minutes: null
           }
         });
@@ -134,7 +143,7 @@ class PostMeetingMinutesController {
         success: true,
         message: 'Meeting minutes retrieved successfully',
         data: {
-          event: liveEvent,
+          event,
           minutes: {
             content: postMeeting.meetingMinutes,
             documentedBy: postMeeting.documentedBy,
@@ -152,6 +161,68 @@ class PostMeetingMinutesController {
       return res.status(500).json({
         success: false,
         message: 'Error fetching meeting minutes',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+  }
+
+  static async getSeriesMinutes(req, res) {
+    try {
+      const { eventSpecialId } = req.params;
+
+      if (!eventSpecialId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Event special ID is required'
+        });
+      }
+
+      const parentEvent = await RecurringEvent.findOne({ eventSpecialId })
+        .select('eventName eventSpecialId eventType eventMeetingType startedAt createdAt')
+        .lean();
+
+      if (!parentEvent) {
+        return res.status(404).json({
+          success: false,
+          message: 'Recurring event not found with the provided special ID'
+        });
+      }
+
+      const escaped = eventSpecialId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`^${escaped}_`);
+
+      const postMeetings = await PostMeeting.find({
+        $or: [
+          { eventSpecialId },
+          { eventSpecialId: { $regex: regex } }
+        ]
+      })
+        .sort({ meetingDate: -1 })
+        .lean();
+
+      return res.status(200).json({
+        success: true,
+        message: 'Series minutes retrieved successfully',
+        data: {
+          event: parentEvent,
+          minutes: postMeetings.map(pm => ({
+            content: pm.meetingMinutes,
+            documentedBy: pm.documentedBy,
+            meetingDate: pm.meetingDate,
+            lastUpdated: pm.updatedAt,
+            createdAt: pm.createdAt,
+            designatedMinutesTaker: pm.designatedMinutesTaker,
+            eventSpecialId: pm.eventSpecialId
+          }))
+        }
+      });
+
+    } catch (error) {
+      console.error('Error fetching series minutes:', error);
+
+      return res.status(500).json({
+        success: false,
+        message: 'Error fetching series minutes',
         error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
       });
     }

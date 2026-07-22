@@ -1,5 +1,15 @@
 
 //events/upcoming?page=1&limit=10&sort=old&filter=thisMonth&search=conference&searchField=eventName
+export const GET_EVENT_MINUTES = {
+    endpoint: "/cok/api/v1/events/:eventSpecialId/minutes",
+    method: "GET"
+}
+
+export const GET_EVENT_SERIES_MINUTES = {
+    endpoint: "/cok/api/v1/events/:eventSpecialId/minutes/series",
+    method: "GET"
+}
+
 export const UPCOMING_EVENTS =  {
     endpoint: "/cok/api/v1/events/upcoming",
     method: "GET",

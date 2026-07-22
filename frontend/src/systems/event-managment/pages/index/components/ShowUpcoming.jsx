@@ -49,10 +49,8 @@ export default function ShowUpcoming({ event }) {
   return (
 
     <motion.div
-      onClick={() => {setIsClicked(!isClicked)
-        setActiveEvent(event);
-      }}
-      className="relative w-full max-w-3xl items-start text-left bg-white overflow-hidden cursor-pointer transition-shadow duration-300"
+      
+      className="relative w-full max-w-3xl items-start text-left bg-white overflow-hidden transition-shadow duration-300"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
