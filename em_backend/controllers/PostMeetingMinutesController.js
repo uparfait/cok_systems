@@ -6,10 +6,14 @@ const PastEvent = require('../models/PastEvent');
 
 async function findEventBySpecialId(eventSpecialId) {
   const collections = [LiveEvent, UpcomingEvent, RecurringEvent, PastEvent];
+  //console.log(`Searching for event with special ID: ${eventSpecialId}`);
   for (const Model of collections) {
-    const event = await Model.findOne({ eventSpecialId })
+    const Rexp = new RegExp(`^${eventSpecialId}`, 'i');
+    const event = await Model.findOne({ eventSpecialId: Rexp })
       .select('eventName eventSpecialId startedAt willStartAt willEndAt eventOrganizer eventType eventMeetingType')
       .lean();
+
+      
     if (event) return event;
   }
   return null;
@@ -40,15 +44,17 @@ class PostMeetingMinutesController {
       // Find the live event to get event details
       const liveEvent = await LiveEvent.findOne({ eventSpecialId }).lean();
 
-      if (!liveEvent) {
+
+      // Find existing post-meeting record or create new one
+      let postMeeting = await PostMeeting.findOne({ eventSpecialId });
+
+
+      if (!liveEvent && !postMeeting) {
         return res.status(404).json({
           success: false,
           message: 'Event not found with the provided special ID'
         });
       }
-
-      // Find existing post-meeting record or create new one
-      let postMeeting = await PostMeeting.findOne({ eventSpecialId });
 
       if (postMeeting) {
         // Update existing minutes
@@ -118,7 +124,7 @@ class PostMeetingMinutesController {
       }
 
       const event = await findEventBySpecialId(eventSpecialId);
-
+   
       if (!event) {
         return res.status(404).json({
           success: false,
@@ -127,6 +133,7 @@ class PostMeetingMinutesController {
       }
 
       const postMeeting = await PostMeeting.findOne({ eventSpecialId }).lean();
+      
 
       if (!postMeeting) {
         return res.status(200).json({
@@ -177,25 +184,37 @@ class PostMeetingMinutesController {
         });
       }
 
-      const parentEvent = await RecurringEvent.findOne({ eventSpecialId })
-        .select('eventName eventSpecialId eventType eventMeetingType startedAt createdAt')
-        .lean();
 
-      if (!parentEvent) {
+
+      const event = await findEventBySpecialId(eventSpecialId);
+
+      if (!event) {
         return res.status(404).json({
           success: false,
-          message: 'Recurring event not found with the provided special ID'
+          message: 'Event not found with the provided special ID'
         });
       }
 
-      const escaped = eventSpecialId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`^${escaped}_`);
+      const escaped = eventSpecialId.split("_")[0];
+      const instanceRegex = new RegExp(`^${escaped}`);
+    
+      const targetIds = new Set([instanceRegex]);
 
+      const eventCollections = [LiveEvent, UpcomingEvent, PastEvent, RecurringEvent];
+      for (const Model of eventCollections) {
+        const instances = await Model.find({
+          eventSpecialId: { $regex: instanceRegex }
+        })
+          .select('eventSpecialId')
+          .lean();
+          //console.log(`Found ${instances.length} instances in ${Model.collection.name} for series ${escaped}`);
+
+        instances.forEach((inst) => targetIds.add(inst.eventSpecialId));
+      }
+
+      
       const postMeetings = await PostMeeting.find({
-        $or: [
-          { eventSpecialId },
-          { eventSpecialId: { $regex: regex } }
-        ]
+        eventSpecialId: { $in: [...targetIds] }
       })
         .sort({ meetingDate: -1 })
         .lean();
@@ -204,7 +223,7 @@ class PostMeetingMinutesController {
         success: true,
         message: 'Series minutes retrieved successfully',
         data: {
-          event: parentEvent,
+          event,
           minutes: postMeetings.map(pm => ({
             content: pm.meetingMinutes,
             documentedBy: pm.documentedBy,

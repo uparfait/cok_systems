@@ -7,6 +7,7 @@ import EventDetailsLeftColumn from "./components/EventDetailsLeftColumn";
 import EventDetailsRightColumn from "./components/EventDetailsRightColumn";
 import EventDetailsQrModal from "./components/EventDetailsQrModal";
 import EventMinutesView from "./components/EventMinutesView";
+import { Helmet } from "react-helmet-async";
 
 const generateColorFromName = (name) => {
   let hash = 0;
@@ -266,6 +267,14 @@ export default function EventDetails() {
   const brandColor = generateColorFromName(activeEvent?.eventName || "Event");
 
   return (
+    <>
+    <Helmet>
+    <title>{activeEvent?.eventName?.toUpperCase() || "Live"}</title>
+        <meta
+          name="description"
+          content="Happening now"
+        />
+      </Helmet>
     <div className="w-full min-h-screen flex justify-center rounded-none">
       <motion.div
         className="relative w-full max-w-5xl h-max overflow-hidden p-6 md:p-8 rounded-none"
@@ -311,6 +320,7 @@ export default function EventDetails() {
             accessToken={accessToken}
           />
         </div>
+        
       </motion.div>
 
       <EventAccessOverlay
@@ -338,5 +348,6 @@ export default function EventDetails() {
         setShowCopiedPopup={setShowCopiedPopup}
       />
     </div>
+    </>
   );
 }

@@ -89,6 +89,8 @@ export default function EventMinutesView({ eventSpecialId, activeEvent, accessTo
           { headers }
         );
 
+      
+
         if (seriesRes.data?.success) {
           setMinutes(seriesRes.data.data.minutes || []);
           return;
@@ -99,27 +101,31 @@ export default function EventMinutesView({ eventSpecialId, activeEvent, accessTo
         }
       }
 
-      try {
-        const singleRes = await axios.get(
-          `/cok/api/v1/events/${eventSpecialId}/minutes`,
-          { headers }
-        );
+      finally {
+       setIsLoading(false);
+       }
 
-        if (singleRes.data?.success) {
-          const m = singleRes.data.data.minutes;
-          setMinutes(m ? [{ ...m, eventSpecialId }] : []);
-        } else {
-          setError(singleRes.data?.message || "Failed to load minutes");
-        }
-      } catch (singleErr) {
-        console.error("Error fetching minutes:", singleErr);
-        const msg = singleErr.response?.data?.message || "Failed to load minutes";
-        if (msg !== "No minutes found for this event yet") {
-          setError(msg);
-        }
-      } finally {
-        setIsLoading(false);
-      }
+      // try {
+      //   const singleRes = await axios.get(
+      //     `/cok/api/v1/events/${eventSpecialId}/minutes`,
+      //     { headers }
+      //   );
+
+      //   if (singleRes.data?.success) {
+      //     const m = singleRes.data.data.minutes;
+      //     setMinutes(m ? [{ ...m, eventSpecialId }] : []);
+      //   } else {
+      //     setError(singleRes.data?.message || "Failed to load minutes");
+      //   }
+      // } catch (singleErr) {
+      //   console.error("Error fetching minutes:", singleErr);
+      //   const msg = singleErr.response?.data?.message || "Failed to load minutes";
+      //   if (msg !== "No minutes found for this event yet") {
+      //     setError(msg);
+      //   }
+      // } finally {
+      //   setIsLoading(false);
+      // }
     };
 
     fetchMinutes();
