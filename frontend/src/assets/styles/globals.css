@@ -318,11 +318,12 @@ body {
   }
 }
 
-/* Reusable variant of #ToDayAnimatedCalenderBg for live (happening now) event chips */
+/* Reusable variant of #ToDayAnimatedCalenderBg — applied to the whole calendar
+   day cell that contains a happening (today/live) event, so the animated
+   gradient circulates along the cell borders */
 .cok-live-event-frame {
   position: relative;
   overflow: hidden;
-  padding: 2px;
 }
 
 .cok-live-event-frame::before {
@@ -339,6 +340,14 @@ body {
   animation: rotateBorder 2s linear infinite;
   filter: blur(6px);
   opacity: 0.9;
+}
+
+.cok-live-event-frame::after {
+  content: "";
+  position: absolute;
+  inset: 2px; /* border thickness */
+  background: #fcfdff;
+  z-index: 1;
 }
 
 .cok-live-event-frame > * {

@@ -552,10 +552,11 @@ function EventsCalendar({
           const isExpanded = expandedDay === day;
           const visibleEvents = isExpanded ? dayEvents : dayEvents.slice(0, 2);
           const remaining = dayEvents.length - 2;
+          const hasHappeningEvent = dayEvents.some(isHappeningToday);
           return (
             <div
               key={day}
-              className="min-h-24 p-1 align-top"
+              className={`min-h-24 p-1 align-top ${hasHappeningEvent ? 'cok-live-event-frame' : ''}`}
               style={{ borderBottom: `1px solid ${COK.neutralLight}` }}
             >
               <span
@@ -571,36 +572,27 @@ function EventsCalendar({
                 {day}
               </span>
               <div className="mt-0.5 space-y-0.5">
-                {visibleEvents.map((ev, i) => {
-                  const live = isHappeningToday(ev);
-                  const chip = (
-                    <button
-                      type="button"
-                      onClick={() => onEventClick(ev)}
-                      className="w-full text-left px-1 py-0.5 text-[10px] leading-tight hover:opacity-80 transition-opacity"
-                      style={{
-                        borderLeft: `2px solid ${eventAccent(ev)}`,
-                        backgroundColor: live ? '#FFFFFF' : `${eventAccent(ev)}14`,
-                        color: COK.neutralDark,
-                        cursor: 'pointer',
-                      }}
-                      title={`${ev.eventName}\n${formatTimeRange(ev.startTime, ev.endTime)}\n${ev.eventRoom || ''}`}
-                    >
-                      <span className="block truncate" style={{ fontWeight: 600 }}>{ev.eventName}</span>
-                      <span className="flex items-center gap-1 opacity-80 text-[9px]">
-                        <FiClock className="w-2 h-2 shrink-0" />
-                        <span className="truncate">{formatTimeRange(ev.startTime, ev.endTime)}</span>
-                      </span>
-                    </button>
-                  );
-                  return live ? (
-                    <div key={(ev.eventSpecialId || i) + (ev.occurrenceDate || '')} className="cok-live-event-frame">
-                      {chip}
-                    </div>
-                  ) : (
-                    <div key={(ev.eventSpecialId || i) + (ev.occurrenceDate || '')}>{chip}</div>
-                  );
-                })}
+                {visibleEvents.map((ev, i) => (
+                  <button
+                    key={(ev.eventSpecialId || i) + (ev.occurrenceDate || '')}
+                    type="button"
+                    onClick={() => onEventClick(ev)}
+                    className="w-full text-left px-1 py-0.5 text-[10px] leading-tight hover:opacity-80 transition-opacity"
+                    style={{
+                      borderLeft: `2px solid ${eventAccent(ev)}`,
+                      backgroundColor: `${eventAccent(ev)}14`,
+                      color: COK.neutralDark,
+                      cursor: 'pointer',
+                    }}
+                    title={`${ev.eventName}\n${formatTimeRange(ev.startTime, ev.endTime)}\n${ev.eventRoom || ''}`}
+                  >
+                    <span className="block truncate" style={{ fontWeight: 600 }}>{ev.eventName}</span>
+                    <span className="flex items-center gap-1 opacity-80 text-[9px]">
+                      <FiClock className="w-2 h-2 shrink-0" />
+                      <span className="truncate">{formatTimeRange(ev.startTime, ev.endTime)}</span>
+                    </span>
+                  </button>
+                ))}
                 {!isExpanded && remaining > 0 && (
                   <button
                     type="button"
