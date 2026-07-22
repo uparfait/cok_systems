@@ -1396,7 +1396,7 @@ const Overview: React.FC = () => {
       {/* Modal for Card Details */}
       {selectedCard && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4"
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4"
             onClick={handleModalClose}
           >
           <div
