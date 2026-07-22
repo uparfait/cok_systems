@@ -9,6 +9,7 @@ import EventDetailOrganizer from './sub-components/EventDetailOrganizer';
 import EventDetailAgenda from './sub-components/EventDetailAgenda';
 import CancelPostponeModal from './sub-components/CancelPostponeModal';
 import AttendeesOverlay from './AttendeesOverlay';
+import EventMinutesView from '../pages/index/components/EventMinutesView';
 
 const BASE_URL = '/cok/api/v1';
 const EVENT_TYPES = ['live', 'recurring', 'upcoming', 'past'];
@@ -282,11 +283,18 @@ export default function ViewEventDetailsDashboard() {
           setEvent(updatedEvent);
         }} />
 
-        {/* Activity Agenda - Inline editable */}
-        <EventDetailAgenda event={event} eventMode={eventMode} onEventUpdated={(updatedEvent) => {
-          setEvent(updatedEvent);
-        }} />
-      </div>
+         {/* Activity Agenda - Inline editable */}
+         <EventDetailAgenda event={event} eventMode={eventMode} onEventUpdated={(updatedEvent) => {
+           setEvent(updatedEvent);
+         }} />
+
+         {/* Meeting Minutes */}
+         <EventMinutesView
+           eventSpecialId={event.eventSpecialId}
+           activeEvent={event}
+           accessToken=""
+         />
+       </div>
 
       {/* Invited People Modal */}
       {showInvitedModal && (
