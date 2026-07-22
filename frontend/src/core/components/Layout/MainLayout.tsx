@@ -54,6 +54,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, customNavItems }) => 
   // Get user department
   const userDepartment = user?.departmentName || user?.department_name || '';
 
+  // Mayor accounts get the City of Kigali design-rule theme (see globals.css .cok-mayor-theme)
+  const isMayor = (user?.role || '').toLowerCase().includes('mayor');
+
   // Handle window resize
   useEffect(() => {
     const handleResize = () => {
@@ -119,7 +122,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, customNavItems }) => 
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className={`min-h-screen bg-gray-50 flex ${isMayor ? 'cok-mayor-theme' : ''}`}>
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
