@@ -355,6 +355,94 @@ body {
   z-index: 2;
 }
 
+/* ==================== CoK auth pages (login) — design-rule form controls ==================== */
+
+.cok-auth-card {
+  border-radius: 0;
+  background-color: var(--cok-bg-white);
+  box-shadow: 0.5084rem 1.1419rem 2.5rem 0 rgb(0 0 0 / 8%);
+}
+
+.cok-auth-label {
+  font-family: var(--cok-font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--cok-neutral-dark);
+  display: block;
+  margin-bottom: 8px;
+}
+
+.cok-auth-input {
+  font-family: var(--cok-font-heading);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  line-height: 1.4;
+  width: 100%;
+  color: var(--cok-neutral-dark);
+  background-color: var(--cok-neutral-light);
+  border: 1px solid var(--cok-gray-border);
+  border-radius: 0;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+  outline: none;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.cok-auth-input:focus {
+  border-color: #056daa;
+  box-shadow: 0px 4px 8px rgba(5, 109, 170, 0.25);
+}
+
+.cok-auth-btn-primary {
+  font-family: var(--cok-font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--cok-text-white);
+  background-color: #056daa; /* booking-page primary */
+  border: 0;
+  border-radius: 0;
+  padding: 0.9rem;
+  width: 100%;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.cok-auth-btn-primary:hover:not(:disabled) {
+  background-color: #045d94;
+}
+
+.cok-auth-btn-primary:active {
+  transform: translateY(1px);
+}
+
+.cok-auth-btn-outlined {
+  font-family: var(--cok-font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: #056daa; /* booking-page primary */
+  border: 1px solid #056daa;
+  background-color: transparent;
+  border-radius: 0;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.cok-auth-btn-outlined:hover {
+  color: var(--cok-text-white);
+  background-color: #056daa;
+}
+
 /* ==================== Mayor account theme (CoK design rules) ==================== */
 /* Applied by MainLayout when the logged-in user is a Mayor. Remaps the shared
    dashboard pages' generic Tailwind palette to the CoK design-rule palette
@@ -374,7 +462,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: var(--cok-tertiary-color);
+  color: var(--cok-neutral-dark);
 }
 
 /* Primary blue remap */
@@ -433,7 +521,23 @@ body {
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: var(--cok-tertiary-color);
+  color: var(--cok-neutral-dark);
+}
+
+/* Tables (service delivery, feedback, smart parking, dashboard modals):
+   black column names with fully bordered cells. Headers that declare their
+   own white text (colored table heads) keep it. */
+.cok-mayor-theme table thead th {
+  font-family: var(--cok-font-heading);
+  border: 1px solid var(--cok-gray-border);
+}
+
+.cok-mayor-theme table thead th:not([class*="text-white"]) {
+  color: var(--cok-neutral-dark);
+}
+
+.cok-mayor-theme table tbody td {
+  border: 1px solid var(--cok-gray-border);
 }
 
 .cok-mayor-theme .border-l-2 .text-2xl.font-light {
