@@ -37,7 +37,7 @@ export default function BookingRequestTrack() {
   const [editForm, setEditForm] = useState({});
   const [editFieldErrors, setEditFieldErrors] = useState({});
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, variant: "primary", title: "", message: "", onConfirm: null });
-  const [systemAlert, setSystemAlert] = useState({ isOpen: false, type: "error", message: "" });
+  const [systemAlert, setSystemAlert] = useState({ isOpen: false, type: "warning", message: "" });
 
   const [showInvited, setShowInvited] = useState(false);
   const [invitedPeople, setInvitedPeople] = useState([]);
@@ -54,7 +54,7 @@ export default function BookingRequestTrack() {
       setInvitedPeople((prev) => prev.filter((p) => p._id !== person._id));
       setInvitedCount((c) => Math.max(0, c - 1));
     } catch (err) {
-      setAlertFromError(err.message, setSystemAlert);
+      setAlertFromError(err, setSystemAlert);
     } finally {
       setDeleteTarget(null);
     }
@@ -69,7 +69,7 @@ export default function BookingRequestTrack() {
         setInvitedCount(res.data.totalRecords || 0);
       }
     } catch (err) {
-      setAlertFromError(err.message, setSystemAlert);
+      setAlertFromError(err, setSystemAlert);
     } finally {
       setInvitedLoading(false);
     }
@@ -101,7 +101,7 @@ export default function BookingRequestTrack() {
         });
       }
     } catch (err) {
-      setAlertFromError(err.message, setSystemAlert);
+      setAlertFromError(err, setSystemAlert);
       setRequest(null);
     } finally {
       setLoading(false);
@@ -117,7 +117,7 @@ export default function BookingRequestTrack() {
       setRequest((prev) => ({ ...prev, status: "Cancelled" }));
       setIsEditing(false);
     } catch (err) {
-      setAlertFromError(err.message, setSystemAlert);
+      setAlertFromError(err, setSystemAlert);
     } finally {
       setLoading(false);
     }
@@ -144,7 +144,7 @@ export default function BookingRequestTrack() {
         setIsEditing(false); setEditStep(1); setCompletedSteps([]);
       }
     } catch (err) {
-      setAlertFromError(err.message, setSystemAlert);
+      setAlertFromError(err, setSystemAlert);
     } finally {
       setLoading(false);
     }

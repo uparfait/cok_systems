@@ -83,9 +83,28 @@ const PostMeetingMinutesController = require('../controllers/PostMeetingMinutesC
  *         description: Event not found
  *       500:
  *         description: Server error
+ * /events/{eventSpecialId}/minutes/series:
+ *   get:
+ *     summary: Get all minutes for a recurring event series
+ *     tags: [Meeting Minutes]
+ *     parameters:
+ *       - in: path
+ *         name: eventSpecialId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Recurring event parent special ID
+ *     responses:
+ *       200:
+ *         description: Series minutes retrieved successfully
+ *       404:
+ *         description: Recurring event not found
+ *       500:
+ *         description: Server error
  */
 Router.post('/:eventSpecialId/minutes', PostMeetingMinutesController.saveMinutes);
 Router.get('/:eventSpecialId/minutes', PostMeetingMinutesController.getMinutes);
+Router.get('/:eventSpecialId/minutes/series', PostMeetingMinutesController.getSeriesMinutes);
 Router.post('/:eventSpecialId/minutes/designate', PostMeetingMinutesController.designateMinutes);
 
 module.exports = Router;
