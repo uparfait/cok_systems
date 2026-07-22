@@ -118,9 +118,37 @@ const getChartConfig = (maxValue: number, minValue: number = 0) => {
 // ==================== MAIN COMPONENT ====================
 
 const Overview: React.FC = () => {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const navigate = useNavigate();
   const { showError, showSuccess } = useToast();
+
+  // Mayor accounts use the City of Kigali design-rule palette for charts
+  const isMayor = (user?.role || '').toLowerCase().includes('mayor');
+  const CC = useMemo(
+    () =>
+      isMayor
+        ? {
+            blue: '#34A8DB',
+            teal: '#4CAF50',
+            amber: '#F39C12',
+            purple: '#2980B9',
+            red: '#E53935',
+            blueSoft: 'rgba(52,168,219,0.05)',
+            tealSoft: 'rgba(76,175,80,0.05)',
+            amberSoft: 'rgba(243,156,18,0.05)',
+          }
+        : {
+            blue: CC.blue,
+            teal: CC.teal,
+            amber: CC.amber,
+            purple: CC.purple,
+            red: CC.red,
+            blueSoft: CC.blueSoft,
+            tealSoft: CC.tealSoft,
+            amberSoft: CC.amberSoft,
+          },
+    [isMayor]
+  );
   
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
@@ -271,27 +299,27 @@ const Overview: React.FC = () => {
             { 
               label: 'Check-in', 
               data: checkInData, 
-              borderColor: '#0078d4', 
-              backgroundColor: 'rgba(0,120,212,0.05)', 
+              borderColor: CC.blue, 
+              backgroundColor: CC.blueSoft, 
               fill: true, 
               tension: 0.4, 
               pointRadius: 3, 
               borderWidth: 2,
-              pointBackgroundColor: '#0078d4',
+              pointBackgroundColor: CC.blue,
               pointBorderColor: '#fff',
               pointBorderWidth: 1
             },
             { 
               label: 'Check-out', 
               data: checkOutData, 
-              borderColor: '#e8a400', 
-              backgroundColor: 'rgba(232,164,0,0.05)', 
+              borderColor: CC.amber, 
+              backgroundColor: CC.amberSoft, 
               fill: true, 
               tension: 0.4, 
               pointRadius: 3, 
               borderWidth: 2,
               borderDash: [5, 3],
-              pointBackgroundColor: '#e8a400',
+              pointBackgroundColor: CC.amber,
               pointBorderColor: '#fff',
               pointBorderWidth: 1
             }
@@ -314,7 +342,7 @@ const Overview: React.FC = () => {
         data: {
           labels: deptNames,
           datasets: [
-            { label: 'Total Services', data: svcData, backgroundColor: '#0078d4', barPercentage: 0.6, categoryPercentage: 0.8 }
+            { label: 'Total Services', data: svcData, backgroundColor: CC.blue, barPercentage: 0.6, categoryPercentage: 0.8 }
           ]
         },
         options: {
@@ -343,7 +371,7 @@ const Overview: React.FC = () => {
           labels: deptNames, 
           datasets: [{ 
             data: empData, 
-            backgroundColor: '#5c2d91', 
+            backgroundColor: CC.purple, 
             barPercentage: 0.6,
             borderRadius: 0,
             label: 'Employees'
@@ -373,7 +401,7 @@ const Overview: React.FC = () => {
           labels: ['Staff', 'Visitor', 'Regular'], 
           datasets: [{ 
             data: [driverData.staff, driverData.visitor, driverData.regular], 
-            backgroundColor: ['#0078d4', '#00b294', '#e8a400'], 
+            backgroundColor: [CC.blue, CC.teal, CC.amber], 
             borderWidth: 0 
           }] 
         },
@@ -405,7 +433,7 @@ const Overview: React.FC = () => {
           labels: deptNames, 
           datasets: [{ 
             data: fbData, 
-            backgroundColor: '#5c2d91', 
+            backgroundColor: CC.purple, 
             barPercentage: 0.6,
             label: 'Feedback'
           }] 
@@ -424,13 +452,13 @@ const Overview: React.FC = () => {
           labels: formattedServiceHourLabels, 
           datasets: [{ 
             data: visitorData, 
-            borderColor: '#00b294', 
-            backgroundColor: 'rgba(0,178,148,0.05)', 
+            borderColor: CC.teal, 
+            backgroundColor: CC.tealSoft, 
             fill: true, 
             tension: 0.4, 
             pointRadius: 3, 
             borderWidth: 2,
-            pointBackgroundColor: '#00b294',
+            pointBackgroundColor: CC.teal,
             pointBorderColor: '#fff',
             pointBorderWidth: 1,
             label: 'Visitors'
@@ -449,7 +477,7 @@ const Overview: React.FC = () => {
           labels: ['Active', 'Inactive', 'Locked'], 
           datasets: [{ 
             data: [data.employeeStats.active, data.employeeStats.inactive, data.employeeStats.locked], 
-            backgroundColor: ['#0078d4', '#e8a400', '#e81123'], 
+            backgroundColor: [CC.blue, CC.amber, CC.red], 
             borderWidth: 0 
           }] 
         },
@@ -468,7 +496,7 @@ const Overview: React.FC = () => {
         }
       }));
     }
-  }, [data]);
+  }, [data, CC]);
   
   // Initial fetch and chart creation
   useEffect(() => {
@@ -694,7 +722,7 @@ const Overview: React.FC = () => {
               labels: deptNames,
               datasets: [{
                 data: deptCounts,
-                backgroundColor: '#0078d4',
+                backgroundColor: CC.blue,
                 barPercentage: 0.6,
                 categoryPercentage: 0.8,
                 label: 'Services'
@@ -772,13 +800,13 @@ const Overview: React.FC = () => {
               labels: formattedServiceHourLabels,
               datasets: [{
                 data: visitorData,
-                borderColor: '#00b294',
-                backgroundColor: 'rgba(0,178,148,0.05)',
+                borderColor: CC.teal,
+                backgroundColor: CC.tealSoft,
                 fill: true,
                 tension: 0.4,
                 pointRadius: 5,
                 borderWidth: 3,
-                pointBackgroundColor: '#00b294',
+                pointBackgroundColor: CC.teal,
                 pointBorderColor: '#fff',
                 pointBorderWidth: 2,
                 label: 'Visitors'
@@ -890,6 +918,30 @@ const Overview: React.FC = () => {
 
   return (
     <MainLayout>
+      {/* CoK design-rule page header for the mayor account */}
+      {isMayor && (
+        <div className="px-4 pt-4 pb-3">
+          <h1
+            style={{
+              fontFamily: "'Montserrat', sans-serif",
+              fontSize: 26,
+              fontWeight: 800,
+              letterSpacing: '-0.5px',
+              color: '#34A8DB',
+              margin: 0,
+            }}
+          >
+            Dashboard
+          </h1>
+          <p
+            className="text-sm text-gray-500"
+            style={{ fontFamily: "'Merriweather', serif", margin: '4px 0 0 0' }}
+          >
+            City overview — services, parking, employees and feedback
+          </p>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="bg-white border-b border-gray-200 px-4 py-2 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1 text-xs text-gray-600">
