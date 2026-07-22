@@ -416,3 +416,25 @@ body {
 .cok-mayor-theme .border-red-600 { border-color: var(--cok-danger-color); }
 .cok-mayor-theme .bg-red-50,
 .cok-mayor-theme .bg-red-100 { background-color: #FCE9E8; }
+
+/* Dashboard KPI cards: labels get the CoK label treatment, values get
+   Montserrat headline weight (scoped to the left-accent card structure) */
+.cok-mayor-theme .border-l-2 .text-xs.text-gray-500.font-medium {
+  font-family: var(--cok-font-heading);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--cok-tertiary-color);
+}
+
+.cok-mayor-theme .border-l-2 .text-2xl.font-light {
+  font-family: var(--cok-font-heading);
+  font-weight: 700;
+  color: var(--cok-neutral-dark);
+}
+
+/* Section / chart card titles -> Montserrat headings */
+.cok-mayor-theme .text-sm.font-semibold.text-gray-900 {
+  font-family: var(--cok-font-heading);
+  color: var(--cok-neutral-dark);
+}
