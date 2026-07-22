@@ -285,24 +285,65 @@ const STATUS_BADGES: Record<string, { label: string; color: string }> = {
   past: { label: 'Completed', color: '#9E9E9E' },
 };
 
-function EventDetailsModal({ event, onClose }: { event: CalendarEvent; onClose: () => void }) {
-  const live = isHappeningNow(event);
+// Full date + time, e.g. "Wed, Jul 22, 2026, 06:36 PM"
+function formatFullDateTime(iso?: string): string {
+  if (!iso) return 'Not set';
+  return new Date(iso).toLocaleString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function EventDetailsModal({
+  event,
+  window: mergedWindow,
+  onClose,
+}: {
+  event: CalendarEvent;
+  window: { start?: string; end?: string };
+  onClose: () => void;
+}) {
+  // The calendar API splits multi-day events into one slice per day; use the
+  // merged (true) event window for display and status, not the day slice.
+  const start = mergedWindow.start || event.startTime;
+  const end = mergedWindow.end || event.endTime;
+  const now = Date.now();
+  const startMs = start ? new Date(start).getTime() : NaN;
+  const endMs = end ? new Date(end).getTime() : NaN;
+  const liveNow = !event.isCancelled && !isNaN(startMs) && !isNaN(endMs) && startMs <= now && now <= endMs;
+
   const badge = event.isCancelled
     ? { label: 'Cancelled', color: COK.danger }
-    : live
+    : liveNow
       ? STATUS_BADGES.live
-      : STATUS_BADGES[event.eventStatus || ''] || { label: 'Scheduled', color: COK.primary };
+      : event.eventStatus === 'recurring'
+        ? STATUS_BADGES.recurring
+        : !isNaN(startMs) && now < startMs
+          ? STATUS_BADGES.upcoming
+          : !isNaN(endMs) && now > endMs
+            ? STATUS_BADGES.past
+            : STATUS_BADGES[event.eventStatus || ''] || { label: 'Scheduled', color: COK.primary };
 
-  const startDate = event.startTime
-    ? new Date(event.startTime).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-    : 'Not set';
+  const sameDay = !!(start && end && new Date(start).toDateString() === new Date(end).toDateString());
 
-  const detailRows: Array<{ label: string; value: React.ReactNode }> = [
-    { label: 'Date', value: startDate },
-    { label: 'Time', value: formatTimeRange(event.startTime, event.endTime) || 'Not set' },
+  const detailRows: Array<{ label: string; value: React.ReactNode }> = sameDay
+    ? [
+        {
+          label: 'Date',
+          value: new Date(start!).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
+        },
+        { label: 'Time', value: formatTimeRange(start, end) || 'Not set' },
+      ]
+    : [{ label: 'When', value: `${formatFullDateTime(start)} → ${formatFullDateTime(end)}` }];
+
+  detailRows.push(
     { label: 'Room / Venue', value: event.eventRoom || 'Not specified' },
     { label: 'Type', value: `${event.eventMeetingType === 'meet' ? 'Meeting' : 'Event'}${event.eventType ? ` · ${event.eventType}` : ''}` },
-  ];
+  );
   if (event.eventOrganizer?.fullNames) {
     detailRows.push({
       label: 'Organizer',
@@ -607,6 +648,21 @@ export default function MayorEventsPage() {
   const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
+  // Reconstruct each event's true start/end from its per-day calendar slices.
+  // Recurring occurrences share an eventSpecialId across different dates, so
+  // they are excluded and keep their own occurrence times.
+  const mergedWindows = useMemo(() => {
+    const map: Record<string, { start?: string; end?: string }> = {};
+    for (const ev of (calendarEvents || []) as CalendarEvent[]) {
+      if (!ev.eventSpecialId || ev.occurrenceDate || ev.eventStatus === 'recurring') continue;
+      if (!ev.startTime || !ev.endTime) continue;
+      const w = map[ev.eventSpecialId] || (map[ev.eventSpecialId] = {});
+      if (!w.start || ev.startTime < w.start) w.start = ev.startTime;
+      if (!w.end || ev.endTime > w.end) w.end = ev.endTime;
+    }
+    return map;
+  }, [calendarEvents]);
+
   const handleMonthChange = useCallback(
     (year: number, month: number) => {
       setCalendarYear(year);
@@ -656,7 +712,11 @@ export default function MayorEventsPage() {
       </div>
 
       {selectedEvent && (
-        <EventDetailsModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+        <EventDetailsModal
+          event={selectedEvent}
+          window={(selectedEvent.eventSpecialId && mergedWindows[selectedEvent.eventSpecialId]) || {}}
+          onClose={() => setSelectedEvent(null)}
+        />
       )}
     </MainLayout>
   );

@@ -12,6 +12,7 @@ const getByIdController = require('../../controllers/feedback/get_by_id');
 const deleteFeedbackController = require('../../controllers/feedback/delete_feedback');
 const getByPhoneController = require('../../controllers/feedback/get_by_phone');
 const submitUnservicedFeedbackController = require('../../controllers/feedback/submit_unserviced_feedback');
+const searchUnservicedController = require('../../controllers/feedback/search_unserviced');
 
 /**
  * @swagger
@@ -267,6 +268,36 @@ Router.get('/search-by-department', searchByDepartmentController);
  *         description: Internal server error
  */
 Router.get('/search', searchAllController);
+
+/**
+ * @swagger
+ * /feedback/search-unserviced:
+ *   get:
+ *     summary: "Search all general (unserviced) feedback"
+ *     description: "Retrieve paginated list of general feedback submitted without a service/department record."
+ *     tags: [Feedback]
+ *     security: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *           maximum: 100
+ *         description: "Number of records per page"
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: "Page number"
+ *     responses:
+ *       200:
+ *         description: General feedback list retrieved successfully
+ *       500:
+ *         description: Internal server error
+ */
+Router.get('/search-unserviced', searchUnservicedController);
 
 /**
  * @swagger
