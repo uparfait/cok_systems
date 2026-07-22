@@ -53,7 +53,7 @@ const CokLabel = ({ children }: { children: React.ReactNode }) => (
       fontSize: 12,
       fontWeight: 600,
       letterSpacing: '0.5px',
-      color: COK.tertiary,
+      color: COK.neutralDark,
       margin: 0,
     }}
   >
