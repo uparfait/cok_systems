@@ -1,11 +1,11 @@
-import { FiLoader } from 'react-icons/fi';
+
 
 export default function SpiralLoader({ 
   color = "#056daa", 
 }) {
   return (
-    <div className="flex flex-col items-center justify-center">
-      <FiLoader color={color} className="w-6 h-6 animate-spin" />
-    </div>
+        <div className="flex items-center justify-center py-8">
+          <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: color, borderTopColor: "transparent" }} />
+        </div>
   );
 }

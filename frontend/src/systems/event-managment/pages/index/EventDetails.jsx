@@ -6,6 +6,7 @@ import EventAccessOverlay from "./components/EventAccessOverlay";
 import EventDetailsLeftColumn from "./components/EventDetailsLeftColumn";
 import EventDetailsRightColumn from "./components/EventDetailsRightColumn";
 import EventDetailsQrModal from "./components/EventDetailsQrModal";
+import EventMinutesView from "./components/EventMinutesView";
 
 const generateColorFromName = (name) => {
   let hash = 0;
@@ -196,7 +197,7 @@ export default function EventDetails() {
 
   if (isEventLoading || isVerifying || isCheckingAccess) {
     return (
-      <div className="w-full min-h-screen flex items-center justify-center p-6 bg-zinc-50 rounded-none">
+      <div className="w-full min-h-screen flex items-center justify-center p-6  bg-zinc-50 rounded-none">
         <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8 animate-pulse rounded-none">
           <div className="lg:col-span-7 space-y-4 rounded-none">
             <div className="h-10 bg-zinc-200 w-2/3 rounded-none" />
@@ -300,6 +301,14 @@ export default function EventDetails() {
             setQrCodeUrl={setQrCodeUrl}
             setActualQrCodeUrl={setActualQrCodeUrl}
             fetchQrCode={fetchQrCode}
+          />
+        </div>
+
+        <div className="relative z-10 w-full">
+          <EventMinutesView
+            eventSpecialId={eventSpecialId}
+            activeEvent={activeEvent}
+            accessToken={accessToken}
           />
         </div>
       </motion.div>

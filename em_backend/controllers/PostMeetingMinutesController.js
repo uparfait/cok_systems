@@ -4,6 +4,17 @@ const UpcomingEvent = require('../models/UpcomingEvent');
 const RecurringEvent = require('../models/RecurringEvent');
 const PastEvent = require('../models/PastEvent');
 
+async function findEventBySpecialId(eventSpecialId) {
+  const collections = [LiveEvent, UpcomingEvent, RecurringEvent, PastEvent];
+  for (const Model of collections) {
+    const event = await Model.findOne({ eventSpecialId })
+      .select('eventName eventSpecialId startedAt willStartAt willEndAt eventOrganizer eventType eventMeetingType')
+      .lean();
+    if (event) return event;
+  }
+  return null;
+}
+
 class PostMeetingMinutesController {
   
   static async saveMinutes(req, res) {
@@ -95,17 +106,6 @@ class PostMeetingMinutesController {
   }
 
   
-  static async findEventBySpecialId(eventSpecialId) {
-    const collections = [LiveEvent, UpcomingEvent, RecurringEvent, PastEvent];
-    for (const Model of collections) {
-      const event = await Model.findOne({ eventSpecialId })
-        .select('eventName eventSpecialId startedAt willStartAt willEndAt eventOrganizer eventType eventMeetingType')
-        .lean();
-      if (event) return event;
-    }
-    return null;
-  }
-
   static async getMinutes(req, res) {
     try {
       const { eventSpecialId } = req.params;
@@ -117,7 +117,7 @@ class PostMeetingMinutesController {
         });
       }
 
-      const event = await this.findEventBySpecialId(eventSpecialId);
+      const event = await findEventBySpecialId(eventSpecialId);
 
       if (!event) {
         return res.status(404).json({
