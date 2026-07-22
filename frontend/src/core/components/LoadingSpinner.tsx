@@ -48,7 +48,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
 
   return (
     <div className={`flex flex-col items-center justify-center ${className}`}>
-     <FiLoader className="w-6 h-6 animate-spin text-blue-600" />
+      <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#056daa", borderTopColor: "transparent" }} />
       
       {showMessage && (
         <div className="mt-4 text-center">
@@ -69,3 +69,8 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
 };
 
 export default LoadingSpinner;
+
+
+
+
+
