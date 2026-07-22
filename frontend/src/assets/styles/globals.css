@@ -317,3 +317,31 @@ body {
     transform: rotate(360deg);
   }
 }
+
+/* Reusable variant of #ToDayAnimatedCalenderBg for live (happening now) event chips */
+.cok-live-event-frame {
+  position: relative;
+  overflow: hidden;
+  padding: 2px;
+}
+
+.cok-live-event-frame::before {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  background: conic-gradient(
+    from 0deg,
+    #056daa,
+    #ffeb3b,
+    #4caf50,
+    #056daa
+  );
+  animation: rotateBorder 2s linear infinite;
+  filter: blur(6px);
+  opacity: 0.9;
+}
+
+.cok-live-event-frame > * {
+  position: relative;
+  z-index: 2;
+}
