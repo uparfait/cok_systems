@@ -264,6 +264,20 @@ function isHappeningNow(ev: CalendarEvent): boolean {
   return new Date(ev.startTime).getTime() <= now && now <= new Date(ev.endTime).getTime();
 }
 
+// An event scheduled for today (happening today) also gets the animated frame
+function isHappeningToday(ev: CalendarEvent): boolean {
+  if (ev.isCancelled) return false;
+  if (isHappeningNow(ev)) return true;
+  if (!ev.startTime) return false;
+  const d = new Date(ev.startTime);
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
+
 const STATUS_BADGES: Record<string, { label: string; color: string }> = {
   live: { label: 'Happening Now', color: COK.success },
   upcoming: { label: 'Upcoming', color: COK.primary },
@@ -517,7 +531,7 @@ function EventsCalendar({
               </span>
               <div className="mt-0.5 space-y-0.5">
                 {visibleEvents.map((ev, i) => {
-                  const live = isHappeningNow(ev);
+                  const live = isHappeningToday(ev);
                   const chip = (
                     <button
                       type="button"
