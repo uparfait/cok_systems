@@ -53,9 +53,6 @@ services:
   frontend:
     build: ./frontend
     restart: unless-stopped
-    environment:
-      VITE_API_URL: https://uatps-ikaze.kigalicity.gov.rw
-      VITE_API_EVENT_URL: https://uate-ikaze.kigalicity.gov.rw
 
     volumes:
       # Live nginx config — edit/swap files here without rebuilding the image
