@@ -53,7 +53,12 @@ services:
   frontend:
     build: ./frontend
     restart: unless-stopped
-
+    environment:
+      # Tell the internal nginx/app to listen on port 5713
+      PORT: 5713
+    # Expose the port so it's accessible within the Docker network
+    expose:
+      - "5713"
     volumes:
       # Live nginx config — edit/swap files here without rebuilding the image
       - ./frontend/nginx:/etc/nginx/conf.d:ro
