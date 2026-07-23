@@ -1,0 +1,78 @@
+# ============================================================================
+# Final HTTPS configuration. Enable AFTER certbot has issued the certificate:
+#   mv default.conf default-http.conf.disabled
+#   mv default-ssl.conf.disabled default.conf
+#   docker compose restart frontend
+# Replace ksesm.kigalicity.gov.rw with your real domain everywhere below.
+# ============================================================================
+
+# Port 80: keep the ACME challenge reachable, redirect everything else to HTTPS
+server {
+    listen 80;
+    server_name ksesm.kigalicity.gov.rw;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ksesm.kigalicity.gov.rw;
+
+    ssl_certificate     /etc/letsencrypt/live/ksesm.kigalicity.gov.rw/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ksesm.kigalicity.gov.rw/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    client_max_body_size 25m;
+
+    gzip on;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    # Event management API (same rule the Vite dev proxy had)
+    location /cok/api/v1/ {
+        proxy_pass http://em-backend:2027;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Main API
+    location /cok/api/ {
+        proxy_pass http://backend:2026;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Uploaded files served by the main backend
+    location /uploads/ {
+        proxy_pass http://backend:2026;
+        proxy_set_header Host $host;
+    }
+
+    # WebSocket (socket.io) — needs the upgrade headers
+    location /socket.io/ {
+        proxy_pass http://backend:2026;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 600s;
+    }
+
+    # React single-page app — all other routes fall back to index.html
+    location / {
+        root /usr/share/nginx/html;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+    }
+}
