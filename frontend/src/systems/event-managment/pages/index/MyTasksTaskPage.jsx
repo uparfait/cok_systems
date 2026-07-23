@@ -91,7 +91,7 @@ export default function MyTasksTaskPage() {
   const od = isOverdue(task.dueDate, task.currentStatus?.status);
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#F7F9FB', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#F7F9FB', display: 'flex', flexDirection: 'column', paddingTop: '80px' }}>
       <Helmet>
         <title>My Tasks · {task.title || 'Task'}</title>
       </Helmet>
@@ -160,6 +160,7 @@ export default function MyTasksTaskPage() {
                 {task.statusHistory?.length > 0 ? (
                   <ol style={{ position: 'relative', borderLeft: `2px solid #F3F4F6`, marginLeft: '8px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     {[...task.statusHistory].reverse().map((h, i) => {
+                      console.log('h', h);
                       const hm = STATUS_META[h.status] || {};
                       const Icon = hm.icon;
                       return (
@@ -199,10 +200,25 @@ export default function MyTasksTaskPage() {
       <TaskFileViewer doc={viewingDoc} onClose={() => setViewingDoc(null)} />
 
       <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .task-input {
+          border: 1px solid transparent !important;
+          box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1) !important;
+          transition: border-color 0.3s ease, box-shadow 0.3s ease !important;
+        }
+        .task-input:hover {
+          border-color: #B0BEC5 !important;
+        }
+        .task-input:focus {
+          border-color: #056daa !important;
+          box-shadow: 0px 4px 8px rgba(7, 142, 206, 0.25) !important;
+        }
+        .task-main-grid {
+          grid-template-columns: 1fr 360px !important;
+        }
         @media (min-width: 1024px) {
           .task-main-grid { grid-template-columns: 1fr 360px !important; }
         }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
     </div>
   );

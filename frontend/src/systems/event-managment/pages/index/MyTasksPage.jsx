@@ -89,17 +89,19 @@ export default function MyTasksPage() {
   const byStatus = (s) => tasks.filter(t => t.currentStatus?.status === s);
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#F7F9FB', display: 'flex', flexDirection: 'column', width: '100%' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#F7F9FB', display: 'flex', flexDirection: 'column', width: '100%', paddingTop: '80px' }}>
       <Helmet><title>My Tasks</title></Helmet>
 
-      <div style={{ backgroundColor: '#FFFFFF', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10, borderBottom: `1px solid ${BORDER}` }}>
+      <div style={{ backgroundColor: 'transparent', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10, borderBottom: `1px solid ${BORDER}` }}>
         <div style={{ fontSize: '11px', color: '#9E9E9E', fontFamily: fontHeading }}>
           {email && step === 'board' && (
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email} · {tasks.length} task{tasks.length !== 1 ? 's' : ''}</span>
           )}
         </div>
         {step === 'board' && (
-          <button onClick={logout} style={{ fontSize: '11px', color: '#9E9E9E', background: 'none', border: 'none', cursor: 'pointer', transition: 'color 0.2s', fontWeight: 600, fontFamily: fontHeading, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <button onClick={logout} style={{ fontSize: '11px', color: PRIMARY, background: '#FFFFFF', border: `1px solid ${PRIMARY}`, cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, fontFamily: fontHeading, textTransform: 'uppercase', letterSpacing: '0.5px', padding: '4px 12px' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; e.currentTarget.style.color = '#FFFFFF'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FFFFFF'; e.currentTarget.style.color = PRIMARY; }}>
             Sign out
           </button>
         )}
@@ -121,15 +123,16 @@ export default function MyTasksPage() {
               {error && <ErrorBox>{error}</ErrorBox>}
               <div>
                 <label style={cokLabelStyle()} htmlFor="my-tasks-email">Email Address</label>
-                <input
-                  id="my-tasks-email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  style={cokInputStyle()}
-                />
+                 <input
+                   id="my-tasks-email"
+                   type="email"
+                   required
+                   value={email}
+                   onChange={e => setEmail(e.target.value)}
+                   placeholder="your@email.com"
+                   style={cokInputStyle()}
+                   className="task-input"
+                 />
               </div>
               <button type="submit" disabled={loading} style={cokBtnStyle('primary', loading)} onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = PRIMARY_DARK; }} onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = PRIMARY; }}>
                 {loading ? 'Checking…' : 'Find My Tasks'}
@@ -162,8 +165,9 @@ export default function MyTasksPage() {
                   value={tokenInput}
                   onChange={e => setTokenInput(e.target.value.toUpperCase())}
                   placeholder="Enter 6-character token"
-                  style={{ ...cokInputStyle(), textAlign: 'center', fontSize: '20px', fontFamily: "'Courier New', monospace", letterSpacing: '0.4em', padding: '16px' }}
-                />
+                   style={{ ...cokInputStyle(), textAlign: 'center', fontSize: '20px', fontFamily: "'Courier New', monospace", letterSpacing: '0.4em', padding: '16px' }}
+                   className="task-input"
+                 />
               </div>
               <button type="submit" disabled={loading} style={cokBtnStyle('primary', loading)} onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = PRIMARY_DARK; }} onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = PRIMARY; }}>
                 {loading ? 'Verifying…' : 'View My Tasks'}
@@ -202,9 +206,33 @@ export default function MyTasksPage() {
         </div>
       )}
       <style>{`
-        .board-grid { grid-template-columns: repeat(3, 1fr) !important; }
+        .task-input {
+          border: 1px solid transparent !important;
+          box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1) !important;
+          transition: border-color 0.3s ease, box-shadow 0.3s ease !important;
+        }
+        .task-input:hover {
+          border-color: #B0BEC5 !important;
+        }
+        .task-input:focus {
+          border-color: #056daa !important;
+          box-shadow: 0px 4px 8px rgba(7, 142, 206, 0.25) !important;
+        }
+        .board-grid {
+          grid-template-columns: repeat(3, 1fr) !important;
+        }
         @media (max-width: 767px) {
-          .board-grid { grid-template-columns: repeat(3, 1fr) !important; }
+          .board-grid {
+            display: flex !important;
+            gap: 16px !important;
+            overflow-x: auto !important;
+            padding-bottom: 12px !important;
+            -webkit-overflow-scrolling: touch !important;
+          }
+          .board-grid > * {
+            flex: 0 0 280px !important;
+            min-width: 280px !important;
+          }
         }
       `}</style>
     </div>
@@ -215,7 +243,7 @@ function KanbanColumn({ status, tasks, onOpen }) {
   const m = STATUS_META[status] || { header: '#9E9E9E', text: '#FFFFFF', light: '#F3F4F6', border: '#E5E7EB', bg: '#F3F4F6', icon: FiClock };
 
   return (
-    <div style={{ backgroundColor: '#FFFFFF', border: `1px solid ${BORDER}`, borderRadius: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)' }}>
+    <div style={{ backgroundColor: '#FFFFFF', border: `1px solid ${BORDER}`, borderRadius: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <div style={{ backgroundColor: m.header, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#FFFFFF' }}>
           <m.icon style={{ width: '16px', height: '16px' }} />
@@ -252,12 +280,10 @@ function KanbanColumn({ status, tasks, onOpen }) {
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.borderColor = '#E5E7EB';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
               e.currentTarget.style.backgroundColor = '#FFFFFF';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.borderColor = '#F3F4F6';
-              e.currentTarget.style.boxShadow = 'none';
               e.currentTarget.style.backgroundColor = '#F7F9FB';
             }}
           >
