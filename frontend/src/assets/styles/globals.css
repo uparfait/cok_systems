@@ -317,3 +317,237 @@ body {
     transform: rotate(360deg);
   }
 }
+
+/* Reusable variant of #ToDayAnimatedCalenderBg — applied to the whole calendar
+   day cell that contains a happening (today/live) event, so the animated
+   gradient circulates along the cell borders */
+.cok-live-event-frame {
+  position: relative;
+  overflow: hidden;
+}
+
+.cok-live-event-frame::before {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  background: conic-gradient(
+    from 0deg,
+    #056daa,
+    #ffeb3b,
+    #4caf50,
+    #056daa
+  );
+  animation: rotateBorder 2s linear infinite;
+  filter: blur(6px);
+  opacity: 0.9;
+}
+
+.cok-live-event-frame::after {
+  content: "";
+  position: absolute;
+  inset: 2px; /* border thickness */
+  background: #fcfdff;
+  z-index: 1;
+}
+
+.cok-live-event-frame > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* ==================== CoK auth pages (login) — design-rule form controls ==================== */
+
+.cok-auth-card {
+  border-radius: 0;
+  background-color: var(--cok-bg-white);
+  box-shadow: 0.5084rem 1.1419rem 2.5rem 0 rgb(0 0 0 / 8%);
+}
+
+.cok-auth-label {
+  font-family: var(--cok-font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--cok-neutral-dark);
+  display: block;
+  margin-bottom: 8px;
+}
+
+.cok-auth-input {
+  font-family: var(--cok-font-heading);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  line-height: 1.4;
+  width: 100%;
+  color: var(--cok-neutral-dark);
+  background-color: var(--cok-neutral-light);
+  border: 1px solid var(--cok-gray-border);
+  border-radius: 0;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+  outline: none;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.cok-auth-input:focus {
+  border-color: #056daa;
+  box-shadow: 0px 4px 8px rgba(5, 109, 170, 0.25);
+}
+
+.cok-auth-btn-primary {
+  font-family: var(--cok-font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--cok-text-white);
+  background-color: #056daa; /* booking-page primary */
+  border: 0;
+  border-radius: 0;
+  padding: 0.9rem;
+  width: 100%;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.cok-auth-btn-primary:hover:not(:disabled) {
+  background-color: #045d94;
+}
+
+.cok-auth-btn-primary:active {
+  transform: translateY(1px);
+}
+
+.cok-auth-btn-outlined {
+  font-family: var(--cok-font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: #056daa; /* booking-page primary */
+  border: 1px solid #056daa;
+  background-color: transparent;
+  border-radius: 0;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.cok-auth-btn-outlined:hover {
+  color: var(--cok-text-white);
+  background-color: #056daa;
+}
+
+/* ==================== Mayor account theme (CoK design rules) ==================== */
+/* Applied by MainLayout when the logged-in user is a Mayor. Remaps the shared
+   dashboard pages' generic Tailwind palette to the CoK design-rule palette
+   (desegin_rule.html) without affecting other accounts. */
+
+.cok-mayor-theme h1,
+.cok-mayor-theme h2,
+.cok-mayor-theme h3,
+.cok-mayor-theme h4,
+.cok-mayor-theme h5,
+.cok-mayor-theme h6 {
+  font-family: var(--cok-font-heading);
+}
+
+.cok-mayor-theme label {
+  font-family: var(--cok-font-heading);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--cok-neutral-dark);
+}
+
+/* Primary blue remap */
+.cok-mayor-theme .bg-blue-600 { background-color: var(--cok-primary-color); }
+.cok-mayor-theme .bg-blue-700,
+.cok-mayor-theme .hover\:bg-blue-700:hover { background-color: var(--cok-bg-light-blue); }
+.cok-mayor-theme .text-blue-600,
+.cok-mayor-theme .text-blue-700,
+.cok-mayor-theme .text-blue-800 { color: var(--cok-bg-light-blue); }
+.cok-mayor-theme .border-blue-500,
+.cok-mayor-theme .border-blue-600 { border-color: var(--cok-primary-color); }
+.cok-mayor-theme .bg-blue-50,
+.cok-mayor-theme .bg-blue-100 { background-color: #EAF6FC; }
+
+/* Teal / emerald / green accents -> CoK success green */
+.cok-mayor-theme .bg-teal-600,
+.cok-mayor-theme .bg-emerald-600,
+.cok-mayor-theme .bg-green-600 { background-color: var(--cok-success-color); }
+.cok-mayor-theme .text-teal-600,
+.cok-mayor-theme .text-emerald-600,
+.cok-mayor-theme .text-green-600 { color: var(--cok-success-color); }
+.cok-mayor-theme .border-teal-600,
+.cok-mayor-theme .border-green-600 { border-color: var(--cok-success-color); }
+.cok-mayor-theme .bg-green-50,
+.cok-mayor-theme .bg-green-100 { background-color: #E9F5EA; }
+.cok-mayor-theme .text-green-800 { color: #3A7D3E; }
+
+/* Purple accents -> CoK darker blue */
+.cok-mayor-theme .bg-purple-600 { background-color: var(--cok-bg-light-blue); }
+.cok-mayor-theme .text-purple-600 { color: var(--cok-bg-light-blue); }
+.cok-mayor-theme .border-purple-600 { border-color: var(--cok-bg-light-blue); }
+.cok-mayor-theme .bg-purple-50,
+.cok-mayor-theme .bg-purple-100 { background-color: #EAF6FC; }
+
+/* Yellow / amber -> CoK warning */
+.cok-mayor-theme .bg-yellow-500 { background-color: var(--cok-warning-color); }
+.cok-mayor-theme .text-yellow-500,
+.cok-mayor-theme .text-yellow-600,
+.cok-mayor-theme .text-yellow-800 { color: var(--cok-warning-color); }
+.cok-mayor-theme .border-yellow-500 { border-color: var(--cok-warning-color); }
+.cok-mayor-theme .bg-yellow-50,
+.cok-mayor-theme .bg-yellow-100 { background-color: #FDF3DE; }
+
+/* Red -> CoK danger */
+.cok-mayor-theme .bg-red-600 { background-color: var(--cok-danger-color); }
+.cok-mayor-theme .text-red-600 { color: var(--cok-danger-color); }
+.cok-mayor-theme .text-red-800 { color: #C62F2C; }
+.cok-mayor-theme .border-red-600 { border-color: var(--cok-danger-color); }
+.cok-mayor-theme .bg-red-50,
+.cok-mayor-theme .bg-red-100 { background-color: #FCE9E8; }
+
+/* Dashboard KPI cards: labels get the CoK label treatment, values get
+   Montserrat headline weight (scoped to the left-accent card structure) */
+.cok-mayor-theme .border-l-2 .text-xs.text-gray-500.font-medium {
+  font-family: var(--cok-font-heading);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--cok-neutral-dark);
+}
+
+/* Tables (service delivery, feedback, smart parking, dashboard modals):
+   black column names with fully bordered cells. Headers that declare their
+   own white text (colored table heads) keep it. */
+.cok-mayor-theme table thead th {
+  font-family: var(--cok-font-heading);
+  border: 1px solid var(--cok-gray-border);
+}
+
+.cok-mayor-theme table thead th:not([class*="text-white"]) {
+  color: var(--cok-neutral-dark);
+}
+
+.cok-mayor-theme table tbody td {
+  border: 1px solid var(--cok-gray-border);
+}
+
+.cok-mayor-theme .border-l-2 .text-2xl.font-light {
+  font-family: var(--cok-font-heading);
+  font-weight: 700;
+  color: var(--cok-neutral-dark);
+}
+
+/* Section / chart card titles -> Montserrat headings */
+.cok-mayor-theme .text-sm.font-semibold.text-gray-900 {
+  font-family: var(--cok-font-heading);
+  color: var(--cok-neutral-dark);
+}

@@ -19,6 +19,9 @@ export { default as AdminCheckInCheckOut } from './pages/AdminCheckInCheckOut';
 export { default as Analytics } from './pages/Analytics';
 export { default as FeedbackPage } from './pages/FeedbackPage';
 export { default as OverviewPage } from './pages/OverviewPage';
+export { default as MayorEventsPage } from './pages/MayorEventsPage';
+export { default as MayorActionsPage } from './pages/MayorActionsPage';
+export { default as MayorFeedbackPage } from './pages/MayorFeedbackPage';
 
 // Components
 export * from './components';
