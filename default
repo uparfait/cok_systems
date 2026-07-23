@@ -60,9 +60,9 @@ server {
     ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256';
     ssl_prefer_server_ciphers on;
 
-    # Proxy to Docker backend container on port 2026 (IP: 172.18.0.4)
+    # Proxy to Docker backend container on port 2027 (IP: 172.18.0.4)
     location / {
-        proxy_pass http://172.18.0.4:2026;
+        proxy_pass http://172.18.0.4:2027;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -80,7 +80,7 @@ server {
     }
 }
 
-# Event Management Backend Service (Port 2027)
+# Event Management Backend Service (Port 2026)
 server {
     listen 443 ssl http2;
     server_name uate-ikaze.kigalicity.gov.rw;
@@ -96,7 +96,7 @@ server {
 
     # Proxy to Docker em-backend container on port 2027 (IP: 172.18.0.5)
     location / {
-        proxy_pass http://172.18.0.5:2027;
+        proxy_pass http://172.18.0.5:2026;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
