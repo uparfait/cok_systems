@@ -56,9 +56,7 @@ services:
     environment:
       VITE_API_URL: https://uatps-ikaze.kigalicity.gov.rw
       VITE_API_EVENT_URL: https://uate-ikaze.kigalicity.gov.rw
-    ports:
-      - "80:80"
-      - "443:443"
+
     volumes:
       # Live nginx config — edit/swap files here without rebuilding the image
       - ./frontend/nginx:/etc/nginx/conf.d:ro
