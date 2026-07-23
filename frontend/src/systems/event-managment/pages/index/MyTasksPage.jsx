@@ -3,41 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import axios from 'axios';
 import {
-  FiArrowLeft, FiMail, FiAlertCircle,
-  FiClock, FiActivity, FiCheckCircle, FiCalendar, FiUser, FiChevronRight,
+  FiMail, FiClock, FiActivity, FiCheckCircle,
+  FiCalendar, FiUser, FiChevronRight,
 } from 'react-icons/fi';
+import { ErrorBox, PRIMARY, PRIMARY_DARK, BORDER, WHITE, fontHeading, cokInputStyle, cokLabelStyle, cokBtnStyle, STATUSES, STATUS_META, fmt, isOverdue } from './components/TaskDesignTokens';
 
-const BASE_URL    = '/cok/api/v1';
+const BASE_URL = '/cok/api/v1';
 const SESSION_KEY = 'my_tasks_cache';
-
-const STATUSES = ['Pending', 'In Progress', 'Completed'];
-
-const STATUS_META = {
-  Pending:       { header: 'bg-amber-500',  text: 'text-amber-700',  light: 'bg-amber-50',  border: 'border-amber-200', badge: 'bg-amber-100  text-amber-700  border-amber-200',  Icon: FiClock },
-  'In Progress': { header: 'bg-blue-500',   text: 'text-blue-700',   light: 'bg-blue-50',   border: 'border-blue-200',  badge: 'bg-blue-100   text-blue-700   border-blue-200',   Icon: FiActivity },
-  Completed:     { header: 'bg-green-500',  text: 'text-green-700',  light: 'bg-green-50',  border: 'border-green-200', badge: 'bg-green-100  text-green-700  border-green-200',  Icon: FiCheckCircle },
-};
-
-function fmt(d) {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-function isOverdue(due, status) {
-  return status !== 'Completed' && new Date(due) < new Date();
-}
 
 export default function MyTasksPage() {
   const navigate = useNavigate();
 
-  const [step, setStep]               = useState('email');
-  const [email, setEmail]             = useState('');
-  const [tokenInput, setTokenInput]   = useState('');
-  const [tasks, setTasks]             = useState([]);
-  const [loading, setLoading]         = useState(false);
-  const [error, setError]             = useState('');
-  const [sent, setSent]               = useState(false);
+  const [step, setStep] = useState('email');
+  const [email, setEmail] = useState('');
+  const [tokenInput, setTokenInput] = useState('');
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [sent, setSent] = useState(false);
 
-  /* Restore cached session so Back from detail returns to board */
   useEffect(() => {
     try {
       const cached = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
@@ -51,7 +35,8 @@ export default function MyTasksPage() {
 
   async function handleEmailSubmit(e) {
     e.preventDefault();
-    setLoading(true); setError('');
+    setLoading(true);
+    setError('');
     try {
       const res = await axios.post(`${BASE_URL}/event-actions/my-tasks/request-token`, { email });
       if (res.data.success) {
@@ -66,14 +51,12 @@ export default function MyTasksPage() {
   }
 
   async function handleResendToken() {
-    setLoading(true); setError('');
+    setLoading(true);
+    setError('');
     try {
       const res = await axios.post(`${BASE_URL}/event-actions/my-tasks/request-token`, { email });
-      if (res.data.success) {
-        setSent(true);
-      } else {
-        setError(res.data.message || 'Failed to resend token.');
-      }
+      setSent(res.data.success);
+      if (!res.data.success) setError(res.data.message || 'Failed to resend token.');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to resend token.');
     } finally { setLoading(false); }
@@ -81,7 +64,8 @@ export default function MyTasksPage() {
 
   async function handleTokenSubmit(e) {
     e.preventDefault();
-    setLoading(true); setError('');
+    setLoading(true);
+    setError('');
     try {
       const res = await axios.post(`${BASE_URL}/event-actions/my-tasks/verify-token`, { email, token: tokenInput });
       const fetched = res.data.data || [];
@@ -95,56 +79,59 @@ export default function MyTasksPage() {
 
   function logout() {
     sessionStorage.removeItem(SESSION_KEY);
-    setStep('email'); setEmail(''); setTokenInput(''); setTasks([]); setSent(false);
+    setStep('email');
+    setEmail('');
+    setTokenInput('');
+    setTasks([]);
+    setSent(false);
   }
 
   const byStatus = (s) => tasks.filter(t => t.currentStatus?.status === s);
 
   return (
-    <div className="min-h-screen w-ful items-centerl bg-gray-50 flex flex-col">
-      <Helmet>
-        <title>My Tasks</title>
-      </Helmet>
+    <div style={{ minHeight: '100vh', backgroundColor: '#F7F9FB', display: 'flex', flexDirection: 'column', width: '100%' }}>
+      <Helmet><title>My Tasks</title></Helmet>
 
-      {/* Top bar */}
-      <div className="bg-white  px-4 sm:px-6 py-4 flex items-center gap-3 sticky top-0 z-10">
-         
-          {/* up card */}
-          <div className="flex-1 flex items-start justify-center px-8 pt-12"></div>
-        <div className="flex-1 min-w-0">
-        
+      <div style={{ backgroundColor: '#FFFFFF', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10, borderBottom: `1px solid ${BORDER}` }}>
+        <div style={{ fontSize: '11px', color: '#9E9E9E', fontFamily: fontHeading }}>
           {email && step === 'board' && (
-            <p className="text-xs text-gray-400 truncate">{email} · {tasks.length} task{tasks.length !== 1 ? 's' : ''}</p>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email} · {tasks.length} task{tasks.length !== 1 ? 's' : ''}</span>
           )}
         </div>
         {step === 'board' && (
-          <button onClick={logout} className="text-xs text-gray-400 hover:text-red-500 shrink-0 transition-colors">
+          <button onClick={logout} style={{ fontSize: '11px', color: '#9E9E9E', background: 'none', border: 'none', cursor: 'pointer', transition: 'color 0.2s', fontWeight: 600, fontFamily: fontHeading, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
             Sign out
           </button>
         )}
       </div>
 
-      {/* ── Email step ── */}
       {step === 'email' && (
-        <div className="flex-1 flex items-start justify-center px-6 pt-10">
-          
-          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 w-full max-w-sm">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-                <FiMail className="w-5 h-5 text-blue-600" />
+        <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '48px 24px' }}>
+          <div style={{ backgroundColor: '#FFFFFF', border: `1px solid ${BORDER}`, borderRadius: 0, padding: '40px', width: '100%', maxWidth: '400px', boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, backgroundColor: '#E6F4F9' }}>
+                <FiMail style={{ width: '20px', height: '20px', color: PRIMARY }} />
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-900">Enter your email</p>
-                <p className="text-xs text-gray-400 mt-0.5">We'll find tasks assigned to you</p>
+                <p style={{ fontSize: '14px', fontWeight: 700, color: '#333333', margin: 0, fontFamily: fontHeading }}>Enter your email</p>
+                <p style={{ fontSize: '12px', color: '#9E9E9E', marginTop: '2px' }}>We'll find tasks assigned to you</p>
               </div>
             </div>
-            <form onSubmit={handleEmailSubmit} className="space-y-3">
+            <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {error && <ErrorBox>{error}</ErrorBox>}
-              <input type="email" required value={email}  onChange={e => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 bg-gray-50" />
-              <button type="submit" disabled={loading}
-                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60">
+              <div>
+                <label style={cokLabelStyle()} htmlFor="my-tasks-email">Email Address</label>
+                <input
+                  id="my-tasks-email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  style={cokInputStyle()}
+                />
+              </div>
+              <button type="submit" disabled={loading} style={cokBtnStyle('primary', loading)} onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = PRIMARY_DARK; }} onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = PRIMARY; }}>
                 {loading ? 'Checking…' : 'Find My Tasks'}
               </button>
             </form>
@@ -152,54 +139,56 @@ export default function MyTasksPage() {
         </div>
       )}
 
-      {/* ── Token step ── */}
       {step === 'token' && (
-        <div className="flex-1 flex h-max w-max justify-center p-6">
-          <div className="w-full max-w-sm">
-
-            <div className="flex flex-col items-center gap-2 mb-5">
-              <div className="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center">
-                <FiMail className="w-7 h-7 text-green-600" />
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 24px' }}>
+          <div style={{ width: '100%', maxWidth: '400px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#D1FAE5' }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
               </div>
-              <h2 className="text-lg font-bold text-gray-900">Check your email</h2>
-              <p className="text-xs text-gray-500 text-center">We sent a 6-character access token to <strong>{email}</strong></p>
+              <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#333333', margin: 0, fontFamily: fontHeading, textAlign: 'center' }}>Check your email</h2>
+              <p style={{ fontSize: '12px', color: '#6B7280', textAlign: 'center', margin: 0 }}>We sent a 6-character access token to <strong>{email}</strong></p>
             </div>
 
-            <form onSubmit={handleTokenSubmit} className="space-y-3">
+            <form onSubmit={handleTokenSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {error && <ErrorBox>{error}</ErrorBox>}
-              <input type="text" required maxLength={6} value={tokenInput}
-                onChange={e => setTokenInput(e.target.value.toUpperCase())}
-                placeholder="Enter 6-character token"
-                className="w-full px-4 py-3 text-center text-2xl font-mono tracking-[0.4em] border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 bg-gray-50" />
-              <button type="submit" disabled={loading}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60">
+              <div>
+                <label style={cokLabelStyle()} htmlFor="my-tasks-token">Access Token</label>
+                <input
+                  id="my-tasks-token"
+                  type="text"
+                  required
+                  maxLength={6}
+                  value={tokenInput}
+                  onChange={e => setTokenInput(e.target.value.toUpperCase())}
+                  placeholder="Enter 6-character token"
+                  style={{ ...cokInputStyle(), textAlign: 'center', fontSize: '20px', fontFamily: "'Courier New', monospace", letterSpacing: '0.4em', padding: '16px' }}
+                />
+              </div>
+              <button type="submit" disabled={loading} style={cokBtnStyle('primary', loading)} onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = PRIMARY_DARK; }} onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = PRIMARY; }}>
                 {loading ? 'Verifying…' : 'View My Tasks'}
               </button>
             </form>
 
-            <div className="mt-4 text-center">
-              <button type="button" onClick={handleResendToken} disabled={loading}
-                className="text-xs text-blue-600 hover:text-blue-700 font-medium disabled:opacity-60">
+            <div style={{ marginTop: '16px', textAlign: 'center' }}>
+              <button type="button" onClick={handleResendToken} disabled={loading} style={{ fontSize: '12px', color: PRIMARY, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontFamily: fontHeading, textTransform: 'uppercase', letterSpacing: '0.5px', opacity: loading ? 0.6 : 1, transition: 'opacity 0.2s' }}>
                 {loading ? 'Sending…' : 'Resend token'}
               </button>
             </div>
-
           </div>
         </div>
       )}
 
-      {/* ── Board ── */}
       {step === 'board' && (
-        <div className="flex-1 p-4 sm:p-6">
+        <div style={{ flex: 1, padding: '24px' }}>
           {tasks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-gray-300">
-              <FiCheckCircle className="w-14 h-14 mb-3" />
-              <p className="text-base font-semibold text-gray-400">No tasks assigned to you</p>
-              <p className="text-xs text-gray-400 mt-1">{email}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', color: '#D1D5DB' }}>
+              <FiCheckCircle style={{ width: '56px', height: '56px', marginBottom: '12px' }} />
+              <p style={{ fontSize: '16px', fontWeight: 600, color: '#9E9E9E', margin: 0, fontFamily: fontHeading }}>No tasks assigned to you</p>
+              <p style={{ fontSize: '12px', color: '#9E9E9E', marginTop: '4px' }}>{email}</p>
             </div>
           ) : (
-            /* Stack on mobile, 3 columns on md+ */
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div style={{ display: 'grid', gap: '16px', gridTemplateColumns: 'repeat(3, 1fr)' }} className="board-grid">
               {STATUSES.map(status => (
                 <KanbanColumn
                   key={status}
@@ -212,69 +201,88 @@ export default function MyTasksPage() {
           )}
         </div>
       )}
+      <style>{`
+        .board-grid { grid-template-columns: repeat(3, 1fr) !important; }
+        @media (max-width: 767px) {
+          .board-grid { grid-template-columns: repeat(3, 1fr) !important; }
+        }
+      `}</style>
     </div>
   );
 }
 
 function KanbanColumn({ status, tasks, onOpen }) {
-  const { header, Icon, text } = STATUS_META[status];
+  const m = STATUS_META[status] || { header: '#9E9E9E', text: '#FFFFFF', light: '#F3F4F6', border: '#E5E7EB', bg: '#F3F4F6', icon: FiClock };
+
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden flex flex-col">
-      {/* Column header */}
-      <div className={`${header} px-4 py-3 flex items-center justify-between shrink-0`}>
-        <div className="flex items-center gap-2 text-white">
-          <Icon className="w-4 h-4" />
-          <span className="text-sm font-semibold">{status}</span>
+    <div style={{ backgroundColor: '#FFFFFF', border: `1px solid ${BORDER}`, borderRadius: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)' }}>
+      <div style={{ backgroundColor: m.header, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#FFFFFF' }}>
+          <m.icon style={{ width: '16px', height: '16px' }} />
+          <span style={{ fontSize: '13px', fontWeight: 700, fontFamily: fontHeading, letterSpacing: '0.3px' }}>{status}</span>
         </div>
-        <span className="bg-white/25 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+        <span style={{ backgroundColor: 'rgba(255,255,255,0.25)', color: '#FFFFFF', fontSize: '12px', fontWeight: 700, borderRadius: 0, width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: fontHeading }}>
           {tasks.length}
         </span>
       </div>
 
-      {/* Cards */}
-      <div className="p-3 space-y-2 flex-1">
+      <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
         {tasks.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-8 text-gray-200">
-            <Icon className="w-7 h-7 mb-1.5" />
-            <p className="text-xs italic text-gray-300">No tasks here</p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 16px', color: '#E5E7EB' }}>
+            <m.icon style={{ width: '28px', height: '28px', marginBottom: '8px' }} />
+            <p style={{ fontSize: '12px', fontStyle: 'italic', color: '#D1D5DB' }}>No tasks here</p>
           </div>
         )}
         {tasks.map(t => (
           <button
             key={t._id}
             onClick={() => onOpen(t)}
-            className="w-full text-left border border-gray-100 rounded-xl p-3 hover:border-gray-300 hover:shadow-sm transition-all group bg-gray-50 hover:bg-white"
+            style={{
+              width: '100%',
+              textAlign: 'left',
+              border: `1px solid #F3F4F6`,
+              borderRadius: 0,
+              padding: '12px',
+              backgroundColor: '#F7F9FB',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#E5E7EB';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+              e.currentTarget.style.backgroundColor = '#FFFFFF';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#F3F4F6';
+              e.currentTarget.style.boxShadow = 'none';
+              e.currentTarget.style.backgroundColor = '#F7F9FB';
+            }}
           >
-            <div className="flex items-start gap-2 justify-between">
-              <p className="text-sm font-semibold text-gray-800 line-clamp-2 flex-1">{t.title}</p>
-              <FiChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 shrink-0 mt-0.5 transition-colors" />
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', justifyContent: 'space-between' }}>
+              <p style={{ fontSize: '13px', fontWeight: 700, color: '#333333', lineHeight: '1.4', flex: 1, margin: 0, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{t.title}</p>
+              <FiChevronRight style={{ width: '16px', height: '16px', color: '#D1D5DB', flexShrink: 0, marginTop: '2px', transition: 'color 0.2s' }} />
             </div>
             {t.actionDescription && (
-              <p className="text-xs text-gray-400 mt-1 line-clamp-1">{t.actionDescription}</p>
+              <p style={{ fontSize: '12px', color: '#9E9E9E', margin: 0, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}>{t.actionDescription}</p>
             )}
-            <div className="flex items-center gap-3 mt-2.5 pt-2 border-t border-gray-100">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px', paddingTop: '8px', borderTop: '1px solid #F3F4F6' }}>
               {t.assignedPerson?.name && (
-                <span className="flex items-center gap-1 text-[11px] text-gray-400">
-                  <FiUser className="w-3 h-3 shrink-0" />
-                  <span className="truncate max-w-[80px]">{t.assignedPerson.name}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#9E9E9E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80px' }}>
+                  <FiUser style={{ width: '12px', height: '12px', flexShrink: 0 }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.assignedPerson.name}</span>
                 </span>
               )}
-              <span className={`flex items-center gap-1 text-[11px] ml-auto ${isOverdue(t.dueDate, t.currentStatus?.status) ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
-                <FiCalendar className="w-3 h-3 shrink-0" />
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', marginLeft: 'auto', color: isOverdue(t.dueDate, t.currentStatus?.status) ? '#DC2626' : '#9E9E9E', fontWeight: isOverdue(t.dueDate, t.currentStatus?.status) ? 600 : 400 }}>
+                <FiCalendar style={{ width: '12px', height: '12px', flexShrink: 0 }} />
                 {fmt(t.dueDate)}
               </span>
             </div>
           </button>
         ))}
       </div>
-    </div>
-  );
-}
-
-function ErrorBox({ children }) {
-  return (
-    <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl px-3 py-2">
-      <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />{children}
     </div>
   );
 }
