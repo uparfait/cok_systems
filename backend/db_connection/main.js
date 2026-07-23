@@ -40,6 +40,7 @@ if(IS_LOCAL_ALLOWED) {
 const connect_db = async () => {
     try {
         const conn = await mongoose.connect(conne_string);
+        console.log(`MongoDB Connected: ${conn.connection.host} - ${conn.connection.name}`);
 
         return {
             status: true,
