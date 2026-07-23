@@ -51,6 +51,9 @@ services:
         condition: service_healthy
 
   frontend:
+    environment:
+     VITE_API_URL = ""
+     VITE_API_EVENT_URL = ""
     build: ./frontend
     restart: unless-stopped
     ports:
@@ -67,6 +70,7 @@ services:
       - em-backend
     # Reload nginx every 6h so renewed certificates are picked up
     command: sh -c "while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g 'daemon off;'"
+   
 
   certbot:
     image: certbot/certbot
