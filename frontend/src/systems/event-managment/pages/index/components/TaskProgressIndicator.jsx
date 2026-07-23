@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiAlertCircle, FiCheckCircle, FiClock, FiActivity } from 'react-icons/fi';
-import { STATUSES, STATUS_META, cokInputStyle, cokBtnStyle } from './TaskDesignTokens';
+import { FiAlertCircle, FiCheckCircle, FiClock, FiActivity, FiPaperclip, FiX } from 'react-icons/fi';
+import { STATUSES, STATUS_META, cokInputStyle, cokBtnStyle, BORDER, PRIMARY } from './TaskDesignTokens';
 
 export default function TaskProgressIndicator({ current, onUpdate }) {
   const currentIdx = STATUSES.indexOf(current);
@@ -102,6 +102,8 @@ export default function TaskProgressIndicator({ current, onUpdate }) {
             </div>
           )}
 
+          
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
             {STATUSES.map(s => {
               const m = STATUS_META[s];
@@ -163,6 +165,7 @@ export default function TaskProgressIndicator({ current, onUpdate }) {
               onChange={e => setDesc(e.target.value)}
               placeholder="Describe what was done or reason for this change…"
               style={{ ...cokInputStyle(), resize: 'none', backgroundColor: '#FFFFFF' }}
+              className="task-input"
             />
           </div>
 

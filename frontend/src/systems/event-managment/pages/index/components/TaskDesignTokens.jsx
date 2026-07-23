@@ -28,7 +28,7 @@ export const STATUS_META = {
   Completed:     { header: '#10B981', text: '#065F46', light: '#ECFDF5', border: '#A7F3D0', bg: '#D1FAE5', icon: FiCheckCircle },
 };
 
-export function cokInputStyle(focusBorder = PRIMARY) {
+export function cokInputStyle() {
   return {
     fontFamily: fontHeading,
     fontSize: '14px',
@@ -40,14 +40,8 @@ export function cokInputStyle(focusBorder = PRIMARY) {
     color: NEUTRAL_DARK,
     backgroundColor: NEUTRAL_LIGHT,
     boxSizing: 'border-box',
-    border: '0',
     borderRadius: 0,
-    boxShadow: BLUR_SHADOW,
     outline: 'none',
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    borderColor: BORDER,
-    transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
   };
 }
 
@@ -59,7 +53,7 @@ export function cokLabelStyle() {
     letterSpacing: '0.5px',
     lineHeight: '1.4',
     display: 'block',
-    color: TERTIARY,
+    color: NEUTRAL_DARK,
     textTransform: 'uppercase',
     marginBottom: '8px',
   };
