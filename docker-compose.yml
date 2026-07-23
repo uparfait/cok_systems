@@ -1,0 +1,85 @@
+name: cok-systems
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    # No ports: — the database is reachable only inside the Docker network
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 2026
+      conne_string: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/cok?authSource=admin
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      CLIENT_URL_SET: ${FRONTEND_URL}
+    volumes:
+      - backend_uploads:/app/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  em-backend:
+    build: ./em_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 2027
+      DATABASE_URL2: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/COK_EVENT_MNG?authSource=admin
+      DATABASE_NAME2: COK_EVENT_MNG
+      FRONTEND_URL: ${FRONTEND_URL}
+      CORS_ORIGIN: ${FRONTEND_URL}
+    volumes:
+      - em_uploads:/app/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Live nginx config — edit/swap files here without rebuilding the image
+      - ./frontend/nginx:/etc/nginx/conf.d:ro
+      # Shared with certbot: challenge files + issued certificates
+      - certbot_www:/var/www/certbot
+      - certbot_conf:/etc/letsencrypt:ro
+    depends_on:
+      - backend
+      - em-backend
+    # Reload nginx every 6h so renewed certificates are picked up
+    command: sh -c "while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g 'daemon off;'"
+
+  certbot:
+    image: certbot/certbot
+    restart: unless-stopped
+    volumes:
+      - certbot_www:/var/www/certbot
+      - certbot_conf:/etc/letsencrypt
+    # Checks twice a day; renews automatically when <30 days remain
+    entrypoint: sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
+
+volumes:
+  mongo_data:
+  backend_uploads:
+  em_uploads:
+  certbot_www:
+  certbot_conf:
