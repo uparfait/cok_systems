@@ -5,8 +5,8 @@ services:
     image: mongo:7
     restart: unless-stopped
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_ROOT_USERNAME: CoK-IkazeSys
+      MONGO_INITDB_ROOT_PASSWORD: IKaZE!@2026sys
     volumes:
       - mongo_data:/data/db
     healthcheck:
@@ -15,7 +15,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 20s
-    # No ports: — the database is reachable only inside the Docker network
+    # No ports exposed — database is reachable only inside the Docker network
 
   backend:
     build: ./backend
@@ -23,11 +23,11 @@ services:
     environment:
       NODE_ENV: production
       PORT: 2026
-      conne_string: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/cok?authSource=admin
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      COOKIE_SECRET: ${COOKIE_SECRET}
-      CLIENT_URL_SET: ${FRONTEND_URL}
+      conne_string: mongodb://CoK-IkazeSys:IKaZE%21%402026sys@mongo:27017/cok?authSource=admin
+      JWT_SECRET: abd32fe-1c3f-4b6a-9d2e-0f5b8c6e7a9f
+      JWT_REFRESH_SECRET: abd32fe-1c3f-4b6a-9d2e-0f5b8c6e7a9feeefc
+      COOKIE_SECRET: abd32fe-1c3f-4b6a-9d2e-0f5b8c6e7a9f-abd32fe-1c3f-4b6a-9d2e-0f5b8c6e7a9feeefc
+      CLIENT_URL_SET: uat-ikaze.kigalicity.gov.rw
     volumes:
       - backend_uploads:/app/uploads
     depends_on:
@@ -40,10 +40,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: 2027
-      DATABASE_URL2: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/COK_EVENT_MNG?authSource=admin
+      DATABASE_URL2: mongodb://CoK-IkazeSys:IKaZE%21%402026sys@mongo:27017/COK_EVENT_MNG?authSource=admin
       DATABASE_NAME2: COK_EVENT_MNG
-      FRONTEND_URL: ${FRONTEND_URL}
-      CORS_ORIGIN: ${FRONTEND_URL}
+      FRONTEND_URL: https://uat-ikaze.kigalicity.gov.rw
+      CORS_ORIGIN: https://uat-ikaze.kigalicity.gov.rw
     volumes:
       - em_uploads:/app/uploads
     depends_on:
@@ -51,11 +51,11 @@ services:
         condition: service_healthy
 
   frontend:
-    environment:
-     VITE_API_URL = ""
-     VITE_API_EVENT_URL = ""
     build: ./frontend
     restart: unless-stopped
+    environment:
+      VITE_API_URL: https://uatps-ikaze.kigalicity.gov.rw
+      VITE_API_EVENT_URL: https://uate-ikaze.kigalicity.gov.rw
     ports:
       - "80:80"
       - "443:443"
@@ -70,7 +70,6 @@ services:
       - em-backend
     # Reload nginx every 6h so renewed certificates are picked up
     command: sh -c "while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g 'daemon off;'"
-   
 
   certbot:
     image: certbot/certbot
