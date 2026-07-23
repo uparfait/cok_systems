@@ -225,9 +225,10 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
 
     return [
       { id: 'mayor-dashboadr', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiHome' },
-      { id: 'mayor-activities', label: 'Activities', path: `/${slug}/overview`, icon: 'FiBarChart2' },
+      { id: 'mayor-events', label: 'Events', path: `/${slug}/events`, icon: 'FiCalendar' },
+      { id: 'mayor-actions', label: 'Actions', path: `/${slug}/actions`, icon: 'FiCheck' },
       { id: 'service-dashboard', label: 'Service Delivery Dashboard', path: `/${slug}/service-delivery/dashboard`, icon: 'FiClipboard' },
-      { id: 'service-feedback', label: 'Feedback Analysis', path: `/${slug}/service-delivery/feedback`, icon: 'FiMessageSquare' },
+      { id: 'mayor-feedback', label: 'Feedback Analysis', path: `/${slug}/feedback-analysis`, icon: 'FiMessageSquare' },
     ];
   }
 
