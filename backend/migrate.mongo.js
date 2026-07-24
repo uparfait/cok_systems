@@ -6,9 +6,9 @@ const db_event_campass_conne =
   "mongodb+srv://cok_systems:kigalicity@coksystems.rldhlb3.mongodb.net/COK_EVENT_MNG?appName=coksystems";
 
 const db_cok_prod_conne =
-  "mongodb://CoK-IkazeSys:IKaZE%21%402026sys@mongo:27017/cok?authSource=admin";
+  "mongodb://CoK-IkazeSys:IKaZE%21%402026sys@172.18.0.2:27017/cok?authSource=admin";
 const db_event_prod_conne =
-  "mongodb://CoK-IkazeSys:IKaZE%21%402026sys@mongo:27017/COK_EVENT_MNG?authSource=admin";
+  "mongodb://CoK-IkazeSys:IKaZE%21%402026sys@172.18.0.2:27017/COK_EVENT_MNG?authSource=admin";
 
 // Use a single connection per MongoDB instance
 const getConnections = async () => {
