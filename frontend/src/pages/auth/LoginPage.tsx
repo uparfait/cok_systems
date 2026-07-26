@@ -229,15 +229,11 @@ const LoginPage = () => {
 
             {/* Main heading and description */}
             <div className="space-y-2 max-w-xl ">
-              <h1 className="poetsen-one-regular text-2xl md:text-3xl lg:text-4xl tracking-tight leading-snug">
-                IKAZE
+              <h1 className="text-2xl md:text-3xl lg:text-4xl text-bold tracking-tight leading-snug"
+              style={{ fontWeight: 800, letterSpacing: '-0.5px' }}
+              >
+                IKAZE PORTAL
               </h1>
-              <p className="public-sans-regular text-xs md:text-sm text-[#EFF6FF] font-semibold">
-                Serving the City of Kigali with efficiency and security.
-              </p>
-              <p className="public-sans-regular text-xs text-[#EFF6FF] font-semibold max-w-md">
-                Access the KSESM portal to manage administrative tasks and secure entry logs.
-              </p>
             </div>
           </div>
         </div>

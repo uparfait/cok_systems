@@ -256,7 +256,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
       <div className="flex min-h-full w-full items-center bg-red-400 justify-center p-3 sm:p-0">
         <div className="relative bg-white/95 backdrop-blur-sm  shadow-2xl max-w-sm sm:w-full  p-5 sm:p-6 transform transition-all">
           {/* Success State */}
-          {success || step === "success" ? (
+          {(success || step === "success") ? (
             <div className="text-center py-8">
               <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
                 <svg
@@ -347,7 +347,11 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                           />
                         </svg>
                       </span>
-                      <input
+                      <form onSubmit={(e)=> {
+                        e.preventDefault();
+                        handleSendOTP();
+                      }}>
+                        <input
                         id="firsttime-email"
                         type="email"
                         value={email}
@@ -355,6 +359,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                         className="cok-auth-input pl-9 sm:pl-10 pr-3 py-3 placeholder:text-gray-400"
                         placeholder="e.g user@domain.example"
                       />
+                      </form>
                     </div>
                   </div>
 
@@ -407,7 +412,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                           )
                         }
                         onKeyDown={(e) => handleKeyDown(index, e)}
-                        className="w-12 h-12 text-center text-lg font-semibold border-2 border-gray-300 rounded-md focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 text-gray-800 bg-white"
+                        className="w-12 h-12 text-center text-lg font-semibold border-2 border-gray-300 rounded-md focus:outline-none focus:border-[#056daa] focus:ring-1 focus:ring-[#056daa] text-gray-800 bg-white"
                         autoFocus={index === 0}
                       />
                     ))}
@@ -429,7 +434,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                   <button
                     onClick={handleVerify}
                     disabled={otp.join("").length !== 5 || isLoading}
-                    className="w-full py-3 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+                    className="w-full cok-btn-primary disabled:opacity-50 disabled:cursor-not-allowed mb-4"
                   >
                     {isLoading ? "Verifying..." : "Continue to Password Setup"}
                   </button>
@@ -442,7 +447,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                     <button
                       onClick={handleResend}
                       disabled={timeLeft > 0 || isResending}
-                      className="w-full cok-btn-primary disabled:cursor-not-allowed"
+                      className="w-full cok-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isResending
                         ? "Resending..."
