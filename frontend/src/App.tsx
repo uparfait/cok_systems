@@ -101,14 +101,10 @@ import BookingRequestDetails from "./systems/event-managment/components/BookingR
 
 // RoleDashboardPage: renders the correct dashboard component based on the logged-in user's role
 const RoleDashboardPage: React.FC = () => {
-
-
-
-  
   const { user } = useAuth();
   const role = (user?.role || "").toLowerCase().trim();
 
-  if(role.includes("event-manager"))  return <DashboardLayout />;
+  if (role.includes("event-manager")) return <DashboardLayout />;
 
   if (role.includes("receptionist")) return <ReceptionistDashboard />;
   if (role.includes("employee") || role.includes("staff"))
@@ -137,10 +133,9 @@ const RoleDashboardPage: React.FC = () => {
 // PWA Install Prompt Wrapper
 const PWAInstallPromptWrapper: React.FC = () => {
   const [showPrompt, setShowPrompt] = useState(true);
-  
+
   useEffect(() => {
     const handleInstallAvailable = () => {
-     
       const isOnLoginPage =
         window.location.pathname === "/login" ||
         window.location.pathname === "/";
@@ -185,28 +180,43 @@ const App: React.FC = () => {
                     element={<BookingOptions />}
                   />
                   <Route path="book-a-room/new" element={<BookNow />} />
-                  <Route path="book-a-room/new/:eventMeetingType" element={<BookNow />} />
-                  <Route path="book-a-room/track" element={<BookingRequestTrack />} />
+                  <Route
+                    path="book-a-room/new/:eventMeetingType"
+                    element={<BookNow />}
+                  />
+                  <Route
+                    path="book-a-room/track"
+                    element={<BookingRequestTrack />}
+                  />
 
                   <Route path="live/:id" element={<>Live Event Details</>} />
                   <Route
                     path="event/:id/attendances"
                     element={<AttendanceForm />}
                   />
-<Route path="event/:id/details" element={<EventDetails />} />
-                   <Route
-                     path="event/:id/attendees"
-                     element={<AttendeesList />}
-                   />
-<Route path="event/:id/designate" element={<DesignateMinutes />} />
-                    <Route path="event/:id/actions" element={<EventActionsPage />} />
-                   <Route path="event/:id/editor" element={<ShowEditor />} />
-                   <Route path="event/:id/invite" element={<InvitePage />} />
+                  <Route path="event/:id/details" element={<EventDetails />} />
+                  <Route
+                    path="event/:id/attendees"
+                    element={<AttendeesList />}
+                  />
+                  <Route
+                    path="event/:id/designate"
+                    element={<DesignateMinutes />}
+                  />
+                  <Route
+                    path="event/:id/actions"
+                    element={<EventActionsPage />}
+                  />
+                  <Route path="event/:id/editor" element={<ShowEditor />} />
+                  <Route path="event/:id/invite" element={<InvitePage />} />
 
-                   <Route path="my-tasks" element={<MyTasksPage />} />
-                   <Route path="my-tasks/:taskId" element={<MyTasksTaskPage />} />
-                   <Route path="feedback" element={<FeedbackStatusPage />} />
-                 </Route>
+                  <Route path="my-tasks" element={<MyTasksPage />} />
+                  <Route
+                    path="my-tasks/:taskId"
+                    element={<MyTasksTaskPage />}
+                  />
+                  <Route path="feedback" element={<FeedbackStatusPage />} />
+                </Route>
 
                 {/* Public Routes */}
                 <Route path="/login" element={<LoginPage />} />
@@ -253,76 +263,86 @@ const App: React.FC = () => {
                 {/* ==================== ROLE-BASED ROUTES ==================== */}
                 {/* Dashboard - role-specific component chosen at runtime */}
 
-
-
                 {/* Separated Private/Authenticated Route View Wrapper */}
-        <Route path="/event-manager" element={<DashboardLayout />}>
-          <Route index element={<DashboardPage />} />
+                <Route path="/event-manager" element={<DashboardLayout />}>
+                  <Route index element={<DashboardPage />} />
 
-          {/* Rooms Management Routes */}
-          <Route
-            path="/event-manager/rooms/all"
-            element={< RoomsList />}
-          />
-          <Route
-            path="/event-manager/rooms/stats"
-            element={< RoomStatistics />}
-          />
-          <Route
-            path="/event-manager/rooms/new"
-            element={< CreateRoomForm />}
-          />
-          <Route
-            path="/event-manager/rooms/availability"
-            element={< CheckAvailability />}
-          />
-          <Route
-            path="/event-manager/rooms/date-check"
-            element={< DateCheck />}
-          />
+                  {/* Rooms Management Routes */}
+                  <Route
+                    path="/event-manager/rooms/all"
+                    element={<RoomsList />}
+                  />
+                  <Route
+                    path="/event-manager/rooms/stats"
+                    element={<RoomStatistics />}
+                  />
+                  <Route
+                    path="/event-manager/rooms/new"
+                    element={<CreateRoomForm />}
+                  />
+                  <Route
+                    path="/event-manager/rooms/availability"
+                    element={<CheckAvailability />}
+                  />
+                  <Route
+                    path="/event-manager/rooms/date-check"
+                    element={<DateCheck />}
+                  />
 
-          {/* Events Management Routes */}
-          <Route
-            path="/event-manager/events/live"
-            element={< Live /> }
-          />
-          <Route
-            path="/event-manager/events/upcoming"
-            element={< Upcoming /> }
-          />
-          <Route
-            path="/event-manager/events/recurring"
-            element={< Recurring /> }
-          />
-          <Route
-            path="/event-manager/events/past"
-            element={ <Past /> }
-          />
-          <Route path="/event-manager/events/new" element={< NewTypeSelector /> } />
-          <Route path="/event-manager/events/new/event" element={< CreateEvent eventMeetingType="event" /> } />
-          <Route path="/event-manager/events/new/meet" element={< CreateEvent eventMeetingType="meet" /> } />
-          <Route path="/event-manager/events/:eventId/edit" element={< CreateEvent eventMeetingType={undefined} /> } />
-<Route path="/event-manager/events/:eventId/details" element={<ViewEventDetailsDashboard />} />
-           <Route path="/event-manager/events/:eventId/designate" element={<DesignateMinutes />} />
-           <Route path="/event-manager/events/actions" element={<EventActions />} />
-          <Route path="/event-manager/events/:eventId/invite" element={<InvitePage />} />
+                  {/* Events Management Routes */}
+                  <Route path="/event-manager/events/live" element={<Live />} />
+                  <Route
+                    path="/event-manager/events/upcoming"
+                    element={<Upcoming />}
+                  />
+                  <Route
+                    path="/event-manager/events/recurring"
+                    element={<Recurring />}
+                  />
+                  <Route path="/event-manager/events/past" element={<Past />} />
+                  <Route
+                    path="/event-manager/events/new"
+                    element={<NewTypeSelector />}
+                  />
+                  <Route
+                    path="/event-manager/events/new/event"
+                    element={<CreateEvent eventMeetingType="event" />}
+                  />
+                  <Route
+                    path="/event-manager/events/new/meet"
+                    element={<CreateEvent eventMeetingType="meet" />}
+                  />
+                  <Route
+                    path="/event-manager/events/:eventId/edit"
+                    element={<CreateEvent eventMeetingType={undefined} />}
+                  />
+                  <Route
+                    path="/event-manager/events/:eventId/details"
+                    element={<ViewEventDetailsDashboard />}
+                  />
+                  <Route
+                    path="/event-manager/events/:eventId/designate"
+                    element={<DesignateMinutes />}
+                  />
+                  <Route
+                    path="/event-manager/events/actions"
+                    element={<EventActions />}
+                  />
+                  <Route
+                    path="/event-manager/events/:eventId/invite"
+                    element={<InvitePage />}
+                  />
 
-          {/* Booking Requests Routes */}
-          <Route
-            path="/event-manager/booking-requests/all"
-            element={<BookingRequestsList />}
-          />
-          <Route
-            path="/event-manager/booking-requests/:id"
-            element={<BookingRequestDetails />}
-          />
-        </Route>
-
-
-
-
-
-
+                  {/* Booking Requests Routes */}
+                  <Route
+                    path="/event-manager/booking-requests/all"
+                    element={<BookingRequestsList />}
+                  />
+                  <Route
+                    path="/event-manager/booking-requests/:id"
+                    element={<BookingRequestDetails />}
+                  />
+                </Route>
 
                 <Route
                   path="/:roleSlug/dashboard"
@@ -686,7 +706,6 @@ const App: React.FC = () => {
 
 import SystemAlert from "./core/components/SystemAlert";
 import SpiralLoader from "./systems/event-managment/components/SpiralLoader.jsx";
-
 
 function AppWithPWA() {
   const [alerts, setAlerts] = useState({

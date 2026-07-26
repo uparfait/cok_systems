@@ -17,6 +17,7 @@ import { getStoredUser } from '../../core/services/apiClient';
 const LoginPage = () => {
 
   const { login } = useAuth();
+  
   const { showSuccess, showError } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -224,21 +225,12 @@ const LoginPage = () => {
           </div>
 
           <div className="relative z-10 flex flex-col justify-end p-7 lg:p-14  text-white w-full h-full">
-            {/* COK OFFICIAL PORTAL pill */}
-            <div
-              className="inline-flex items-center px-3 py-1.5 mb-6 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 text-xs tracking-wide uppercase w-max cok-badge-animated"
-              style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, letterSpacing: '0.5px' }}
-            >
-              <span className="mr-1.5 inline-flex h-3 w-3 items-center justify-center rounded-full border border-white/60">
-                <span className="h-1.5 w-1.5 rounded-full bg-white" />
-              </span>
-              <span className="font-bold">COK Official Portal</span>
-            </div>
+
 
             {/* Main heading and description */}
             <div className="space-y-2 max-w-xl ">
               <h1 className="poetsen-one-regular text-2xl md:text-3xl lg:text-4xl tracking-tight leading-snug">
-                Smart Entry & <br/> Service Management
+                IKAZE
               </h1>
               <p className="public-sans-regular text-xs md:text-sm text-[#EFF6FF] font-semibold">
                 Serving the City of Kigali with efficiency and security.
@@ -266,7 +258,7 @@ const LoginPage = () => {
                 />
                 <p
                   className="text-base sm:text-lg"
-                  style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, color: '#333333' }}
+                  style={{ fontWeight: 700, color: '#333333' }}
                 >
                   Authenticating...
                 </p>
@@ -307,45 +299,30 @@ const LoginPage = () => {
         </div>
 
         <div className="relative z-10 flex flex-col justify-end p-7 lg:p-14  text-white w-full h-full">
-          {/* COK OFFICIAL PORTAL pill */}
-          <div
-            className="inline-flex items-center px-3 py-1.5 mb-6 bg-white/10 backdrop-blur-sm border border-white/20 text-xs tracking-wide uppercase w-max cok-badge-animated"
-            style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, letterSpacing: '0.5px' }}
-          >
-            <span>COK Official Portal</span>
-          </div>
+
 
           {/* Main heading and description */}
           <div className="space-y-2 max-w-xl ">
             <h1
               className="text-2xl md:text-3xl lg:text-4xl leading-snug"
-              style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 800, letterSpacing: '-0.5px' }}
+              style={{ fontWeight: 800, letterSpacing: '-0.5px' }}
             >
-              Smart Entry & <br/> Service Management
+              IKAZE PORTAL
             </h1>
-            <p
-              className="text-xs md:text-sm text-[#EFF6FF]"
-              style={{ fontFamily: "'Merriweather', serif" }}
-            >
-              Serving the City of Kigali with efficiency and security.
-            </p>
-            <p
-              className="text-xs text-[#EFF6FF] max-w-md"
-              style={{ fontFamily: "'Merriweather', serif" }}
-            >
-              Access the KSESM portal to manage administrative tasks and secure entry logs.
-            </p>
+          
+           
+           
           </div>
         </div>
       </div>
 
       {/* Right side - Login form card */}
       <div
-        className="w-full md:w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-8"
-        style={{ backgroundColor: '#F7F9FB' }}
+        className="w-full  lg:w-1/2 flex  items-center justify-center"
+        style={{ backgroundColor: '#FFFFFF' }}
       >
-        <div className="w-full max-w-lg">
-          <div className="cok-auth-card px-5 py-6 sm:px-10 sm:py-8">
+        <div className="w-full max-w-lg h-full ">
+          <div className="cok-auth-card h-full flex   justify-center flex-col  px-2 py-6 sm:px-10 sm:py-8">
             {/* Logo and intro text */}
             <div className="text-center mb-4 sm:mb-5">
               <img
@@ -355,7 +332,7 @@ const LoginPage = () => {
               />
               <p
                 style={{
-                  fontFamily: "'Montserrat', sans-serif",
+                 
                   fontSize: 24,
                   fontWeight: 800,
                   letterSpacing: '-0.5px',
@@ -367,7 +344,7 @@ const LoginPage = () => {
               </p>
               <p
                 className="mt-1 text-xs sm:text-sm"
-                style={{ fontFamily: "'Merriweather', serif", color: '#555555' }}
+                style={{ color: '#555555' }}
               >
                 Please enter your credentials to continue.
               </p>
@@ -375,10 +352,10 @@ const LoginPage = () => {
 
             {/* Login form */}
             <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
-              {/* Email/Username field */}
+              {/* Email field */}
               <div>
                 <label htmlFor="email" className="cok-auth-label">
-                  Email or Username
+                  Email Address
                 </label>
                 <div className="relative">
                   <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 sm:pl-3 text-[#9CA3AF]">
@@ -400,10 +377,10 @@ const LoginPage = () => {
                   <input
                     id="email"
                     name="email"
-                    type="text"
+                    type="email"
                     required
                     className="cok-auth-input pl-9 sm:pl-10 pr-3 py-3 placeholder:text-gray-400"
-                    placeholder="e.g. user@kigali.rw"
+                    placeholder="e.g user@domain.example"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -424,6 +401,7 @@ const LoginPage = () => {
                       viewBox="0 0 24 24"
                       stroke="currentColor"
                       strokeWidth={1.8}
+                      
                     >
                       <path
                         strokeLinecap="round"
@@ -483,6 +461,7 @@ const LoginPage = () => {
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    minLength={8}
                   />
                 </div>
               </div>
@@ -496,17 +475,18 @@ const LoginPage = () => {
                     type="checkbox"
                     className="h-4 w-4 border-gray-300"
                     style={{ accentColor: '#056daa' }}
-                    checked={rememberMe}
+                    checked={true}
+                    disabled={true}
                     onChange={(e) => setRememberMe(e.target.checked)}
                   />
-                  <span style={{ fontFamily: "'Merriweather', serif", color: '#555555' }}>Remember me</span>
+                  <span style={{ fontFamily: "'Merriweather', serif", color: '#555555' }}>We Remember You</span>
                 </label>
 
                 <a
                   href="#"
                   onClick={handleForgotPassword}
                   className="transition-colors hover:opacity-80"
-                  style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 600, color: '#056daa' }}
+                  style={{ fontWeight: 600, color: '#056daa' }}
                 >
                   Forgot Password?
                 </a>
@@ -516,7 +496,7 @@ const LoginPage = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`cok-auth-btn-primary flex items-center justify-center gap-1 ${
+                className={`cok-btn-primary flex items-center justify-center gap-1 ${
                   isLoading ? 'cursor-wait animate-pulse' : 'disabled:opacity-50 disabled:cursor-not-allowed'
                 }`}
               >
@@ -559,7 +539,7 @@ const LoginPage = () => {
                 </p>
                 <button
                   onClick={handleOTPLogin}
-                  className="cok-auth-btn-outlined mt-2 inline-flex items-center justify-center"
+                  className="cok-btn-outlined mt-2 inline-flex items-center justify-center"
                 >
                   <FiLogIn className="h-3.5 w-3.5 mr-2" />
                   Login with OTP (One-Time PIN)

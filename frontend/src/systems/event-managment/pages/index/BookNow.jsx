@@ -10,6 +10,8 @@ import TypeSelectionScreen from "./components/TypeSelectionScreen";
 import SuccessScreen from "./components/SuccessScreen";
 import RoomSelector from "./components/RoomSelector";
 import SystemAlert from "@/core/components/SystemAlert";
+import { useToast } from "@/core/contexts/ToastContext";
+
 
 const BASE_URL = "/cok/api/v1";
 
@@ -126,6 +128,8 @@ export default function BookNow() {
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
 
+  const {showWarning} = useToast()
+
   const eventMeetingType = urlType || "event";
   const showAgenda = eventMeetingType === "meet";
   const maxSteps = showAgenda ? 5 : 4;
@@ -213,7 +217,8 @@ export default function BookNow() {
       if (response.data?.success) setCalendarEvents(response.data.data);
       else setCalendarEvents([]);
     } catch (err) {
-      console.error('Failed to fetch calendar events:', err);
+      console.error('Failed to fetch calendar events:', err.status);
+      showWarning(err.status == 502 ? "Check your network connection and try again later!" : "Technical problem occurred please try again later.")
       setCalendarEvents([]);
     } finally {
       setCalendarLoading(false);
@@ -252,10 +257,9 @@ export default function BookNow() {
         setSystemAlert({ isOpen: true, type: "error", message: res.data.message || "Failed to submit request" });
       }
     } catch (err) {
-      const status = err.response?.status;
-      const message = err.response?.data?.message || "Failed to send request. Please try again.";
-      if (status === 500 || status === 505) setSystemAlert({ isOpen: true, type: "systemError", message });
-      else setSystemAlert({ isOpen: true, type: "error", message });
+      const status = err.response?.status || err.status;
+      const message = err.response?.data?.message || err.status == 502 ? "Check your network connection and try again later!" : "Technical problem occurred please try again later.";
+      showWarning(message)
     } finally {
       setSubmitting(false);
     }
