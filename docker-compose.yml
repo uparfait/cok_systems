@@ -51,9 +51,6 @@ services:
         condition: service_healthy
 
   frontend:
-    environment:
-     VITE_API_URL = ""
-     VITE_API_EVENT_URL = ""
     build: ./frontend
     restart: unless-stopped
     ports:
