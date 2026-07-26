@@ -28,9 +28,12 @@ export default function IndexHeader() {
   const moreLinks = NavigationLinks.slice(visibleCount);
 
   const isLinkActive = (link) => {
+
+    //console.log(currentPath.split("/")[1] === link.Link.split('/')[1])
     
     if (link.Link === "/") return currentPath === "/";
-    return currentPath === link.Link || currentPath.includes(link.Link);
+    return  (currentPath.split("/")[1] === link.Link.split('/')[1]);
+
   };
 
   const linkBaseStyle = {
@@ -174,14 +177,13 @@ export default function IndexHeader() {
                   fontWeight: 600,
                   letterSpacing: '1px',
                   textTransform: 'uppercase',
-                  color: '#FFFFFF',
-                  backgroundColor: PRIMARY,
                   border: 'none',
                   borderRadius: 0,
                   padding: '0.9rem 1.5rem',
                   cursor: 'pointer',
                   transition: 'background-color 0.2s ease',
                 }}
+                className="cok-btn-primary"
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = PRIMARY_DARK;
                 }}

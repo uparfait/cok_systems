@@ -43,10 +43,10 @@ const Toast: React.FC<{
   const style = styles[type];
 
   return (
-    <div className={`${style.bg} ${style.border} border-l-4 rounded-md shadow-lg p-4 mb-3 transform transition-all duration-300 ${isVisible && !isLeaving ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0'}`}>
-      <div className="flex items-center justify-between">
-        <span className={`text-sm font-medium ${style.icon === 'text-green-500' ? 'text-green-800' : style.icon === 'text-red-500' ? 'text-red-800' : style.icon === 'text-yellow-500' ? 'text-yellow-800' : 'text-blue-800'}`}>{message}</span>
-        <button onClick={() => { setIsLeaving(true); setTimeout(() => onClose(id), 300); }} className="ml-2 text-gray-400 hover:text-gray-600">✕</button>
+    <div className={`${style.bg} shadow-lg p-4 mb-3 transform transition-all duration-300 ${isVisible && !isLeaving ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
+      <div className="flex items-center text-center  justify-center">
+        <span className={`text-sm  font-medium ${style.icon === 'text-green-500' ? 'text-green-800' : style.icon === 'text-red-500' ? 'text-red-800' : style.icon === 'text-yellow-500' ? 'text-yellow-800' : 'text-blue-800'}`}>{message?.toLocaleUpperCase()}</span>
+        <button onClick={() => { setIsLeaving(true); setTimeout(() => onClose(id), 300); }} className="ml-2 text-gray-400 absolute right-3 top-3 hover:text-gray-600">✕</button>
       </div>
     </div>
   );
@@ -131,7 +131,7 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       {children}
       
       {/* Toast Container - Fixed position at top-right */}
-      <div className="fixed top-4 right-4 z-[9999] max-w-sm w-full">
+      <div className="fixed top-0 right-0 z-[9999999]  w-full">
         {toasts.map((toast) => (
           <Toast
             key={toast.id}

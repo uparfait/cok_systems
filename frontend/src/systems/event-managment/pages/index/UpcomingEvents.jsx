@@ -6,6 +6,7 @@ import ShowEventSkeleton from "./components/ShowEventSkeleton";
 import ShowEventNotFound from "./components/ShowEventNotFound";
 import ShowUpcoming from "./components/ShowUpcoming";
 import { useOutletContext } from "react-router-dom";
+import { useToast } from "@/core/contexts/ToastContext";
 
 export default function UpcomingEvents() {
   const [isLoading, setIsLoading] = useState(false);
@@ -21,7 +22,7 @@ export default function UpcomingEvents() {
   const { UpcomingEventsData, setUpcomingEventsData } = useOutletContext();
   const [isEmpty, setIsEmpty] = useState(false);
   const { setActiveEvent } = useOutletContext();
-  
+  const {showWarning} = useToast()  
 
   
 
@@ -53,6 +54,7 @@ export default function UpcomingEvents() {
 
       } catch (error) {
         console.error(error);
+        if(initialLoad){showWarning(error.status == 502 ? "service unavailable" : "Technical problem occurred!")}
         if(initialLoad){setIsEmpty(true);}
       } finally {
         setIsLoading(false);

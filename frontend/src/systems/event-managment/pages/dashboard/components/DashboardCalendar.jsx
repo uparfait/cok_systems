@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiChevronLeft, FiChevronRight, FiMapPin, FiClock, FiLoader } from 'react-icons/fi';
+import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
+import { useToast } from '@/core/contexts/ToastContext';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -37,6 +39,7 @@ export default function DashboardCalendar({ events, loading, onMonthChange, curr
   const [internalYear, setInternalYear] = useState(currentYear || new Date().getFullYear());
   const [internalMonth, setInternalMonth] = useState(currentMonth || new Date().getMonth());
   const [expandedDay, setExpandedDay] = useState(null);
+  const {  showInfo } = useToast()
 
   const year = currentYear ?? internalYear;
   const month = currentMonth ?? internalMonth;
@@ -96,8 +99,10 @@ export default function DashboardCalendar({ events, loading, onMonthChange, curr
   };
 
   const handleEventClick = (ev) => {
-    if (ev.eventSpecialId) {
+    if (ev.eventSpecialId && window.location.pathname?.split("/")[1] === 'event-manager') {
       navigate(`/event-manager/events/${ev.eventSpecialId}/details`);
+    } else {
+      showInfo("action not permitted!")
     }
   };
 
@@ -105,13 +110,13 @@ export default function DashboardCalendar({ events, loading, onMonthChange, curr
   const monthName = new Date(year, month).toLocaleString('default', { month: 'long', year: 'numeric' });
 
   return (
-    <div className="bg-white border border-gray-200 flex flex-col">
-      <div className="flex items-center justify-between p-4 bg-blue-600">
+    <div className="bg-white border border-gray-200 flex  flex-col">
+      <div className="flex items-center justify-between p-4 cok-blue-bg-primary">
         <h3 className="text-sm font-semibold text-white">Calendar</h3>
         <div className="flex items-center gap-2">
           <button
             onClick={goToPrevMonth}
-            className="p-1.5 border border-blue-500 hover:bg-blue-700 text-white transition-colors"
+            className="p-1.5 border border-white hover:bg-white text-white hover:text-[#056daa] transition-colors"
             aria-label="Previous month"
           >
             <FiChevronLeft className="w-4 h-4" />
@@ -119,7 +124,7 @@ export default function DashboardCalendar({ events, loading, onMonthChange, curr
           <span className="text-sm font-medium text-white min-w-[160px] text-center">{monthName}</span>
           <button
             onClick={goToNextMonth}
-            className="p-1.5 border border-blue-500 hover:bg-blue-700 text-white transition-colors"
+            className="p-1.5 border border-white hover:bg-white text-white hover:text-[#056daa] transition-colors"
             aria-label="Next month"
           >
             <FiChevronRight className="w-4 h-4" />
@@ -137,7 +142,7 @@ export default function DashboardCalendar({ events, loading, onMonthChange, curr
 
       {loading && events.length === 0 ? (
         <div className="flex-1 min-h-[300px] flex items-center justify-center">
-          <FiLoader className="w-8 h-8 text-blue-600 animate-spin" />
+          <SpiralLoader />
         </div>
       ) : (
         <div className="grid grid-cols-7">

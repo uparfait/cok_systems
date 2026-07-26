@@ -6,6 +6,7 @@ import ShowEvent from "./components/ShowEvent";
 import ShowEventSkeleton from "./components/ShowEventSkeleton";
 import ShowEventNotFound from "./components/ShowEventNotFound";
 import { useOutletContext } from "react-router-dom";
+import { useToast } from "@/core/contexts/ToastContext";
 
 export default function LiveEvents() {
   const [isLoading, setIsLoading] = useState(false);
@@ -20,6 +21,7 @@ export default function LiveEvents() {
   const [totalPages, SetTotalPages] = useState(1);
   const { LiveEventsData, setLiveEventsData, activeEvent, setActiveEvent } = useOutletContext();
   const [isEmpty, setIsEmpty] = useState(false);
+  const {showWarning} = useToast()
 
   useEffect(() => {
     async function FetchLiveEvents() {
@@ -47,7 +49,9 @@ export default function LiveEvents() {
         }
 
       } catch (error) {
-        console.error(error);
+       //console.error(error);
+       
+        if(initialLoad){showWarning(error.status == 502 ? "service unavailable" : "Technical problem occurred!")}
         if(initialLoad){setIsEmpty(true);}
       } finally {
         setIsLoading(false);
