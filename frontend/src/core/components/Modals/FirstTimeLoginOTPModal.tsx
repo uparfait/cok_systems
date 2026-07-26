@@ -1,7 +1,6 @@
-
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useToast } from '../../contexts/ToastContext';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../contexts/ToastContext";
 
 interface FirstTimeLoginOTPModalProps {
   isOpen: boolean;
@@ -9,37 +8,46 @@ interface FirstTimeLoginOTPModalProps {
   onSuccess?: (email: string, userId: string, signature: string) => void;
 }
 
-const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({ isOpen, onClose, onSuccess }) => {
-  const { checkEmailForFirstLogin, sendFirstLoginOTP, resendFirstLoginOTP, verifyFirstLoginOTP } = useAuth();
+const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+}) => {
+  const {
+    checkEmailForFirstLogin,
+    sendFirstLoginOTP,
+    resendFirstLoginOTP,
+    verifyFirstLoginOTP,
+  } = useAuth();
   const { showError, showWarning, showSuccess } = useToast();
-  
-  const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '', '']); // 5 digits
+
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState(["", "", "", "", ""]); // 5 digits
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
   const [isResending, setIsResending] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  
+
   // State for tracking step: 'email' -> 'otp' -> 'success'
-  const [step, setStep] = useState<'email' | 'otp' | 'success'>('email');
-  const [currentUserId, setCurrentUserId] = useState('');
+  const [step, setStep] = useState<"email" | "otp" | "success">("email");
+  const [currentUserId, setCurrentUserId] = useState("");
 
   // Background images
-  const cityHallImage = '/cok_hall.jpg';
-const logoImage = '/LOGO_COK.png';
+  const cityHallImage = "/cok_hall.jpg";
+  const logoImage = "/LOGO_COK.png";
 
   useEffect(() => {
     if (!isOpen) {
       // Reset state when modal closes
       setTimeout(() => {
-        setEmail('');
-        setOtp(['', '', '', '', '']);
+        setEmail("");
+        setOtp(["", "", "", "", ""]);
         setTimeLeft(300);
-        setError('');
+        setError("");
         setSuccess(false);
-        setStep('email');
-        setCurrentUserId('');
+        setStep("email");
+        setCurrentUserId("");
       }, 300);
     }
   }, [isOpen]);
@@ -47,7 +55,7 @@ const logoImage = '/LOGO_COK.png';
   // Timer effect
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (step === 'otp' && timeLeft > 0 && !success) {
+    if (step === "otp" && timeLeft > 0 && !success) {
       timer = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 0) {
@@ -64,48 +72,56 @@ const logoImage = '/LOGO_COK.png';
   // Step 1: Check email and send OTP
   const handleSendOTP = async () => {
     if (!email) {
-      showWarning('Please enter your email');
+      showWarning("Please enter your email");
       return;
     }
 
     setIsLoading(true);
-    setError('');
+    setError("");
 
     try {
       // First check if email exists and account can be activated
       const checkResult = await checkEmailForFirstLogin(email);
-      
+
       // Check if account is already activated FIRST (before checking status)
       if (checkResult.data?.alreadyActivated) {
-        showWarning(checkResult.message || 'This account is already active. Please use regular login.');
+        showWarning(
+          checkResult.message ||
+            "This account is already active. Please use regular login.",
+        );
         setIsLoading(false);
         return;
       }
-      
+
       if (!checkResult.status) {
-        showError(checkResult.message || checkResult.error || 'Failed to verify email');
+        showError(
+          checkResult.message || checkResult.error || "Failed to verify email",
+        );
         setIsLoading(false);
         return;
       }
-      
+
       // Show success for email verification
-      showSuccess(checkResult.message || 'Email verified. Sending OTP...');
+      showSuccess(checkResult.message || "Email verified. Sending OTP...");
 
       // Now send OTP
       const otpResult = await sendFirstLoginOTP(email);
-      
+
       if (otpResult.status && otpResult.data?.userId) {
         setCurrentUserId(otpResult.data.userId);
-        setStep('otp');
-        showSuccess(otpResult.message || 'OTP sent successfully! Please check your email.');
+        setStep("otp");
+        showSuccess(
+          otpResult.message ||
+            "OTP sent successfully! Please check your email.",
+        );
       } else {
-        showError(otpResult.message || otpResult.error || 'Failed to send OTP');
+        showError(otpResult.message || otpResult.error || "Failed to send OTP");
       }
     } catch (err: any) {
-      
       // Show error toast for send OTP
-      const errorMessage = err?.message || err?.error || 'Failed to send OTP. Please try again.';
-      
+      const errorMessage =
+        err?.message || err?.error || "Failed to send OTP. Please try again.";
+
       showError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -118,7 +134,7 @@ const logoImage = '/LOGO_COK.png';
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
-    setError('');
+    setError("");
 
     // Auto-focus next input
     if (value && index < 4) {
@@ -129,7 +145,7 @@ const logoImage = '/LOGO_COK.png';
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
     // Handle backspace
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
       const prevInput = document.getElementById(`otp-firsttime-${index - 1}`);
       if (prevInput) prevInput.focus();
     }
@@ -137,7 +153,7 @@ const logoImage = '/LOGO_COK.png';
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData('text').slice(0, 5).split('');
+    const pastedData = e.clipboardData.getData("text").slice(0, 5).split("");
     const newOtp = [...otp];
     pastedData.forEach((value, index) => {
       if (index < 5) newOtp[index] = value;
@@ -147,31 +163,34 @@ const logoImage = '/LOGO_COK.png';
 
   // Step 2: Verify OTP and get signature for password setup
   const handleVerify = async () => {
-    const otpString = otp.join('');
+    const otpString = otp.join("");
     if (otpString.length !== 5) {
-      showWarning('Please enter all 5 digits');
+      showWarning("Please enter all 5 digits");
       return;
     }
 
     setIsLoading(true);
-    setError('');
+    setError("");
 
     try {
       // Call verify-otp to get signature token
       const result = await verifyFirstLoginOTP(currentUserId, otpString);
-      
+
       if (result.status && result.data?.signature) {
-        showSuccess('OTP verified successfully! Setting up your account...');
+        showSuccess("OTP verified successfully! Setting up your account...");
         // Pass the signature to the next step for password setup
         if (onSuccess) {
           onSuccess(email, currentUserId, result.data.signature);
         }
       } else {
-        showError(result.message || result.error || 'Invalid OTP. Please try again.');
+        showError(
+          result.message || result.error || "Invalid OTP. Please try again.",
+        );
       }
     } catch (err: any) {
       // Show error toast for verify OTP
-      const errorMessage = err?.message || err?.error || 'Failed to verify OTP. Please try again.';
+      const errorMessage =
+        err?.message || err?.error || "Failed to verify OTP. Please try again.";
       showError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -180,20 +199,21 @@ const logoImage = '/LOGO_COK.png';
 
   const handleResend = async () => {
     if (!currentUserId) {
-      showWarning('Please enter your email first');
+      showWarning("Please enter your email first");
       return;
     }
 
     setIsResending(true);
-    setError('');
+    setError("");
 
     try {
       await resendFirstLoginOTP(email);
       setTimeLeft(300); // Reset to 5 minutes
-      showSuccess('OTP resent successfully! Please check your email.');
+      showSuccess("OTP resent successfully! Please check your email.");
     } catch (err: any) {
       // Show error toast for resend OTP
-      const errorMessage = err?.message || err?.error || 'Failed to resend OTP. Please try again.';
+      const errorMessage =
+        err?.message || err?.error || "Failed to resend OTP. Please try again.";
       showError(errorMessage);
     } finally {
       setIsResending(false);
@@ -203,19 +223,20 @@ const logoImage = '/LOGO_COK.png';
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   // Mask email for display
   const maskEmail = (emailStr: string) => {
-    if (!emailStr) return '';
-    const [localPart, domain] = emailStr.split('@');
+    if (!emailStr) return "";
+    const [localPart, domain] = emailStr.split("@");
     if (!domain) return emailStr;
-    
-    const maskedLocal = localPart.length > 2 
-      ? localPart.substring(0, 2) + '***' 
-      : localPart + '***';
-    
+
+    const maskedLocal =
+      localPart.length > 2
+        ? localPart.substring(0, 2) + "***"
+        : localPart + "***";
+
     return `${maskedLocal}@${domain}`;
   };
 
@@ -224,7 +245,7 @@ const logoImage = '/LOGO_COK.png';
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Background with City Hall image and gradient overlay */}
-      <div 
+      <div
         className="fixed inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url(${cityHallImage})` }}
       >
@@ -232,20 +253,30 @@ const logoImage = '/LOGO_COK.png';
       </div>
 
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-3 sm:p-4">
-        <div className="relative bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl max-w-sm w-full p-5 sm:p-6 transform transition-all">
+      <div className="flex min-h-full w-full items-center bg-red-400 justify-center p-3 sm:p-0">
+        <div className="relative bg-white/95 backdrop-blur-sm  shadow-2xl max-w-sm sm:w-full  p-5 sm:p-6 transform transition-all">
           {/* Success State */}
-          {success || step === 'success' ? (
+          {success || step === "success" ? (
             <div className="text-center py-8">
               <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
-                <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                <svg
+                  className="h-8 w-8 text-green-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Verification Successful!</h3>
-              <p className="text-gray-600">
-                Redirecting to password setup...
-              </p>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                Verification Successful!
+              </h3>
+              <p className="text-gray-600">Redirecting to password setup...</p>
             </div>
           ) : (
             <>
@@ -254,76 +285,112 @@ const logoImage = '/LOGO_COK.png';
                 onClick={onClose}
                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition duration-200"
               >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
 
               {/* COK Logo */}
               <div className="flex justify-center mb-4">
-                <img 
-                  src={logoImage} 
-                  alt="City of Kigali" 
+                <img
+                  src={logoImage}
+                  alt="City of Kigali"
                   className="h-20 w-auto"
                 />
               </div>
 
               {/* Title */}
-              <h1 className="text-2xl font-bold text-center text-gray-900 mb-2">
-                First Time Login
+              <h1 className="text-2xl font-bold text-center text-[#056daa] mb-2">
+                Account Activation
               </h1>
 
-              {/* Subtitle */}
-              <p className="text-center text-gray-600 font-medium mb-4">
-                Account Activation
-              </p>
-
               {/* Step 1: Email Input */}
-              {step === 'email' && (
+              {step === "email" && (
                 <>
                   <p className="text-center text-gray-600 mb-6">
-                    Please enter your registered email to receive a verification code for account activation
+                    Please enter your registered email to receive a verification
+                    code for account activation
                   </p>
 
                   <div className="mb-6">
-                    <label htmlFor="firsttime-email" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label
+                      htmlFor="firsttime-email"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
                       Email Address
                     </label>
-                    <input
-                      id="firsttime-email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="your.email@kigali.rw"
-                    />
+
+                    <div className="relative">
+                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 sm:pl-3 text-[#9CA3AF]">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={1.8}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                          />
+                        </svg>
+                      </span>
+                      <input
+                        id="firsttime-email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="cok-auth-input pl-9 sm:pl-10 pr-3 py-3 placeholder:text-gray-400"
+                        placeholder="e.g user@domain.example"
+                      />
+                    </div>
                   </div>
 
                   {error && (
-                    <p className="text-center text-sm text-red-600 mb-4">{error}</p>
+                    <p className="text-center text-sm text-red-600 mb-4">
+                      {error}
+                    </p>
                   )}
 
                   <button
                     onClick={handleSendOTP}
                     disabled={isLoading || !email}
-                    className="w-full py-3 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+                    className="w-full cok-btn-primary disabled:cursor-not-allowed"
                   >
-                    {isLoading ? 'Verifying...' : 'Send Verification Code'}
+                    {isLoading ? "Verifying..." : "Send Verification Code"}
                   </button>
                 </>
               )}
 
               {/* Step 2: OTP Input */}
-              {step === 'otp' && (
+              {step === "otp" && (
                 <>
                   {/* Description with masked email */}
                   <p className="text-center text-gray-600 mb-4">
-                    Please enter the One-Time PIN (OTP) sent to<br />
-                    <span className="font-semibold text-gray-900">{maskEmail(email)}</span>
+                    Please enter the One-Time PIN (OTP) sent to
+                    <br />
+                    <span className="font-semibold text-gray-900">
+                      {maskEmail(email)}
+                    </span>
                   </p>
 
                   {/* OTP Input Fields - Individual boxes styled */}
-                  <div className="flex justify-center gap-2 mb-6" onPaste={handlePaste}>
+                  <div
+                    className="flex justify-center gap-2 mb-6"
+                    onPaste={handlePaste}
+                  >
                     {otp.map((digit, index) => (
                       <input
                         key={index}
@@ -333,7 +400,12 @@ const logoImage = '/LOGO_COK.png';
                         pattern="[0-9]*"
                         maxLength={1}
                         value={digit}
-                        onChange={(e) => handleOtpChange(index, e.target.value.replace(/\D/g, ''))}
+                        onChange={(e) =>
+                          handleOtpChange(
+                            index,
+                            e.target.value.replace(/\D/g, ""),
+                          )
+                        }
                         onKeyDown={(e) => handleKeyDown(index, e)}
                         className="w-12 h-12 text-center text-lg font-semibold border-2 border-gray-300 rounded-md focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 text-gray-800 bg-white"
                         autoFocus={index === 0}
@@ -348,27 +420,35 @@ const logoImage = '/LOGO_COK.png';
 
                   {/* Error message */}
                   {error && (
-                    <p className="text-center text-sm text-red-600 mb-4">{error}</p>
+                    <p className="text-center text-sm text-red-600 mb-4">
+                      {error}
+                    </p>
                   )}
 
                   {/* Verify button */}
                   <button
                     onClick={handleVerify}
-                    disabled={otp.join('').length !== 5 || isLoading}
+                    disabled={otp.join("").length !== 5 || isLoading}
                     className="w-full py-3 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed mb-4"
                   >
-                    {isLoading ? 'Verifying...' : 'Continue to Password Setup'}
+                    {isLoading ? "Verifying..." : "Continue to Password Setup"}
                   </button>
 
                   {/* Resend link with timer */}
                   <div className="text-center">
-                    <span className="text-gray-600">Didn't receive the code? </span>
+                    <span className="text-gray-600">
+                      Didn't receive the code?{" "}
+                    </span>
                     <button
                       onClick={handleResend}
                       disabled={timeLeft > 0 || isResending}
-                      className="text-blue-600 hover:text-blue-700 font-semibold transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full cok-btn-primary disabled:cursor-not-allowed"
                     >
-                      {isResending ? 'Resending...' : timeLeft > 0 ? `Resend OTP (${formatTime(timeLeft)})` : 'Resend OTP'}
+                      {isResending
+                        ? "Resending..."
+                        : timeLeft > 0
+                          ? `Resend OTP (${formatTime(timeLeft)})`
+                          : "Resend OTP"}
                     </button>
                   </div>
                 </>
@@ -376,11 +456,11 @@ const logoImage = '/LOGO_COK.png';
 
               {/* Return to Login link */}
               <div className="text-center mt-6">
-                <button 
+                <button
                   onClick={onClose}
-                  className="text-blue-600 hover:text-blue-700 font-medium transition duration-200"
+                  className="cok-btn-outlined w-full"
                 >
-                  ← Back to Login
+                  Back to Login
                 </button>
               </div>
 
