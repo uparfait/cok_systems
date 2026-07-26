@@ -93,24 +93,16 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
         </div>
         
         <div className="relative z-10 flex flex-col justify-end p-7 lg:p-10 text-white w-full h-full">
-          {/* COK OFFICIAL PORTAL pill */}
-          <div className="inline-flex items-center px-3 py-1.5 mb-3 bg-white/10 backdrop-blur-sm  border border-white/20 text-xs font-semibold tracking-wide uppercase w-max cok-badge-animated">
-          
-            <span className="font-bold">COK Official Portal</span>
-          </div>
+         
 
           {/* Main heading and description */}
-          <div className="space-y-2 max-w-xl">
-            <h1 className="poetsen-one-regular text-2xl md:text-3xl lg:text-4xl tracking-tight leading-snug">
-              Smart Entry & <br/> Service Management
-            </h1>
-            <p className="public-sans-regular text-xs md:text-sm text-[#EFF6FF] font-semibold">
-              Serving the City of Kigali with efficiency and security.
-            </p>
-            <p className="public-sans-regular text-xs text-[#EFF6FF] font-semibold max-w-md">
-              Access the KSESM portal to manage administrative tasks and secure entry logs.
-            </p>
-          </div>
+            <div className="space-y-2 max-w-xl ">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl text-bold tracking-tight leading-snug"
+              style={{ fontWeight: 800, letterSpacing: '-0.5px' }}
+              >
+                IKAZE PORTAL
+              </h1>
+            </div>
         </div>
       </div>
 
@@ -131,10 +123,9 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
           {!isSubmitted ? (
             <>
               {/* Forgot Password Header */}
-              <h2 className="text-xl lg:text-2xl font-bold text-gray-900 mb-2">Forgot Password?</h2>
+              <h2 className="text-xl lg:text-2xl font-bold text-[#056daa] mb-2">Forgot Password?</h2>
               <p className="text-sm text-gray-600 mb-6">
-                Don't worry, it happens. Enter your<br />
-                registered email to receive a recovery link.
+               Enter your registered email to receive a recovery link.
               </p>
 
               {/* Form */}
@@ -148,8 +139,8 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
                     name="email"
                     type="email"
                     required
-                    className="w-full px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    placeholder="email@cok.gov.rw"
+                    className="w-full px-3 lg:px-4 py-2.5 lg:py-3 cok-auth-input"
+                    placeholder="email@domain.example"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -158,7 +149,7 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-2.5 lg:py-3 px-3 lg:px-4 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="w-full py-2.5 lg:py-3 px-3 lg:px-4 bg-blue-600 text-white text-sm cok-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? (
                     <span className="flex items-center justify-center">
@@ -173,13 +164,12 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
                   )}
                 </button>
               </form>
-
+              <Link to="/login" >
               {/* Return to Log In link */}
-              <div className="mt-6 text-center">
-                <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">
-                  Return to Log In
-                </Link>
-              </div>
+              <button className="mt-6 w-full cok-btn-outlined">
+                  Return to LogIn
+              </button>
+              </Link>
             </>
           ) : (
             <>
@@ -213,10 +203,7 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
             </>
           )}
 
-          {/* Secure Portal footer */}
-          <p className="text-center text-xs text-gray-400 mt-8">
-            Official City of Kigali Portal
-          </p>
+          
         </div>
       </div>
 
