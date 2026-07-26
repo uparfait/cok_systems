@@ -54,15 +54,14 @@ The domain name (for example `uat-ikaze.kigalicity.gov.rw`) points to the server
 
 ### Hardware Requirements
 
-- A virtual private server or physical server with at least 4 CPU cores and 8 GB of RAM. 50 GB (for now 7) of disk space is enough for the operating system, Docker images, and database storage. More space is recommended if you expect large file uploads.
+- A virtual private server or physical server with at least 4 CPU cores and 8 GB of RAM. 50 GB (for now 75 GB used) of disk space is enough for the operating system, Docker images, and database storage. More space is recommended if large files expected to be uploaded.
 
 ### Software Requirements
 
-- Ubuntu 22.04 or later (other Linux distributions work, but these instructions assume Ubuntu)
+- Ubuntu 22.04 or later (other Linux distributions also should work)
 - Docker Engine and the Docker Compose plugin
 - Git
 - A terminal with `sudo` access
-- A domain name that you can edit (for example through your organization's DNS manager)
 - Open ports 80 and 443 on the server's firewall and any external network firewall
 
 ### Required Accounts and Access
@@ -82,7 +81,7 @@ Each service reads its settings from environment variables. In production these 
 **Main backend (`backend/`)**
 
 | Variable | Purpose | Example |
-|---|---|---|
+|----------|---------|---------|
 | `NODE_ENV` | Tells the app it is running in production | `production` |
 | `PORT` | The port the backend listens on inside Docker | `2026` |
 | `conne_string` | Full MongoDB connection string for the main database | `mongodb://user:pass@mongo:27017/cok?authSource=admin` |
@@ -101,7 +100,6 @@ Each service reads its settings from environment variables. In production these 
 | `DATABASE_NAME2` | Name of the event database | `COK_EVENT_MNG` |
 | `FRONTEND_URL` | Public domain of the frontend | `https://uat-ikaze.kigalicity.gov.rw` |
 | `CORS_ORIGIN` | Which origins are allowed to call the API | `https://uat-ikaze.kigalicity.gov.rw` |
-| `BREVO_API_KEY` | API key for sending emails via Brevo | Your Brevo key |
 | `JWT_SECRET` | Secret key for signing event tokens | A long random string |
 
 **Secrets generation**
@@ -126,7 +124,7 @@ The most important files you will touch during deployment:
 - `frontend/Dockerfile` -- Builds the React app and packages it with nginx
 
 ---
-
+       
 ## Database Configuration
 
 ### MongoDB Setup
