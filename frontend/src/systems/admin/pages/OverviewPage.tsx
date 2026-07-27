@@ -7,6 +7,8 @@ import { statisticsService, employeeService, parkingService, serviceDeliveryServ
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import Chart from 'chart.js/auto';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, Cell } from 'recharts';
+import { COK, CokBadge } from './mayorCok';
 
 // ==================== TYPES ====================
 
@@ -38,6 +40,23 @@ const formatHourLabel = (hour: number): string => {
   if (hourNum < 12) return `${hourNum} AM`;
   if (hourNum === 12) return '12 PM';
   return `${hourNum - 12} PM`;
+};
+
+// Sentiment classification, same thresholds as the mayor feedback-analysis page
+type Sentiment = 'positive' | 'neutral' | 'negative';
+
+const SENTIMENT_META: Record<Sentiment, { label: string; color: string }> = {
+  positive: { label: 'Positive', color: COK.success },
+  neutral: { label: 'Neutral', color: COK.warning },
+  negative: { label: 'Negative', color: COK.danger },
+};
+
+const classifySentiment = (rate?: number, rateOutOf?: number): Sentiment => {
+  const max = rateOutOf || 10;
+  const ratio = (rate || 0) / max;
+  if (ratio >= 0.7) return 'positive';
+  if (ratio >= 0.4) return 'neutral';
+  return 'negative';
 };
 
 // Helper to get chart config with dynamic Y-axis ticks
@@ -188,18 +207,6 @@ const Overview: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
 
-  // Top-5 departments by service volume, tail folded into "Other" (feeds donut + its legend)
-  const serviceShare = useMemo(() => {
-    if (!data) return [] as Array<{ name: string; value: number }>;
-    const entries = Object.entries(data.serviceStats.by_department)
-      .map(([name, value]) => ({ name, value: Number(value) || 0 }))
-      .sort((a, b) => b.value - a.value);
-    const top = entries.slice(0, 5);
-    const other = entries.slice(5).reduce((sum, e) => sum + e.value, 0);
-    if (other > 0) top.push({ name: 'Other', value: other });
-    return top;
-  }, [data]);
-
   // Departments vs services mirrored chart: staff headcount (left) against
   // services handled per employee (right), largest departments first
   const deptVsServices = useMemo(() => {
@@ -220,8 +227,22 @@ const Overview: React.FC = () => {
   const maxDeptStaff = Math.max(...deptVsServices.map(r => r.staff), 1);
   const maxDeptAvg = Math.max(...deptVsServices.map(r => r.avg), 1);
 
+  // Average rating per department (out of 10) with feedback counts, best first —
+  // mirrors the departmentData memo on the feedback-analysis page
+  const deptRatings = useMemo(() => {
+    if (!data) return [] as Array<{ name: string; rating: number; count: number }>;
+    return Object.entries(data.feedbackAvg.by_department)
+      .map(([name, v]) => ({
+        name: name.length > 18 ? name.slice(0, 17) + '…' : name,
+        rating: Math.round(((v?.average_rating || 0)) * 10) / 10,
+        count: Number(data.feedbackTotals.by_department[name]) || 0,
+      }))
+      .filter(d => d.count > 0)
+      .sort((a, b) => b.rating - a.rating)
+      .slice(0, 8);
+  }, [data]);
+
   // Empty-state flags so cards show a message instead of a blank chart
-  const hasServiceByDept = !!data && Object.values(data.serviceStats.by_department).some(v => Number(v) > 0);
   const hasHourlyService = !!data && data.hourlyService.some(h => (h.visitors_checked_in || 0) > 0);
   const hasFeedbackByDept = !!data && Object.values(data.feedbackTotals.by_department).some(v => Number(v) > 0);
 
@@ -244,12 +265,6 @@ const Overview: React.FC = () => {
   
   const chartsRef = useRef<Map<string, Chart>>(new Map());
 
-  // Donut slot order is CVD-validated: green → blue → amber → dark blue → red, gray for "Other"
-  const DONUT_COLORS = useMemo(
-    () => [CC.teal, CC.blue, CC.amber, CC.purple, CC.red, '#9CA3AF'],
-    [CC]
-  );
-  
   // Fetch real data
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -405,50 +420,6 @@ const Overview: React.FC = () => {
           ]
         },
         options: getChartConfig(maxParking)
-      }));
-    }
-    
-    // 2. Services Chart (columns with rounded caps + value labels)
-    // Built from departments that actually have services, largest first  not the full department list
-    const svcCanvas = document.getElementById('chart-services') as HTMLCanvasElement;
-    if (svcCanvas) {
-      const svcEntries = Object.entries(data.serviceStats.by_department)
-        .map(([name, value]) => ({ name, value: Number(value) || 0 }))
-        .filter(e => e.value > 0)
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 8);
-      const svcLabels = svcEntries.map(e => e.name);
-      const svcData = svcEntries.map(e => e.value);
-      const maxSvc = Math.max(...svcData, 1);
-      const svcConfig = getChartConfig(maxSvc);
-
-      chartsRef.current.set('services', new Chart(svcCanvas, {
-        type: 'bar',
-        data: {
-          labels: svcLabels,
-          datasets: [
-            {
-              label: 'Total services',
-              data: svcData,
-              backgroundColor: CC.blue,
-              borderRadius: 4,
-              borderSkipped: 'start',
-              maxBarThickness: 24,
-              barPercentage: 0.6,
-              categoryPercentage: 0.8,
-              valueLabels: 'all',
-            } as any,
-          ]
-        },
-        options: {
-          ...svcConfig,
-          layout: { padding: { top: 14 } },
-          scales: {
-            ...svcConfig.scales,
-            x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 45 } }
-          }
-        },
-        plugins: [barValueLabels]
       }));
     }
     
@@ -667,38 +638,7 @@ const Overview: React.FC = () => {
       }));
     }
 
-    // 8. Services Distribution Donut (share by department)
-    const svcDonutCanvas = document.getElementById('chart-services-donut') as HTMLCanvasElement;
-    if (svcDonutCanvas && serviceShare.length) {
-      const svcTotal = serviceShare.reduce((sum, s) => sum + s.value, 0) || 1;
-      chartsRef.current.set('servicesDonut', new Chart(svcDonutCanvas, {
-        type: 'doughnut',
-        data: {
-          labels: serviceShare.map(s => s.name),
-          datasets: [{
-            data: serviceShare.map(s => s.value),
-            backgroundColor: serviceShare.map((_, i) => DONUT_COLORS[i]),
-            // 2px surface-color gap between segments instead of a drawn border
-            borderWidth: 2,
-            borderColor: '#ffffff',
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '65%',
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: (ctx: any) => `${ctx.label}: ${Math.round(ctx.raw)} (${Math.round((ctx.raw / svcTotal) * 100)}%)`
-              }
-            }
-          }
-        }
-      }));
-    }
-  }, [data, CC, serviceShare, DONUT_COLORS]);
+  }, [data, CC]);
   
   // Initial fetch and chart creation
   useEffect(() => {
@@ -851,6 +791,24 @@ const Overview: React.FC = () => {
           if (response && response.success && response.data && response.data.departments) {
             setModalData(response.data.departments);
             setModalPagination({ currentPage: 1, totalPages: 1, totalItems: response.data.departments.length, limit });
+          } else {
+            setModalData([]);
+            setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
+          }
+          break;
+
+        case 'rating-analysis':
+          // Pull a large page of raw feedback so sentiment can be classified per item
+          response = await feedbackService.getAll(1, 100);
+          console.log('Rating analysis response:', response);
+          if (response && (response as any).success && (response as any).data) {
+            setModalData((response as any).data);
+            setModalPagination({
+              currentPage: 1,
+              totalPages: 1,
+              totalItems: (response as any).total || (response as any).data.length,
+              limit: 100
+            });
           } else {
             setModalData([]);
             setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
@@ -1092,6 +1050,23 @@ const Overview: React.FC = () => {
     }
   }, [selectedCard, modalPagination.limit, fetchModalData]);
 
+  // Sentiment breakdown of the feedback loaded into the rating-analysis modal
+  const modalSentiment = useMemo(() => {
+    const counts: Record<Sentiment, number> = { positive: 0, neutral: 0, negative: 0 };
+    if (selectedCard === 'rating-analysis') {
+      modalData.forEach((f: any) => {
+        counts[classifySentiment(f.rate, f.rate_out_of)] += 1;
+      });
+    }
+    return counts;
+  }, [selectedCard, modalData]);
+  const modalSentimentData = (['positive', 'neutral', 'negative'] as Sentiment[]).map(s => ({
+    name: SENTIMENT_META[s].label,
+    value: modalSentiment[s],
+    color: SENTIMENT_META[s].color,
+  }));
+  const modalSentimentTotal = modalData.length || 1;
+
   // Computed values (rounded, no decimals)
   const avgRating = data ? Math.round(data.feedbackAvg.overall_average.average_rating) : 0;
   const driverTotal = data ? data.parkingStats.by_driver_type.staff + data.parkingStats.by_driver_type.visitor + data.parkingStats.by_driver_type.regular : 0;
@@ -1290,30 +1265,41 @@ const Overview: React.FC = () => {
           )}
         </div>
 
-        {/* Services row — the three service visualizations side by side */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5">
-          <div
-            onClick={() => handleCardClick('services-detail')}
-            className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
-          >
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <div className="text-sm font-semibold text-gray-900">Services by department</div>
-                <div className="text-xs text-gray-500">Total services · today</div>
-              </div>
-              <button className="text-gray-400 text-lg">⋯</button>
-            </div>
-            {hasServiceByDept ? (
-              <div className="h-44 w-full">
-                <canvas id="chart-services"></canvas>
-              </div>
-            ) : (
-              <div className="h-44 w-full flex items-center justify-center text-xs text-gray-400">
-                No services assigned to departments yet
-              </div>
-            )}
+        {/* Average rating by department — same design as the feedback-analysis chart;
+            click opens the ratings table + sentiment distribution */}
+        <div
+          onClick={() => handleCardClick('rating-analysis')}
+          className="bg-white p-4 relative cursor-pointer hover:shadow-md transition-all"
+          style={{ border: `1px solid ${COK.border}` }}
+        >
+          <div className="flex justify-between items-start">
+            <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: '0 0 16px 0' }}>
+              Average Rating by Department
+            </h3>
+            <span className="text-xs text-gray-400">Click for ratings &amp; sentiment</span>
           </div>
+          {deptRatings.length === 0 ? (
+            <p className="text-sm text-gray-500" style={{ fontFamily: COK.bodyFont }}>No department feedback yet.</p>
+          ) : (
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={deptRatings} layout="vertical" margin={{ top: 5, right: 25, left: 10, bottom: 5 }}>
+                  <XAxis type="number" domain={[0, 10]} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                  <RTooltip
+                    cursor={{ fill: COK.neutralLight }}
+                    contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
+                    formatter={(value: any, _n: any, entry: any) => [`${value}/10 (${entry?.payload?.count} feedback)`, 'Avg rating']}
+                  />
+                  <Bar dataKey="rating" fill={COK.primary} radius={[0, 0, 0, 0]} barSize={16} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
 
+        {/* Services row — hourly check-ins, full width */}
+        <div className="grid grid-cols-1 gap-2.5">
           <div
             onClick={() => handleCardClick('service-hourly')}
             className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
@@ -1340,40 +1326,6 @@ const Overview: React.FC = () => {
             )}
           </div>
 
-          <div className="bg-white border border-gray-200 p-3">
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <div className="text-sm font-semibold text-gray-900">Service distribution</div>
-                <div className="text-xs text-gray-500">Share by department · {data.serviceStats.total} total</div>
-              </div>
-              <button className="text-gray-400 text-lg">⋯</button>
-            </div>
-            {serviceShare.length === 0 ? (
-              <div className="text-xs text-gray-400 text-center py-8">No services recorded yet</div>
-            ) : (
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                <div className="w-32 h-32 flex-shrink-0">
-                  <canvas id="chart-services-donut"></canvas>
-                </div>
-                <div className="flex-1 space-y-2 w-full">
-                  {serviceShare.map((s, i) => {
-                    const shareTotal = serviceShare.reduce((sum, e) => sum + e.value, 0) || 1;
-                    return (
-                      <div key={s.name} className="flex justify-between items-center text-xs">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="w-2.5 h-2.5 flex-shrink-0" style={{ backgroundColor: DONUT_COLORS[i] }}></div>
-                          <span className="truncate text-gray-600">{s.name}</span>
-                        </div>
-                        <div className="font-semibold text-gray-900 whitespace-nowrap">
-                          {s.value} <span className="text-gray-400 font-normal">({Math.round((s.value / shareTotal) * 100)}%)</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Overview Tab Content */}
@@ -1691,6 +1643,7 @@ const Overview: React.FC = () => {
                 {selectedCard === 'employees-detail' && 'Employees by Department'}
                 {selectedCard === 'feedback' && 'Feedback Details'}
                 {selectedCard === 'service-hourly' && 'Hourly Service Check-ins - Detailed View'}
+                {selectedCard === 'rating-analysis' && 'Ratings & Sentiment Analysis'}
               </h3>
               <button
                 onClick={handleModalClose}
@@ -2033,6 +1986,116 @@ const Overview: React.FC = () => {
                           >
                             Next
                           </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {selectedCard === 'rating-analysis' && (
+                <div className="space-y-5">
+                  {modalLoading ? (
+                    <div className="text-center py-8">Loading feedback data...</div>
+                  ) : modalData.length === 0 ? (
+                    <div className="text-center py-8">
+                      <div className="text-gray-500 mb-2">No feedback records found</div>
+                      <div className="text-sm text-gray-400">
+                        Ratings and sentiment will appear here once citizens submit feedback.
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Sentiment distribution */}
+                      <div>
+                        <h4 style={{ fontFamily: COK.headingFont, fontSize: 14, fontWeight: 600, color: COK.neutralDark, margin: '0 0 10px 0' }}>
+                          Sentiment Distribution
+                        </h4>
+                        <div className="grid grid-cols-3 gap-2 mb-3">
+                          {(['positive', 'neutral', 'negative'] as Sentiment[]).map(s => (
+                            <div
+                              key={s}
+                              className="p-2.5 text-center"
+                              style={{ backgroundColor: `${SENTIMENT_META[s].color}1A`, borderLeft: `3px solid ${SENTIMENT_META[s].color}` }}
+                            >
+                              <div style={{ fontFamily: COK.headingFont, fontSize: 18, fontWeight: 700, color: SENTIMENT_META[s].color }}>
+                                {modalSentiment[s]}
+                              </div>
+                              <div className="text-[11px] text-gray-500">
+                                {SENTIMENT_META[s].label} · {Math.round((modalSentiment[s] / modalSentimentTotal) * 100)}%
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="h-44">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={modalSentimentData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                              <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                              <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                              <RTooltip cursor={{ fill: COK.neutralLight }} contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }} />
+                              <Bar dataKey="value" radius={[0, 0, 0, 0]}>
+                                {modalSentimentData.map(entry => (
+                                  <Cell key={entry.name} fill={entry.color} />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+
+                      {/* Ratings table */}
+                      <div>
+                        <h4 style={{ fontFamily: COK.headingFont, fontSize: 14, fontWeight: 600, color: COK.neutralDark, margin: '0 0 10px 0' }}>
+                          Ratings ({modalData.length})
+                        </h4>
+                        <div className="overflow-x-auto max-h-72 overflow-y-auto">
+                          <table className="w-full text-sm border border-gray-200 min-w-[640px]">
+                            <thead className="bg-gray-50 sticky top-0 z-10">
+                              <tr>
+                                <th className="px-3 py-2 text-center border-b whitespace-nowrap">Rating</th>
+                                <th className="px-3 py-2 text-center border-b whitespace-nowrap">Sentiment</th>
+                                <th className="px-3 py-2 text-left border-b whitespace-nowrap">Department</th>
+                                <th className="px-3 py-2 text-left border-b">Comment</th>
+                                <th className="px-3 py-2 text-left border-b whitespace-nowrap">From</th>
+                                <th className="px-3 py-2 text-left border-b whitespace-nowrap">Date</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {modalData.map((f: any, idx: number) => {
+                                const meta = SENTIMENT_META[classifySentiment(f.rate, f.rate_out_of)];
+                                return (
+                                  <tr key={idx} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-blue-50/30 border-b`}>
+                                    <td className="px-3 py-2 text-center whitespace-nowrap">
+                                      <span
+                                        className="inline-flex flex-col items-center justify-center w-10 h-10"
+                                        style={{ backgroundColor: `${meta.color}1A`, borderLeft: `2px solid ${meta.color}` }}
+                                      >
+                                        <span style={{ fontFamily: COK.headingFont, fontSize: 14, fontWeight: 700, color: meta.color }}>
+                                          {f.rate ?? ''}
+                                        </span>
+                                        <span className="text-[9px] text-gray-400">/ {f.rate_out_of || 10}</span>
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-2 text-center">
+                                      <CokBadge label={meta.label} color={meta.color} />
+                                    </td>
+                                    <td className="px-3 py-2 text-xs text-gray-600">{f.department_name || 'Not specified'}</td>
+                                    <td className="px-3 py-2 max-w-xs">
+                                      <p className="text-xs truncate" style={{ color: f.textmessage ? '#555555' : '#9E9E9E', fontStyle: f.textmessage ? 'normal' : 'italic', margin: 0 }} title={f.textmessage}>
+                                        {f.textmessage || 'No written comment — rating only.'}
+                                      </p>
+                                    </td>
+                                    <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{f.user_name?.trim() || 'Anonymous'}</td>
+                                    <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">
+                                      {f.created_date
+                                        ? new Date(f.created_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                        : '—'}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                         </div>
                       </div>
                     </>
