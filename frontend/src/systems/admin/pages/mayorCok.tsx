@@ -2,7 +2,7 @@ import { FiLoader } from 'react-icons/fi';
 
 // City of Kigali design rule palette (see desegin_rule.html)
 export const COK = {
-  primary: '#34A8DB',
+  primary: '#5d9ad5',
   primaryDark: '#2980B9',
   success: '#4CAF50',
   warning: '#F39C12',

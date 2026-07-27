@@ -564,3 +564,89 @@ background-color: #056daa;
   font-family: var(--cok-font-heading);
   color: var(--cok-neutral-dark);
 }
+/* ==================== CoK mayor dashboard — soft rounded chart-panel look ==================== */
+
+/* Light blue-tinted canvas so white cards pop */
+.cok-mayor-dash {
+  background-color: #FFFFFF;
+  min-height: 100%;
+}
+
+/* Cards: rounded panels with a soft floating shadow, no hairline borders */
+.cok-mayor-dash .bg-white.border-gray-200 {
+  border-color: transparent;
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+.cok-mayor-dash .bg-white.border-gray-200.p-3 {
+  padding: 18px;
+}
+
+/* Clickable cards lift on hover */
+.cok-mayor-dash .bg-white.border-gray-200.cursor-pointer:hover {
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.14);
+  transform: translateY(-3px);
+}
+
+/* KPI accent bars: heavier, rounded, more air */
+.cok-mayor-dash .border-l-2 {
+  border-left-width: 4px;
+  border-radius: 3px;
+}
+.cok-mayor-dash .border-l-2.pl-2 {
+  padding-left: 0.75rem;
+}
+
+/* Card titles a touch larger */
+.cok-mayor-dash .text-sm.font-semibold.text-gray-900 {
+  font-size: 15px;
+}
+
+/* More generous grid rhythm */
+.cok-mayor-dash .gap-2 { gap: 1rem; }
+.cok-mayor-dash .gap-2\.5 { gap: 1rem; }
+.cok-mayor-dash .space-y-2\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; }
+.cok-mayor-dash .p-3.space-y-2\.5 { padding: 22px; }
+
+/* Taller chart canvases — the charts are the dashboard */
+.cok-mayor-dash .h-40.w-full { height: 13rem; }
+.cok-mayor-dash .h-32.w-full { height: 11rem; }
+.cok-mayor-dash .w-32.h-32 { width: 9.5rem; height: 9.5rem; }
+
+/* Toolbar: floating rounded bar */
+.cok-mayor-dash .bg-white.border-b.border-gray-200 {
+  border-bottom: 0;
+  border-radius: 14px;
+  margin: 14px 22px 0 22px;
+  padding: 10px 16px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+/* Inputs and buttons: rounded to match */
+.cok-mayor-dash select {
+  font-family: var(--cok-font-heading);
+  background-color: #F5F6F8;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.10);
+}
+.cok-mayor-dash select:focus {
+  border-color: var(--cok-primary-color);
+  box-shadow: 0 4px 8px rgba(52, 168, 219, 0.25);
+  outline: none;
+}
+.cok-mayor-dash button.bg-blue-600,
+.cok-mayor-dash button.text-white {
+  border-radius: 8px;
+}
+
+/* Alert / status inner boxes rounded too */
+.cok-mayor-dash .bg-red-50.border-red-200 {
+  border-radius: 12px;
+}
+
+/* Modal panel rounded */
+.cok-mayor-dash .bg-white.max-w-4xl {
+  border-radius: 16px;
+  overflow: hidden;
+}
