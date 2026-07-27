@@ -115,6 +115,41 @@ const getChartConfig = (maxValue: number, minValue: number = 0) => {
   };
 };
 
+// Inline plugin: draws values on column caps. Set `valueLabels: 'all' | 'max'`
+// on a bar dataset to opt in ('max' labels only the peak column).
+const barValueLabels = {
+  id: 'barValueLabels',
+  afterDatasetsDraw(chart: any) {
+    const ctx = chart.ctx;
+    chart.data.datasets.forEach((ds: any, di: number) => {
+      const mode = ds.valueLabels;
+      if (!mode) return;
+      const meta = chart.getDatasetMeta(di);
+      if (meta.hidden || meta.type !== 'bar') return;
+      const values = (ds.data || []).map((v: any) => Number(v) || 0);
+      const maxIdx = values.indexOf(Math.max(...values));
+      const horizontal = chart.options.indexAxis === 'y';
+      ctx.save();
+      ctx.fillStyle = '#6b7280';
+      ctx.font = '600 10px sans-serif';
+      if (horizontal) {
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+      } else {
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+      }
+      meta.data.forEach((el: any, i: number) => {
+        if (mode === 'max' && (i !== maxIdx || values[i] <= 0)) return;
+        const text = String(Math.round(values[i]));
+        if (horizontal) ctx.fillText(text, el.x + 5, el.y);
+        else ctx.fillText(text, el.x, el.y - 4);
+      });
+      ctx.restore();
+    });
+  },
+};
+
 // ==================== MAIN COMPONENT ====================
 
 const Overview: React.FC = () => {
@@ -138,20 +173,57 @@ const Overview: React.FC = () => {
             amberSoft: 'rgba(243,156,18,0.05)',
           }
         : {
-            blue: CC.blue,
-            teal: CC.teal,
-            amber: CC.amber,
-            purple: CC.purple,
-            red: CC.red,
-            blueSoft: CC.blueSoft,
-            tealSoft: CC.tealSoft,
-            amberSoft: CC.amberSoft,
+            blue: '#2563EB',
+            teal: '#0D9488',
+            amber: '#EAB308',
+            purple: '#9333EA',
+            red: '#DC2626',
+            blueSoft: 'rgba(37,99,235,0.05)',
+            tealSoft: 'rgba(13,148,136,0.05)',
+            amberSoft: 'rgba(234,179,8,0.05)',
           },
     [isMayor]
   );
   
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
+
+  // Top-5 departments by service volume, tail folded into "Other" (feeds donut + its legend)
+  const serviceShare = useMemo(() => {
+    if (!data) return [] as Array<{ name: string; value: number }>;
+    const entries = Object.entries(data.serviceStats.by_department)
+      .map(([name, value]) => ({ name, value: Number(value) || 0 }))
+      .sort((a, b) => b.value - a.value);
+    const top = entries.slice(0, 5);
+    const other = entries.slice(5).reduce((sum, e) => sum + e.value, 0);
+    if (other > 0) top.push({ name: 'Other', value: other });
+    return top;
+  }, [data]);
+
+  // Departments vs services mirrored chart: staff headcount (left) against
+  // services handled per employee (right), largest departments first
+  const deptVsServices = useMemo(() => {
+    if (!data) return [] as Array<{ name: string; staff: number; services: number; avg: number }>;
+    return data.departments
+      .map(d => {
+        const services = Number(data.serviceStats.by_department[d.name]) || 0;
+        return {
+          name: d.name,
+          staff: d.staff,
+          services,
+          avg: Math.round((services / Math.max(d.staff, 1)) * 10) / 10,
+        };
+      })
+      .sort((a, b) => b.staff - a.staff)
+      .slice(0, 8);
+  }, [data]);
+  const maxDeptStaff = Math.max(...deptVsServices.map(r => r.staff), 1);
+  const maxDeptAvg = Math.max(...deptVsServices.map(r => r.avg), 1);
+
+  // Empty-state flags so cards show a message instead of a blank chart
+  const hasServiceByDept = !!data && Object.values(data.serviceStats.by_department).some(v => Number(v) > 0);
+  const hasHourlyService = !!data && data.hourlyService.some(h => (h.visitors_checked_in || 0) > 0);
+  const hasFeedbackByDept = !!data && Object.values(data.feedbackTotals.by_department).some(v => Number(v) > 0);
 
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
@@ -171,6 +243,12 @@ const Overview: React.FC = () => {
   });
   
   const chartsRef = useRef<Map<string, Chart>>(new Map());
+
+  // Donut slot order is CVD-validated: green → blue → amber → dark blue → red, gray for "Other"
+  const DONUT_COLORS = useMemo(
+    () => [CC.teal, CC.blue, CC.amber, CC.purple, CC.red, '#9CA3AF'],
+    [CC]
+  );
   
   // Fetch real data
   const fetchData = useCallback(async () => {
@@ -233,7 +311,8 @@ const Overview: React.FC = () => {
           total: services?.total || 0,
           completed: services?.completed || 0,
           inhouse: services?.inhouse || 0,
-          by_department: services?.by_department || {},
+          // Prefer the all-services breakdown; by_department only counts in-house visitors
+          by_department: services?.by_department_total || services?.by_department || {},
         },
         flaggedVehicles: {
           currently_flagged: {
@@ -286,7 +365,7 @@ const Overview: React.FC = () => {
     const visitorData = data.hourlyService.map(h => h.visitors_checked_in);
     const maxParking = Math.max(...checkInData, ...checkOutData, 1);
     const maxVisitor = Math.max(...visitorData, 1);
-    
+
     // 1. Hourly Parking Chart (Line chart with whole numbers)
     const hourlyCanvas = document.getElementById('chart-hourly') as HTMLCanvasElement;
     if (hourlyCanvas) {
@@ -329,33 +408,47 @@ const Overview: React.FC = () => {
       }));
     }
     
-    // 2. Services Chart (Bar chart)
+    // 2. Services Chart (columns with rounded caps + value labels)
+    // Built from departments that actually have services, largest first  not the full department list
     const svcCanvas = document.getElementById('chart-services') as HTMLCanvasElement;
-    if (svcCanvas && deptNames.length) {
-      const svcTotal = deptNames.map(name => data.serviceStats.by_department[name] || 0);
-      // For now, show total services per department (we don't have inhouse vs completed breakdown)
-      const svcData = svcTotal;
-      const maxSvc = Math.max(...svcTotal, 1);
-      
+    if (svcCanvas) {
+      const svcEntries = Object.entries(data.serviceStats.by_department)
+        .map(([name, value]) => ({ name, value: Number(value) || 0 }))
+        .filter(e => e.value > 0)
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 8);
+      const svcLabels = svcEntries.map(e => e.name);
+      const svcData = svcEntries.map(e => e.value);
+      const maxSvc = Math.max(...svcData, 1);
+      const svcConfig = getChartConfig(maxSvc);
+
       chartsRef.current.set('services', new Chart(svcCanvas, {
         type: 'bar',
         data: {
-          labels: deptNames,
+          labels: svcLabels,
           datasets: [
-            { label: 'Total Services', data: svcData, backgroundColor: CC.blue, barPercentage: 0.6, categoryPercentage: 0.8 }
+            {
+              label: 'Total services',
+              data: svcData,
+              backgroundColor: CC.blue,
+              borderRadius: 4,
+              borderSkipped: 'start',
+              maxBarThickness: 24,
+              barPercentage: 0.6,
+              categoryPercentage: 0.8,
+              valueLabels: 'all',
+            } as any,
           ]
         },
         options: {
-          ...getChartConfig(maxSvc),
-          indexAxis: 'y',
+          ...svcConfig,
+          layout: { padding: { top: 14 } },
           scales: {
-            x: {
-              ...getChartConfig(maxSvc).scales.x,
-              ticks: { callback: (value: any) => Math.round(Number(value)).toString(), stepSize: 1 }
-            },
-            y: { grid: { display: false } }
+            ...svcConfig.scales,
+            x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 45 } }
           }
-        }
+        },
+        plugins: [barValueLabels]
       }));
     }
     
@@ -421,50 +514,127 @@ const Overview: React.FC = () => {
       }));
     }
     
-    // 5. Feedback Chart (Bar chart)
+    // 5. Feedback Chart (columns + trend line, same style as hourly check-ins)
+    // Built from departments that actually received feedback, largest first
     const fbCanvas = document.getElementById('chart-feedback') as HTMLCanvasElement;
-    if (fbCanvas && deptNames.length) {
-      const fbData = data.departments.map(d => d.feedback);
+    if (fbCanvas) {
+      const fbEntries = Object.entries(data.feedbackTotals.by_department)
+        .map(([name, value]) => ({ name, value: Number(value) || 0 }))
+        .filter(e => e.value > 0)
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 8);
+      const fbLabels = fbEntries.map(e => e.name);
+      const fbData = fbEntries.map(e => e.value);
+      const fbTrend = fbData.map((_, i) => {
+        const windowVals = fbData.slice(Math.max(0, i - 2), i + 1);
+        return windowVals.reduce((a, b) => a + b, 0) / windowVals.length;
+      });
       const maxFb = Math.max(...fbData, 1);
-      
+      const fbConfig = getChartConfig(maxFb);
+
       chartsRef.current.set('feedback', new Chart(fbCanvas, {
         type: 'bar',
-        data: { 
-          labels: deptNames, 
-          datasets: [{ 
-            data: fbData, 
-            backgroundColor: CC.purple, 
-            barPercentage: 0.6,
-            label: 'Feedback'
-          }] 
+        data: {
+          labels: fbLabels,
+          datasets: [
+            {
+              type: 'bar',
+              label: 'Feedback',
+              data: fbData,
+              backgroundColor: CC.teal,
+              borderRadius: 4,
+              borderSkipped: 'start',
+              maxBarThickness: 18,
+              barPercentage: 0.6,
+              categoryPercentage: 0.8,
+              valueLabels: 'all',
+            } as any,
+            {
+              type: 'line',
+              label: 'Trend',
+              data: fbTrend,
+              borderColor: CC.purple,
+              borderWidth: 2,
+              pointRadius: 0,
+              pointHoverRadius: 4,
+              pointBackgroundColor: CC.purple,
+              pointBorderColor: '#fff',
+              pointBorderWidth: 2,
+              tension: 0.4,
+              fill: false,
+            } as any,
+          ]
         },
-        options: getChartConfig(maxFb)
+        options: {
+          ...fbConfig,
+          layout: { padding: { top: 12 } },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx: any) => {
+                  const base = `${ctx.dataset.label}: ${Math.round(ctx.raw)}`;
+                  const rating = data.feedbackAvg.by_department[ctx.label]?.average_rating;
+                  return rating ? `${base} · Avg rating ${Math.round(rating)}/10` : base;
+                }
+              }
+            }
+          },
+          scales: {
+            ...fbConfig.scales,
+            x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 45 } }
+          }
+        },
+        plugins: [barValueLabels]
       }));
     }
     
-    // 6. Hourly Service Check-ins (Line chart)
+    // 6. Hourly Service Check-ins (columns + 3-hour moving-average trend line, one shared axis)
     const svcHourCanvas = document.getElementById('chart-service-hourly') as HTMLCanvasElement;
     if (svcHourCanvas) {
       const formattedServiceHourLabels = SERVICE_HOURS.map(hour => formatHourLabel(parseInt(hour)));
+      const movingAvg = visitorData.map((_, i) => {
+        const windowVals = visitorData.slice(Math.max(0, i - 2), i + 1);
+        return windowVals.reduce((a, b) => a + b, 0) / windowVals.length;
+      });
       chartsRef.current.set('serviceHourly', new Chart(svcHourCanvas, {
-        type: 'line',
+        type: 'bar',
         data: {
-          labels: formattedServiceHourLabels, 
-          datasets: [{ 
-            data: visitorData, 
-            borderColor: CC.teal, 
-            backgroundColor: CC.tealSoft, 
-            fill: true, 
-            tension: 0.4, 
-            pointRadius: 3, 
-            borderWidth: 2,
-            pointBackgroundColor: CC.teal,
-            pointBorderColor: '#fff',
-            pointBorderWidth: 1,
-            label: 'Visitors'
-          }] 
+          labels: formattedServiceHourLabels,
+          datasets: [
+            {
+              type: 'bar',
+              label: 'Visitors',
+              data: visitorData,
+              backgroundColor: CC.teal,
+              borderRadius: 4,
+              borderSkipped: 'start',
+              maxBarThickness: 18,
+              barPercentage: 0.6,
+              categoryPercentage: 0.8,
+              valueLabels: 'max',
+            } as any,
+            {
+              type: 'line',
+              label: '3-hr average',
+              data: movingAvg,
+              borderColor: CC.purple,
+              borderWidth: 2,
+              pointRadius: 0,
+              pointHoverRadius: 4,
+              pointBackgroundColor: CC.purple,
+              pointBorderColor: '#fff',
+              pointBorderWidth: 2,
+              tension: 0.4,
+              fill: false,
+            } as any,
+          ]
         },
-        options: getChartConfig(maxVisitor)
+        options: {
+          ...getChartConfig(maxVisitor),
+          layout: { padding: { top: 12 } },
+        },
+        plugins: [barValueLabels]
       }));
     }
     
@@ -496,7 +666,39 @@ const Overview: React.FC = () => {
         }
       }));
     }
-  }, [data, CC]);
+
+    // 8. Services Distribution Donut (share by department)
+    const svcDonutCanvas = document.getElementById('chart-services-donut') as HTMLCanvasElement;
+    if (svcDonutCanvas && serviceShare.length) {
+      const svcTotal = serviceShare.reduce((sum, s) => sum + s.value, 0) || 1;
+      chartsRef.current.set('servicesDonut', new Chart(svcDonutCanvas, {
+        type: 'doughnut',
+        data: {
+          labels: serviceShare.map(s => s.name),
+          datasets: [{
+            data: serviceShare.map(s => s.value),
+            backgroundColor: serviceShare.map((_, i) => DONUT_COLORS[i]),
+            // 2px surface-color gap between segments instead of a drawn border
+            borderWidth: 2,
+            borderColor: '#ffffff',
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '65%',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx: any) => `${ctx.label}: ${Math.round(ctx.raw)} (${Math.round((ctx.raw / svcTotal) * 100)}%)`
+              }
+            }
+          }
+        }
+      }));
+    }
+  }, [data, CC, serviceShare, DONUT_COLORS]);
   
   // Initial fetch and chart creation
   useEffect(() => {
@@ -629,8 +831,8 @@ const Overview: React.FC = () => {
           response = await statisticsService.getServiceDeliveryStats();
           console.log('Services detail response:', response);
           if (response && response.success && response.data) {
-            // Transform department data for display
-            const deptData = Object.entries(response.data.by_department || {}).map(([dept, count]) => ({
+            // Transform department data for display (all services, not just in-house)
+            const deptData = Object.entries(response.data.by_department_total || response.data.by_department || {}).map(([dept, count]) => ({
               department: dept,
               count: count as number
             }));
@@ -723,10 +925,14 @@ const Overview: React.FC = () => {
               datasets: [{
                 data: deptCounts,
                 backgroundColor: CC.blue,
+                borderRadius: 4,
+                borderSkipped: 'start',
+                maxBarThickness: 24,
                 barPercentage: 0.6,
                 categoryPercentage: 0.8,
-                label: 'Services'
-              }]
+                label: 'Services',
+                valueLabels: 'all',
+              } as any]
             },
             options: {
               responsive: true,
@@ -768,7 +974,8 @@ const Overview: React.FC = () => {
                   }
                 }
               }
-            }
+            },
+            plugins: [barValueLabels]
           });
 
           chartsRef.current.set('modal-services-detail', newChart);
@@ -886,8 +1093,6 @@ const Overview: React.FC = () => {
   }, [selectedCard, modalPagination.limit, fetchModalData]);
 
   // Computed values (rounded, no decimals)
-  const activeRate = data ? Math.round((data.employeeStats.active / data.employeeStats.total) * 100) : 0;
-  const completionRate = data && data.serviceStats.total ? Math.round((data.serviceStats.completed / data.serviceStats.total) * 100) : 0;
   const avgRating = data ? Math.round(data.feedbackAvg.overall_average.average_rating) : 0;
   const driverTotal = data ? data.parkingStats.by_driver_type.staff + data.parkingStats.by_driver_type.visitor + data.parkingStats.by_driver_type.regular : 0;
   const maxStaff = data ? Math.max(...data.departments.map(d => d.staff), 1) : 1;
@@ -918,6 +1123,8 @@ const Overview: React.FC = () => {
 
   return (
     <MainLayout>
+      {/* Scopes the soft rounded dashboard theme to this page only (globals.css .cok-mayor-dash) */}
+      <div className="cok-mayor-dash">
       {/* CoK design-rule page header for the mayor account */}
       {isMayor && (
         <div className="px-4 pt-4 pb-3">
@@ -937,7 +1144,7 @@ const Overview: React.FC = () => {
             className="text-sm text-gray-500"
             style={{ fontFamily: "'Merriweather', serif", margin: '4px 0 0 0' }}
           >
-            City overview — services, parking, employees and feedback
+            City overview  services, parking, employees and feedback
           </p>
         </div>
       )}
@@ -979,93 +1186,196 @@ const Overview: React.FC = () => {
       {/* Main Content */}
       <div className="p-3 space-y-2.5">
         
-        {/* KPI Row 1 - Clickable Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-          <div
-            onClick={() => handleCardClick('employees')}
-            className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
-          >
-            <div className="border-l-2 border-blue-600 pl-2">
-              <div className="text-xs text-gray-500 font-medium">Total employees</div>
-              <div className="text-2xl font-light text-gray-900">{data.employeeStats.total}</div>
-              <div className="text-xs text-gray-400 mt-1">
-                <span className="text-teal-600">▲ {activeRate}%</span> active rate
+        {/* Departments vs services  mirrored comparison of staff headcount and workload per employee */}
+        <div className="bg-white border border-gray-200 p-4 sm:p-5 rounded-lg shadow-sm">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <div className="text-base font-bold text-gray-900">Departments vs services</div>
+              <div className="text-xs text-gray-500 mt-0.5">
+                Staff headcount against services handled per employee · today
               </div>
             </div>
+            <button className="text-gray-400 text-lg leading-none">⋯</button>
           </div>
-          
-          <div
-            onClick={() => handleCardClick('parking')}
-            className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
-          >
-            <div className="border-l-2 border-teal-600 pl-2">
-              <div className="text-xs text-gray-500 font-medium">Currently parked</div>
-              <div className="text-2xl font-light text-gray-900">{data.parkingStats.total}</div>
-               <div className="text-xs text-gray-400 mt-1">
-                 {data.parkingStats.by_driver_type.visitor} visitors · {data.parkingStats.by_driver_type.staff} staff · {data.parkingStats.by_driver_type.regular} regular
-               </div>
+
+          {deptVsServices.length === 0 ? (
+            <div className="h-40 w-full flex items-center justify-center text-xs text-gray-400">
+              No department data available yet
             </div>
-          </div>
-          
-          <div
-            onClick={() => handleCardClick('services')}
-            className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
-          >
-            <div className="border-l-2 border-yellow-500 pl-2">
-              <div className="text-xs text-gray-500 font-medium">Total services</div>
-              <div className="text-2xl font-light text-gray-900">{data.serviceStats.total}</div>
-              <div className="text-xs text-gray-400 mt-1">
-                <span className="text-teal-600">▲ {completionRate}%</span> completed
-              </div>
-            </div>
-          </div>
-          
-            <div
-              onClick={() => handleCardClick('flagged')}
-              className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
-            >
-              <div className="border-l-2 border-red-600 pl-2">
-                <div className="text-xs text-gray-500 font-medium">Flagged vehicles</div>
-                <div className="text-2xl font-light text-gray-900">{data.flaggedVehicles.currently_flagged.count}</div>
-                <div className="text-xs text-gray-400 mt-1">
-                  <span className="text-red-600">currently flagged</span>
+          ) : (
+            <div>
+              {/* Column headers, underlined in their series color like the reference design */}
+              <div className="flex items-center gap-3 mb-4">
+                <div
+                  className="flex-1 flex items-center gap-2 pb-2 border-b-[3px]"
+                  style={{ borderColor: CC.amber }}
+                >
+                  <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.amber }}>
+                    Departments
+                  </span>
+                  <span className="text-xs text-gray-500">(employees)</span>
+                </div>
+                <div
+                  className="flex-1 flex items-center justify-end gap-2 pb-2 border-b-[3px]"
+                  style={{ borderColor: CC.blue }}
+                >
+                  <span className="text-xs text-gray-500">(avg # per employee)</span>
+                  <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.blue }}>
+                    Services
+                  </span>
                 </div>
               </div>
+
+              {/* Mirrored rows: orange bars grow left from the center divider, blue bars grow right.
+                  Bars sit on a soft full-width track; a white-fade gradient gives them depth. */}
+              <div className="space-y-3">
+                {deptVsServices.map(row => (
+                  <div
+                    key={row.name}
+                    className="flex items-center py-0.5 rounded-md hover:bg-gray-50 transition-colors"
+                    title={`${row.name}: ${row.staff} employees · ${row.services} services · ${row.avg} per employee`}
+                  >
+                    <div className="flex-1 flex items-center gap-2.5 min-w-0">
+                      <span className="w-40 sm:w-48 flex-shrink-0 text-right text-[13px] font-medium text-gray-700 truncate">
+                        {row.name} <span className="text-gray-400 font-normal">({row.staff})</span>
+                      </span>
+                      <div className="flex-1 h-6 bg-gray-100/80 rounded-l-lg flex justify-end overflow-hidden">
+                        <div
+                          className="h-full flex items-center pl-2 shadow-sm"
+                          style={{
+                            width: `${Math.round((row.staff / maxDeptStaff) * 100)}%`,
+                            minWidth: row.staff > 0 ? 26 : 0,
+                            backgroundColor: CC.amber,
+                            backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.08), rgba(255,255,255,0.28))',
+                            borderRadius: '6px 0 0 6px',
+                          }}
+                        >
+                          {row.staff > 0 && (
+                            <span className="text-[11px] font-bold text-white leading-none drop-shadow-sm">{row.staff}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      className="w-[3px] self-stretch rounded-full mx-1 flex-shrink-0"
+                      style={{ background: `linear-gradient(to bottom, ${CC.amber}, ${CC.blue})` }}
+                    ></div>
+
+                    <div className="flex-1 flex items-center gap-2.5 min-w-0">
+                      <div className="flex-1 h-6 bg-gray-100/80 rounded-r-lg flex justify-start overflow-hidden">
+                        <div
+                          className="h-full flex items-center justify-end pr-2 shadow-sm"
+                          style={{
+                            width: `${Math.round((row.avg / maxDeptAvg) * 100)}%`,
+                            minWidth: row.avg > 0 ? 30 : 0,
+                            backgroundColor: CC.blue,
+                            backgroundImage: 'linear-gradient(to left, rgba(0,0,0,0.08), rgba(255,255,255,0.28))',
+                            borderRadius: '0 6px 6px 0',
+                          }}
+                        >
+                          {row.avg > 0 && (
+                            <span className="text-[11px] font-bold text-white leading-none drop-shadow-sm">{row.avg}</span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="w-40 sm:w-48 flex-shrink-0 text-[13px] font-medium text-gray-700 truncate">
+                        {row.services} services <span className="text-gray-400 font-normal">({row.avg}/emp)</span>
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
+          )}
         </div>
-        
-        {/* KPI Row 2 */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-          <div className="bg-white border border-gray-200 p-3">
-            <div className="border-l-2 border-purple-600 pl-2">
-              <div className="text-xs text-gray-500 font-medium">Avg feedback rating</div>
-              <div className="text-xl font-light text-gray-900">{avgRating} <span className="text-sm text-gray-400">/ 10</span></div>
-              <div className="text-xs text-gray-400 mt-1">{data.feedbackTotals.total} total responses</div>
+
+        {/* Services row — the three service visualizations side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5">
+          <div
+            onClick={() => handleCardClick('services-detail')}
+            className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
+          >
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <div className="text-sm font-semibold text-gray-900">Services by department</div>
+                <div className="text-xs text-gray-500">Total services · today</div>
+              </div>
+              <button className="text-gray-400 text-lg">⋯</button>
             </div>
+            {hasServiceByDept ? (
+              <div className="h-44 w-full">
+                <canvas id="chart-services"></canvas>
+              </div>
+            ) : (
+              <div className="h-44 w-full flex items-center justify-center text-xs text-gray-400">
+                No services assigned to departments yet
+              </div>
+            )}
           </div>
-          <div className="bg-white border border-gray-200 p-3">
-            <div className="border-l-2 border-teal-600 pl-2">
-              <div className="text-xs text-gray-500 font-medium">Active employees</div>
-              <div className="text-2xl font-light text-gray-900">{data.employeeStats.active}</div>
-              <div className="text-xs text-gray-400 mt-1"><span className="text-red-600">{data.employeeStats.inactive} inactive</span></div>
+
+          <div
+            onClick={() => handleCardClick('service-hourly')}
+            className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
+          >
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <div className="text-sm font-semibold text-gray-900">Hourly service check-ins</div>
+                <div className="text-xs text-gray-500">Visitor arrivals · today</div>
+              </div>
+              <button className="text-gray-400 text-lg">⋯</button>
             </div>
+            <div className="flex gap-3 text-xs mb-2">
+              <div className="flex items-center gap-1"><div className="w-2 h-2" style={{ backgroundColor: CC.teal }}></div>Visitors checked in</div>
+              <div className="flex items-center gap-1"><div className="w-3 h-0.5 rounded" style={{ backgroundColor: CC.purple }}></div>3-hr average</div>
+            </div>
+            {hasHourlyService ? (
+              <div className="h-36 w-full">
+                <canvas id="chart-service-hourly"></canvas>
+              </div>
+            ) : (
+              <div className="h-36 w-full flex items-center justify-center text-xs text-gray-400">
+                No visitor check-ins recorded today
+              </div>
+            )}
           </div>
+
           <div className="bg-white border border-gray-200 p-3">
-            <div className="border-l-2 border-yellow-500 pl-2">
-              <div className="text-xs text-gray-500 font-medium">Emergency cars</div>
-              <div className="text-2xl font-light text-gray-900">{data.emergencyCars.total}</div>
-              <div className="text-xs text-gray-400 mt-1"><span className="text-teal-600">{data.emergencyCars.active} active</span> · {data.emergencyCars.expired} expired</div>
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <div className="text-sm font-semibold text-gray-900">Service distribution</div>
+                <div className="text-xs text-gray-500">Share by department · {data.serviceStats.total} total</div>
+              </div>
+              <button className="text-gray-400 text-lg">⋯</button>
             </div>
-          </div>
-          <div className="bg-white border border-gray-200 p-3">
-            <div className="border-l-2 border-blue-600 pl-2">
-              <div className="text-xs text-gray-500 font-medium">Total departments</div>
-              <div className="text-2xl font-light text-gray-900">{data.departments.length}</div>
-              <div className="text-xs text-gray-400 mt-1">{data.employeeStats.total} staff total</div>
-            </div>
+            {serviceShare.length === 0 ? (
+              <div className="text-xs text-gray-400 text-center py-8">No services recorded yet</div>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="w-32 h-32 flex-shrink-0">
+                  <canvas id="chart-services-donut"></canvas>
+                </div>
+                <div className="flex-1 space-y-2 w-full">
+                  {serviceShare.map((s, i) => {
+                    const shareTotal = serviceShare.reduce((sum, e) => sum + e.value, 0) || 1;
+                    return (
+                      <div key={s.name} className="flex justify-between items-center text-xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-2.5 h-2.5 flex-shrink-0" style={{ backgroundColor: DONUT_COLORS[i] }}></div>
+                          <span className="truncate text-gray-600">{s.name}</span>
+                        </div>
+                        <div className="font-semibold text-gray-900 whitespace-nowrap">
+                          {s.value} <span className="text-gray-400 font-normal">({Math.round((s.value / shareTotal) * 100)}%)</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
-        
+
         {/* Overview Tab Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5">
               
@@ -1089,28 +1399,8 @@ const Overview: React.FC = () => {
                   </div>
                 </div>
                 
-                {/* Two Charts Row */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div
-                    onClick={() => handleCardClick('services-detail')}
-                    className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <div className="text-sm font-semibold text-gray-900">Services by department</div>
-                        <div className="text-xs text-gray-500">Inhouse vs completed</div>
-                      </div>
-                      <button className="text-gray-400 text-lg">⋯</button>
-                    </div>
-                    <div className="flex gap-3 text-xs mb-2">
-                      <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-600"></div>Inhouse</div>
-                      <div className="flex items-center gap-1"><div className="w-2 h-2 bg-teal-600"></div>Completed</div>
-                    </div>
-                    <div className="h-40 w-full">
-                      <canvas id="chart-services"></canvas>
-                    </div>
-                  </div>
-                  
+                {/* Employees per department */}
+                <div className="grid grid-cols-1 gap-2.5">
                   <div
                     onClick={() => handleCardClick('employees-detail')}
                     className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
@@ -1332,7 +1622,7 @@ const Overview: React.FC = () => {
             </div>
             
             {/* Bottom Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div
                 onClick={() => handleCardClick('feedback')}
                 className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
@@ -1345,30 +1635,18 @@ const Overview: React.FC = () => {
                   <button className="text-gray-400 text-lg">⋯</button>
                 </div>
                 <div className="flex gap-3 text-xs mb-2">
-                  <div className="flex items-center gap-1"><div className="w-2 h-2 bg-purple-600"></div>Feedback count</div>
+                  <div className="flex items-center gap-1"><div className="w-2 h-2" style={{ backgroundColor: CC.teal }}></div>Feedback count</div>
+                  <div className="flex items-center gap-1"><div className="w-3 h-0.5 rounded" style={{ backgroundColor: CC.purple }}></div>Trend</div>
                 </div>
-                <div className="h-32 w-full">
-                  <canvas id="chart-feedback"></canvas>
-                </div>
-              </div>
-              
-              <div
-                onClick={() => handleCardClick('service-hourly')}
-                className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <div className="text-sm font-semibold text-gray-900">Hourly service check-ins</div>
-                    <div className="text-xs text-gray-500">Visitor arrivals · today</div>
+                {hasFeedbackByDept ? (
+                  <div className="h-40 w-full">
+                    <canvas id="chart-feedback"></canvas>
                   </div>
-                  <button className="text-gray-400 text-lg">⋯</button>
-                </div>
-                <div className="flex gap-3 text-xs mb-2">
-                  <div className="flex items-center gap-1"><div className="w-2 h-2 bg-teal-600"></div>Visitors checked in</div>
-                </div>
-                <div className="h-32 w-full">
-                  <canvas id="chart-service-hourly"></canvas>
-                </div>
+                ) : (
+                  <div className="h-40 w-full flex items-center justify-center text-xs text-gray-400">
+                    No feedback submitted yet
+                  </div>
+                )}
               </div>
               
               <div className="bg-white border border-gray-200 p-3">
@@ -1834,6 +2112,7 @@ const Overview: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
     </MainLayout>
   );
 };
