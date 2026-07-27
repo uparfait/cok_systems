@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
+import { useSocket } from '../../../core/contexts/SocketContext';
 import { statisticsService, employeeService, parkingService, serviceDeliveryService, feedbackService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
@@ -334,6 +335,7 @@ const Overview: React.FC = () => {
 
   // Empty-state flags so cards show a message instead of a blank chart
   const hasHourlyService = !!data && data.hourlyService.some(h => (h.visitors_checked_in || 0) > 0);
+  const hasHourlyParking = !!data && data.hourlyParking.some(h => (h.check_in || 0) > 0 || (h.check_out || 0) > 0);
   const hasFeedbackByDept = !!data && Object.values(data.feedbackTotals.by_department).some(v => Number(v) > 0);
 
   const [lastRefresh, setLastRefresh] = useState(new Date());
@@ -471,16 +473,19 @@ const Overview: React.FC = () => {
     chartsRef.current.clear();
     
     const deptNames = data.departments.map(d => d.name);
-    const checkInData = data.hourlyParking.map(h => h.check_in);
-    const checkOutData = data.hourlyParking.map(h => h.check_out);
-    const visitorData = data.hourlyService.map(h => h.visitors_checked_in);
+    const filteredHourlyParking = data.hourlyParking.filter((h: any) => HOURS.includes(h.hour.toString()));
+    const checkInData = filteredHourlyParking.map(h => h.check_in);
+    const checkOutData = filteredHourlyParking.map(h => h.check_out);
+    const formattedHourLabels = filteredHourlyParking.map((h: any) => formatHourLabel(h.hour));
     const maxParking = Math.max(...checkInData, ...checkOutData, 1);
+    const filteredHourlyService = data.hourlyService.filter((h: any) => SERVICE_HOURS.includes(h.hour.toString()));
+    const visitorData = filteredHourlyService.map(h => h.visitors_checked_in);
+    const formattedServiceHourLabels = filteredHourlyService.map((h: any) => formatHourLabel(h.hour));
     const maxVisitor = Math.max(...visitorData, 1);
 
     // 1. Hourly Parking Chart (Line chart with whole numbers)
     const hourlyCanvas = document.getElementById('chart-hourly') as HTMLCanvasElement;
     if (hourlyCanvas) {
-      const formattedHourLabels = HOURS.map(hour => formatHourLabel(parseInt(hour)));
       chartsRef.current.set('hourly', new Chart(hourlyCanvas, {
         type: 'line',
         data: {
@@ -659,7 +664,6 @@ const Overview: React.FC = () => {
     // 6. Hourly Service Check-ins (columns + 3-hour moving-average trend line, one shared axis)
     const svcHourCanvas = document.getElementById('chart-service-hourly') as HTMLCanvasElement;
     if (svcHourCanvas) {
-      const formattedServiceHourLabels = SERVICE_HOURS.map(hour => formatHourLabel(parseInt(hour)));
       const movingAvg = visitorData.map((_, i) => {
         const windowVals = visitorData.slice(Math.max(0, i - 2), i + 1);
         return windowVals.reduce((a, b) => a + b, 0) / windowVals.length;
@@ -759,7 +763,16 @@ const Overview: React.FC = () => {
   useEffect(() => {
     if (!authLoading && !isAuthenticated) navigate('/login');
   }, [isAuthenticated, authLoading, navigate]);
-  
+
+  const { socket, isConnected } = useSocket();
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+    const events = ['car_checkedin', 'car_checkedout', 'visitor_checkedin', 'visitor_checkedout'];
+    const handler = () => { fetchData(); };
+    events.forEach(ev => socket.on(ev, handler));
+    return () => { events.forEach(ev => socket.off(ev, handler)); };
+  }, [socket, isConnected, fetchData]);
+
   // Fetch paginated data for modals
   const fetchModalData = useCallback(async (cardType: string, page: number = 1, limit: number = 8) => {
     setModalLoading(true);
@@ -1051,8 +1064,8 @@ const Overview: React.FC = () => {
             existingChart.destroy();
           }
 
-          const formattedServiceHourLabels = SERVICE_HOURS.map(hour => formatHourLabel(parseInt(hour)));
-          const visitorData = modalData.map((hour: any) => hour.visitors_checked_in || 0);
+          const formattedServiceHourLabels = modalData.filter((h: any) => SERVICE_HOURS.includes(h.hour.toString())).map((h: any) => formatHourLabel(h.hour));
+          const visitorData = modalData.filter((h: any) => SERVICE_HOURS.includes(h.hour.toString())).map((hour: any) => hour.visitors_checked_in || 0);
           const maxVisitor = Math.max(...visitorData, 1);
 
           const newChart = new Chart(modalCanvas, {
@@ -1316,7 +1329,6 @@ const Overview: React.FC = () => {
                   className="flex-1 flex items-center justify-end gap-2 pb-2 border-b-[3px]"
                   style={{ borderColor: CC.blue }}
                 >
-                  <span className="text-xs text-gray-500">(avg # per employee)</span>
                   <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.blue }}>
                     Services
                   </span>
@@ -1468,9 +1480,15 @@ const Overview: React.FC = () => {
                     <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-600"></div>Check-in</div>
                     <div className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500"></div>Check-out</div>
                   </div>
-                  <div className="h-40 w-full">
-                    <canvas id="chart-hourly"></canvas>
-                  </div>
+                  {hasHourlyParking ? (
+                    <div className="h-40 w-full">
+                      <canvas id="chart-hourly"></canvas>
+                    </div>
+                  ) : (
+                    <div className="h-40 w-full flex items-center justify-center text-xs text-gray-400">
+                      No parking check-ins recorded today
+                    </div>
+                  )}
                 </div>
                 
                 {/* Employees per department */}

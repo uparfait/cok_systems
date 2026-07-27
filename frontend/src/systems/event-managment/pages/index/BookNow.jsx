@@ -139,7 +139,19 @@ export default function BookNow() {
 
   function handleChange(e) {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [name]: value };
+      // Internal bookings default the organizer institution to City of Kigali;
+      // other types clear it only if it still holds that default (user input is kept)
+      if (name === "eventType") {
+        if (value === "Internal" && !prev.organizerInstitution.trim()) {
+          next.organizerInstitution = "City of Kigali";
+        } else if (value !== "Internal" && prev.organizerInstitution === "City of Kigali") {
+          next.organizerInstitution = "";
+        }
+      }
+      return next;
+    });
     if (fieldErrors[name]) setFieldErrors((prev) => ({ ...prev, [name]: null }));
   }
 
@@ -290,8 +302,9 @@ export default function BookNow() {
 
           <CreateEventStepper currentStep={step} eventMeetingType={eventMeetingType} onStepClick={handleStepClick} completedSteps={completedSteps} />
 
+          {/* text-left overrides the site layout's text-center so labels line up with their fields */}
           <form onSubmit={step === maxSteps ? handleSubmit : (e) => { e.preventDefault(); handleNext(); }}
-            className="p-6 space-y-5" style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, borderTop: '0' }}>
+            className="p-6 space-y-5 text-left" style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, borderTop: '0' }}>
             <SystemAlert isOpen={systemAlert.isOpen} type={systemAlert.type} message={systemAlert.message} onClose={() => setSystemAlert((s) => ({ ...s, isOpen: false }))} />
             
 
