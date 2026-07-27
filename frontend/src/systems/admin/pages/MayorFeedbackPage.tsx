@@ -68,7 +68,7 @@ export default function MayorFeedbackPage() {
   const [categoryTab, setCategoryTab] = useState<CategoryTab>('all');
   const [sentimentTab, setSentimentTab] = useState<SentimentTab>('all');
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE = 5;
 
   useEffect(() => {
     let cancelled = false;

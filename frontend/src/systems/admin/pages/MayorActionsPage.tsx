@@ -61,7 +61,7 @@ export default function MayorActionsPage() {
   const [tab, setTab] = useState<TabKey>('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE = 5;
 
   useEffect(() => {
     let cancelled = false;
@@ -152,7 +152,7 @@ export default function MayorActionsPage() {
   return (
     <MainLayout>
       <div className="p-4 space-y-4" style={{ backgroundColor: COK.neutralLight, minHeight: '100%' }}>
-        <CokPageHeader title="Actions" subtitle="Event action items — deadlines, assignments and progress" />
+        <CokPageHeader title="Actions" subtitle="Event action items deadlines, assignments and progress" />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <CokStatCard
@@ -297,7 +297,7 @@ export default function MayorActionsPage() {
             className="px-4 py-3 text-xs text-gray-400"
             style={{ borderTop: `1px solid ${COK.border}`, fontFamily: COK.bodyFont }}
           >
-            View only — actions are managed by the Event Manager's office.
+            View only actions are managed by the Event Manager's office.
           </div>
         </div>
       </div>
