@@ -122,6 +122,14 @@ module.exports = async function toggle_service_status(req, res, next) {
 
                 await visitor.save();
 
+                global.WebsocketIO?.emit('service_status_updated', {
+                    visitor_id: visitor._id,
+                    department_id,
+                    department_name: user_department.department_name,
+                    status,
+                    provider_name: officerName,
+                });
+
                 return res.status(200).json({
                     success: true,
                     type: "success",
@@ -274,6 +282,14 @@ module.exports = async function toggle_service_status(req, res, next) {
         }
 
         const updated_visitor = await visitor.save();
+
+        global.WebsocketIO?.emit('service_status_updated', {
+            visitor_id: visitor._id,
+            department_id,
+            department_name: user_department.department_name,
+            status,
+            provider_name: officerName,
+        });
 
         return res.status(200).json({
             success: true,
