@@ -200,6 +200,26 @@ const Overview: React.FC = () => {
     return top;
   }, [data]);
 
+  // Departments vs services mirrored chart: staff headcount (left) against
+  // services handled per employee (right), largest departments first
+  const deptVsServices = useMemo(() => {
+    if (!data) return [] as Array<{ name: string; staff: number; services: number; avg: number }>;
+    return data.departments
+      .map(d => {
+        const services = Number(data.serviceStats.by_department[d.name]) || 0;
+        return {
+          name: d.name,
+          staff: d.staff,
+          services,
+          avg: Math.round((services / Math.max(d.staff, 1)) * 10) / 10,
+        };
+      })
+      .sort((a, b) => b.staff - a.staff)
+      .slice(0, 8);
+  }, [data]);
+  const maxDeptStaff = Math.max(...deptVsServices.map(r => r.staff), 1);
+  const maxDeptAvg = Math.max(...deptVsServices.map(r => r.avg), 1);
+
   // Empty-state flags so cards show a message instead of a blank chart
   const hasServiceByDept = !!data && Object.values(data.serviceStats.by_department).some(v => Number(v) > 0);
   const hasHourlyService = !!data && data.hourlyService.some(h => (h.visitors_checked_in || 0) > 0);
@@ -346,58 +366,6 @@ const Overview: React.FC = () => {
     const maxParking = Math.max(...checkInData, ...checkOutData, 1);
     const maxVisitor = Math.max(...visitorData, 1);
 
-    // 0. City Overview metrics (horizontal bars replace the KPI cards)
-    const overviewCanvas = document.getElementById('chart-overview') as HTMLCanvasElement;
-    if (overviewCanvas) {
-      const metrics = [
-        { label: 'Total employees', value: data.employeeStats.total, color: CC.blue },
-        { label: 'Active employees', value: data.employeeStats.active, color: CC.teal },
-        { label: 'Currently parked', value: data.parkingStats.total, color: CC.purple },
-        { label: 'Total services', value: data.serviceStats.total, color: CC.amber },
-        { label: 'Total departments', value: data.departments.length, color: '#CDB896' },
-        { label: 'Emergency cars', value: data.emergencyCars.total, color: CC.red },
-        { label: 'Avg feedback (/10)', value: Math.round(data.feedbackAvg.overall_average.average_rating), color: '#9E9E9E' },
-      ];
-      const maxMetric = Math.max(...metrics.map(m => m.value), 1);
-      chartsRef.current.set('overview', new Chart(overviewCanvas, {
-        type: 'bar',
-        data: {
-          labels: metrics.map(m => m.label),
-          datasets: [{
-            data: metrics.map(m => m.value),
-            backgroundColor: metrics.map(m => m.color),
-            borderRadius: 4,
-            borderSkipped: 'start',
-            maxBarThickness: 20,
-            barPercentage: 0.7,
-            categoryPercentage: 0.8,
-            label: 'Value',
-            valueLabels: 'all',
-          } as any]
-        },
-        options: {
-          indexAxis: 'y',
-          responsive: true,
-          maintainAspectRatio: false,
-          layout: { padding: { right: 30 } },
-          plugins: {
-            legend: { display: false },
-            tooltip: { callbacks: { label: (ctx: any) => `${ctx.label}: ${Math.round(ctx.raw)}` } }
-          },
-          scales: {
-            x: {
-              beginAtZero: true,
-              suggestedMax: maxMetric,
-              grid: { color: '#eef2f6' },
-              ticks: { precision: 0, font: { size: 10 } }
-            },
-            y: { grid: { display: false }, ticks: { font: { size: 11 } } }
-          }
-        },
-        plugins: [barValueLabels]
-      }));
-    }
-    
     // 1. Hourly Parking Chart (Line chart with whole numbers)
     const hourlyCanvas = document.getElementById('chart-hourly') as HTMLCanvasElement;
     if (hourlyCanvas) {
@@ -1125,8 +1093,6 @@ const Overview: React.FC = () => {
   }, [selectedCard, modalPagination.limit, fetchModalData]);
 
   // Computed values (rounded, no decimals)
-  const activeRate = data ? Math.round((data.employeeStats.active / data.employeeStats.total) * 100) : 0;
-  const completionRate = data && data.serviceStats.total ? Math.round((data.serviceStats.completed / data.serviceStats.total) * 100) : 0;
   const avgRating = data ? Math.round(data.feedbackAvg.overall_average.average_rating) : 0;
   const driverTotal = data ? data.parkingStats.by_driver_type.staff + data.parkingStats.by_driver_type.visitor + data.parkingStats.by_driver_type.regular : 0;
   const maxStaff = data ? Math.max(...data.departments.map(d => d.staff), 1) : 1;
@@ -1220,20 +1186,108 @@ const Overview: React.FC = () => {
       {/* Main Content */}
       <div className="p-3 space-y-2.5">
         
-        {/* City overview  one chart replaces the KPI card rows */}
-        <div className="bg-white border border-gray-200 p-3">
-          <div className="flex justify-between items-start mb-3">
+        {/* Departments vs services  mirrored comparison of staff headcount and workload per employee */}
+        <div className="bg-white border border-gray-200 p-4 sm:p-5 rounded-lg shadow-sm">
+          <div className="flex justify-between items-start mb-4">
             <div>
-              <div className="text-sm font-semibold text-gray-900">City overview</div>
-              <div className="text-xs text-gray-500">
-                Key figures at a glance · {activeRate}% employees active · {completionRate}% services completed · {data.feedbackTotals.total} feedback responses
+              <div className="text-base font-bold text-gray-900">Departments vs services</div>
+              <div className="text-xs text-gray-500 mt-0.5">
+                Staff headcount against services handled per employee · today
               </div>
             </div>
             <button className="text-gray-400 text-lg leading-none">⋯</button>
           </div>
-          <div className="h-64 w-full">
-            <canvas id="chart-overview"></canvas>
-          </div>
+
+          {deptVsServices.length === 0 ? (
+            <div className="h-40 w-full flex items-center justify-center text-xs text-gray-400">
+              No department data available yet
+            </div>
+          ) : (
+            <div>
+              {/* Column headers, underlined in their series color like the reference design */}
+              <div className="flex items-center gap-3 mb-4">
+                <div
+                  className="flex-1 flex items-center gap-2 pb-2 border-b-[3px]"
+                  style={{ borderColor: CC.amber }}
+                >
+                  <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.amber }}>
+                    Departments
+                  </span>
+                  <span className="text-xs text-gray-500">(employees)</span>
+                </div>
+                <div
+                  className="flex-1 flex items-center justify-end gap-2 pb-2 border-b-[3px]"
+                  style={{ borderColor: CC.blue }}
+                >
+                  <span className="text-xs text-gray-500">(avg # per employee)</span>
+                  <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.blue }}>
+                    Services
+                  </span>
+                </div>
+              </div>
+
+              {/* Mirrored rows: orange bars grow left from the center divider, blue bars grow right.
+                  Bars sit on a soft full-width track; a white-fade gradient gives them depth. */}
+              <div className="space-y-3">
+                {deptVsServices.map(row => (
+                  <div
+                    key={row.name}
+                    className="flex items-center py-0.5 rounded-md hover:bg-gray-50 transition-colors"
+                    title={`${row.name}: ${row.staff} employees · ${row.services} services · ${row.avg} per employee`}
+                  >
+                    <div className="flex-1 flex items-center gap-2.5 min-w-0">
+                      <span className="w-40 sm:w-48 flex-shrink-0 text-right text-[13px] font-medium text-gray-700 truncate">
+                        {row.name} <span className="text-gray-400 font-normal">({row.staff})</span>
+                      </span>
+                      <div className="flex-1 h-6 bg-gray-100/80 rounded-l-lg flex justify-end overflow-hidden">
+                        <div
+                          className="h-full flex items-center pl-2 shadow-sm"
+                          style={{
+                            width: `${Math.round((row.staff / maxDeptStaff) * 100)}%`,
+                            minWidth: row.staff > 0 ? 26 : 0,
+                            backgroundColor: CC.amber,
+                            backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.08), rgba(255,255,255,0.28))',
+                            borderRadius: '6px 0 0 6px',
+                          }}
+                        >
+                          {row.staff > 0 && (
+                            <span className="text-[11px] font-bold text-white leading-none drop-shadow-sm">{row.staff}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      className="w-[3px] self-stretch rounded-full mx-1 flex-shrink-0"
+                      style={{ background: `linear-gradient(to bottom, ${CC.amber}, ${CC.blue})` }}
+                    ></div>
+
+                    <div className="flex-1 flex items-center gap-2.5 min-w-0">
+                      <div className="flex-1 h-6 bg-gray-100/80 rounded-r-lg flex justify-start overflow-hidden">
+                        <div
+                          className="h-full flex items-center justify-end pr-2 shadow-sm"
+                          style={{
+                            width: `${Math.round((row.avg / maxDeptAvg) * 100)}%`,
+                            minWidth: row.avg > 0 ? 30 : 0,
+                            backgroundColor: CC.blue,
+                            backgroundImage: 'linear-gradient(to left, rgba(0,0,0,0.08), rgba(255,255,255,0.28))',
+                            borderRadius: '0 6px 6px 0',
+                          }}
+                        >
+                          {row.avg > 0 && (
+                            <span className="text-[11px] font-bold text-white leading-none drop-shadow-sm">{row.avg}</span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="w-40 sm:w-48 flex-shrink-0 text-[13px] font-medium text-gray-700 truncate">
+                        {row.services} services <span className="text-gray-400 font-normal">({row.avg}/emp)</span>
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Services row — the three service visualizations side by side */}
