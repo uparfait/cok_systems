@@ -1,38 +1,39 @@
-// TOTPVerificationModal - TOTP verification modal for existing users
-// Uses auth context for TOTP verification
+// TOTPSetupModal - TOTP setup modal for old accounts without 2FA
+// Shows QR code and verifies TOTP, then completes login
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { getDashboardRoute } from '../Layout/layoutUtils';
 
-interface TOTPVerificationModalProps {
+interface TOTPSetupModalProps {
   isOpen: boolean;
   onClose: () => void;
-  email?: string;
+  onSuccess?: () => void;
   userId?: string;
+  qrCode?: string;
+  secret?: string;
 }
 
-const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({ 
+const TOTPSetupModal: React.FC<TOTPSetupModalProps> = ({ 
   isOpen, 
   onClose, 
-  email: initialEmail = '', 
-  userId: initialUserId = '' 
+  onSuccess,
+  userId: initialUserId = '',
+  qrCode: initialQrCode = '',
+  secret: initialSecret = ''
 }) => {
-  const { verifyOTP, resendOTP, checkAuth } = useAuth();
+  const { verifyOTP, checkAuth } = useAuth();
   const { showSuccess, showError, showWarning } = useToast();
-  const [email, setEmail] = useState(initialEmail);
-  const [otp, setOtp] = useState(['', '', '', '', '', '']); // 6 digits for TOTP
+  const [userId, setUserId] = useState(initialUserId);
+  const [qrCode, setQrCode] = useState(initialQrCode);
+  const [secret, setSecret] = useState(initialSecret);
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timeLeft, setTimeLeft] = useState(300);
-  const [isResending, setIsResending] = useState(false);
-  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [timeLeftExpiry, setTimeLeftExpiry] = useState(60);
-  
-  const userIdRef = useRef(initialUserId);
-  const [currentUserId, setCurrentUserId] = useState(initialUserId);
+  const [error, setError] = useState('');
   
   const navigate = useNavigate();
 
@@ -40,23 +41,18 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
   const logoImage = '/LOGO_COK.png';
 
   useEffect(() => {
-    userIdRef.current = initialUserId;
-    setCurrentUserId(initialUserId);
-    setEmail(initialEmail);
-  }, [initialUserId, initialEmail]);
-
-  useEffect(() => {
     if (!isOpen) {
       setTimeout(() => {
-        setEmail(initialEmail);
+        setUserId(initialUserId);
+        setQrCode(initialQrCode);
+        setSecret(initialSecret);
         setOtp(['', '', '', '', '', '']);
         setTimeLeft(300);
-        setTimeLeftExpiry(60);
-        setError('');
         setIsSuccess(false);
+        setError('');
       }, 300);
     }
-  }, [isOpen]);
+  }, [isOpen, initialUserId, initialQrCode, initialSecret]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -64,17 +60,10 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
       timer = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 0) {
-             clearInterval(timer);
+            clearInterval(timer);
             return 0;
           }
           return prev - 1;
-        });
-
-        setTimeLeftExpiry((prev) => {
-          if (prev <= 0) {
-            return 0;
-          }
-           return prev - 1;
         });
       }, 1000);
     }
@@ -95,14 +84,14 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
     setError('');
 
     if (value && index < 5) {
-      const nextInput = document.getElementById(`otp-verify-${index + 1}`);
+      const nextInput = document.getElementById(`totp-setup-${index + 1}`);
       if (nextInput) nextInput.focus();
     }
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
     if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      const prevInput = document.getElementById(`otp-verify-${index - 1}`);
+      const prevInput = document.getElementById(`totp-setup-${index - 1}`);
       if (prevInput) prevInput.focus();
     }
   };
@@ -121,14 +110,12 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
     setOtp(newOtp);
   };
 
-  const handleVerify = useCallback(async () => {
+  const handleVerify = async () => {
     const otpString = otp.join('');
     
-    const uid = userIdRef.current || currentUserId || initialUserId;
-    
-    if (!uid) {
-      setError('User ID is missing. Please try logging in again.');
-      showError('User ID is missing. Please try logging in again.');
+    if (!userId) {
+      setError('User ID is missing. Please try again.');
+      showError('User ID is missing. Please try again.');
       return;
     }
     
@@ -141,18 +128,16 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
     setError('');
 
     try {
-      const result = await verifyOTP(String(uid), String(otpString));
+      const result = await verifyOTP(String(userId), String(otpString));
       
-      console.log('[TOTPVerificationModal] verifyOTP result:', JSON.stringify(result, null, 2));
+      console.log('[TOTPSetupModal] verifyOTP result:', JSON.stringify(result, null, 2));
       
       const hasAccessToken = !!result.data?.accessToken;
       const isVerified = (result.status === true || result.success === true) && (hasAccessToken || result.data?.verified === true);
       
-      console.log('[TOTPVerificationModal] isVerified:', isVerified, 'result.status:', result.status, 'has accessToken:', hasAccessToken);
-      
       if (isVerified) {
         setIsSuccess(true);
-        showSuccess('TOTP verified successfully! Redirecting...');
+        showSuccess('TOTP verified successfully! 2FA is now enabled.');
         
         if (hasAccessToken && result.data) {
           const { accessToken, refreshToken, user, ...userInfo } = result.data;
@@ -168,13 +153,14 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
           } else {
             localStorage.setItem('userData', JSON.stringify(userInfo));
           }
-          
-          console.log('[TOTPVerificationModal] Tokens stored successfully');
         }
         
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        onClose();
+        if (onSuccess) {
+          onSuccess();
+        }
+        
         const storedUser = localStorage.getItem('userData');
         let userRole = '';
         let userDepartment = '';
@@ -184,7 +170,7 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
             userRole = userData.role || '';
             userDepartment = userData.department_name || userData.departmentName || userData.department || '';
           } catch (e) {
-            console.error('[TOTPVerificationModal] Failed to parse user data:', e);
+            console.error('[TOTPSetupModal] Failed to parse user data:', e);
           }
         }
         const redirectPath = await getDashboardRoute(userRole, userDepartment);
@@ -194,39 +180,13 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
         showError(result.message || result.error || 'Invalid TOTP. Please try again.');
       }
     } catch (err: any) {
-      console.error('[TOTPVerificationModal] verifyOTP error:', err);
+      console.error('[TOTPSetupModal] verifyOTP error:', err);
       setError(err?.message || err?.error || 'Failed to verify TOTP');
       showError(err?.message || err?.error || 'Failed to verify TOTP. Please try again.');
-    
     } finally {
       setIsLoading(false);
     }
-  }, [otp, verifyOTP, onClose, currentUserId, initialUserId, checkAuth, navigate]);
-
-  const handleResend = useCallback(async () => {
-    const uid = userIdRef.current || currentUserId || initialUserId;
-    
-    if (!uid) {
-      setError('User ID is missing. Please try again.');
-      showError('User ID is missing. Please try again.');
-      return;
-    }
-    
-    setIsResending(true);
-    setError('');
-
-    try {
-      await resendOTP(uid, email);
-      setTimeLeft(300);
-      setTimeLeftExpiry(60);
-      showSuccess('TOTP codes are generated by your authenticator app and change every 30 seconds.');
-    } catch (err: any) {
-      setError(err?.error || 'Failed to resend TOTP');
-      showError(err?.error || 'Failed to resend TOTP. Please try again.');
-    } finally {
-      setIsResending(false);
-    }
-  }, [resendOTP, email, currentUserId, initialUserId, showSuccess, showError]);
+  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -266,7 +226,7 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Verification Successful!</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">2FA Setup Complete!</h3>
               <p className="text-gray-600">
                 Redirecting to dashboard...
               </p>
@@ -291,13 +251,33 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
               </div>
 
               <h1 className="text-2xl font-bold text-center text-[#056daa] mb-2">
-                Two-Factor Authentication
+                Setup Two-Factor Authentication
               </h1>
 
               <p className="text-center text-gray-500 mb-6">
-                Open your authenticator app and enter the 6-digit code for<br />
-                <span className="font-semibold text-gray-700">{maskEmail(email)}</span>
+                Scan the QR code with your authenticator app (Google Authenticator, Authy, etc.) and enter the 6-digit code
               </p>
+
+              {qrCode && (
+                <div className="flex justify-center mb-4">
+                  <img
+                    src={qrCode}
+                    alt="TOTP QR Code"
+                    className="w-48 h-48 border border-gray-200 rounded-lg"
+                  />
+                </div>
+              )}
+
+              {secret && (
+                <div className="text-center mb-4">
+                  <p className="text-xs text-gray-500 mb-1">
+                    Can't scan? Enter this secret manually:
+                  </p>
+                  <code className="text-sm bg-gray-100 px-2 py-1 rounded">
+                    {secret}
+                  </code>
+                </div>
+              )}
 
               <div className="flex justify-center gap-2 mb-4" onPaste={handlePaste} onKeyUp={(e) => {
                 if (e.key === 'Enter') {
@@ -307,7 +287,7 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
                 {otp.map((digit, index) => (
                     <input
                       key={index}
-                      id={`otp-verify-${index}`}
+                      id={`totp-setup-${index}`}
                       type="text"
                       inputMode="numeric"
                       pattern="[0-9]*"
@@ -331,10 +311,10 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
 
               <button
                 onClick={handleVerify}
-                disabled={otp.join('').length !== 6 || isLoading || !currentUserId}
+                disabled={otp.join('').length !== 6 || isLoading}
                 className="w-full cok-btn-primary disabled:opacity-50 disabled:cursor-not-allowed mb-4"
               >
-                {isLoading ? 'Verifying...' : 'Verify TOTP'}
+                {isLoading ? 'Verifying...' : 'Verify & Enable 2FA'}
               </button>
 
               <div className="text-center mt-4">
@@ -342,7 +322,7 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
                   onClick={onClose}
                   className="cok-btn-outlined w-full"
                 >
-                  Back to Login
+                  Cancel
                 </button>
               </div>
 
@@ -357,4 +337,4 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
   );
 };
 
-export default TOTPVerificationModal;
+export default TOTPSetupModal;

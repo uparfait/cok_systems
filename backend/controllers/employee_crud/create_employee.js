@@ -249,7 +249,7 @@ module.exports = async function create_user(req, res, next) {
             title: title || 'Not specified',
             email,
             department: dpt ? dpt._id : null,
-            department_unit: department_unit || null, // Saved department_unit
+            department_unit: department_unit || null,
             password: generated_password,
             access_control: {
                 is_locked: false,
@@ -265,6 +265,7 @@ module.exports = async function create_user(req, res, next) {
             },
             is_active: false,
             is_account_activated: false,
+            is_2FA_disabled: false,
             registered_by
         })
 

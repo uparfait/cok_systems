@@ -152,6 +152,8 @@ export interface Employee {
   department_id?: string;
   status?: string;
   roles?: EmployeeRole;
+  is_account_activated?: boolean;
+  is_2FA_disabled?: boolean;
   createdAt?: string;
 }
 
@@ -529,6 +531,7 @@ export interface UserAccount {
   department_name?: string;
   is_active?: boolean;
   is_account_activated?: boolean;
+  is_2FA_disabled?: boolean;
   created_date?: string;
   access_control?: { is_locked?: boolean; reason?: string; last_login_attempt?: number };
 }

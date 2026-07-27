@@ -143,9 +143,13 @@ async function sendOTP(req, res, next) {
 
         await User.findByIdAndUpdate(user._id, {
             $set: {
-                "auth.access_token.token_type": "first_login_otp",
-                "auth.access_token.token": hashedOTP,
-            },
+                auth: {
+                    access_token: {
+                        token_type: "first_login_otp",
+                        token: hashedOTP
+                    }
+                }
+            }
         });
 
         console.log(otpCode)

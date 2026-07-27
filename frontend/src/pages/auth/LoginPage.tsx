@@ -6,6 +6,7 @@ import {  useNavigate } from 'react-router-dom';
 import FirstTimeLoginOTPModal from '../../core/components/Modals/FirstTimeLoginOTPModal';
 import PasswordSetupModal from '../../core/components/Modals/PasswordSetupModal';
 import OTPVerificationModal from '../../core/components/Modals/OTPVerificationModal';
+import TOTPSetupModal from '../../core/components/Modals/TOTPSetupModal';
 import PasswordResetOTPModal from '../../core/components/Modals/PasswordResetOTPModal';
 import FeedbackModal from '../../core/components/Modals/FeedbackModal';
 import { useAuth } from '../../core/contexts/AuthContext';
@@ -26,12 +27,16 @@ const LoginPage = () => {
   const [showFirstTimeOTPModal, setShowFirstTimeOTPModal] = useState(false);
   const [showPasswordSetupModal, setShowPasswordSetupModal] = useState(false);
   const [showOTPVerificationModal, setShowOTPVerificationModal] = useState(false);
+  const [showTOTPSetupModal, setShowTOTPSetupModal] = useState(false);
   const [showPasswordResetOTPModal, setShowPasswordResetOTPModal] = useState(false);
   const [passwordSetupEmail, setPasswordSetupEmail] = useState('');
   const [passwordSetupSignature, setPasswordSetupSignature] = useState('');
   const [passwordSetupUserId, setPasswordSetupUserId] = useState('');
   const [otpVerificationEmail, setOtpVerificationEmail] = useState('');
   const [otpVerificationUserId, setOtpVerificationUserId] = useState('');
+  const [totpSetupQrCode, setTotpSetupQrCode] = useState('');
+  const [totpSetupSecret, setTotpSetupSecret] = useState('');
+  const [totpSetupUserId, setTotpSetupUserId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -114,8 +119,8 @@ const LoginPage = () => {
     try {
       const result = await login(email, password);
       
-      if ((result.status === true || result.success === true) && result.data?.requiresOTP) {
-        // User needs OTP verification (existing user with 2FA)
+      if ((result.status === true || result.success === true) && result.data?.requiresOTP && !result.data?.twoFADisabled) {
+        // User needs TOTP verification (existing user with 2FA)
         const userId = result.data.userId || result.data.user_id || result.data.id;
         
         if (!userId) {
@@ -127,8 +132,42 @@ const LoginPage = () => {
         setOtpVerificationUserId(String(userId));
         setShowOTPVerificationModal(true);
         return;
-      } else if ((result.status === true || result.success === true) && result.data?.tokens) {
+      } else if ((result.status === true || result.success === true) && result.data?.requiresTOTPSetup) {
+        // User needs to set up 2FA first (old account without 2FA)
+        const userId = result.data.userId || result.data.user_id || result.data.id;
+        
+        if (!userId) {
+          showError('Login succeeded but user ID was not returned. Please try again.');
+          return;
+        }
+        
+        setTotpSetupUserId(String(userId));
+        setTotpSetupQrCode(result.data.qrCode || '');
+        setTotpSetupSecret(result.data.secret || '');
+        setShowTOTPSetupModal(true);
+        return;
+      } else if ((result.status === true || result.success === true) && (result.data?.accessToken || result.data?.tokens)) {
         // Direct login - tokens stored in context, redirect based on role
+        const tokens = result.data.tokens || result.data;
+        if (tokens.accessToken) {
+          localStorage.setItem('accessToken', tokens.accessToken);
+        }
+        if (tokens.refreshToken) {
+          localStorage.setItem('refreshToken', tokens.refreshToken);
+        }
+        
+        // Store user data for auth context
+        const userData = {
+          userId: result.data.userId || result.data.user_id,
+          email: result.data.email || email,
+          fullName: result.data.fullName || result.data.full_name,
+          role: result.data.role || '',
+          permissions: result.data.permissions || [],
+          department_name: result.data.department_name,
+          department_id: result.data.department_id
+        };
+        localStorage.setItem('userData', JSON.stringify(userData));
+        
         const userRole = result.data.role || '';
         const userDepartment = result.data.department_name || result.data.departmentName || result.data.department;
         
@@ -195,6 +234,14 @@ const LoginPage = () => {
     setPassword('');
     // Show success message via toast
     showSuccess('Account activated successfully! You can now login with your email and password.');
+  };
+
+  const handleTOTPSetupSuccess = () => {
+    setShowTOTPSetupModal(false);
+    setTotpSetupQrCode('');
+    setTotpSetupSecret('');
+    setTotpSetupUserId('');
+    showSuccess('Two-factor authentication set up successfully! You can now login.');
   };
 
   // Handle forgot password click - navigate to forgot password page
@@ -533,12 +580,12 @@ const LoginPage = () => {
                 <p className="text-xs" style={{ fontFamily: "'Merriweather', serif", color: '#555555' }}>
                   First time logging in?
                 </p>
-                <button
+                  <button
                   onClick={handleOTPLogin}
                   className="cok-btn-outlined mt-2 inline-flex items-center justify-center"
                 >
                   <FiLogIn className="h-3.5 w-3.5 mr-2" />
-                  Login with OTP (One-Time PIN)
+                  First Time Login
                 </button>
               </div>
             </div>
@@ -584,6 +631,18 @@ const LoginPage = () => {
           onClose={() => setShowOTPVerificationModal(false)}
           email={otpVerificationEmail}
           userId={otpVerificationUserId}
+        />
+      )}
+
+      {/* TOTP Setup Modal for old accounts without 2FA */}
+      {showTOTPSetupModal && (
+        <TOTPSetupModal
+          isOpen={showTOTPSetupModal}
+          onClose={() => setShowTOTPSetupModal(false)}
+          onSuccess={handleTOTPSetupSuccess}
+          userId={totpSetupUserId}
+          qrCode={totpSetupQrCode}
+          secret={totpSetupSecret}
         />
       )}
 

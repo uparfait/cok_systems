@@ -1,11 +1,9 @@
 /**
  * Send OTP Controller
- * Step 2: Send OTP to user's email for verification
+ * Step 2: Generate TOTP secret and QR code for 2FA setup
  */
 
-const otp = require("../../../utilities/otp");
-const email = require("../../../utilities/email");
-const tokenUtil = require("../../../utilities/token");
+const totp = require("../../../utilities/totp");
 const User = require("../../../models/user");
 
 // Lock message
@@ -58,32 +56,33 @@ async function sendOTP(req, res, next) {
       });
     }
 
-    // Generate 5-digit OTP
-    const { otp: otpCode, expiresAt } = otp.generateOTPWithExpiry();
+    // Generate TOTP secret and QR code
+    const { secret, otpauthUrl } = totp.generateTOTPSecret(normalizedEmail);
+    const qrCodeDataUrl = await totp.generateQRCode(otpauthUrl);
 
-    // Hash the OTP for database storage
-    const hashedOTP = await tokenUtil.hashTokenLoginToken(otpCode.toString());
-
-    // Calculate expiry time
-    const otpExpiry = new Date(Date.now() + otp.OTP_EXPIRY_SECONDS * 1000);
-
+    // Store the secret in user document (temporarily, until account is activated)
     await User.findByIdAndUpdate(user._id, {
       $set: {
-        "auth.access_token.token_type": "first_login_otp",
-        "auth.access_token.token": hashedOTP,
-      },
+        twofa_secret: secret,
+        auth: {
+          access_token: {
+            token_type: "first_login_totp",
+            token: secret
+          }
+        }
+      }
     });
-
-    // Send OTP email
-    await email.sendOTPEmail(normalizedEmail, otpCode, "first_login");
 
     return res.status(200).json({
       status: true,
       error: null,
-      message: "OTP sent to your email. Please verify to activate your account.",
+      message: "TOTP secret generated. Please scan the QR code with your authenticator app.",
       data: {
         userId: user._id,
         email: normalizedEmail,
+        secret: secret,
+        qrCode: qrCodeDataUrl,
+        otpauthUrl: otpauthUrl
       },
     });
 

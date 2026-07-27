@@ -19,43 +19,43 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
     resendFirstLoginOTP,
     verifyFirstLoginOTP,
   } = useAuth();
-  const { showError, showWarning, showSuccess } = useToast();
+  const { showError, showWarning, showSuccess, showInfo } = useToast();
 
   const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState(["", "", "", "", ""]); // 5 digits
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]); // 6 digits for TOTP
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
   const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  // State for tracking step: 'email' -> 'otp' -> 'success'
-  const [step, setStep] = useState<"email" | "otp" | "success">("email");
+  const [step, setStep] = useState<"email" | "totp" | "success">("email");
   const [currentUserId, setCurrentUserId] = useState("");
+  const [qrCode, setQrCode] = useState("");
+  const [secret, setSecret] = useState("");
 
-  // Background images
   const cityHallImage = "/cok_hall.jpg";
   const logoImage = "/LOGO_COK.png";
 
   useEffect(() => {
     if (!isOpen) {
-      // Reset state when modal closes
       setTimeout(() => {
         setEmail("");
-        setOtp(["", "", "", "", ""]);
+        setOtp(["", "", "", "", "", ""]);
         setTimeLeft(300);
         setError("");
         setSuccess(false);
         setStep("email");
         setCurrentUserId("");
+        setQrCode("");
+        setSecret("");
       }, 300);
     }
   }, [isOpen]);
 
-  // Timer effect
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (step === "otp" && timeLeft > 0 && !success) {
+    if (step === "totp" && timeLeft > 0 && !success) {
       timer = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 0) {
@@ -69,7 +69,6 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
     return () => clearInterval(timer);
   }, [step, timeLeft, success]);
 
-  // Step 1: Check email and send OTP
   const handleSendOTP = async () => {
     if (!email) {
       showWarning("Please enter your email");
@@ -80,10 +79,8 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
     setError("");
 
     try {
-      // First check if email exists and account can be activated
       const checkResult = await checkEmailForFirstLogin(email);
 
-      // Check if account is already activated FIRST (before checking status)
       if (checkResult.data?.alreadyActivated) {
         showWarning(
           checkResult.message ||
@@ -101,26 +98,25 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
         return;
       }
 
-      // Show success for email verification
-      showSuccess(checkResult.message || "Email verified. Sending OTP...");
+      showSuccess(checkResult.message || "Email verified. Setting up 2FA...");
 
-      // Now send OTP
       const otpResult = await sendFirstLoginOTP(email);
 
       if (otpResult.status && otpResult.data?.userId) {
         setCurrentUserId(otpResult.data.userId);
-        setStep("otp");
+        setQrCode(otpResult.data.qrCode || "");
+        setSecret(otpResult.data.secret || "");
+        setStep("totp");
         showSuccess(
           otpResult.message ||
-            "OTP sent successfully! Please check your email.",
+            "TOTP setup generated! Please scan the QR code with your authenticator app.",
         );
       } else {
-        showError(otpResult.message || otpResult.error || "Failed to send OTP");
+        showError(otpResult.message || otpResult.error || "Failed to setup 2FA");
       }
     } catch (err: any) {
-      // Show error toast for send OTP
       const errorMessage =
-        err?.message || err?.error || "Failed to send OTP. Please try again.";
+        err?.message || err?.error || "Failed to setup 2FA. Please try again.";
 
       showError(errorMessage);
     } finally {
@@ -136,15 +132,13 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
     setOtp(newOtp);
     setError("");
 
-    // Auto-focus next input
-    if (value && index < 4) {
+    if (value && index < 5) {
       const nextInput = document.getElementById(`otp-firsttime-${index + 1}`);
       if (nextInput) nextInput.focus();
     }
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
-    // Handle backspace
     if (e.key === "Backspace" && !otp[index] && index > 0) {
       const prevInput = document.getElementById(`otp-firsttime-${index - 1}`);
       if (prevInput) prevInput.focus();
@@ -153,19 +147,18 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData("text").slice(0, 5).split("");
+    const pastedData = e.clipboardData.getData("text").slice(0, 6).split("");
     const newOtp = [...otp];
     pastedData.forEach((value, index) => {
-      if (index < 5) newOtp[index] = value;
+      if (index < 6) newOtp[index] = value;
     });
     setOtp(newOtp);
   };
 
-  // Step 2: Verify OTP and get signature for password setup
   const handleVerify = async () => {
     const otpString = otp.join("");
-    if (otpString.length !== 5) {
-      showWarning("Please enter all 5 digits");
+    if (otpString.length !== 6) {
+      showWarning("Please enter all 6 digits");
       return;
     }
 
@@ -173,24 +166,21 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
     setError("");
 
     try {
-      // Call verify-otp to get signature token
       const result = await verifyFirstLoginOTP(currentUserId, otpString);
 
       if (result.status && result.data?.signature) {
-        showSuccess("OTP verified successfully! Setting up your account...");
-        // Pass the signature to the next step for password setup
+        showSuccess("TOTP verified successfully! Setting up your account...");
         if (onSuccess) {
           onSuccess(email, currentUserId, result.data.signature);
         }
       } else {
         showError(
-          result.message || result.error || "Invalid OTP. Please try again.",
+          result.message || result.error || "Invalid TOTP. Please try again.",
         );
       }
     } catch (err: any) {
-      // Show error toast for verify OTP
       const errorMessage =
-        err?.message || err?.error || "Failed to verify OTP. Please try again.";
+        err?.message || err?.error || "Failed to verify TOTP. Please try again.";
       showError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -207,13 +197,12 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
     setError("");
 
     try {
-      await resendFirstLoginOTP(email);
-      setTimeLeft(300); // Reset to 5 minutes
-      showSuccess("OTP resent successfully! Please check your email.");
+      await resendFirstLoginOTP(email, currentUserId);
+      setTimeLeft(300);
+      showSuccess("New TOTP setup generated! Please scan the QR code with your authenticator app.");
     } catch (err: any) {
-      // Show error toast for resend OTP
       const errorMessage =
-        err?.message || err?.error || "Failed to resend OTP. Please try again.";
+        err?.message || err?.error || "Failed to resend 2FA setup. Please try again.";
       showError(errorMessage);
     } finally {
       setIsResending(false);
@@ -226,7 +215,6 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Mask email for display
   const maskEmail = (emailStr: string) => {
     if (!emailStr) return "";
     const [localPart, domain] = emailStr.split("@");
@@ -244,7 +232,6 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Background with City Hall image and gradient overlay */}
       <div
         className="fixed inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url(${cityHallImage})` }}
@@ -252,10 +239,8 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
       </div>
 
-      {/* Modal */}
       <div className="flex min-h-full w-full items-center bg-red-400 justify-center p-3 sm:p-0">
-        <div className="relative bg-white/95 backdrop-blur-sm  shadow-2xl max-w-sm sm:w-full  p-5 sm:p-6 transform transition-all">
-          {/* Success State */}
+        <div className="relative bg-white/95 backdrop-blur-sm shadow-2xl max-w-sm sm:w-full p-5 sm:p-6 transform transition-all">
           {(success || step === "success") ? (
             <div className="text-center py-8">
               <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
@@ -280,7 +265,6 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
             </div>
           ) : (
             <>
-              {/* Close button */}
               <button
                 onClick={onClose}
                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition duration-200"
@@ -300,7 +284,6 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                 </svg>
               </button>
 
-              {/* COK Logo */}
               <div className="flex justify-center mb-4">
                 <img
                   src={logoImage}
@@ -309,17 +292,14 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                 />
               </div>
 
-              {/* Title */}
               <h1 className="text-2xl font-bold text-center text-[#056daa] mb-2">
                 Account Activation
               </h1>
 
-              {/* Step 1: Email Input */}
               {step === "email" && (
                 <>
                   <p className="text-center text-gray-600 mb-6">
-                    Please enter your registered email to receive a verification
-                    code for account activation
+                    Please enter your registered email to Set-up Authenticator
                   </p>
 
                   <div className="mb-6">
@@ -374,24 +354,46 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                     disabled={isLoading || !email}
                     className="w-full cok-btn-primary disabled:cursor-not-allowed"
                   >
-                    {isLoading ? "Verifying..." : "Send Verification Code"}
+                    {isLoading ? "Verifying..." : "verify email"}
                   </button>
                 </>
               )}
 
-              {/* Step 2: OTP Input */}
-              {step === "otp" && (
+              {step === "totp" && (
                 <>
-                  {/* Description with masked email */}
                   <p className="text-center text-gray-600 mb-4">
-                    Please enter the One-Time PIN (OTP) sent to
+                    Please scan the QR code with your authenticator app (Google
+                    Authenticator, Authy, etc.) and enter the 6-digit code
                     <br />
                     <span className="font-semibold text-gray-900">
                       {maskEmail(email)}
                     </span>
                   </p>
 
-                  {/* OTP Input Fields - Individual boxes styled */}
+                  {qrCode && (
+                    <div className="flex justify-center mb-4">
+                      <img
+                        src={qrCode}
+                        alt="TOTP QR Code"
+                        className="w-48 h-48 border border-gray-200 rounded-lg"
+                      />
+                    </div>
+                  )}
+
+                  {secret && (
+                    <div className="text-center mb-4">
+                      <p className="text-xs text-gray-500 mb-1">
+                        Can't scan? Enter this secret manually click to copy:
+                      </p>
+                      <code onClick={()=>{
+                        navigator.clipboard.writeText(secret)
+                        showInfo("code copied to your device")
+                      }} className="text-sm cursor-pointer bg-white px-2 py-1 rounded">
+                        {secret?.slice(0,20)}...
+                      </code>
+                    </div>
+                  )}
+
                   <div
                     className="flex justify-center gap-2 mb-6"
                     onPaste={handlePaste}
@@ -418,48 +420,26 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                     ))}
                   </div>
 
-                  {/* Timer display with bullet */}
                   <p className="text-center text-sm text-gray-500 mb-4">
-                    • Code expires in {formatTime(timeLeft)}
+                    • Code refreshes every 30 seconds
                   </p>
 
-                  {/* Error message */}
                   {error && (
                     <p className="text-center text-sm text-red-600 mb-4">
                       {error}
                     </p>
                   )}
 
-                  {/* Verify button */}
                   <button
                     onClick={handleVerify}
-                    disabled={otp.join("").length !== 5 || isLoading}
+                    disabled={otp.join("").length !== 6 || isLoading}
                     className="w-full cok-btn-primary disabled:opacity-50 disabled:cursor-not-allowed mb-4"
                   >
                     {isLoading ? "Verifying..." : "Continue to Password Setup"}
                   </button>
-
-                  {/* Resend link with timer */}
-                  <div className="text-center">
-                    <span className="text-gray-600">
-                      Didn't receive the code?{" "}
-                    </span>
-                    <button
-                      onClick={handleResend}
-                      disabled={timeLeft > 0 || isResending}
-                      className="w-full cok-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isResending
-                        ? "Resending..."
-                        : timeLeft > 0
-                          ? `Resend OTP (${formatTime(timeLeft)})`
-                          : "Resend OTP"}
-                    </button>
-                  </div>
                 </>
               )}
 
-              {/* Return to Login link */}
               <div className="text-center mt-6">
                 <button
                   onClick={onClose}
@@ -469,7 +449,6 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                 </button>
               </div>
 
-              {/* Secure portal footer - left aligned */}
               <p className="text-left text-xs text-gray-400 mt-8">
                 © CITY OF KIGALI PORTAL
               </p>

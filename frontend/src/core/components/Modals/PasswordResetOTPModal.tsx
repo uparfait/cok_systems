@@ -140,8 +140,9 @@ const handleVerify = async () => {
         showError(result.message || result.error || 'Invalid OTP. Please try again.');
       }
     } catch (err: any) {
+    
       // Error toast is already shown by apiClient interceptor, no need to show again
-      console.error('OTP verification error:', err);
+      showWarning(err.error || err.message || "Try again later!" )
     } finally {
       setIsLoading(false);
     }

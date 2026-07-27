@@ -1,11 +1,10 @@
 /**
  * Verify Login Controller
- * Verifies the OTP using tokenUtil.compareToken
- * Uses Bearer token from Authorization header or body parameters
+ * Verifies the TOTP token and returns JWT tokens
  */
 
 const jwt = require("../../../utilities/jwt");
-const tokenUtil = require("../../../utilities/token");
+const totp = require("../../../utilities/totp");
 const User = require("../../../models/user");
 const department = require("../../../models/department");
 
@@ -14,37 +13,15 @@ const { logAuditEvent } = require("../../../middlewares/audit");
 
 async function verifyLogin(req, res, next) {
     try {
-
-        let inputOTP;
-      
         const { userId: userIdFromBody, otp, otpToken } = req.body;
-        
-        // Use body params if header not provided
-        // if (!inputOTP && (otp || otpToken)) {
-        //     inputOTP = otp || otpToken;
-        // }
-        
-        // Use userId from body
-        const userId =  userIdFromBody;
+        const userId = userIdFromBody;
 
-        // if (!userId || !inputOTP) {
-        //     return res.status(400).json({
-        //         success: false,
-        //         type: "warning",
-        //         message: "User ID and OTP are required",
-        //         error: "Please provide userId and OTP"
-        //     });
-        // }
-
-        // REPLACE THIS ABOVE
-
-        
         if (!userId) {
             return res.status(400).json({
                 success: false,
                 type: "warning",
-                message: "User ID and OTP are required",
-                error: "Please provide userId and OTP"
+                message: "User ID and TOTP are required",
+                error: "Please provide userId and TOTP"
             });
         }
 
@@ -59,8 +36,6 @@ async function verifyLogin(req, res, next) {
                 error: "User associated with token no longer exists"
             });
         }
-
-      
 
         // Check if account is activated
         if (!user.is_account_activated) {
@@ -82,57 +57,59 @@ async function verifyLogin(req, res, next) {
             });
         }
 
-        // Get stored OTP from database
-        // const storedOTP = user.auth?.access_token?.token;
+        // Get stored TOTP secret from database
+        const storedSecret = user.twofa_secret || user.auth?.access_token?.token;
 
-        // if (!storedOTP) {
-        //     return res.status(400).json({
-        //         success: false,
-        //         type: "warning",
-        //         message: "No OTP found",
-        //         error: "Please request a new OTP"
-        //     });
-        // }
+        if (!storedSecret) {
+            return res.status(400).json({
+                success: false,
+                type: "warning",
+                message: "No TOTP secret found",
+                error: "Please contact administrator or reset your 2FA setup."
+            });
+        }
 
-        // Check if OTP has expired
-        // const expiresAt = user.auth?.access_token?.expires_at;
-        // if (expiresAt && new Date(expiresAt) < new Date()) {
-        //     // Clear expired OTP
-        //     await User.findByIdAndUpdate(userId, {
-        //         $set: {
-        //             'auth.access_token.token': null,
-        //             'auth.access_token.token_type': null,
-        //             'auth.access_token.expires_at': null
-        //         }
-        //     });
-            
-        //     return res.status(400).json({
-        //         success: false,
-        //         type: "warning",
-        //         message: "OTP expired",
-        //         error: "Please request a new OTP"
-        //     });
-        // }
+        // Check token type
+        const storedTokenType = user.auth?.access_token?.token_type;
+        
+        if (storedTokenType !== "login_totp" && storedTokenType !== "first_login_totp" && storedTokenType !== "2fa_setup") {
+            return res.status(400).json({
+                success: false,
+                type: "warning",
+                message: "Invalid token type",
+                error: "Please try logging in again."
+            });
+        }
 
-        // Use tokenUtil.compareToken to verify OTP
-        // const hashMatch = await tokenUtil.compareToken(inputOTP.toString(), storedOTP);
+        // Verify TOTP token
+        const hashMatch = await totp.verifyTOTPToken(otp.toString(), storedSecret);
 
-        // if (!hashMatch) {
-        //     return res.status(400).json({
-        //         success: false,
-        //         type: "warning",
-        //         message: "Invalid OTP",
-        //         error: "Please check the OTP and try again"
-        //     });
-        // }
+        if (!hashMatch.valid) {
+            return res.status(400).json({
+                success: false,
+                type: "warning",
+                message: "Invalid TOTP",
+                error: "Please check your authenticator app and try again"
+            });
+        }
 
-        // Clear the OTP from database (one-time use)
-        await User.findByIdAndUpdate(userId, {
-            $set: {
-                'auth.access_token.token': null,
-                'auth.access_token.token_type': null,
-                'auth.access_token.expires_at': null
+        const updateData = {
+            auth: {
+                access_token: {
+                    token: null,
+                    token_type: null,
+                    expires_at: null
+                }
             }
+        };
+
+        if (storedTokenType === "2fa_setup") {
+            updateData.twofa_secret = storedSecret;
+        }
+
+        // Clear the OTP from database (one-time use for this login session)
+        await User.findByIdAndUpdate(userId, {
+            $set: updateData
         });
 
         // Get user role and permissions from database
@@ -140,7 +117,6 @@ async function verifyLogin(req, res, next) {
         const userPermissions = user.roles?.permissions || [];
 
         // Create JWT tokens for client to use in future requests
-        // Using jwt utility functions
         const payload = {
             userId: user._id.toString(),
             email: user.email,
@@ -152,6 +128,16 @@ async function verifyLogin(req, res, next) {
         const accessToken = jwt.generateAccessToken(payload);
         const refreshToken = jwt.generateRefreshToken({ userId: user._id.toString() });
 
+        // Log successful login
+        await logAuditEvent('LOGIN', `User logged in successfully via TOTP: ${user.email}`, req, {
+            resource: 'auth',
+            resource_id: user._id.toString(),
+            status_code: 200,
+            metadata: {
+                email: user.email,
+                two_fa_used: true
+            }
+        });
 
         // Return verification success with tokens
         return res.status(200).json({

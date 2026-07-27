@@ -192,6 +192,7 @@ const authenticate = async (req, res, next) => {
       department: department,
       is_active: user.is_active,
       is_account_activated: user.is_account_activated,
+      is_2FA_disabled: user.is_2FA_disabled,
       access_control: user.access_control,
       department_unit: user.department_unit
     };

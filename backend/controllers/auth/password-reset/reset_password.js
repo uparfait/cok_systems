@@ -1,10 +1,11 @@
 /**
  * Reset Password Controller
- * Step 3: Set new password with signature
+ * Step 3: Set new password with signature and return TOTP setup
  */
 
 const bcrypt = require('bcrypt');
 const tokenUtil = require("../../../utilities/token");
+const totp = require("../../../utilities/totp");
 const email = require("../../../utilities/email");
 const User = require("../../../models/user");
 
@@ -162,20 +163,36 @@ async function resetPassword(req, res, next) {
     // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword.trim(), SALT_ROUNDS);
 
-    // Update user's password
+    // Generate new TOTP secret for 2FA setup
+    const { secret, otpauthUrl } = totp.generateTOTPSecret(user.email);
+    const qrCodeDataUrl = await totp.generateQRCode(otpauthUrl);
+
+    // Update user's password and generate new TOTP secret
     await User.findByIdAndUpdate(userId, {
       $set: {
         password: hashedPassword,
-      },
+        twofa_secret: secret,
+        auth: {
+          access_token: {
+            token: null,
+            token_type: null,
+            expires_at: null
+          }
+        }
+      }
     });
 
     // Clear any remaining reset tokens from user document
     await User.findByIdAndUpdate(userId, {
       $set: {
-        "auth.access_token.token": null,
-        "auth.access_token.token_type": null,
-        "auth.access_token.expires_at": null,
-      },
+        auth: {
+          access_token: {
+            token: null,
+            token_type: null,
+            expires_at: null
+          }
+        }
+      }
     });
 
     // Log successful password reset
@@ -200,6 +217,12 @@ async function resetPassword(req, res, next) {
       status: true,
       error: null,
       message: "Password reset successfully",
+      data: {
+        requiresTOTPSetup: true,
+        secret: secret,
+        qrCode: qrCodeDataUrl,
+        otpauthUrl: otpauthUrl
+      },
     });
   } catch (error) {
     // Log system error

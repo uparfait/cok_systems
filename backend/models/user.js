@@ -49,7 +49,9 @@ const user_schema = new mongoose.Schema({
     is_active: { type: Boolean, default: true },
     created_date: { type: Date, default: Date.now },
     is_account_activated: {type: Boolean},
-    registered_by: { type: String }
+    registered_by: { type: String },
+    is_2FA_disabled: { type: Boolean, default: false },
+    twofa_secret: { type: String }
 }, {
     versionKey: false, // removes __v automatically
     toJSON: {
