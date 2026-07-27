@@ -291,7 +291,7 @@ const TOTPVerificationModal: React.FC<TOTPVerificationModalProps> = ({
               </div>
 
               <h1 className="text-2xl font-bold text-center text-[#056daa] mb-2">
-                Two-Factor Authentication
+                Authentication
               </h1>
 
               <p className="text-center text-gray-500 mb-6">
