@@ -63,6 +63,7 @@ async function verifyOTP(req, res, next) {
 
     // Verify TOTP token
     const verificationResult = totp.verifyTOTPToken(otp.toString(), storedSecret);
+    console.log(verificationResult)
 
     if (!verificationResult.valid) {
       return res.status(400).json({
@@ -71,6 +72,21 @@ async function verifyOTP(req, res, next) {
         message: "TOTP verification failed. Please check your authenticator app and try again.",
       });
     }
+
+    // Save the TOTP secret permanently only after successful verification
+    // The secret was temporarily stored in auth.access_token.token during setup
+    await User.findByIdAndUpdate(userId, {
+      $set: {
+        twofa_secret: storedSecret,
+        auth: {
+          access_token: {
+            token: null,
+            token_type: null,
+            expires_at: null
+          }
+        }
+      }
+    });
 
     // Generate signature token for password set verification (expires in 30 minutes)
     const jwt = require("../../../utilities/jwt");

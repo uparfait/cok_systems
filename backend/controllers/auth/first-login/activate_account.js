@@ -140,10 +140,12 @@ async function activateAccount(req, res, next) {
     const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
     // Update user with password and mark as activated
+    // Keep twofa_secret intact so user can login with 2FA
     await User.findByIdAndUpdate(userId, {
       $set: {
         password: hashedPassword,
         is_account_activated: true,
+        is_2FA_disabled: false,
         auth: {
           access_token: {
             token: null,

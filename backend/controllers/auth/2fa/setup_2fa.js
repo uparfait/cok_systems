@@ -1,7 +1,3 @@
-/**
- * Setup 2FA Controller
- * Generate TOTP secret and QR code for 2FA setup
- */
 
 const totp = require("../../../utilities/totp");
 const jwt = require("../../../utilities/jwt");

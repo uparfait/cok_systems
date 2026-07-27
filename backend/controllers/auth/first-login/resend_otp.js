@@ -58,10 +58,9 @@ async function resendOTP(req, res, next) {
     const { secret, otpauthUrl } = totp.generateTOTPSecret(normalizedEmail);
     const qrCodeDataUrl = await totp.generateQRCode(otpauthUrl);
 
-    // Update the secret in database
+    // Update the secret in database (temporary, until user verifies)
     await User.findByIdAndUpdate(userId, {
       $set: {
-        twofa_secret: secret,
         auth: {
           access_token: {
             token_type: "first_login_totp",

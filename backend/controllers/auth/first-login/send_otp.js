@@ -1,7 +1,3 @@
-/**
- * Send OTP Controller
- * Step 2: Generate TOTP secret and QR code for 2FA setup
- */
 
 const totp = require("../../../utilities/totp");
 const User = require("../../../models/user");
@@ -60,10 +56,11 @@ async function sendOTP(req, res, next) {
     const { secret, otpauthUrl } = totp.generateTOTPSecret(normalizedEmail);
     const qrCodeDataUrl = await totp.generateQRCode(otpauthUrl);
 
-    // Store the secret in user document (temporarily, until account is activated)
+    console.log(secret)
+
+    // Store the secret temporarily in auth.access_token only (NOT in twofa_secret until user verifies)
     await User.findByIdAndUpdate(user._id, {
       $set: {
-        twofa_secret: secret,
         auth: {
           access_token: {
             token_type: "first_login_totp",
