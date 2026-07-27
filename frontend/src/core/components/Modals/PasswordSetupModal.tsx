@@ -165,7 +165,7 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-3 sm:p-4">
-        <div className="relative bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl max-w-sm w-full p-5 sm:p-6 transform transition-all">
+         <div className="relative bg-white/95 backdrop-blur-sm shadow-2xl max-w-sm w-full p-5 sm:p-6 transform transition-all">
           {/* Success State */}
           {isSuccess ? (
             <div className="text-center py-8">
@@ -201,7 +201,7 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
               </div>
 
               {/* Title */}
-              <h1 className="text-2xl font-bold text-center text-gray-900 mb-2">
+              <h1 className="text-2xl font-bold text-center text-[#056daa] mb-2">
                 Set Your Password
               </h1>
 
@@ -223,14 +223,14 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
                     New Password
                   </label>
                   <div className="relative">
-                    <input
-                      id="new-password"
-                      type={showPassword ? 'text' : 'password'}
-                      value={newPassword}
-                      onChange={handlePasswordChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Enter new password"
-                    />
+                      <input
+                        id="new-password"
+                        type={showPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={handlePasswordChange}
+                        className="cok-auth-input pl-10 pr-10 py-3 placeholder:text-gray-400"
+                        placeholder="Enter new password"
+                      />
                     <button
                       type="button"
                       className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
@@ -304,7 +304,7 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
                     type={showPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="cok-auth-input pl-10 pr-10 py-3 placeholder:text-gray-400"
                     placeholder="Confirm new password"
                   />
                   {confirmPassword && newPassword !== confirmPassword && (
@@ -321,7 +321,7 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
                 <button
                   type="submit"
                   disabled={isLoading || !newPassword || !confirmPassword || newPassword !== confirmPassword}
-                  className="w-full py-3 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full cok-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? 'Setting Password...' : 'Set Password'}
                 </button>
@@ -331,14 +331,14 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ isOpen, onClose
               <div className="text-center mt-4">
                 <button 
                   onClick={onClose}
-                  className="text-blue-600 hover:text-blue-700 font-medium transition duration-200"
+                  className="cok-btn-outlined w-full"
                 >
-                  ← Back to Login
+                  Back to Login
                 </button>
               </div>
 
               {/* Secure portal footer - left aligned */}
-              <p className="text-left text-xs text-gray-400 mt-6">
+              <p className="text-left text-xs text-gray-400 mt-8">
                 © SECURE OFFICIAL CITY OF KIGALI PORTAL
               </p>
             </>

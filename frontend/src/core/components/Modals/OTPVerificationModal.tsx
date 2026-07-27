@@ -284,8 +284,8 @@ const logoImage = '/LOGO_COK.png';
       </div>
 
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-3 sm:p-4">
-        <div className="relative bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl max-w-sm w-full p-5 sm:p-6 transform transition-all">
+       <div className="flex min-h-full items-center justify-center p-3 sm:p-4">
+         <div className="relative bg-white/95 backdrop-blur-sm shadow-2xl max-w-sm w-full p-5 sm:p-6 transform transition-all">
           {/* Success State */}
           {isSuccess ? (
             <div className="text-center py-8">
@@ -321,14 +321,11 @@ const logoImage = '/LOGO_COK.png';
               </div>
 
               {/* Title */}
-              <h1 className="text-2xl font-bold text-center text-gray-900 mb-2">
+              <h1 className="text-2xl font-bold text-center text-[#056daa] mb-2">
                 Verify Your OTP
               </h1>
 
-              {/* Subtitle */}
-              <p className="text-center text-gray-600 font-medium mb-4">
-                Enter the One-Time PIN sent to your email
-              </p>
+             
 
               {/* Description with masked email */}
               <p className="text-center text-gray-500 mb-6">
@@ -374,20 +371,29 @@ const logoImage = '/LOGO_COK.png';
               <button
                 onClick={handleVerify}
                 disabled={otp.join('').length !== 5 || isLoading || !currentUserId}
-                className="w-full py-3 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+                className="w-full cok-btn-primary disabled:opacity-50 disabled:cursor-not-allowed mb-4"
               >
                 {isLoading ? 'Verifying...' : 'Verify Your OTP'}
               </button>
 
               {/* Resend link with timer */}
               <div className="text-center">
-                <span className="text-gray-600">Didn't receive the code? </span>
                 <button
                   onClick={handleResend}
                   disabled={timeLeftExpriry > 0 || isResending || !currentUserId}
-                  className="text-blue-600 hover:text-blue-700 font-semibold transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full cok-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isResending ? 'Resending...' : timeLeftExpriry > 0 ? `Resend OTP (${formatTime(timeLeftExpriry)})` : 'Resend OTP'}
+                </button>
+              </div>
+
+              {/* Back to Login */}
+              <div className="text-center mt-4">
+                <button 
+                  onClick={onClose}
+                  className="cok-btn-outlined w-full"
+                >
+                  Back to Login
                 </button>
               </div>
 
