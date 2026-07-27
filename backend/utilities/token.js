@@ -146,6 +146,7 @@ const generateToken = (payload, expiry = '30m', type = 'general') => {
 
 /**
  * Verify a generated token and check its type
+ * Supports both `tokenType` and `purpose` fields for backward compatibility
  * @param {string} token - JWT token to verify
  * @param {string} expectedType - Expected token type
  * @returns {object} - { valid: boolean, decoded?: object, error?: string }
@@ -159,8 +160,12 @@ const verifyToken = (token, expectedType) => {
         }
         
         // Check token type if expectedType is provided
-        if (expectedType && verification.decoded?.tokenType !== expectedType) {
-            return { valid: false, error: 'Invalid token type' };
+        // Support both `tokenType` and `purpose` fields
+        if (expectedType) {
+            const tokenType = verification.decoded?.tokenType || verification.decoded?.purpose;
+            if (tokenType !== expectedType) {
+                return { valid: false, error: 'Invalid token type' };
+            }
         }
         
         return { valid: true, decoded: verification.decoded };
