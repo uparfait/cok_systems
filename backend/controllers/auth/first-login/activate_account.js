@@ -144,10 +144,14 @@ async function activateAccount(req, res, next) {
       $set: {
         password: hashedPassword,
         is_account_activated: true,
-        "auth.access_token.token": null,
-        "auth.access_token.token_type": null,
-        "auth.access_token.expires_at": null
-      },
+        auth: {
+          access_token: {
+            token: null,
+            token_type: null,
+            expires_at: null
+          }
+        }
+      }
     });
 
     // Send confirmation email

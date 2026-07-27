@@ -1,14 +1,16 @@
 /**
- * Verify OTP Controller
- * Step 2b: Verify TOTP token for first login
+ * Verify 2FA Setup Controller
+ * Verify TOTP token during 2FA setup
  */
 
 const totp = require("../../../utilities/totp");
+const jwt = require("../../../utilities/jwt");
 const User = require("../../../models/user");
+const { logAuditEvent } = require("../../../middlewares/audit");
 
 const OTP_VERIFICATION_TYPE = 'otp_verification';
 
-async function verifyOTP(req, res, next) {
+async function verify2FASetup(req, res, next) {
   try {
     const { userId, otp } = req.body;
 
@@ -20,7 +22,6 @@ async function verifyOTP(req, res, next) {
       });
     }
 
-    // Get user from database
     const user = await User.findById(userId);
 
     if (!user) {
@@ -31,33 +32,13 @@ async function verifyOTP(req, res, next) {
       });
     }
 
-    // Check if account is already activated
-    if (user.is_account_activated) {
-      return res.status(400).json({
-        status: false,
-        error: "Account already activated",
-        message: "This account is already active.",
-      });
-    }
-
-    // Check token type
-    const storedTokenType = user.auth?.access_token?.token_type;
-    
-    if (storedTokenType !== "first_login_totp") {
-      return res.status(400).json({
-        status: false,
-        error: "Invalid token type",
-        message: "Please request a new TOTP setup.",
-      });
-    }
-
     const storedSecret = user.twofa_secret || user.auth?.access_token?.token;
 
     if (!storedSecret) {
       return res.status(400).json({
         status: false,
         error: "No TOTP secret found",
-        message: "Please request a new TOTP setup.",
+        message: "Please initiate 2FA setup first.",
       });
     }
 
@@ -72,20 +53,30 @@ async function verifyOTP(req, res, next) {
       });
     }
 
-    // Generate signature token for password set verification (expires in 30 minutes)
-    const jwt = require("../../../utilities/jwt");
+    // Generate signature token for 2FA verification (expires in 30 minutes)
     const signature = jwt.sign({ userId: user._id.toString(), purpose: OTP_VERIFICATION_TYPE }, jwt.JWT_SECRET, {
       expiresIn: '30m'
     });
 
-    // OTP is valid
+    await logAuditEvent('SYSTEM', `2FA setup verified for user: ${user.email}`, req, {
+      resource: 'users',
+      resource_id: user._id.toString(),
+      status_code: 200,
+      metadata: {
+        email: user.email,
+        purpose: '2fa_setup'
+      }
+    });
+
     return res.status(200).json({
       status: true,
       error: null,
-      message: "TOTP verified successfully. You can now set your password.",
+      message: "TOTP verified successfully. 2FA is now enabled for your account.",
       data: {
         signature: signature,
-      }
+        userId: user._id,
+        email: user.email
+      },
     });
 
   } catch (error) {
@@ -93,4 +84,4 @@ async function verifyOTP(req, res, next) {
   }
 }
 
-module.exports = verifyOTP;
+module.exports = verify2FASetup;

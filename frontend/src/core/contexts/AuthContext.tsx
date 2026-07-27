@@ -16,7 +16,11 @@ import {
   activateAccount,
   resendFirstLoginOTP,
   getToken,
-  validateToken
+  validateToken,
+  toggle2FA,
+  setup2FA,
+  verify2FASetup,
+  reset2FA
 } from '../services/authService';
 
 // User interface
@@ -27,9 +31,9 @@ export interface User {
   role?: string;
   permissions?: Permission[];
   departmentId?: string;
-  department_id?: string; // Alternative naming from some APIs
+  department_id?: string;
   departmentName?: string;
-  department_name?: string; // Alternative naming from some APIs
+  department_name?: string;
   picture?: string;
 }
 
@@ -58,13 +62,19 @@ interface AuthContextType {
   sendFirstLoginOTP: (email: string) => Promise<any>;
   verifyFirstLoginOTP: (userId: string, otp: string) => Promise<any>;
   activateAccount: (userId: string, signature: string, newPassword: string, confirmPassword: string) => Promise<any>;
-  resendFirstLoginOTP: (email: string) => Promise<any>;
+  resendFirstLoginOTP: (email: string, userId?: string) => Promise<any>;
   
   // Password reset methods
   requestPasswordReset: (email: string) => Promise<any>;
   verifyPasswordResetOTP: (userId: string, otp: string) => Promise<any>;
   resetPassword: (userId: string, signature: string, newPassword: string) => Promise<any>;
   resendPasswordResetOTP: (userId: string, email: string) => Promise<any>;
+  
+  // 2FA methods
+  toggle2FA: (userId: string, disable: boolean) => Promise<any>;
+  setup2FA: (userId: string) => Promise<any>;
+  verify2FASetup: (userId: string, otp: string) => Promise<any>;
+  reset2FA: (userId: string) => Promise<any>;
   
   // Logout
   logout: () => Promise<void>;
@@ -87,12 +97,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
   const [token, setToken] = useState<string | null>(null);
 
-  // Check authentication on mount - now validates tokens with backend
   const checkAuth = useCallback(async () => {
     console.log('[AuthContext checkAuth] Starting authentication check...');
 
     try {
-      // First check if we have stored tokens
       const storedUserData = localStorage.getItem('userData');
       const storedAccessToken = localStorage.getItem('accessToken');
 
@@ -103,7 +111,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const parsedUser = JSON.parse(storedUserData);
           console.log('[AuthContext checkAuth] Found stored user data for:', parsedUser.email);
 
-          // Validate the token with the backend
           console.log('[AuthContext checkAuth] Validating token with backend...');
           const validationResult = await validateToken();
 
@@ -114,7 +121,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setToken(storedAccessToken);
           } else {
             console.log('[AuthContext checkAuth] Token is invalid, clearing stored data');
-            // Token is invalid, clear stored data
             localStorage.removeItem('userData');
             localStorage.removeItem('accessToken');
             localStorage.removeItem('refreshToken');
@@ -124,7 +130,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }
         } catch (parseError) {
           console.log('[AuthContext checkAuth] Failed to parse stored user data:', parseError);
-          // Clear corrupted data
           localStorage.removeItem('userData');
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
@@ -140,7 +145,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     } catch (error) {
       console.error('[AuthContext checkAuth] Error during authentication check:', error);
-      // On error, clear any potentially corrupted data and set unauthenticated
       localStorage.removeItem('userData');
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
@@ -157,7 +161,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     checkAuth();
   }, [checkAuth]);
 
-  // Check if user has a specific permission
   const hasPermission = useCallback((resource: string, action: string): boolean => {
     if (!permissions || permissions.length === 0) return false;
     
@@ -173,24 +176,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   }, [permissions]);
 
-  // Check if user has any of the specified permissions
   const hasAnyPermission = useCallback((requiredPermissions: { resource: string; action: string }[]): boolean => {
     if (!requiredPermissions || requiredPermissions.length === 0) return true;
     
     return requiredPermissions.some(({ resource, action }) => hasPermission(resource, action));
   }, [hasPermission]);
 
-  // Check if user has a specific role
   const hasRole = useCallback((role: string): boolean => {
     return user?.role?.toLowerCase() === role.toLowerCase();
   }, [user]);
 
-  // Check if user has any of the specified roles
   const hasAnyRole = useCallback((roles: string[]): boolean => {
     return roles.some(role => hasRole(role));
   }, [hasRole]);
 
-  // Login method
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
@@ -203,7 +202,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Verify OTP method
   const verifyOTP = async (userId: string, otp: string) => {
     console.log('[AuthContext] verifyOTP called with userId:', userId, 'otp:', otp ? `${otp.length} digits` : 'EMPTY');
     
@@ -222,10 +220,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const result: any = await verifyLoginOTP(userId, otp);
       console.log('[AuthContext] verifyLoginOTP returned - status:', result?.status, 'success:', result?.success, 'data:', result?.data);
       
-      // Check for success - support both 'status' and 'success' response formats
       const isSuccess = result?.status === true || result?.success === true;
       
-      // Call checkAuth when OTP is verified
       if (isSuccess) {
         console.log('[AuthContext] OTP verification successful, calling checkAuth...');
         checkAuth();
@@ -242,7 +238,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Resend OTP method
   const resendOTP = async (userId: string, email: string) => {
     try {
       const result = await resendLoginOTP(userId, email);
@@ -252,7 +247,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // First time login methods
   const checkEmailFirstLogin = async (email: string) => {
     try {
       return await checkEmailForFirstLogin(email);
@@ -292,15 +286,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const resendFirstLoginOTPFunc = async (email: string) => {
+  const resendFirstLoginOTPFunc = async (email: string, userId?: string) => {
     try {
-      return await resendFirstLoginOTP(email);
+      return await resendFirstLoginOTP(email, userId);
     } catch (error) {
       throw error;
     }
   };
 
-  // Password reset methods
   const requestReset = async (email: string) => {
     try {
       return await requestPasswordReset(email);
@@ -333,7 +326,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Logout method
+  const toggleUser2FA = async (userId: string, disable: boolean) => {
+    try {
+      return await toggle2FA(userId, disable);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const setupUser2FA = async (userId: string) => {
+    try {
+      return await setup2FA(userId);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const verifyUser2FASetup = async (userId: string, otp: string) => {
+    try {
+      return await verify2FASetup(userId, otp);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const resetUser2FA = async (userId: string) => {
+    try {
+      return await reset2FA(userId);
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const logout = async () => {
     try {
       await authLogout();
@@ -342,7 +366,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setPermissions([]);
       setToken(null);
       setIsLoading(false);
-      // Use event for smoother navigation
       window.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: 'manual_logout' } }));
       setTimeout(() => {
           window.location.href = '/';
@@ -350,37 +373,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Provide context value
   const value: AuthContextType = {
-    // State
     user,
     permissions,
     isAuthenticated: !!user,
     isLoading,
     token,
     
-    // Login methods
     login,
     verifyOTP,
     resendOTP,
     
-    // First time login methods
     checkEmailForFirstLogin: checkEmailFirstLogin,
     sendFirstLoginOTP: sendFirstLogin,
     verifyFirstLoginOTP: verifyFirstLogin,
     activateAccount: activateAcc,
     resendFirstLoginOTP: resendFirstLoginOTPFunc,
     
-    // Password reset methods
     requestPasswordReset: requestReset,
     verifyPasswordResetOTP: verifyResetOTP,
     resetPassword: resetUserPassword,
     resendPasswordResetOTP: resendResetOTP,
     
-    // Logout
+    toggle2FA: toggleUser2FA,
+    setup2FA: setupUser2FA,
+    verify2FASetup: verifyUser2FASetup,
+    reset2FA: resetUser2FA,
+    
     logout,
     
-    // Utility methods
     checkAuth,
     hasPermission,
     hasAnyPermission,
@@ -395,7 +416,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   );
 };
 
-// Custom hook to use auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

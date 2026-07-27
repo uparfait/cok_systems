@@ -1,11 +1,9 @@
 /**
  * Resend OTP Controller
- * Resend OTP if previous one expired
+ * Resend/generate new TOTP secret and QR code for first login
  */
 
-const otp = require("../../../utilities/otp");
-const email = require("../../../utilities/email");
-const tokenUtil = require("../../../utilities/token");
+const totp = require("../../../utilities/totp");
 const User = require("../../../models/user");
 
 // Lock message
@@ -55,29 +53,35 @@ async function resendOTP(req, res, next) {
       });
     }
 
-    // Generate new 5-digit OTP
-    const { otp: otpCode } = otp.generateOTPWithExpiry();
+    // Generate new TOTP secret and QR code
+    const normalizedEmail = userEmail.trim().toLowerCase();
+    const { secret, otpauthUrl } = totp.generateTOTPSecret(normalizedEmail);
+    const qrCodeDataUrl = await totp.generateQRCode(otpauthUrl);
 
-    // Hash and store in database
-    const hashedOTP = await tokenUtil.hashTokenLoginToken(otpCode.toString());
-    const otpExpiry = new Date(Date.now() + otp.OTP_EXPIRY_SECONDS * 1000);
-    console.log('Generated new OTP for first-time login resend:', otpCode);
-
-    // Update the OTP in database
+    // Update the secret in database
     await User.findByIdAndUpdate(userId, {
       $set: {
-        "auth.access_token.token": hashedOTP,
-        "auth.access_token.token_type": "first_login_otp",
+        twofa_secret: secret,
+        auth: {
+          access_token: {
+            token_type: "first_login_totp",
+            token: secret
+          }
+        }
       }
     });
-
-    // Send new OTP via email
-    await email.sendOTPEmail(userEmail, otpCode, "first_login");
 
     return res.status(200).json({
       status: true,
       error: null,
-      message: "New OTP sent to your email",
+      message: "New TOTP setup generated. Please scan the QR code with your authenticator app.",
+      data: {
+        userId: user._id,
+        email: normalizedEmail,
+        secret: secret,
+        qrCode: qrCodeDataUrl,
+        otpauthUrl: otpauthUrl
+      },
     });
 
   } catch (error) {

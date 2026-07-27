@@ -1,10 +1,10 @@
 /**
  * Login Controller
- * Handles user login - verifies credentials, manages login attempts, and sends OTP
+ * Handles user login - verifies credentials, manages login attempts, and supports 2FA
  */
 
 const jwt = require("../../../utilities/jwt");
-const otp = require("../../../utilities/otp");
+const totp = require("../../../utilities/totp");
 const email = require("../../../utilities/email");
 const tokenUtil = require("../../../utilities/token");
 const bcrypt = require("bcrypt");
@@ -16,7 +16,6 @@ const { logAuditEvent } = require("../../../middlewares/audit");
 const SALT_ROUNDS = 10;
 
 // Configuration for login attempts
-
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MESSAGE =
   "Account locked due to too many failed login attempts. Please contact administrator to unlock your account";
@@ -57,8 +56,6 @@ async function login(req, res, next) {
     // If user not found or password doesn't match
     if (!user || !(await bcrypt.compare(password.trim(), user.password))) {
       let loginAttempts = 0;
-
-    
 
       // check if user email exists to track login attempts and lock account if necessary
       const userByEmail = await User.findOne({ email: userEmail });
@@ -159,7 +156,7 @@ async function login(req, res, next) {
       });
     }
 
-    // Verify password before sending OTP
+    // Verify password before proceeding
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
@@ -223,50 +220,134 @@ async function login(req, res, next) {
       },
     });
 
-    // Generate OTP for 2FA
-    const { otp: otpCode, expiresAt } = otp.generateOTPWithExpiry();
+    // Check if 2FA is explicitly disabled by admin
+    const is2FADisabled = user.is_2FA_disabled === true;
 
-    // Store OTP JWT in database for verification comparison
-    const otpExpiry = new Date(Date.now() + otp.OTP_EXPIRY_SECONDS * 1000);
+    if (is2FADisabled) {
+      // 2FA is disabled, generate tokens directly
+      const userRole = user.roles?.role_name || 'user';
+      const userPermissions = user.roles?.permissions || [];
 
-    // Create JWT token containing the OTP for secure storage and verification
-    const otpPayload = {
-      userId: user._id.toString(),
-      otp: otpCode.toString(),
-      purpose: "login_verification",
-    };
-
-    // Sign JWT with short expiry (5 minutes)
-    const otpToken = jwt.sign(otpPayload, jwt.JWT_SECRET, {
-      expiresIn: "5m",
-    });
-
-    // check if user has auth attribute, if not create it and save data accordingly
-    if (!user.auth.access_token?.token) {
-      user.auth.access_token = {
-        token_type: "otp_jwt",
-        token: otpToken,
-        expires_at: otpExpiry,
+      const payload = {
+        userId: user._id.toString(),
+        email: user.email,
+        fullName: user.full_name,
+        role: userRole,
+        permissions: userPermissions
       };
-      await user.save();
-    } else {
-      // Store the JWT token in database (not plain OTP)
-      await User.findByIdAndUpdate(user._id, {
-        $set: {
-          "auth.access_token.token": otpToken,
-          "auth.access_token.token_type": "otp_jwt",
-          "auth.access_token.expires_at": otpExpiry,
+
+      const accessToken = jwt.generateAccessToken(payload);
+      const refreshToken = jwt.generateRefreshToken({ userId: user._id.toString() });
+
+      // Log successful login
+      // await logAuditEvent('SYSTEM', `User logged in successfully (2FA disabled): ${userEmail}`, req, {
+      //   resource: 'auth',
+      //   resource_id: user._id.toString(),
+      //   status_code: 200,
+      //   metadata: {
+      //     email: userEmail,
+      //     two_fa_disabled: true
+      //   }
+      // });
+
+      return res.status(200).json({
+        status: true,
+        error: null,
+        message: "Login successful",
+        data: {
+          verified: true,
+          userId: user._id,
+          email: user.email,
+          fullName: user.full_name,
+          role: userRole,
+          telephone: user.telephone,
+          department_name: user.department_name,
+          department_id: user.department_id,
+          permissions: userPermissions,
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+          requiresOTP: false,
+          twoFADisabled: true
         },
       });
     }
 
-    // Send OTP via email (user sees just the OTP, not the JWT)
-    //const sent = await email.sendOTPEmail(userEmail,  otpCode || 20261, "login");
+    // 2FA is enabled - check if user has set up TOTP secret
+    if (!user.twofa_secret) {
+     
+      const { secret, otpauthUrl } = totp.generateTOTPSecret(user.email);
+      const qrCodeDataUrl = await totp.generateQRCode(otpauthUrl);
 
-    const sent = await email.sendOTPEmail(userEmail,  "Due to development mode otp verification disabled on backend-side for fatser testing enter any numbers you want and it will works", "login");
+      // Store the secret temporarily (NOT saved to twofa_secret until user verifies)
+      const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+      await User.findByIdAndUpdate(user._id, {
+        $set: {
+          auth: {
+            access_token: {
+              token_type: "2fa_setup",
+              token: secret,
+              expires_at: otpExpiry
+            }
+          }
+        }
+      });
 
-    // Log successful OTP send
-    await logAuditEvent('SYSTEM', `OTP sent for login to user: ${userEmail}`, req, {
+      // Log 2FA setup required
+      // await logAuditEvent('SYSTEM', `2FA setup required for user: ${userEmail}`, req, {
+      //   resource: 'auth',
+      //   resource_id: user._id.toString(),
+      //   status_code: 200,
+      //   metadata: {
+      //     email: userEmail,
+      //     purpose: '2fa_setup_required'
+      //   }
+      // });
+
+      return res.status(200).json({
+        status: true,
+        error: null,
+        message: "Two-factor authentication setup required. Please scan the QR code with your authenticator app.",
+        data: {
+          requiresTOTPSetup: true,
+          userId: user._id,
+          email: user.email,
+          secret: secret,
+          qrCode: qrCodeDataUrl,
+          otpauthUrl: otpauthUrl
+        },
+      });
+    }
+
+    // 2FA is enabled and secret exists - generate OTP JWT for TOTP verification
+    const userRole = user.roles?.role_name || 'user';
+    const userPermissions = user.roles?.permissions || [];
+
+    const otpPayload = {
+      userId: user._id.toString(),
+      email: user.email,
+      fullName: user.full_name,
+      role: userRole,
+      permissions: userPermissions
+    };
+
+    const otpToken = jwt.generateAccessToken({ ...otpPayload, purpose: 'login_verification' });
+
+    // Store the JWT token in database
+    const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    await User.findByIdAndUpdate(user._id, {
+      $set: {
+        auth: {
+          access_token: {
+            token: otpToken,
+            token_type: "login_totp",
+            expires_at: otpExpiry
+          }
+        }
+      }
+    });
+
+    // Log successful password verification, awaiting TOTP
+    await logAuditEvent('SYSTEM', `Password verified, awaiting TOTP for login: ${userEmail}`, req, {
       resource: 'auth',
       resource_id: user._id.toString(),
       status_code: 200,
@@ -279,13 +360,15 @@ async function login(req, res, next) {
     return res.status(200).json({
       status: true,
       error: null,
-      //message: "OTP sent to your email. Please verify to complete login.",
-      message: "OTP VERIFICATION DISSABLED FOR FATSER TESTING ENTER ANY NUMBERS",
+      message: "Please verify your TOTP token to complete login.",
       data: {
         requiresOTP: true,
         userId: user._id,
+        email: user.email,
+        twoFADisabled: false
       },
     });
+
   } catch (error) {
     console.error("Error during login process:", error);
     return res.status(500).json({
