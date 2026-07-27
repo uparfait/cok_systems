@@ -347,7 +347,7 @@ export default function MayorFeedbackPage() {
                             style={{ backgroundColor: `${meta.color}1A`, borderLeft: `2px solid ${meta.color}` }}
                           >
                             <span style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 700, color: meta.color }}>
-                              {f.rate ?? '—'}
+                              {f.rate ?? ''}
                             </span>
                             <span className="text-[9px] text-gray-400">/ {f.rate_out_of || 10}</span>
                           </span>
@@ -420,8 +420,8 @@ export default function MayorFeedbackPage() {
           <div className="px-4 py-3 text-xs text-gray-400" style={{ borderTop: `1px solid ${COK.border}`, fontFamily: COK.bodyFont }}>
             <CokLabel>Classification</CokLabel>
             <span>
-              Positive ≥ 7/10 · Neutral 4–6/10 · Negative &lt; 4/10 — Service feedback is tied to a department visit; general
-              feedback is submitted freely by citizens.
+             <p style={{ fontFamily: COK.bodyFont, fontSize: 14, fontWeight: 900,  }}>Service feedback is tied to a department visit; general
+              feedback is submitted freely by citizens.</p>
             </span>
           </div>
         </div>

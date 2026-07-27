@@ -334,6 +334,20 @@ const getServiceDeliveryStats = async (req, res) => {
             }
         });
 
+        // Breakdown by department over ALL services (inhouse + completed),
+        // so charts can match the overall total
+        const departmentBreakdownTotal = await ServiceDelivery.aggregate([
+            { $unwind: '$departments_assigned' },
+            { $group: { _id: '$departments_assigned.department_name', count: { $sum: 1 } } }
+        ]);
+
+        const departmentCountsTotal = {};
+        departmentBreakdownTotal.forEach(item => {
+            if (item._id) {
+                departmentCountsTotal[item._id] = item.count;
+            }
+        });
+
         return res.status(200).json({
             success: true,
             type: 'success',
@@ -343,7 +357,8 @@ const getServiceDeliveryStats = async (req, res) => {
                 inhouse: totalInhouse,
                 completed: totalCompleted,
                 by_status: statusCounts,
-                by_department: departmentCounts
+                by_department: departmentCounts,
+                by_department_total: departmentCountsTotal
             }
         });
     } catch (error) {
