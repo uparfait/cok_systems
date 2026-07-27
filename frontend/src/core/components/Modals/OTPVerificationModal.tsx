@@ -344,19 +344,19 @@ const logoImage = '/LOGO_COK.png';
                 }
               }}>
                 {otp.map((digit, index) => (
-                  <input
-                    key={index}
-                    id={`otp-verify-${index}`}
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpChange(index, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(index, e)}
-                    className="w-12 h-12 text-center text-lg font-semibold border-2 border-gray-300 rounded-md focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 text-gray-800 bg-white"
-                    autoFocus={index === 0}
-                  />
+                    <input
+                      key={index}
+                      id={`otp-verify-${index}`}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleOtpChange(index, e.target.value.replace(/\D/g, ''))}
+                      onKeyDown={(e) => handleKeyDown(index, e)}
+                      className="w-12 h-12 text-center text-lg font-semibold border-2 border-gray-300 rounded-md focus:outline-none focus:border-[#056daa] focus:ring-1 focus:ring-[#056daa] text-gray-800 bg-white"
+                      autoFocus={index === 0}
+                    />
                 ))}
               </div>
 
