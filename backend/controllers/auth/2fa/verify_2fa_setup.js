@@ -172,7 +172,7 @@ async function verify2FASetup(req, res, next) {
     return res.status(200).json({
       status: true,
       error: null,
-      message: "TOTP verified successfully. 2FA is now enabled for your account.",
+      message: "TOTP verified successfully. you can now login with your account credentials",
       data: {
         signature: signature,
         userId: user._id,

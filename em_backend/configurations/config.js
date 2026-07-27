@@ -29,13 +29,11 @@ module.exports = {
     secret: process.env.JWT_SECRET || uuid.v4(),
   },
   email: {
-    brevoApiKey:
-      process.env.BREVO_API_KEY ||
-      "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",
-    sender: {
-      name: "COK Systems",
-      email: "cokservicedelivery@gmail.com",
-    },
+    host: process.env.EMAIL_HOST || 'mail.kigalicity.gov.rw',
+    port: parseInt(process.env.EMAIL_PORT, 10) || 25,
+    user: process.env.EMAIL_USER || 'coksystems@kigalicity.gov.rw',
+    pass: process.env.EMAIL_PASS || 'CTown@2025!&',
+    from: process.env.EMAIL_FROM || '"IKAZE" <coksystems@kigalicity.gov.rw>',
   },
   log: {
     format: process.env.LOG_FORMAT || 'combined',

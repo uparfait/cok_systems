@@ -1,292 +1,271 @@
-/**
-
- * Sends transactional emails via the Brevo API, including calendar (.ics)
- * attachments for event invitations and cancellations.
- 
- */
-
-const SibApiV3Sdk = require('sib-api-v3-sdk');
+const nodemailer = require('nodemailer');
 const config = require('../configurations/config');
 const { buildInviteICS } = require('./eventCalendar');
 
-const defaultClient = SibApiV3Sdk.ApiClient.instance;
-const apiKey = defaultClient.authentications['api-key'];
-apiKey.apiKey = config.email.brevoApiKey;
-
-const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-const SENDER = config.email.sender;
-
-/**
- * Send an email with a single .ics calendar attachment via Brevo.
- * @returns {Promise<{success:boolean, error?:string}>}
- */
-async function sendCalendarEmail(toEmail, subject, htmlContent, textContent, icsContent, filename) {
-  const mail = new SibApiV3Sdk.SendSmtpEmail();
-
-  mail.subject = subject;
-  mail.htmlContent = htmlContent;
-  mail.textContent = textContent;
-  mail.sender = SENDER;
-  mail.to = [{ email: toEmail }];
-  mail.attachment = [
-    {
-      content: Buffer.from(icsContent).toString('base64'),
-      name: filename || 'invite.ics',
-      // Critical: tells Gmail/Outlook to parse this as a calendar invitation
-      contentType: 'text/calendar; charset=UTF-8; method=REQUEST',
+const transporter = nodemailer.createTransport({
+    host: config.email.host,
+    port: config.email.port,
+    secure: false,
+    auth: {
+        user: config.email.user,
+        pass: config.email.pass,
     },
-  ];
+    tls: {
+        rejectUnauthorized: false,
+    },
+});
 
-  try {
-    await apiInstance.sendTransacEmail(mail);
-    return { success: true };
-  } catch (error) {
-    console.error('Brevo API Error:', error.response ? error.response.body : error);
-    return { success: false, error: error.message };
-  }
-}
+transporter.verify((error) => {
+    if (error) {
+        console.error('SMTP Connection Error:', error);
+    } else {
+        console.log('SMTP Server is ready');
+    }
+});
 
-function inviteHtml(event) {
-  return `
-    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
-      <h2 style="color: #1a5276;">You're invited: ${event.eventName}</h2>
-      <p>${event.eventDescription || ''}</p>
-      <p><strong>Room:</strong> ${event.eventRoom || 'Meeting Room'}</p>
-    </div>`;
-}
+const PRIMARY_COLOR = '#056daa';
+const SENDER = config.email.from;
 
-function cancelHtml(event) {
-  return `
-    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
-      <h2 style="color: #c0392b;">Cancelled: ${event.eventName}</h2>
-      <p>This event has been cancelled.</p>
-    </div>`;
-}
-
-/** Send a plain (no .ics attachment) transactional email via Brevo. */
-async function sendNotificationEmail(toEmail, subject, htmlContent, textContent) {
-  const mail = new SibApiV3Sdk.SendSmtpEmail();
-
-  mail.subject = subject;
-  mail.htmlContent = htmlContent;
-  mail.textContent = textContent;
-  mail.sender = SENDER;
-  mail.to = [{ email: toEmail }];
-
-  try {
-    await apiInstance.sendTransacEmail(mail);
-    return { success: true };
-  } catch (error) {
-    console.error('Brevo API Error:', error.response ? error.response.body : error);
-    return { success: false, error: error.message };
-  }
+function htmlShell(title, bodyHtml) {
+    return `
+        <div style="font-family: 'Montserrat', sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: ${PRIMARY_COLOR}; padding: 20px; text-align: center; border-radius: 4px 4px 0 0;">
+                <h2 style="color: #ffffff; margin: 0; font-family: 'Montserrat', sans-serif; font-weight: 700; letter-spacing: -0.5px;">City of Kigali</h2>
+            </div>
+            <div style="background-color: #ffffff; padding: 30px; border: 1px solid #E0E0E0; border-top: none; border-radius: 0 0 4px 4px;">
+                ${bodyHtml}
+            </div>
+            <div style="margin-top: 20px; padding: 15px; background-color: #F7F9FB; border: 1px solid #E0E0E0; border-radius: 4px; text-align: center;">
+                <p style="font-size: 13px; color: #9E9E9E; margin: 0; font-family: 'Merriweather', serif;">
+                    City of Kigali  Event Management System
+                </p>
+            </div>
+        </div>
+    `;
 }
 
 function escapeHtml(str) {
-  return String(str == null ? '' : str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
-function bookingShell(title, bodyHtml) {
-  return `
-    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; color: #1f2937;">
-      <h2 style="color: #1a5276;">${escapeHtml(title)}</h2>
-      ${bodyHtml}
-      <hr style="margin-top: 24px; border: none; border-top: 1px solid #e5e7eb;" />
-      <p style="font-size: 12px; color: #6b7280;">City of Kigali &mdash; Event Management System</p>
-    </div>`;
+async function sendCalendarEmail(toEmail, subject, htmlContent, textContent, icsContent, filename) {
+    const mailOptions = {
+        from: SENDER,
+        subject,
+        to: toEmail,
+        text: textContent,
+        html: htmlContent,
+        attachments: [
+            {
+                content: Buffer.from(icsContent),
+                filename: filename || 'invite.ics',
+                contentType: 'text/calendar; charset=UTF-8; method=REQUEST',
+            },
+        ],
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        return { success: true };
+    } catch (error) {
+        console.error('SMTP Error:', error);
+        return { success: false, error: error.message };
+    }
 }
 
-/**
- * Email sent to the organizer right after a room booking request is submitted.
- * Includes the tracking code and a direct link to track the request.
- */
-function bookingSubmittedHtml(data) {
-  const { trackingCode, trackUrl, eventName, eventRoom, start, end } = data;
-  const body = `
-    <p>Thank you for your room booking request. We have received it and it is now <strong>pending review</strong>.</p>
-    <p><strong>Event:</strong> ${escapeHtml(eventName)}</p>
-    <p><strong>Room:</strong> ${escapeHtml(eventRoom)}</p>
-    <p><strong>When:</strong> ${escapeHtml(start)} &ndash; ${escapeHtml(end)}</p>
-    <p style="margin-top: 16px;">Your tracking code is:</p>
-    <p style="font-size: 18px; font-weight: bold; letter-spacing: 1px; color: #1a5276;">${escapeHtml(trackingCode)}</p>
-    <p style="margin-top: 16px;">You can track the status of your request (and edit or cancel it) using the link below:</p>
-    <p><a href="${escapeHtml(trackUrl)}" style="color: #2563eb;">${escapeHtml(trackUrl)}</a></p>
-    <p style="font-size: 13px; color: #6b7280;">Keep this code safe &mdash; you will also need it to view your request if you lose this email.</p>`;
-  return bookingShell('Room Booking Request Received', body);
+function inviteHtml(event) {
+    return `
+        <h2 style="color: ${PRIMARY_COLOR}; font-family: 'Montserrat', sans-serif;">You're invited: ${event.eventName}</h2>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">${event.eventDescription || ''}</p>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;"><strong>Room:</strong> ${event.eventRoom || 'Meeting Room'}</p>
+    `;
 }
 
-/**
- * Email sent to the organizer when their booking request is accepted.
- */
-function bookingAcceptedHtml(data) {
-  const { trackingCode, trackUrl, eventName, eventRoom, start, end } = data;
-  const body = `
-    <p>Good news! Your room booking request has been <strong style="color: #15803d;">accepted</strong>.</p>
-    <p><strong>Event:</strong> ${escapeHtml(eventName)}</p>
-    <p><strong>Room:</strong> ${escapeHtml(eventRoom)}</p>
-    <p><strong>When:</strong> ${escapeHtml(start)} &ndash; ${escapeHtml(end)}</p>
-    <p style="margin-top: 16px;">Tracking code: <strong>${escapeHtml(trackingCode)}</strong></p>
-    <p style="margin-top: 16px;">Track or manage your request here:</p>
-    <p><a href="${escapeHtml(trackUrl)}" style="color: #2563eb;">${escapeHtml(trackUrl)}</a></p>`;
-  return bookingShell('Room Booking Request Accepted', body);
+function cancelHtml(event) {
+    return `
+        <h2 style="color: #E53935; font-family: 'Montserrat', sans-serif;">Cancelled: ${event.eventName}</h2>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">This event has been cancelled.</p>
+    `;
 }
 
-/**
- * Email sent to the organizer when their booking request is rejected.
- */
-function bookingRejectedHtml(data) {
-  const { trackingCode, trackUrl, eventName, eventRoom, reason } = data;
-  const reasonBlock = reason
-    ? `<p><strong>Reason:</strong> ${escapeHtml(reason)}</p>`
-    : '';
-  const body = `
-    <p>We regret to inform you that your room booking request was <strong style="color: #b91c1c;">not approved</strong>.</p>
-    <p><strong>Event:</strong> ${escapeHtml(eventName)}</p>
-    <p><strong>Room:</strong> ${escapeHtml(eventRoom)}</p>
-    ${reasonBlock}
-    <p style="margin-top: 16px;">Tracking code: <strong>${escapeHtml(trackingCode)}</strong></p>
-    <p style="margin-top: 16px;">You can review your request here:</p>
-    <p><a href="${escapeHtml(trackUrl)}" style="color: #2563eb;">${escapeHtml(trackUrl)}</a></p>`;
-  return bookingShell('Room Booking Request Rejected', body);
-}
-
-/** Send the "booking submitted" email to the organizer (if an email exists). */
-async function sendBookingSubmittedEmail(email, data) {
-  if (!email) return { success: false, error: 'No organizer email' };
-  return sendNotificationEmail(
-    email,
-    `Room Booking Received – ${data.trackingCode}`,
-    bookingSubmittedHtml(data),
-    `Your room booking request (${data.trackingCode}) is pending review. Track it at ${data.trackUrl}`
-  );
-}
-
-/** Send the "booking accepted" email to the organizer (if an email exists). */
-async function sendBookingAcceptedEmail(email, data) {
-  if (!email) return { success: false, error: 'No organizer email' };
-  return sendNotificationEmail(
-    email,
-    `Room Booking Accepted – ${data.trackingCode}`,
-    bookingAcceptedHtml(data),
-    `Your room booking request (${data.trackingCode}) has been accepted. Track it at ${data.trackUrl}`
-  );
-}
-
-/** Send the "booking rejected" email to the organizer (if an email exists). */
-async function sendBookingRejectedEmail(email, data) {
-  if (!email) return { success: false, error: 'No organizer email' };
-  return sendNotificationEmail(
-    email,
-    `Room Booking Not Approved – ${data.trackingCode}`,
-    bookingRejectedHtml(data),
-    `Your room booking request (${data.trackingCode}) was rejected.${data.reason ? ` Reason: ${data.reason}` : ''} Track it at ${data.trackUrl}`
-  );
-}
-
-/** Send a calendar invitation to a single attendee. */
-async function sendEventInvitation(email, event, invitationUid, recurrenceId = null) {
-  const ics = buildInviteICS(event, invitationUid, 'REQUEST', email, 0, recurrenceId);
-  return sendCalendarEmail(
-    email,
-    `Invitation: ${event.eventName}`,
-    inviteHtml(event),
-    `Invitation: ${event.eventName}`,
-    ics,
-    'invite.ics'
-  );
-}
-
-/** Send a calendar cancellation (METHOD:CANCEL) to a single attendee. */
-async function sendEventCancellation(email, event, invitationUid, recurrenceId = null) {
-  const ics = buildInviteICS(event, invitationUid, 'CANCEL', email, 0, recurrenceId);
-  return sendCalendarEmail(
-    email,
-    `Cancelled: ${event.eventName}`,
-    cancelHtml(event),
-    `Cancelled: ${event.eventName}`,
-    ics,
-    'cancel.ics'
-  );
-}
-
-/** Send a plain transactional email (no attachment) via Brevo. */
 async function sendPlainEmail(toEmail, subject, htmlContent, textContent) {
-  const mail = new SibApiV3Sdk.SendSmtpEmail();
+    const mailOptions = {
+        from: SENDER,
+        subject,
+        to: toEmail,
+        text: textContent,
+        html: htmlContent,
+    };
 
-  mail.subject = subject;
-  mail.htmlContent = htmlContent;
-  mail.textContent = textContent;
-  mail.sender = SENDER;
-  mail.to = [{ email: toEmail }];
+    try {
+        await transporter.sendMail(mailOptions);
+        return { success: true };
+    } catch (error) {
+        console.error('SMTP Error:', error);
+        return { success: false, error: error.message };
+    }
+}
 
-  try {
-    await apiInstance.sendTransacEmail(mail);
-    return { success: true };
-  } catch (error) {
-    console.error('Brevo API Error:', error.response ? error.response.body : error);
-    return { success: false, error: error.message };
-  }
+async function sendNotificationEmail(toEmail, subject, htmlContent, textContent) {
+    return sendPlainEmail(toEmail, subject, htmlContent, textContent);
+}
+
+function bookingSubmittedHtml(data) {
+    const { trackingCode, trackUrl, eventName, eventRoom, start, end } = data;
+    const body = `
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Thank you for your room booking request. We have received it and it is now <strong>pending review</strong>.</p>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;"><strong>Event:</strong> ${escapeHtml(eventName)}</p>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;"><strong>Room:</strong> ${escapeHtml(eventRoom)}</p>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;"><strong>When:</strong> ${escapeHtml(start)} &ndash; ${escapeHtml(end)}</p>
+        <p style="margin-top: 16px; font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Your tracking code is:</p>
+        <p style="font-size: 18px; font-weight: bold; letter-spacing: 1px; color: ${PRIMARY_COLOR}; font-family: 'Montserrat', sans-serif;">${escapeHtml(trackingCode)}</p>
+        <p style="margin-top: 16px; font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">You can track the status of your request (and edit or cancel it) using the link below:</p>
+        <p><a href="${escapeHtml(trackUrl)}" style="color: #2563eb; font-family: 'Montserrat', sans-serif;">${escapeHtml(trackUrl)}</a></p>
+        <p style="font-size: 13px; color: #9E9E9E; font-family: 'Merriweather', serif;">Keep this code safe  you will also need it to view your request if you lose this email.</p>
+    `;
+    return htmlShell('Room Booking Request Received', body);
+}
+
+function bookingAcceptedHtml(data) {
+    const { trackingCode, trackUrl, eventName, eventRoom, start, end } = data;
+    const body = `
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Good news! Your room booking request has been <strong style="color: #15803d;">accepted</strong>.</p>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;"><strong>Event:</strong> ${escapeHtml(eventName)}</p>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;"><strong>Room:</strong> ${escapeHtml(eventRoom)}</p>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;"><strong>When:</strong> ${escapeHtml(start)} &ndash; ${escapeHtml(end)}</p>
+        <p style="margin-top: 16px; font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Tracking code: <strong>${escapeHtml(trackingCode)}</strong></p>
+        <p style="margin-top: 16px; font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Track or manage your request here:</p>
+        <p><a href="${escapeHtml(trackUrl)}" style="color: #2563eb; font-family: 'Montserrat', sans-serif;">${escapeHtml(trackUrl)}</a></p>
+    `;
+    return htmlShell('Room Booking Request Accepted', body);
+}
+
+function bookingRejectedHtml(data) {
+    const { trackingCode, trackUrl, eventName, eventRoom, reason } = data;
+    const reasonBlock = reason ? `<p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;"><strong>Reason:</strong> ${escapeHtml(reason)}</p>` : '';
+    const body = `
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">We regret to inform you that your room booking request was <strong style="color: #b91c1c;">not approved</strong>.</p>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;"><strong>Event:</strong> ${escapeHtml(eventName)}</p>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;"><strong>Room:</strong> ${escapeHtml(eventRoom)}</p>
+        ${reasonBlock}
+        <p style="margin-top: 16px; font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Tracking code: <strong>${escapeHtml(trackingCode)}</strong></p>
+        <p style="margin-top: 16px; font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">You can review your request here:</p>
+        <p><a href="${escapeHtml(trackUrl)}" style="color: #2563eb; font-family: 'Montserrat', sans-serif;">${escapeHtml(trackUrl)}</a></p>
+    `;
+    return htmlShell('Room Booking Request Rejected', body);
+}
+
+async function sendBookingSubmittedEmail(email, data) {
+    if (!email) return { success: false, error: 'No organizer email' };
+    return sendPlainEmail(
+        email,
+        `Room Booking Received &ndash; ${data.trackingCode}`,
+        bookingSubmittedHtml(data),
+        `Your room booking request (${data.trackingCode}) is pending review. Track it at ${data.trackUrl}`
+    );
+}
+
+async function sendBookingAcceptedEmail(email, data) {
+    if (!email) return { success: false, error: 'No organizer email' };
+    return sendPlainEmail(
+        email,
+        `Room Booking Accepted &ndash; ${data.trackingCode}`,
+        bookingAcceptedHtml(data),
+        `Your room booking request (${data.trackingCode}) has been accepted. Track it at ${data.trackUrl}`
+    );
+}
+
+async function sendBookingRejectedEmail(email, data) {
+    if (!email) return { success: false, error: 'No organizer email' };
+    return sendPlainEmail(
+        email,
+        `Room Booking Not Approved &ndash; ${data.trackingCode}`,
+        bookingRejectedHtml(data),
+        `Your room booking request (${data.trackingCode}) was rejected.${data.reason ? ` Reason: ${data.reason}` : ''} Track it at ${data.trackUrl}`
+    );
+}
+
+async function sendEventInvitation(email, event, invitationUid, recurrenceId = null) {
+    const ics = buildInviteICS(event, invitationUid, 'REQUEST', email, 0, recurrenceId);
+    return sendCalendarEmail(
+        email,
+        `Invitation: ${event.eventName}`,
+        inviteHtml(event),
+        `Invitation: ${event.eventName}`,
+        ics,
+        'invite.ics'
+    );
+}
+
+async function sendEventCancellation(email, event, invitationUid, recurrenceId = null) {
+    const ics = buildInviteICS(event, invitationUid, 'CANCEL', email, 0, recurrenceId);
+    return sendCalendarEmail(
+        email,
+        `Cancelled: ${event.eventName}`,
+        cancelHtml(event),
+        `Cancelled: ${event.eventName}`,
+        ics,
+        'cancel.ics'
+    );
 }
 
 function taskAssignmentHtml(action, eventName, tasksUrl) {
-  const assignedBy = action.createdBy?.name || 'Administrator';
-  const byDetails = [action.createdBy?.role, action.createdBy?.institution].filter(Boolean).join(', ');
-  const due = action.dueDate
-    ? new Date(action.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-    : '—';
+    const assignedBy = action.createdBy?.name || 'Administrator';
+    const byDetails = [action.createdBy?.role, action.createdBy?.institution].filter(Boolean).join(', ');
+    const due = action.dueDate
+        ? new Date(action.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        : '\u2014';
 
-  return `
-    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
-      <h2 style="color: #1a5276;">New responsibility assigned to you</h2>
-      <p>Hello ${action.assignedPerson?.name || ''},</p>
-      <p>
-        You have been assigned the responsibility <strong>"${action.title}"</strong>
-        by <strong>${assignedBy}</strong>${byDetails ? ` (${byDetails})` : ''}${eventName ? ` for the event <strong>${eventName}</strong>` : ''}.
-      </p>
-      <p style="background: #f4f6f7; border-left: 4px solid #1a5276; padding: 10px 14px; color: #333;">
-        ${action.actionDescription || ''}
-      </p>
-      <p><strong>Due date:</strong> ${due}</p>
-      ${tasksUrl ? `
-      <p style="margin-top: 20px;">
-        <a href="${tasksUrl}" style="display: inline-block; background: #1a5276; color: #ffffff; padding: 10px 18px; text-decoration: none; border-radius: 4px;">
-          Open My Tasks
-        </a>
-      </p>` : ''}
-      <p style="color: #7f8c8d; font-size: 12px; margin-top: 24px;">City of Kigali — Event Management System</p>
-    </div>`;
+    const body = `
+        <h2 style="color: ${PRIMARY_COLOR}; font-family: 'Montserrat', sans-serif;">New responsibility assigned to you</h2>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Hello ${action.assignedPerson?.name || ''},</p>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">
+            You have been assigned the responsibility <strong>"${action.title}"</strong>
+            by <strong>${assignedBy}</strong>${byDetails ? ` (${byDetails})` : ''}${eventName ? ` for the event <strong>${eventName}</strong>` : ''}.
+        </p>
+        <p style="background: #f4f6f7; border-left: 4px solid ${PRIMARY_COLOR}; padding: 10px 14px; color: #333; font-family: 'Merriweather', serif; font-size: 15px;">
+            ${action.actionDescription || ''}
+        </p>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;"><strong>Due date:</strong> ${due}</p>
+        ${tasksUrl ? `
+        <p style="margin-top: 20px;">
+            <a href="${tasksUrl}" style="display: inline-block; background-color: ${PRIMARY_COLOR}; color: #ffffff; padding: 10px 18px; text-decoration: none; border-radius: 4px; font-family: 'Montserrat', sans-serif; font-weight: 600;">
+                Open My Tasks
+            </a>
+        </p>` : ''}
+    `;
+    return htmlShell('New Responsibility Assigned', body);
 }
 
-/** Notify the assigned person that a responsibility (event action) was assigned to them. */
 async function sendTaskAssignmentEmail(action, eventName) {
-  const tasksUrl = process.env.FRONTEND_URL
-    ? `${process.env.FRONTEND_URL.replace(/\/+$/, '')}/my-tasks`
-    : '';
-  const assignedBy = action.createdBy?.name || 'Administrator';
-  const subject = `New responsibility: ${action.title}`;
-  const text = `You have been assigned "${action.title}" by ${assignedBy}.${eventName ? ` Event: ${eventName}.` : ''} Open My Tasks: ${tasksUrl}`;
+    const tasksUrl = process.env.FRONTEND_URL
+        ? `${process.env.FRONTEND_URL.replace(/\/+$/, '')}/my-tasks`
+        : '';
+    const assignedBy = action.createdBy?.name || 'Administrator';
+    const subject = `New responsibility: ${action.title}`;
+    const text = `You have been assigned "${action.title}" by ${assignedBy}.${eventName ? ` Event: ${eventName}.` : ''} Open My Tasks: ${tasksUrl}`;
 
-  return sendPlainEmail(
-    action.assignedPerson.email,
-    subject,
-    taskAssignmentHtml(action, eventName, tasksUrl),
-    text
-  );
+    return sendPlainEmail(
+        action.assignedPerson.email,
+        subject,
+        taskAssignmentHtml(action, eventName, tasksUrl),
+        text
+    );
 }
 
 module.exports = {
-  sendCalendarEmail,
-  sendPlainEmail,
-  sendEventInvitation,
-  sendEventCancellation,
-  sendTaskAssignmentEmail,
-  sendNotificationEmail,
-  sendBookingSubmittedEmail,
-  sendBookingAcceptedEmail,
-  sendBookingRejectedEmail,
+    sendCalendarEmail,
+    sendPlainEmail,
+    sendNotificationEmail,
+    sendEventInvitation,
+    sendEventCancellation,
+    sendTaskAssignmentEmail,
+    sendBookingSubmittedEmail,
+    sendBookingAcceptedEmail,
+    sendBookingRejectedEmail,
 };

@@ -1,11 +1,11 @@
 const DB_CONFIG = {
-    // Email Configuration (Hardcoded for deployment)
+    // Email Configuration (from environment variables)
     email: {
-        host: 'smtp.gmail.com',
-        port: 587,
-        user: 'cokservicedelivery@gmail.com',
-        pass: 'dzyhubnokthpuvxa',
-        from: 'cokservicedelivery@gmail.com'
+        host: process.env.EMAIL_HOST || 'mail.kigalicity.gov.rw',
+        port: parseInt(process.env.EMAIL_PORT, 10) || 25,
+        user: process.env.EMAIL_USER || 'coksystems@kigalicity.gov.rw',
+        pass: process.env.EMAIL_PASS || 'CTown@2025!&',
+        from: process.env.EMAIL_FROM || '"IKAZE" <coksystems@kigalicity.gov.rw>'
     },
 
     // Redis Configuration

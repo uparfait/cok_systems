@@ -1,176 +1,127 @@
-/**
- * Email Utility - Render & Brevo API Version
- */
-
 const nodemailer = require('nodemailer');
-const fs = require('fs').promises; // Built-in Node.js module to handle files
+const fs = require('fs').promises;
 const path = require('path');
 const config = require('../configurations/config');
 
-// Create SMTP transporter
-const createTransporter = () => {
-    const transporter = nodemailer.createTransport({
-        host: config.email.host,
-        port: config.email.port,
-        secure: false, // true for 465, false for other ports
-        auth: {
-            user: config.email.user,
-            pass: config.email.pass
-        },
-        tls: {
-            rejectUnauthorized: false
-        }
-    });
-    // Verify connection on creation
-    transporter.verify((error, success) => {
-        if (error) {
-            console.error('SMTP Connection Error:', error);
-        } else {
-            console.log('SMTP Server is ready');
-        }
-    });
-    
-    return transporter;
-};
+const transporter = nodemailer.createTransport({
+    host: config.email.host,
+    port: config.email.port,
+    secure: false,
+    auth: {
+        user: config.email.user,
+        pass: config.email.pass,
+    },
+    tls: {
+        rejectUnauthorized: false,
+    },
+});
 
-/**
- * Send OTP email
- * @param {string} email - Recipient email address
- * @param {string} otp - OTP code to send
- * @param {string} type - 'login' or 'password_reset'
- * @returns {Promise<object>} - { success: boolean, error?: string }
- */
-const SibApiV3Sdk = require('sib-api-v3-sdk');
-const defaultClient = SibApiV3Sdk.ApiClient.instance;
-
-// Authenticate with your API Key
-const apiKey = defaultClient.authentications['api-key'];
-apiKey.apiKey = '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';
-
-const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-
-/**
- * Core function to send via Brevo API
- */
-const sendViaAPI = async (toEmail, subject, htmlContent, textContent) => {
-    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-
-    sendSmtpEmail.subject = subject;
-    sendSmtpEmail.htmlContent = htmlContent;
-    sendSmtpEmail.textContent = textContent;
-    // The sender email MUST be verified Brevo dashboard
-    sendSmtpEmail.sender = { "name": "COK Systems", "email": "cokservicedelivery@gmail.com" };
-    sendSmtpEmail.to = [{ "email": toEmail }];
-
-    try {
-        await apiInstance.sendTransacEmail(sendSmtpEmail);
-        return { success: true };
-    } catch (error) {
-        console.error('Brevo API Error:', error.response ? error.response.body : error);
-        return { success: false, error: error.message };
+transporter.verify((error, success) => {
+    if (error) {
+        console.error('SMTP Connection Error:', error);
+    } else {
+        console.log('SMTP Server is ready');
     }
-};
-const sendWithFile = async (toEmail, subject, htmlContent, textContent, fileData) => {
-    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+});
 
-    sendSmtpEmail.subject = subject;
-    sendSmtpEmail.htmlContent = htmlContent;
-    sendSmtpEmail.textContent = textContent;
-    sendSmtpEmail.sender = { "name": "COK Systems", "email": "cokservicedelivery@gmail.com" };
-    sendSmtpEmail.to = [{ "email": toEmail }];
+const PRIMARY_COLOR = '#056daa';
+const PRIMARY_HOVER = '#248fc2';
 
-    // CRITICAL: Check if a file was provided, and format it for Brevo's API
-    if (fileData && fileData.content) {
-        sendSmtpEmail.attachment = [{
-            // Brevo requires the file buffer to be converted into a Base64 string
-            "content": fileData.content.toString('base64'), 
-            "name": fileData.filename || 'Eat.ics'
-        }];
-    }
-
-    try {
-        await apiInstance.sendTransacEmail(sendSmtpEmail);
-        return { success: true };
-    } catch (error) {
-        console.error('Brevo API Error:', error.response ? error.response.body : error);
-        return { success: false, error: error.message };
-    }
-};
-
-const sendOTPEmail = async (email, otp, type = 'login') => {
-    let subject = 'Your Verification Code';
-    let message = `Your verification code is: ${otp}. This code will expire in 5 minutes.`;
-    
-    const htmlContent = `
-        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
-            <h2 style="color: #333;">${subject}</h2>
-            <p>Your verification code is:</p>
-            <div style="background: #f5f5f5; padding: 15px; font-size: 24px; font-weight: bold; letter-spacing: 5px; text-align: center; margin: 20px 0;">
-                ${otp}
+function htmlWrapper(bodyHtml) {
+    return `
+        <div style="font-family: 'Montserrat', sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: ${PRIMARY_COLOR}; padding: 20px; text-align: center; border-radius: 4px 4px 0 0;">
+                <h2 style="color: #ffffff; margin: 0; font-family: 'Montserrat', sans-serif; font-weight: 700; letter-spacing: -0.5px;">City of Kigali</h2>
             </div>
-            <p style="color: #666; font-size: 14px;">This code will expire in 5 minutes.</p>
+            <div style="background-color: #ffffff; padding: 30px; border: 1px solid #E0E0E0; border-top: none; border-radius: 0 0 4px 4px;">
+                ${bodyHtml}
+            </div>
+            <div style="margin-top: 20px; padding: 15px; background-color: #F7F9FB; border: 1px solid #E0E0E0; border-radius: 4px; text-align: center;">
+                <p style="font-size: 13px; color: #9E9E9E; margin: 0; font-family: 'Merriweather', serif;">
+                    City of Kigali  Digital Services Department
+                </p>
+            </div>
         </div>
     `;
+}
 
-    return await sendViaAPI(email, subject, htmlContent, message);
-};
+async function sendOTPEmail(email, otp, type = 'login') {
+    const subject = type === 'password_reset' ? 'Your Password Reset Code' : 'Your Verification Code';
+    const message = `Your verification code is: ${otp}. This code will expire in 5 minutes.`;
 
-const sendWelcomeEmail = async (email, name) => {
+    const htmlContent = htmlWrapper(`
+        <h2 style="color: ${PRIMARY_COLOR}; font-family: 'Montserrat', sans-serif; font-size: 22px; margin-top: 0;">${subject}</h2>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Your verification code is:</p>
+        <div style="background: #f5f5f5; padding: 15px; font-size: 28px; font-weight: bold; letter-spacing: 5px; text-align: center; margin: 20px 0; border: 2px solid ${PRIMARY_COLOR}; border-radius: 4px; color: ${PRIMARY_COLOR};">
+            ${otp}
+        </div>
+        <p style="color: #666; font-size: 14px; font-family: 'Merriweather', serif;">This code will expire in 5 minutes.</p>
+    `);
+
+    return await sendEmail(email, subject, htmlContent, message);
+}
+
+async function sendWelcomeEmail(email, name) {
     const subject = 'Welcome to COK Systems';
-    const htmlContent = `<h2>Welcome ${name}!</h2><p>Your account has been created successfully.</p>`;
-    return await sendViaAPI(email, subject, htmlContent, "Welcome to COK Systems!");
-};
+    const htmlContent = htmlWrapper(`
+        <h2 style="color: ${PRIMARY_COLOR}; font-family: 'Montserrat', sans-serif;">Welcome ${name}!</h2>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Your account has been created successfully.</p>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Welcome to the City of Kigali digital services platform.</p>
+    `);
+    return await sendEmail(email, subject, htmlContent, "Welcome to COK Systems!");
+}
 
-const sendPasswordChangedEmail = async (email, name) => {
+async function sendPasswordChangedEmail(email, name) {
     const subject = 'Password Changed - COK Systems';
-    const htmlContent = `<h2>Password Changed</h2><p>Hello ${name}, your password was updated.</p>`;
-    return await sendViaAPI(email, subject, htmlContent, "Your password has been changed.");
-};
+    const htmlContent = htmlWrapper(`
+        <h2 style="color: ${PRIMARY_COLOR}; font-family: 'Montserrat', sans-serif;">Password Changed</h2>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Hello ${name}, your password was updated successfully.</p>
+        <p style="font-family: 'Merriweather', serif; font-size: 14px; color: #9E9E9E;">If you did not make this change, please contact support immediately.</p>
+    `);
+    return await sendEmail(email, subject, htmlContent, "Your password has been changed.");
+}
 
-const sendAccountActivatedEmail = async (email, name) => {
+async function sendAccountActivatedEmail(email, name) {
     const subject = 'Account Activated - COK Systems';
-    const htmlContent = `<h2>Account Activated!</h2><p>Hello ${name}, your account is now active.</p>`;
-    return await sendViaAPI(email, subject, htmlContent, "Your account has been activated.");
-};
+    const htmlContent = htmlWrapper(`
+        <h2 style="color: ${PRIMARY_COLOR}; font-family: 'Montserrat', sans-serif;">Account Activated!</h2>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Hello ${name}, your account is now active.</p>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">You can now login to the City of Kigali portal with your credentials.</p>
+    `);
+    return await sendEmail(email, subject, htmlContent, "Your account has been activated.");
+}
 
-/**
- * Send negative feedback alert email to department head
- * @param {string} email - Recipient email address (department head)
- * @param {string} leaderName - Department head's name
- * @param {object} feedbackData - Feedback details { rating, department_name, user_name, textmessage, created_date }
- * @returns {Promise<object>} - { success: boolean, error?: string }
- */
-const sendNegativeFeedbackAlert = async (email, leaderName, feedbackData) => {
-    const subject = `⚠️ Negative Feedback Alert - ${feedbackData.department_name}`;
-    
-    const htmlContent = `
-        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
-            <h2 style="color: #d9534f;">⚠️ Negative Feedback Alert</h2>
-            <p>Dear ${leaderName},</p>
-            <p>You have received negative feedback for <strong>${feedbackData.department_name}</strong>.</p>
-            <div style="background: #f5f5f5; padding: 15px; margin: 20px 0; border-left: 4px solid #d9534f;">
-                <p><strong>Rating:</strong> ${feedbackData.rating}/10</p>
-                <p><strong>Visitor:</strong> ${feedbackData.user_name || 'Anonymous'}</p>
-                <p><strong>Date:</strong> ${new Date(feedbackData.created_date).toLocaleString()}</p>
-                <p><strong>Message:</strong></p>
-                <p>${feedbackData.textmessage || 'No message provided'}</p>
-            </div>
-            <p style="color: #666;">Please take immediate action to address this concern.</p>
+async function sendNegativeFeedbackAlert(email, leaderName, feedbackData) {
+    const subject = `Negative Feedback Alert - ${feedbackData.department_name}`;
+
+    const htmlContent = htmlWrapper(`
+        <h2 style="color: #E53935; font-family: 'Montserrat', sans-serif;">&#9888;&#65039; Negative Feedback Alert</h2>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Dear ${leaderName},</p>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">You have received negative feedback for <strong>${feedbackData.department_name}</strong>.</p>
+        <div style="background: #f5f5f5; padding: 15px; margin: 20px 0; border-left: 4px solid #E53935; border-radius: 4px;">
+            <p style="margin: 0;"><strong>Rating:</strong> ${feedbackData.rating}/10</p>
+            <p style="margin: 5px 0 0 0;"><strong>Visitor:</strong> ${feedbackData.user_name || 'Anonymous'}</p>
+            <p style="margin: 5px 0 0 0;"><strong>Date:</strong> ${new Date(feedbackData.created_date).toLocaleString()}</p>
+            <p style="margin: 5px 0 0 0;"><strong>Message:</strong></p>
+            <p style="margin: 5px 0 0 0; font-style: italic; color: #555555;">${feedbackData.textmessage || 'No message provided'}</p>
         </div>
-    `;
-    
+        <p style="color: #666; font-size: 14px; font-family: 'Merriweather', serif;">Please take immediate action to address this concern.</p>
+    `);
+
     const textContent = `Negative Feedback Alert for ${feedbackData.department_name}. Rating: ${feedbackData.rating}/10. Visitor: ${feedbackData.user_name || 'Anonymous'}. Message: ${feedbackData.textmessage || 'No message'}. Please take action.`;
-    
-    return await sendViaAPI(email, subject, htmlContent, textContent);
-};
 
+    return await sendEmail(email, subject, htmlContent, textContent);
+}
 
-const  sendLunchInviteEmail = async (email, name) => {
-    const subject = 'Invitation: Daily Lunch Reminder 🍲';
-    const htmlContent = `<h2>Hi ${name}!</h2><p>Here is your daily recurring automated lunch reminder for 11:40 AM.</p>`;
+async function sendLunchInviteEmail(email, name) {
+    const subject = 'Invitation: Daily Lunch Reminder';
+    const htmlContent = htmlWrapper(`
+        <h2 style="color: ${PRIMARY_COLOR}; font-family: 'Montserrat', sans-serif;">Hi ${name}!</h2>
+        <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Here is your daily recurring automated lunch reminder for 11:40 AM.</p>
+        <p style="font-family: 'Merriweather', serif; font-size: 14px; color: #9E9E9E;">Please find the attached calendar invitation file.</p>
+    `);
     const textContent = `Hi ${name}! Please accept this daily calendar invite file attachment.`;
 
-    // 1. Define the structural iCalendar data
     const icsContent = `BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//COK Systems//Lunch Invite//EN
@@ -190,7 +141,7 @@ DTSTAMP:20260703T095100Z
 DTSTART;TZID=Africa/Kigali:20260703T120000
 DURATION:PT45M
 RRULE:FREQ=DAILY;UNTIL=20260704T235959Z
-SUMMARY:Time to Eat! 🍲
+SUMMARY:Time to Eat!
 DESCRIPTION:Automated daily break reminder from COK Systems.
 LOCATION:Kigali, Rwanda
 SEQUENCE:0
@@ -204,41 +155,63 @@ END:VALARM
 END:VEVENT
 END:VCALENDAR`.trim();
 
-    // 2. Define where to temporarily save the file on your server disk
     const filePath = path.join(__dirname, 'Eat.ics');
 
     try {
-        // 3. WRITE: Save the string into an actual physical .ics file on disk
         await fs.writeFile(filePath, icsContent, 'utf8');
-        console.log('File successfully generated and saved to server storage.');
-
-        // 4. READ: Load the physical file back into memory as a buffer/file object
         const fileBuffer = await fs.readFile(filePath);
-
-        // 5. SEND: Forward the loaded file stream data to your existing email API
-        const apiResponse = await sendWithFile(
-            email, 
-            subject, 
-            htmlContent, 
-            textContent,
-            {
-                filename: 'Eat.ics',
-                content: fileBuffer, // This is now sent as raw file data, not text
-                contentType: 'text/calendar; charset=UTF-8; method=REQUEST'
-            }
+        const apiResponse = await sendEmailWithFile(
+            email, subject, htmlContent, textContent,
+            { filename: 'Eat.ics', content: fileBuffer }
         );
-
-        // 6. CLEAN UP (Optional): Delete the file from the server after sending to save space
-        //await fs.unlink(filePath);
-        
         return apiResponse;
-
     } catch (error) {
         console.error('Error during calendar file operations:', error);
         throw error;
     }
-};
+}
 
+async function sendEmail(toEmail, subject, htmlContent, textContent) {
+    try {
+        await transporter.sendMail({
+            from: config.email.from,
+            subject,
+            to: toEmail,
+            text: textContent,
+            html: htmlContent,
+        });
+        return { success: true };
+    } catch (error) {
+        console.error('SMTP Error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+async function sendEmailWithFile(toEmail, subject, htmlContent, textContent, fileData) {
+    try {
+        const mailOptions = {
+            from: config.email.from,
+            subject,
+            to: toEmail,
+            text: textContent,
+            html: htmlContent,
+        };
+
+        if (fileData && fileData.content) {
+            mailOptions.attachments = [{
+                content: fileData.content,
+                filename: fileData.filename || 'Eat.ics',
+                contentType: 'text/calendar; charset=UTF-8; method=REQUEST',
+            }];
+        }
+
+        await transporter.sendMail(mailOptions);
+        return { success: true };
+    } catch (error) {
+        console.error('SMTP Error:', error);
+        return { success: false, error: error.message };
+    }
+}
 
 module.exports = {
     sendOTPEmail,
@@ -246,5 +219,5 @@ module.exports = {
     sendPasswordChangedEmail,
     sendAccountActivatedEmail,
     sendNegativeFeedbackAlert,
-    sendLunchInviteEmail
+    sendLunchInviteEmail,
 };

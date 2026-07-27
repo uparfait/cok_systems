@@ -22,8 +22,8 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
   const { showError, showWarning, showSuccess, showInfo } = useToast();
 
   const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]); // 6 digits for TOTP
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [timeLeft, setTimeLeft] = useState(300);
   const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -229,6 +229,14 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
     return `${maskedLocal}@${domain}`;
   };
 
+  const copyToClipboard = (text: string, label: string = 'Secret') => {
+    navigator.clipboard.writeText(text).then(() => {
+      showInfo(`${label} copied to clipboard`);
+    }).catch(() => {
+      showError('Failed to copy to clipboard');
+    });
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -240,13 +248,13 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
       </div>
 
-      <div className="flex min-h-full w-full items-center bg-red-400 justify-center p-3 sm:p-0">
-        <div className="relative bg-white/95 backdrop-blur-sm shadow-2xl max-w-sm sm:w-full p-5 sm:p-6 transform transition-all">
+      <div className="flex min-h-full items-center justify-center p-2 sm:p-3 md:p-4">
+        <div className="relative bg-white/95 backdrop-blur-sm shadow-2xl max-w-sm w-full p-4 sm:p-5 md:p-6 transform transition-all">
           {(success || step === "success") ? (
-            <div className="text-center py-8">
-              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+            <div className="text-center py-6 sm:py-8">
+              <div className="mx-auto flex items-center justify-center h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-green-100 mb-3 sm:mb-4">
                 <svg
-                  className="h-8 w-8 text-green-600"
+                  className="h-7 w-7 sm:h-8 sm:w-8 text-green-600"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -259,19 +267,19 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                   />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
                 Verification Successful!
               </h3>
-              <p className="text-gray-600">Redirecting to password setup...</p>
+              <p className="text-sm sm:text-base text-gray-600">Redirecting to password setup...</p>
             </div>
           ) : (
             <>
               <button
                 onClick={onClose}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition duration-200"
+                className="absolute top-2 right-2 sm:top-4 sm:right-4 text-gray-400 hover:text-gray-600 transition duration-200"
               >
                 <svg
-                  className="h-6 w-6"
+                  className="h-5 w-5 sm:h-6 sm:w-6"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -285,28 +293,28 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                 </svg>
               </button>
 
-              <div className="flex justify-center mb-4">
+              <div className="flex justify-center mb-3">
                 <img
                   src={logoImage}
                   alt="City of Kigali"
-                  className="h-20 w-auto"
+                  className="h-12 w-auto sm:h-14 md:h-16"
                 />
               </div>
 
-              <h1 className="text-2xl font-bold text-center text-[#056daa] mb-2">
+              <h1 className="text-base sm:text-lg md:text-xl font-bold text-center text-[#056daa] mb-1" style={{ fontWeight: 700 }}>
                 Account Activation
               </h1>
 
               {step === "email" && (
                 <>
-                  <p className="text-center text-gray-600 mb-6">
+                  <p className="text-center text-gray-600 mb-4 sm:mb-6 text-xs sm:text-sm">
                     Please enter your registered email to Set-up Authenticator
                   </p>
 
-                  <div className="mb-6">
+                  <div className="mb-4 sm:mb-6">
                     <label
                       htmlFor="firsttime-email"
-                      className="block text-sm font-medium text-gray-700 mb-1"
+                      className="block text-xs sm:text-sm font-medium text-gray-700 mb-1"
                     >
                       Email Address
                     </label>
@@ -315,7 +323,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                       <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 sm:pl-3 text-[#9CA3AF]">
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4"
+                          className="h-3.5 w-3.5 sm:h-4 sm:w-4"
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -337,7 +345,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="cok-auth-input pl-9 sm:pl-10 pr-3 py-3 placeholder:text-gray-400"
+                        className="cok-auth-input pl-8 sm:pl-10 pr-3 py-2.5 sm:py-3 placeholder:text-gray-400 text-sm sm:text-base"
                         placeholder="e.g user@domain.example"
                       />
                       </form>
@@ -345,7 +353,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                   </div>
 
                   {error && (
-                    <p className="text-center text-sm text-red-600 mb-4">
+                    <p className="text-center text-xs sm:text-sm text-red-600 mb-3 sm:mb-4">
                       {error}
                     </p>
                   )}
@@ -353,7 +361,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                   <button
                     onClick={handleSendOTP}
                     disabled={isLoading || !email}
-                    className="w-full cok-btn-primary disabled:cursor-not-allowed"
+                    className="w-full cok-btn-primary disabled:cursor-not-allowed text-xs sm:text-sm py-2.5 sm:py-3"
                   >
                     {isLoading ? "Verifying..." : "verify email"}
                   </button>
@@ -362,7 +370,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
 
               {step === "totp" && (
                 <>
-                  <p className="text-center text-gray-600 mb-4">
+                  <p className="text-center text-gray-600 mb-3 sm:mb-4 text-xs sm:text-sm">
                     Please scan the QR code with your authenticator app (Google
                     Authenticator, Authy, etc.) and enter the 6-digit code
                     <br />
@@ -372,31 +380,43 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                   </p>
 
                   {qrCode && (
-                    <div className="flex justify-center mb-4">
+                    <div className="flex justify-center mb-3">
                       <img
                         src={qrCode}
                         alt="TOTP QR Code"
-                        className="w-48 h-48 border border-gray-200 rounded-lg"
+                        className="w-36 h-36 sm:w-44 sm:h-44 md:w-48 md:h-48 border border-gray-200 rounded-lg"
                       />
                     </div>
                   )}
 
                   {secret && (
-                    <div className="text-center mb-4">
-                      <p className="text-xs text-gray-500 mb-1">
+                    <div className="text-center mb-3 sm:mb-4">
+                      <p className="text-xs text-gray-500 mb-1 sm:mb-2">
                         Can't scan? Enter this secret manually click to copy:
                       </p>
-                      <code onClick={()=>{
-                        navigator.clipboard.writeText(secret)
-                        showInfo("code copied to your device")
-                      }} className="text-sm cursor-pointer bg-white px-2 py-1 rounded">
-                        {secret?.slice(0,20)}...
-                      </code>
+                      <div className="flex items-center justify-center gap-1 sm:gap-2">
+                        <code
+                          onClick={() => copyToClipboard(secret)}
+                          className="text-xs sm:text-sm cursor-pointer bg-white px-2 py-1 rounded hover:bg-gray-100 transition-colors select-all"
+                          title="Click to copy"
+                        >
+                          {secret?.slice(0, 20)}...
+                        </code>
+                        <button
+                          onClick={() => copyToClipboard(secret)}
+                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                          title="Copy secret to clipboard"
+                        >
+                          <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   )}
 
                   <div
-                    className="flex justify-center gap-2 mb-6"
+                    className="flex justify-center gap-1.5 sm:gap-2 mb-4 sm:mb-6"
                     onPaste={handlePaste}
                   >
                     {otp.map((digit, index) => (
@@ -415,18 +435,18 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                           )
                         }
                         onKeyDown={(e) => handleKeyDown(index, e)}
-                        className="w-12 h-12 text-center text-lg font-semibold border-2 border-gray-300 rounded-md focus:outline-none focus:border-[#056daa] focus:ring-1 focus:ring-[#056daa] text-gray-800 bg-white"
+                        className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 text-center text-base sm:text-lg font-semibold border-2 border-gray-300 rounded-md focus:outline-none focus:border-[#056daa] focus:ring-1 focus:ring-[#056daa] text-gray-800 bg-white"
                         autoFocus={index === 0}
                       />
                     ))}
                   </div>
 
-                  <p className="text-center text-sm text-gray-500 mb-4">
+                  <p className="text-center text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">
                     • Code refreshes every 30 seconds
                   </p>
 
                   {error && (
-                    <p className="text-center text-sm text-red-600 mb-4">
+                    <p className="text-center text-xs sm:text-sm text-red-600 mb-3 sm:mb-4">
                       {error}
                     </p>
                   )}
@@ -434,23 +454,23 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
                   <button
                     onClick={handleVerify}
                     disabled={otp.join("").length !== 6 || isLoading}
-                    className="w-full cok-btn-primary disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+                    className="w-full cok-btn-primary disabled:opacity-50 disabled:cursor-not-allowed mb-3 sm:mb-4 text-xs sm:text-sm py-2.5 sm:py-3"
                   >
                     {isLoading ? "Verifying..." : "Continue to Password Setup"}
                   </button>
                 </>
               )}
 
-              <div className="text-center mt-6">
+              <div className="text-center mt-4 sm:mt-6">
                 <button
                   onClick={onClose}
-                  className="cok-btn-outlined w-full"
+                  className="cok-btn-outlined w-full text-xs sm:text-sm py-2 sm:py-2.5"
                 >
                   Back to Login
                 </button>
               </div>
 
-              <p className="text-left text-xs text-gray-400 mt-8">
+              <p className="text-left text-xs text-gray-400 mt-4 sm:mt-5">
                 © CITY OF KIGALI PORTAL
               </p>
             </>

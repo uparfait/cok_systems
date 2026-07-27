@@ -203,11 +203,11 @@ async function verifyLogin(req, res, next) {
             };
         }
 
-        // Clear auth tokens
-        updateData["auth.access_token.token"] = null;
-        updateData["auth.access_token.token_type"] = null;
-        updateData["auth.access_token.expires_at"] = null;
-
+        // Clear auth tokens - handle case where auth.access_token might be null
+        // MongoDB cannot create nested fields inside a null parent element
+        if (user.auth?.access_token === null) {
+            await User.findByIdAndUpdate(userId, { $set: { "auth.access_token": {} } });
+        }
         await User.findByIdAndUpdate(userId, { $set: updateData });
 
         // Get user role and permissions from database
