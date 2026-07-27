@@ -485,12 +485,11 @@ const getFeedbackAverageByDepartment = async (req, res) => {
 
 const getHourlyParkingStats = async (req, res) => {
     try {
-        // Get start and end of today
         const now = new Date();
         const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
         const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        const tzOffset = -now.getTimezoneOffset() * 60 * 1000;
 
-        // Get check-ins by hour for today
         const checkInsByHour = await ParkingRecord.aggregate([
             {
                 $match: {
@@ -499,14 +498,13 @@ const getHourlyParkingStats = async (req, res) => {
             },
             {
                 $group: {
-                    _id: { $hour: '$check_in' },
+                    _id: { $hour: { $add: ['$check_in', tzOffset] } },
                     count: { $sum: 1 }
                 }
             },
             { $sort: { _id: 1 } }
         ]);
 
-        // Get check-outs by hour for today
         const checkOutsByHour = await ParkingRecord.aggregate([
             {
                 $match: {
@@ -515,7 +513,7 @@ const getHourlyParkingStats = async (req, res) => {
             },
             {
                 $group: {
-                    _id: { $hour: '$check_out' },
+                    _id: { $hour: { $add: ['$check_out', tzOffset] } },
                     count: { $sum: 1 }
                 }
             },
@@ -578,12 +576,11 @@ const getHourlyParkingStats = async (req, res) => {
  */
 const getHourlyServiceDeliveryStats = async (req, res) => {
     try {
-        // Get start and end of today
         const now = new Date();
         const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
         const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        const tzOffset = -now.getTimezoneOffset() * 60 * 1000;
 
-        // Get service deliveries checked in today (entry_date is within today)
         const checkInsByHour = await ServiceDelivery.aggregate([
             {
                 $match: {
@@ -592,7 +589,7 @@ const getHourlyServiceDeliveryStats = async (req, res) => {
             },
             {
                 $group: {
-                    _id: { $hour: '$entry_date' },
+                    _id: { $hour: { $add: ['$entry_date', tzOffset] } },
                     count: { $sum: 1 }
                 }
             },
