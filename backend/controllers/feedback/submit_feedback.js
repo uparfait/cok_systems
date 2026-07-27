@@ -95,6 +95,13 @@ async function submitFeedback(req, res) {
 
         await feedback.save();
 
+        global.WebsocketIO?.emit('feedback_submitted', {
+            feedback_id: feedback._id,
+            department_id: department_id,
+            department_name: assignedDept.department_name,
+            rate: rate,
+        });
+
         // Send email notification to department head if rating is 5 or below (negative feedback)
         if (rate <= 5) {
             try {

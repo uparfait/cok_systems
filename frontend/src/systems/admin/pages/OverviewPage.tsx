@@ -357,9 +357,10 @@ const Overview: React.FC = () => {
   
   const chartsRef = useRef<Map<string, Chart>>(new Map());
 
-  // Fetch real data
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  // Fetch real data; silent mode refreshes in the background (socket updates)
+  // without tearing the page down to the loading spinner
+  const fetchData = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) setLoading(true);
     try {
       const [
         employeesRes, parkingRes, servicesRes, flaggedStatsRes, emergencyRes,
@@ -764,13 +765,28 @@ const Overview: React.FC = () => {
     if (!authLoading && !isAuthenticated) navigate('/login');
   }, [isAuthenticated, authLoading, navigate]);
 
+  // Live updates: refetch silently (debounced) on every event the backend
+  // broadcasts that affects this dashboard's numbers
   const { socket, isConnected } = useSocket();
   useEffect(() => {
     if (!socket || !isConnected) return;
-    const events = ['car_checkedin', 'car_checkedout', 'visitor_checkedin', 'visitor_checkedout'];
-    const handler = () => { fetchData(); };
+    const events = [
+      'car_checkedin', 'car_checkedout',
+      'visitor_checkedin', 'visitor_checkedout',
+      'new_visitor_assigned', 'leave_return',
+      'service_status_updated', 'feedback_submitted',
+    ];
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const handler = () => {
+      // Debounce: bursts of events (e.g. assign + status change) trigger one refetch
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => fetchData({ silent: true }), 800);
+    };
     events.forEach(ev => socket.on(ev, handler));
-    return () => { events.forEach(ev => socket.off(ev, handler)); };
+    return () => {
+      if (timer) clearTimeout(timer);
+      events.forEach(ev => socket.off(ev, handler));
+    };
   }, [socket, isConnected, fetchData]);
 
   // Fetch paginated data for modals
@@ -1281,12 +1297,19 @@ const Overview: React.FC = () => {
           )}
         </div>
         <button
-          onClick={fetchData}
+          onClick={() => fetchData()}
           className="ml-auto text-xs px-3 py-1 bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-1"
         >
           <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M13.65 2.35A7.958 7.958 0 008 0C4.69 0 1.99 2.24 1.25 5.4m-.9 5.25A7.958 7.958 0 008 16c3.31 0 6.01-2.24 6.75-5.4M16 6l-4-4-4 4M0 10l4 4 4-4" stroke="white" strokeWidth="1.5" fill="none"/></svg>
           Refresh
         </button>
+        <span className="flex items-center gap-1 text-xs" title={isConnected ? 'Real-time updates active' : 'Real-time updates unavailable — use Refresh'}>
+          <span
+            className="w-2 h-2 rounded-full inline-block"
+            style={{ backgroundColor: isConnected ? '#4CAF50' : '#9E9E9E' }}
+          ></span>
+          <span className="text-gray-500">{isConnected ? 'Live' : 'Offline'}</span>
+        </span>
         <span className="text-xs text-gray-500 hidden lg:inline">{lastRefresh.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
       </div>
       

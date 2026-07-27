@@ -45,6 +45,12 @@ async function submitUnservicedFeedback(req, res) {
 
         await feedback.save();
 
+        global.WebsocketIO?.emit('feedback_submitted', {
+            feedback_id: feedback._id,
+            department_name: 'General Feedback',
+            rate: rate,
+        });
+
         // Alert all system admins (email + in-app notification) on negative rating,
         // without blocking the response
         if (rate <= 5) {
