@@ -1,9 +1,14 @@
+/**
+ * Send OTP Controller
+ * Step 2: Generate TOTP secret and QR code for 2FA setup during first login
+ */
 
 const totp = require("../../../utilities/totp");
 const User = require("../../../models/user");
 
 // Lock message
 const LOCK_MESSAGE = "Account is locked. Please contact administrator.";
+const TOTP_SETUP_TTL_MINUTES = 15;
 
 async function sendOTP(req, res, next) {
   try {
@@ -55,18 +60,22 @@ async function sendOTP(req, res, next) {
     // Generate TOTP secret and QR code
     const { secret, otpauthUrl } = totp.generateTOTPSecret(normalizedEmail);
     const qrCodeDataUrl = await totp.generateQRCode(otpauthUrl);
+    const setupExpiry = totp.createTOTPSetupExpiry(TOTP_SETUP_TTL_MINUTES);
 
-    console.log(secret)
-
-    // Store the secret temporarily in auth.access_token only (NOT in twofa_secret until user verifies)
+    // Store TOTP setup data in dedicated twofa_setup fields (NOT in twofa_secret until user verifies)
     await User.findByIdAndUpdate(user._id, {
       $set: {
-        auth: {
-          access_token: {
-            token_type: "first_login_totp",
-            token: secret
-          }
-        }
+        twofa_setup: {
+          secret: secret,
+          qr_code: qrCodeDataUrl,
+          otpauth_url: otpauthUrl,
+          created_at: new Date(),
+          expires_at: setupExpiry,
+          verified: false
+        },
+        "twofa_verification.attempts": 0,
+        "twofa_verification.last_attempt": null,
+        "twofa_verification.locked_until": null
       }
     });
 
@@ -79,7 +88,8 @@ async function sendOTP(req, res, next) {
         email: normalizedEmail,
         secret: secret,
         qrCode: qrCodeDataUrl,
-        otpauthUrl: otpauthUrl
+        otpauthUrl: otpauthUrl,
+        expiresAt: setupExpiry
       },
     });
 

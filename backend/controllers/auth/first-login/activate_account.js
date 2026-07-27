@@ -4,15 +4,15 @@
  */
 
 const bcrypt = require('bcrypt');
-const otp = require("../../../utilities/otp");
-const email = require("../../../utilities/email");
 const tokenUtil = require("../../../utilities/token");
+const email = require("../../../utilities/email");
 const User = require("../../../models/user");
+
+// Import audit logging
+const { logAuditEvent } = require("../../../middlewares/audit");
 
 const SALT_ROUNDS = 10;
 
-// Expected token type for first login OTP
-const EXPECTED_TOKEN_TYPE = 'first_login_otp';
 // Token type for OTP verification signature
 const OTP_VERIFICATION_TYPE = 'otp_verification';
 
@@ -44,7 +44,6 @@ const passwordValidator = (password) => {
 };
 
 async function activateAccount(req, res, next) {
-  
   try {
     const { userId, signature, newPassword, confirmPassword } = req.body;
 
@@ -132,7 +131,7 @@ async function activateAccount(req, res, next) {
       return res.status(400).json({
         status: false,
         error: "Signature mismatch",
-        message: "We  have found a signature but it does not match try again later.",
+        message: "We have found a signature but it does not match. Please try again.",
       });
     }
 
@@ -141,11 +140,23 @@ async function activateAccount(req, res, next) {
 
     // Update user with password and mark as activated
     // Keep twofa_secret intact so user can login with 2FA
+    // Clear twofa_setup temp data
     await User.findByIdAndUpdate(userId, {
       $set: {
         password: hashedPassword,
         is_account_activated: true,
         is_2FA_disabled: false,
+        twofa_setup: {
+          secret: null,
+          qr_code: null,
+          otpauth_url: null,
+          created_at: null,
+          expires_at: null,
+          verified: true
+        },
+        "twofa_verification.attempts": 0,
+        "twofa_verification.last_attempt": null,
+        "twofa_verification.locked_until": null,
         auth: {
           access_token: {
             token: null,
@@ -163,6 +174,17 @@ async function activateAccount(req, res, next) {
       // Log email error but don't fail the activation
       console.error("Failed to send activation confirmation email:", emailError);
     }
+
+    // Log successful activation
+    await logAuditEvent('UPDATE', `Account activated successfully: ${user.email}`, req, {
+      resource: 'users',
+      resource_id: user._id.toString(),
+      status_code: 200,
+      metadata: {
+        email: user.email,
+        full_name: user.full_name
+      }
+    });
 
     return res.status(200).json({
       status: true,

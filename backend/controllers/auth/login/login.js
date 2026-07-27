@@ -274,34 +274,27 @@ async function login(req, res, next) {
 
     // 2FA is enabled - check if user has set up TOTP secret
     if (!user.twofa_secret) {
-     
+      
       const { secret, otpauthUrl } = totp.generateTOTPSecret(user.email);
       const qrCodeDataUrl = await totp.generateQRCode(otpauthUrl);
+      const setupExpiry = totp.createTOTPSetupExpiry(15); // 15 minutes
 
-      // Store the secret temporarily (NOT saved to twofa_secret until user verifies)
-      const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+      // Store TOTP setup data in dedicated twofa_setup fields
       await User.findByIdAndUpdate(user._id, {
         $set: {
-          auth: {
-            access_token: {
-              token_type: "2fa_setup",
-              token: secret,
-              expires_at: otpExpiry
-            }
-          }
+          twofa_setup: {
+            secret: secret,
+            qr_code: qrCodeDataUrl,
+            otpauth_url: otpauthUrl,
+            created_at: new Date(),
+            expires_at: setupExpiry,
+            verified: false
+          },
+          "twofa_verification.attempts": 0,
+          "twofa_verification.last_attempt": null,
+          "twofa_verification.locked_until": null
         }
       });
-
-      // Log 2FA setup required
-      // await logAuditEvent('SYSTEM', `2FA setup required for user: ${userEmail}`, req, {
-      //   resource: 'auth',
-      //   resource_id: user._id.toString(),
-      //   status_code: 200,
-      //   metadata: {
-      //     email: userEmail,
-      //     purpose: '2fa_setup_required'
-      //   }
-      // });
 
       return res.status(200).json({
         status: true,
@@ -313,7 +306,8 @@ async function login(req, res, next) {
           email: user.email,
           secret: secret,
           qrCode: qrCodeDataUrl,
-          otpauthUrl: otpauthUrl
+          otpauthUrl: otpauthUrl,
+          expiresAt: setupExpiry
         },
       });
     }

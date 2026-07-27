@@ -31,6 +31,17 @@ async function reset2FA(req, res, next) {
     await User.findByIdAndUpdate(userId, {
       $set: {
         twofa_secret: null,
+        twofa_setup: {
+          secret: null,
+          qr_code: null,
+          otpauth_url: null,
+          created_at: null,
+          expires_at: null,
+          verified: false
+        },
+        "twofa_verification.attempts": 0,
+        "twofa_verification.last_attempt": null,
+        "twofa_verification.locked_until": null,
         auth: {
           access_token: {
             token: null,

@@ -57,6 +57,7 @@ const ResetPasswordPage = () => {
         }
         else { showError(result.message || 'Invalid OTP. Please try again.'); }
       } catch (err: any) {
+        console.log(err.message)
         // Error toast is already shown by apiClient interceptor
       } finally { setIsLoading(false); }
     } else {
@@ -86,6 +87,7 @@ const ResetPasswordPage = () => {
         }
         else { showError(result.message || result.error || 'Failed to reset password'); }
       } catch (err: any) {
+         console.log(err.message)
         // Error toast is already shown by apiClient interceptor
       } finally { setIsLoading(false); }
     }
@@ -111,6 +113,7 @@ const ResetPasswordPage = () => {
         showError(result.message || 'Invalid TOTP. Please try again.');
       }
     } catch (err: any) {
+       console.log(err.message)
       showError(err?.message || 'Failed to verify TOTP. Please try again.');
     } finally {
       setIsLoading(false);

@@ -26,8 +26,22 @@ const user_schema = new mongoose.Schema({
     auth: {
         access_token: {
             token_type: { type: String },
-            token: { type: String }
+            token: { type: String },
+            expires_at: { type: Date }
         }
+    },
+    twofa_setup: {
+        secret: { type: String },
+        qr_code: { type: String },
+        otpauth_url: { type: String },
+        created_at: { type: Date, default: Date.now },
+        expires_at: { type: Date },
+        verified: { type: Boolean, default: false }
+    },
+    twofa_verification: {
+        attempts: { type: Number, default: 0 },
+        last_attempt: { type: Date },
+        locked_until: { type: Date }
     },
     roles: {
         role_name: { type: String },

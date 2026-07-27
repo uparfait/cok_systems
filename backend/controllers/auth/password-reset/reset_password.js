@@ -17,6 +17,9 @@ const SALT_ROUNDS = 10;
 // Token type for password reset verification signature
 const PASSWORD_RESET_VERIFICATION_TYPE = 'password_reset_verification';
 
+// TOTP setup TTL
+const TOTP_SETUP_TTL_MINUTES = 15;
+
 // Password validation
 const passwordValidator = (password) => {
   const errors = [];
@@ -163,28 +166,26 @@ async function resetPassword(req, res, next) {
     // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword.trim(), SALT_ROUNDS);
 
-    // Generate new TOTP secret for 2FA setup
+    // Generate new TOTP secret for 2FA setup (stored in twofa_setup, NOT twofa_secret)
     const { secret, otpauthUrl } = totp.generateTOTPSecret(user.email);
     const qrCodeDataUrl = await totp.generateQRCode(otpauthUrl);
+    const setupExpiry = totp.createTOTPSetupExpiry(TOTP_SETUP_TTL_MINUTES);
 
-    // Update user's password and generate new TOTP secret
+    // Update user's password and set up TOTP in twofa_setup (pending verification)
     await User.findByIdAndUpdate(userId, {
       $set: {
         password: hashedPassword,
-        twofa_secret: secret,
-        auth: {
-          access_token: {
-            token: null,
-            token_type: null,
-            expires_at: null
-          }
-        }
-      }
-    });
-
-    // Clear any remaining reset tokens from user document
-    await User.findByIdAndUpdate(userId, {
-      $set: {
+        twofa_setup: {
+          secret: secret,
+          qr_code: qrCodeDataUrl,
+          otpauth_url: otpauthUrl,
+          created_at: new Date(),
+          expires_at: setupExpiry,
+          verified: false
+        },
+        "twofa_verification.attempts": 0,
+        "twofa_verification.last_attempt": null,
+        "twofa_verification.locked_until": null,
         auth: {
           access_token: {
             token: null,
@@ -221,7 +222,8 @@ async function resetPassword(req, res, next) {
         requiresTOTPSetup: true,
         secret: secret,
         qrCode: qrCodeDataUrl,
-        otpauthUrl: otpauthUrl
+        otpauthUrl: otpauthUrl,
+        expiresAt: setupExpiry
       },
     });
   } catch (error) {

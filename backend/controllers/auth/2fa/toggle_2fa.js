@@ -33,7 +33,10 @@ async function toggle2FA(req, res, next) {
 
     await User.findByIdAndUpdate(userId, {
       $set: {
-        is_2FA_disabled: isDisabling
+        is_2FA_disabled: isDisabling,
+        "twofa_verification.attempts": 0,
+        "twofa_verification.last_attempt": null,
+        "twofa_verification.locked_until": null
       },
     });
 
