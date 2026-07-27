@@ -204,8 +204,8 @@ const handleVerify = async () => {
       </div>
 
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-3 sm:p-4">
-        <div className="relative bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl max-w-sm w-full p-5 sm:p-6 transform transition-all">
+       <div className="flex min-h-full items-center justify-center p-3 sm:p-4">
+         <div className="relative bg-white/95 backdrop-blur-sm shadow-2xl max-w-sm w-full p-5 sm:p-6 transform transition-all">
           {/* Success State */}
           {isSuccess ? (
             <div className="text-center py-8">
@@ -241,14 +241,11 @@ const handleVerify = async () => {
               </div>
 
               {/* Title */}
-              <h1 className="text-2xl font-bold text-center text-gray-900 mb-2">
+              <h1 className="text-2xl font-bold text-center text-[#056daa] mb-2">
                 Reset Your Password
               </h1>
 
-              {/* Subtitle */}
-              <p className="text-center text-gray-600 font-medium mb-4">
-                Enter the One-Time PIN sent to your email
-              </p>
+            
 
               {/* Description with masked email */}
               <p className="text-center text-gray-500 mb-6">
@@ -256,22 +253,22 @@ const handleVerify = async () => {
                 <span className="font-semibold text-gray-700">{maskEmail(email)}</span>
               </p>
 
-              {/* OTP Input Fields - Individual boxes styled */}
+              {/* OTP Input Fields */}
               <div className="flex justify-center gap-2 mb-4" onPaste={handlePaste}>
                 {otp.map((digit, index) => (
-                  <input
-                    key={index}
-                    id={`otp-reset-${index}`}
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpChange(index, e.target.value.replace(/\D/g, ''))}
-                    onKeyDown={(e) => handleKeyDown(index, e)}
-                    className="w-12 h-12 text-center text-lg font-semibold border-2 border-gray-300 rounded-md focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 text-gray-800 bg-white"
-                    autoFocus={index === 0}
-                  />
+                    <input
+                      key={index}
+                      id={`otp-reset-${index}`}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleOtpChange(index, e.target.value.replace(/\D/g, ''))}
+                      onKeyDown={(e) => handleKeyDown(index, e)}
+                      className="w-12 h-12 text-center text-lg font-semibold border-2 border-gray-300 rounded-md focus:outline-none focus:border-[#056daa] focus:ring-1 focus:ring-[#056daa] text-gray-800 bg-white"
+                      autoFocus={index === 0}
+                    />
                 ))}
               </div>
 
@@ -289,30 +286,29 @@ const handleVerify = async () => {
               <button
                 onClick={handleVerify}
                 disabled={otp.join('').length !== 5 || isLoading}
-                className="w-full py-3 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+                className="w-full cok-btn-primary disabled:opacity-50 disabled:cursor-not-allowed mb-4"
               >
                 {isLoading ? 'Verifying...' : 'Verify Your OTP'}
               </button>
 
               {/* Resend link with timer */}
               <div className="text-center">
-                <span className="text-gray-600">Didn't receive the code? </span>
                 <button
                   onClick={handleResend}
                   disabled={timeLeft > 0 || isResending}
-                  className="text-blue-600 hover:text-blue-700 font-semibold transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full cok-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isResending ? 'Resending...' : timeLeft > 0 ? `Resend OTP (${formatTime(timeLeft)})` : 'Resend OTP'}
                 </button>
               </div>
 
               {/* Back to Login link */}
-              <div className="text-center mt-6">
+              <div className="text-center mt-4">
                 <button 
                   onClick={onClose}
-                  className="text-blue-600 hover:text-blue-700 font-medium transition duration-200"
+                  className="cok-btn-outlined w-full"
                 >
-                  ← Back to Login
+                  Back to Login
                 </button>
               </div>
 
