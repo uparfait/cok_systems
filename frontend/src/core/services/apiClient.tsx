@@ -161,13 +161,13 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor - Handle auth errors and token refresh
-// NOTE: Toast notifications are now handled manually in components to avoid duplicate toasts
 apiClient.interceptors.response.use(
   (response) => {
+  
     return response;
   },
   async (error: AxiosError) => {
+   
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
     const isLoginRequest = originalRequest?.url?.includes('/auth/login');
 
@@ -232,7 +232,8 @@ apiClient.interceptors.response.use(
     
     // Handle 404 using backend error message directly
     if (statusCode === 404) {
-      const backendError = errorData?.error || errorData?.message || 'Resource not found';
+      const backendError = errorData?.message || errorData?.error  || 'Resource not found';
+
       errorMessage = backendError;
       errorField = backendError;
     } else if (errorData) {
@@ -252,8 +253,7 @@ apiClient.interceptors.response.use(
       errorMessage = error.message;
       errorField = error.message;
     }
-
-    
+   
     return Promise.reject({
       status: false,
       error: errorField,
@@ -309,7 +309,7 @@ export const apiRequest = async (
     if (error && typeof error === 'object' && (error.message || error.error) && 'status' in error) {
       throw {
         status: false,
-        error: error.error || error.message,
+        error:  error.message || error.error,
         message: error.message || error.error || 'An error occurred',
         errors: error.errors || [],
         type: error.type || 'error',

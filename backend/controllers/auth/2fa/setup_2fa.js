@@ -1,8 +1,14 @@
+/**
+ * Setup 2FA Controller
+ * Generate TOTP secret and QR code for 2FA setup
+ */
 
 const totp = require("../../../utilities/totp");
 const jwt = require("../../../utilities/jwt");
 const User = require("../../../models/user");
 const { logAuditEvent } = require("../../../middlewares/audit");
+
+const TOTP_SETUP_TTL_MINUTES = 15;
 
 async function setup2FA(req, res, next) {
   try {
@@ -29,17 +35,22 @@ async function setup2FA(req, res, next) {
     // Generate TOTP secret and QR code
     const { secret, otpauthUrl } = totp.generateTOTPSecret(user.email);
     const qrCodeDataUrl = await totp.generateQRCode(otpauthUrl);
+    const setupExpiry = totp.createTOTPSetupExpiry(TOTP_SETUP_TTL_MINUTES);
 
-    // Temporarily store the secret until verified
+    // Store TOTP setup data in dedicated twofa_setup fields (NOT in twofa_secret until user verifies)
     await User.findByIdAndUpdate(userId, {
       $set: {
-        twofa_secret: secret,
-        auth: {
-          access_token: {
-            token_type: "2fa_setup",
-            token: secret
-          }
-        }
+        twofa_setup: {
+          secret: secret,
+          qr_code: qrCodeDataUrl,
+          otpauth_url: otpauthUrl,
+          created_at: new Date(),
+          expires_at: setupExpiry,
+          verified: false
+        },
+        "twofa_verification.attempts": 0,
+        "twofa_verification.last_attempt": null,
+        "twofa_verification.locked_until": null
       }
     });
 
@@ -62,7 +73,8 @@ async function setup2FA(req, res, next) {
         email: user.email,
         secret: secret,
         qrCode: qrCodeDataUrl,
-        otpauthUrl: otpauthUrl
+        otpauthUrl: otpauthUrl,
+        expiresAt: setupExpiry
       },
     });
 

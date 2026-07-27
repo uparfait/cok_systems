@@ -115,6 +115,7 @@ const FirstTimeLoginOTPModal: React.FC<FirstTimeLoginOTPModalProps> = ({
         showError(otpResult.message || otpResult.error || "Failed to setup 2FA");
       }
     } catch (err: any) {
+      console.log("000000", err)
       const errorMessage =
         err?.message || err?.error || "Failed to setup 2FA. Please try again.";
 
