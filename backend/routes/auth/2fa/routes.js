@@ -163,7 +163,7 @@ Router.post('/setup', authenticate, setup2FAController);
  *       500:
  *         description: Internal server error
  */
-Router.post('/verify-setup', authenticate, verify2FASetupController);
+Router.post('/verify-setup',  verify2FASetupController);
 
 /**
  * @swagger

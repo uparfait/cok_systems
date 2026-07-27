@@ -185,7 +185,7 @@ function buildInviteICS(event, invitationUid, method = 'REQUEST', attendeeEmail 
       name: (event.eventOrganizer && event.eventOrganizer.fullNames) || 'City of Kigali',
       email:
         (event.eventOrganizer && event.eventOrganizer.email) ||
-        'cokservicedelivery@gmail.com',
+        "coksystems@kigalicity.gov.rw",
     },
   });
 
