@@ -47,8 +47,10 @@ async function verifyOTP(req, res, next) {
       });
     }
 
-    // Get stored TOTP secret from twofa_setup or twofa_secret
-    const storedSecret = user.twofa_secret || user.twofa_setup?.secret;
+    // Get stored TOTP secret from twofa_setup (first-login flow) or twofa_secret (normal login)
+    // IMPORTANT: For first-login, prioritize twofa_setup.secret over twofa_secret
+    // because twofa_secret may contain an old value from previous code versions
+    const storedSecret = user.twofa_setup?.secret || user.twofa_secret;
 
     if (!storedSecret) {
       return res.status(400).json({
