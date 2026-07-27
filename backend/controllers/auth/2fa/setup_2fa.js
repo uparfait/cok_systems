@@ -38,8 +38,10 @@ async function setup2FA(req, res, next) {
     const setupExpiry = totp.createTOTPSetupExpiry(TOTP_SETUP_TTL_MINUTES);
 
     // Store TOTP setup data in dedicated twofa_setup fields (NOT in twofa_secret until user verifies)
+    // Clear any old twofa_secret to prevent conflicts with old code versions
     await User.findByIdAndUpdate(userId, {
       $set: {
+        twofa_secret: null,
         twofa_setup: {
           secret: secret,
           qr_code: qrCodeDataUrl,

@@ -280,8 +280,10 @@ async function login(req, res, next) {
       const setupExpiry = totp.createTOTPSetupExpiry(15); // 15 minutes
 
       // Store TOTP setup data in dedicated twofa_setup fields
+      // Clear any old twofa_secret to prevent conflicts with old code versions
       await User.findByIdAndUpdate(user._id, {
         $set: {
+          twofa_secret: null,
           twofa_setup: {
             secret: secret,
             qr_code: qrCodeDataUrl,

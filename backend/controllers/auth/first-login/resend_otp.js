@@ -64,8 +64,10 @@ async function resendOTP(req, res, next) {
     const setupExpiry = totp.createTOTPSetupExpiry(TOTP_SETUP_TTL_MINUTES);
 
     // Update the secret in database (temporary, until user verifies)
+    // Clear any old twofa_secret to prevent conflicts with old code versions
     await User.findByIdAndUpdate(userId, {
       $set: {
+        twofa_secret: null,
         twofa_setup: {
           secret: secret,
           qr_code: qrCodeDataUrl,
