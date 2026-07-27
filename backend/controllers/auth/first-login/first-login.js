@@ -1,6 +1,12 @@
 /**
  * First-Time Login Controller
- * Handles account activation for users created by admin without password
+ * NOTE: This file is deprecated. Routes use separate controller files:
+ *   - check_email.js
+ *   - send_otp.js
+ *   - verify_otp.js
+ *   - activate_account.js
+ *   - resend_otp.js
+ * This file is kept for reference only.
  */
 
 const bcrypt = require('bcrypt');
