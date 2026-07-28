@@ -219,7 +219,8 @@ export default function DashboardCalendar({ events, loading, onMonthChange, curr
 
       {loading && events.length > 0 && (
         <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] z-10 flex items-center justify-center pointer-events-none">
-          <FiLoader className="w-6 h-6 text-blue-600 animate-spin" />
+         
+          <SpiralLoader />
         </div>
       )}
     </div>
