@@ -98,7 +98,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, customNavItems }) => 
     }
   };
 
-  // Get current system name for header — uses the actual user role name
+  // Get current system name for header  uses the actual user role name
   const getCurrentSystemName = (): string => {
     if (user?.role) {
       return user.role

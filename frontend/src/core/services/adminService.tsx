@@ -272,7 +272,9 @@ export interface Visitor {
 }
 
 export const serviceDeliveryService = {
-  getAll: (page: number = 1, limit: number = 50, inHouse?: boolean) => {
+  // inHouse: true = only visitors still inside, false = only checked-out,
+  // 'all' = everyone (the backend defaults to in-house when the param is absent)
+  getAll: (page: number = 1, limit: number = 50, inHouse?: boolean | 'all') => {
     let url = `/servicedelivery/visitor?page=${page}&limit=${limit}`;
     if (inHouse !== undefined) url += `&in_house=${inHouse}`;
     return get(url);

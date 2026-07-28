@@ -10,7 +10,7 @@ module.exports = async function list_visitors(req, res, next) {
       let user_department_unit_id = req.user?.department_unit?.toString() || null;
       //let filter_role_names = ['Employee', 'Head of department']
   
-      const limit_val = Math.min(parseInt(limit), 50);
+      const limit_val = Math.min(parseInt(limit), 1000);
       const skip_val = (parseInt(page) - 1) * limit_val;
   
       let filter = {};
