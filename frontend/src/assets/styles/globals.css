@@ -383,17 +383,15 @@ body {
   line-height: 1.4;
   width: 100%;
   color: var(--cok-neutral-dark);
-  background-color: var(--cok-neutral-light);
-  border: 1px solid var(--cok-gray-border);
+  background-color: #FFFFFF;
+  border: 2px solid var(--cok-gray-border);
   border-radius: 0;
-  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
   outline: none;
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .cok-auth-input:focus {
   border-color: #056daa;
-  box-shadow: 0px 4px 8px rgba(5, 109, 170, 0.25);
 }
 
 .cok-btn-primary {

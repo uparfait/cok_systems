@@ -32,7 +32,7 @@ export default function EditableCell({
           <select
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
-            className="w-full px-2 py-1 border-2 border-[#1255e5] text-xs font-bold uppercase bg-white focus:outline-none"
+            className="w-full px-2 py-1 border-2 border-[#056daa] text-xs font-bold uppercase bg-white focus:outline-none"
             autoFocus
           >
             <option value="true">Active</option>
@@ -54,7 +54,7 @@ export default function EditableCell({
           type={type}
           value={editValue}
           onChange={(e) => setEditValue(e.target.value)}
-          className="w-full px-2 py-1 border-2 border-[#1255e5] text-sm focus:outline-none"
+          className="w-full px-2 py-1 border-2 border-[#056daa] text-sm focus:outline-none"
           autoFocus
           onKeyDown={(e) => {
             if (e.key === 'Enter') handleSave();
@@ -76,7 +76,7 @@ export default function EditableCell({
     return (
       <div className="group/inline flex items-center gap-2 cursor-pointer" >
         <span className={`inline-block px-3 py-1 text-xs font-bold uppercase border-2 ${
-          value ? 'bg-[#1255e5] text-white border-[#1255e5]' : 'bg-white text-gray-400 border-gray-300'
+          value ? 'bg-[#056daa] text-white border-[#056daa]' : 'bg-white text-gray-400 border-gray-300'
         }`}>
           {value ? 'Active' : 'Inactive'}
         </span>
@@ -87,7 +87,7 @@ export default function EditableCell({
 
   return (
     <div className="group/inline flex items-center gap-2 cursor-pointer min-w-[60px]" >
-      <span className="text-sm">{value || '—'}</span>
+      <span className="text-sm">{value || '___'}</span>
      
     </div>
   );

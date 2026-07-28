@@ -53,7 +53,7 @@ export default function RoomQrCodeModal({ isOpen, onClose, room }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-5 h-5 cok-primary-color" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM17 14h1v1h-1zM14 14h3v3h-3zM20 14h1v1h-1zM14 17h1v1h-1zM17 17h4v4h-4zM10 7h1v1h-1zM7 10h1v1H7zM19 10h1v1h-1zM10 19h1v1h-1z" />
             </svg>
             <h2 className="text-lg font-bold text-gray-900">
@@ -70,7 +70,6 @@ export default function RoomQrCodeModal({ isOpen, onClose, room }) {
           {loading && (
             <div className="flex flex-col items-center justify-center py-8 gap-3">
               <div className="w-8 h-8"><SpiralLoader /></div>
-              <span className="text-sm text-gray-500">Generating QR code...</span>
             </div>
           )}
 
@@ -85,7 +84,7 @@ export default function RoomQrCodeModal({ isOpen, onClose, room }) {
               </div>
               <button
                 onClick={fetchQrCode}
-                className="w-full py-2.5 border border-blue-300 text-blue-700 ppp-lg text-sm font-medium hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
+                className="w-full py-2.5 border border-blue-300 cok-btn-outlined text-sm font-medium hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
               >
                 <FiRefreshCw className="w-4 h-4" /> Try Again
               </button>
@@ -126,12 +125,12 @@ export default function RoomQrCodeModal({ isOpen, onClose, room }) {
         {/* Footer */}
         <div className="flex gap-3 px-6 py-4 border-t border-gray-200">
           <button onClick={onClose}
-            className="flex-1 py-2.5 border border-gray-300 ppp-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            className="flex-1 py-2.5 border cok-btn-outlined text-sm font-medium   ">
             Close
           </button>
           {qrData && !loading && (
             <button onClick={handleDownload}
-              className="flex-1 py-2.5 bg-blue-600 text-white ppp-lg text-sm font-semibold hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
+              className="flex-1 py-2.5 cok-btn-primary text-white ppp-lg text-sm font-semibold  transition-all flex items-center justify-center gap-2">
               <FiDownload className="w-4 h-4" /> Download
             </button>
           )}
