@@ -1,4 +1,4 @@
-const APP_VERSION = '1.0.18';
+const APP_VERSION = '1.0.19';
 
 const CACHE_NAME = `cok-systems-v${APP_VERSION}`;
 const STATIC_CACHE = `cok-systems-static-v${APP_VERSION}`;
