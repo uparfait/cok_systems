@@ -208,16 +208,16 @@ const Sidebar: React.FC<SidebarProps> = ({
     ? (nameParts[0].charAt(0) + nameParts[1].charAt(0)).toUpperCase()
     : displayName.charAt(0).toUpperCase();
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error('Logout error:', error);
-      window.location.href = '/login';
-    }
-  };
+  // const handleLogout = async () => {
+  //   try {
+  //     await logout();
+  //   } catch (error) {
+  //     console.error('Logout error:', error);
+  //     window.location.href = '/login';
+  //   }
+  // };
 
-  // 👉 FIXED: Bulletproof tab-aware routing logic
+ 
   const isActive = (path: string, children?: SidebarLink[]): boolean => {
     const currentPathname = location.pathname;
     const currentSearch = location.search;
@@ -290,9 +290,11 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside 
-      className="fixed left-0 top-0 h-full bg-white border-r border-gray-200 transition-all duration-300 z-50 flex flex-col w-64"
+      className="fixed left-0 select-none top-0 h-full bg-white border-r border-gray-200 transition-all duration-300 z-50 flex flex-col w-64"
     >
-      <div className="h-20 flex items-center px-4 border-b border-gray-200">
+      <div className="h-20 flex items-center cursor-pointer px-4 border-b border-gray-200" onClick={()=>{
+        navigate('/')
+      }}>
         <div className="flex items-center gap-3">
           <img 
             src="/LOGO_COK.png" 
@@ -300,7 +302,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             className="h-10 w-auto object-contain"
           />
           <div className="flex flex-col">
-            <span className="font-bold text-lg text-gray-900">IKAZE Portal</span>
+            <span className="font-bold text-lg text-gray-700">KIGALI CITY</span>
             <span className="text-xs font-medium text-sky-500 uppercase tracking-wide">{displayRole}</span>
           </div>
         </div>
@@ -320,7 +322,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           return (
             <div key={link.id}>
               {hasChildren ? (
-                <div className="relative">
+                <div className="relative ">
                   <button
                     onClick={() => {
                       if (!isExpanded) {
@@ -360,7 +362,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               ) : (
                 <button
                   onClick={() => handleNavigation(link.path)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                  className={`w-full cursor-pointer flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
                     linkIsActive 
                       ? 'cok-primary-bg-hoverable text-white shadow-md  hover:shadow-lg' 
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
@@ -381,7 +383,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       <button
                         key={child.id}
                         onClick={() => handleNavigation(child.path)}
-                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 text-sm ${
+                        className={`w-full flex cursor-pointer items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 text-sm ${
                           childIsActive 
                             ? 'bg-blue-100 cok-primary-color font-medium' 
                             : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
@@ -402,7 +404,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="h-16 cok-primary-bg flex flex-col justify-between px-4">
         <div className="flex items-center justify-between w-full">
           <div className="flex items-baseline pt-2 gap-2">
-            <span className="text-white/90 text-2xl  font-bold leading-none tracking-tight">@IKAZE</span>
+            <span className="text-white/90 text-2xl  font-bold leading-none tracking-tight">IKAZE</span>
             <span className="text-white font-mono text-sm sm:text-base font-medium">
               {currentTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
             </span>
