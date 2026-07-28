@@ -13,9 +13,9 @@ export default function EventDetailHeader({ event, eventMode, navigate }) {
       <div className="max-w-5xl mx-auto flex items-center gap-4">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 hover:bg-gray-100 ppp-lg transition-colors"
+          className="p-2 cok-btn-outlined"
         >
-          <FiArrowLeft className="w-5 h-5 text-gray-600" />
+          <FiArrowLeft className="w-5 h-5 " />
         </button>
         <div className="min-w-0 flex-1">
           <h1 className="text-lg font-bold text-gray-900 truncate">{event.eventName}</h1>
@@ -28,7 +28,6 @@ export default function EventDetailHeader({ event, eventMode, navigate }) {
                 Cancelled
               </span>
             )}
-            <span className="text-sm text-gray-500 font-mono">{event.eventSpecialId}</span>
           </div>
         </div>
       </div>
