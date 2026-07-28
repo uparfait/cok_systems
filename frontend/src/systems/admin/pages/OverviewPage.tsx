@@ -1461,14 +1461,18 @@ const Overview: React.FC = () => {
           <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M13.65 2.35A7.958 7.958 0 008 0C4.69 0 1.99 2.24 1.25 5.4m-.9 5.25A7.958 7.958 0 008 16c3.31 0 6.01-2.24 6.75-5.4M16 6l-4-4-4 4M0 10l4 4 4-4" stroke="white" strokeWidth="1.5" fill="none"/></svg>
           Refresh
         </button>
-        <span className="flex items-center gap-1 text-xs" title={isConnected ? 'Real-time updates active' : 'Real-time updates unavailable — use Refresh'}>
-          <span
-            className="w-2 h-2 rounded-full inline-block"
-            style={{ backgroundColor: isConnected ? '#4CAF50' : '#9E9E9E' }}
-          ></span>
-          <span className="text-gray-500">{isConnected ? 'Live' : 'Offline'}</span>
-        </span>
-        <span className="text-xs text-gray-500 hidden lg:inline">{lastRefresh.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+        {!isMayor && (
+          <>
+            <span className="flex items-center gap-1 text-xs" title={isConnected ? 'Real-time updates active' : 'Real-time updates unavailable — use Refresh'}>
+              <span
+                className="w-2 h-2 rounded-full inline-block"
+                style={{ backgroundColor: isConnected ? '#4CAF50' : '#9E9E9E' }}
+              ></span>
+              <span className="text-gray-500">{isConnected ? 'Live' : 'Offline'}</span>
+            </span>
+            <span className="text-xs text-gray-500 hidden lg:inline">{lastRefresh.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+          </>
+        )}
       </div>
       
       {/* Main Content */}
