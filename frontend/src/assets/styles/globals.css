@@ -426,6 +426,12 @@ body {
   color: #056daa;
 }
 
+.cok-primary-color-hovable {
+  color: #056daa;
+}
+.cok-primary-color-hovable:hover {
+  color: #045d94;
+}
 .cok-primary-bg {
   background-color: #056daa;;
 }
@@ -665,4 +671,28 @@ background-color: #056daa;
 .cok-mayor-dash .bg-white.max-w-4xl {
   border-radius: 16px;
   overflow: hidden;
+}
+
+.cok-logout-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #056eaa8f 0%, #1a7a3a7b 40%, #056eaa7a 100%);
+  background-size: 400% 400%;
+  animation: cok-grass-shift 4s ease infinite;
+}
+
+@keyframes cok-grass-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
