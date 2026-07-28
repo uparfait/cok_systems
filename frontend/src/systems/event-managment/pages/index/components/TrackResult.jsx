@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { FiArrowLeft, FiAlertCircle, FiCheckCircle, FiEdit2, FiTrash2, FiMail, FiUsers } from "react-icons/fi";
+import { FiArrowLeft, FiAlertCircle, FiCheckCircle, FiEdit2, FiTrash2, FiMail, FiUsers, FiDroplet } from "react-icons/fi";
 import axios from "axios";
 
 import {
-  PRIMARY, DANGER, SUCCESS, SUCCESS_HOVER, NEUTRAL_LIGHT, NEUTRAL_DARK, BORDER, WHITE, GRAY_DISABLED, fontHeading,
+  PRIMARY, PRIMARY_HOVER, DANGER, SUCCESS, SUCCESS_HOVER, NEUTRAL_LIGHT, NEUTRAL_DARK, BORDER, WHITE, GRAY_DISABLED, fontHeading,
   CARD_SHADOW, getBtnStyle, btnHover, btnLeavePrimary, btnLeaveDanger, StatusBadge, DetailRow,
 } from "./TrackShared";
 
@@ -14,6 +14,25 @@ function TrackResult({
   showInvited, setShowInvited, invitedPeople, invitedCount, invitedLoading,
   onToggleInvited, onRemoveInvited,
 }) {
+  // Water request: only possible once the event manager accepted the request
+  // and only for Internal type — the button is not rendered otherwise
+  const [waterRequested, setWaterRequested] = useState(!!request?.waterRequest?.requested);
+  const [waterBusy, setWaterBusy] = useState(false);
+  const [waterError, setWaterError] = useState("");
+
+  const handleRequestWater = async () => {
+    setWaterBusy(true);
+    setWaterError("");
+    try {
+      await axios.put(`${BASE_URL}/booking-requests/tracking/${request.trackingCode}/request-water`);
+      setWaterRequested(true);
+    } catch (err) {
+      setWaterError(err.response?.data?.message || "Failed to request water. Try again.");
+    } finally {
+      setWaterBusy(false);
+    }
+  };
+
   const formatDate = (dateStr) => {
     if (!dateStr) return "—";
     return new Date(dateStr).toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -128,6 +147,42 @@ function TrackResult({
             >
               <FiMail className="w-4 h-4" /> Invite People
             </button>
+
+            {/* Water request — only for accepted Internal meetings */}
+            {request.eventType === "Internal" && (
+              waterRequested ? (
+                <div
+                  className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium"
+                  style={{ border: `1px solid ${SUCCESS}`, color: SUCCESS_HOVER, backgroundColor: '#E8F5E9', fontFamily: fontHeading }}
+                >
+                  <FiCheckCircle className="w-4 h-4" />
+                  {request.expectedAudience
+                    ? `Requested water for ${request.expectedAudience} people`
+                    : "Water Requested"}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleRequestWater}
+                  disabled={waterBusy}
+                  title={request.expectedAudience ? `Water will be requested for your ${request.expectedAudience} expected people` : undefined}
+                  className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-all"
+                  style={{ border: `1px solid ${PRIMARY}`, color: PRIMARY, backgroundColor: WHITE, fontFamily: fontHeading, opacity: waterBusy ? 0.7 : 1 }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; e.currentTarget.style.color = WHITE; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = WHITE; e.currentTarget.style.color = PRIMARY; }}
+                >
+                  <FiDroplet className="w-4 h-4" />
+                  {waterBusy
+                    ? "Requesting…"
+                    : request.expectedAudience
+                      ? `Request Water (${request.expectedAudience} people)`
+                      : "Request Water"}
+                </button>
+              )
+            )}
+            {waterError && (
+              <p className="mt-2 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{waterError}</p>
+            )}
           </div>
         )}
         {request.status === "Pending" && (

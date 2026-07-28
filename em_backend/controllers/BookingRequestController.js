@@ -13,6 +13,20 @@ class BookingRequestController {
     }
   }
 
+  static async handleRequestWater(req, res) {
+    try {
+      const { trackingCode } = req.params;
+      const result = await BookingRequestService.requestWater(trackingCode);
+      return res.status(200).json(result);
+    } catch (error) {
+      const statusCode = error.message.includes("not found") ? 404 : 400;
+      return res.status(statusCode).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
   static async handleAccept(req, res) {
     try {
       const { id } = req.params;
