@@ -8,7 +8,7 @@ import { statisticsService, employeeService, parkingService, serviceDeliveryServ
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import Chart from 'chart.js/auto';
-import { BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, Cell, LabelList, AreaChart, Area, CartesianGrid, Legend } from 'recharts';
 import { COK, CokBadge } from './mayorCok';
 
 // ==================== TYPES ====================
@@ -29,7 +29,6 @@ interface DashboardData {
 
 // ==================== CONSTANTS ====================
 
-const HOURS = ['9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20'];
 const SERVICE_HOURS = ['9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19'];
 
 // Helper function to format hour labels with AM/PM
@@ -443,6 +442,86 @@ const Overview: React.FC = () => {
     [visitors, isInPeriod]
   );
 
+  // Visitor requests grouped by status (pending / in progress / completed), once per
+  // department (incoming requests) and once per employee (how their requests progress).
+  // Requests with no employee recorded are grouped under "Unassigned".
+  // The requests feature is not live yet — flip this to true to switch the chart
+  // from sample data to the real per-status aggregation below.
+  const REQUESTS_FEATURE_READY = false;
+  const requestStatuses = useMemo(() => {
+    const deptMap: Record<string, { pending: number; inprogress: number; completed: number }> = {};
+    const empMap: Record<string, { pending: number; inprogress: number; completed: number }> = {};
+    let total = 0;
+    visitors.forEach((v: any) => {
+      if (!isInPeriod(v?.entry_date)) return;
+      (v?.services_status || []).forEach((s: any) => {
+        if (!s?.department_name) return;
+        const status: 'pending' | 'inprogress' | 'completed' =
+          s.s_type === 'Completed' ? 'completed' : s.s_type === 'Inprogress' ? 'inprogress' : 'pending';
+        total += 1;
+        if (!deptMap[s.department_name]) deptMap[s.department_name] = { pending: 0, inprogress: 0, completed: 0 };
+        deptMap[s.department_name][status] += 1;
+        const empName = s.provider_name && s.provider_name !== 'Not specified' ? s.provider_name : 'Unassigned';
+        if (!empMap[empName]) empMap[empName] = { pending: 0, inprogress: 0, completed: 0 };
+        empMap[empName][status] += 1;
+      });
+    });
+    const toRows = (m: Record<string, { pending: number; inprogress: number; completed: number }>) =>
+      Object.entries(m)
+        .map(([name, v]) => ({
+          name: name.length > 14 ? name.slice(0, 13) + '…' : name,
+          fullName: name,
+          ...v,
+          total: v.pending + v.inprogress + v.completed,
+        }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 8);
+    const deptCount = Object.keys(deptMap).length;
+
+    // No real request data yet — show clearly-labeled sample data so the chart's
+    // design is visible; it is replaced automatically once real requests exist
+    if (!REQUESTS_FEATURE_READY || total === 0) {
+      const deptNames = (data?.departments?.map(d => d.name).slice(0, 5) || []);
+      const sampleDepts = deptNames.length
+        ? deptNames
+        : ['Urban Economy', 'Urban Planning', 'City Engineering', 'Social Development', 'Digitalization'];
+      // Use the system's real employees for the sample; only the counts are dummy
+      const realEmpNames = employees.map((e: any) => e.full_name).filter(Boolean).slice(0, 5);
+      const sampleEmps = realEmpNames.length
+        ? realEmpNames
+        : ['J. Mukamana', 'E. Niyonzima', 'A. Uwase', 'P. Habimana', 'C. Ingabire'];
+      const P = [7, 4, 6, 3, 5];
+      const I = [3, 5, 2, 4, 1];
+      const C = [9, 6, 4, 7, 3];
+      const sampleRows = (names: string[]) =>
+        names.map((name, i) => ({
+          name: name.length > 14 ? name.slice(0, 13) + '…' : name,
+          fullName: name,
+          pending: P[i % P.length],
+          inprogress: I[i % I.length],
+          completed: C[i % C.length],
+          total: P[i % P.length] + I[i % I.length] + C[i % C.length],
+        }));
+      const dummyDepts = sampleRows(sampleDepts);
+      const dummyTotal = dummyDepts.reduce((s, r) => s + r.total, 0);
+      return {
+        departments: dummyDepts,
+        employees: sampleRows(sampleEmps),
+        total: dummyTotal,
+        avgPerDept: Math.round((dummyTotal / sampleDepts.length) * 10) / 10,
+        isSample: true,
+      };
+    }
+
+    return {
+      departments: toRows(deptMap),
+      employees: toRows(empMap),
+      total,
+      avgPerDept: deptCount ? Math.round((total / deptCount) * 10) / 10 : 0,
+      isSample: false,
+    };
+  }, [visitors, isInPeriod, data, employees]);
+
   const periodLabel =
     period === 'today' ? 'today'
     : period === 'week' ? 'this week'
@@ -581,7 +660,6 @@ const Overview: React.FC = () => {
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [showAllDepartments, setShowAllDepartments] = useState(false);
-  const [showAllRatings, setShowAllRatings] = useState(false);
   const [departmentPage, setDepartmentPage] = useState(1);
   const departmentLimit = 5;
 
@@ -702,57 +780,11 @@ const Overview: React.FC = () => {
     chartsRef.current.clear();
     
     const deptNames = data.departments.map(d => d.name);
-    const filteredHourlyParking = data.hourlyParking.filter((h: any) => HOURS.includes(h.hour.toString()));
-    const checkInData = filteredHourlyParking.map(h => h.check_in);
-    const checkOutData = filteredHourlyParking.map(h => h.check_out);
-    const formattedHourLabels = filteredHourlyParking.map((h: any) => formatHourLabel(h.hour));
-    const maxParking = Math.max(...checkInData, ...checkOutData, 1);
     const filteredHourlyService = data.hourlyService.filter((h: any) => SERVICE_HOURS.includes(h.hour.toString()));
     const visitorData = filteredHourlyService.map(h => h.visitors_checked_in);
     const formattedServiceHourLabels = filteredHourlyService.map((h: any) => formatHourLabel(h.hour));
     const maxVisitor = Math.max(...visitorData, 1);
 
-    // 1. Hourly Parking Chart (Line chart with whole numbers)
-    const hourlyCanvas = document.getElementById('chart-hourly') as HTMLCanvasElement;
-    if (hourlyCanvas) {
-      chartsRef.current.set('hourly', new Chart(hourlyCanvas, {
-        type: 'line',
-        data: {
-          labels: formattedHourLabels,
-          datasets: [
-            { 
-              label: 'Check-in', 
-              data: checkInData, 
-              borderColor: CC.blue, 
-              backgroundColor: CC.blueSoft, 
-              fill: true, 
-              tension: 0.4, 
-              pointRadius: 3, 
-              borderWidth: 2,
-              pointBackgroundColor: CC.blue,
-              pointBorderColor: '#fff',
-              pointBorderWidth: 1
-            },
-            { 
-              label: 'Check-out', 
-              data: checkOutData, 
-              borderColor: CC.amber, 
-              backgroundColor: CC.amberSoft, 
-              fill: true, 
-              tension: 0.4, 
-              pointRadius: 3, 
-              borderWidth: 2,
-              borderDash: [5, 3],
-              pointBackgroundColor: CC.amber,
-              pointBorderColor: '#fff',
-              pointBorderWidth: 1
-            }
-          ]
-        },
-        options: getChartConfig(maxParking)
-      }));
-    }
-    
     // 3. Employees Chart (Bar chart)
     const empCanvas = document.getElementById('chart-employees') as HTMLCanvasElement;
     if (empCanvas && deptNames.length) {
@@ -1308,7 +1340,6 @@ const Overview: React.FC = () => {
   const visibleDepartments = showAllDepartments
     ? data?.departments
     : data?.departments?.slice((departmentPage - 1) * departmentLimit, departmentPage * departmentLimit);
-  const visibleRatings = showAllRatings ? data?.departments : data?.departments?.slice(0, 5);
   
   if (loading || !data) {
     return (
@@ -1326,7 +1357,7 @@ const Overview: React.FC = () => {
       <div className="cok-mayor-dash">
       {/* CoK design-rule page header for the mayor account */}
       {isMayor && (
-        <div className="px-4 pt-4 pb-3">
+        <div className="px-4 pt-3 pb-2">
           <h1
             style={{
               fontFamily: "'Montserrat', sans-serif",
@@ -1339,12 +1370,6 @@ const Overview: React.FC = () => {
           >
             Dashboard
           </h1>
-          <p
-            className="text-sm text-gray-500"
-            style={{ fontFamily: "'Merriweather', serif", margin: '4px 0 0 0' }}
-          >
-            City overview  services, parking, employees and feedback
-          </p>
         </div>
       )}
 
@@ -1352,21 +1377,6 @@ const Overview: React.FC = () => {
       <div className="bg-white border-b border-gray-200 px-4 py-2 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1 text-xs text-gray-600">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-gray-500"><path d="M1 3h10M3 6h6M5 9h2" stroke="currentColor" strokeWidth="1.2"/></svg>
-          <label className="font-medium">Department</label>
-          <select className="text-xs px-2 py-1 border border-gray-300 rounded bg-white">
-            <option>All departments</option>
-            {data.departments.map(d => <option key={d.name}>{d.name}</option>)}
-          </select>
-        </div>
-        <div className="w-px h-5 bg-gray-200 hidden sm:block"></div>
-        <div className="flex items-center gap-1 text-xs text-gray-600">
-          <label className="font-medium">Status</label>
-          <select className="text-xs px-2 py-1 border border-gray-300 rounded bg-white">
-            <option>All statuses</option>
-          </select>
-        </div>
-        <div className="w-px h-5 bg-gray-200 hidden sm:block"></div>
-        <div className="flex items-center gap-1 text-xs text-gray-600">
           <label className="font-medium">Period</label>
           <select
             value={period}
@@ -1406,14 +1416,18 @@ const Overview: React.FC = () => {
           <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M13.65 2.35A7.958 7.958 0 008 0C4.69 0 1.99 2.24 1.25 5.4m-.9 5.25A7.958 7.958 0 008 16c3.31 0 6.01-2.24 6.75-5.4M16 6l-4-4-4 4M0 10l4 4 4-4" stroke="white" strokeWidth="1.5" fill="none"/></svg>
           Refresh
         </button>
-        <span className="flex items-center gap-1 text-xs" title={isConnected ? 'Real-time updates active' : 'Real-time updates unavailable — use Refresh'}>
-          <span
-            className="w-2 h-2 rounded-full inline-block"
-            style={{ backgroundColor: isConnected ? '#4CAF50' : '#9E9E9E' }}
-          ></span>
-          <span className="text-gray-500">{isConnected ? 'Live' : 'Offline'}</span>
-        </span>
-        <span className="text-xs text-gray-500 hidden lg:inline">{lastRefresh.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+        {!isMayor && (
+          <>
+            <span className="flex items-center gap-1 text-xs" title={isConnected ? 'Real-time updates active' : 'Real-time updates unavailable — use Refresh'}>
+              <span
+                className="w-2 h-2 rounded-full inline-block"
+                style={{ backgroundColor: isConnected ? '#4CAF50' : '#9E9E9E' }}
+              ></span>
+              <span className="text-gray-500">{isConnected ? 'Live' : 'Offline'}</span>
+            </span>
+            <span className="text-xs text-gray-500 hidden lg:inline">{lastRefresh.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+          </>
+        )}
       </div>
       
       {/* Main Content */}
@@ -1450,6 +1464,72 @@ const Overview: React.FC = () => {
               onRightClick={() => setSelectedCard('employee-served')}
             />
           )}
+        </div>
+
+        {/* Requests histogram — status of visitor requests, departments (left) and employees (right) */}
+        <div className="bg-white border border-gray-200 p-4 sm:p-5 rounded-lg shadow-sm">
+          <div className="flex justify-between items-start mb-2">
+            <div>
+              <div className="text-base font-bold text-gray-900">Requests</div>
+              <div className="text-xs text-gray-500 mt-0.5">Visitor requests by status · {periodLabel}</div>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <div className="text-2xl font-bold leading-none" style={{ color: CC.purple }}>{requestStatuses.avgPerDept}</div>
+              <div className="text-[11px] uppercase tracking-wide text-gray-500 mt-1">Avg requests / department</div>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 mb-3">
+            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: CC.amber }}></div>Pending</div>
+            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: CC.blue }}></div>In progress</div>
+            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: CC.teal }}></div>Completed</div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.amber }}>Departments</span>
+                  <span className="text-xs text-gray-500">(incoming requests)</span>
+                </div>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={requestStatuses.departments} barGap={2} barCategoryGap="18%" margin={{ top: 10, right: 5, left: -25, bottom: 25 }}>
+                      <XAxis dataKey="name" interval={0} angle={-30} textAnchor="end" tick={{ fontSize: 9, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                      <RTooltip
+                        cursor={{ fill: COK.neutralLight }}
+                        contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
+                        labelFormatter={(_l: any, payload: any) => payload?.[0]?.payload?.fullName || _l}
+                      />
+                      <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32} />
+                      <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} />
+                      <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.blue }}>Employees</span>
+                  <span className="text-xs text-gray-500">(request progress)</span>
+                </div>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={requestStatuses.employees} barGap={2} barCategoryGap="18%" margin={{ top: 10, right: 5, left: -25, bottom: 25 }}>
+                      <XAxis dataKey="name" interval={0} angle={-30} textAnchor="end" tick={{ fontSize: 9, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                      <RTooltip
+                        cursor={{ fill: COK.neutralLight }}
+                        contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
+                        labelFormatter={(_l: any, payload: any) => payload?.[0]?.payload?.fullName || _l}
+                      />
+                      <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32} />
+                      <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} />
+                      <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
         </div>
 
         {/* Ratings row — department averages (left) next to the banded avg-feedback chart (right) */}
@@ -1568,25 +1648,28 @@ const Overview: React.FC = () => {
               
               {/* Left Column */}
               <div className="lg:col-span-2 space-y-2.5">
-                {/* Hourly Parking Chart */}
+                {/* Parking Usage Trends — same area chart as the admin smart-parking dashboard */}
                 <div className="bg-white border border-gray-200 p-3">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <div className="text-sm font-semibold text-gray-900">Hourly parking activity</div>
-                      <div className="text-xs text-gray-500">Check-in vs check-out · today</div>
-                    </div>
-                    <button className="text-gray-400 text-lg leading-none">⋯</button>
-                  </div>
-                  <div className="flex gap-3 text-xs mb-2">
-                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-600"></div>Check-in</div>
-                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500"></div>Check-out</div>
+                  <div className="mb-3">
+                    <div className="text-sm font-semibold text-gray-900">Parking Usage Trends</div>
+                    <div className="text-xs text-gray-500">Check-ins vs check-outs · today</div>
                   </div>
                   {hasHourlyParking ? (
-                    <div className="h-40 w-full">
-                      <canvas id="chart-hourly"></canvas>
+                    <div className="h-48 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={data.hourlyParking}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="hour" tickFormatter={(v: number) => `${v}:00`} tick={{ fontSize: 11 }} />
+                          <YAxis tick={{ fontSize: 11 }} />
+                          <RTooltip />
+                          <Legend />
+                          <Area type="monotone" dataKey="check_in" stroke="#3b82f6" fill="rgba(59,130,246,0.1)" name="Check-ins" />
+                          <Area type="monotone" dataKey="check_out" stroke="#ef4444" fill="rgba(239,68,68,0.1)" name="Check-outs" />
+                        </AreaChart>
+                      </ResponsiveContainer>
                     </div>
                   ) : (
-                    <div className="h-40 w-full flex items-center justify-center text-xs text-gray-400">
+                    <div className="h-48 w-full flex items-center justify-center text-xs text-gray-400">
                       No parking check-ins recorded today
                     </div>
                   )}
@@ -1717,40 +1800,6 @@ const Overview: React.FC = () => {
                   </div>
                 </div>
                 
-                {/* Avg Feedback Rating */}
-                <div className="bg-white border border-gray-200 p-3">
-                  <div className="mb-3">
-                    <div className="text-sm font-semibold text-gray-900">Avg feedback rating</div>
-                    <div className="text-xs text-gray-500">By department · out of 10</div>
-                  </div>
-                  <div className="space-y-2">
-                    {visibleRatings?.map((dept, idx) => {
-                      const barWidth = Math.round(dept.rating / 10 * 100);
-                      return (
-                        <div key={idx}>
-                          <div className="flex justify-between text-xs mb-1">
-                            <span className="text-gray-600">{dept.name}</span>
-                            <span className={`font-semibold ${getRatingColor(dept.rating)}`}>{dept.rating}</span>
-                          </div>
-                          <div className="h-1.5 bg-gray-100">
-                            <div className={`h-full ${dept.rating >= 9 ? 'bg-emerald-600' : dept.rating >= 7 ? 'bg-blue-600' : dept.rating >= 5 ? 'bg-yellow-500' : 'bg-red-600'}`} style={{ width: `${barWidth}%` }}></div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {data.departments.length > 5 && (
-                    <div className="mt-3 text-center">
-                      <button
-                        onClick={() => setShowAllRatings(!showAllRatings)}
-                        className="text-xs px-3 py-1 bg-blue-600 text-white hover:bg-blue-700"
-                      >
-                        {showAllRatings ? 'Show Less' : `Show All (${data.departments.length})`}
-                      </button>
-                    </div>
-                  )}
-                </div>
-
                 {/* Recent Check-ins */}
                 <div className="bg-white border border-gray-200 p-3">
                   <div className="mb-3">
