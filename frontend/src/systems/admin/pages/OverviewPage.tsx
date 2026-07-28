@@ -210,6 +210,8 @@ const Overview: React.FC = () => {
   // employees-served breakdown; period state drives the toolbar date filter
   const [visitors, setVisitors] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [recentParking, setRecentParking] = useState<any[]>([]);
+  const [recentVisitors, setRecentVisitors] = useState<any[]>([]);
   const [period, setPeriod] = useState<'today' | 'all' | 'range'>('all');
   const [rangeFrom, setRangeFrom] = useState('');
   const [rangeTo, setRangeTo] = useState('');
@@ -289,6 +291,8 @@ const Overview: React.FC = () => {
   }, [data, filteredServed]);
   const maxDeptServed = Math.max(...deptVsServices.map(r => r.served), 1);
   const maxDeptAvg = Math.max(...deptVsServices.map(r => r.avg), 1);
+  const leftTicks = Array.from({ length: Math.floor(maxDeptServed) + 1 }, (_, i) => i);
+  const rightTicks = Array.from({ length: Math.floor(maxDeptAvg) + 1 }, (_, i) => i);
 
   // Every employee with the number of people they served in the selected period;
   // providers on records that don't match an employee account still get a row
@@ -335,6 +339,29 @@ const Overview: React.FC = () => {
   const hasHourlyService = !!data && data.hourlyService.some(h => (h.visitors_checked_in || 0) > 0);
   const hasHourlyParking = !!data && data.hourlyParking.some(h => (h.check_in || 0) > 0 || (h.check_out || 0) > 0);
 
+  const recentCheckIns = useMemo(() => {
+    const items: any[] = [];
+    (recentParking || []).forEach((p: any) => {
+      const time = p.checkInTime || p.check_in || p.entry_date;
+      items.push({
+        id: `parking-${p._id || Math.random()}`,
+        type: 'parking',
+        name: p.plate_number || p.plateNumber || p.driver_name || p.vehicle || 'Unknown vehicle',
+        time: time ? new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--',
+      });
+    });
+    (recentVisitors || []).forEach((v: any) => {
+      const time = v.checkInTime || v.check_in || v.entry_date;
+      items.push({
+        id: `visitor-${v._id || Math.random()}`,
+        type: 'visitor',
+        name: v.full_name || v.name || v.visitorName || `Visitor ${v.badge_number || ''}`.trim() || 'Unknown visitor',
+        time: time ? new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--',
+      });
+    });
+    return items.sort((a, b) => b.time.localeCompare(a.time));
+  }, [recentParking, recentVisitors]);
+
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [showAllDepartments, setShowAllDepartments] = useState(false);
@@ -354,7 +381,7 @@ const Overview: React.FC = () => {
   
   const chartsRef = useRef<Map<string, Chart>>(new Map());
 
-  // Fetch real data; silent mode refreshes in the background (socket updates)
+   // Fetch real data; silent mode refreshes in the background (socket updates)
   // without tearing the page down to the loading spinner
   const fetchData = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true);
@@ -362,7 +389,7 @@ const Overview: React.FC = () => {
       const [
         employeesRes, servicesRes, flaggedStatsRes,
         feedbackTotalsRes, feedbackAvgRes, hourlyParkingRes, hourlyServiceRes, departmentsRes,
-        flaggedCountRes, visitorsRes, allEmployeesRes
+        flaggedCountRes, visitorsRes, allEmployeesRes, recentParkingRes
       ] = await Promise.all([
         statisticsService.getEmployeeStats(),
         statisticsService.getServiceDeliveryStats(),
@@ -375,6 +402,7 @@ const Overview: React.FC = () => {
         parkingService.getFlaggedActiveVehicles(1, 1000), // Get count for KPI
         serviceDeliveryService.getAll(1, 1000), // Visitors with per-service provider + date
         employeeService.getAll(1, 1000), // Full employee list for the served-by breakdown
+        parkingService.getAllPaginated(1, 10, 'all'), // Recent parking check-ins
       ]);
       
       const employees = (employeesRes as any)?.data || employeesRes;
@@ -388,8 +416,14 @@ const Overview: React.FC = () => {
       const departmentsRaw = (departmentsRes as any)?.data?.departments || (departmentsRes as any)?.departments || [];
       const visitorsRaw = (visitorsRes as any)?.data || [];
       const allEmployeesRaw = (allEmployeesRes as any)?.data || [];
+      const recentParkingRaw = (recentParkingRes as any)?.data || [];
       setVisitors(Array.isArray(visitorsRaw) ? visitorsRaw : []);
       setEmployees(Array.isArray(allEmployeesRaw) ? allEmployeesRaw : []);
+      setRecentParking(Array.isArray(recentParkingRaw) ? recentParkingRaw : []);
+      const sortedVisitors = (visitorsRaw as any[]).slice().sort((a: any, b: any) =>
+        new Date(b.entry_date || 0).getTime() - new Date(a.entry_date || 0).getTime()
+      );
+      setRecentVisitors(sortedVisitors.slice(0, 10));
       
       const departments = departmentsRaw.map((dept: any) => ({
         name: dept.department_name,
@@ -1209,7 +1243,7 @@ const Overview: React.FC = () => {
 
               {/* Mirrored rows: orange bars grow left from the center divider, blue bars grow right.
                   Bars sit on a soft full-width track; a white-fade gradient gives them depth. */}
-              <div className="space-y-3">
+                  <div className="space-y-3">
                 {deptVsServices.map(row => (
                   <div
                     key={row.name}
@@ -1222,7 +1256,7 @@ const Overview: React.FC = () => {
                       </span>
                       <div className="flex-1 h-6 bg-gray-100/80 rounded-l-lg flex justify-end overflow-hidden">
                         <div
-                          className="h-full flex items-center pl-2 shadow-sm transition-all duration-500"
+                          className="h-full shadow-sm transition-all duration-500"
                           style={{
                             width: `${Math.round((row.served / maxDeptServed) * 100)}%`,
                             minWidth: row.served > 0 ? 26 : 0,
@@ -1230,11 +1264,7 @@ const Overview: React.FC = () => {
                             backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.08), rgba(255,255,255,0.28))',
                             borderRadius: '6px 0 0 6px',
                           }}
-                        >
-                          {row.served > 0 && (
-                            <span className="text-[11px] font-bold text-white leading-none drop-shadow-sm">{row.served}</span>
-                          )}
-                        </div>
+                        ></div>
                       </div>
                     </div>
 
@@ -1254,11 +1284,7 @@ const Overview: React.FC = () => {
                             backgroundImage: 'linear-gradient(to left, rgba(0,0,0,0.08), rgba(255,255,255,0.28))',
                             borderRadius: '0 6px 6px 0',
                           }}
-                        >
-                          {row.avg > 0 && (
-                            <span className="text-[11px] font-bold text-white leading-none drop-shadow-sm">{row.avg}</span>
-                          )}
-                        </div>
+                        ></div>
                       </div>
                       <span className="w-40 sm:w-48 flex-shrink-0 text-[13px] font-medium text-gray-700 truncate">
                         {row.avg}/emp <span className="text-gray-400 font-normal">({row.staff} staff)</span>
@@ -1266,6 +1292,41 @@ const Overview: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Scale row aligned with bar areas */}
+              <div className="flex items-start mt-2">
+                <div className="flex-1 flex items-center gap-2.5 min-w-0">
+                  <span className="w-40 sm:w-48 flex-shrink-0"></span>
+                  <div className="flex-1 relative px-1" style={{ height: 24 }}>
+                    <div className="absolute inset-x-1 top-0 h-1 bg-gray-900 rounded-full"></div>
+                    {leftTicks.map((tick) => {
+                      const pct = maxDeptServed > 0 ? ((maxDeptServed - tick) / maxDeptServed) * 100 : 0;
+                      return (
+                        <div key={tick} className="absolute top-0 flex flex-col items-center" style={{ left: `calc(${pct}% + 4px)`, transform: 'translateX(-50%)' }}>
+                          <div className="w-px h-2 bg-gray-900"></div>
+                          <span className="mt-0.5 text-[11px] font-bold text-gray-900">{tick}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="w-[3px] self-stretch rounded-full mx-1 flex-shrink-0" style={{ background: `linear-gradient(to bottom, ${CC.amber}, ${CC.blue})` }}></div>
+                <div className="flex-1 flex items-center gap-2.5 min-w-0">
+                  <div className="flex-1 relative px-1" style={{ height: 24 }}>
+                    <div className="absolute inset-x-1 top-0 h-1 bg-gray-900 rounded-full"></div>
+                    {rightTicks.map((tick) => {
+                      const pct = maxDeptAvg > 0 ? (tick / maxDeptAvg) * 100 : 0;
+                      return (
+                        <div key={tick} className="absolute top-0 flex flex-col items-center" style={{ left: `calc(${pct}% + 4px)`, transform: 'translateX(-50%)' }}>
+                          <div className="w-px h-2 bg-gray-900"></div>
+                          <span className="mt-0.5 text-[11px] font-bold text-gray-900">{Number.isInteger(tick) ? tick : tick.toFixed(1)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <span className="w-40 sm:w-48 flex-shrink-0"></span>
+                </div>
               </div>
             </div>
           )}
@@ -1568,6 +1629,29 @@ const Overview: React.FC = () => {
                       </button>
                     </div>
                   )}
+                </div>
+
+                {/* Recent Check-ins */}
+                <div className="bg-white border border-gray-200 p-3">
+                  <div className="mb-3">
+                    <div className="text-sm font-semibold text-gray-900">Recent check-ins</div>
+                    <div className="text-xs text-gray-500">Parking and visitors</div>
+                  </div>
+                  <div className="space-y-2">
+                    {recentCheckIns.length === 0 ? (
+                      <div className="text-xs text-gray-400 text-center py-3">No recent activity</div>
+                    ) : (
+                      recentCheckIns.slice(0, 5).map((item: any) => (
+                        <div key={item.id} className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${item.type === 'parking' ? 'bg-blue-600' : 'bg-teal-600'}`}></span>
+                            <span className="text-gray-700 truncate">{item.name}</span>
+                          </div>
+                          <span className="text-gray-400 flex-shrink-0 ml-2">{item.time}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
