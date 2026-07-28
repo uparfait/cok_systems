@@ -5,7 +5,7 @@ import axios from 'axios';
 
 const BASE_URL = '/cok/api/v1';
 
-const inputClass = 'w-full px-4 py-2.5 border border-gray-300 ppp-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all duration-200';
+const inputClass = 'w-full px-4 py-2.5 border cok-auth-input text-sm text-gray-900 placeholder-gray-400 focus:outline-none ';
 const labelClass = 'block text-sm font-medium text-gray-700 mb-1.5';
 
 export default function CreateRoomForm() {
@@ -171,7 +171,7 @@ export default function CreateRoomForm() {
               name="isActive"
               checked={formData.isActive}
               onChange={handleChange}
-              className="w-4 h-4 text-blue-600 border-gray-300 ppp focus:ring-blue-500"
+              className="w-4 h-4 cok-primary-color"
             />
             <div>
               <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
@@ -185,14 +185,14 @@ export default function CreateRoomForm() {
             <button
               type="button"
               onClick={() => navigate('/event-manager/rooms/all')}
-              className="flex-1 px-4 py-2.5 border border-gray-300 text-sm font-medium text-gray-700 ppp-lg hover:bg-gray-50 transition-colors"
+              className="flex-1 h-[45px] px-4  cok-btn-outlined text-sm font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium ppp-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 inline-flex items-center justify-center gap-2 shadow-sm"
+              className="flex-1 px-4 py-2.5  text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cok-btn-primary inline-flex items-center justify-center gap-2"
             >
               <FiSave className="w-4 h-4" />
               {loading ? 'Creating...' : 'Create Room'}
