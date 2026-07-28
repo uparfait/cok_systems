@@ -15,7 +15,7 @@ export default function DateFilter({ dateRange, onChange, onRefresh, loading }) 
           type="date"
           value={dateRange.from}
           onChange={(e) => onChange({ ...dateRange, from: e.target.value })}
-          className="h-9 px-3 text-sm border border-gray-300 text-gray-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          className="h-9 px-3 text-sm border border-gray-300 text-gray-700 focus:outline-none"
         />
       </div>
 
@@ -26,14 +26,14 @@ export default function DateFilter({ dateRange, onChange, onRefresh, loading }) 
           type="date"
           value={dateRange.to}
           onChange={(e) => onChange({ ...dateRange, to: e.target.value })}
-          className="h-9 px-3 text-sm border border-gray-300 text-gray-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          className="h-9 px-3 text-sm border border-gray-300 text-gray-700 focus:outline-none"
         />
       </div>
 
       <button
         onClick={onRefresh}
         disabled={loading}
-        className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="max-w-[100px] cok-btn-primary text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? 'Refreshing...' : 'Refresh'}
       </button>
