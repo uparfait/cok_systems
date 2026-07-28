@@ -300,20 +300,13 @@ const Sidebar: React.FC<SidebarProps> = ({
             className="h-10 w-auto object-contain"
           />
           <div className="flex flex-col">
-            <span className="font-bold text-lg text-gray-900">KSESM Portal</span>
+            <span className="font-bold text-lg text-gray-900">IKAZE Portal</span>
             <span className="text-xs font-medium text-sky-500 uppercase tracking-wide">{displayRole}</span>
           </div>
         </div>
       </div>
 
-      {userDepartment && (
-        <div className="px-4 py-3">
-          <div className="bg-blue-50 rounded-lg px-3 py-2">
-            <p className="text-xs text-blue-600 font-medium uppercase tracking-wide">Department</p>
-            <p className="text-sm text-gray-900 font-semibold truncate">{userDepartment}</p>
-          </div>
-        </div>
-      )}
+      
 
       <nav className="p-3 space-y-1 overflow-y-auto flex-1">
         {parentLinks.map((link) => {
