@@ -96,7 +96,7 @@ export default function Upcoming() {
                 placeholder="Search upcoming events..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 ppp-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full pl-10 pr-4 py-2 border  text-sm cok-auth-input"
               />
             </div>
     
@@ -104,7 +104,7 @@ export default function Upcoming() {
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 ppp-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="px-3 py-2 border border-gray-300 ppp-lg text-sm bg-white focus:ring-2 focus:ring-[#056daa] focus:border-[#056fdaa] outline-none"
           >
             <option value="all">All</option>
             <option value="thisWeek">This Week</option>
@@ -117,7 +117,7 @@ export default function Upcoming() {
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value)}
-            className="px-3 py-2 border border-gray-300 ppp-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="px-3 py-2 border border-gray-300 ppp-lg text-sm bg-white focus:ring-2 focus:ring-[#056daa] focus:border-[#056fdaa] outline-none"
           >
             <option value="new">Newest First</option>
             <option value="old">Oldest First</option>
@@ -159,7 +159,7 @@ export default function Upcoming() {
             disabled={pagination.currentPage <= 1}
             className="px-3 py-1.5 text-sm border border-gray-300 ppp-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            ← Back
+            ←Back
           </button>
           {getPageNumbers().map((page) => (
             <button
@@ -167,7 +167,7 @@ export default function Upcoming() {
               onClick={() => handlePageChange(page)}
               className={`px-3 py-1.5 text-sm border ppp-lg transition-colors ${
                 page === pagination.currentPage
-                  ? 'bg-blue-600 text-white border-blue-600'
+                  ? 'bg-[#056daa] text-white'
                   : 'border-gray-300 hover:bg-gray-50 text-gray-700'
               }`}
             >
@@ -179,7 +179,7 @@ export default function Upcoming() {
             disabled={pagination.currentPage >= pagination.totalPages}
             className="px-3 py-1.5 text-sm border border-gray-300 ppp-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            Forward →
+            Forward 
           </button>
         </div>
       </div>

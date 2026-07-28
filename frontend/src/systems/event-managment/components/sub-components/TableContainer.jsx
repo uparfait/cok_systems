@@ -11,11 +11,10 @@ export default function TableContainer({ data, onDelete, eventType }) {
     { key: 'eventName', label: 'Event/Meet Name' },
     { key: 'eventType', label: 'Mode' },
     { key: 'eventRoom', label: 'Room' },
-    { key: 'expectedAudience', label: 'Audience' },
+    { key: 'expectedAudience', label: 'Expected Audience' },
     { key: 'eventOrganizer', label: 'Organizer' },
     { key: 'status', label: 'Status' },
     { key: 'time', label: 'Time' },
-    { key: 'actions', label: 'Actions' },
   ];
 
   const truncateDescription = (text, maxLength = 80) => {
@@ -30,9 +29,7 @@ export default function TableContainer({ data, onDelete, eventType }) {
       return (
         <div className="text-sm leading-snug">
           <div className="font-semibold text-gray-900">{organizer.fullNames}</div>
-          <div className="text-gray-500 text-xs">{organizer.email}</div>
           {organizer.phone && <div className="text-gray-500 text-xs">{organizer.phone}</div>}
-          {organizer.institution && <div className="text-gray-400 text-xs italic">{organizer.institution}</div>}
         </div>
       );
     }
@@ -123,9 +120,9 @@ export default function TableContainer({ data, onDelete, eventType }) {
   const getEventMeetingTypeBadge = (eventMeetingType) => {
     if (!eventMeetingType) return null;
     if (eventMeetingType === 'meet') {
-      return <span className="inline-block bg-emerald-50 text-emerald-700 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide mr-1">Meet</span>;
+      return <span className="inline-block bg-emerald-50 text-emerald-700 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide mr-1">Meeting</span>;
     }
-    return <span className="inline-block bg-blue-50 text-blue-700 border border-blue-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide mr-1">Event</span>;
+    return <span className="inline-block bg-blue-50 cok-primary-color border border-blue-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide mr-1">Event</span>;
   };
 
   const handleRowClick = (event) => {
@@ -154,20 +151,23 @@ export default function TableContainer({ data, onDelete, eventType }) {
             <div className="font-bold text-gray-900 text-sm mb-1">
               {event.eventName}
             </div>
-            {event.eventDescription && (
-              <div className="relative group/desc inline-block">
-                <p className="text-xs text-gray-500 leading-relaxed cursor-help border-b border-dotted border-gray-300 hover:border-gray-500 transition-colors">
-                  {truncateDescription(event.eventDescription, 60)}
-                </p>
-                <div className="absolute left-0 top-full mt-2 z-50 opacity-0 invisible group-hover/desc:opacity-100 group-hover/desc:visible transition-all duration-200 pointer-events-none min-w-[280px]">
-                  <div className="bg-gray-900 text-white text-xs ppp shadow-xl p-4">
-                    <div className="absolute -top-1.5 left-4 w-3 h-3 bg-gray-900 rotate-45"></div>
-                    <p className="font-semibold text-gray-300 mb-1 text-[10px] uppercase tracking-wider">Full Description</p>
-                    <p className="leading-relaxed whitespace-pre-wrap">{event.eventDescription}</p>
-                  </div>
-                </div>
-              </div>
-            )}
+            {
+            // event.eventDescription && (
+            //   <div className="relative group/desc inline-block">
+            //     <p className="text-xs text-gray-500 leading-relaxed cursor-help border-b border-dotted border-gray-300 hover:border-gray-500 transition-colors">
+            //       {truncateDescription(event.eventDescription, 60)}
+            //     </p>
+            //     <div className="absolute left-0 top-full mt-2 z-50 opacity-0 invisible group-hover/desc:opacity-100 group-hover/desc:visible transition-all duration-200 pointer-events-none min-w-[280px]">
+            //       <div className="bg-gray-900 text-white text-xs ppp shadow-xl p-4">
+            //         <div className="absolute -top-1.5 left-4 w-3 h-3 bg-gray-900 rotate-45"></div>
+            //         <p className="font-semibold text-gray-300 mb-1 text-[10px] uppercase tracking-wider">Full Description</p>
+            //         <p className="leading-relaxed whitespace-pre-wrap">{event.eventDescription}</p>
+            //       </div>
+            //     </div>
+            //   </div>
+            // )
+            
+            }
           </div>
         );
       case 'eventType':
@@ -247,7 +247,7 @@ export default function TableContainer({ data, onDelete, eventType }) {
             e.stopPropagation();
             setMobileDescEvent(event);
           }}
-          className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-blue-600 hover:text-blue-700 border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+          className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 text-xs cok-primary-color hover:cok-primary-color border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
         >
           <FiInfo className="w-3.5 h-3.5" />
           View Full Description
@@ -281,7 +281,7 @@ export default function TableContainer({ data, onDelete, eventType }) {
                   <th
                     key={column.key}
                     className={`
-                      bg-[#1255e5] text-white px-4 py-3.5 text-left text-xs font-bold uppercase tracking-widest
+                      cok-primary-bg text-white px-4 py-3.5 text-left text-xs font-bold uppercase tracking-widest
                       ${index === 0 ? '' : ''}
                     `}
                   >
