@@ -34,7 +34,6 @@ export default function RoomStatistics() {
           <div className="ppp-full h-8 w-8 mx-auto">
             < SpiralLoader />
           </div>
-          <p className="text-sm text-gray-500 mt-3">Loading statistics...</p>
         </div>
       </div>
     );
@@ -148,36 +147,7 @@ export default function RoomStatistics() {
         </div>
       )}
 
-      {/* Additional Stats */}
-      {stats.capacity && (
-        <div className="bg-white border border-gray-200 ppp-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-green-50 ppp-lg flex items-center justify-center">
-                <FiTrendingUp className="w-4 h-4 text-green-600" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900">Capacity Overview</h3>
-                <p className="text-xs text-gray-500">Summary of room capacities</p>
-              </div>
-            </div>
-          </div>
-          <div className="p-6 grid grid-cols-2 gap-6">
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Average Capacity</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats.capacity.averageCapacity ? Math.round(stats.capacity.averageCapacity) : '-'}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Largest Room</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats.topLocations[0].location || ''} - ({stats.topLocations[0].totalCapacity || ''})
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+     
     </div>
   );
 }
