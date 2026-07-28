@@ -70,7 +70,7 @@ const Header: React.FC<HeaderProps> = ({
           </button>
 
           <div className="flex flex-col">
-            <span className="font-semibold text-white text-lg">{currentSystem}</span>
+            <span className="font-semibold text-white text-lg">{currentSystem?.split("-").join(" ").toLocaleUpperCase()}</span>
           </div>
         </div>
 
@@ -151,7 +151,7 @@ const Header: React.FC<HeaderProps> = ({
               </div>
               <div className="hidden sm:block text-left">
                 <p className="text-sm font-medium text-white leading-tight">{displayName}</p>
-                <p className="text-xs text-white/80 leading-tight">{displayRole}</p>
+                {/* <p className="text-xs text-white/80 leading-tight">{displayRole}</p> */}
               </div>
               <FiChevronDown className={`w-4 h-4 text-white transition-transform hidden sm:block ${showUserMenu ? 'rotate-180' : ''}`} />
             </button>

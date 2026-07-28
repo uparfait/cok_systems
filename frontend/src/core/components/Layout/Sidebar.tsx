@@ -401,17 +401,17 @@ const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      <div className="h-16 cok-primary-bg flex flex-col justify-between px-4">
+      <div className="h-16 border-t border-t-gray-200 flex flex-col justify-between px-4">
         <div className="flex items-center justify-between w-full">
           <div className="flex items-baseline pt-2 gap-2">
-            <span className="text-white/90 text-2xl  font-bold leading-none tracking-tight">IKAZE</span>
-            <span className="text-white font-mono text-sm sm:text-base font-medium">
+            <span className="cok-primary-color text-2xl  font-bold leading-none tracking-tight">IKAZE</span>
+            <span className="cok-primary-color font-mono text-sm sm:text-base font-medium">
               {currentTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
             </span>
           </div>
         </div>
         <div className="flex justify-end">
-          <span className="text-white/60 text-[15px] font-mono tracking-wider font-medium">
+          <span className="cok-primary-color text-[15px] font-mono tracking-wider font-medium">
             {currentTime.getFullYear()}-{String(currentTime.getMonth() + 1).padStart(2, '0')}-{String(currentTime.getDate()).padStart(2, '0')}
           </span>
         </div>
