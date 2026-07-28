@@ -8,7 +8,7 @@ import { statisticsService, employeeService, parkingService, serviceDeliveryServ
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import Chart from 'chart.js/auto';
-import { BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, Cell, LabelList, AreaChart, Area, CartesianGrid, Legend } from 'recharts';
 import { COK, CokBadge } from './mayorCok';
 
 // ==================== TYPES ====================
@@ -29,7 +29,6 @@ interface DashboardData {
 
 // ==================== CONSTANTS ====================
 
-const HOURS = ['9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20'];
 const SERVICE_HOURS = ['9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19'];
 
 // Helper function to format hour labels with AM/PM
@@ -657,7 +656,6 @@ const Overview: React.FC = () => {
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [showAllDepartments, setShowAllDepartments] = useState(false);
-  const [showAllRatings, setShowAllRatings] = useState(false);
   const [departmentPage, setDepartmentPage] = useState(1);
   const departmentLimit = 5;
 
@@ -778,57 +776,11 @@ const Overview: React.FC = () => {
     chartsRef.current.clear();
     
     const deptNames = data.departments.map(d => d.name);
-    const filteredHourlyParking = data.hourlyParking.filter((h: any) => HOURS.includes(h.hour.toString()));
-    const checkInData = filteredHourlyParking.map(h => h.check_in);
-    const checkOutData = filteredHourlyParking.map(h => h.check_out);
-    const formattedHourLabels = filteredHourlyParking.map((h: any) => formatHourLabel(h.hour));
-    const maxParking = Math.max(...checkInData, ...checkOutData, 1);
     const filteredHourlyService = data.hourlyService.filter((h: any) => SERVICE_HOURS.includes(h.hour.toString()));
     const visitorData = filteredHourlyService.map(h => h.visitors_checked_in);
     const formattedServiceHourLabels = filteredHourlyService.map((h: any) => formatHourLabel(h.hour));
     const maxVisitor = Math.max(...visitorData, 1);
 
-    // 1. Hourly Parking Chart (Line chart with whole numbers)
-    const hourlyCanvas = document.getElementById('chart-hourly') as HTMLCanvasElement;
-    if (hourlyCanvas) {
-      chartsRef.current.set('hourly', new Chart(hourlyCanvas, {
-        type: 'line',
-        data: {
-          labels: formattedHourLabels,
-          datasets: [
-            { 
-              label: 'Check-in', 
-              data: checkInData, 
-              borderColor: CC.blue, 
-              backgroundColor: CC.blueSoft, 
-              fill: true, 
-              tension: 0.4, 
-              pointRadius: 3, 
-              borderWidth: 2,
-              pointBackgroundColor: CC.blue,
-              pointBorderColor: '#fff',
-              pointBorderWidth: 1
-            },
-            { 
-              label: 'Check-out', 
-              data: checkOutData, 
-              borderColor: CC.amber, 
-              backgroundColor: CC.amberSoft, 
-              fill: true, 
-              tension: 0.4, 
-              pointRadius: 3, 
-              borderWidth: 2,
-              borderDash: [5, 3],
-              pointBackgroundColor: CC.amber,
-              pointBorderColor: '#fff',
-              pointBorderWidth: 1
-            }
-          ]
-        },
-        options: getChartConfig(maxParking)
-      }));
-    }
-    
     // 3. Employees Chart (Bar chart)
     const empCanvas = document.getElementById('chart-employees') as HTMLCanvasElement;
     if (empCanvas && deptNames.length) {
@@ -1384,7 +1336,6 @@ const Overview: React.FC = () => {
   const visibleDepartments = showAllDepartments
     ? data?.departments
     : data?.departments?.slice((departmentPage - 1) * departmentLimit, departmentPage * departmentLimit);
-  const visibleRatings = showAllRatings ? data?.departments : data?.departments?.slice(0, 5);
   
   if (loading || !data) {
     return (
@@ -1693,25 +1644,28 @@ const Overview: React.FC = () => {
               
               {/* Left Column */}
               <div className="lg:col-span-2 space-y-2.5">
-                {/* Hourly Parking Chart */}
+                {/* Parking Usage Trends — same area chart as the admin smart-parking dashboard */}
                 <div className="bg-white border border-gray-200 p-3">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <div className="text-sm font-semibold text-gray-900">Hourly parking activity</div>
-                      <div className="text-xs text-gray-500">Check-in vs check-out · today</div>
-                    </div>
-                    <button className="text-gray-400 text-lg leading-none">⋯</button>
-                  </div>
-                  <div className="flex gap-3 text-xs mb-2">
-                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-600"></div>Check-in</div>
-                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500"></div>Check-out</div>
+                  <div className="mb-3">
+                    <div className="text-sm font-semibold text-gray-900">Parking Usage Trends</div>
+                    <div className="text-xs text-gray-500">Check-ins vs check-outs · today</div>
                   </div>
                   {hasHourlyParking ? (
-                    <div className="h-40 w-full">
-                      <canvas id="chart-hourly"></canvas>
+                    <div className="h-48 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={data.hourlyParking}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="hour" tickFormatter={(v: number) => `${v}:00`} tick={{ fontSize: 11 }} />
+                          <YAxis tick={{ fontSize: 11 }} />
+                          <RTooltip />
+                          <Legend />
+                          <Area type="monotone" dataKey="check_in" stroke="#3b82f6" fill="rgba(59,130,246,0.1)" name="Check-ins" />
+                          <Area type="monotone" dataKey="check_out" stroke="#ef4444" fill="rgba(239,68,68,0.1)" name="Check-outs" />
+                        </AreaChart>
+                      </ResponsiveContainer>
                     </div>
                   ) : (
-                    <div className="h-40 w-full flex items-center justify-center text-xs text-gray-400">
+                    <div className="h-48 w-full flex items-center justify-center text-xs text-gray-400">
                       No parking check-ins recorded today
                     </div>
                   )}
@@ -1842,40 +1796,6 @@ const Overview: React.FC = () => {
                   </div>
                 </div>
                 
-                {/* Avg Feedback Rating */}
-                <div className="bg-white border border-gray-200 p-3">
-                  <div className="mb-3">
-                    <div className="text-sm font-semibold text-gray-900">Avg feedback rating</div>
-                    <div className="text-xs text-gray-500">By department · out of 10</div>
-                  </div>
-                  <div className="space-y-2">
-                    {visibleRatings?.map((dept, idx) => {
-                      const barWidth = Math.round(dept.rating / 10 * 100);
-                      return (
-                        <div key={idx}>
-                          <div className="flex justify-between text-xs mb-1">
-                            <span className="text-gray-600">{dept.name}</span>
-                            <span className={`font-semibold ${getRatingColor(dept.rating)}`}>{dept.rating}</span>
-                          </div>
-                          <div className="h-1.5 bg-gray-100">
-                            <div className={`h-full ${dept.rating >= 9 ? 'bg-emerald-600' : dept.rating >= 7 ? 'bg-blue-600' : dept.rating >= 5 ? 'bg-yellow-500' : 'bg-red-600'}`} style={{ width: `${barWidth}%` }}></div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {data.departments.length > 5 && (
-                    <div className="mt-3 text-center">
-                      <button
-                        onClick={() => setShowAllRatings(!showAllRatings)}
-                        className="text-xs px-3 py-1 bg-blue-600 text-white hover:bg-blue-700"
-                      >
-                        {showAllRatings ? 'Show Less' : `Show All (${data.departments.length})`}
-                      </button>
-                    </div>
-                  )}
-                </div>
-
                 {/* Recent Check-ins */}
                 <div className="bg-white border border-gray-200 p-3">
                   <div className="mb-3">
