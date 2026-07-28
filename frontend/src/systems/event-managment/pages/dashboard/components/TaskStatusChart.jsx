@@ -1,5 +1,5 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { FiLoader } from 'react-icons/fi';
+import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 
 const COLORS = {
   completed: '#22c55e',
@@ -22,9 +22,10 @@ export default function TaskStatusChart({ data, loading }) {
 
       {loading && (
         <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
-          <FiLoader className="w-6 h-6 text-blue-600 animate-spin" />
+           <SpiralLoader />
         </div>
       )}
+      
 
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">

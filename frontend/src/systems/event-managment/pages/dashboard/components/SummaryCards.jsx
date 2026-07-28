@@ -1,4 +1,5 @@
-import { FiCalendar, FiClipboard, FiXCircle, FiLoader } from 'react-icons/fi';
+import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
+import { FiCalendar, FiClipboard, FiXCircle } from 'react-icons/fi';
 
 const cards = [
   {
@@ -34,6 +35,7 @@ const cards = [
 export default function SummaryCards({ summary, loading }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+     
       {cards.map((card) => {
         const Icon = card.icon;
         const value = summary ? summary[card.key] : 0;
@@ -44,7 +46,7 @@ export default function SummaryCards({ summary, loading }) {
           >
             {loading && (
               <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
-                <FiLoader className="w-5 h-5 cok-primary-color animate-spin" />
+                 <SpiralLoader />
               </div>
             )}
             <div className="flex items-center justify-between">
