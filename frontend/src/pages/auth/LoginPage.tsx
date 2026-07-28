@@ -173,7 +173,8 @@ const LoginPage = () => {
         
         // Use async version to get route based on role
         const redirectPath = await getDashboardRoute(userRole, userDepartment);
-        navigate(redirectPath);
+       
+        window.location.reload();
         return;
       } else if (result.error?.includes('not activated') || result.error?.includes('Account not activated')) {
         // First-time login - account not yet activated
