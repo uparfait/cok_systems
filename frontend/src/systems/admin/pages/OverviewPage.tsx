@@ -8,7 +8,7 @@ import { statisticsService, employeeService, parkingService, serviceDeliveryServ
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import Chart from 'chart.js/auto';
-import { BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, Cell, LabelList, AreaChart, Area, CartesianGrid, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, Cell, LabelList, AreaChart, Area, CartesianGrid, Legend, ComposedChart, Line } from 'recharts';
 import { COK, CokBadge } from './mayorCok';
 
 // ==================== TYPES ====================
@@ -168,6 +168,70 @@ const barValueLabels = {
 };
 
 // ==================== MAIN COMPONENT ====================
+
+// Speedometer-style gauge: one colored segment per service hour (yellow → green → red
+// like a meter), with a needle pointing at the hour with the most check-ins and the
+// peak count shown in the center
+const HourGauge: React.FC<{ hours: Array<{ hour: number; count: number }> }> = ({ hours }) => {
+  if (!hours.length) return null;
+  const n = hours.length;
+  const peakIdx = hours.reduce((best, h, i) => (h.count > hours[best].count ? i : best), 0);
+  const peak = hours[peakIdx];
+  const cx = 100;
+  const cy = 100;
+  const rOuter = 92;
+  const rInner = 66;
+  const seg = 180 / n;
+  const GAP = 1.6;
+  const rad = (deg: number) => (Math.PI * deg) / 180;
+  // deg 0 = far left of the dial, deg 180 = far right
+  const pt = (r: number, deg: number) => ({ x: cx - r * Math.cos(rad(deg)), y: cy - r * Math.sin(rad(deg)) });
+  const segColor = (i: number) => (i < n * 0.3 ? '#F5C542' : i < n * 0.7 ? '#4CAF50' : '#E53935');
+  const needleDeg = peakIdx * seg + seg / 2;
+  const tip = pt(rInner - 4, needleDeg);
+  const baseHalf = 4;
+  const b1 = { x: cx - baseHalf * Math.cos(rad(needleDeg + 90)), y: cy - baseHalf * Math.sin(rad(needleDeg + 90)) };
+  const b2 = { x: cx - baseHalf * Math.cos(rad(needleDeg - 90)), y: cy - baseHalf * Math.sin(rad(needleDeg - 90)) };
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg viewBox="0 0 200 112" className="w-full" style={{ maxWidth: 340 }}>
+        {hours.map((h, i) => {
+          const a1 = i * seg + GAP / 2;
+          const a2 = (i + 1) * seg - GAP / 2;
+          const p1 = pt(rOuter, a1);
+          const p2 = pt(rOuter, a2);
+          const p3 = pt(rInner, a2);
+          const p4 = pt(rInner, a1);
+          const label = pt((rOuter + rInner) / 2, (a1 + a2) / 2);
+          return (
+            <g key={h.hour}>
+              <path
+                d={`M ${p1.x} ${p1.y} A ${rOuter} ${rOuter} 0 0 1 ${p2.x} ${p2.y} L ${p3.x} ${p3.y} A ${rInner} ${rInner} 0 0 0 ${p4.x} ${p4.y} Z`}
+                fill={segColor(i)}
+              />
+              <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="middle" fontSize="5.5" fontWeight="700" fill="#1f2937">
+                {formatHourLabel(h.hour).replace(' ', '')}
+              </text>
+            </g>
+          );
+        })}
+        {/* Peak count in the center of the dial */}
+        <text x={cx} y={cy - 28} textAnchor="middle" fontSize="24" fontWeight="800" fill="#111827">
+          {peak.count}
+        </text>
+        {/* Needle pointing at the busiest hour */}
+        <polygon points={`${tip.x},${tip.y} ${b1.x},${b1.y} ${b2.x},${b2.y}`} fill="#1f2937" />
+        <circle cx={cx} cy={cy} r="8" fill="#1f2937" stroke="#fff" strokeWidth="2" />
+        <circle cx={cx} cy={cy} r="2.6" fill="#E53935" />
+      </svg>
+      <div className="text-xs text-gray-500 mt-1">
+        Peak: <span className="font-semibold text-gray-800">{peak.count} check-ins</span> at{' '}
+        <span className="font-semibold text-gray-800">{formatHourLabel(peak.hour)}</span>
+      </div>
+    </div>
+  );
+};
 
 // Mirrored departments-vs-services chart: orange bars (people served) grow left
 // from the center divider, blue bars (services handled by the department's top
@@ -359,8 +423,6 @@ const Overview: React.FC = () => {
   // employees-served breakdown; period state drives the toolbar date filter
   const [visitors, setVisitors] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
-  const [recentParking, setRecentParking] = useState<any[]>([]);
-  const [recentVisitors, setRecentVisitors] = useState<any[]>([]);
   const [period, setPeriod] = useState<'today' | 'week' | 'lastweek' | 'month' | 'lastmonth' | 'all' | 'range'>('month');
   const [rangeFrom, setRangeFrom] = useState('');
   const [rangeTo, setRangeTo] = useState('');
@@ -402,25 +464,28 @@ const Overview: React.FC = () => {
     return records;
   }, [visitors]);
 
-  // Toolbar period filter: today / this week / last week / this month / last month /
+  // Period filter: today / this week / last week / this month / last month /
   // all records / custom from→to range (inclusive). Weeks run Monday → Sunday.
-  const isInPeriod = useCallback((dateStr?: string) => {
-    if (period === 'all') return true;
+  // isDateInPeriod takes the period explicitly so the toolbar filter and the
+  // hourly modal's own filter can share the same logic.
+  type PeriodChoice = 'today' | 'week' | 'lastweek' | 'month' | 'lastmonth' | 'all' | 'range';
+  const isDateInPeriod = useCallback((dateStr: string | undefined, p: PeriodChoice) => {
+    if (p === 'all') return true;
     if (!dateStr) return false;
     const t = new Date(dateStr);
     if (isNaN(t.getTime())) return false;
     const now = new Date();
-    if (period === 'today') return t.toDateString() === now.toDateString();
-    if (period === 'week' || period === 'lastweek') {
+    if (p === 'today') return t.toDateString() === now.toDateString();
+    if (p === 'week' || p === 'lastweek') {
       const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-      if (period === 'week') return t >= monday;
+      if (p === 'week') return t >= monday;
       const lastMonday = new Date(monday);
       lastMonday.setDate(monday.getDate() - 7);
       return t >= lastMonday && t < monday;
     }
-    if (period === 'month') return t.getFullYear() === now.getFullYear() && t.getMonth() === now.getMonth();
-    if (period === 'lastmonth') {
+    if (p === 'month') return t.getFullYear() === now.getFullYear() && t.getMonth() === now.getMonth();
+    if (p === 'lastmonth') {
       const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       return t.getFullYear() === lm.getFullYear() && t.getMonth() === lm.getMonth();
     }
@@ -432,7 +497,8 @@ const Overview: React.FC = () => {
       if (t > end) return false;
     }
     return true;
-  }, [period, rangeFrom, rangeTo]);
+  }, [rangeFrom, rangeTo]);
+  const isInPeriod = useCallback((dateStr?: string) => isDateInPeriod(dateStr, period), [isDateInPeriod, period]);
 
   const filteredServed = useMemo(() => servedRecords.filter(r => isInPeriod(r.date)), [servedRecords, isInPeriod]);
 
@@ -449,30 +515,38 @@ const Overview: React.FC = () => {
   // from sample data to the real per-status aggregation below.
   const REQUESTS_FEATURE_READY = false;
   const requestStatuses = useMemo(() => {
-    const deptMap: Record<string, { pending: number; inprogress: number; completed: number }> = {};
-    const empMap: Record<string, { pending: number; inprogress: number; completed: number }> = {};
+    type StatusCounts = { pending: number; inprogress: number; completed: number; overdue: number };
+    const emptyCounts = (): StatusCounts => ({ pending: 0, inprogress: 0, completed: 0, overdue: 0 });
+    const deptMap: Record<string, StatusCounts> = {};
+    const empMap: Record<string, StatusCounts> = {};
     let total = 0;
+    const DAY_MS = 24 * 60 * 60 * 1000;
     visitors.forEach((v: any) => {
       if (!isInPeriod(v?.entry_date)) return;
       (v?.services_status || []).forEach((s: any) => {
         if (!s?.department_name) return;
-        const status: 'pending' | 'inprogress' | 'completed' =
-          s.s_type === 'Completed' ? 'completed' : s.s_type === 'Inprogress' ? 'inprogress' : 'pending';
+        // A request not yet completed and older than 24h counts as overdue
+        const ageMs = v?.entry_date ? Date.now() - new Date(v.entry_date).getTime() : 0;
+        const status: keyof StatusCounts =
+          s.s_type === 'Completed' ? 'completed'
+          : ageMs > DAY_MS ? 'overdue'
+          : s.s_type === 'Inprogress' ? 'inprogress'
+          : 'pending';
         total += 1;
-        if (!deptMap[s.department_name]) deptMap[s.department_name] = { pending: 0, inprogress: 0, completed: 0 };
+        if (!deptMap[s.department_name]) deptMap[s.department_name] = emptyCounts();
         deptMap[s.department_name][status] += 1;
         const empName = s.provider_name && s.provider_name !== 'Not specified' ? s.provider_name : 'Unassigned';
-        if (!empMap[empName]) empMap[empName] = { pending: 0, inprogress: 0, completed: 0 };
+        if (!empMap[empName]) empMap[empName] = emptyCounts();
         empMap[empName][status] += 1;
       });
     });
-    const toRows = (m: Record<string, { pending: number; inprogress: number; completed: number }>) =>
+    const toRows = (m: Record<string, StatusCounts>) =>
       Object.entries(m)
         .map(([name, v]) => ({
           name: name.length > 14 ? name.slice(0, 13) + '…' : name,
           fullName: name,
           ...v,
-          total: v.pending + v.inprogress + v.completed,
+          total: v.pending + v.inprogress + v.completed + v.overdue,
         }))
         .sort((a, b) => b.total - a.total)
         .slice(0, 8);
@@ -493,6 +567,7 @@ const Overview: React.FC = () => {
       const P = [7, 4, 6, 3, 5];
       const I = [3, 5, 2, 4, 1];
       const C = [9, 6, 4, 7, 3];
+      const O = [2, 1, 3, 2, 1];
       const sampleRows = (names: string[]) =>
         names.map((name, i) => ({
           name: name.length > 14 ? name.slice(0, 13) + '…' : name,
@@ -500,7 +575,8 @@ const Overview: React.FC = () => {
           pending: P[i % P.length],
           inprogress: I[i % I.length],
           completed: C[i % C.length],
-          total: P[i % P.length] + I[i % I.length] + C[i % C.length],
+          overdue: O[i % O.length],
+          total: P[i % P.length] + I[i % I.length] + C[i % C.length] + O[i % O.length],
         }));
       const dummyDepts = sampleRows(sampleDepts);
       const dummyTotal = dummyDepts.reduce((s, r) => s + r.total, 0);
@@ -522,14 +598,15 @@ const Overview: React.FC = () => {
     };
   }, [visitors, isInPeriod, data, employees]);
 
-  const periodLabel =
-    period === 'today' ? 'today'
-    : period === 'week' ? 'this week'
-    : period === 'lastweek' ? 'last week'
-    : period === 'month' ? 'this month'
-    : period === 'lastmonth' ? 'last month'
-    : period === 'all' ? 'all time'
-    : `${rangeFrom || 'start'} → ${rangeTo || 'now'}`;
+  const labelForPeriod = useCallback((p: PeriodChoice) =>
+    p === 'today' ? 'today'
+    : p === 'week' ? 'this week'
+    : p === 'lastweek' ? 'last week'
+    : p === 'month' ? 'this month'
+    : p === 'lastmonth' ? 'last month'
+    : p === 'all' ? 'all time'
+    : `${rangeFrom || 'start'} → ${rangeTo || 'now'}`, [rangeFrom, rangeTo]);
+  const periodLabel = labelForPeriod(period);
 
   // Every employee with the number of people they served in the selected period;
   // providers on records that don't match an employee account still get a row.
@@ -615,6 +692,23 @@ const Overview: React.FC = () => {
   // Expanded employee row (shows the visitors they served) in the employees detail modal
   const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
 
+  // Sentiment filter inside the ratings & sentiment analysis modal
+  const [sentimentFilter, setSentimentFilter] = useState<'all' | Sentiment>('all');
+
+  // Filter inside the employee account status modal; statuses use the same
+  // fields as the stats endpoint: is_active and access_control.is_locked
+  const [empStatusFilter, setEmpStatusFilter] = useState<'all' | 'active' | 'inactive' | 'locked'>('all');
+  const empStatusFiltered = useMemo(
+    () =>
+      employees.filter((e: any) =>
+        empStatusFilter === 'all' ? true
+        : empStatusFilter === 'locked' ? !!e.access_control?.is_locked
+        : empStatusFilter === 'active' ? !!e.is_account_activated
+        : !e.is_account_activated
+      ),
+    [employees, empStatusFilter]
+  );
+
   // Average rating per department (out of 10) with feedback counts, best first —
   // mirrors the departmentData memo on the feedback-analysis page
   const deptRatings = useMemo(() => {
@@ -630,32 +724,48 @@ const Overview: React.FC = () => {
       .slice(0, 8);
   }, [data]);
 
+  // Same departments climbing from worst to best rating, so negative sentiment
+  // sits on the left and the highest-rated department is the tallest bar on the right
+  const sentimentTrend = useMemo(
+    () => [...deptRatings].sort((a, b) => a.rating - b.rating),
+    [deptRatings]
+  );
+
   // Empty-state flags so cards show a message instead of a blank chart
-  const hasHourlyService = !!data && data.hourlyService.some(h => (h.visitors_checked_in || 0) > 0);
   const hasHourlyParking = !!data && data.hourlyParking.some(h => (h.check_in || 0) > 0 || (h.check_out || 0) > 0);
 
-  const recentCheckIns = useMemo(() => {
-    const items: any[] = [];
-    (recentParking || []).forEach((p: any) => {
-      const time = p.checkInTime || p.check_in || p.entry_date;
-      items.push({
-        id: `parking-${p._id || Math.random()}`,
-        type: 'parking',
-        name: p.plate_number || p.plateNumber || p.driver_name || p.vehicle || 'Unknown vehicle',
-        time: time ? new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--',
-      });
+  // Check-ins per local hour within a period, straight from the visitors list so
+  // the gauge matches the rest of the dashboard and refreshes with socket updates.
+  // The dial is dynamic: an 11-hour window that slides with the clock (8 hours
+  // back, 2 ahead), plus any hour in the period with activity.
+  const buildHourRows = useCallback((p: PeriodChoice) => {
+    const counts: Record<number, number> = {};
+    const now = new Date();
+    visitors.forEach((v: any) => {
+      if (!v?.entry_date || !isDateInPeriod(v.entry_date, p)) return;
+      const t = new Date(v.entry_date);
+      if (isNaN(t.getTime())) return;
+      counts[t.getHours()] = (counts[t.getHours()] || 0) + 1;
     });
-    (recentVisitors || []).forEach((v: any) => {
-      const time = v.checkInTime || v.check_in || v.entry_date;
-      items.push({
-        id: `visitor-${v._id || Math.random()}`,
-        type: 'visitor',
-        name: v.full_name || v.name || v.visitorName || `Visitor ${v.badge_number || ''}`.trim() || 'Unknown visitor',
-        time: time ? new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--',
-      });
-    });
-    return items.sort((a, b) => b.time.localeCompare(a.time));
-  }, [recentParking, recentVisitors]);
+    let start = now.getHours() - 8;
+    let end = now.getHours() + 2;
+    if (start < 0) { end -= start; start = 0; }
+    if (end > 23) { start = Math.max(0, start - (end - 23)); end = 23; }
+    const hours = new Set<number>();
+    for (let h = start; h <= end; h++) hours.add(h);
+    Object.keys(counts).forEach(h => hours.add(parseInt(h)));
+    return Array.from(hours)
+      .sort((a, b) => a - b)
+      .map(hour => ({ hour, count: counts[hour] || 0 }));
+  }, [visitors, isDateInPeriod]);
+  const gaugeHours = useMemo(() => buildHourRows(period), [buildHourRows, period]);
+  const hasGaugeData = gaugeHours.some(g => g.count > 0);
+
+  // The hourly detail modal has its own period filter; null means it follows
+  // the toolbar filter (it resets to that each time the modal opens)
+  const [modalHourPeriod, setModalHourPeriod] = useState<PeriodChoice | null>(null);
+  const modalHourPeriodEff: PeriodChoice = modalHourPeriod ?? period;
+  const modalHours = useMemo(() => buildHourRows(modalHourPeriodEff), [buildHourRows, modalHourPeriodEff]);
 
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
@@ -672,6 +782,12 @@ const Overview: React.FC = () => {
     totalItems: 0,
     limit: 10
   });
+
+  // Ratings-analysis rows narrowed to the selected sentiment
+  const filteredRatings = useMemo(
+    () => modalData.filter((f: any) => sentimentFilter === 'all' || classifySentiment(f.rate, f.rate_out_of) === sentimentFilter),
+    [modalData, sentimentFilter]
+  );
   
   const chartsRef = useRef<Map<string, Chart>>(new Map());
 
@@ -683,7 +799,7 @@ const Overview: React.FC = () => {
       const [
         employeesRes, servicesRes, flaggedStatsRes,
         feedbackTotalsRes, feedbackAvgRes, hourlyParkingRes, hourlyServiceRes, departmentsRes,
-        flaggedCountRes, visitorsRes, allEmployeesRes, recentParkingRes
+        flaggedCountRes, visitorsRes, allEmployeesRes
       ] = await Promise.all([
         statisticsService.getEmployeeStats(),
         statisticsService.getServiceDeliveryStats(),
@@ -696,7 +812,6 @@ const Overview: React.FC = () => {
         parkingService.getFlaggedActiveVehicles(1, 1000), // Get count for KPI
         serviceDeliveryService.getAll(1, 1000, 'all'), // Every visitor (in-house + checked out) with per-service provider + date
         employeeService.getAll(1, 1000), // Full employee list for the served-by breakdown
-        parkingService.getAllPaginated(1, 10, 'all'), // Recent parking check-ins
       ]);
       
       const employees = (employeesRes as any)?.data || employeesRes;
@@ -710,15 +825,9 @@ const Overview: React.FC = () => {
       const departmentsRaw = (departmentsRes as any)?.data?.departments || (departmentsRes as any)?.departments || [];
       const visitorsRaw = (visitorsRes as any)?.data || [];
       const allEmployeesRaw = (allEmployeesRes as any)?.data || [];
-      const recentParkingRaw = (recentParkingRes as any)?.data || [];
       setVisitors(Array.isArray(visitorsRaw) ? visitorsRaw : []);
       setEmployees(Array.isArray(allEmployeesRaw) ? allEmployeesRaw : []);
-      setRecentParking(Array.isArray(recentParkingRaw) ? recentParkingRaw : []);
-      const sortedVisitors = (visitorsRaw as any[]).slice().sort((a: any, b: any) =>
-        new Date(b.entry_date || 0).getTime() - new Date(a.entry_date || 0).getTime()
-      );
-      setRecentVisitors(sortedVisitors.slice(0, 10));
-      
+
       const departments = departmentsRaw.map((dept: any) => ({
         name: dept.department_name,
         leader: dept.department_leader?.full_name || 'Not assigned',
@@ -730,8 +839,10 @@ const Overview: React.FC = () => {
       setData({
         employeeStats: {
           total: employees?.total || 0,
-          active: employees?.active || 0,
-          inactive: employees?.inactive || 0,
+          // is_active only tracks who is online right now; account status
+          // comes from is_account_activated (activated / not_activated)
+          active: employees?.activated || 0,
+          inactive: employees?.not_activated || 0,
           locked: employees?.locked || 0,
         },
         serviceStats: {
@@ -780,10 +891,6 @@ const Overview: React.FC = () => {
     chartsRef.current.clear();
     
     const deptNames = data.departments.map(d => d.name);
-    const filteredHourlyService = data.hourlyService.filter((h: any) => SERVICE_HOURS.includes(h.hour.toString()));
-    const visitorData = filteredHourlyService.map(h => h.visitors_checked_in);
-    const formattedServiceHourLabels = filteredHourlyService.map((h: any) => formatHourLabel(h.hour));
-    const maxVisitor = Math.max(...visitorData, 1);
 
     // 3. Employees Chart (Bar chart)
     const empCanvas = document.getElementById('chart-employees') as HTMLCanvasElement;
@@ -793,15 +900,18 @@ const Overview: React.FC = () => {
       
       chartsRef.current.set('employees', new Chart(empCanvas, {
         type: 'bar',
-        data: { 
-          labels: deptNames, 
-          datasets: [{ 
-            data: empData, 
-            backgroundColor: CC.purple, 
-            barPercentage: 0.6,
+        data: {
+          labels: deptNames,
+          datasets: [{
+            data: empData,
+            backgroundColor: CC.purple,
+            barPercentage: 0.85,
+            categoryPercentage: 0.9,
+            // Same bar thickness as the Average Rating by Department chart
+            maxBarThickness: 16,
             borderRadius: 0,
             label: 'Employees'
-          }] 
+          }]
         },
         options: {
           ...getChartConfig(maxEmp),
@@ -809,59 +919,19 @@ const Overview: React.FC = () => {
           scales: {
             x: {
               ...getChartConfig(maxEmp).scales.x,
-              ticks: { callback: (value: any) => Math.round(Number(value)).toString(), stepSize: 1 }
+              ticks: {
+                callback: (value: any) => Math.round(Number(value)).toString(),
+                stepSize: 1,
+                font: { size: 12 },
+                color: '#374151',
+              }
             },
-            y: { grid: { display: false } }
+            y: {
+              grid: { display: false },
+              ticks: { font: { size: 12, weight: 600 }, color: '#1f2937' }
+            }
           }
         }
-      }));
-    }
-    
-    // 6. Hourly Service Check-ins (columns + 3-hour moving-average trend line, one shared axis)
-    const svcHourCanvas = document.getElementById('chart-service-hourly') as HTMLCanvasElement;
-    if (svcHourCanvas) {
-      const movingAvg = visitorData.map((_, i) => {
-        const windowVals = visitorData.slice(Math.max(0, i - 2), i + 1);
-        return windowVals.reduce((a, b) => a + b, 0) / windowVals.length;
-      });
-      chartsRef.current.set('serviceHourly', new Chart(svcHourCanvas, {
-        type: 'bar',
-        data: {
-          labels: formattedServiceHourLabels,
-          datasets: [
-            {
-              type: 'bar',
-              label: 'Visitors',
-              data: visitorData,
-              backgroundColor: CC.teal,
-              borderRadius: 4,
-              borderSkipped: 'start',
-              maxBarThickness: 18,
-              barPercentage: 0.6,
-              categoryPercentage: 0.8,
-              valueLabels: 'max',
-            } as any,
-            {
-              type: 'line',
-              label: '3-hr average',
-              data: movingAvg,
-              borderColor: CC.purple,
-              borderWidth: 2,
-              pointRadius: 0,
-              pointHoverRadius: 4,
-              pointBackgroundColor: CC.purple,
-              pointBorderColor: '#fff',
-              pointBorderWidth: 2,
-              tension: 0.4,
-              fill: false,
-            } as any,
-          ]
-        },
-        options: {
-          ...getChartConfig(maxVisitor),
-          layout: { padding: { top: 12 } },
-        },
-        plugins: [barValueLabels]
       }));
     }
     
@@ -870,13 +940,13 @@ const Overview: React.FC = () => {
     if (statusCanvas) {
       chartsRef.current.set('status', new Chart(statusCanvas, {
         type: 'doughnut',
-        data: { 
-          labels: ['Active', 'Inactive', 'Locked'], 
-          datasets: [{ 
-            data: [data.employeeStats.active, data.employeeStats.inactive, data.employeeStats.locked], 
-            backgroundColor: [CC.blue, CC.amber, CC.red], 
-            borderWidth: 0 
-          }] 
+        data: {
+          labels: ['Activated', 'Not activated', 'Locked'],
+          datasets: [{
+            data: [data.employeeStats.active, data.employeeStats.inactive, data.employeeStats.locked],
+            backgroundColor: [CC.blue, CC.amber, CC.red],
+            borderWidth: 0
+          }]
         },
         options: {
           responsive: true,
@@ -1202,7 +1272,7 @@ const Overview: React.FC = () => {
       return () => clearTimeout(timeoutId);
     }
 
-    if (selectedCard === 'service-hourly' && modalData.length > 0) {
+    if (selectedCard === 'service-hourly' && modalHours.length > 0) {
       const createModalChart = () => {
         const modalCanvas = document.getElementById('modal-service-hourly-chart') as HTMLCanvasElement;
         if (modalCanvas) {
@@ -1212,8 +1282,9 @@ const Overview: React.FC = () => {
             existingChart.destroy();
           }
 
-          const formattedServiceHourLabels = modalData.filter((h: any) => SERVICE_HOURS.includes(h.hour.toString())).map((h: any) => formatHourLabel(h.hour));
-          const visitorData = modalData.filter((h: any) => SERVICE_HOURS.includes(h.hour.toString())).map((hour: any) => hour.visitors_checked_in || 0);
+          // Same hour-of-day data as the gauge card, filtered by the modal's own period
+          const formattedServiceHourLabels = modalHours.map(g => formatHourLabel(g.hour));
+          const visitorData = modalHours.map(g => g.count);
           const maxVisitor = Math.max(...visitorData, 1);
 
           const newChart = new Chart(modalCanvas, {
@@ -1298,7 +1369,7 @@ const Overview: React.FC = () => {
         });
       };
     }
-  }, [selectedCard, modalData]);
+  }, [selectedCard, modalData, modalHours]);
 
   // Handle pagination change
   const handlePageChange = useCallback((newPage: number) => {
@@ -1307,34 +1378,9 @@ const Overview: React.FC = () => {
     }
   }, [selectedCard, modalPagination.limit, fetchModalData]);
 
-  // Sentiment breakdown of the feedback loaded into the rating-analysis modal
-  const modalSentiment = useMemo(() => {
-    const counts: Record<Sentiment, number> = { positive: 0, neutral: 0, negative: 0 };
-    if (selectedCard === 'rating-analysis') {
-      modalData.forEach((f: any) => {
-        counts[classifySentiment(f.rate, f.rate_out_of)] += 1;
-      });
-    }
-    return counts;
-  }, [selectedCard, modalData]);
-  const modalSentimentData = (['positive', 'neutral', 'negative'] as Sentiment[]).map(s => ({
-    name: SENTIMENT_META[s].label,
-    value: modalSentiment[s],
-    color: SENTIMENT_META[s].color,
-  }));
-  const modalSentimentTotal = modalData.length || 1;
-
   // Computed values (rounded, no decimals)
   const avgRating = data ? Math.round(data.feedbackAvg.overall_average.average_rating) : 0;
   const maxStaff = data ? Math.max(...data.departments.map(d => d.staff), 1) : 1;
-  
-  // Get color based on rating
-  const getRatingColor = (rating: number) => {
-    if (rating >= 9) return 'text-emerald-600';
-    if (rating >= 7) return 'text-blue-600';
-    if (rating >= 5) return 'text-yellow-600';
-    return 'text-red-600';
-  };
   
   // Visible data for expandable tables
   const visibleDepartments = showAllDepartments
@@ -1482,6 +1528,7 @@ const Overview: React.FC = () => {
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: CC.amber }}></div>Pending</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: CC.blue }}></div>In progress</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: CC.teal }}></div>Completed</div>
+            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: CC.red }}></div>Overdue</div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1503,6 +1550,7 @@ const Overview: React.FC = () => {
                       <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32} />
                       <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} />
                       <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} />
+                      <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -1525,6 +1573,7 @@ const Overview: React.FC = () => {
                       <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32} />
                       <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} />
                       <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} />
+                      <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -1537,7 +1586,7 @@ const Overview: React.FC = () => {
           {/* Average rating by department — same design as the feedback-analysis chart;
               click opens the ratings table + sentiment distribution */}
           <div
-            onClick={() => handleCardClick('rating-analysis')}
+            onClick={() => { setSentimentFilter('all'); handleCardClick('rating-analysis'); }}
             className="bg-white p-4 relative cursor-pointer hover:shadow-md transition-all"
             style={{ border: `1px solid ${COK.border}` }}
           >
@@ -1567,114 +1616,119 @@ const Overview: React.FC = () => {
             )}
           </div>
 
-          {/* Avg feedback rating — vertical column chart, bars colored by rating band */}
+          {/* Sentiment climb — bars colored negative → neutral → positive with a trend line,
+              sorted so the department with the highest positive rating is the tallest */}
           <div className="bg-white p-4" style={{ border: `1px solid ${COK.border}` }}>
-            <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: 0 }}>
-              Avg Feedback Rating
-            </h3>
-            <div className="text-[11px] uppercase tracking-wide text-gray-400 mt-0.5 mb-2">By department · out of 10</div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 mb-2">
-              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: '#059669' }}></div>Excellent (9–10)</div>
-              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: '#2563eb' }}></div>Good (7–8)</div>
-              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: '#eab308' }}></div>Average (5–6)</div>
-              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: '#dc2626' }}></div>Poor (&lt;5)</div>
+          <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: 0 }}>
+            Department Sentiment
+          </h3>
+          <div className="text-[11px] uppercase tracking-wide text-gray-400 mt-0.5 mb-2">From negative to positive · avg rating out of 10</div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 mb-2">
+            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.negative.color }}></div>Negative (&lt;4)</div>
+            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.neutral.color }}></div>Neutral (4–6.9)</div>
+            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.positive.color }}></div>Positive (7+)</div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-0.5 rounded" style={{ backgroundColor: CC.blue }}></div>Rating trend</div>
+          </div>
+          {sentimentTrend.length === 0 ? (
+            <p className="text-sm text-gray-500" style={{ fontFamily: COK.bodyFont }}>No department feedback yet.</p>
+          ) : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={sentimentTrend} margin={{ top: 15, right: 15, left: -22, bottom: 30 }}>
+                  <XAxis
+                    dataKey="name"
+                    interval={0}
+                    angle={-30}
+                    textAnchor="end"
+                    tick={{ fontSize: 10, fill: '#6b7280' }}
+                    axisLine={{ stroke: COK.border }}
+                    tickLine={false}
+                  />
+                  <YAxis domain={[0, 10]} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                  <RTooltip
+                    cursor={{ fill: COK.neutralLight }}
+                    contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
+                    formatter={(value: any, name: any, entry: any) =>
+                      name === 'Rating trend'
+                        ? [null, null]
+                        : [`${value}/10 · ${SENTIMENT_META[classifySentiment(Number(value), 10)].label} (${entry?.payload?.count} feedback)`, 'Avg rating']
+                    }
+                  />
+                  <Bar dataKey="rating" name="Avg rating" barSize={34} radius={[0, 0, 0, 0]}>
+                    {sentimentTrend.map((d, i) => (
+                      <Cell key={i} fill={SENTIMENT_META[classifySentiment(d.rating, 10)].color} />
+                    ))}
+                  </Bar>
+                  <Line
+                    type="monotone"
+                    dataKey="rating"
+                    name="Rating trend"
+                    stroke={CC.blue}
+                    strokeWidth={2}
+                    dot={{ r: 4, fill: CC.blue, stroke: '#fff', strokeWidth: 2 }}
+                    activeDot={{ r: 5 }}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
             </div>
-            {deptRatings.length === 0 ? (
-              <p className="text-sm text-gray-500" style={{ fontFamily: COK.bodyFont }}>No department feedback yet.</p>
-            ) : (
-              <div className="h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={deptRatings} margin={{ top: 18, right: 10, left: -22, bottom: 30 }}>
-                    <XAxis
-                      dataKey="name"
-                      interval={0}
-                      angle={-35}
-                      textAnchor="end"
-                      tick={{ fontSize: 10, fill: '#6b7280' }}
-                      axisLine={{ stroke: COK.border }}
-                      tickLine={false}
-                    />
-                    <YAxis domain={[0, 10]} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
-                    <RTooltip
-                      cursor={{ fill: COK.neutralLight }}
-                      contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
-                      formatter={(value: any, _n: any, entry: any) => [`${value}/10 (${entry?.payload?.count} feedback)`, 'Avg rating']}
-                    />
-                    <Bar dataKey="rating" barSize={28} radius={[0, 0, 0, 0]}>
-                      <LabelList dataKey="rating" position="top" style={{ fontSize: 11, fontWeight: 600, fill: '#374151' }} />
-                      {deptRatings.map((d, i) => (
-                        <Cell key={i} fill={d.rating >= 9 ? '#059669' : d.rating >= 7 ? '#2563eb' : d.rating >= 5 ? '#eab308' : '#dc2626'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+          )}
           </div>
         </div>
 
-        {/* Services row — hourly check-ins, full width */}
-        <div className="grid grid-cols-1 gap-2.5">
+        {/* Services + parking row — check-in gauge (left) and parking trends (right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
           <div
-            onClick={() => handleCardClick('service-hourly')}
+            onClick={() => { setModalHourPeriod(null); handleCardClick('service-hourly'); }}
             className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
           >
             <div className="flex justify-between items-start mb-3">
               <div>
                 <div className="text-sm font-semibold text-gray-900">Hourly service check-ins</div>
-                <div className="text-xs text-gray-500">Visitor arrivals · today</div>
               </div>
-              <button className="text-gray-400 text-lg">⋯</button>
+              <span className="text-xs text-gray-400">Click for details</span>
             </div>
-            <div className="flex gap-3 text-xs mb-2">
-              <div className="flex items-center gap-1"><div className="w-2 h-2" style={{ backgroundColor: CC.teal }}></div>Visitors checked in</div>
-              <div className="flex items-center gap-1"><div className="w-3 h-0.5 rounded" style={{ backgroundColor: CC.purple }}></div>3-hr average</div>
-            </div>
-            {hasHourlyService ? (
-              <div className="h-36 w-full">
-                <canvas id="chart-service-hourly"></canvas>
-              </div>
+            {hasGaugeData ? (
+              <HourGauge hours={gaugeHours} />
             ) : (
-              <div className="h-36 w-full flex items-center justify-center text-xs text-gray-400">
-                No visitor check-ins recorded today
+              <div className="h-48 w-full flex items-center justify-center text-xs text-gray-400">
+                No visitor check-ins recorded · {periodLabel}
               </div>
             )}
           </div>
 
+          {/* Parking Usage Trends — same area chart as the admin smart-parking dashboard */}
+          <div className="bg-white border border-gray-200 p-3">
+            <div className="mb-3">
+              <div className="text-sm font-semibold text-gray-900">Parking Usage Trends</div>
+              <div className="text-xs text-gray-500">Check-ins vs check-outs · today</div>
+            </div>
+            {hasHourlyParking ? (
+              <div className="h-48 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={data.hourlyParking}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="hour" tickFormatter={(v: number) => `${v}:00`} tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <RTooltip />
+                    <Legend />
+                    <Area type="monotone" dataKey="check_in" stroke="#3b82f6" fill="rgba(59,130,246,0.1)" name="Check-ins" />
+                    <Area type="monotone" dataKey="check_out" stroke="#ef4444" fill="rgba(239,68,68,0.1)" name="Check-outs" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-48 w-full flex items-center justify-center text-xs text-gray-400">
+                No parking check-ins recorded today
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Overview Tab Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5">
-              
+        <div className="grid grid-cols-1 gap-2.5">
+
               {/* Left Column */}
-              <div className="lg:col-span-2 space-y-2.5">
-                {/* Parking Usage Trends — same area chart as the admin smart-parking dashboard */}
-                <div className="bg-white border border-gray-200 p-3">
-                  <div className="mb-3">
-                    <div className="text-sm font-semibold text-gray-900">Parking Usage Trends</div>
-                    <div className="text-xs text-gray-500">Check-ins vs check-outs · today</div>
-                  </div>
-                  {hasHourlyParking ? (
-                    <div className="h-48 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={data.hourlyParking}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="hour" tickFormatter={(v: number) => `${v}:00`} tick={{ fontSize: 11 }} />
-                          <YAxis tick={{ fontSize: 11 }} />
-                          <RTooltip />
-                          <Legend />
-                          <Area type="monotone" dataKey="check_in" stroke="#3b82f6" fill="rgba(59,130,246,0.1)" name="Check-ins" />
-                          <Area type="monotone" dataKey="check_out" stroke="#ef4444" fill="rgba(239,68,68,0.1)" name="Check-outs" />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="h-48 w-full flex items-center justify-center text-xs text-gray-400">
-                      No parking check-ins recorded today
-                    </div>
-                  )}
-                </div>
-                
+              <div className="space-y-2.5">
                 {/* Employees per department */}
                 <div className="grid grid-cols-1 gap-2.5">
                   <div
@@ -1682,8 +1736,8 @@ const Overview: React.FC = () => {
                     className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
                   >
                     <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <div className="text-sm font-semibold text-gray-900">Employees per department</div>
+                      <div className="inline-block border border-gray-300 px-3 py-1.5">
+                        <div className="text-base font-bold text-gray-900">Employees per department</div>
                         <div className="text-xs text-gray-500">Staff headcount</div>
                       </div>
                       <button className="text-gray-400 text-lg">⋯</button>
@@ -1691,7 +1745,7 @@ const Overview: React.FC = () => {
                     <div className="flex gap-3 text-xs mb-2">
                       <div className="flex items-center gap-1"><div className="w-2 h-2 bg-purple-600"></div>Headcount</div>
                     </div>
-                    <div className="h-40 w-full">
+                    <div className="h-80 w-full">
                       <canvas id="chart-employees"></canvas>
                     </div>
                   </div>
@@ -1706,35 +1760,69 @@ const Overview: React.FC = () => {
                     </div>
                     <button className="text-gray-400 text-lg">⋯</button>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="bg-gray-50">
-                          <th className="text-left py-2 px-2 font-semibold text-gray-600">Department</th>
-                          <th className="text-left py-2 px-2 font-semibold text-gray-600">Leader</th>
-                          <th className="text-left py-2 px-2 font-semibold text-gray-600">Staff</th>
-                          <th className="text-left py-2 px-2 font-semibold text-gray-600">Rating</th>
-                          <th className="text-left py-2 px-2 font-semibold text-gray-600">Feedback</th>
+                  {/* Same table design rules as the event-manager events table:
+                      bordered container, CoK-blue uppercase header, zebra rows, bordered cells */}
+                  <div className="overflow-auto border-2 border-gray-300">
+                    <table className="w-full border-collapse table-auto">
+                      <thead className="sticky top-0 z-10">
+                        <tr>
+                          {['Department', 'Leader', 'Staff', 'Rating', 'Feedback'].map(label => (
+                            <th
+                              key={label}
+                              className="cok-primary-bg text-white px-4 py-3.5 text-left text-xs font-bold uppercase tracking-widest"
+                            >
+                              {label}
+                            </th>
+                          ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {visibleDepartments?.map((row, idx) => {
-                          const staffPercent = Math.round((row.staff / maxStaff) * 100);
-                          return (
-                            <tr key={idx} className="border-t border-gray-100 hover:bg-gray-50">
-                              <td className="py-2 px-2 font-medium text-gray-900">{row.name}</td>
-                              <td className="py-2 px-2 text-gray-500">{row.leader}</td>
-                              <td className="py-2 px-2">
-                                <div>{row.staff}</div>
-                                <div className="h-1 bg-gray-100 mt-1 w-16">
-                                  <div className="h-full bg-purple-600" style={{ width: `${staffPercent}%` }}></div>
-                                </div>
-                              </td>
-                              <td className={`py-2 px-2 font-semibold ${getRatingColor(row.rating)}`}>{row.rating}/10</td>
-                              <td className="py-2 px-2 text-gray-500">{row.feedback}</td>
-                            </tr>
-                          );
-                        })}
+                        {(!visibleDepartments || visibleDepartments.length === 0) ? (
+                          <tr>
+                            <td colSpan={5} className="px-4 py-16 text-center bg-white">
+                              <span className="text-sm font-medium text-gray-400 uppercase tracking-wide">No departments found</span>
+                            </td>
+                          </tr>
+                        ) : (
+                          visibleDepartments.map((row, idx) => {
+                            const staffPercent = Math.round((row.staff / maxStaff) * 100);
+                            const ratingChip =
+                              row.rating >= 9 ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                              : row.rating >= 7 ? 'bg-blue-50 text-blue-800 border-blue-300'
+                              : row.rating >= 5 ? 'bg-amber-50 text-amber-800 border-amber-300'
+                              : 'bg-red-50 text-red-800 border-red-300';
+                            const isLast = idx === visibleDepartments.length - 1;
+                            const cell = (colIdx: number) =>
+                              `px-4 py-3 ${colIdx === 0 ? '' : 'border-l border-gray-200'} ${isLast ? '' : 'border-b border-gray-200'}`;
+                            return (
+                              <tr
+                                key={idx}
+                                className={`transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50/50 hover:bg-blue-50'}`}
+                              >
+                                <td className={cell(0)}>
+                                  <span className="font-bold text-gray-900 text-sm">{row.name}</span>
+                                </td>
+                                <td className={cell(1)}>
+                                  <span className="text-sm font-semibold text-gray-900">{row.leader}</span>
+                                </td>
+                                <td className={cell(2)}>
+                                  <div className="text-sm text-gray-700 font-medium">{row.staff}</div>
+                                  <div className="h-1 bg-gray-100 mt-1 w-16">
+                                    <div className="h-full bg-purple-600" style={{ width: `${staffPercent}%` }}></div>
+                                  </div>
+                                </td>
+                                <td className={cell(3)}>
+                                  <span className={`inline-block border px-2.5 py-0.5 text-xs font-semibold ${ratingChip}`}>
+                                    {row.rating}/10
+                                  </span>
+                                </td>
+                                <td className={cell(4)}>
+                                  <span className="text-sm text-gray-700 font-medium">{row.feedback}</span>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -1783,61 +1871,24 @@ const Overview: React.FC = () => {
                 </div>
               </div>
               
-              {/* Right Column */}
-              <div className="space-y-2.5">
-                {/* Flagged Vehicles */}
-                <div className="bg-white border border-gray-200 p-3">
-                  <div className="mb-3">
-                    <div className="text-sm font-semibold text-gray-900">Flagged vehicles</div>
-                    <div className="text-xs text-gray-500">Currently flagged</div>
-                  </div>
-                  <div className="bg-red-50 border border-red-200 p-4 text-center">
-                    <div className="text-2xl font-light text-red-600 mb-1">{data.flaggedVehicles.currently_flagged.count}</div>
-                    <div className="text-sm text-gray-600 mb-2">Currently flagged</div>
-                    <div className="text-xs text-gray-500">
-                      Duration: {data.flaggedVehicles.currently_flagged.min_minutes}–{data.flaggedVehicles.currently_flagged.max_minutes} min
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Recent Check-ins */}
-                <div className="bg-white border border-gray-200 p-3">
-                  <div className="mb-3">
-                    <div className="text-sm font-semibold text-gray-900">Recent check-ins</div>
-                    <div className="text-xs text-gray-500">Parking and visitors</div>
-                  </div>
-                  <div className="space-y-2">
-                    {recentCheckIns.length === 0 ? (
-                      <div className="text-xs text-gray-400 text-center py-3">No recent activity</div>
-                    ) : (
-                      recentCheckIns.slice(0, 5).map((item: any) => (
-                        <div key={item.id} className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${item.type === 'parking' ? 'bg-blue-600' : 'bg-teal-600'}`}></span>
-                            <span className="text-gray-700 truncate">{item.name}</span>
-                          </div>
-                          <span className="text-gray-400 flex-shrink-0 ml-2">{item.time}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
             </div>
             
             {/* Bottom Row */}
             <div className="grid grid-cols-1 gap-2.5">
-              <div className="bg-white border border-gray-200 p-3">
+              <div
+                onClick={() => { setEmpStatusFilter('all'); setSelectedCard('employee-status'); }}
+                className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
+              >
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <div className="text-sm font-semibold text-gray-900">Employee account status</div>
                     <div className="text-xs text-gray-500">Activation and lock state</div>
                   </div>
-                  <button className="text-gray-400 text-lg">⋯</button>
+                  <span className="text-xs text-gray-400">Click to view employees</span>
                 </div>
                 <div className="flex flex-wrap gap-2 text-xs mb-3">
-                  <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-600"></div>Active {data.employeeStats.active}</div>
-                  <div className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500"></div>Inactive {data.employeeStats.inactive}</div>
+                  <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-600"></div>Activated {data.employeeStats.active}</div>
+                  <div className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500"></div>Not activated {data.employeeStats.inactive}</div>
                   <div className="flex items-center gap-1"><div className="w-2 h-2 bg-red-600"></div>Locked {data.employeeStats.locked}</div>
                 </div>
                 <div className="h-32 w-full flex justify-center">
@@ -1857,6 +1908,8 @@ const Overview: React.FC = () => {
           >
           <div
             className={`bg-white w-full ${selectedCard === 'dept-served' || selectedCard === 'employee-served' ? 'max-w-6xl' : 'max-w-4xl'} mx-2 sm:mx-4 max-h-[90vh] sm:max-h-[85vh] overflow-y-auto`}
+            // The mayor theme rounds modal panels; these views follow the square design rules
+            style={selectedCard === 'employee-status' || selectedCard === 'rating-analysis' || selectedCard === 'employees-detail' || selectedCard === 'service-hourly' ? { borderRadius: 0 } : undefined}
             onClick={e => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
@@ -1871,6 +1924,7 @@ const Overview: React.FC = () => {
                 {selectedCard === 'rating-analysis' && 'Ratings & Sentiment Analysis'}
                 {selectedCard === 'dept-served' && 'Departments & People Served'}
                 {selectedCard === 'employee-served' && 'Employees & Who They Served'}
+                {selectedCard === 'employee-status' && 'Employee Account Status'}
               </h3>
               <button
                 onClick={handleModalClose}
@@ -2142,6 +2196,88 @@ const Overview: React.FC = () => {
                 </div>
               )}
 
+              {selectedCard === 'employee-status' && (
+                <div className="space-y-4">
+                  {/* Status filter chips with live counts from the real employee list */}
+                  <div className="flex flex-wrap gap-2">
+                    {([
+                      { key: 'all', label: 'All', count: employees.length, chip: 'bg-gray-100 text-gray-700 border-gray-300' },
+                      { key: 'active', label: 'Activated', count: employees.filter((e: any) => !!e.is_account_activated).length, chip: 'bg-green-100 text-green-800 border-green-300' },
+                      { key: 'inactive', label: 'Not activated', count: employees.filter((e: any) => !e.is_account_activated).length, chip: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+                      { key: 'locked', label: 'Locked', count: employees.filter((e: any) => !!e.access_control?.is_locked).length, chip: 'bg-red-100 text-red-800 border-red-300' },
+                    ] as const).map(f => (
+                      <button
+                        key={f.key}
+                        onClick={() => setEmpStatusFilter(f.key)}
+                        className={`px-3 py-1.5 text-xs font-semibold border transition-colors ${f.chip} ${empStatusFilter === f.key ? 'ring-2 ring-blue-400' : 'opacity-80 hover:opacity-100'}`}
+                      >
+                        {f.label} ({f.count})
+                      </button>
+                    ))}
+                  </div>
+                  {/* Same table design rules as the event-manager events table:
+                      bordered container, CoK-blue uppercase header, zebra rows, bordered cells */}
+                  {empStatusFiltered.length === 0 ? (
+                    <div className="border-2 border-gray-300 px-4 py-16 text-center bg-white">
+                      <span className="text-sm font-medium text-gray-400 uppercase tracking-wide">No employees in this status</span>
+                    </div>
+                  ) : (
+                    <div className="overflow-auto max-h-80 border-2 border-gray-300">
+                      <table className="w-full border-collapse table-auto min-w-[560px]">
+                        <thead className="sticky top-0 z-10">
+                          <tr>
+                            {['Name', 'Email', 'Department', 'Status'].map(label => (
+                              <th
+                                key={label}
+                                className="cok-primary-bg text-white px-4 py-3.5 text-left text-xs font-bold uppercase tracking-widest whitespace-nowrap"
+                              >
+                                {label}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {empStatusFiltered.map((e: any, idx: number) => {
+                            const locked = !!e.access_control?.is_locked;
+                            const isLast = idx === empStatusFiltered.length - 1;
+                            const cell = (colIdx: number) =>
+                              `px-4 py-3 ${colIdx === 0 ? '' : 'border-l border-gray-200'} ${isLast ? '' : 'border-b border-gray-200'}`;
+                            return (
+                              <tr
+                                key={idx}
+                                className={`transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50/50 hover:bg-blue-50'}`}
+                              >
+                                <td className={`${cell(0)} whitespace-nowrap`}>
+                                  <span className="font-bold text-gray-900 text-sm">{e.full_name || '—'}</span>
+                                </td>
+                                <td className={`${cell(1)} break-all`}>
+                                  <span className="text-sm text-gray-700">{e.email || '—'}</span>
+                                </td>
+                                <td className={cell(2)}>
+                                  <span className="text-sm text-gray-700 font-medium">{e.department?.department_name || e.department?.name || e.department_name || '—'}</span>
+                                </td>
+                                <td className={cell(3)}>
+                                  <div className="flex flex-wrap gap-1">
+                                    <span className={`inline-block border px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide ${e.is_account_activated ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-50 text-amber-800 border-amber-300'}`}>
+                                      {e.is_account_activated ? 'Activated' : 'Not activated'}
+                                    </span>
+                                    {locked && (
+                                      <span className="inline-block border px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide bg-red-100 text-red-800 border-red-300">
+                                        Locked
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {selectedCard === 'dept-served' && (
                 <div className="space-y-4">
                   {/* Headline stats — all obey the toolbar period filter */}
@@ -2269,90 +2405,102 @@ const Overview: React.FC = () => {
                     </div>
                   ) : (
                     <>
-                      {/* Sentiment distribution */}
-                      <div>
-                        <h4 style={{ fontFamily: COK.headingFont, fontSize: 14, fontWeight: 600, color: COK.neutralDark, margin: '0 0 10px 0' }}>
-                          Sentiment Distribution
-                        </h4>
-                        <div className="grid grid-cols-3 gap-2 mb-3">
-                          {(['positive', 'neutral', 'negative'] as Sentiment[]).map(s => (
-                            <div
-                              key={s}
-                              className="p-2.5 text-center"
-                              style={{ backgroundColor: `${SENTIMENT_META[s].color}1A`, borderLeft: `3px solid ${SENTIMENT_META[s].color}` }}
-                            >
-                              <div style={{ fontFamily: COK.headingFont, fontSize: 18, fontWeight: 700, color: SENTIMENT_META[s].color }}>
-                                {modalSentiment[s]}
-                              </div>
-                              <div className="text-[11px] text-gray-500">
-                                {SENTIMENT_META[s].label} · {Math.round((modalSentiment[s] / modalSentimentTotal) * 100)}%
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="h-44">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={modalSentimentData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                              <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
-                              <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
-                              <RTooltip cursor={{ fill: COK.neutralLight }} contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }} />
-                              <Bar dataKey="value" radius={[0, 0, 0, 0]}>
-                                {modalSentimentData.map(entry => (
-                                  <Cell key={entry.name} fill={entry.color} />
-                                ))}
-                              </Bar>
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </div>
-
                       {/* Ratings table */}
                       <div>
                         <h4 style={{ fontFamily: COK.headingFont, fontSize: 14, fontWeight: 600, color: COK.neutralDark, margin: '0 0 10px 0' }}>
-                          Ratings ({modalData.length})
+                          Ratings ({filteredRatings.length})
                         </h4>
-                        <div className="overflow-x-auto max-h-72 overflow-y-auto">
-                          <table className="w-full text-sm border border-gray-200 min-w-[640px]">
-                            <thead className="bg-gray-50 sticky top-0 z-10">
+                        {/* Sentiment filter chips with live counts */}
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          <button
+                            onClick={() => setSentimentFilter('all')}
+                            className={`px-3 py-1.5 text-xs font-semibold border bg-gray-100 text-gray-700 border-gray-300 transition-colors ${sentimentFilter === 'all' ? 'ring-2 ring-blue-400' : 'opacity-80 hover:opacity-100'}`}
+                          >
+                            All ({modalData.length})
+                          </button>
+                          {(['positive', 'neutral', 'negative'] as Sentiment[]).map(s => {
+                            const count = modalData.filter((f: any) => classifySentiment(f.rate, f.rate_out_of) === s).length;
+                            return (
+                              <button
+                                key={s}
+                                onClick={() => setSentimentFilter(s)}
+                                className={`px-3 py-1.5 text-xs font-semibold border transition-colors ${sentimentFilter === s ? 'ring-2 ring-blue-400' : 'opacity-80 hover:opacity-100'}`}
+                                style={{
+                                  backgroundColor: `${SENTIMENT_META[s].color}1A`,
+                                  color: SENTIMENT_META[s].color,
+                                  borderColor: SENTIMENT_META[s].color,
+                                }}
+                              >
+                                {SENTIMENT_META[s].label} ({count})
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {/* Same table design rules as the event-manager events table:
+                            bordered container, CoK-blue uppercase header, zebra rows, bordered cells */}
+                        <div className="overflow-auto max-h-[55vh] border-2 border-gray-300">
+                          <table className="w-full border-collapse table-auto min-w-[640px]">
+                            <thead className="sticky top-0 z-10">
                               <tr>
-                                <th className="px-3 py-2 text-center border-b whitespace-nowrap">Rating</th>
-                                <th className="px-3 py-2 text-center border-b whitespace-nowrap">Sentiment</th>
-                                <th className="px-3 py-2 text-left border-b whitespace-nowrap">Department</th>
-                                <th className="px-3 py-2 text-left border-b">Comment</th>
-                                <th className="px-3 py-2 text-left border-b whitespace-nowrap">From</th>
-                                <th className="px-3 py-2 text-left border-b whitespace-nowrap">Date</th>
+                                {['Rating', 'Sentiment', 'Department', 'Comment', 'From', 'Date'].map(label => (
+                                  <th
+                                    key={label}
+                                    className="cok-primary-bg text-white px-4 py-3.5 text-left text-xs font-bold uppercase tracking-widest whitespace-nowrap"
+                                  >
+                                    {label}
+                                  </th>
+                                ))}
                               </tr>
                             </thead>
                             <tbody>
-                              {modalData.map((f: any, idx: number) => {
+                              {filteredRatings.length === 0 && (
+                                <tr>
+                                  <td colSpan={6} className="px-4 py-16 text-center bg-white">
+                                    <span className="text-sm font-medium text-gray-400 uppercase tracking-wide">No ratings for this sentiment</span>
+                                  </td>
+                                </tr>
+                              )}
+                              {filteredRatings.map((f: any, idx: number) => {
                                 const meta = SENTIMENT_META[classifySentiment(f.rate, f.rate_out_of)];
+                                const isLast = idx === filteredRatings.length - 1;
+                                const cell = (colIdx: number) =>
+                                  `px-4 py-3 ${colIdx === 0 ? '' : 'border-l border-gray-200'} ${isLast ? '' : 'border-b border-gray-200'}`;
                                 return (
-                                  <tr key={idx} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-blue-50/30 border-b`}>
-                                    <td className="px-3 py-2 text-center whitespace-nowrap">
+                                  <tr
+                                    key={idx}
+                                    className={`transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50/50 hover:bg-blue-50'}`}
+                                  >
+                                    <td className={`${cell(0)} whitespace-nowrap`}>
                                       <span
-                                        className="inline-flex flex-col items-center justify-center w-10 h-10"
-                                        style={{ backgroundColor: `${meta.color}1A`, borderLeft: `2px solid ${meta.color}` }}
+                                        className="inline-flex flex-col items-center justify-center w-11 h-11"
+                                        style={{ backgroundColor: `${meta.color}1A`, borderLeft: `3px solid ${meta.color}` }}
                                       >
-                                        <span style={{ fontFamily: COK.headingFont, fontSize: 14, fontWeight: 700, color: meta.color }}>
+                                        <span style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 700, color: meta.color }}>
                                           {f.rate ?? ''}
                                         </span>
                                         <span className="text-[9px] text-gray-400">/ {f.rate_out_of || 10}</span>
                                       </span>
                                     </td>
-                                    <td className="px-3 py-2 text-center">
+                                    <td className={cell(1)}>
                                       <CokBadge label={meta.label} color={meta.color} />
                                     </td>
-                                    <td className="px-3 py-2 text-xs text-gray-600">{f.department_name || 'Not specified'}</td>
-                                    <td className="px-3 py-2 max-w-xs">
-                                      <p className="text-xs truncate" style={{ color: f.textmessage ? '#555555' : '#9E9E9E', fontStyle: f.textmessage ? 'normal' : 'italic', margin: 0 }} title={f.textmessage}>
+                                    <td className={cell(2)}>
+                                      <span className="text-sm font-semibold text-gray-900">{f.department_name || 'Not specified'}</span>
+                                    </td>
+                                    <td className={`${cell(3)} max-w-xs`}>
+                                      <p className="text-sm truncate" style={{ color: f.textmessage ? '#555555' : '#9E9E9E', fontStyle: f.textmessage ? 'normal' : 'italic', margin: 0 }} title={f.textmessage}>
                                         {f.textmessage || 'No written comment — rating only.'}
                                       </p>
                                     </td>
-                                    <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{f.user_name?.trim() || 'Anonymous'}</td>
-                                    <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">
-                                      {f.created_date
-                                        ? new Date(f.created_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                                        : '—'}
+                                    <td className={`${cell(4)} whitespace-nowrap`}>
+                                      <span className="text-sm text-gray-700 font-medium">{f.user_name?.trim() || 'Anonymous'}</span>
+                                    </td>
+                                    <td className={`${cell(5)} whitespace-nowrap`}>
+                                      <span className="text-sm text-gray-500">
+                                        {f.created_date
+                                          ? new Date(f.created_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                          : '—'}
+                                      </span>
                                     </td>
                                   </tr>
                                 );
@@ -2387,30 +2535,56 @@ const Overview: React.FC = () => {
                 <div className="space-y-4">
                   {modalLoading ? (
                     <div className="text-center py-8">Loading...</div>
+                  ) : modalData.length === 0 ? (
+                    <div className="border-2 border-gray-300 px-4 py-16 text-center bg-white">
+                      <span className="text-sm font-medium text-gray-400 uppercase tracking-wide">No departments found</span>
+                    </div>
                   ) : (
-                    <div className="overflow-x-auto max-h-64 overflow-y-auto">
-                      <table className="w-full text-xs sm:text-sm border border-gray-200 min-w-[500px]">
-                        <thead className="bg-gray-50 sticky top-0 z-10">
+                    /* Same table design rules as the event-manager events table:
+                       bordered container, CoK-blue uppercase header, zebra rows, bordered cells */
+                    <div className="overflow-auto max-h-[55vh] border-2 border-gray-300">
+                      <table className="w-full border-collapse table-auto min-w-[500px]">
+                        <thead className="sticky top-0 z-10">
                           <tr>
-                            <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Department</th>
-                            <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Leader</th>
-                            <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Total Employees</th>
-                            <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Created Date</th>
+                            {['Department', 'Leader', 'Total Employees', 'Created Date'].map(label => (
+                              <th
+                                key={label}
+                                className="cok-primary-bg text-white px-4 py-3.5 text-left text-xs font-bold uppercase tracking-widest whitespace-nowrap"
+                              >
+                                {label}
+                              </th>
+                            ))}
                           </tr>
                         </thead>
                         <tbody>
-                          {modalData.map((dept: any, idx: number) => (
-                            <tr key={idx} className="border-b hover:bg-gray-50">
-                              <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium">{dept.department_name}</td>
-                              <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">
-                                {dept.department_leader?.full_name || 'Not assigned'}
-                              </td>
-                              <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{dept.total_employees || 0}</td>
-                              <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">
-                                {dept.created_date ? new Date(dept.created_date).toLocaleDateString() : 'N/A'}
-                              </td>
-                            </tr>
-                          ))}
+                          {modalData.map((dept: any, idx: number) => {
+                            const isLast = idx === modalData.length - 1;
+                            const cell = (colIdx: number) =>
+                              `px-4 py-3 ${colIdx === 0 ? '' : 'border-l border-gray-200'} ${isLast ? '' : 'border-b border-gray-200'}`;
+                            return (
+                              <tr
+                                key={idx}
+                                className={`transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50/50 hover:bg-blue-50'}`}
+                              >
+                                <td className={cell(0)}>
+                                  <span className="font-bold text-gray-900 text-sm">{dept.department_name}</span>
+                                </td>
+                                <td className={cell(1)}>
+                                  <span className="text-sm font-semibold text-gray-900">
+                                    {dept.department_leader?.full_name || 'Not assigned'}
+                                  </span>
+                                </td>
+                                <td className={cell(2)}>
+                                  <span className="text-sm text-gray-700 font-medium">{dept.total_employees || 0}</span>
+                                </td>
+                                <td className={`${cell(3)} whitespace-nowrap`}>
+                                  <span className="text-sm text-gray-500">
+                                    {dept.created_date ? new Date(dept.created_date).toLocaleDateString() : 'N/A'}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -2420,9 +2594,26 @@ const Overview: React.FC = () => {
 
               {selectedCard === 'service-hourly' && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-wrap justify-between items-center gap-2">
                     <div className="text-sm text-gray-600">
-                      Visitor arrivals · today
+                      Visitor arrivals · <span className="capitalize">{labelForPeriod(modalHourPeriodEff)}</span>
+                    </div>
+                    {/* Modal-level period filter; opens following the toolbar filter */}
+                    <div className="flex items-center gap-1 text-xs text-gray-600">
+                      <label className="font-medium">Period</label>
+                      <select
+                        value={modalHourPeriodEff}
+                        onChange={e => setModalHourPeriod(e.target.value as PeriodChoice)}
+                        className="text-xs px-2 py-1 border border-gray-300 bg-white"
+                      >
+                        <option value="today">Today</option>
+                        <option value="week">This week</option>
+                        <option value="lastweek">Last week</option>
+                        <option value="month">This month</option>
+                        <option value="lastmonth">Last month</option>
+                        <option value="all">All</option>
+                        {period === 'range' && <option value="range">Custom range</option>}
+                      </select>
                     </div>
                   </div>
 
