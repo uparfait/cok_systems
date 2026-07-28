@@ -503,15 +503,12 @@ const Sidebar: React.FC<SidebarProps> = ({
           </g>
         </svg>
 
-        {/* Foreground Content */}
-        <div className="relative z-10 h-full flex flex-col justify-between px-4">
-          <div className="flex items-center justify-between w-full">
-            <div className="flex items-baseline pt-2 gap-2">
-              <span className="cok-primary-color text-2xl font-bold leading-none tracking-tight">
-                IKAZE
-              </span>
+        <div className="relative z-10 h-full flex flex-col justify-between p-3 sm:p-4">
+          <div className="flex items-start justify-between">
+            <div className="flex flex-wrap items-end gap-2">
+              <span className="dashboard-title">IKAZE</span>
 
-              <span className="cok-primary-color font-mono text-sm sm:text-base font-medium">
+              <span className="dashboard-time">
                 {currentTime.toLocaleTimeString("en-GB", {
                   hour: "2-digit",
                   minute: "2-digit",
@@ -523,7 +520,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           <div className="flex justify-end pb-1">
-            <span className="cok-primary-color text-[15px] font-mono tracking-wider font-medium">
+            <span className="flex justify-end">
               {currentTime.getFullYear()}-
               {String(currentTime.getMonth() + 1).padStart(2, "0")}-
               {String(currentTime.getDate()).padStart(2, "0")}
