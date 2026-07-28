@@ -486,7 +486,11 @@ const Overview: React.FC = () => {
       const sampleDepts = deptNames.length
         ? deptNames
         : ['Urban Economy', 'Urban Planning', 'City Engineering', 'Social Development', 'Digitalization'];
-      const sampleEmps = ['J. Mukamana', 'E. Niyonzima', 'A. Uwase', 'P. Habimana', 'C. Ingabire'];
+      // Use the system's real employees for the sample; only the counts are dummy
+      const realEmpNames = employees.map((e: any) => e.full_name).filter(Boolean).slice(0, 5);
+      const sampleEmps = realEmpNames.length
+        ? realEmpNames
+        : ['J. Mukamana', 'E. Niyonzima', 'A. Uwase', 'P. Habimana', 'C. Ingabire'];
       const P = [7, 4, 6, 3, 5];
       const I = [3, 5, 2, 4, 1];
       const C = [9, 6, 4, 7, 3];
@@ -517,7 +521,7 @@ const Overview: React.FC = () => {
       avgPerDept: deptCount ? Math.round((total / deptCount) * 10) / 10 : 0,
       isSample: false,
     };
-  }, [visitors, isInPeriod, data]);
+  }, [visitors, isInPeriod, data, employees]);
 
   const periodLabel =
     period === 'today' ? 'today'
