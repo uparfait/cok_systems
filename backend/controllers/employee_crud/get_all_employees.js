@@ -5,7 +5,7 @@ module.exports = async function get_employees(req, res, next) {
     try {
         let { limit = 50, page = 1 } = req.query
 
-        const limit_val = Math.min(parseInt(limit), 50)
+        const limit_val = Math.min(parseInt(limit), 1000)
         const skip_val = (parseInt(page) - 1) * limit_val
 
         const user_role_name = req.user?.role_name;
@@ -37,7 +37,7 @@ module.exports = async function get_employees(req, res, next) {
             .limit(limit_val)
             .skip(skip_val)
             .sort({ created_date: -1 })
-            .populate('department', 'name department_id _id')
+            .populate('department', 'name department_name department_id _id')
             .populate('roles', 'role_name')
 
         const total_count = await user_model.countDocuments(filter)
