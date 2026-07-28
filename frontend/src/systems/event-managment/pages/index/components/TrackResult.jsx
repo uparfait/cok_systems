@@ -38,39 +38,50 @@ function TrackResult({
     return new Date(dateStr).toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
+  // Detail rows rendered as a design-rule table, like the event manager tables
+  const detailRows = [
+    ["Type", request.eventMeetingType],
+    ["Event Type", request.eventType],
+    ["Room", request.eventRoom],
+    ["Start", formatDate(request.startTime)],
+    ["End", formatDate(request.endTime)],
+    ["Organizer", request.eventOrganizer?.fullNames],
+    ["Email", request.eventOrganizer?.email],
+    ["Phone", request.eventOrganizer?.phone],
+    ["Institution", request.eventOrganizer?.institution || "—"],
+    ["Audience", request.expectedAudience ? `${request.expectedAudience} people` : "—"],
+    ...(request.eventDescription ? [["Description", request.eventDescription]] : []),
+  ];
+
   return (
-    <div className="mt-4 w-full max-w-lg  overflow-hidden" style={{ backgroundColor: NEUTRAL_LIGHT, boxShadow: CARD_SHADOW, border: '0' }}>
-      <div className="p-4" style={{ borderBottom: `1px solid ${BORDER}` }}>
-        <div className="flex items-start justify-between flex-wrap gap-3">
-          <div>
-            <h3 className="text-base font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{request.eventName}</h3>
-            <span className="text-xs font-mono font-medium px-2 py-0.5 inline-block mt-1" style={{ color: PRIMARY, backgroundColor: '#E3F2FD' }}>{request.trackingCode}</span>
-          </div>
-          <StatusBadge status={request.status} />
+    <div className="mt-4 w-full max-w-lg overflow-hidden bg-white border-2 border-gray-300">
+      {/* Header — CoK blue bar like the events table header */}
+      <div className="px-4 py-3.5 flex items-start justify-between flex-wrap gap-3" style={{ backgroundColor: PRIMARY }}>
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-widest text-white" style={{ fontFamily: fontHeading }}>{request.eventName}</h3>
+          <span className="text-xs font-mono font-medium px-2 py-0.5 inline-block mt-1 text-white" style={{ backgroundColor: 'rgba(255,255,255,0.18)' }}>{request.trackingCode}</span>
         </div>
+        <StatusBadge status={request.status} />
       </div>
+      {/* Details — zebra rows with bordered cells, same rules as the events tables */}
+      <table className="w-full border-collapse table-auto">
+        <tbody>
+          {detailRows.map(([label, value], idx) => (
+            <tr
+              key={label}
+              className={`transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50/50 hover:bg-blue-50'}`}
+            >
+              <td className="px-4 py-2.5 w-32 border-b border-r border-gray-200 text-xs font-bold uppercase tracking-wider text-gray-600 align-top" style={{ fontFamily: fontHeading }}>
+                {label}
+              </td>
+              <td className={`px-4 py-2.5 border-b border-gray-200 text-sm font-medium text-gray-900 ${label === 'Email' ? '' : 'capitalize'}`} style={{ fontFamily: fontHeading }}>
+                {value || "—"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       <div className="p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-          <div>
-            <DetailRow label="Type" value={request.eventMeetingType} />
-            <DetailRow label="Event Type" value={request.eventType} />
-            <DetailRow label="Room" value={request.eventRoom} />
-            <DetailRow label="Start" value={formatDate(request.startTime)} />
-            <DetailRow label="End" value={formatDate(request.endTime)} />
-          </div>
-          <div>
-            <DetailRow label="Organizer" value={request.eventOrganizer?.fullNames} />
-            <DetailRow label="Email" value={request.eventOrganizer?.email} />
-            <DetailRow label="Phone" value={request.eventOrganizer?.phone} />
-            <DetailRow label="Institution" value={request.eventOrganizer?.institution || "—"} />
-            <DetailRow label="Audience" value={request.expectedAudience ? `${request.expectedAudience} people` : "—"} />
-          </div>
-        </div>
-        {request.eventDescription && (
-          <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${BORDER}` }}>
-            <DetailRow label="Description" value={request.eventDescription} />
-          </div>
-        )}
         {request.status === "Rejected" && request.rejectionReason && (
           <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${BORDER}` }}>
             <div className="p-3" style={{ backgroundColor: '#FFEBEE', border: `1px solid ${DANGER}` }}>
