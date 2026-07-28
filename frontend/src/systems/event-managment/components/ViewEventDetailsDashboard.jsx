@@ -150,7 +150,7 @@ export default function ViewEventDetailsDashboard() {
           <p className="text-gray-500 mb-6">{error || 'The event you are looking for does not exist.'}</p>
           <button
             onClick={() => navigate(-1)}
-            className="px-6 py-2.5 bg-blue-600 text-white ppp-lg hover:bg-blue-700 transition-colors"
+            className="px-6 py-2.5 cok-btn-outlined"
           >
             Go Back
           </button>
@@ -190,7 +190,7 @@ export default function ViewEventDetailsDashboard() {
             )}
             <button
               onClick={() => navigate(`/event-manager/events/${eventId}/edit`)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white ppp-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2  text-white ppp-lg text-sm font-medium cok-btn-primary"
             >
               <FiEdit2 className="w-4 h-4" />
               Edit Event
@@ -218,13 +218,13 @@ export default function ViewEventDetailsDashboard() {
                 fetchInvitedPeople(1);
                 setShowInvitedModal(true);
               }}
-              className="inline-flex items-center gap-3 p-4 border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50/30 transition-all duration-200 w-full text-left group"
+              className="inline-flex items-center gap-3 p-4 border-2 border-gray-200 hover:border-[#056daa] hover:bg-blue-50/30 transition-all duration-200 w-full text-left group"
             >
-              <div className="w-10 h-10 bg-blue-100 flex items-center justify-center group-hover:bg-blue-600 transition-colors duration-200">
-                <FiMail className="w-5 h-5 text-blue-600 group-hover:text-white transition-colors duration-200" />
+              <div className="w-10 h-10 bg-blue-100 group-hover:text-white flex items-center justify-center group-hover:bg-[#056daa] transition-colors duration-200">
+                <FiMail className="w-5 h-5 text-[#056daa]  group-hover:text-white transition-colors duration-200" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
+                <p className="text-sm font-semibold text-gray-900 group-hover:cok-primary-color transition-colors">
                   Invited People ({invitedCount})
                 </p>
                 <p className="text-xs text-gray-500">
@@ -232,7 +232,7 @@ export default function ViewEventDetailsDashboard() {
                 </p>
               </div>
               <div className="ml-auto">
-                <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 text-sm font-bold group-hover:bg-blue-600 group-hover:text-white transition-all">
+                <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-[#056daa] text-sm font-bold group-hover:bg-[#056daa] group-hover:text-white transition-all">
                   {invitedCount}
                 </span>
               </div>
@@ -256,13 +256,13 @@ export default function ViewEventDetailsDashboard() {
                 } catch { setAttendeeCount(0); }
                 setAttendeesOverlayOpen(true);
               }}
-              className="inline-flex items-center gap-3 p-4 border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50/30 transition-all duration-200 w-full text-left group"
+              className="inline-flex items-center gap-3 p-4 border-2 border-gray-200 hover:border-[#056daa] hover:bg-blue-50/30 transition-all duration-200 w-full text-left group"
             >
-              <div className="w-10 h-10 bg-blue-100 flex items-center justify-center group-hover:bg-blue-600 transition-colors duration-200">
-                <FiUsers className="w-5 h-5 text-blue-600 group-hover:text-white transition-colors duration-200" />
+              <div className="w-10 h-10 bg-blue-100 flex items-center justify-center group-hover:bg-[#056daa] transition-colors duration-200">
+                <FiUsers className="w-5 h-5 text-[#056daa] group-hover:text-white transition-colors duration-200" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
+                <p className="text-sm font-semibold text-gray-900 group-hover:white transition-colors">
                   Total Attended
                 </p>
                 <p className="text-xs text-gray-500">
@@ -270,7 +270,7 @@ export default function ViewEventDetailsDashboard() {
                 </p>
               </div>
               <div className="ml-auto">
-                <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 text-sm font-bold group-hover:bg-blue-600 group-hover:text-white transition-all">
+                <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-[#056daa] text-sm font-bold group-hover:bg-[#056daa] group-hover:text-white transition-all">
                   {attendeeCount !== null ? attendeeCount : "—"}
                 </span>
               </div>
@@ -303,7 +303,7 @@ export default function ViewEventDetailsDashboard() {
             {/* Header */}
             <div className="flex items-center justify-between p-5 border-b border-gray-200">
               <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <FiUsers className="w-5 h-5 text-blue-600" />
+                <FiUsers className="w-5 h-5 cok-primary-color" />
                 Invited People
               </h3>
               <button
@@ -319,7 +319,6 @@ export default function ViewEventDetailsDashboard() {
               {invitedLoading ? (
                 <div className="text-center py-8">
                   <div className="w-8 h-8 mx-auto"><SpiralLoader /></div>
-                  <p className="text-sm text-gray-500 mt-3">Loading...</p>
                 </div>
               ) : invitedPeople.length === 0 ? (
                 <div className="text-center py-8">
@@ -332,7 +331,7 @@ export default function ViewEventDetailsDashboard() {
                     <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-100">
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
-                          <span className="text-xs font-bold text-blue-600">
+                          <span className="text-xs font-bold cok-primary-color">
                             {person.email.charAt(0).toUpperCase()}
                           </span>
                         </div>
@@ -407,7 +406,7 @@ export default function ViewEventDetailsDashboard() {
                   setShowInvitedModal(false);
                   navigate(`/event-manager/events/${event?.eventSpecialId}/invite`);
                 }}
-                className="w-full py-2.5 bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+                className="w-full py-2.5 bg-[#056daa] text-white text-sm font-semibold hover:bg-[#056daa]0 transition-colors"
               >
                 Invite More People
               </button>
