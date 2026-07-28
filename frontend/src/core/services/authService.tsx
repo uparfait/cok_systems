@@ -84,7 +84,9 @@
  // ==================== LOGOUT APIs ====================
  
  export const logout = async () => {
-   try { await post('/auth/logout', {}); } 
+   try { 
+    await post('/auth/logout', {});
+  } 
    catch (error) { console.warn('Logout API failed, clearing local data:', error); } 
    finally { 
      clearAuthData();

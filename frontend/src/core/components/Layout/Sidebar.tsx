@@ -77,6 +77,33 @@ const getIcon = (iconName: string): React.ComponentType<any> => {
   return icons[iconName] || FiGrid;
 };
 
+const FlipDigit: React.FC<{ digit: number }> = ({ digit }) => {
+  const [prevDigit, setPrevDigit] = useState(digit);
+  const [animating, setAnimating] = useState(false);
+
+  useEffect(() => {
+    if (digit !== prevDigit) {
+      setAnimating(true);
+      const timer = setTimeout(() => {
+        setPrevDigit(digit);
+        setAnimating(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [digit, prevDigit]);
+
+  return (
+    <div className="relative w-5 h-7 overflow-hidden">
+      <span className={`absolute inset-0 flex items-center justify-center text-white text-base font-bold font-mono transition-transform duration-300 ${animating ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
+        {prevDigit}
+      </span>
+      <span className={`absolute inset-0 flex items-center justify-center text-white text-base font-bold font-mono transition-transform duration-300 ${animating ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}>
+        {digit}
+      </span>
+    </div>
+  );
+};
+
 const Sidebar: React.FC<SidebarProps> = ({ 
   onToggle, 
   isDesktop = true,
@@ -118,6 +145,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     return initial;
   });
 
+  const [currentTime, setCurrentTime] = useState(new Date());
+
   const toggleMenu = (menuId: string) => {
     setExpandedMenus(prev => {
       const next = new Set(prev);
@@ -156,6 +185,13 @@ const Sidebar: React.FC<SidebarProps> = ({
       }
     });
   }, [location.pathname, currentPath, links]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleNavigation = (path: string) => {
     onNavigate(path);
@@ -300,7 +336,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     }}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
                       linkIsActive 
-                        ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700 hover:shadow-lg' 
+                        ? 'cok-primary-bg-hoverable text-white shadow-md  hover:shadow-lg' 
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                     }`}
                   >
@@ -333,7 +369,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   onClick={() => handleNavigation(link.path)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
                     linkIsActive 
-                      ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700 hover:shadow-lg' 
+                      ? 'cok-primary-bg-hoverable text-white shadow-md  hover:shadow-lg' 
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
@@ -354,7 +390,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         onClick={() => handleNavigation(child.path)}
                         className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 text-sm ${
                           childIsActive 
-                            ? 'bg-blue-100 text-blue-700 font-medium' 
+                            ? 'bg-blue-100 cok-primary-color font-medium' 
                             : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                         }`}
                       >
@@ -370,24 +406,19 @@ const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      <div className="h-16 border-t border-gray-200 bg-white">
-        <div className="flex items-center px-4 h-full gap-3">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
-            {userInitial}
+      <div className="h-16 cok-primary-bg flex flex-col justify-between px-4">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-baseline pt-2 gap-2">
+            <span className="text-white/90 text-2xl  font-bold leading-none tracking-tight">@IKAZE</span>
+            <span className="text-white font-mono text-sm sm:text-base font-medium">
+              {currentTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+            </span>
           </div>
-          
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
-            <p className="text-xs text-gray-500 truncate">{displayRole}</p>
-          </div>
-
-          <button
-            onClick={handleLogout}
-            className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
-            title="Logout"
-          >
-            <FiLogOut className="w-4 h-4" />
-          </button>
+        </div>
+        <div className="flex justify-end">
+          <span className="text-white/60 text-[15px] font-mono tracking-wider font-medium">
+            {currentTime.getFullYear()}-{String(currentTime.getMonth() + 1).padStart(2, '0')}-{String(currentTime.getDate()).padStart(2, '0')}
+          </span>
         </div>
       </div>
     </aside>

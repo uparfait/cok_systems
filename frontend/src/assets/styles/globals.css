@@ -414,6 +414,22 @@ body {
   transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
+.cok-primary-bg-hoverable {
+  background-color: #056daa;
+}
+
+.cok-primary-bg-hoverable:hover {
+  background-color: #045d94;
+}
+
+.cok-primary-color {
+  color: #056daa;
+}
+
+.cok-primary-bg {
+  background-color: #056daa;;
+}
+
 .cok-btn-primary:hover {
   background-color: #045d94;
 }
