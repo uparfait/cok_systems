@@ -157,9 +157,13 @@ export default function BookingRequestTrack() {
       <Helmet><title>TRACK YOUR BOOK REQUEST</title></Helmet>
       <div className="w-full items-center flex flex-col mx-auto mt-8 px-4">
         {!isEditing && (
-          <div className="mt-4 w-full max-w-lg overflow-hidden" style={{ backgroundColor: NEUTRAL_LIGHT, boxShadow: CARD_SHADOW, border: '0', padding: '40px' }}>
-            <h1 className="text-2xl sm:text-3xl font-extrabold mb-1" style={{ color: PRIMARY, fontFamily: fontHeading, letterSpacing: '-0.5px' }}>Track Your Booking</h1>
-            <p className="text-xs font-medium mb-4" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Enter your Booking ID (e.g., BRK-A1B2C3D4).</p>
+          <div className="mt-4 w-full max-w-lg overflow-hidden bg-white border-2 border-gray-300">
+            {/* CoK blue header bar, same design rules as the events tables */}
+            <div className="px-6 py-4" style={{ backgroundColor: PRIMARY }}>
+              <h1 className="text-base font-bold uppercase tracking-widest text-white" style={{ fontFamily: fontHeading }}>Track Your Booking</h1>
+              <p className="text-xs font-medium mt-1" style={{ color: 'rgba(255,255,255,0.75)', fontFamily: fontHeading }}>Enter your Booking ID (e.g., BRK-A1B2C3D4).</p>
+            </div>
+            <div style={{ padding: '24px' }}>
             <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <input type="text" value={trackingCode} onChange={(e) => setTrackingCode(e.target.value)} placeholder="Enter your booking id"
                 className="flex-1 min-w-0 px-3 py-2 text-sm focus:outline-none transition-all duration-200"
@@ -177,6 +181,7 @@ export default function BookingRequestTrack() {
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = WHITE; e.currentTarget.style.color = PRIMARY; }}>
               <FiArrowLeft className="w-4 h-4" /> Back
             </button>
+            </div>
           </div>
         )}
 
