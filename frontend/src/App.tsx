@@ -339,6 +339,10 @@ const App: React.FC = () => {
                     element={<BookingRequestsList />}
                   />
                   <Route
+                    path="/event-manager/booking-requests/water"
+                    element={<BookingRequestsList waterOnly />}
+                  />
+                  <Route
                     path="/event-manager/booking-requests/:id"
                     element={<BookingRequestDetails />}
                   />

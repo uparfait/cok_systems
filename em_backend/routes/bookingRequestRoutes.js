@@ -222,6 +222,28 @@ Router.get("/tracking/:trackingCode", BookingRequestController.handleGetByTracki
 
 /**
  * @swagger
+ * /booking-requests/tracking/{trackingCode}/request-water:
+ *   put:
+ *     summary: Request water for an accepted Internal booking (from the tracking page)
+ *     tags: [Booking Requests]
+ *     parameters:
+ *       - in: path
+ *         name: trackingCode
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Water request submitted
+ *       400:
+ *         description: Request not accepted, not Internal, or water already requested
+ *       404:
+ *         description: Booking request not found
+ */
+Router.put("/tracking/:trackingCode/request-water", BookingRequestController.handleRequestWater);
+
+/**
+ * @swagger
  * /booking-requests/{id}:
  *   get:
  *     summary: Get a booking request by its MongoDB ID

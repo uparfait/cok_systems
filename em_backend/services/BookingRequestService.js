@@ -328,6 +328,7 @@ class BookingRequestService {
       startDate,
       endDate,
       sort = "new",
+      water,
     } = query;
 
     const queryObject = {};
@@ -335,6 +336,11 @@ class BookingRequestService {
     // Filter by status
     if (status && ["Pending", "Accepted", "Rejected", "Cancelled"].includes(status)) {
       queryObject.status = status;
+    }
+
+    // Only requests where the organizer asked for water
+    if (water === "true" || water === true) {
+      queryObject["waterRequest.requested"] = true;
     }
 
     // Filter by date range
@@ -371,6 +377,36 @@ class BookingRequestService {
       totalPages,
       currentPage: parseInt(page),
       data,
+    };
+  }
+
+  // Organizer asks for water from the tracking page. Only allowed once the
+  // event manager has accepted the request, and only for Internal type.
+  static async requestWater(trackingCode) {
+    const request = await BookingRequest.findOne({ trackingCode });
+    if (!request) {
+      throw new Error("Booking request not found");
+    }
+
+    if (request.status !== "Accepted") {
+      throw new Error("Water can only be requested after the event manager has accepted your request");
+    }
+
+    if (request.eventType !== "Internal") {
+      throw new Error("Water requests are only available for Internal meetings");
+    }
+
+    if (request.waterRequest?.requested) {
+      throw new Error("Water has already been requested for this booking");
+    }
+
+    request.waterRequest = { requested: true, requestedAt: new Date() };
+    await request.save();
+
+    return {
+      success: true,
+      message: "Water request submitted successfully",
+      data: request,
     };
   }
 
