@@ -26,6 +26,7 @@ import {
   FiCheck,
   FiLayers,
   FiCalendar,
+  FiDroplet,
 } from "react-icons/fi";
 import { HiOutlineOfficeBuilding } from "react-icons/hi";
 import { IoExitOutline } from "react-icons/io5";
@@ -99,6 +100,7 @@ const getIcon = (iconName: string): React.ComponentType<any> => {
     FiLayers,
     FiFile,
     FiCalendar,
+    FiDroplet,
   };
   return icons[iconName] || FiGrid;
 };
