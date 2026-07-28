@@ -8,20 +8,18 @@ import { statisticsService, employeeService, parkingService, serviceDeliveryServ
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import Chart from 'chart.js/auto';
-import { BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { COK, CokBadge } from './mayorCok';
 
 // ==================== TYPES ====================
 
 interface DashboardData {
   employeeStats: { total: number; active: number; inactive: number; locked: number };
-  parkingStats: { total: number; by_driver_type: { staff: number; visitor: number; regular: number } };
   serviceStats: { total: number; completed: number; inhouse: number; by_department: Record<string, number> };
   flaggedVehicles: { 
     currently_flagged: { count: number; min_minutes: number; max_minutes: number }; 
     history: { count: number; min_minutes: number; max_minutes: number } 
   };
-  emergencyCars: { total: number; active: number; expired: number; active_vehicles_count: number; history_vehicles_count: number };
   feedbackTotals: { total: number; by_department: Record<string, number> };
   feedbackAvg: { overall_average: { average_rating: number }; by_department: Record<string, { average_rating: number }> };
   hourlyParking: { hour: number; check_in: number; check_out: number }[];
@@ -212,7 +210,9 @@ const Overview: React.FC = () => {
   // employees-served breakdown; period state drives the toolbar date filter
   const [visitors, setVisitors] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
-  const [period, setPeriod] = useState<'today' | 'all' | 'range'>('today');
+  const [recentParking, setRecentParking] = useState<any[]>([]);
+  const [recentVisitors, setRecentVisitors] = useState<any[]>([]);
+  const [period, setPeriod] = useState<'today' | 'all' | 'range'>('all');
   const [rangeFrom, setRangeFrom] = useState('');
   const [rangeTo, setRangeTo] = useState('');
 
@@ -291,6 +291,8 @@ const Overview: React.FC = () => {
   }, [data, filteredServed]);
   const maxDeptServed = Math.max(...deptVsServices.map(r => r.served), 1);
   const maxDeptAvg = Math.max(...deptVsServices.map(r => r.avg), 1);
+  const leftTicks = Array.from({ length: Math.floor(maxDeptServed) + 1 }, (_, i) => i);
+  const rightTicks = Array.from({ length: Math.floor(maxDeptAvg) + 1 }, (_, i) => i);
 
   // Every employee with the number of people they served in the selected period;
   // providers on records that don't match an employee account still get a row
@@ -336,7 +338,29 @@ const Overview: React.FC = () => {
   // Empty-state flags so cards show a message instead of a blank chart
   const hasHourlyService = !!data && data.hourlyService.some(h => (h.visitors_checked_in || 0) > 0);
   const hasHourlyParking = !!data && data.hourlyParking.some(h => (h.check_in || 0) > 0 || (h.check_out || 0) > 0);
-  const hasFeedbackByDept = !!data && Object.values(data.feedbackTotals.by_department).some(v => Number(v) > 0);
+
+  const recentCheckIns = useMemo(() => {
+    const items: any[] = [];
+    (recentParking || []).forEach((p: any) => {
+      const time = p.checkInTime || p.check_in || p.entry_date;
+      items.push({
+        id: `parking-${p._id || Math.random()}`,
+        type: 'parking',
+        name: p.plate_number || p.plateNumber || p.driver_name || p.vehicle || 'Unknown vehicle',
+        time: time ? new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--',
+      });
+    });
+    (recentVisitors || []).forEach((v: any) => {
+      const time = v.checkInTime || v.check_in || v.entry_date;
+      items.push({
+        id: `visitor-${v._id || Math.random()}`,
+        type: 'visitor',
+        name: v.full_name || v.name || v.visitorName || `Visitor ${v.badge_number || ''}`.trim() || 'Unknown visitor',
+        time: time ? new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--',
+      });
+    });
+    return items.sort((a, b) => b.time.localeCompare(a.time));
+  }, [recentParking, recentVisitors]);
 
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
@@ -357,21 +381,19 @@ const Overview: React.FC = () => {
   
   const chartsRef = useRef<Map<string, Chart>>(new Map());
 
-  // Fetch real data; silent mode refreshes in the background (socket updates)
+   // Fetch real data; silent mode refreshes in the background (socket updates)
   // without tearing the page down to the loading spinner
   const fetchData = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true);
     try {
       const [
-        employeesRes, parkingRes, servicesRes, flaggedStatsRes, emergencyRes,
+        employeesRes, servicesRes, flaggedStatsRes,
         feedbackTotalsRes, feedbackAvgRes, hourlyParkingRes, hourlyServiceRes, departmentsRes,
-        flaggedCountRes, visitorsRes, allEmployeesRes
+        flaggedCountRes, visitorsRes, allEmployeesRes, recentParkingRes
       ] = await Promise.all([
         statisticsService.getEmployeeStats(),
-        statisticsService.getCurrentlyParkedStats(),
         statisticsService.getServiceDeliveryStats(),
         statisticsService.getFlaggedVehiclesStats(),
-        statisticsService.getEmergencyCarsStats(),
         statisticsService.getFeedbackTotals(),
         statisticsService.getFeedbackAverageByDepartment(),
         statisticsService.getHourlyParkingStats(),
@@ -380,13 +402,12 @@ const Overview: React.FC = () => {
         parkingService.getFlaggedActiveVehicles(1, 1000), // Get count for KPI
         serviceDeliveryService.getAll(1, 1000), // Visitors with per-service provider + date
         employeeService.getAll(1, 1000), // Full employee list for the served-by breakdown
+        parkingService.getAllPaginated(1, 10, 'all'), // Recent parking check-ins
       ]);
       
       const employees = (employeesRes as any)?.data || employeesRes;
-      const parking = (parkingRes as any)?.data || parkingRes;
       const services = (servicesRes as any)?.data || servicesRes;
       const flaggedStats = (flaggedStatsRes as any)?.data || flaggedStatsRes;
-      const emergency = (emergencyRes as any)?.data || emergencyRes;
       const feedbackTotals = (feedbackTotalsRes as any)?.data || feedbackTotalsRes;
       const flaggedCount = flaggedCountRes;
       const feedbackAvg = (feedbackAvgRes as any)?.data || feedbackAvgRes;
@@ -395,8 +416,14 @@ const Overview: React.FC = () => {
       const departmentsRaw = (departmentsRes as any)?.data?.departments || (departmentsRes as any)?.departments || [];
       const visitorsRaw = (visitorsRes as any)?.data || [];
       const allEmployeesRaw = (allEmployeesRes as any)?.data || [];
+      const recentParkingRaw = (recentParkingRes as any)?.data || [];
       setVisitors(Array.isArray(visitorsRaw) ? visitorsRaw : []);
       setEmployees(Array.isArray(allEmployeesRaw) ? allEmployeesRaw : []);
+      setRecentParking(Array.isArray(recentParkingRaw) ? recentParkingRaw : []);
+      const sortedVisitors = (visitorsRaw as any[]).slice().sort((a: any, b: any) =>
+        new Date(b.entry_date || 0).getTime() - new Date(a.entry_date || 0).getTime()
+      );
+      setRecentVisitors(sortedVisitors.slice(0, 10));
       
       const departments = departmentsRaw.map((dept: any) => ({
         name: dept.department_name,
@@ -413,14 +440,6 @@ const Overview: React.FC = () => {
           inactive: employees?.inactive || 0,
           locked: employees?.locked || 0,
         },
-        parkingStats: {
-          total: parking?.total || 0,
-          by_driver_type: {
-            staff: Number(parking?.by_driver_type?.staff || 0),
-            visitor: Number(parking?.by_driver_type?.visitor || 0),
-            regular: Number(parking?.by_driver_type?.regular || 0),
-          },
-        },
         serviceStats: {
           total: services?.total || 0,
           completed: services?.completed || 0,
@@ -435,13 +454,6 @@ const Overview: React.FC = () => {
             max_minutes: flaggedStats?.currently_flagged?.max_minutes || 0
           },
           history: flaggedStats?.history || { count: 0, min_minutes: 0, max_minutes: 0 },
-        },
-        emergencyCars: {
-          total: emergency?.total || 0,
-          active: emergency?.active || 0,
-          expired: emergency?.expired || 0,
-          active_vehicles_count: emergency?.active_vehicles_count || 0,
-          history_vehicles_count: emergency?.history_vehicles_count || 0,
         },
         feedbackTotals: {
           total: feedbackTotals?.total || 0,
@@ -554,111 +566,6 @@ const Overview: React.FC = () => {
             y: { grid: { display: false } }
           }
         }
-      }));
-    }
-    
-    // 4. Donut Chart (No Y-axis needed)
-    const donutCanvas = document.getElementById('chart-donut') as HTMLCanvasElement;
-    if (donutCanvas) {
-      const driverData = data.parkingStats.by_driver_type;
-      chartsRef.current.set('donut', new Chart(donutCanvas, {
-        type: 'doughnut',
-        data: { 
-          labels: ['Staff', 'Visitor', 'Regular'], 
-          datasets: [{ 
-            data: [driverData.staff, driverData.visitor, driverData.regular], 
-            backgroundColor: [CC.blue, CC.teal, CC.amber], 
-            borderWidth: 0 
-          }] 
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '70%',
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: (ctx: any) => `${ctx.label}: ${Math.round(ctx.raw)}`
-              }
-            }
-          }
-        }
-      }));
-    }
-    
-    // 5. Feedback Chart (columns + trend line, same style as hourly check-ins)
-    // Built from departments that actually received feedback, largest first
-    const fbCanvas = document.getElementById('chart-feedback') as HTMLCanvasElement;
-    if (fbCanvas) {
-      const fbEntries = Object.entries(data.feedbackTotals.by_department)
-        .map(([name, value]) => ({ name, value: Number(value) || 0 }))
-        .filter(e => e.value > 0)
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 8);
-      const fbLabels = fbEntries.map(e => e.name);
-      const fbData = fbEntries.map(e => e.value);
-      const fbTrend = fbData.map((_, i) => {
-        const windowVals = fbData.slice(Math.max(0, i - 2), i + 1);
-        return windowVals.reduce((a, b) => a + b, 0) / windowVals.length;
-      });
-      const maxFb = Math.max(...fbData, 1);
-      const fbConfig = getChartConfig(maxFb);
-
-      chartsRef.current.set('feedback', new Chart(fbCanvas, {
-        type: 'bar',
-        data: {
-          labels: fbLabels,
-          datasets: [
-            {
-              type: 'bar',
-              label: 'Feedback',
-              data: fbData,
-              backgroundColor: CC.teal,
-              borderRadius: 4,
-              borderSkipped: 'start',
-              maxBarThickness: 18,
-              barPercentage: 0.6,
-              categoryPercentage: 0.8,
-              valueLabels: 'all',
-            } as any,
-            {
-              type: 'line',
-              label: 'Trend',
-              data: fbTrend,
-              borderColor: CC.purple,
-              borderWidth: 2,
-              pointRadius: 0,
-              pointHoverRadius: 4,
-              pointBackgroundColor: CC.purple,
-              pointBorderColor: '#fff',
-              pointBorderWidth: 2,
-              tension: 0.4,
-              fill: false,
-            } as any,
-          ]
-        },
-        options: {
-          ...fbConfig,
-          layout: { padding: { top: 12 } },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: (ctx: any) => {
-                  const base = `${ctx.dataset.label}: ${Math.round(ctx.raw)}`;
-                  const rating = data.feedbackAvg.by_department[ctx.label]?.average_rating;
-                  return rating ? `${base} · Avg rating ${Math.round(rating)}/10` : base;
-                }
-              }
-            }
-          },
-          scales: {
-            ...fbConfig.scales,
-            x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 45 } }
-          }
-        },
-        plugins: [barValueLabels]
       }));
     }
     
@@ -866,29 +773,6 @@ const Overview: React.FC = () => {
             setModalData([]);
             setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
           }
-          break;
-
-        case 'feedback':
-          response = await feedbackService.getAll(page, limit);
-          console.log('Feedback response:', response);
-
-          if (response && (response as any).success && (response as any).data) {
-            const data = (response as any).data;
-            console.log('Feedback data found:', data.length, 'records, total:', (response as any).total);
-
-            setModalData(data);
-            setModalPagination({
-              currentPage: (response as any).page || page,
-              totalPages: Math.ceil(((response as any).total || 0) / limit),
-              totalItems: (response as any).total || 0,
-              limit
-            });
-          } else {
-            console.log('No feedback data found. Response:', response);
-            setModalData([]);
-            setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
-          }
-          break;
           break;
 
         case 'services-detail':
@@ -1194,7 +1078,6 @@ const Overview: React.FC = () => {
 
   // Computed values (rounded, no decimals)
   const avgRating = data ? Math.round(data.feedbackAvg.overall_average.average_rating) : 0;
-  const driverTotal = data ? data.parkingStats.by_driver_type.staff + data.parkingStats.by_driver_type.visitor + data.parkingStats.by_driver_type.regular : 0;
   const maxStaff = data ? Math.max(...data.departments.map(d => d.staff), 1) : 1;
   
   // Get color based on rating
@@ -1360,7 +1243,7 @@ const Overview: React.FC = () => {
 
               {/* Mirrored rows: orange bars grow left from the center divider, blue bars grow right.
                   Bars sit on a soft full-width track; a white-fade gradient gives them depth. */}
-              <div className="space-y-3">
+                  <div className="space-y-3">
                 {deptVsServices.map(row => (
                   <div
                     key={row.name}
@@ -1373,7 +1256,7 @@ const Overview: React.FC = () => {
                       </span>
                       <div className="flex-1 h-6 bg-gray-100/80 rounded-l-lg flex justify-end overflow-hidden">
                         <div
-                          className="h-full flex items-center pl-2 shadow-sm transition-all duration-500"
+                          className="h-full shadow-sm transition-all duration-500"
                           style={{
                             width: `${Math.round((row.served / maxDeptServed) * 100)}%`,
                             minWidth: row.served > 0 ? 26 : 0,
@@ -1381,11 +1264,7 @@ const Overview: React.FC = () => {
                             backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.08), rgba(255,255,255,0.28))',
                             borderRadius: '6px 0 0 6px',
                           }}
-                        >
-                          {row.served > 0 && (
-                            <span className="text-[11px] font-bold text-white leading-none drop-shadow-sm">{row.served}</span>
-                          )}
-                        </div>
+                        ></div>
                       </div>
                     </div>
 
@@ -1405,11 +1284,7 @@ const Overview: React.FC = () => {
                             backgroundImage: 'linear-gradient(to left, rgba(0,0,0,0.08), rgba(255,255,255,0.28))',
                             borderRadius: '0 6px 6px 0',
                           }}
-                        >
-                          {row.avg > 0 && (
-                            <span className="text-[11px] font-bold text-white leading-none drop-shadow-sm">{row.avg}</span>
-                          )}
-                        </div>
+                        ></div>
                       </div>
                       <span className="w-40 sm:w-48 flex-shrink-0 text-[13px] font-medium text-gray-700 truncate">
                         {row.avg}/emp <span className="text-gray-400 font-normal">({row.staff} staff)</span>
@@ -1418,41 +1293,124 @@ const Overview: React.FC = () => {
                   </div>
                 ))}
               </div>
+
+              {/* Scale row aligned with bar areas */}
+              <div className="flex items-start mt-2">
+                <div className="flex-1 flex items-center gap-2.5 min-w-0">
+                  <span className="w-40 sm:w-48 flex-shrink-0"></span>
+                  <div className="flex-1 relative px-1" style={{ height: 24 }}>
+                    <div className="absolute inset-x-1 top-0 h-1 bg-gray-900 rounded-full"></div>
+                    {leftTicks.map((tick) => {
+                      const pct = maxDeptServed > 0 ? ((maxDeptServed - tick) / maxDeptServed) * 100 : 0;
+                      return (
+                        <div key={tick} className="absolute top-0 flex flex-col items-center" style={{ left: `calc(${pct}% + 4px)`, transform: 'translateX(-50%)' }}>
+                          <div className="w-px h-2 bg-gray-900"></div>
+                          <span className="mt-0.5 text-[11px] font-bold text-gray-900">{tick}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="w-[3px] self-stretch rounded-full mx-1 flex-shrink-0" style={{ background: `linear-gradient(to bottom, ${CC.amber}, ${CC.blue})` }}></div>
+                <div className="flex-1 flex items-center gap-2.5 min-w-0">
+                  <div className="flex-1 relative px-1" style={{ height: 24 }}>
+                    <div className="absolute inset-x-1 top-0 h-1 bg-gray-900 rounded-full"></div>
+                    {rightTicks.map((tick) => {
+                      const pct = maxDeptAvg > 0 ? (tick / maxDeptAvg) * 100 : 0;
+                      return (
+                        <div key={tick} className="absolute top-0 flex flex-col items-center" style={{ left: `calc(${pct}% + 4px)`, transform: 'translateX(-50%)' }}>
+                          <div className="w-px h-2 bg-gray-900"></div>
+                          <span className="mt-0.5 text-[11px] font-bold text-gray-900">{Number.isInteger(tick) ? tick : tick.toFixed(1)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <span className="w-40 sm:w-48 flex-shrink-0"></span>
+                </div>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Average rating by department — same design as the feedback-analysis chart;
-            click opens the ratings table + sentiment distribution */}
-        <div
-          onClick={() => handleCardClick('rating-analysis')}
-          className="bg-white p-4 relative cursor-pointer hover:shadow-md transition-all"
-          style={{ border: `1px solid ${COK.border}` }}
-        >
-          <div className="flex justify-between items-start">
-            <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: '0 0 16px 0' }}>
-              Average Rating by Department
-            </h3>
-            <span className="text-xs text-gray-400">Click for ratings &amp; sentiment</span>
-          </div>
-          {deptRatings.length === 0 ? (
-            <p className="text-sm text-gray-500" style={{ fontFamily: COK.bodyFont }}>No department feedback yet.</p>
-          ) : (
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={deptRatings} layout="vertical" margin={{ top: 5, right: 25, left: 10, bottom: 5 }}>
-                  <XAxis type="number" domain={[0, 10]} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
-                  <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
-                  <RTooltip
-                    cursor={{ fill: COK.neutralLight }}
-                    contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
-                    formatter={(value: any, _n: any, entry: any) => [`${value}/10 (${entry?.payload?.count} feedback)`, 'Avg rating']}
-                  />
-                  <Bar dataKey="rating" fill={COK.primary} radius={[0, 0, 0, 0]} barSize={16} />
-                </BarChart>
-              </ResponsiveContainer>
+        {/* Ratings row — department averages (left) next to the banded avg-feedback chart (right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+          {/* Average rating by department — same design as the feedback-analysis chart;
+              click opens the ratings table + sentiment distribution */}
+          <div
+            onClick={() => handleCardClick('rating-analysis')}
+            className="bg-white p-4 relative cursor-pointer hover:shadow-md transition-all"
+            style={{ border: `1px solid ${COK.border}` }}
+          >
+            <div className="flex justify-between items-start">
+              <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: '0 0 16px 0' }}>
+                Average Rating by Department
+              </h3>
+              <span className="text-xs text-gray-400">Click for ratings &amp; sentiment</span>
             </div>
-          )}
+            {deptRatings.length === 0 ? (
+              <p className="text-sm text-gray-500" style={{ fontFamily: COK.bodyFont }}>No department feedback yet.</p>
+            ) : (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={deptRatings} layout="vertical" margin={{ top: 5, right: 25, left: 10, bottom: 5 }}>
+                    <XAxis type="number" domain={[0, 10]} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                    <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                    <RTooltip
+                      cursor={{ fill: COK.neutralLight }}
+                      contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
+                      formatter={(value: any, _n: any, entry: any) => [`${value}/10 (${entry?.payload?.count} feedback)`, 'Avg rating']}
+                    />
+                    <Bar dataKey="rating" fill={COK.primary} radius={[0, 0, 0, 0]} barSize={16} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+
+          {/* Avg feedback rating — vertical column chart, bars colored by rating band */}
+          <div className="bg-white p-4" style={{ border: `1px solid ${COK.border}` }}>
+            <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: 0 }}>
+              Avg Feedback Rating
+            </h3>
+            <div className="text-[11px] uppercase tracking-wide text-gray-400 mt-0.5 mb-2">By department · out of 10</div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 mb-2">
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: '#059669' }}></div>Excellent (9–10)</div>
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: '#2563eb' }}></div>Good (7–8)</div>
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: '#eab308' }}></div>Average (5–6)</div>
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: '#dc2626' }}></div>Poor (&lt;5)</div>
+            </div>
+            {deptRatings.length === 0 ? (
+              <p className="text-sm text-gray-500" style={{ fontFamily: COK.bodyFont }}>No department feedback yet.</p>
+            ) : (
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={deptRatings} margin={{ top: 18, right: 10, left: -22, bottom: 30 }}>
+                    <XAxis
+                      dataKey="name"
+                      interval={0}
+                      angle={-35}
+                      textAnchor="end"
+                      tick={{ fontSize: 10, fill: '#6b7280' }}
+                      axisLine={{ stroke: COK.border }}
+                      tickLine={false}
+                    />
+                    <YAxis domain={[0, 10]} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                    <RTooltip
+                      cursor={{ fill: COK.neutralLight }}
+                      contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
+                      formatter={(value: any, _n: any, entry: any) => [`${value}/10 (${entry?.payload?.count} feedback)`, 'Avg rating']}
+                    />
+                    <Bar dataKey="rating" barSize={28} radius={[0, 0, 0, 0]}>
+                      <LabelList dataKey="rating" position="top" style={{ fontSize: 11, fontWeight: 600, fill: '#374151' }} />
+                      {deptRatings.map((d, i) => (
+                        <Cell key={i} fill={d.rating >= 9 ? '#059669' : d.rating >= 7 ? '#2563eb' : d.rating >= 5 ? '#eab308' : '#dc2626'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Services row — hourly check-ins, full width */}
@@ -1624,36 +1582,6 @@ const Overview: React.FC = () => {
               
               {/* Right Column */}
               <div className="space-y-2.5">
-                {/* Vehicles by Driver Type */}
-                <div className="bg-white border border-gray-200 p-3">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <div className="text-sm font-semibold text-gray-900">Vehicles by driver type</div>
-                      <div className="text-xs text-gray-500">Currently parked · {driverTotal} total</div>
-                    </div>
-                    <button className="text-gray-400 text-lg">⋯</button>
-                  </div>
-                  <div className="flex flex-col sm:flex-row items-center gap-4">
-                    <div className="w-32 h-32 flex-shrink-0">
-                      <canvas id="chart-donut"></canvas>
-                    </div>
-                    <div className="flex-1 space-y-2 w-full">
-                      <div className="flex justify-between items-center text-sm">
-                        <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-blue-600"></div>Staff</div>
-                        <div className="font-semibold">{data.parkingStats.by_driver_type.staff} <span className="text-gray-400 text-xs">({driverTotal ? Math.round(data.parkingStats.by_driver_type.staff / driverTotal * 100) : 0}%)</span></div>
-                      </div>
-                      <div className="flex justify-between items-center text-sm">
-                        <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-teal-600"></div>Visitor</div>
-                        <div className="font-semibold">{data.parkingStats.by_driver_type.visitor} <span className="text-gray-400 text-xs">({driverTotal ? Math.round(data.parkingStats.by_driver_type.visitor / driverTotal * 100) : 0}%)</span></div>
-                      </div>
-                      <div className="flex justify-between items-center text-sm">
-                        <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-yellow-500"></div>Regular</div>
-                        <div className="font-semibold">{data.parkingStats.by_driver_type.regular} <span className="text-gray-400 text-xs">({driverTotal ? Math.round(data.parkingStats.by_driver_type.regular / driverTotal * 100) : 0}%)</span></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
                 {/* Flagged Vehicles */}
                 <div className="bg-white border border-gray-200 p-3">
                   <div className="mb-3">
@@ -1666,37 +1594,6 @@ const Overview: React.FC = () => {
                     <div className="text-xs text-gray-500">
                       Duration: {data.flaggedVehicles.currently_flagged.min_minutes}–{data.flaggedVehicles.currently_flagged.max_minutes} min
                     </div>
-                  </div>
-                </div>
-                
-                {/* Emergency Cars */}
-                <div className="bg-white border border-gray-200 p-3">
-                  <div className="mb-3">
-                    <div className="text-sm font-semibold text-gray-900">Emergency cars</div>
-                    <div className="text-xs text-gray-500">Active vs expired status</div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="text-center">
-                      <div className="text-xl font-light text-teal-600">{data.emergencyCars.active}</div>
-                      <div className="text-xs text-gray-500">Active</div>
-                      <div className="h-1 bg-gray-100 mt-1">
-                        <div className="h-full bg-teal-600" style={{ width: `${data.emergencyCars.total > 0 ? Math.round(data.emergencyCars.active / data.emergencyCars.total * 100) : 0}%` }}></div>
-                      </div>
-                      <div className="text-[10px] text-gray-400 mt-1">{data.emergencyCars.total > 0 ? Math.round(data.emergencyCars.active / data.emergencyCars.total * 100) : 0}% of fleet</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-xl font-light text-red-600">{data.emergencyCars.expired}</div>
-                      <div className="text-xs text-gray-500">Expired</div>
-                      <div className="h-1 bg-gray-100 mt-1">
-                        <div className="h-full bg-red-600" style={{ width: `${data.emergencyCars.total > 0 ? Math.round(data.emergencyCars.expired / data.emergencyCars.total * 100) : 0}%` }}></div>
-                      </div>
-                      <div className="text-[10px] text-gray-400 mt-1">{data.emergencyCars.total > 0 ? Math.round(data.emergencyCars.expired / data.emergencyCars.total * 100) : 0}% of fleet</div>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-gray-100 text-center">
-                    <div><div className="text-sm font-semibold">{data.emergencyCars.active_vehicles_count}</div><div className="text-[10px] text-gray-400">Active vehicles</div></div>
-                    <div><div className="text-sm font-semibold">{data.emergencyCars.history_vehicles_count}</div><div className="text-[10px] text-gray-400">In history</div></div>
-                    <div><div className="text-sm font-semibold">{data.emergencyCars.total}</div><div className="text-[10px] text-gray-400">Total</div></div>
                   </div>
                 </div>
                 
@@ -1733,37 +1630,34 @@ const Overview: React.FC = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Recent Check-ins */}
+                <div className="bg-white border border-gray-200 p-3">
+                  <div className="mb-3">
+                    <div className="text-sm font-semibold text-gray-900">Recent check-ins</div>
+                    <div className="text-xs text-gray-500">Parking and visitors</div>
+                  </div>
+                  <div className="space-y-2">
+                    {recentCheckIns.length === 0 ? (
+                      <div className="text-xs text-gray-400 text-center py-3">No recent activity</div>
+                    ) : (
+                      recentCheckIns.slice(0, 5).map((item: any) => (
+                        <div key={item.id} className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${item.type === 'parking' ? 'bg-blue-600' : 'bg-teal-600'}`}></span>
+                            <span className="text-gray-700 truncate">{item.name}</span>
+                          </div>
+                          <span className="text-gray-400 flex-shrink-0 ml-2">{item.time}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
             
             {/* Bottom Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <div
-                onClick={() => handleCardClick('feedback')}
-                className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <div className="text-sm font-semibold text-gray-900">Feedback by department</div>
-                    <div className="text-xs text-gray-500">Total submissions · {data.feedbackTotals.total}</div>
-                  </div>
-                  <button className="text-gray-400 text-lg">⋯</button>
-                </div>
-                <div className="flex gap-3 text-xs mb-2">
-                  <div className="flex items-center gap-1"><div className="w-2 h-2" style={{ backgroundColor: CC.teal }}></div>Feedback count</div>
-                  <div className="flex items-center gap-1"><div className="w-3 h-0.5 rounded" style={{ backgroundColor: CC.purple }}></div>Trend</div>
-                </div>
-                {hasFeedbackByDept ? (
-                  <div className="h-40 w-full">
-                    <canvas id="chart-feedback"></canvas>
-                  </div>
-                ) : (
-                  <div className="h-40 w-full flex items-center justify-center text-xs text-gray-400">
-                    No feedback submitted yet
-                  </div>
-                )}
-              </div>
-              
+            <div className="grid grid-cols-1 gap-2.5">
               <div className="bg-white border border-gray-200 p-3">
                 <div className="flex justify-between items-start mb-3">
                   <div>
@@ -1804,7 +1698,6 @@ const Overview: React.FC = () => {
                 {selectedCard === 'flagged' && 'Flagged Vehicles Details'}
                 {selectedCard === 'services-detail' && 'Services by Department - Detailed View'}
                 {selectedCard === 'employees-detail' && 'Employees by Department'}
-                {selectedCard === 'feedback' && 'Feedback Details'}
                 {selectedCard === 'service-hourly' && 'Hourly Service Check-ins - Detailed View'}
                 {selectedCard === 'rating-analysis' && 'Ratings & Sentiment Analysis'}
                 {selectedCard === 'served-analysis' && 'Employees & People Served'}
@@ -2046,84 +1939,6 @@ const Overview: React.FC = () => {
                                     Flagged
                                   </span>
                                 </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      {/* Pagination */}
-                      <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-2">
-                        <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
-                          Showing {modalData.length} of {modalPagination.totalItems} records (Total: {modalPagination.totalItems})
-                        </div>
-                        <div className="flex gap-1 sm:gap-2">
-                          <button
-                            onClick={() => handlePageChange(modalPagination.currentPage - 1)}
-                            disabled={modalPagination.currentPage <= 1}
-                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Previous
-                          </button>
-                          <button
-                            onClick={() => handlePageChange(modalPagination.currentPage + 1)}
-                            disabled={modalPagination.currentPage >= modalPagination.totalPages}
-                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Next
-                          </button>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {selectedCard === 'feedback' && (
-                <div className="space-y-4">
-
-                  {modalLoading ? (
-                    <div className="text-center py-8">Loading feedback data...</div>
-                  ) : modalData.length === 0 ? (
-                    <div className="text-center py-8">
-                      <div className="text-gray-500 mb-2">No feedback records found</div>
-                      <div className="text-sm text-gray-400">
-                        Feedback data will appear here once visitors submit feedback through the service delivery system.
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="overflow-x-auto max-h-64 overflow-y-auto">
-                        <table className="w-full text-sm border border-gray-200">
-                          <thead className="bg-gray-50 sticky top-0 z-10">
-                            <tr>
-                              <th className="px-4 py-2 text-left border-b">User Name</th>
-                              <th className="px-4 py-2 text-left border-b">Telephone</th>
-                              <th className="px-4 py-2 text-left border-b">Department</th>
-                              <th className="px-4 py-2 text-left border-b">Rating</th>
-                              <th className="px-4 py-2 text-left border-b">Message</th>
-                              <th className="px-4 py-2 text-left border-b">Date</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {modalData.map((feedback: any, idx: number) => (
-                              <tr key={idx} className="border-b hover:bg-gray-50">
-                                <td className="px-4 py-2">{feedback.user_name || 'Anonymous'}</td>
-                                <td className="px-4 py-2">{feedback.telephone || 'N/A'}</td>
-                                <td className="px-4 py-2">{feedback.department_name || 'N/A'}</td>
-                                <td className="px-4 py-2">
-                                  <span className={`px-2 py-1 text-xs rounded ${
-                                    feedback.rate >= 4 ? 'bg-green-100 text-green-800' :
-                                    feedback.rate >= 3 ? 'bg-yellow-100 text-yellow-800' :
-                                    'bg-red-100 text-red-800'
-                                  }`}>
-                                    {feedback.rate || 0}/{feedback.rate_out_of || 5}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-2 max-w-xs truncate" title={feedback.textmessage}>
-                                  {feedback.textmessage || 'No message'}
-                                </td>
-                                <td className="px-4 py-2">{feedback.created_date ? new Date(feedback.created_date).toLocaleDateString() : 'N/A'}</td>
                               </tr>
                             ))}
                           </tbody>

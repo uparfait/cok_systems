@@ -15,8 +15,9 @@ import { useDashboard } from '../../event-managment/pages/dashboard/hooks/useDas
 
 // City of Kigali design rule palette (see desegin_rule.html)
 const COK = {
-  primary: '#34A8DB',
+  primary: '#056daa',
   success: '#4CAF50',
+  primaryDark: '#045d94',
   warning: '#F39C12',
   danger: '#E53935',
   tertiary: '#CDB896',
