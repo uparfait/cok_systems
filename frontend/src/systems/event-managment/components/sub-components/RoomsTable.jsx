@@ -29,11 +29,11 @@ export default function RoomsTable({ rooms, saving, onSaveField, onEditClick, on
         <thead className="sticky top-0 z-10">
           <tr>
             {COLUMNS.map((col) => (
-              <th key={col.key} className="bg-[#1255e5] text-white px-4 py-3.5 text-left text-xs font-bold uppercase tracking-widest border-r border-blue-400 last:border-r-0">
+              <th key={col.key} className="cok-primary-bg text-white px-4 py-3.5 text-left text-xs font-bold uppercase tracking-widest border-r border-blue-400 last:border-r-0">
                 {col.label}
               </th>
             ))}
-            <th className="bg-[#1255e5] text-white px-4 py-3.5 text-center text-xs font-bold uppercase tracking-widest">
+            <th className="cok-primary-bg text-white px-4 py-3.5 text-center text-xs font-bold uppercase tracking-widest">
               Actions
             </th>
           </tr>

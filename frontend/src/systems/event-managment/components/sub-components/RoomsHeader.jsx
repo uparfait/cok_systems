@@ -14,14 +14,14 @@ export default function RoomsHeader({
             placeholder="Search rooms..."
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-300 text-sm outline-none focus:border-[#1255e5] transition-colors"
+            className="w-full pl-10 pr-4 py-2.5 cok-auth-input"
           />
         </div>
 
         <select
           value={statusFilter}
           onChange={(e) => onStatusChange(e.target.value)}
-          className="px-3 py-2.5 border-2 border-gray-300 text-sm bg-white outline-none focus:border-[#1255e5] transition-colors"
+          className="px-3 py-2.5 border-2 border-gray-300 text-sm bg-white outline-none focus:border-[#056daa] transition-colors"
         >
           <option value="all">All Status</option>
           <option value="activeOnly">Active Only</option>
@@ -31,7 +31,7 @@ export default function RoomsHeader({
         <select
           value={sortBy}
           onChange={(e) => onSortChange(e.target.value)}
-          className="px-3 py-2.5 border-2 border-gray-300 text-sm bg-white outline-none focus:border-[#1255e5] transition-colors"
+          className="px-3 py-2.5 border-2 border-gray-300 text-sm bg-white outline-none focus:border-[#056daa] transition-colors"
         >
           <option value="new">Newest First</option>
           <option value="old">Oldest First</option>
@@ -44,7 +44,7 @@ export default function RoomsHeader({
 
         <button
           onClick={onCreateClick}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#1255e5] text-white text-sm font-bold hover:bg-blue-700 transition-colors whitespace-nowrap"
+          className="inline-flex items-center gap-2 px-4 py-2.5 cok-btn-primary max-w-[150px] text-white text-sm font-bold  transition-colors whitespace-nowrap"
         >
           <FiPlus className="w-4 h-4" />
           Add Room

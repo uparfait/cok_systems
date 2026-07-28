@@ -30,7 +30,7 @@ export default function RoomFormModal({ mode, formData, submitting, onChange, on
               required
               value={formData.roomName}
               onChange={(e) => handleChange('roomName', e.target.value)}
-              className="w-full px-4 py-2.5 border-2 border-gray-300 text-sm outline-none focus:border-[#1255e5] transition-colors"
+              className="w-full px-4 py-2.5 border-2 border-gray-300 text-sm outline-none cok-auth-input"
               placeholder="Enter room name"
             />
           </FormField>
@@ -40,7 +40,7 @@ export default function RoomFormModal({ mode, formData, submitting, onChange, on
               required
               value={formData.roomDescription}
               onChange={(e) => handleChange('roomDescription', e.target.value)}
-              className="w-full px-4 py-2.5 border-2 border-gray-300 text-sm outline-none focus:border-[#1255e5] transition-colors resize-none"
+              className="w-full px-4 py-2.5 border-2 border-gray-300 text-sm outline-none cok-auth-input resize-none"
               rows={3}
               placeholder="Enter room description"
             />
@@ -53,7 +53,7 @@ export default function RoomFormModal({ mode, formData, submitting, onChange, on
               min="1"
               value={formData.roomCapacity}
               onChange={(e) => handleChange('roomCapacity', e.target.value)}
-              className="w-full px-4 py-2.5 border-2 border-gray-300 text-sm outline-none focus:border-[#1255e5] transition-colors"
+              className="w-full px-4 py-2.5 border-2 border-gray-300 text-sm outline-none cok-auth-input"
               placeholder="Enter capacity"
             />
           </FormField>
@@ -64,7 +64,7 @@ export default function RoomFormModal({ mode, formData, submitting, onChange, on
               required
               value={formData.roomLocation}
               onChange={(e) => handleChange('roomLocation', e.target.value)}
-              className="w-full px-4 py-2.5 border-2 border-gray-300 text-sm outline-none focus:border-[#1255e5] transition-colors"
+              className="w-full px-4 py-2.5 border-2 border-gray-300 text-sm outline-none cok-auth-input"
               placeholder="Enter location"
             />
           </FormField>
@@ -74,7 +74,7 @@ export default function RoomFormModal({ mode, formData, submitting, onChange, on
               type="checkbox"
               checked={formData.isActive}
               onChange={(e) => handleChange('isActive', e.target.checked)}
-              className="w-5 h-5 border-2 border-gray-300 text-[#1255e5] focus:ring-[#1255e5]"
+              className="w-5 h-5 border-2 border-gray-300 text-[#056daa] focus:ring-[#056daa]"
             />
             <span className="text-sm font-bold text-gray-700">Active Room</span>
           </label>
@@ -83,14 +83,14 @@ export default function RoomFormModal({ mode, formData, submitting, onChange, on
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 px-4 py-3 bg-[#1255e5] text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="flex-1 px-4 py-3 cok-btn-primary  text-white text-sm font-bold  disabled:opacity-50"
             >
               {submitting ? 'Saving...' : mode === 'create' ? 'Create Room' : 'Update Room'}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-3 border-2 border-gray-300 text-sm font-medium hover:bg-gray-50 transition-colors"
+              className="px-4 py-3 text-sm font-medium cok-btn-outlined"
             >
               Cancel
             </button>
