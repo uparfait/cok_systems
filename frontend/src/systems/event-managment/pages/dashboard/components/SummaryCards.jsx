@@ -44,7 +44,7 @@ export default function SummaryCards({ summary, loading }) {
           >
             {loading && (
               <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
-                <FiLoader className="w-5 h-5 text-blue-600 animate-spin" />
+                <FiLoader className="w-5 h-5 cok-primary-color animate-spin" />
               </div>
             )}
             <div className="flex items-center justify-between">
