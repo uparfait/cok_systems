@@ -1,8 +1,8 @@
 import { FiSearch, FiCalendar, FiClock } from 'react-icons/fi';
 
-const inputClass = 'w-full px-4 py-2.5 border border-gray-300 ppp-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all duration-200';
+const inputClass = 'w-full px-4 py-2.5 cok-auth-input text-sm text-gray-900';
 const labelClass = 'block text-xs font-semibold text-gray-700 mb-2';
-const selectClass = 'w-full px-4 py-2.5 border border-gray-300 ppp-lg text-sm text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all duration-200 bg-white';
+const selectClass = 'w-full px-4 py-2.5 border border-gray-300 ppp-lg text-sm text-gray-900 focus:outline-none  transition-all duration-200 bg-white';
 
 const WEEK_DAYS = [
   { value: 0, label: 'Sun' }, { value: 1, label: 'Mon' }, { value: 2, label: 'Tue' },
@@ -36,9 +36,9 @@ export default function DateCheckForm({
                   setRecurringType('');
                 }
               }}
-              className={`px-4 py-3 ppp-lg text-sm font-medium border-2 transition-all duration-200 capitalize ${
+              className={`px-4 cursor-pointer py-3 ppp-lg text-sm font-medium border-2 transition-all duration-200 capitalize ${
                 eventMode === mode
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  ? 'border-[#056daa] bg-blue-50 cok-primary-color'
                   : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
               }`}
             >
@@ -121,7 +121,7 @@ export default function DateCheckForm({
                 {WEEK_DAYS.map((day) => (
                   <button key={day.value} type="button" onClick={() => toggleWeeklyDay(day.value)}
                     className={`px-3 py-2 ppp-lg text-xs font-medium border transition-all duration-200 ${
-                      weeklyDays.includes(day.value) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
+                      weeklyDays.includes(day.value) ? 'cok-primary-bg text-white ' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
                     }`}
                   >
                     {day.label}
@@ -155,7 +155,7 @@ export default function DateCheckForm({
       )}
 
       <button type="submit" disabled={!isValid()}
-        className="w-full px-4 py-2.5 bg-blue-600 text-white text-sm font-medium ppp-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 inline-flex items-center justify-center gap-2 shadow-sm"
+        className="w-full px-4 py-2.5  text-sm font-medium ppp-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all  inline-flex items-center justify-center gap-2 cok-btn-primary"
       >
         <FiSearch className="w-4 h-4" />
         Check All Rooms
