@@ -178,7 +178,9 @@ const DeptServicesMirror: React.FC<{
   rows: Array<{ name: string; staff: number; served: number; emp: { name: string; served: number } }>;
   cc: { amber: string; blue: string };
   scroll?: boolean;
-}> = ({ rows, cc, scroll }) => {
+  onLeftClick?: () => void;
+  onRightClick?: () => void;
+}> = ({ rows, cc, scroll, onLeftClick, onRightClick }) => {
   const maxServed = Math.max(...rows.map(r => r.served), 1);
   const maxEmp = Math.max(...rows.map(r => r.emp.served), 1);
   // At most ~6 axis ticks regardless of scale
@@ -193,11 +195,13 @@ const DeptServicesMirror: React.FC<{
 
   return (
     <div>
-      {/* Column headers, underlined in their series color like the reference design */}
+      {/* Column headers, underlined in their series color like the reference design.
+          Each half is its own click target when a handler is provided. */}
       <div className="flex items-center gap-3 mb-4">
         <div
-          className="flex-1 flex items-center gap-2 pb-2 border-b-[3px]"
+          className={`flex-1 flex items-center gap-2 pb-2 border-b-[3px] ${onLeftClick ? 'cursor-pointer' : ''}`}
           style={{ borderColor: cc.amber }}
+          onClick={onLeftClick}
         >
           <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: cc.amber }}>
             Departments
@@ -205,8 +209,9 @@ const DeptServicesMirror: React.FC<{
           <span className="text-xs text-gray-500">(people served)</span>
         </div>
         <div
-          className="flex-1 flex items-center justify-end gap-2 pb-2 border-b-[3px]"
+          className={`flex-1 flex items-center justify-end gap-2 pb-2 border-b-[3px] ${onRightClick ? 'cursor-pointer' : ''}`}
           style={{ borderColor: cc.blue }}
+          onClick={onRightClick}
         >
           <span className="text-xs text-gray-500">(services by top employee)</span>
           <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: cc.blue }}>
@@ -224,11 +229,14 @@ const DeptServicesMirror: React.FC<{
             className="flex items-center py-0.5 rounded-md hover:bg-gray-50 transition-colors"
             title={`${row.name}: ${row.served} people served · ${row.staff} staff · top employee: ${row.emp.name} (${row.emp.served} services)`}
           >
-            <div className="flex-1 flex items-center gap-2.5 min-w-0">
+            <div
+              className={`flex-1 flex items-center gap-2.5 min-w-0 ${onLeftClick ? 'cursor-pointer' : ''}`}
+              onClick={onLeftClick}
+            >
               <span className="w-40 sm:w-48 flex-shrink-0 text-right text-[13px] font-medium text-gray-700 truncate">
                 {row.name} <span className="text-gray-400 font-normal">({row.served})</span>
               </span>
-              <div className="flex-1 h-6 bg-gray-100/80 rounded-l-lg flex justify-end overflow-hidden">
+              <div className="flex-1 h-6 bg-gray-100/80 flex justify-end overflow-hidden">
                 <div
                   className="h-full shadow-sm transition-all duration-500"
                   style={{
@@ -236,7 +244,6 @@ const DeptServicesMirror: React.FC<{
                     minWidth: row.served > 0 ? 4 : 0,
                     backgroundColor: cc.amber,
                     backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.08), rgba(255,255,255,0.28))',
-                    borderRadius: '6px 0 0 6px',
                   }}
                 ></div>
               </div>
@@ -247,8 +254,11 @@ const DeptServicesMirror: React.FC<{
               style={{ background: `linear-gradient(to bottom, ${cc.amber}, ${cc.blue})` }}
             ></div>
 
-            <div className="flex-1 flex items-center gap-2.5 min-w-0">
-              <div className="flex-1 h-6 bg-gray-100/80 rounded-r-lg flex justify-start overflow-hidden">
+            <div
+              className={`flex-1 flex items-center gap-2.5 min-w-0 ${onRightClick ? 'cursor-pointer' : ''}`}
+              onClick={onRightClick}
+            >
+              <div className="flex-1 h-6 bg-gray-100/80 flex justify-start overflow-hidden">
                 {/* Width maps 1:1 to the axis so a bar of 3 ends at the 3 tick */}
                 <div
                   className="h-full shadow-sm transition-all duration-500"
@@ -257,7 +267,6 @@ const DeptServicesMirror: React.FC<{
                     minWidth: row.emp.served > 0 ? 4 : 0,
                     backgroundColor: cc.blue,
                     backgroundImage: 'linear-gradient(to left, rgba(0,0,0,0.08), rgba(255,255,255,0.28))',
-                    borderRadius: '0 6px 6px 0',
                   }}
                 ></div>
               </div>
@@ -289,7 +298,8 @@ const DeptServicesMirror: React.FC<{
             })}
           </div>
         </div>
-        <div className="w-[3px] self-stretch rounded-full mx-1 flex-shrink-0" style={{ background: `linear-gradient(to bottom, ${cc.amber}, ${cc.blue})` }}></div>
+        {/* Spacer matching the rows' center divider width, keeps the axes aligned */}
+        <div className="w-[3px] mx-1 flex-shrink-0"></div>
         <div className="flex-1 flex items-center gap-2.5 min-w-0">
           <div className="flex-1 relative px-1" style={{ height: 24 }}>
             <div className="absolute inset-x-1 top-0 h-px bg-gray-900"></div>
@@ -360,8 +370,9 @@ const Overview: React.FC = () => {
   // Completed services come from durations.services_durations; services_status entries
   // with a provider that never reached durations are counted once as well.
   const servedRecords = useMemo(() => {
-    const records: Array<{ department: string; providerId?: string; providerName?: string; date?: string }> = [];
+    const records: Array<{ department: string; providerId?: string; providerName?: string; date?: string; visitor: string }> = [];
     visitors.forEach((v: any) => {
+      const visitorName = v?.full_name || 'Unknown visitor';
       const durations = v?.durations?.services_durations || [];
       durations.forEach((s: any) => {
         if (!s?.department_name) return;
@@ -370,6 +381,7 @@ const Overview: React.FC = () => {
           providerId: s.provider_id,
           providerName: s.provider_name,
           date: s.started_at || v.entry_date,
+          visitor: visitorName,
         });
       });
       (v?.services_status || []).forEach((s: any) => {
@@ -383,6 +395,7 @@ const Overview: React.FC = () => {
             providerId: s.provider_id,
             providerName: s.provider_name,
             date: v.entry_date,
+            visitor: visitorName,
           });
         }
       });
@@ -444,12 +457,13 @@ const Overview: React.FC = () => {
   // The employees endpoint populates department as { name }, so read that first;
   // if the account has no department, fall back to where they actually served.
   const employeeServed = useMemo(() => {
-    const counts: Record<string, { name: string; count: number; dept?: string }> = {};
+    const counts: Record<string, { name: string; count: number; dept?: string; visitors: Array<{ visitor: string; department: string }> }> = {};
     filteredServed.forEach(r => {
       const key = r.providerId || r.providerName;
       if (!key) return;
-      if (!counts[key]) counts[key] = { name: r.providerName || 'Unknown provider', count: 0, dept: r.department };
+      if (!counts[key]) counts[key] = { name: r.providerName || 'Unknown provider', count: 0, dept: r.department, visitors: [] };
       counts[key].count += 1;
+      counts[key].visitors.push({ visitor: r.visitor, department: r.department });
     });
     const used = new Set<string>();
     const rows = employees.map((e: any) => {
@@ -457,13 +471,14 @@ const Overview: React.FC = () => {
       const name = e.full_name || 'Unknown';
       let served = 0;
       let servedDept: string | undefined;
-      if (id && counts[id]) { served += counts[id].count; servedDept = counts[id].dept; used.add(id); }
-      if (counts[name]) { served += counts[name].count; servedDept = servedDept || counts[name].dept; used.add(name); }
-      const accountDept = e.department?.name || e.department_name || e.department?.department_name;
-      return { name, department: accountDept || servedDept || '—', served };
+      const visitorsList: Array<{ visitor: string; department: string }> = [];
+      if (id && counts[id]) { served += counts[id].count; servedDept = counts[id].dept; visitorsList.push(...counts[id].visitors); used.add(id); }
+      if (counts[name]) { served += counts[name].count; servedDept = servedDept || counts[name].dept; visitorsList.push(...counts[name].visitors); used.add(name); }
+      const accountDept = e.department?.department_name || e.department?.name || e.department_name;
+      return { name, department: accountDept || servedDept || '—', served, visitors: visitorsList };
     });
     Object.entries(counts).forEach(([key, v]) => {
-      if (!used.has(key)) rows.push({ name: v.name, department: v.dept || '—', served: v.count });
+      if (!used.has(key)) rows.push({ name: v.name, department: v.dept || '—', served: v.count, visitors: v.visitors });
     });
     return rows.sort((a, b) => b.served - a.served);
   }, [employees, filteredServed]);
@@ -486,16 +501,19 @@ const Overview: React.FC = () => {
       if (!perDeptProvider[r.department]) perDeptProvider[r.department] = {};
       perDeptProvider[r.department][provider] = (perDeptProvider[r.department][provider] || 0) + 1;
     });
+    // Keyed by normalized department name so casing/spacing differences
+    // between the department list, service records and employee accounts still match
+    const norm = (s: string) => s.trim().toLowerCase();
     const topEmpByDept: Record<string, { name: string; served: number }> = {};
     Object.entries(perDeptProvider).forEach(([dept, providers]) => {
       const [topName, topCount] = Object.entries(providers).sort((a, b) => b[1] - a[1])[0];
-      topEmpByDept[dept] = { name: topName, served: topCount };
+      topEmpByDept[norm(dept)] = { name: topName, served: topCount };
     });
     // Departments with no serving records fall back to one of their employees at zero
     employees.forEach((e: any) => {
-      const dept = e.department?.name || e.department_name || e.department?.department_name;
-      if (dept && !topEmpByDept[dept]) {
-        topEmpByDept[dept] = { name: e.full_name || 'Unknown', served: 0 };
+      const dept = e.department?.department_name || e.department?.name || e.department_name;
+      if (dept && !topEmpByDept[norm(dept)]) {
+        topEmpByDept[norm(dept)] = { name: e.full_name || 'Unknown', served: 0 };
       }
     });
     const names = Array.from(new Set([...data.departments.map(d => d.name), ...Object.keys(servedByDept)]));
@@ -504,7 +522,7 @@ const Overview: React.FC = () => {
         name,
         staff: staffByDept[name] || 0,
         served: servedByDept[name] || 0,
-        emp: topEmpByDept[name] || { name: 'No employee', served: 0 },
+        emp: topEmpByDept[norm(name)] || { name: 'No employee', served: 0 },
       }))
       .sort((a, b) => b.served - a.served);
   }, [data, filteredServed, employees]);
@@ -515,8 +533,8 @@ const Overview: React.FC = () => {
     const active = employeeServed.filter(e => e.served > 0);
     return active.length ? active.reduce((sum, e) => sum + e.served, 0) / active.length : 0;
   }, [employeeServed]);
-  // "View all" toggle inside the departments-vs-services detail modal
-  const [showAllDeptRows, setShowAllDeptRows] = useState(false);
+  // Expanded employee row (shows the visitors they served) in the employees detail modal
+  const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
 
   // Average rating per department (out of 10) with feedback counts, best first —
   // mirrors the departmentData memo on the feedback-analysis page
@@ -598,7 +616,7 @@ const Overview: React.FC = () => {
         statisticsService.getHourlyServiceDeliveryStats(),
         statisticsService.getDepartmentsWithLeaders(),
         parkingService.getFlaggedActiveVehicles(1, 1000), // Get count for KPI
-        serviceDeliveryService.getAll(1, 1000), // Visitors with per-service provider + date
+        serviceDeliveryService.getAll(1, 1000, 'all'), // Every visitor (in-house + checked out) with per-service provider + date
         employeeService.getAll(1, 1000), // Full employee list for the served-by breakdown
         parkingService.getAllPaginated(1, 10, 'all'), // Recent parking check-ins
       ]);
@@ -1401,11 +1419,9 @@ const Overview: React.FC = () => {
       {/* Main Content */}
       <div className="p-3 space-y-2.5">
         
-        {/* Departments vs services  mirrored comparison of people served and workload per employee */}
-        <div
-          onClick={() => setSelectedCard('served-analysis')}
-          className="bg-white border border-gray-200 p-4 sm:p-5 rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-all"
-        >
+        {/* Departments vs services  mirrored comparison of people served and workload per employee.
+            Each half of the chart opens its own detail view. */}
+        <div className="bg-white border border-gray-200 p-4 sm:p-5 rounded-lg shadow-sm hover:shadow-md transition-all">
           <div className="flex justify-between items-start mb-4">
             <div>
               <div className="text-base font-bold text-gray-900">Departments vs services</div>
@@ -1416,7 +1432,9 @@ const Overview: React.FC = () => {
             <div className="text-right flex-shrink-0">
               <div className="text-2xl font-bold leading-none" style={{ color: CC.blue }}>{totalVisitorsInPeriod}</div>
               <div className="text-[11px] uppercase tracking-wide text-gray-500 mt-1">Total visitors · {periodLabel}</div>
-              <div className="text-xs text-gray-400 mt-0.5">Click to expand</div>
+              <div className="text-xs text-gray-400 mt-0.5">
+                Click <span style={{ color: CC.amber }} className="font-semibold">left</span> for departments · <span style={{ color: CC.blue }} className="font-semibold">right</span> for employees
+              </div>
             </div>
           </div>
 
@@ -1425,7 +1443,12 @@ const Overview: React.FC = () => {
               No department data available yet
             </div>
           ) : (
-            <DeptServicesMirror rows={deptVsServices.slice(0, 8)} cc={CC} />
+            <DeptServicesMirror
+              rows={deptVsServices.slice(0, 8)}
+              cc={CC}
+              onLeftClick={() => setSelectedCard('dept-served')}
+              onRightClick={() => setSelectedCard('employee-served')}
+            />
           )}
         </div>
 
@@ -1784,7 +1807,7 @@ const Overview: React.FC = () => {
             onClick={handleModalClose}
           >
           <div
-            className={`bg-white w-full ${selectedCard === 'served-analysis' ? 'max-w-6xl' : 'max-w-4xl'} mx-2 sm:mx-4 max-h-[90vh] sm:max-h-[85vh] overflow-y-auto`}
+            className={`bg-white w-full ${selectedCard === 'dept-served' || selectedCard === 'employee-served' ? 'max-w-6xl' : 'max-w-4xl'} mx-2 sm:mx-4 max-h-[90vh] sm:max-h-[85vh] overflow-y-auto`}
             onClick={e => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
@@ -1797,7 +1820,8 @@ const Overview: React.FC = () => {
                 {selectedCard === 'employees-detail' && 'Employees by Department'}
                 {selectedCard === 'service-hourly' && 'Hourly Service Check-ins - Detailed View'}
                 {selectedCard === 'rating-analysis' && 'Ratings & Sentiment Analysis'}
-                {selectedCard === 'served-analysis' && 'Departments vs Services Detailed View'}
+                {selectedCard === 'dept-served' && 'Departments & People Served'}
+                {selectedCard === 'employee-served' && 'Employees & Who They Served'}
               </h3>
               <button
                 onClick={handleModalClose}
@@ -2069,62 +2093,81 @@ const Overview: React.FC = () => {
                 </div>
               )}
 
-              {selectedCard === 'served-analysis' && (
-                <div className="space-y-5">
+              {selectedCard === 'dept-served' && (
+                <div className="space-y-4">
                   {/* Headline stats — all obey the toolbar period filter */}
                   <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-gray-600">
                     <span>Period: <span className="font-semibold capitalize">{periodLabel}</span></span>
                     <span><span className="font-semibold" style={{ color: CC.blue }}>{totalVisitorsInPeriod}</span> total visitors</span>
                     <span><span className="font-semibold" style={{ color: CC.amber }}>{filteredServed.length}</span> people served</span>
-                    <span><span className="font-semibold" style={{ color: CC.blue }}>{employeeServed.filter(e => e.served > 0).length}</span> employees served someone</span>
                   </div>
-
-                  {/* Full-size departments-vs-services chart with view-all scroll */}
                   {deptVsServices.length === 0 ? (
                     <div className="h-32 flex items-center justify-center text-xs text-gray-400">
                       No department data available yet
                     </div>
                   ) : (
-                    <div>
-                      <DeptServicesMirror
-                        rows={showAllDeptRows ? deptVsServices : deptVsServices.slice(0, 8)}
-                        cc={CC}
-                        scroll={showAllDeptRows}
-                      />
-                      {deptVsServices.length > 8 && (
-                        <div className="mt-3 text-center">
-                          <button
-                            onClick={() => setShowAllDeptRows(!showAllDeptRows)}
-                            className="text-xs px-3 py-1.5 bg-blue-600 text-white hover:bg-blue-700"
-                          >
-                            {showAllDeptRows ? 'Show top 8' : `View all (${deptVsServices.length} departments)`}
-                          </button>
-                        </div>
-                      )}
+                    <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-2">
+                      {deptVsServices.map((d, idx) => {
+                        const maxServedAll = Math.max(...deptVsServices.map(r => r.served), 1);
+                        return (
+                          <div key={idx} className="flex items-center gap-2 text-xs hover:bg-gray-50 rounded px-1 py-1">
+                            <span className="w-44 sm:w-56 flex-shrink-0 truncate text-right font-medium text-gray-800" title={d.name}>
+                              {d.name} <span className="text-gray-400 font-normal">({d.staff} staff)</span>
+                            </span>
+                            <div className="flex-1 h-5 bg-gray-100 rounded overflow-hidden">
+                              {d.served > 0 && (
+                                <div
+                                  className="h-full rounded transition-all duration-500"
+                                  style={{
+                                    width: `${(d.served / maxServedAll) * 100}%`,
+                                    minWidth: 4,
+                                    backgroundColor: CC.amber,
+                                    backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.06), rgba(255,255,255,0.25))',
+                                  }}
+                                ></div>
+                              )}
+                            </div>
+                            <span className="w-10 text-right font-semibold" style={{ color: d.served > 0 ? CC.amber : '#9ca3af' }}>{d.served}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
+                </div>
+              )}
 
-                  {/* Employee workload — every employee with services handled as bars,
-                      so overloaded staff stand out at a glance */}
-                  <div>
-                    <div className="flex flex-wrap justify-between items-center gap-2 mb-2 pt-3 border-t border-gray-100">
-                      <div className="text-sm font-semibold text-gray-900">Employee workload · services handled per employee</div>
-                      <div className="flex gap-4 text-[11px] text-gray-500">
-                        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 inline-block rounded-sm" style={{ backgroundColor: CC.blue }}></span>Normal load</span>
-                        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 inline-block rounded-sm" style={{ backgroundColor: CC.red }}></span>Overloaded (above 1.5× average)</span>
-                      </div>
+              {selectedCard === 'employee-served' && (
+                <div className="space-y-4">
+                  {/* Headline stats — all obey the toolbar period filter */}
+                  <div className="flex flex-wrap justify-between items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-gray-600">
+                      <span>Period: <span className="font-semibold capitalize">{periodLabel}</span></span>
+                      <span><span className="font-semibold" style={{ color: CC.blue }}>{employeeServed.filter(e => e.served > 0).length}</span> employees served someone</span>
+                      <span className="text-gray-400">Click an employee to see who they served</span>
                     </div>
-                    {employeeServed.length === 0 ? (
-                      <div className="text-center py-8">
-                        <div className="text-gray-500 mb-2">No employees found</div>
-                        <div className="text-sm text-gray-400">Employee service records will appear here once services are delivered.</div>
-                      </div>
-                    ) : (
-                      <div className="max-h-80 overflow-y-auto pr-1 space-y-1.5">
-                        {employeeServed.map((e, idx) => {
-                          const overloaded = avgEmployeeLoad > 0 && e.served > avgEmployeeLoad * 1.5;
-                          return (
-                            <div key={idx} className="flex items-center gap-2 text-xs hover:bg-gray-50 rounded px-1 py-0.5">
+                    <div className="flex gap-4 text-[11px] text-gray-500">
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 inline-block rounded-sm" style={{ backgroundColor: CC.blue }}></span>Normal load</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 inline-block rounded-sm" style={{ backgroundColor: CC.red }}></span>Overloaded (above 1.5× average)</span>
+                    </div>
+                  </div>
+                  {employeeServed.length === 0 ? (
+                    <div className="text-center py-8">
+                      <div className="text-gray-500 mb-2">No employees found</div>
+                      <div className="text-sm text-gray-400">Employee service records will appear here once services are delivered.</div>
+                    </div>
+                  ) : (
+                    <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-1.5">
+                      {employeeServed.map((e, idx) => {
+                        const overloaded = avgEmployeeLoad > 0 && e.served > avgEmployeeLoad * 1.5;
+                        const rowKey = `${e.name}-${idx}`;
+                        const isOpen = expandedEmployee === rowKey;
+                        return (
+                          <div key={idx}>
+                            <div
+                              onClick={() => setExpandedEmployee(isOpen ? null : rowKey)}
+                              className="flex items-center gap-2 text-xs cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5"
+                            >
+                              <span className="w-3 flex-shrink-0 text-gray-400">{isOpen ? '▾' : '▸'}</span>
                               <span className="w-36 sm:w-44 flex-shrink-0 truncate font-medium text-gray-800" title={e.name}>{e.name}</span>
                               <span className="w-28 sm:w-40 flex-shrink-0 truncate text-gray-400" title={e.department}>{e.department}</span>
                               <div className="flex-1 h-4 bg-gray-100 rounded overflow-hidden">
@@ -2132,7 +2175,7 @@ const Overview: React.FC = () => {
                                   <div
                                     className="h-full rounded transition-all duration-500"
                                     style={{
-                                      width: `${Math.max(Math.round((e.served / maxEmployeeServed) * 100), 3)}%`,
+                                      width: `${Math.max((e.served / maxEmployeeServed) * 100, 3)}%`,
                                       backgroundColor: overloaded ? CC.red : CC.blue,
                                       backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.06), rgba(255,255,255,0.25))',
                                     }}
@@ -2143,11 +2186,24 @@ const Overview: React.FC = () => {
                                 {e.served}
                               </span>
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                            {isOpen && (
+                              <div className="ml-40 sm:ml-52 my-1 pl-3 border-l-2 border-gray-200 space-y-0.5">
+                                {e.visitors.length === 0 ? (
+                                  <div className="text-[11px] text-gray-400 italic">Served no one in this period</div>
+                                ) : (
+                                  e.visitors.map((v, i) => (
+                                    <div key={i} className="text-[11px] text-gray-600">
+                                      {v.visitor} <span className="text-gray-400">· {v.department}</span>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
