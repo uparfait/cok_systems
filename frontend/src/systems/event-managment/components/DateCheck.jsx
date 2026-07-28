@@ -102,8 +102,6 @@ export default function DateCheck() {
         <div className="max-w-lg mx-auto">
           <div className="bg-white border border-gray-200 ppp-lg p-12 text-center">
             <div className="ppp-full h-8 w-8 mx-auto mb-4"><SpiralLoader /></div>
-            <p className="text-sm text-gray-500">Checking room availability...</p>
-            <p className="text-xs text-gray-400 mt-1">Scanning all active rooms for conflicts</p>
           </div>
         </div>
       </div>
