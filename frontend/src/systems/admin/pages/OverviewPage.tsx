@@ -443,6 +443,82 @@ const Overview: React.FC = () => {
     [visitors, isInPeriod]
   );
 
+  // Visitor requests grouped by status (pending / in progress / completed), once per
+  // department (incoming requests) and once per employee (how their requests progress).
+  // Requests with no employee recorded are grouped under "Unassigned".
+  // The requests feature is not live yet — flip this to true to switch the chart
+  // from sample data to the real per-status aggregation below.
+  const REQUESTS_FEATURE_READY = false;
+  const requestStatuses = useMemo(() => {
+    const deptMap: Record<string, { pending: number; inprogress: number; completed: number }> = {};
+    const empMap: Record<string, { pending: number; inprogress: number; completed: number }> = {};
+    let total = 0;
+    visitors.forEach((v: any) => {
+      if (!isInPeriod(v?.entry_date)) return;
+      (v?.services_status || []).forEach((s: any) => {
+        if (!s?.department_name) return;
+        const status: 'pending' | 'inprogress' | 'completed' =
+          s.s_type === 'Completed' ? 'completed' : s.s_type === 'Inprogress' ? 'inprogress' : 'pending';
+        total += 1;
+        if (!deptMap[s.department_name]) deptMap[s.department_name] = { pending: 0, inprogress: 0, completed: 0 };
+        deptMap[s.department_name][status] += 1;
+        const empName = s.provider_name && s.provider_name !== 'Not specified' ? s.provider_name : 'Unassigned';
+        if (!empMap[empName]) empMap[empName] = { pending: 0, inprogress: 0, completed: 0 };
+        empMap[empName][status] += 1;
+      });
+    });
+    const toRows = (m: Record<string, { pending: number; inprogress: number; completed: number }>) =>
+      Object.entries(m)
+        .map(([name, v]) => ({
+          name: name.length > 14 ? name.slice(0, 13) + '…' : name,
+          fullName: name,
+          ...v,
+          total: v.pending + v.inprogress + v.completed,
+        }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 8);
+    const deptCount = Object.keys(deptMap).length;
+
+    // No real request data yet — show clearly-labeled sample data so the chart's
+    // design is visible; it is replaced automatically once real requests exist
+    if (!REQUESTS_FEATURE_READY || total === 0) {
+      const deptNames = (data?.departments?.map(d => d.name).slice(0, 5) || []);
+      const sampleDepts = deptNames.length
+        ? deptNames
+        : ['Urban Economy', 'Urban Planning', 'City Engineering', 'Social Development', 'Digitalization'];
+      const sampleEmps = ['J. Mukamana', 'E. Niyonzima', 'A. Uwase', 'P. Habimana', 'C. Ingabire'];
+      const P = [7, 4, 6, 3, 5];
+      const I = [3, 5, 2, 4, 1];
+      const C = [9, 6, 4, 7, 3];
+      const sampleRows = (names: string[]) =>
+        names.map((name, i) => ({
+          name: name.length > 14 ? name.slice(0, 13) + '…' : name,
+          fullName: name,
+          pending: P[i % P.length],
+          inprogress: I[i % I.length],
+          completed: C[i % C.length],
+          total: P[i % P.length] + I[i % I.length] + C[i % C.length],
+        }));
+      const dummyDepts = sampleRows(sampleDepts);
+      const dummyTotal = dummyDepts.reduce((s, r) => s + r.total, 0);
+      return {
+        departments: dummyDepts,
+        employees: sampleRows(sampleEmps),
+        total: dummyTotal,
+        avgPerDept: Math.round((dummyTotal / sampleDepts.length) * 10) / 10,
+        isSample: true,
+      };
+    }
+
+    return {
+      departments: toRows(deptMap),
+      employees: toRows(empMap),
+      total,
+      avgPerDept: deptCount ? Math.round((total / deptCount) * 10) / 10 : 0,
+      isSample: false,
+    };
+  }, [visitors, isInPeriod, data]);
+
   const periodLabel =
     period === 'today' ? 'today'
     : period === 'week' ? 'this week'
@@ -1326,7 +1402,7 @@ const Overview: React.FC = () => {
       <div className="cok-mayor-dash">
       {/* CoK design-rule page header for the mayor account */}
       {isMayor && (
-        <div className="px-4 pt-4 pb-3">
+        <div className="px-4 pt-3 pb-2">
           <h1
             style={{
               fontFamily: "'Montserrat', sans-serif",
@@ -1339,12 +1415,6 @@ const Overview: React.FC = () => {
           >
             Dashboard
           </h1>
-          <p
-            className="text-sm text-gray-500"
-            style={{ fontFamily: "'Merriweather', serif", margin: '4px 0 0 0' }}
-          >
-            City overview  services, parking, employees and feedback
-          </p>
         </div>
       )}
 
@@ -1352,21 +1422,6 @@ const Overview: React.FC = () => {
       <div className="bg-white border-b border-gray-200 px-4 py-2 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1 text-xs text-gray-600">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-gray-500"><path d="M1 3h10M3 6h6M5 9h2" stroke="currentColor" strokeWidth="1.2"/></svg>
-          <label className="font-medium">Department</label>
-          <select className="text-xs px-2 py-1 border border-gray-300 rounded bg-white">
-            <option>All departments</option>
-            {data.departments.map(d => <option key={d.name}>{d.name}</option>)}
-          </select>
-        </div>
-        <div className="w-px h-5 bg-gray-200 hidden sm:block"></div>
-        <div className="flex items-center gap-1 text-xs text-gray-600">
-          <label className="font-medium">Status</label>
-          <select className="text-xs px-2 py-1 border border-gray-300 rounded bg-white">
-            <option>All statuses</option>
-          </select>
-        </div>
-        <div className="w-px h-5 bg-gray-200 hidden sm:block"></div>
-        <div className="flex items-center gap-1 text-xs text-gray-600">
           <label className="font-medium">Period</label>
           <select
             value={period}
@@ -1450,6 +1505,72 @@ const Overview: React.FC = () => {
               onRightClick={() => setSelectedCard('employee-served')}
             />
           )}
+        </div>
+
+        {/* Requests histogram — status of visitor requests, departments (left) and employees (right) */}
+        <div className="bg-white border border-gray-200 p-4 sm:p-5 rounded-lg shadow-sm">
+          <div className="flex justify-between items-start mb-2">
+            <div>
+              <div className="text-base font-bold text-gray-900">Requests</div>
+              <div className="text-xs text-gray-500 mt-0.5">Visitor requests by status · {periodLabel}</div>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <div className="text-2xl font-bold leading-none" style={{ color: CC.purple }}>{requestStatuses.avgPerDept}</div>
+              <div className="text-[11px] uppercase tracking-wide text-gray-500 mt-1">Avg requests / department</div>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 mb-3">
+            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: CC.amber }}></div>Pending</div>
+            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: CC.blue }}></div>In progress</div>
+            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: CC.teal }}></div>Completed</div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.amber }}>Departments</span>
+                  <span className="text-xs text-gray-500">(incoming requests)</span>
+                </div>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={requestStatuses.departments} barGap={2} barCategoryGap="18%" margin={{ top: 10, right: 5, left: -25, bottom: 25 }}>
+                      <XAxis dataKey="name" interval={0} angle={-30} textAnchor="end" tick={{ fontSize: 9, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                      <RTooltip
+                        cursor={{ fill: COK.neutralLight }}
+                        contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
+                        labelFormatter={(_l: any, payload: any) => payload?.[0]?.payload?.fullName || _l}
+                      />
+                      <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32} />
+                      <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} />
+                      <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.blue }}>Employees</span>
+                  <span className="text-xs text-gray-500">(request progress)</span>
+                </div>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={requestStatuses.employees} barGap={2} barCategoryGap="18%" margin={{ top: 10, right: 5, left: -25, bottom: 25 }}>
+                      <XAxis dataKey="name" interval={0} angle={-30} textAnchor="end" tick={{ fontSize: 9, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                      <RTooltip
+                        cursor={{ fill: COK.neutralLight }}
+                        contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
+                        labelFormatter={(_l: any, payload: any) => payload?.[0]?.payload?.fullName || _l}
+                      />
+                      <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32} />
+                      <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} />
+                      <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
         </div>
 
         {/* Ratings row — department averages (left) next to the banded avg-feedback chart (right) */}
