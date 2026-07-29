@@ -492,6 +492,7 @@ body {
   font-weight: 500;
   letter-spacing: 0.2px;
   line-height: 1.4;
+  padding-left: 40px;
   width: 100%;
   color: var(--cok-neutral-dark);
   background-color: #FFFFFF;
@@ -545,6 +546,10 @@ body {
   background-color: #056daa;;
 }
 
+.cok-bg-primary {
+  background-color: #056daa;
+}
+
 .cok-btn-primary:hover {
   background-color: #045d94;
 }
@@ -569,6 +574,7 @@ background-color: #056daa;
 .cok-btn-outlined {
   font-family: var(--cok-font-heading);
   font-size: 12px;
+  
   font-weight: 600;
   letter-spacing: 1px;
   line-height: 1.4;
@@ -580,6 +586,27 @@ background-color: #056daa;
   padding: 0.6rem 1rem;
   cursor: pointer;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.cok-btn-outlined-reverse {
+  font-family: var(--cok-font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--cok-text-white); /* booking-page primary */
+  border: 1px solid white;
+  background-color: #056daa;
+  border-radius: 0;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.cok-btn-outlined-reverse:hover {
+  color:  #056daa;
+  border: 1px solid #056daa;
+  background-color:  white;
 }
 
 .cok-btn-outlined:hover {

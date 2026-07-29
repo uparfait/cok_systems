@@ -1,3 +1,4 @@
+import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 import React from 'react';
 import { FiLoader, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
@@ -31,6 +32,8 @@ export interface TableProps {
   maxHeight?: string;
   minWidth?: string;
   className?: string;
+  headerClassName?: string;
+  headerStyle?: React.CSSProperties;
 }
 
 const Table: React.FC<TableProps> = ({
@@ -42,9 +45,11 @@ const Table: React.FC<TableProps> = ({
   rowClassName,
   emptyMessage = 'No data found',
   renderCell,
-  maxHeight = '400px',
+  maxHeight = '65vh',
   minWidth = '800px',
-  className = ''
+  className = '',
+  headerClassName,
+  headerStyle,
 }) => {
   const navigate = useNavigate();
 
@@ -90,7 +95,7 @@ const Table: React.FC<TableProps> = ({
       >
         <table className="w-full">
           {/* Header */}
-          <thead className="bg-blue-600 text-white sticky top-0 z-10 shadow-sm">
+          <thead className={`${headerClassName || ''} text-white sticky top-0 z-10 shadow-sm`} style={headerStyle}>
             <tr>
               {headers.map((header, index) => (
                 <th
@@ -109,8 +114,7 @@ const Table: React.FC<TableProps> = ({
               <tr>
                 <td colSpan={headers.length} className="px-6 py-12 text-center">
                   <div className="flex justify-center items-center gap-3">
-                    <FiLoader className="w-6 h-6 animate-spin text-blue-600" />
-                    <span className="text-gray-500">Loading...</span>
+                    <SpiralLoader />
                   </div>
                 </td>
               </tr>
