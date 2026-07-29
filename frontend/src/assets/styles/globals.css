@@ -298,6 +298,15 @@ html, body {
   background: #056daa;
 }
 
+/* Scrollable but with the scrollbar itself hidden (swipe / shift+wheel still work) */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Align native date pickers, dropdowns & form controls to the brand blue */
 input[type="date"],
 input[type="datetime-local"],

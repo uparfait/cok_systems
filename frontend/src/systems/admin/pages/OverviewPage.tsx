@@ -29,7 +29,7 @@ interface DashboardData {
 
 // ==================== CONSTANTS ====================
 
-const SERVICE_HOURS = ['9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19'];
+const SERVICE_HOURS = ['9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19']; 
 
 // Helper function to format hour labels with AM/PM
 const formatHourLabel = (hour: number): string => {
@@ -56,14 +56,13 @@ const classifySentiment = (rate?: number, rateOutOf?: number): Sentiment => {
   if (ratio >= 0.4) return 'neutral';
   return 'negative';
 };
-
 // Helper to get chart config with dynamic Y-axis ticks
 const getChartConfig = (maxValue: number, minValue: number = 0) => {
   // Calculate dynamic step size using "nice numbers" algorithm
   const range = maxValue - minValue;
-  const targetSteps = 5; // Aim for about 5-7 ticks on Y-axis
+  const targetSteps = 5; // Aim for about 5-7 ticks on Y-axis 
 
-  // Calculate rough step size
+  // Calculate rough step size 
   const roughStep = range / targetSteps;
 
   // Find the magnitude (power of 10)
@@ -169,14 +168,12 @@ const barValueLabels = {
 
 // ==================== MAIN COMPONENT ====================
 
-// Speedometer-style gauge: one colored segment per service hour (yellow → green → red
-// like a meter), with a needle pointing at the hour with the most check-ins and the
-// peak count shown in the center
+// Speedometer-style gauge — needle points at the hour of the LAST check-in; that hour's count shown in the center
 const HourGauge: React.FC<{ hours: Array<{ hour: number; count: number }> }> = ({ hours }) => {
   if (!hours.length) return null;
   const n = hours.length;
-  const peakIdx = hours.reduce((best, h, i) => (h.count > hours[best].count ? i : best), 0);
-  const peak = hours[peakIdx];
+  const lastIdx = hours.reduce((best, h, i) => (h.count > 0 ? i : best), 0);
+  const last = hours[lastIdx];
   const cx = 100;
   const cy = 100;
   const rOuter = 92;
@@ -187,7 +184,7 @@ const HourGauge: React.FC<{ hours: Array<{ hour: number; count: number }> }> = (
   // deg 0 = far left of the dial, deg 180 = far right
   const pt = (r: number, deg: number) => ({ x: cx - r * Math.cos(rad(deg)), y: cy - r * Math.sin(rad(deg)) });
   const segColor = (i: number) => (i < n * 0.3 ? '#F5C542' : i < n * 0.7 ? '#4CAF50' : '#E53935');
-  const needleDeg = peakIdx * seg + seg / 2;
+  const needleDeg = lastIdx * seg + seg / 2;
   const tip = pt(rInner - 4, needleDeg);
   const baseHalf = 4;
   const b1 = { x: cx - baseHalf * Math.cos(rad(needleDeg + 90)), y: cy - baseHalf * Math.sin(rad(needleDeg + 90)) };
@@ -216,18 +213,18 @@ const HourGauge: React.FC<{ hours: Array<{ hour: number; count: number }> }> = (
             </g>
           );
         })}
-        {/* Peak count in the center of the dial */}
+        {/* Check-in count of the last-check-in hour, centered in the dial */}
         <text x={cx} y={cy - 28} textAnchor="middle" fontSize="24" fontWeight="800" fill="#111827">
-          {peak.count}
+          {last.count}
         </text>
-        {/* Needle pointing at the busiest hour */}
+        {/* Needle pointing at the hour of the last check-in */}
         <polygon points={`${tip.x},${tip.y} ${b1.x},${b1.y} ${b2.x},${b2.y}`} fill="#1f2937" />
         <circle cx={cx} cy={cy} r="8" fill="#1f2937" stroke="#fff" strokeWidth="2" />
         <circle cx={cx} cy={cy} r="2.6" fill="#E53935" />
       </svg>
       <div className="text-xs text-gray-500 mt-1">
-        Peak: <span className="font-semibold text-gray-800">{peak.count} check-ins</span> at{' '}
-        <span className="font-semibold text-gray-800">{formatHourLabel(peak.hour)}</span>
+        Last check-in: <span className="font-semibold text-gray-800">{formatHourLabel(last.hour)}</span> ·{' '}
+        <span className="font-semibold text-gray-800">{last.count} check-ins</span> that hour
       </div>
     </div>
   );
@@ -388,7 +385,7 @@ const Overview: React.FC = () => {
   const navigate = useNavigate();
   const { showError, showSuccess } = useToast();
 
-  // Mayor accounts use the City of Kigali design-rule palette for charts
+  // CHART COLORS: all charts read from CC — first palette = mayor, second = admin; change a hex to recolor everywhere
   const isMayor = (user?.role || '').toLowerCase().includes('mayor');
   const CC = useMemo(
     () =>
@@ -892,7 +889,7 @@ const Overview: React.FC = () => {
     
     const deptNames = data.departments.map(d => d.name);
 
-    // 3. Employees Chart (Bar chart)
+    // CHART 8 config · "Employees per department" — color: backgroundColor, thickness: maxBarThickness, size: h-80 div in JSX
     const empCanvas = document.getElementById('chart-employees') as HTMLCanvasElement;
     if (empCanvas && deptNames.length) {
       const empData = data.departments.map(d => d.staff);
@@ -935,7 +932,7 @@ const Overview: React.FC = () => {
       }));
     }
     
-    // 7. Employee Status Chart (Donut)
+    // CHART 9 config · "Employee account status" donut — slice colors: backgroundColor array, ring: cutout, size: canvas classes in JSX
     const statusCanvas = document.getElementById('chart-status') as HTMLCanvasElement;
     if (statusCanvas) {
       chartsRef.current.set('status', new Chart(statusCanvas, {
@@ -1187,7 +1184,7 @@ const Overview: React.FC = () => {
     setSelectedCard(null);
   }, []);
 
-  // Create modal charts when selectedCard changes
+  // POPUP CHARTS A & B (inside modals) — configured below; height on the container divs in modal JSX
   useEffect(() => {
     if (selectedCard === 'services-detail' && modalData.length > 0) {
       const createServicesChart = () => {
@@ -1479,8 +1476,7 @@ const Overview: React.FC = () => {
       {/* Main Content */}
       <div className="p-3 space-y-2.5">
         
-        {/* Departments vs services  mirrored comparison of people served and workload per employee.
-            Each half of the chart opens its own detail view. */}
+        {/* CHART 1 · "Departments vs services" — drawn by DeptServicesMirror (top of file); colors from CC */}
         <div className="bg-white border border-gray-200 p-4 sm:p-5 rounded-lg shadow-sm hover:shadow-md transition-all">
           <div className="flex justify-between items-start mb-4">
             <div>
@@ -1512,7 +1508,7 @@ const Overview: React.FC = () => {
           )}
         </div>
 
-        {/* Requests histogram — status of visitor requests, departments (left) and employees (right) */}
+        {/* CHARTS 2 & 3 · "Requests" histograms — height: h-56 divs, colors: fill= on each <Bar>, bar width: maxBarSize */}
         <div className="bg-white border border-gray-200 p-4 sm:p-5 rounded-lg shadow-sm">
           <div className="flex justify-between items-start mb-2">
             <div>
@@ -1537,7 +1533,9 @@ const Overview: React.FC = () => {
                   <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.amber }}>Departments</span>
                   <span className="text-xs text-gray-500">(incoming requests)</span>
                 </div>
-                <div className="h-56">
+                {/* Scrolls horizontally when many departments (110px each) — scrollbar hidden via no-scrollbar */}
+                <div className="h-56 overflow-x-auto no-scrollbar">
+                  <div className="h-full" style={{ minWidth: `${requestStatuses.departments.length * 110}px` }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={requestStatuses.departments} barGap={2} barCategoryGap="18%" margin={{ top: 10, right: 5, left: -25, bottom: 25 }}>
                       <XAxis dataKey="name" interval={0} angle={-30} textAnchor="end" tick={{ fontSize: 9, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
@@ -1553,6 +1551,7 @@ const Overview: React.FC = () => {
                       <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32} />
                     </BarChart>
                   </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
               <div>
@@ -1560,7 +1559,9 @@ const Overview: React.FC = () => {
                   <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.blue }}>Employees</span>
                   <span className="text-xs text-gray-500">(request progress)</span>
                 </div>
-                <div className="h-56">
+                {/* Scrolls horizontally when many employees (110px each) — scrollbar hidden via no-scrollbar */}
+                <div className="h-56 overflow-x-auto no-scrollbar">
+                  <div className="h-full" style={{ minWidth: `${requestStatuses.employees.length * 110}px` }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={requestStatuses.employees} barGap={2} barCategoryGap="18%" margin={{ top: 10, right: 5, left: -25, bottom: 25 }}>
                       <XAxis dataKey="name" interval={0} angle={-30} textAnchor="end" tick={{ fontSize: 9, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
@@ -1576,6 +1577,7 @@ const Overview: React.FC = () => {
                       <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32} />
                     </BarChart>
                   </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1583,8 +1585,7 @@ const Overview: React.FC = () => {
 
         {/* Ratings row — department averages (left) next to the banded avg-feedback chart (right) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
-          {/* Average rating by department — same design as the feedback-analysis chart;
-              click opens the ratings table + sentiment distribution */}
+          {/* CHART 4 · "Average Rating by Department" — height: h-64 div, color: fill= on <Bar>, thickness: barSize */}
           <div
             onClick={() => { setSentimentFilter('all'); handleCardClick('rating-analysis'); }}
             className="bg-white p-4 relative cursor-pointer hover:shadow-md transition-all"
@@ -1616,8 +1617,7 @@ const Overview: React.FC = () => {
             )}
           </div>
 
-          {/* Sentiment climb — bars colored negative → neutral → positive with a trend line,
-              sorted so the department with the highest positive rating is the tallest */}
+          {/* CHART 5 · "Department Sentiment" — height: h-64 div, bar colors: SENTIMENT_META, trend line: <Line> stroke */}
           <div className="bg-white p-4" style={{ border: `1px solid ${COK.border}` }}>
           <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: 0 }}>
             Department Sentiment
@@ -1675,7 +1675,7 @@ const Overview: React.FC = () => {
           </div>
         </div>
 
-        {/* Services + parking row — check-in gauge (left) and parking trends (right) */}
+        {/* CHART 6 · "Hourly service check-ins" — drawn by HourGauge (top of file); edit bars/colors there */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
           <div
             onClick={() => { setModalHourPeriod(null); handleCardClick('service-hourly'); }}
@@ -1696,7 +1696,7 @@ const Overview: React.FC = () => {
             )}
           </div>
 
-          {/* Parking Usage Trends — same area chart as the admin smart-parking dashboard */}
+          {/* CHART 7 · "Parking Usage Trends" — height: h-48 div, colors: stroke (line) + fill (shade) on each <Area> */}
           <div className="bg-white border border-gray-200 p-3">
             <div className="mb-3">
               <div className="text-sm font-semibold text-gray-900">Parking Usage Trends</div>
@@ -1729,7 +1729,7 @@ const Overview: React.FC = () => {
 
               {/* Left Column */}
               <div className="space-y-2.5">
-                {/* Employees per department */}
+                {/* CHART 8 · "Employees per department" — height: h-80 div; color/thickness in createCharts (search: CHART 8 config) */}
                 <div className="grid grid-cols-1 gap-2.5">
                   <div
                     onClick={() => handleCardClick('employees-detail')}
@@ -1873,7 +1873,7 @@ const Overview: React.FC = () => {
               
             </div>
             
-            {/* Bottom Row */}
+            {/* CHART 9 · "Employee account status" — size: h-32 div + canvas classes; colors in createCharts (search: CHART 9 config) */}
             <div className="grid grid-cols-1 gap-2.5">
               <div
                 onClick={() => { setEmpStatusFilter('all'); setSelectedCard('employee-status'); }}
