@@ -112,7 +112,7 @@ export const CokBadge = ({ label, color }: { label: string; color: string }) => 
   </span>
 );
 
-// Table header cell styled like the event manager's Rooms/Events tables,
+// Table header 
 // in the CoK primary color
 export const CokTh = ({ children, center }: { children: React.ReactNode; center?: boolean }) => (
   <th
