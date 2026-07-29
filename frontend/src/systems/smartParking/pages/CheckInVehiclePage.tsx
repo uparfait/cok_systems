@@ -1,4 +1,3 @@
-// CheckInVehiclePage - Smart Parking System check-in page for gate officers to verify and register vehicles
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -12,6 +11,7 @@ import {
   FiSearch, FiCheckCircle, FiAlertTriangle, FiUser, FiPhone, FiPlus, FiX, FiFlag, FiSlash, FiEdit, FiAlertCircle, FiAward, FiCreditCard
 } from 'react-icons/fi';
 import { BsShieldCheck } from 'react-icons/bs';
+import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 
 // City of Kigali (CoK) institutional design constants
 const PRIMARY = "#056daa";
@@ -22,13 +22,13 @@ const DANGER = "#E74C3C";
 const NEUTRAL_LIGHT = "#F7F9FB";
 const NEUTRAL_DARK = "#333333";
 const BORDER = "#E0E0E0";
-const TERTIARY = "#CDB896";
+const TERTIARY = "#555555";
 const WHITE = "#FFFFFF";
 const GRAY_DISABLED = "#9E9E9E";
 const fontHeading = "'Montserrat', sans-serif";
 const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
-const INPUT_SHADOW = "0px 2px 4px rgba(0,0,0,0.1)";
-const INPUT_FOCUS_SHADOW = "0px 4px 8px rgba(5,109,170,0.25)";
+const INPUT_SHADOW = "0";
+const INPUT_FOCUS_SHADOW = "0";
 
 const labelStyle: React.CSSProperties = {
   fontFamily: fontHeading,
@@ -39,15 +39,7 @@ const labelStyle: React.CSSProperties = {
   color: TERTIARY,
 };
 
-const inputStyle: React.CSSProperties = {
-  fontFamily: fontHeading,
-  fontSize: '14px',
-  backgroundColor: NEUTRAL_LIGHT,
-  border: '1px solid transparent',
-  borderRadius: 0,
-  boxShadow: INPUT_SHADOW,
-  color: NEUTRAL_DARK,
-};
+
 
 const buttonFont: React.CSSProperties = {
   borderRadius: 0,
@@ -332,7 +324,7 @@ const CheckInVehiclePage: React.FC = () => {
         badge_number: driverInfo.badge_number?.trim() || null,
       };
 
-      console.log('🔍 [CheckInVehicle - Known] ID Number being sent:', checkInData);
+      console.log('[CheckInVehicle - Known] ID Number being sent:', checkInData);
 
       const response = await smartParkingService.checkIn(checkInData);
 
@@ -387,7 +379,7 @@ const CheckInVehiclePage: React.FC = () => {
         } : {}
       };
 
-      console.log('🔍 [CheckInVehicle - Unknown] ID Number being sent:', checkInData);
+      console.log(' [CheckInVehicle - Unknown] ID Number being sent:', checkInData);
 
       const response = await smartParkingService.checkIn(checkInData);
       
@@ -484,8 +476,8 @@ const CheckInVehiclePage: React.FC = () => {
             {/* Manual Verification Panel - Centered */}
             <div className="p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
               <div className="-mx-6 -mt-6 px-6 pt-6 pb-4 mb-4" style={{ backgroundColor: NEUTRAL_LIGHT, borderBottom: `1px solid ${BORDER}` }}>
-                <h2 className="text-lg font-bold mb-1" style={{ color: PRIMARY, fontFamily: fontHeading }}>Manual Verification</h2>
-                <p className="text-xs" style={{ color: '#555555' }}>Enter plate number manually</p>
+                <h2 className="text-lg font-bold mb-1" style={{ color: PRIMARY, fontFamily: fontHeading }}>Plate Number Verification</h2>
+                <p className="text-xs" style={{ color: '#555555' }}>Enter plate number</p>
               </div>
               
               <div className="mb-4">
@@ -496,10 +488,8 @@ const CheckInVehiclePage: React.FC = () => {
                   onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
                   onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
                   placeholder=".........................."
-                  className="w-full p-3 font-bold uppercase tracking-wider focus:outline-none"
-                  style={inputStyle}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }}
+                  className="cok-auth-input pr-3 py-3"
+                
                 />
               </div>
 
@@ -511,7 +501,7 @@ const CheckInVehiclePage: React.FC = () => {
                 </div>
               ) : (
                 <div className="p-3 mb-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
-                  <div className="text-xs text-center" style={{ color: GRAY_DISABLED }}>Enter plate number to verify</div>
+                  <div className="text-xs text-center" style={{ color: GRAY_DISABLED }}>Enter plate above number to verify</div>
                 </div>
               )}
 
@@ -519,77 +509,32 @@ const CheckInVehiclePage: React.FC = () => {
                 type="button"
                 onClick={() => handleVerify()}
                 disabled={verifying || !plateNumber.trim()}
-                className="w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-1 transition-colors"
+                className="w-full py-3 max-h-[50px]  cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-1 transition-colors"
                 style={{ ...buttonFont, border: 'none', backgroundColor: PRIMARY, color: WHITE }}
                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
               >
                 {verifying ? (
                   <span className="flex items-center gap-2">
-                    <FiSearch className="w-4 h-4 animate-spin" />
+                    <SpiralLoader color="#FFFFFFF" />
                     <span>Verifying plate...</span>
                   </span>
                 ) : (
                   <>
                     <div className="flex items-center gap-2">
                       <BsShieldCheck className="w-5 h-5" />
-                      <span>Verify & Open</span>
+                      <span>Verify PLATE NUMBER</span>
                     </div>
-                    <span className="text-xs font-normal" style={{ color: 'rgba(255,255,255,0.75)', textTransform: 'none', letterSpacing: 'normal' }}>Click to simulate</span>
                   </>
                 )}
               </button>
 
-              {verifying && (
-                <button
-                  type="button"
-                  onClick={handleDenyEntry}
-                  className="w-full mt-3 py-2 transition-colors flex items-center justify-center gap-2"
-                  style={{ ...buttonFont, backgroundColor: 'transparent', border: `1px solid ${DANGER}`, color: DANGER }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(231,76,60,0.08)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                >
-                  <FiX className="w-4 h-4" />
-                  Cancel Verification
-                </button>
-              )}
-
-              <div className="flex gap-2 mt-6">
-                <button 
-                  type="button"
-                  onClick={handleDenyEntry}
-                  className="flex-1 py-2 transition-colors flex items-center justify-center gap-2"
-                  style={{ ...buttonFont, backgroundColor: 'transparent', border: `1px solid ${BORDER}`, color: NEUTRAL_DARK }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = NEUTRAL_LIGHT; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                >
-                  <FiSlash className="w-4 h-4" />
-                  Deny Entry
-                </button>
-                <button 
-                  type="button"
-                  onClick={handleFlagIssue}
-                  disabled={loading || !verifiedData}
-                  className="flex-1 py-2 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                  style={{ ...buttonFont, backgroundColor: 'transparent', border: `1px solid ${BORDER}`, color: NEUTRAL_DARK }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = DANGER; e.currentTarget.style.color = WHITE; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = NEUTRAL_DARK; }}
-                >
-                  <FiFlag className="w-4 h-4" />
-                  Flag Issue
-                </button>
-              </div>
+            
             </div>
           </div>
         </div>
 
-        {/* Connection Status */}
-        <div className="mt-6 flex items-center justify-center gap-2">
-          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: isConnected ? SUCCESS : DANGER }} />
-          <span className="text-sm" style={{ color: '#555555' }}>
-            {isConnected ? 'Real-time connection active' : 'Disconnected - Enter plate manually'}
-          </span>
-        </div>
+        
       </div>
 
       {/* Found Vehicle Modal */}
@@ -648,8 +593,8 @@ const CheckInVehiclePage: React.FC = () => {
                   </div>
                   {/* Only show edit button if vehicle is not currently parked AND not reserved */}
                   {!verifiedData.is_currently_parked && !verifiedData.is_reserved && (
-                    <button type="button" onClick={() => setIsEditingDriver(!isEditingDriver)} className="text-xs flex items-center gap-1" style={{ color: PRIMARY }}>
-                      <FiEdit className="w-3 h-3" />
+                    <button type="button" onClick={() => setIsEditingDriver(!isEditingDriver)} className="cok-btn-outlined" >
+                      
                       {isEditingDriver ? 'Cancel' : 'Edit'}
                     </button>
                   )}
@@ -659,11 +604,11 @@ const CheckInVehiclePage: React.FC = () => {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label style={labelStyle}>Name</label>
-                      <input type="text" name="name" value={driverInfo.name} onChange={handleDriverInfoChange} className="w-full px-2 py-1 focus:outline-none" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} />
+                      <input type="text" name="name" value={driverInfo.name} onChange={handleDriverInfoChange} className="cok-auth-input pr-3 py-3"   />
                     </div>
                     <div>
                       <label style={labelStyle}>Phone</label>
-                      <input type="tel" name="telephone" value={driverInfo.telephone} onChange={handleDriverInfoChange} className="w-full px-2 py-1 focus:outline-none" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} />
+                      <input type="tel" name="telephone" value={driverInfo.telephone} onChange={handleDriverInfoChange} className="cok-auth-input pr-3 py-3"   />
                     </div>
                     <div className="col-span-2">
                       <label style={labelStyle}>
@@ -674,7 +619,7 @@ const CheckInVehiclePage: React.FC = () => {
                         name="badge_number" 
                         value={driverInfo.badge_number} 
                         onChange={handleDriverInfoChange} 
-                        className="w-full px-2 py-1 focus:outline-none" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }}
+                        className="cok-auth-input pr-3 py-3"  
                         required={!verifiedData.is_reserved}
                       />
                     </div>
@@ -722,8 +667,8 @@ const CheckInVehiclePage: React.FC = () => {
                 {verifiedData.is_currently_parked ? 'Already Checked In' : verifiedData.is_reserved ? 'Confirm Entry (Reserved Vehicle)' : 'Confirm Entry & Open Gate'}
               </button>
 
-              <button type="button" onClick={closeAllModals} className="w-full mt-2 py-2 flex items-center justify-center gap-2 transition-colors" style={{ ...buttonFont, backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY }}>
-                <FiX className="w-4 h-4" />
+              <button type="button" onClick={closeAllModals} className="w-full mt-5 cok-btn-outlined" >
+                
                 {verifiedData.is_currently_parked ? 'Close' : 'Cancel'}
               </button>
             </div>
@@ -753,7 +698,7 @@ const CheckInVehiclePage: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block mb-1" style={labelStyle}>Plate Number</label>
-                  <input type="text" name="plate_number" value={unknownForm.plate_number} disabled placeholder="Enter plate number" className="w-full px-3 py-2 font-semibold uppercase" style={inputStyle} />
+                  <input type="text" name="plate_number" value={unknownForm.plate_number} disabled placeholder="Enter plate number" className="cok-auth-input pr-3 py-3 uppercase"  />
                 </div>
 
                 <div>
@@ -762,7 +707,7 @@ const CheckInVehiclePage: React.FC = () => {
                     name="id_type"
                     value={unknownForm.id_type}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 focus:outline-none" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }}
+                    className="cok-auth-input pr-3 py-3"  
                   >
                     <option value="National ID">National ID</option>
                     <option value="Passport">Passport</option>
@@ -780,7 +725,7 @@ const CheckInVehiclePage: React.FC = () => {
                     value={unknownForm.id_number || ''} 
                     onChange={handleInputChange} 
                     placeholder={unknownForm.id_type === 'National ID' ? 'Enter 16_digit national ID' : 'Enter ID number'} 
-                    className="w-full px-3 py-2 focus:outline-none" style={{ ...inputStyle, borderColor: idError ? DANGER : 'transparent' }} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = idError ? DANGER : 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} 
+                    className="cok-auth-input pr-3 py-3" style={{  borderColor: idError ? DANGER : '' }} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = idError ? DANGER : ''; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} 
                   />
                   {idError && (
                     <p className="mt-1 text-xs" style={{ color: DANGER }}>{idError}</p>
@@ -792,12 +737,12 @@ const CheckInVehiclePage: React.FC = () => {
 
                 <div>
                   <label className="block mb-1" style={labelStyle}>Full Names</label>
-                  <input type="text" name="driver_name" value={unknownForm.driver_name} onChange={handleInputChange} placeholder="Enter full names" className="w-full px-3 py-2 focus:outline-none" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} />
+                  <input type="text" name="driver_name" value={unknownForm.driver_name} onChange={handleInputChange} placeholder="Enter full names" className="cok-auth-input pr-3 py-3"   />
                 </div>
 
                 <div>
                   <label className="block mb-1" style={labelStyle}>Phone Number</label>
-                  <input type="tel" name="driver_telephone" value={unknownForm.driver_telephone} onChange={handleInputChange} placeholder="Enter phone number" className="w-full px-3 py-2 focus:outline-none" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} />
+                  <input type="tel" name="driver_telephone" value={unknownForm.driver_telephone} onChange={handleInputChange} placeholder="Enter phone number" className="cok-auth-input pr-3 py-3"   />
                 </div>
 
                 <div>
@@ -808,7 +753,7 @@ const CheckInVehiclePage: React.FC = () => {
                     value={unknownForm.driver_email || ''} 
                     onChange={handleInputChange} 
                     placeholder="Enter email (optional)" 
-                    className="w-full px-3 py-2 focus:outline-none" style={{ ...inputStyle, borderColor: emailError ? DANGER : 'transparent' }} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = emailError ? DANGER : 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} 
+                    className="cok-auth-input pr-3 py-3" style={{  borderColor: emailError ? DANGER : '' }} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = emailError ? DANGER : ''; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} 
                   />
                   {emailError && (
                     <p className="mt-1 text-xs" style={{ color: DANGER }}>{emailError}</p>
@@ -817,7 +762,7 @@ const CheckInVehiclePage: React.FC = () => {
 
                 <div>
                   <label className="block mb-1" style={labelStyle}>Badge Number</label>
-                  <input type="text" name="badge_number" value={unknownForm.badge_number || ''} onChange={handleInputChange} placeholder="Enter badge number" className="w-full px-3 py-2 focus:outline-none" style={inputStyle} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} />
+                  <input type="text" name="badge_number" value={unknownForm.badge_number || ''} onChange={handleInputChange} placeholder="Enter badge number" className="cok-auth-input pr-3 py-3"   />
                 </div>
 
                 <div>
@@ -845,10 +790,10 @@ const CheckInVehiclePage: React.FC = () => {
               </div>
 
               <div className="flex gap-2 pt-4 mt-2">
-                <button type="button" onClick={closeAllModals} className="flex-1 px-4 py-2.5 transition-colors" style={{ ...buttonFont, backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY }}>Cancel</button>
-                <button type="button" onClick={handleRegisterUnknown} disabled={loading || !unknownForm.driver_name || !unknownForm.driver_telephone} className="flex-1 px-4 py-2.5 flex items-center justify-center gap-2 disabled:opacity-50 transition-colors" style={{ ...buttonFont, border: 'none', backgroundColor: PRIMARY, color: WHITE }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}>
-                  {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FiPlus className="w-4 h-4" />}
-                  Register & Check In
+                <button type="button" onClick={closeAllModals} className="cok-btn-outlined" >Cancel</button>
+                <button type="button" onClick={handleRegisterUnknown} disabled={loading || !unknownForm.driver_name || !unknownForm.driver_telephone} className=" px-4 py-2.5 cok-btn-primary disabled:opacity-50 "  >
+                  {loading ? "Waiting...." : "Register & Check In"}
+                  
                 </button>
               </div>
             </div>
@@ -912,7 +857,7 @@ const CheckInVehiclePage: React.FC = () => {
             </div>
 
             <div className="flex gap-3">
-              <button onClick={closeAllModals} className="flex-1 px-4 py-2.5 transition-colors" style={{ ...buttonFont, backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(5,109,170,0.08)'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}>Deny Entry</button>
+              <button onClick={closeAllModals} className="flex-1 px-4 py-2.5 transition-colors" style={{ ...buttonFont, backgroundColor: '', border: `1px solid ${PRIMARY}`, color: PRIMARY }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(5,109,170,0.08)'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ''; }}>Deny Entry</button>
               <button onClick={() => { setShowFlaggedModal(false); setShowUnknownModal(true); }} className="flex-1 px-4 py-2.5 transition-colors" style={{ ...buttonFont, border: 'none', backgroundColor: DANGER, color: WHITE }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#C0392B'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = DANGER; }}>Allow Entry</button>
             </div>
           </div>

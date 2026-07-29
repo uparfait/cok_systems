@@ -755,7 +755,7 @@ const AssignVisitorComponent: React.FC<AssignVisitorComponentProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-full cok-btn-outlined"
+            className="w-full cok-btn-outlined-reverse"
             style={{ padding: "0.9rem 1.2rem" }}
           >
             Close

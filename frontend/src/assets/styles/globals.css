@@ -492,6 +492,7 @@ body {
   font-weight: 500;
   letter-spacing: 0.2px;
   line-height: 1.4;
+  padding-left: 40px;
   width: 100%;
   color: var(--cok-neutral-dark);
   background-color: #FFFFFF;
@@ -573,6 +574,7 @@ background-color: #056daa;
 .cok-btn-outlined {
   font-family: var(--cok-font-heading);
   font-size: 12px;
+  
   font-weight: 600;
   letter-spacing: 1px;
   line-height: 1.4;
