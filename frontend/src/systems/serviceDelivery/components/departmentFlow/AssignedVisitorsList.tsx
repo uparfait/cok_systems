@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { FiSearch, FiX, FiCheck, FiClock, FiUsers, FiArrowRightCircle, FiUserCheck, FiCheckSquare } from "react-icons/fi";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { FiSearch, FiX, FiCheck, FiClock, FiArrowRightCircle, FiUserCheck, FiCheckSquare } from "react-icons/fi";
 import { useToast } from "../../../../core/contexts/ToastContext";
 import { serviceDeliveryService } from "../../../../core/services/adminService";
 import LoadingSpinner from "../../../../core/components/LoadingSpinner";
@@ -16,16 +16,6 @@ const GRAY_DISABLED = "#9E9E9E";
 const TERTIARY = "#CDB896";
 const fontHeading = "'Montserrat', sans-serif";
 const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
-
-const inputStyle: React.CSSProperties = {
-  fontFamily: fontHeading,
-  fontSize: "14px",
-  backgroundColor: NEUTRAL_LIGHT,
-  border: "1px solid transparent",
-  borderRadius: 0,
-  boxShadow: "0px 2px 4px rgba(0,0,0,0.1)",
-  color: NEUTRAL_DARK,
-};
 
 const focusInput = (e: React.FocusEvent<HTMLElement>) => {
   e.currentTarget.style.borderColor = PRIMARY;
@@ -77,30 +67,14 @@ interface AssignedVisitorsListProps {
 
 const getInitials = (name?: string) => {
   if (!name) return "??";
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .substring(0, 2)
-    .toUpperCase();
+  return name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase();
 };
 
 const getColorFromName = (name?: string): string => {
   if (!name) return NEUTRAL_DARK;
-  const colors = [
-    PRIMARY,
-    "#4CAF50",
-    "#E74C3C",
-    "#2980B9",
-    "#8E44AD",
-    "#D35400",
-    "#16A085",
-    "#2C3E50",
-  ];
+  const colors = [PRIMARY, SUCCESS, DANGER, "#2980B9", "#8E44AD", "#D35400", "#16A085", "#2C3E50"];
   let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
   return colors[Math.abs(hash) % colors.length];
 };
 
@@ -129,15 +103,17 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
       const searchQuery = search?.trim();
       let res;
       if (searchQuery) {
-        res = await serviceDeliveryService.search(searchQuery, page, itemsPerPage, filter === "history" ? false : true);
+        const inHouseVal = filter === "history" ? false : filter === "inhouse" ? true : true;
+        res = await serviceDeliveryService.search(searchQuery, page, itemsPerPage, inHouseVal);
       } else {
-        res = await serviceDeliveryService.getAll(page, itemsPerPage, filter === "history" ? false : filter === "inhouse" ? true : undefined);
+        const inHouseVal = filter === "history" ? false : filter === "inhouse" ? true : undefined;
+        res = await serviceDeliveryService.getAll(page, itemsPerPage, inHouseVal);
       }
       if (res?.success || res?.status) {
         const data = Array.isArray(res.data) ? res.data : [];
         setVisitors(data);
         setTotalCount(res.total || 0);
-        setTotalPages(Math.ceil((res.total || 0) / itemsPerPage));
+        setTotalPages(Math.ceil((res.total || 0) / itemsPerPage) || 1);
         setCurrentPage(page);
       } else {
         showError(res?.message || "Failed to fetch visitors");
@@ -192,12 +168,12 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
   };
   const getTime = (v: Visitor) => new Date(v.checkInTime || v.check_in_time || v.entry_date || "").toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) || "---";
   const getStatusLabel = (v: Visitor) => {
-    if (v.status && String(v.status).trim() !== '') return String(v.status);
-    const st = v.services_status?.find((s: any) => s.s_type === 'Inprogress');
-    if (st) return 'In Progress';
-    const completed = v.services_status?.find((s: any) => s.s_type === 'Completed');
-    if (completed) return 'Completed';
-    return 'Waiting';
+    if (v.status && String(v.status).trim() !== "") return String(v.status);
+    const st = v.services_status?.find((s: any) => s.s_type === "Inprogress");
+    if (st) return "In Progress";
+    const completed = v.services_status?.find((s: any) => s.s_type === "Completed");
+    if (completed) return "Completed";
+    return "Waiting";
   };
 
   const headers = [
@@ -244,51 +220,50 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
           </span>
         );
       }
-      default:
+      default: {
         const val = v[header.key as keyof Visitor];
-        if (typeof val === 'string') return <span className="text-xs" style={{ color: NEUTRAL_DARK }}>{val}</span>;
+        if (typeof val === "string") return <span className="text-xs" style={{ color: NEUTRAL_DARK }}>{val}</span>;
         if (Array.isArray(val)) return <span className="text-xs" style={{ color: NEUTRAL_DARK }}>---</span>;
         return <span className="text-xs" style={{ color: NEUTRAL_DARK }}>---</span>;
+      }
     }
   };
 
   return (
     <div className="space-y-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <div>
-          <h1 className="text-base font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Service Tracking</h1>
-        </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 sm:flex-none">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: GRAY_DISABLED }} />
+      <div className="overflow-hidden" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
+        <div className="p-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between" style={{ borderBottom: `1px solid ${BORDER}` }}>
+          <div>
+            <h1 className="text-base font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Service Tracking</h1>
+          </div>
+          <div className="flex gap-2 w-full sm:w-11/12">
+            <div className="relative flex-1">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: GRAY_DISABLED }} />
               <input
                 type="text"
                 placeholder="Search by name, ID or badge..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                className="cok-auth-input w-full pl-8 sm:w-96"
-                onFocus={focusInput}
-                onBlur={blurInput}
+                className="cok-auth-input min-h-[50px] w-full"
               />
-          </div>
-            <button onClick={handleSearch} className="cok-btn-primary flex items-center gap-2" style={{ width: "auto", padding: "0.6rem 1rem" }}>
-              <FiSearch className="w-4 h-4" /> Search
-            </button>
+            </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as "all" | "inhouse" | "history")}
-              className="cok-auth-input pr-3 py-3"
-              style={{ width: "auto", minWidth: "120px" }}
+              className="cok-auth-input"
+              style={{ width: "auto", minWidth: "140px" }}
             >
               <option value="all">All Visitors</option>
               <option value="inhouse">In House</option>
               <option value="history">History</option>
             </select>
+            <button onClick={handleSearch} className="cok-btn-primary flex items-center gap-2" style={{ width: "auto", padding: "0.7rem 1.2rem" }}>
+              <FiSearch className="w-4 h-4" /> Search
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="overflow-hidden" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
         <Table
           headers={headers}
           data={visitors}
@@ -318,7 +293,7 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
                 </div>
                 <span className="text-xs font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Service Tracking</span>
               </div>
-              <button onClick={handleClosePanel} className="cok-btn-outlined" style={{ padding: '0.4rem 0.8rem' }}>
+              <button onClick={handleClosePanel} className="cok-btn-outlined" style={{ padding: "0.4rem 0.8rem" }}>
                 <FiX className="w-4 h-4" />
               </button>
             </div>
@@ -346,22 +321,22 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
               </div>
 
               <div className="p-3" style={{ backgroundColor: NEUTRAL_LIGHT, borderRadius: 0 }}>
-                <p className="mb-2" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Progress</p>
+                <p className="mb-2" style={{ fontFamily: fontHeading, fontSize: "13px", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", color: TERTIARY }}>Progress</p>
                 <div className="relative">
                   <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-[#E0E0E0]"></div>
                   <div className="space-y-2">
                     {[
-                      { label: 'Checked In', time: getTime(selectedVisitor), sub: 'Main Gate', done: true, icon: FiCheck },
-                      { label: 'Transferred', time: selectedVisitor?.departments_assigned?.[0]?.assigned_time ? new Date(selectedVisitor.departments_assigned[0].assigned_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '---', sub: `To ${getDept(selectedVisitor)}`, done: getStatusLabel(selectedVisitor) === 'Completed' || getStatusLabel(selectedVisitor) === 'In Progress', icon: FiArrowRightCircle },
-                      { label: 'Officer Accepted', time: selectedVisitor?.departments_assigned?.[0]?.provider_name || '---', sub: undefined, done: getStatusLabel(selectedVisitor) === 'Completed' || getStatusLabel(selectedVisitor) === 'In Progress', icon: FiUserCheck },
-                      { label: 'Completed', time: '✓ Service done', sub: undefined, done: getStatusLabel(selectedVisitor) === 'Completed', icon: FiCheckSquare }
+                      { label: "Checked In", time: getTime(selectedVisitor), sub: "Main Gate", done: true, icon: FiCheck },
+                      { label: "Transferred", time: selectedVisitor?.departments_assigned?.[0]?.assigned_time ? new Date(selectedVisitor.departments_assigned[0].assigned_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "---", sub: `To ${getDept(selectedVisitor)}`, done: getStatusLabel(selectedVisitor) === "Completed" || getStatusLabel(selectedVisitor) === "In Progress", icon: FiArrowRightCircle },
+                      { label: "Officer Accepted", time: selectedVisitor?.departments_assigned?.[0]?.provider_name || "---", sub: undefined, done: getStatusLabel(selectedVisitor) === "Completed" || getStatusLabel(selectedVisitor) === "In Progress", icon: FiUserCheck },
+                      { label: "Completed", time: "✓ Service done", sub: undefined, done: getStatusLabel(selectedVisitor) === "Completed", icon: FiCheckSquare },
                     ].map((step, i) => (
                       <div key={i} className="flex items-center gap-2 relative">
-                        <div className={`w-6 h-6 flex items-center justify-center z-10 shadow-sm ${step.done ? 'bg-[#4CAF50]' : 'bg-gray-100'}`} style={{ borderRadius: 0 }}>
-                          <step.icon className={`w-3 h-3 ${step.done ? 'text-white' : 'text-gray-400'}`} />
+                        <div className={`w-6 h-6 flex items-center justify-center z-10 shadow-sm ${step.done ? "bg-[#4CAF50]" : "bg-gray-100"}`} style={{ borderRadius: 0 }}>
+                          <step.icon className={`w-3 h-3 ${step.done ? "text-white" : "text-gray-400"}`} />
                         </div>
-                        <div className={`flex-1 p-1.5 shadow-sm ${step.done ? 'bg-[rgba(76,175,80,0.12)]' : 'bg-white'}`} style={{ borderRadius: 0 }}>
-                          <p className={`text-xs font-semibold ${step.done ? 'text-[#388E3C]' : 'text-gray-400'}`}>{step.label}</p>
+                        <div className={`flex-1 p-1.5 shadow-sm ${step.done ? "bg-[rgba(76,175,80,0.12)]" : "bg-white"}`} style={{ borderRadius: 0 }}>
+                          <p className={`text-xs font-semibold ${step.done ? "text-[#388E3C]" : "text-gray-400"}`}>{step.label}</p>
                           {step.sub && <p className="text-xs text-gray-500">{step.sub}</p>}
                         </div>
                       </div>
