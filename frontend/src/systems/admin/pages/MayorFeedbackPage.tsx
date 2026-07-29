@@ -185,10 +185,9 @@ export default function MayorFeedbackPage() {
 
   return (
     <MainLayout>
-      <div className="p-4 space-y-4" style={{ backgroundColor: COK.neutralLight, minHeight: '100%' }}>
+      <div className="p-4 space-y-6" style={{ backgroundColor: COK.neutralLight, minHeight: '100%' }}>
         <CokPageHeader
           title="Feedback Analysis"
-          subtitle="Citizen satisfaction — service delivery and general feedback"
         />
 
         {/* Summary tiles */}

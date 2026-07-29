@@ -37,7 +37,7 @@ export const CokLoadingOverlay = () => (
   </div>
 );
 
-export const CokPageHeader = ({ title, subtitle }: { title: string; subtitle: string }) => (
+export const CokPageHeader = ({ title }: { title: string}) => (
   <div>
     <h1
       style={{
@@ -52,7 +52,6 @@ export const CokPageHeader = ({ title, subtitle }: { title: string; subtitle: st
       {title}
     </h1>
     <p className="text-sm text-gray-500 mt-1" style={{ fontFamily: COK.bodyFont, margin: '4px 0 0 0' }}>
-      {subtitle}
     </p>
   </div>
 );

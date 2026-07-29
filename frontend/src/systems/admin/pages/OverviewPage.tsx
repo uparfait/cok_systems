@@ -203,7 +203,9 @@ const HourGauge: React.FC<{ hours: Array<{ hour: number; count: number }>; lastH
           const p4 = pt(rInner, a1);
           const label = pt((rOuter + rInner) / 2, (a1 + a2) / 2);
           return (
-            <g key={h.hour}>
+            <g key={h.hour} style={{ cursor: 'pointer' }}>
+              {/* Native SVG tooltip: hovering a segment shows the hour and how many check-ins it had */}
+              <title>{`${formatHourLabel(h.hour)} · ${h.count} check-in${h.count === 1 ? '' : 's'}`}</title>
               <path
                 d={`M ${p1.x} ${p1.y} A ${rOuter} ${rOuter} 0 0 1 ${p2.x} ${p2.y} L ${p3.x} ${p3.y} A ${rInner} ${rInner} 0 0 0 ${p4.x} ${p4.y} Z`}
                 fill={segColor(i)}
@@ -845,6 +847,33 @@ const Overview: React.FC = () => {
     return latest ? (latest as Date).getHours() : null;
   }, [visitors, isDateInPeriod, period]);
 
+  // Parking map obeys the toolbar period filter: only vehicles whose check-in falls in the period stay blue
+  const parkingVehiclesInPeriod = useMemo(
+    () => parkingLot.vehicles.filter((v: any) => isDateInPeriod(v?.check_in, period)),
+    [parkingLot.vehicles, isDateInPeriod, period]
+  );
+
+  // Parking gauge: today's VEHICLE check-ins per hour (same sliding dial window: 8h back, 2h ahead + active hours)
+  const parkingGaugeHours = useMemo(() => {
+    const counts: Record<number, number> = {};
+    (data?.hourlyParking || []).forEach(h => { if ((h.check_in || 0) > 0) counts[h.hour] = h.check_in; });
+    const now = new Date();
+    let start = now.getHours() - 8;
+    let end = now.getHours() + 2;
+    if (start < 0) { end -= start; start = 0; }
+    if (end > 23) { start = Math.max(0, start - (end - 23)); end = 23; }
+    const hours = new Set<number>();
+    for (let h = start; h <= end; h++) hours.add(h);
+    Object.keys(counts).forEach(h => hours.add(parseInt(h, 10)));
+    return Array.from(hours).sort((a, b) => a - b).map(hour => ({ hour, count: counts[hour] || 0 }));
+  }, [data]);
+  const hasParkingGauge = parkingGaugeHours.some(g => g.count > 0);
+  // Data is today-only, so the last non-empty hour IS the hour of the last vehicle check-in
+  const lastParkingHour = useMemo(() => {
+    const nonEmpty = parkingGaugeHours.filter(g => g.count > 0);
+    return nonEmpty.length ? nonEmpty[nonEmpty.length - 1].hour : null;
+  }, [parkingGaugeHours]);
+
   // The hourly detail modal has its own period filter; null means it follows
   // the toolbar filter (it resets to that each time the modal opens)
   const [modalHourPeriod, setModalHourPeriod] = useState<PeriodChoice | null>(null);
@@ -1093,7 +1122,7 @@ const Overview: React.FC = () => {
   useEffect(() => {
     if (!socket || !isConnected) return;
     const events = [
-      'car_checkedin', 'car_checkedout',
+      'car_checkedin', 'car_checkedout', 'parking_alert',
       'visitor_checkedin', 'visitor_checkedout',
       'new_visitor_assigned', 'leave_return',
       'service_status_updated', 'feedback_submitted',
@@ -1775,23 +1804,24 @@ const Overview: React.FC = () => {
           </div>
         </div>
 
-        {/* CHART 6 · "Hourly service check-ins" — drawn by HourGauge (top of file); edit bars/colors there */}
+        {/* CHART 6 · "Hourly parking check-ins" gauge — needle points at the last vehicle check-in hour; hover a segment for its count; click opens the check-ins graph */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
           <div
-            onClick={() => { setModalHourPeriod(null); handleCardClick('service-hourly'); }}
+            onClick={() => handleCardClick('parking-hourly')}
             className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
           >
             <div className="flex justify-between items-start mb-3">
               <div>
-                <div className="text-sm font-semibold text-gray-900">Hourly service check-ins</div>
+                <div className="text-sm font-semibold text-gray-900">Hourly parking check-ins</div>
+                <div className="text-xs text-gray-500">Vehicles · today</div>
               </div>
               <span className="text-xs text-gray-400">Click for details</span>
             </div>
-            {hasGaugeData ? (
-              <HourGauge hours={gaugeHours} lastHour={lastCheckinHour} />
+            {hasParkingGauge ? (
+              <HourGauge hours={parkingGaugeHours} lastHour={lastParkingHour} />
             ) : (
               <div className="h-48 w-full flex items-center justify-center text-xs text-gray-400">
-                No visitor check-ins recorded · {periodLabel}
+                No vehicle check-ins recorded today
               </div>
             )}
           </div>
@@ -1800,8 +1830,15 @@ const Overview: React.FC = () => {
           <div className="bg-white border border-gray-200 p-3">
             <div className="flex justify-between items-start mb-3">
               <div>
-                <div className="text-sm font-semibold text-gray-900">{parkingView === 'map' ? 'Parking Lot' : 'Parking Usage Trends'}</div>
-                <div className="text-xs text-gray-500">{parkingView === 'map' ? 'Live slot occupancy · hover a slot for details' : 'Check-ins vs check-outs · today'}</div>
+                <div className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  {parkingView === 'map' ? 'Parking Lot' : 'Parking Usage Trends'}
+                  {/* Realtime indicator: green when the socket connection is up, gray when offline */}
+                  <span className="flex items-center gap-1 text-[10px] font-normal text-gray-500">
+                    <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: isConnected ? '#4CAF50' : '#9E9E9E' }}></span>
+                    {isConnected ? 'Live' : 'Offline'}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500">{parkingView === 'map' ? `Slot occupancy · vehicles checked in ${periodLabel}` : 'Check-ins vs check-outs · today'}</div>
               </div>
               <div className="flex border border-gray-300 text-xs flex-shrink-0">
                 <button onClick={() => setParkingView('map')} className={`px-2 py-1 ${parkingView === 'map' ? 'cok-primary-bg text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Lot map</button>
@@ -1809,7 +1846,7 @@ const Overview: React.FC = () => {
               </div>
             </div>
             {parkingView === 'map' ? (
-              <ParkingMap totalSlots={parkingLot.totalSlots} vehicles={parkingLot.vehicles} reservations={parkingLot.reservations} />
+              <ParkingMap totalSlots={parkingLot.totalSlots} vehicles={parkingVehiclesInPeriod} reservations={parkingLot.reservations} />
             ) : hasHourlyParking ? (
               <div className="h-48 w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -2017,7 +2054,7 @@ const Overview: React.FC = () => {
           <div
             className={`bg-white w-full ${selectedCard === 'dept-served' || selectedCard === 'employee-served' ? 'max-w-6xl' : 'max-w-4xl'} mx-2 sm:mx-4 max-h-[90vh] sm:max-h-[85vh] overflow-y-auto`}
             // The mayor theme rounds modal panels; these views follow the square design rules
-            style={selectedCard === 'employee-status' || selectedCard === 'rating-analysis' || selectedCard === 'employees-detail' || selectedCard === 'service-hourly' ? { borderRadius: 0 } : undefined}
+            style={selectedCard === 'employee-status' || selectedCard === 'rating-analysis' || selectedCard === 'employees-detail' || selectedCard === 'service-hourly' || selectedCard === 'parking-hourly' ? { borderRadius: 0 } : undefined}
             onClick={e => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
@@ -2029,6 +2066,7 @@ const Overview: React.FC = () => {
                 {selectedCard === 'services-detail' && 'Services by Department - Detailed View'}
                 {selectedCard === 'employees-detail' && 'Employees by Department'}
                 {selectedCard === 'service-hourly' && 'Hourly Service Check-ins - Detailed View'}
+                {selectedCard === 'parking-hourly' && 'Hourly Parking Check-ins - Detailed View'}
                 {selectedCard === 'rating-analysis' && 'Ratings & Sentiment Analysis'}
                 {selectedCard === 'dept-served' && 'Departments & People Served'}
                 {selectedCard === 'employee-served' && 'Employees & Who They Served'}
@@ -2730,6 +2768,33 @@ const Overview: React.FC = () => {
                   </div>
                   <div className="h-48 sm:h-56 md:h-64 w-full">
                     <canvas id="modal-service-hourly-chart"></canvas>
+                  </div>
+                </div>
+              )}
+
+              {/* Parking check-ins graph — opened by clicking the hourly parking gauge */}
+              {selectedCard === 'parking-hourly' && (
+                <div className="space-y-4">
+                  <div className="text-sm text-gray-600">Vehicle check-ins per hour · today</div>
+                  <div className="flex gap-3 text-xs mb-3">
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-600"></div>Vehicles checked in</div>
+                  </div>
+                  <div className="h-48 sm:h-56 md:h-64 w-full">
+                    {(data?.hourlyParking || []).some(h => (h.check_in || 0) > 0) ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={data?.hourlyParking || []}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="hour" tickFormatter={(v: number) => formatHourLabel(Number(v))} tick={{ fontSize: 11 }} />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                          <RTooltip labelFormatter={(v: any) => formatHourLabel(Number(v))} />
+                          <Area type="monotone" dataKey="check_in" stroke="#3b82f6" fill="rgba(59,130,246,0.15)" name="Check-ins" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center text-xs text-gray-400">
+                        No vehicle check-ins recorded today
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
