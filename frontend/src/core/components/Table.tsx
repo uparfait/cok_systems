@@ -45,7 +45,7 @@ const Table: React.FC<TableProps> = ({
   rowClassName,
   emptyMessage = 'No data found',
   renderCell,
-  maxHeight = '400px',
+  maxHeight = '65vh',
   minWidth = '800px',
   className = '',
   headerClassName,
