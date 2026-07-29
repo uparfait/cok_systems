@@ -114,6 +114,8 @@ Run it once for `JWT_SECRET`, once for `JWT_REFRESH_SECRET`, and once for `COOKI
 
 ### Configuration Files
 
+docker file for each folder(frontend , backend and em_backend) plus overall docker-composer  to configure all
+
 The most important files you will touch during deployment:
 
 - `docker-compose.yml` -- Defines all services, networks, volumes, and environment variables for production
