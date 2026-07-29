@@ -319,7 +319,7 @@ const CheckInVehiclePage: React.FC = () => {
         plate_number: verifiedData.plate_number,
         driver_name: driverInfo.name || verifiedData.driver_details?.name || verifiedData.driver_name || '',
         driver_telephone: driverInfo.telephone || verifiedData.driver_details?.telephone || verifiedData.driver_telephone || '',
-        driver_type: driverType,
+        driver_type: driverType.trim() == "" ? "Regular" : driverType.trim(),
         driver_identification: identification,
         badge_number: driverInfo.badge_number?.trim() || null,
       };
