@@ -91,7 +91,7 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
   const [showServicePanel, setShowServicePanel] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const itemsPerPage = 10;
+  const itemsPerPage = 20;
 
   useEffect(() => {
     if (propVisitors) setVisitors(propVisitors);
