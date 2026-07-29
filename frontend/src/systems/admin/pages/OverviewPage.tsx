@@ -1536,7 +1536,7 @@ const Overview: React.FC = () => {
               fontSize: 26,
               fontWeight: 800,
               letterSpacing: '-0.5px',
-              color: '#34A8DB',
+              color: '#056daa', 
               margin: 0,
             }}
           >
@@ -1581,13 +1581,16 @@ const Overview: React.FC = () => {
             </>
           )}
         </div>
-        <button
-          onClick={() => fetchData()}
-          className="ml-auto text-xs px-3 py-1 bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-1"
-        >
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M13.65 2.35A7.958 7.958 0 008 0C4.69 0 1.99 2.24 1.25 5.4m-.9 5.25A7.958 7.958 0 008 16c3.31 0 6.01-2.24 6.75-5.4M16 6l-4-4-4 4M0 10l4 4 4-4" stroke="white" strokeWidth="1.5" fill="none"/></svg>
-          Refresh
-        </button>
+    <button
+  onClick={() => fetchData()}
+  className="ml-auto text-xs px-3 py-1 text-white flex items-center gap-1"
+  style={{ backgroundColor: '#056daa' }}
+  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#04578a'; }}
+  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#056daa'; }}
+>
+  <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M13.65 2.35A7.958 7.958 0 008 0C4.69 0 1.99 2.24 1.25 5.4m-.9 5.25A7.958 7.958 0 008 16c3.31 0 6.01-2.24 6.75-5.4M16 6l-4-4-4 4M0 10l4 4 4-4" stroke="white" strokeWidth="1.5" fill="none"/></svg>
+  Refresh
+</button>
         {!isMayor && (
           <>
             <span className="flex items-center gap-1 text-xs" title={isConnected ? 'Real-time updates active' : 'Real-time updates unavailable — use Refresh'}>
@@ -1874,28 +1877,6 @@ const Overview: React.FC = () => {
 
               {/* Left Column */}
               <div className="space-y-2.5">
-                {/* CHART 8 · "Employees per department" — height: h-80 div; color/thickness in createCharts (search: CHART 8 config) */}
-                <div className="grid grid-cols-1 gap-2.5">
-                  <div
-                    onClick={() => handleCardClick('employees-detail')}
-                    className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="inline-block border border-gray-300 px-3 py-1.5">
-                        <div className="text-base font-bold text-gray-900">Employees per department</div>
-                        <div className="text-xs text-gray-500">Staff headcount</div>
-                      </div>
-                      <button className="text-gray-400 text-lg">⋯</button>
-                    </div>
-                    <div className="flex gap-3 text-xs mb-2">
-                      <div className="flex items-center gap-1"><div className="w-2 h-2 bg-purple-600"></div>Headcount</div>
-                    </div>
-                    <div className="h-80 w-full">
-                      <canvas id="chart-employees"></canvas>
-                    </div>
-                  </div>
-                </div>
-                
                 {/* Department Overview Table */}
                 <div className="bg-white border border-gray-200 p-3">
                   <div className="flex justify-between items-start mb-3">

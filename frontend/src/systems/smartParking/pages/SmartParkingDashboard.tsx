@@ -200,8 +200,9 @@ const SmartParkingDashboard: React.FC = () => {
            totalInside: total || 0,
            totalSlots: totalSlots,
            availableSlots: (slotsData?.visitorsAvailableSlots || 0) + (slotsData?.staffAvailableSlots || 0) + regularAvailableSlots,
-           visitorVehicles: by_driver_type?.Visitor || 0,
-           staffVehicles: (by_driver_type?.Staff || 0) + (by_driver_type?.Regular || 0),
+           // Backend groups by raw driver_type values, which are lowercase
+           visitorVehicles: by_driver_type?.visitor || 0,
+           staffVehicles: (by_driver_type?.staff || 0) + (by_driver_type?.regular || 0),
            staffReserved: slotsData?.staffReservationCount || 0,
            staffReservedSlots: staffReservedSlots,
            visitorReserved: slotsData?.visitorReservationCount || 0,
