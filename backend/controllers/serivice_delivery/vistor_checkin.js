@@ -1,6 +1,11 @@
 const ServiceDelivery = require('../../models/service_delivery.js')
 const ParkingRecord = require('../../models/parking_record.js')
 
+const isValidEmail = (email) => !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+const isValidPhone = (phone) => !phone || /^\+?[0-9\s\-()]{7,15}$/.test(phone)
+const isValidPlate = (plate) => !plate || /^[A-Za-z0-9\s\-]{3,10}$/.test(plate)
+const isValidBadge = (badge) => !badge || /^[A-Za-z0-9\-]+$/.test(badge)
+
 module.exports = async function visitor_checkin(req, res, next) {
     try {
         let {
@@ -24,6 +29,38 @@ module.exports = async function visitor_checkin(req, res, next) {
                 success: false,
                 type: 'warning',
                 message: "Full name and telephone required for visitor registration"
+            })
+        }
+
+        if (!isValidEmail(email)) {
+            return res.status(400).json({
+                success: false,
+                type: 'warning',
+                message: "Invalid email format"
+            })
+        }
+
+        if (!isValidPhone(telephone)) {
+            return res.status(400).json({
+                success: false,
+                type: 'warning',
+                message: "Invalid telephone format"
+            })
+        }
+
+        if (!isValidBadge(badge_number)) {
+            return res.status(400).json({
+                success: false,
+                type: 'warning',
+                message: "Invalid badge number format"
+            })
+        }
+
+        if (vehicle_storage.has_vehicle && !isValidPlate(vehicle_storage.vehicle_details?.plate_number)) {
+            return res.status(400).json({
+                success: false,
+                type: 'warning',
+                message: "Invalid vehicle plate number format"
             })
         }
 
