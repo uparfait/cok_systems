@@ -110,7 +110,8 @@ module.exports = async function visitor_checkin(req, res, next) {
                 // 1. Fill out the missing parking record fields with the visitor's data
                 if (!active_parking.driver_name) active_parking.driver_name = full_name
                 if (!active_parking.driver_telephone) active_parking.driver_telephone = telephone || 'Not specified'
-                if (!active_parking.driver_type) active_parking.driver_type = 'Regular'
+                // Must be lowercase: the ParkingRecord enum only accepts 'staff' | 'visitor' | 'regular'
+                if (!active_parking.driver_type) active_parking.driver_type = 'regular'
                 if (!active_parking.driver_email) active_parking.driver_email = email || 'Not specified'
                 if (!active_parking.driver_gender) active_parking.driver_gender = gender
 
@@ -136,13 +137,21 @@ module.exports = async function visitor_checkin(req, res, next) {
                     driver_telephone: telephone || 'Not specified',
                     driver_email: email || 'Not specified',
                     driver_gender: gender,
-                    driver_type: 'Regular',
+                    // Must be lowercase: the ParkingRecord enum only accepts 'staff' | 'visitor' | 'regular'
+                    driver_type: 'regular',
                     check_in: new Date(),
                     status: 'active',
                     checked_in_by: req.user?.name || "Not specified"
                 })
 
                 const save = await new_parking.save()
+
+                // A vehicle entered through the reception flow — notify dashboards the same way the gate does
+                global.WebsocketIO?.emit('car_checkedin', {
+                    show_notif: false,
+                    type: 'info',
+                    message: 'New car checked in: ' + plate
+                })
 
 
                 vehicle_storage.vehicle_details.entered_time = new_parking.check_in
