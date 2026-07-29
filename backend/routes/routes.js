@@ -61,7 +61,7 @@ Router.use('/docs', docs)
 Router.use('/feedback', feedback)
 Router.use('/statistics', authenticate, statistics)
 Router.use('/multiple',
-    //authenticate,
+    authenticate,
       create_multiple_employees)
 Router.use('/profile', authenticate, profile)
 Router.use('/department-manager', authenticate, department_manager)
