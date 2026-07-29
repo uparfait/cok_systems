@@ -212,7 +212,7 @@ html, body {
             --cok-neutral-dark: #333333;       /* Body Text */
             --cok-neutral-light: #F7F9FB;      /* Canvas Background */
             --cok-bg-light-blue: #2980B9;      /* Darker Blue for Footers/Accents */
-            --cok-text-white: #FFFFFF;
+            --cok-text-white: #FFFFFF;         
             --cok-bg-white: #FFFFFF;
             --cok-text-light: #E0E0E0;            
             --cok-gray-border: #E0E0E0;   
@@ -587,10 +587,6 @@ background-color: #056daa;
   background-color: #056daa;
 }
 
-/* ==================== Mayor account theme (CoK design rules) ==================== */
-/* Applied by MainLayout when the logged-in user is a Mayor. Remaps the shared
-   dashboard pages' generic Tailwind palette to the CoK design-rule palette
-   (desegin_rule.html) without affecting other accounts. */
 
 .cok-mayor-theme h1,
 .cok-mayor-theme h2,
