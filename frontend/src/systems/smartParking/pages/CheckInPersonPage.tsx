@@ -1,5 +1,4 @@
-// CheckInPersonPage - Register Visitor without vehicle for Smart Parking
-// Page that shows the visitor registration form directly on page
+
 
 import React, { useState, useEffect } from 'react';
 import MainLayout from '../../../core/components/Layout/MainLayout';
@@ -27,18 +26,10 @@ const labelStyle: React.CSSProperties = {
   fontWeight: 600,
   letterSpacing: '0.5px',
   textTransform: 'uppercase',
-  color: TERTIARY,
-};
-
-const inputStyle: React.CSSProperties = {
-  fontFamily: fontHeading,
-  fontSize: '14px',
-  backgroundColor: NEUTRAL_LIGHT,
-  border: '1px solid transparent',
-  borderRadius: 0,
-  boxShadow: '0px 2px 4px rgba(0,0,0,0.1)',
   color: NEUTRAL_DARK,
 };
+
+
 
 const buttonBaseStyle: React.CSSProperties = {
   fontFamily: fontHeading,
@@ -350,10 +341,7 @@ const CheckInPersonPage: React.FC = () => {
                     value={formData.full_name}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-4 py-2 focus:outline-none"
-                    style={inputStyle}
-                    onFocus={handleInputFocus}
-                    onBlur={handleInputBlur}
+                    className="w-full cok-auth-input pr-3 py-3"
                     placeholder="Enter full name"
                   />
                 </div>
@@ -373,10 +361,7 @@ const CheckInPersonPage: React.FC = () => {
                       value={formData.telephone}
                       onChange={handleChange}
                       required
-                      className="w-full pl-10 pr-4 py-2 focus:outline-none"
-                      style={inputStyle}
-                      onFocus={handleInputFocus}
-                      onBlur={handleInputBlur}
+                      className="w-full cok-auth-input pr-3 py-3"
                       placeholder="Phone number"
                     />
                   </div>
@@ -393,13 +378,9 @@ const CheckInPersonPage: React.FC = () => {
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-2 focus:outline-none"
-                      style={{ ...inputStyle, border: emailError ? `1px solid ${DANGER}` : '1px solid transparent' }}
-                      onFocus={handleInputFocus}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor = emailError ? DANGER : 'transparent';
-                        e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)';
-                      }}
+                      className="w-full cok-auth-input pr-3 py-3"
+                    
+                      
                       placeholder="Email address"
                     />
                   </div>
@@ -419,10 +400,8 @@ const CheckInPersonPage: React.FC = () => {
                     name="id_type"
                     value={formData.id_type}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 focus:outline-none"
-                    style={inputStyle}
-                    onFocus={handleInputFocus}
-                    onBlur={handleInputBlur}
+                    className="w-full cok-auth-input pr-3 py-3"
+
                   >
                     <option value="National ID">National ID</option>
                     <option value="Passport">Passport</option>
@@ -441,13 +420,8 @@ const CheckInPersonPage: React.FC = () => {
                       name="id_number"
                       value={formData.id_number}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-2 focus:outline-none"
-                      style={{ ...inputStyle, border: idError ? `1px solid ${DANGER}` : '1px solid transparent' }}
-                      onFocus={handleInputFocus}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor = idError ? DANGER : 'transparent';
-                        e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)';
-                      }}
+                      className="w-full cok-auth-input pr-3 py-3"
+                     
                       placeholder={formData.id_type === 'National ID' ? 'Enter 16_digit national ID' : 'Enter ID number'}
                     />
                   </div>
@@ -470,10 +444,8 @@ const CheckInPersonPage: React.FC = () => {
                     name="gender"
                     value={formData.gender}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 focus:outline-none"
-                    style={inputStyle}
-                    onFocus={handleInputFocus}
-                    onBlur={handleInputBlur}
+                    className="w-full cok-auth-input pr-3 py-3"
+
                   >
                     <option value="Not specified">Not specified</option>
                     <option value="Male">Male</option>
@@ -490,10 +462,7 @@ const CheckInPersonPage: React.FC = () => {
                     name="badge_number"
                     value={formData.badge_number}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 focus:outline-none"
-                    style={inputStyle}
-                    onFocus={handleInputFocus}
-                    onBlur={handleInputBlur}
+                    className="w-full cok-auth-input pr-3 py-3"
                     placeholder="Badge number"
                   />
                 </div>
@@ -516,20 +485,15 @@ const CheckInPersonPage: React.FC = () => {
                     setIdError(null);
                     setEmailError(null);
                   }}
-                  className="flex-1 px-4 py-2 transition-colors"
-                  style={{ ...buttonBaseStyle, backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(5,109,170,0.08)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  className="flex-1 px-4 py-2 cok-btn-outlined"
                 >
                   Reset
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 px-4 py-2 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
-                  style={{ ...buttonBaseStyle, backgroundColor: PRIMARY, color: WHITE, border: 'none' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+                  className="flex-1 px-4 py-2 cok-btn-primary disabled:opacity-50 flex items-center justify-center gap-2 "
+                  
                 >
                   {loading ? (
                     <>
