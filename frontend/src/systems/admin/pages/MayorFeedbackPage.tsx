@@ -380,7 +380,7 @@ export default function MayorFeedbackPage() {
                               margin: 0,
                             }}
                           >
-                            {f.textmessage || 'No written comment — rating only.'}
+                            {f.textmessage || 'No written comment rating only.'}
                           </p>
                         </td>
                         <td className="px-4 py-3 border-r border-gray-200 align-top whitespace-nowrap">

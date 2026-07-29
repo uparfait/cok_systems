@@ -2489,7 +2489,7 @@ const Overview: React.FC = () => {
                                     </td>
                                     <td className={`${cell(3)} max-w-xs`}>
                                       <p className="text-sm truncate" style={{ color: f.textmessage ? '#555555' : '#9E9E9E', fontStyle: f.textmessage ? 'normal' : 'italic', margin: 0 }} title={f.textmessage}>
-                                        {f.textmessage || 'No written comment — rating only.'}
+                                        {f.textmessage || 'No written comment rating only.'}
                                       </p>
                                     </td>
                                     <td className={`${cell(4)} whitespace-nowrap`}>
