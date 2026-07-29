@@ -1016,51 +1016,6 @@ const Overview: React.FC = () => {
     chartsRef.current.forEach(chart => chart.destroy());
     chartsRef.current.clear();
     
-    const deptNames = data.departments.map(d => d.name);
-
-    // CHART 8 config · "Employees per department" — color: backgroundColor, thickness: maxBarThickness, size: h-80 div in JSX
-    const empCanvas = document.getElementById('chart-employees') as HTMLCanvasElement;
-    if (empCanvas && deptNames.length) {
-      const empData = data.departments.map(d => d.staff);
-      const maxEmp = Math.max(...empData, 1);
-      
-      chartsRef.current.set('employees', new Chart(empCanvas, {
-        type: 'bar',
-        data: {
-          labels: deptNames,
-          datasets: [{
-            data: empData,
-            backgroundColor: CC.purple,
-            barPercentage: 0.85,
-            categoryPercentage: 0.9,
-            // Same bar thickness as the Average Rating by Department chart
-            maxBarThickness: 16,
-            borderRadius: 0,
-            label: 'Employees'
-          }]
-        },
-        options: {
-          ...getChartConfig(maxEmp),
-          indexAxis: 'y',
-          scales: {
-            x: {
-              ...getChartConfig(maxEmp).scales.x,
-              ticks: {
-                callback: (value: any) => Math.round(Number(value)).toString(),
-                stepSize: 1,
-                font: { size: 12 },
-                color: '#374151',
-              }
-            },
-            y: {
-              grid: { display: false },
-              ticks: { font: { size: 12, weight: 600 }, color: '#1f2937' }
-            }
-          }
-        }
-      }));
-    }
-    
     // CHART 9 config · "Employee account status" donut — slice colors: backgroundColor array, ring: cutout, size: canvas classes in JSX
     const statusCanvas = document.getElementById('chart-status') as HTMLCanvasElement;
     if (statusCanvas) {
