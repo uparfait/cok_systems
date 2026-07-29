@@ -4,7 +4,8 @@ module.exports = async function list_parking_records(req, res, next) {
     try {
         let { status = 'active', limit = 10, page = 1, date = null } = req.query || {}
 
-        const limit_val = Math.min(parseInt(limit), 50)
+        // Cap raised from 50 so the dashboard parking map can load every currently-parked vehicle in one request
+        const limit_val = Math.min(parseInt(limit), 1000)
         const skip_val = (parseInt(page) - 1) * limit_val
 
         let filter = {}

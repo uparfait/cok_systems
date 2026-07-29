@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
 import { useSocket } from '../../../core/contexts/SocketContext';
-import { statisticsService, employeeService, parkingService, serviceDeliveryService, feedbackService } from '../../../core/services/adminService';
+import { statisticsService, employeeService, parkingService, serviceDeliveryService, feedbackService, reservationService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import Chart from 'chart.js/auto';
@@ -231,6 +231,78 @@ const HourGauge: React.FC<{ hours: Array<{ hour: number; count: number }>; lastH
   );
 };
 
+// Parking lot map — one cell per slot: blue = occupied (hover shows plate), yellow = reserved, green = available
+const ParkingMap: React.FC<{ totalSlots: number; vehicles: any[]; reservations: any[] }> = ({ totalSlots, vehicles, reservations }) => {
+  const SLOT_COLORS = { occupied: 'rgb(246, 59, 59)', reserved: '#F5C542', available: '#4CAF50' } as const;
+  type SlotState = { id: string; status: keyof typeof SLOT_COLORS; plate?: string; who?: string };
+  const slots = useMemo<SlotState[]>(() => {
+    const n = Math.max(totalSlots, vehicles.length + reservations.length, 1);
+    // Slots numbered COK1, COK2, ... shown in bays of 20
+    const list: SlotState[] = Array.from({ length: n }, (_, i) => ({
+      id: `COK${i + 1}`,
+      status: 'available',
+    }));
+    const byId = new Map(list.map(s => [s.id, s]));
+    const unplaced: any[] = [];
+    // Vehicles whose recorded slot matches a COK number (e.g. "COK12" or "12") land exactly; the rest fill from the front
+    vehicles.forEach(v => {
+      const raw = String(v?.slot_number || '').replace(/\s+/g, '').toUpperCase();
+      const target = byId.get(/^\d+$/.test(raw) ? `COK${raw}` : raw);
+      if (target && target.status === 'available') Object.assign(target, { status: 'occupied', plate: v.plate_number, who: v.driver_name });
+      else unplaced.push(v);
+    });
+    let head = 0;
+    unplaced.forEach(v => {
+      while (head < list.length && list[head].status !== 'available') head++;
+      if (head < list.length) Object.assign(list[head], { status: 'occupied', plate: v.plate_number, who: v.driver_name });
+    });
+    // Reservations fill from the back so they cluster away from parked cars
+    let tail = list.length - 1;
+    reservations.forEach(r => {
+      while (tail >= 0 && list[tail].status !== 'available') tail--;
+      if (tail >= 0) Object.assign(list[tail], { status: 'reserved', plate: r.plate_number, who: r.visitor_name });
+    });
+    return list;
+  }, [totalSlots, vehicles, reservations]);
+
+  const hoverText = (s: SlotState) =>
+    s.status === 'occupied' ? `${s.id} · Occupied ${s.plate || 'plate not recorded'}`
+    : s.status === 'reserved' ? `${s.id} · Reserved${s.plate ? ` ${s.plate}` : ''}`
+    : `${s.id} · Available`;
+
+  const sections: SlotState[][] = [];
+  for (let i = 0; i < slots.length; i += 20) sections.push(slots.slice(i, i + 20));
+  const counts = {
+    occupied: slots.filter(s => s.status === 'occupied').length,
+    reserved: slots.filter(s => s.status === 'reserved').length,
+    available: slots.filter(s => s.status === 'available').length,
+  };
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-3 text-xs text-gray-600 mb-2">
+        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: SLOT_COLORS.occupied }}></div>Occupied {counts.occupied}</div>
+        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: SLOT_COLORS.reserved }}></div>Reserved {counts.reserved}</div>
+        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: SLOT_COLORS.available }}></div>Available {counts.available}</div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {sections.map((sec, si) => (
+          <div key={si} className="bg-gray-100 rounded-lg p-1.5 grid grid-cols-10 gap-1">
+            {sec.map(s => (
+              <div key={s.id} className="relative group">
+                <div className="w-3 h-6 rounded-[3px] cursor-pointer" style={{ backgroundColor: SLOT_COLORS[s.status] }}></div>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block whitespace-nowrap bg-gray-900 text-white text-[10px] px-2 py-1 rounded z-20 pointer-events-none">
+                  {hoverText(s)}
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // Mirrored departments-vs-services chart: orange bars (people served) grow left
 // from the center divider, blue bars (services handled by the department's top
 // employee) grow right, both aligned to their number lines.
@@ -416,6 +488,10 @@ const Overview: React.FC = () => {
   
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
+
+  // Parking card: lot-map data + which view is shown ('map' is the default, 'trends' is the old area chart)
+  const [parkingView, setParkingView] = useState<'map' | 'trends'>('map');
+  const [parkingLot, setParkingLot] = useState<{ totalSlots: number; vehicles: any[]; reservations: any[] }>({ totalSlots: 0, vehicles: [], reservations: [] });
 
   // Raw visitors + employee list feed the departments-vs-services chart and its
   // employees-served breakdown; period state drives the toolbar date filter
@@ -807,7 +883,7 @@ const Overview: React.FC = () => {
       const [
         employeesRes, servicesRes, flaggedStatsRes,
         feedbackTotalsRes, feedbackAvgRes, hourlyParkingRes, hourlyServiceRes, departmentsRes,
-        flaggedCountRes, visitorsRes, allEmployeesRes
+        flaggedCountRes, visitorsRes, allEmployeesRes, slotConfigRes, activeVehiclesRes, reservationsRes
       ] = await Promise.all([
         statisticsService.getEmployeeStats(),
         statisticsService.getServiceDeliveryStats(),
@@ -820,6 +896,9 @@ const Overview: React.FC = () => {
         parkingService.getFlaggedActiveVehicles(1, 1000), // Get count for KPI
         serviceDeliveryService.getAll(1, 1000, 'all'), // Every visitor (in-house + checked out) with per-service provider + date
         employeeService.getAll(1, 1000), // Full employee list for the served-by breakdown
+        statisticsService.getParkingSlots().catch(() => null), // Slot totals for the parking lot map
+        parkingService.getAllPaginated(1, 1000, 'active').catch(() => null), // Currently parked vehicles for the map
+        reservationService.getAll().catch(() => null), // Reservations (plates) for the map
       ]);
       
       const employees = (employeesRes as any)?.data || employeesRes;
@@ -835,6 +914,16 @@ const Overview: React.FC = () => {
       const allEmployeesRaw = (allEmployeesRes as any)?.data || [];
       setVisitors(Array.isArray(visitorsRaw) ? visitorsRaw : []);
       setEmployees(Array.isArray(allEmployeesRaw) ? allEmployeesRaw : []);
+
+      // Parking lot map: slot totals + currently parked vehicles + active reservations
+      const slotCfg = (slotConfigRes as any)?.data || slotConfigRes || {};
+      const activeVehiclesRaw = (activeVehiclesRes as any)?.data || [];
+      const reservationsRaw = (reservationsRes as any)?.reservations || [];
+      setParkingLot({
+        totalSlots: Number(slotCfg?.totalSlots) || 200,
+        vehicles: Array.isArray(activeVehiclesRaw) ? activeVehiclesRaw : [],
+        reservations: (Array.isArray(reservationsRaw) ? reservationsRaw : []).filter((r: any) => r?.status === 'active'),
+      });
 
       const departments = departmentsRaw.map((dept: any) => ({
         name: dept.department_name,
@@ -1707,13 +1796,21 @@ const Overview: React.FC = () => {
             )}
           </div>
 
-          {/* CHART 7 · "Parking Usage Trends" — height: h-48 div, colors: stroke (line) + fill (shade) on each <Area> */}
+          {/* CHART 7 · Parking card — lot map by default (ParkingMap component), toggle to the old trends area chart */}
           <div className="bg-white border border-gray-200 p-3">
-            <div className="mb-3">
-              <div className="text-sm font-semibold text-gray-900">Parking Usage Trends</div>
-              <div className="text-xs text-gray-500">Check-ins vs check-outs · today</div>
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <div className="text-sm font-semibold text-gray-900">{parkingView === 'map' ? 'Parking Lot' : 'Parking Usage Trends'}</div>
+                <div className="text-xs text-gray-500">{parkingView === 'map' ? 'Live slot occupancy · hover a slot for details' : 'Check-ins vs check-outs · today'}</div>
+              </div>
+              <div className="flex border border-gray-300 text-xs flex-shrink-0">
+                <button onClick={() => setParkingView('map')} className={`px-2 py-1 ${parkingView === 'map' ? 'cok-primary-bg text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Lot map</button>
+                <button onClick={() => setParkingView('trends')} className={`px-2 py-1 ${parkingView === 'trends' ? 'cok-primary-bg text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Trends</button>
+              </div>
             </div>
-            {hasHourlyParking ? (
+            {parkingView === 'map' ? (
+              <ParkingMap totalSlots={parkingLot.totalSlots} vehicles={parkingLot.vehicles} reservations={parkingLot.reservations} />
+            ) : hasHourlyParking ? (
               <div className="h-48 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={data.hourlyParking}>
