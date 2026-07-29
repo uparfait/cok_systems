@@ -39,11 +39,13 @@ class WebSocketService {
 
       const io = new Server(this.server, {
         cors: {
+          // Regexes accept localhost / LAN IPs on ANY port so dev servers (5173, 5174, ...) always connect
           origin: process.env.CLIENT_URL_SET || [
             "https://cok-fr.vercel.app",
-            "http://localhost:5173",
-            "http://localhost:3000",
-            "http://localhost:5000",
+            /^http:\/\/localhost(:\d+)?$/,
+            /^http:\/\/127\.0\.0\.1(:\d+)?$/,
+            /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/,
+            /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/,
           ],
           allowedHeaders: ["Authorization", "Content-Type"],
           credentials: true,
