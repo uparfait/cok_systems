@@ -729,7 +729,7 @@ background-color: #056daa;
 /* Cards: rounded panels with a soft floating shadow, no hairline borders */
 .cok-mayor-dash .bg-white.border-gray-200 {
   border-color: transparent;
-  border-radius: 16px;
+  border-radius: 0;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.05);
 }
 .cok-mayor-dash .bg-white.border-gray-200.p-3 {
@@ -745,7 +745,7 @@ background-color: #056daa;
 /* KPI accent bars: heavier, rounded, more air */
 .cok-mayor-dash .border-l-2 {
   border-left-width: 4px;
-  border-radius: 3px;
+  border-radius: 0;
 }
 .cok-mayor-dash .border-l-2.pl-2 {
   padding-left: 0.75rem;
@@ -770,7 +770,7 @@ background-color: #056daa;
 /* Toolbar: floating rounded bar */
 .cok-mayor-dash .bg-white.border-b.border-gray-200 {
   border-bottom: 0;
-  border-radius: 14px;
+  border-radius: 0;
   margin: 14px 22px 0 22px;
   padding: 10px 16px;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
@@ -781,7 +781,7 @@ background-color: #056daa;
   font-family: var(--cok-font-heading);
   background-color: #F5F6F8;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.10);
 }
 .cok-mayor-dash select:focus {
@@ -791,17 +791,17 @@ background-color: #056daa;
 }
 .cok-mayor-dash button.bg-blue-600,
 .cok-mayor-dash button.text-white {
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 /* Alert / status inner boxes rounded too */
 .cok-mayor-dash .bg-red-50.border-red-200 {
-  border-radius: 12px;
+  border-radius: 0;
 }
 
 /* Modal panel rounded */
 .cok-mayor-dash .bg-white.max-w-4xl {
-  border-radius: 16px;
+  border-radius: 0;
   overflow: hidden;
 }
 

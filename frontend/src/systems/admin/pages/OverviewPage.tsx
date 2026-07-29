@@ -283,17 +283,17 @@ const ParkingMap: React.FC<{ totalSlots: number; vehicles: any[]; reservations: 
   return (
     <div>
       <div className="flex flex-wrap gap-3 text-xs text-gray-600 mb-2">
-        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: SLOT_COLORS.occupied }}></div>Occupied {counts.occupied}</div>
-        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: SLOT_COLORS.reserved }}></div>Reserved {counts.reserved}</div>
-        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: SLOT_COLORS.available }}></div>Available {counts.available}</div>
+        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5" style={{ backgroundColor: SLOT_COLORS.occupied }}></div>Occupied {counts.occupied}</div>
+        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5" style={{ backgroundColor: SLOT_COLORS.reserved }}></div>Reserved {counts.reserved}</div>
+        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5" style={{ backgroundColor: SLOT_COLORS.available }}></div>Available {counts.available}</div>
       </div>
       <div className="flex flex-wrap gap-2">
         {sections.map((sec, si) => (
-          <div key={si} className="bg-gray-100 rounded-lg p-1.5 grid grid-cols-10 gap-1">
+          <div key={si} className="bg-gray-100 p-1.5 grid grid-cols-10 gap-1">
             {sec.map(s => (
               <div key={s.id} className="relative group">
-                <div className="w-3 h-6 rounded-[3px] cursor-pointer" style={{ backgroundColor: SLOT_COLORS[s.status] }}></div>
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block whitespace-nowrap bg-gray-900 text-white text-[10px] px-2 py-1 rounded z-20 pointer-events-none">
+                <div className="w-3 h-6 cursor-pointer" style={{ backgroundColor: SLOT_COLORS[s.status] }}></div>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block whitespace-nowrap bg-gray-900 text-white text-[10px] px-2 py-1 z-20 pointer-events-none">
                   {hoverText(s)}
                 </div>
               </div>
@@ -436,7 +436,7 @@ const DeptServicesMirror: React.FC<{
         {rows.map(row => (
           <div
             key={row.name}
-            className="flex items-center py-0.5 rounded-md hover:bg-gray-50 transition-colors"
+            className="flex items-center py-0.5 hover:bg-gray-50 transition-colors"
             title={`${row.name}: ${row.served} people served · ${row.staff} staff · top employee: ${row.emp.name} (${row.emp.served} services)`}
           >
             <div
@@ -460,7 +460,7 @@ const DeptServicesMirror: React.FC<{
             </div>
 
             <div
-              className="w-[3px] self-stretch rounded-full mx-1 flex-shrink-0"
+              className="w-[3px] self-stretch mx-1 flex-shrink-0"
               style={{ background: `linear-gradient(to bottom, ${cc.amber}, ${cc.blue})` }}
             ></div>
 
@@ -1339,7 +1339,7 @@ const Overview: React.FC = () => {
               datasets: [{
                 data: deptCounts,
                 backgroundColor: CC.blue,
-                borderRadius: 4,
+                borderRadius: 0,
                 borderSkipped: 'start',
                 maxBarThickness: 24,
                 barPercentage: 0.6,
@@ -1528,7 +1528,7 @@ const Overview: React.FC = () => {
 
   return (
     <MainLayout>
-      {/* Scopes the soft rounded dashboard theme to this page only (globals.css .cok-mayor-dash) */}
+      {/* Scopes the square-corner dashboard theme (CoK design rule: no border radius) to this page only (globals.css .cok-mayor-dash) */}
       <div className="cok-mayor-dash">
       {/* CoK design-rule page header for the mayor account */}
       {isMayor && (
@@ -1556,7 +1556,7 @@ const Overview: React.FC = () => {
           <select
             value={period}
             onChange={e => setPeriod(e.target.value as typeof period)}
-            className="text-xs px-2 py-1 border border-gray-300 rounded bg-white"
+            className="text-xs px-2 py-1 border border-gray-300 bg-white"
           >
             <option value="today">Today</option>
             <option value="week">This week</option>
@@ -1572,14 +1572,14 @@ const Overview: React.FC = () => {
                 type="date"
                 value={rangeFrom}
                 onChange={e => setRangeFrom(e.target.value)}
-                className="text-xs px-1.5 py-1 border border-gray-300 rounded bg-white"
+                className="text-xs px-1.5 py-1 border border-gray-300 bg-white"
               />
               <span className="text-gray-400">to</span>
               <input
                 type="date"
                 value={rangeTo}
                 onChange={e => setRangeTo(e.target.value)}
-                className="text-xs px-1.5 py-1 border border-gray-300 rounded bg-white"
+                className="text-xs px-1.5 py-1 border border-gray-300 bg-white"
               />
             </>
           )}
@@ -1598,7 +1598,7 @@ const Overview: React.FC = () => {
           <>
             <span className="flex items-center gap-1 text-xs" title={isConnected ? 'Real-time updates active' : 'Real-time updates unavailable — use Refresh'}>
               <span
-                className="w-2 h-2 rounded-full inline-block"
+                className="w-2 h-2 inline-block"
                 style={{ backgroundColor: isConnected ? '#4CAF50' : '#9E9E9E' }}
               ></span>
               <span className="text-gray-500">{isConnected ? 'Live' : 'Offline'}</span>
@@ -1612,7 +1612,7 @@ const Overview: React.FC = () => {
       <div className="p-3 space-y-2.5">
         
         {/* CHART 1 · "Departments vs services" — drawn by DeptServicesMirror (top of file); colors from CC */}
-        <div className="bg-white border border-gray-200 p-4 sm:p-5 rounded-lg shadow-sm hover:shadow-md transition-all">
+        <div className="bg-white border border-gray-200 p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
           <div className="flex justify-between items-start mb-4">
             <div>
               <div className="text-base font-bold text-gray-900">Departments vs services</div>
@@ -1644,7 +1644,7 @@ const Overview: React.FC = () => {
         </div>
 
         {/* CHARTS 2 & 3 · "Requests" histograms — height: h-56 divs, colors: fill= on each <Bar>, bar width: maxBarSize */}
-        <div className="bg-white border border-gray-200 p-4 sm:p-5 rounded-lg shadow-sm">
+        <div className="bg-white border border-gray-200 p-4 sm:p-5 shadow-sm">
           <div className="flex justify-between items-start mb-2">
             <div>
               <div className="text-base font-bold text-gray-900">Requests</div>
@@ -1762,7 +1762,7 @@ const Overview: React.FC = () => {
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.negative.color }}></div>Negative (&lt;4)</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.neutral.color }}></div>Neutral (4–6.9)</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.positive.color }}></div>Positive (7+)</div>
-            <div className="flex items-center gap-1.5"><div className="w-3 h-0.5 rounded" style={{ backgroundColor: CC.blue }}></div>Rating trend</div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-0.5" style={{ backgroundColor: CC.blue }}></div>Rating trend</div>
           </div>
           {sentimentTrend.length === 0 ? (
             <p className="text-sm text-gray-500" style={{ fontFamily: COK.bodyFont }}>No department feedback yet.</p>
@@ -1840,7 +1840,7 @@ const Overview: React.FC = () => {
                   {parkingView === 'map' ? 'Parking Lot' : 'Parking Usage Trends'}
                   {/* Realtime indicator: green when the socket connection is up, gray when offline */}
                   <span className="flex items-center gap-1 text-[10px] font-normal text-gray-500">
-                    <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: isConnected ? '#4CAF50' : '#9E9E9E' }}></span>
+                    <span className="w-2 h-2 inline-block" style={{ backgroundColor: isConnected ? '#4CAF50' : '#9E9E9E' }}></span>
                     {isConnected ? 'Live' : 'Offline'}
                   </span>
                 </div>
@@ -2043,7 +2043,7 @@ const Overview: React.FC = () => {
           <div
             className={`bg-white w-full ${selectedCard === 'dept-served' || selectedCard === 'employee-served' ? 'max-w-6xl' : 'max-w-4xl'} mx-2 sm:mx-4 max-h-[90vh] sm:max-h-[85vh] overflow-y-auto`}
             // The mayor theme rounds modal panels; these views follow the square design rules
-            style={selectedCard === 'employee-status' || selectedCard === 'rating-analysis' || selectedCard === 'employees-detail' || selectedCard === 'service-hourly' || selectedCard === 'parking-hourly' ? { borderRadius: 0 } : undefined}
+            style={{ borderRadius: 0 }}
             onClick={e => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
@@ -2096,7 +2096,7 @@ const Overview: React.FC = () => {
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">{employee.telephone || '____'}</td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{employee.department_name || employee.department?.department_name || '____'}</td>
                                 <td className="px-2 sm:px-4 py-2">
-                                  <span className={`px-1 sm:px-2 py-1 text-xs rounded ${employee.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                  <span className={`px-1 sm:px-2 py-1 text-xs ${employee.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                                     {employee.is_active ? 'Active' : 'Inactive'}
                                   </span>
                                 </td>
@@ -2162,7 +2162,7 @@ const Overview: React.FC = () => {
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">{record.check_in ? new Date(record.check_in).toLocaleString() : '____'}</td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">{record.current_duration || '____'}</td>
                                 <td className="px-2 sm:px-4 py-2">
-                                  <span className={`px-1 sm:px-2 py-1 text-xs rounded ${record.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                                  <span className={`px-1 sm:px-2 py-1 text-xs ${record.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                                     {record.status || 'Unknown'}
                                   </span>
                                 </td>
@@ -2226,7 +2226,7 @@ const Overview: React.FC = () => {
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">{visitor.entry_date ? new Date(visitor.entry_date).toLocaleDateString() : '____'}</td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">{visitor.current_duration || '____'}</td>
                                 <td className="px-2 sm:px-4 py-2">
-                                  <span className={`px-1 sm:px-2 py-1 text-xs rounded ${visitor.is_still_inhouse ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
+                                  <span className={`px-1 sm:px-2 py-1 text-xs ${visitor.is_still_inhouse ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
                                     {visitor.is_still_inhouse ? 'In House' : 'Completed'}
                                   </span>
                                 </td>
@@ -2294,7 +2294,7 @@ const Overview: React.FC = () => {
                                 <td className="px-4 py-2">{vehicle.check_in ? new Date(vehicle.check_in).toLocaleString() : '____'}</td>
                                 <td className="px-4 py-2">{vehicle.current_duration || '____'}</td>
                                 <td className="px-4 py-2">
-                                  <span className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded">
+                                  <span className="px-2 py-1 text-xs bg-red-100 text-red-800">
                                     Flagged
                                   </span>
                                 </td>
@@ -2430,14 +2430,14 @@ const Overview: React.FC = () => {
                       {deptVsServices.map((d, idx) => {
                         const maxServedAll = Math.max(...deptVsServices.map(r => r.served), 1);
                         return (
-                          <div key={idx} className="flex items-center gap-2 text-xs hover:bg-gray-50 rounded px-1 py-1">
+                          <div key={idx} className="flex items-center gap-2 text-xs hover:bg-gray-50 px-1 py-1">
                             <span className="w-44 sm:w-56 flex-shrink-0 truncate text-right font-medium text-gray-800" title={d.name}>
                               {d.name} <span className="text-gray-400 font-normal">({d.staff} staff)</span>
                             </span>
-                            <div className="flex-1 h-5 bg-gray-100 rounded overflow-hidden">
+                            <div className="flex-1 h-5 bg-gray-100 overflow-hidden">
                               {d.served > 0 && (
                                 <div
-                                  className="h-full rounded transition-all duration-500"
+                                  className="h-full transition-all duration-500"
                                   style={{
                                     width: `${(d.served / maxServedAll) * 100}%`,
                                     minWidth: 4,
@@ -2466,8 +2466,8 @@ const Overview: React.FC = () => {
                       <span className="text-gray-400">Click an employee to see who they served</span>
                     </div>
                     <div className="flex gap-4 text-[11px] text-gray-500">
-                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 inline-block rounded-sm" style={{ backgroundColor: CC.blue }}></span>Normal load</span>
-                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 inline-block rounded-sm" style={{ backgroundColor: CC.red }}></span>Overloaded (above 1.5× average)</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 inline-block" style={{ backgroundColor: CC.blue }}></span>Normal load</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 inline-block" style={{ backgroundColor: CC.red }}></span>Overloaded (above 1.5× average)</span>
                     </div>
                   </div>
                   {employeeServed.length === 0 ? (
@@ -2485,15 +2485,15 @@ const Overview: React.FC = () => {
                           <div key={idx}>
                             <div
                               onClick={() => setExpandedEmployee(isOpen ? null : rowKey)}
-                              className="flex items-center gap-2 text-xs cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5"
+                              className="flex items-center gap-2 text-xs cursor-pointer hover:bg-gray-50 px-1 py-0.5"
                             >
                               <span className="w-3 flex-shrink-0 text-gray-400">{isOpen ? '▾' : '▸'}</span>
                               <span className="w-36 sm:w-44 flex-shrink-0 truncate font-medium text-gray-800" title={e.name}>{e.name}</span>
                               <span className="w-28 sm:w-40 flex-shrink-0 truncate text-gray-400" title={e.department}>{e.department}</span>
-                              <div className="flex-1 h-4 bg-gray-100 rounded overflow-hidden">
+                              <div className="flex-1 h-4 bg-gray-100 overflow-hidden">
                                 {e.served > 0 && (
                                   <div
-                                    className="h-full rounded transition-all duration-500"
+                                    className="h-full transition-all duration-500"
                                     style={{
                                       width: `${Math.max((e.served / maxEmployeeServed) * 100, 3)}%`,
                                       backgroundColor: overloaded ? CC.red : CC.blue,
