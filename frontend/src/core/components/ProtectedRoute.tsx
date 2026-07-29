@@ -1,6 +1,3 @@
-// ProtectedRoute - Route protection component
-// Redirects unauthenticated users to login page
-
 import React, { useState, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -32,7 +29,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <LoadingSpinner 
-          message="Authenticating..."
+          message="Connecting..."
           longLoadingMessage="This is taking longer than usual. Please check your connection."
           longLoadingDelay={3000}
         />

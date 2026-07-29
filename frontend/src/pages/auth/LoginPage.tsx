@@ -14,6 +14,7 @@ import { useToast } from '../../core/contexts/ToastContext';
 import { getDashboardRoute } from '../../core/components/Layout/layoutUtils';
 import { validateToken } from '../../core/services/authService';
 import { getStoredUser } from '../../core/services/apiClient';
+import LoadingSpinner from '@/core/components/LoadingSpinner';
 
 const LoginPage = () => {
 
@@ -261,72 +262,13 @@ const LoginPage = () => {
 
   // Show authenticating component while checking for existing auth
   if (isCheckingAuth) {
-    return (
-      <div className="min-h-screen flex bg-white">
-        {/* Left side - City Hall image with dark overlay and text */}
-        <div className="hidden lg:flex lg:w-1/2 relative">
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url(${cityHallImage})` }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent" />
-          </div>
-
-          <div className="relative z-10 flex flex-col justify-end p-7 lg:p-14  text-white w-full h-full">
-
-
-            {/* Main heading and description */}
-            <div className="space-y-2 max-w-xl ">
-              <h1 className="text-2xl md:text-3xl lg:text-4xl text-bold tracking-tight leading-snug"
-              style={{ fontWeight: 800, letterSpacing: '-0.5px' }}
-              >
-                IKAZE PORTAL
-              </h1>
-            </div>
-          </div>
-        </div>
-
-        {/* Right side - Authenticating component */}
-        <div
-          className="w-full md:w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-8"
-          style={{ backgroundColor: '#F7F9FB' }}
-        >
-          <div className="w-full max-w-lg">
-            <div className="cok-auth-card px-5 py-6 sm:px-10 sm:py-8">
-              {/* Logo and authenticating text */}
-              <div className="text-center mb-4 sm:mb-5">
-                <img
-                  src={logoImage}
-                  alt="City of Kigali"
-                  className="h-16 sm:h-20 md:h-24 w-auto mx-auto mb-2"
-                />
-                <p
-                  className="text-base sm:text-lg"
-                  style={{ fontWeight: 700, color: '#333333' }}
-                >
-                  Authenticating...
-                </p>
-              </div>
-
-              {/* Loading spinner */}
-              <div className="flex flex-col items-center justify-center py-8">
-                <div className="relative">
-                  <div
-                    className="w-16 h-16 border-4 rounded-full animate-spin"
-                    style={{ borderColor: '#E6F1F8', borderTopColor: '#056daa' }}
-                  ></div>
-                </div>
-                <p
-                  className="mt-4 text-sm"
-                  style={{ fontFamily: "'Merriweather', serif", color: '#555555' }}
-                >
-                  waiting...
-                </p>
-              </div>
-
-            </div>
-          </div>
-        </div>
+       return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <LoadingSpinner 
+          message="Authenticating..."
+          longLoadingMessage="This is taking longer than usual. Please check your connection."
+          longLoadingDelay={3000}
+        />
       </div>
     );
   }
@@ -351,7 +293,7 @@ const LoginPage = () => {
               className="text-2xl md:text-3xl lg:text-4xl leading-snug"
               style={{ fontWeight: 800, letterSpacing: '-0.5px' }}
             >
-              IKAZE PORTAL
+              
             </h1>
           
            
