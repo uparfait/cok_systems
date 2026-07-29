@@ -152,7 +152,7 @@ export default function MayorActionsPage() {
   return (
     <MainLayout>
       <div className="p-4 space-y-4" style={{ backgroundColor: COK.neutralLight, minHeight: '100%' }}>
-        <CokPageHeader title="Actions" subtitle="Event action items deadlines, assignments and progress" />
+        <CokPageHeader title="Actions" />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <CokStatCard
