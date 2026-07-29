@@ -305,6 +305,81 @@ const ParkingMap: React.FC<{ totalSlots: number; vehicles: any[]; reservations: 
   );
 };
 
+// 3D-style exploded pie (SVG) — separated slices with extruded depth, % labels on slices, callout lines to names
+const StatusPie3D: React.FC<{ slices: Array<{ label: string; value: number; color: string }> }> = ({ slices }) => {
+  const data = slices.filter(s => s.value > 0);
+  const total = data.reduce((sum, d) => sum + d.value, 0);
+  if (!total) return <div className="h-40 flex items-center justify-center text-xs text-gray-400">No employee accounts yet</div>;
+
+  // Geometry: squashed ellipse pie with per-slice explode offset and a darker extruded side wall
+  const cx = 280, cy = 112, rx = 104, squash = 0.55, ry = rx * squash, depth = 24, explode = 13;
+  const shade = (hex: string, f: number) => {
+    const n = parseInt(hex.replace('#', ''), 16);
+    return `rgb(${Math.round(((n >> 16) & 255) * f)},${Math.round(((n >> 8) & 255) * f)},${Math.round((n & 255) * f)})`;
+  };
+
+  let angle = -Math.PI / 2;
+  const parts = data.map(d => {
+    const sweep = (d.value / total) * Math.PI * 2;
+    const p = { ...d, a0: angle, a1: angle + sweep, mid: angle + sweep / 2 };
+    angle += sweep;
+    return p;
+  });
+
+  const off = (p: { mid: number }) => ({ ox: Math.cos(p.mid) * explode, oy: Math.sin(p.mid) * explode * squash });
+  const pt = (ang: number, ox: number, oy: number) => ({ x: cx + ox + rx * Math.cos(ang), y: cy + oy + ry * Math.sin(ang) });
+
+  const topPath = (p: typeof parts[0]) => {
+    const { ox, oy } = off(p);
+    const s = pt(p.a0, ox, oy), e = pt(p.a1, ox, oy);
+    const large = p.a1 - p.a0 > Math.PI ? 1 : 0;
+    return `M ${cx + ox} ${cy + oy} L ${s.x} ${s.y} A ${rx} ${ry} 0 ${large} 1 ${e.x} ${e.y} Z`;
+  };
+
+  // Side wall only for the front-facing rim (angles between 0 and PI in screen space)
+  const wallPath = (p: typeof parts[0]) => {
+    const lo = Math.max(p.a0, 0), hi = Math.min(p.a1, Math.PI);
+    if (lo >= hi) return null;
+    const { ox, oy } = off(p);
+    const s = pt(lo, ox, oy), e = pt(hi, ox, oy);
+    const large = hi - lo > Math.PI ? 1 : 0;
+    return `M ${s.x} ${s.y} A ${rx} ${ry} 0 ${large} 1 ${e.x} ${e.y} L ${e.x} ${e.y + depth} A ${rx} ${ry} 0 ${large} 0 ${s.x} ${s.y + depth} Z`;
+  };
+
+  return (
+    <svg viewBox="0 0 560 235" className="w-full" style={{ maxWidth: 640, margin: '0 auto', display: 'block' }}>
+      {parts.map(p => { const w = wallPath(p); return w ? <path key={`w${p.label}`} d={w} fill={shade(p.color, 0.72)} /> : null; })}
+      {parts.map(p => <path key={`t${p.label}`} d={topPath(p)} fill={p.color} />)}
+      {parts.map(p => {
+        const { ox, oy } = off(p);
+        const lx = cx + ox + rx * 0.58 * Math.cos(p.mid);
+        const ly = cy + oy + ry * 0.58 * Math.sin(p.mid);
+        const pct = Math.round((p.value / total) * 100);
+        return (
+          <text key={`p${p.label}`} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fontSize="19" fontWeight="800" fill="#fff" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}>
+            {pct}%
+          </text>
+        );
+      })}
+      {parts.map(p => {
+        const right = Math.cos(p.mid) >= 0;
+        const sx = cx + Math.cos(p.mid) * (rx + explode + 2);
+        const sy = cy + Math.sin(p.mid) * (ry + explode * squash + 2) + (Math.sin(p.mid) > 0 ? depth : 0);
+        const ex = cx + (right ? 1 : -1) * (rx + 46);
+        const ey = sy + (Math.sin(p.mid) > 0 ? 14 : -14);
+        return (
+          <g key={`c${p.label}`}>
+            <polyline points={`${sx},${sy} ${ex},${ey} ${ex + (right ? 22 : -22)},${ey}`} fill="none" stroke="#9ca3af" strokeWidth="1" />
+            <text x={ex + (right ? 26 : -26)} y={ey} textAnchor={right ? 'start' : 'end'} dominantBaseline="middle" fontSize="11" fontWeight="600" fill="#374151">
+              {p.label} ({p.value})
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+};
+
 // Mirrored departments-vs-services chart: orange bars (people served) grow left
 // from the center divider, blue bars (services handled by the department's top
 // employee) grow right, both aligned to their number lines.
@@ -1016,34 +1091,7 @@ const Overview: React.FC = () => {
     chartsRef.current.forEach(chart => chart.destroy());
     chartsRef.current.clear();
     
-    // CHART 9 config · "Employee account status" donut — slice colors: backgroundColor array, ring: cutout, size: canvas classes in JSX
-    const statusCanvas = document.getElementById('chart-status') as HTMLCanvasElement;
-    if (statusCanvas) {
-      chartsRef.current.set('status', new Chart(statusCanvas, {
-        type: 'doughnut',
-        data: {
-          labels: ['Activated', 'Not activated', 'Locked'],
-          datasets: [{
-            data: [data.employeeStats.active, data.employeeStats.inactive, data.employeeStats.locked],
-            backgroundColor: [CC.blue, CC.amber, CC.red],
-            borderWidth: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '65%',
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: (ctx: any) => `${ctx.label}: ${Math.round(ctx.raw)}`
-              }
-            }
-          }
-        }
-      }));
-    }
+    // CHART 9 · "Employee account status" is now the StatusPie3D SVG component rendered directly in the JSX (search: StatusPie3D)
 
   }, [data, CC]);
   
@@ -1972,9 +2020,14 @@ const Overview: React.FC = () => {
                   <div className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500"></div>Not activated {data.employeeStats.inactive}</div>
                   <div className="flex items-center gap-1"><div className="w-2 h-2 bg-red-600"></div>Locked {data.employeeStats.locked}</div>
                 </div>
-                <div className="h-32 w-full flex justify-center">
-                  <canvas id="chart-status" className="max-w-[150px] max-h-[150px]"></canvas>
-                </div>
+                {/* 3D exploded pie — size: maxWidth in StatusPie3D's svg style; colors: the CC values passed below */}
+                <StatusPie3D
+                  slices={[
+                    { label: 'Activated', value: data.employeeStats.active, color: CC.blue },
+                    { label: 'Not activated', value: data.employeeStats.inactive, color: CC.amber },
+                    { label: 'Locked', value: data.employeeStats.locked, color: CC.red },
+                  ]}
+                />
               </div>
             </div>
         
