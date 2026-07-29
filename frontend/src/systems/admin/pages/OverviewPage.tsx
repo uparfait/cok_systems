@@ -168,11 +168,12 @@ const barValueLabels = {
 
 // ==================== MAIN COMPONENT ====================
 
-// Speedometer-style gauge — needle points at the hour of the LAST check-in; that hour's count shown in the center
-const HourGauge: React.FC<{ hours: Array<{ hour: number; count: number }> }> = ({ hours }) => {
+// Speedometer-style gauge — needle points at the hour of the LAST check-in (lastHour = hour of the newest entry_date)
+const HourGauge: React.FC<{ hours: Array<{ hour: number; count: number }>; lastHour?: number | null }> = ({ hours, lastHour }) => {
   if (!hours.length) return null;
   const n = hours.length;
-  const lastIdx = hours.reduce((best, h, i) => (h.count > 0 ? i : best), 0);
+  const propIdx = lastHour == null ? -1 : hours.findIndex(h => h.hour === lastHour);
+  const lastIdx = propIdx >= 0 ? propIdx : hours.reduce((best, h, i) => (h.count > 0 ? i : best), 0);
   const last = hours[lastIdx];
   const cx = 100;
   const cy = 100;
@@ -757,6 +758,16 @@ const Overview: React.FC = () => {
   }, [visitors, isDateInPeriod]);
   const gaugeHours = useMemo(() => buildHourRows(period), [buildHourRows, period]);
   const hasGaugeData = gaugeHours.some(g => g.count > 0);
+  // Hour of the chronologically newest check-in (full date compared, not just hour) — drives the gauge needle
+  const lastCheckinHour = useMemo(() => {
+    let latest: Date | null = null;
+    visitors.forEach((v: any) => {
+      if (!v?.entry_date || !isDateInPeriod(v.entry_date, period)) return;
+      const t = new Date(v.entry_date);
+      if (!isNaN(t.getTime()) && (!latest || t > latest)) latest = t;
+    });
+    return latest ? (latest as Date).getHours() : null;
+  }, [visitors, isDateInPeriod, period]);
 
   // The hourly detail modal has its own period filter; null means it follows
   // the toolbar filter (it resets to that each time the modal opens)
@@ -1688,7 +1699,7 @@ const Overview: React.FC = () => {
               <span className="text-xs text-gray-400">Click for details</span>
             </div>
             {hasGaugeData ? (
-              <HourGauge hours={gaugeHours} />
+              <HourGauge hours={gaugeHours} lastHour={lastCheckinHour} />
             ) : (
               <div className="h-48 w-full flex items-center justify-center text-xs text-gray-400">
                 No visitor check-ins recorded · {periodLabel}
