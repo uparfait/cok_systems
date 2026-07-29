@@ -243,6 +243,12 @@ module.exports = async function car_check_out(req, res, next) {
       );
     }
 
+    global.WebsocketIO?.emit('car_checkedout', {
+      show_notif: false,
+      type: 'info',
+      message: 'Car checked out: ' + plate_number
+    });
+
     return res.status(200).json({
       success: true,
       type: is_flagged ? "warning" : "success",

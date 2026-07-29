@@ -12,14 +12,17 @@ const getSocketUrl = () => {
     return import.meta.env.VITE_SOCKET_URL;
   }
   
-  // Check if running on localhost - connect to local backend
-  const isLocalhost = window.location.hostname === 'localhost' || 
-                      window.location.hostname === '127.0.0.1';
-  
-  if (isLocalhost) {
-    // For local development, use the same port as the API
-    // The API runs on port 2026 based on backend configuration
-    return 'http://localhost:2026';
+  // Localhost OR private LAN IP (192.168.x.x / 10.x.x.x) → talk to the local backend, not production
+  const host = window.location.hostname;
+  const isLocalNetwork =
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(host) ||
+    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host);
+
+  if (isLocalNetwork) {
+    // The API runs on port 2026; reuse whatever hostname the page was opened with
+    return `http://${host}:2026`;
   }
   
   // For production/remote, use the remote server
@@ -84,7 +87,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       },
       transports: ['polling', 'websocket'],
       reconnection: true,
-      reconnectionAttempts: 5,
+      // Keep retrying forever so a backend restart (nodemon) can't permanently kill realtime updates
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 2000,
       reconnectionDelayMax: 10000,
       timeout: 20000,
