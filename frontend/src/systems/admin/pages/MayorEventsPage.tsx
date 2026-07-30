@@ -7,11 +7,11 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiClock,
-  FiX,
 } from 'react-icons/fi';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { useDashboard } from '../../event-managment/pages/dashboard/hooks/useDashboard';
+import MayorEventDetailsOverlay from './sub/MayorEventDetailsOverlay';
 
 // City of Kigali design rule palette (see desegin_rule.html)
 const COK = {
@@ -37,7 +37,8 @@ interface CalendarEvent {
   eventType?: string;
   eventStatus?: string;
   eventRoom?: string;
-  eventOrganizer?: { fullNames?: string; email?: string; telephone?: string };
+  eventOrganizer?: { fullNames?: string; email?: string; phone?: string; telephone?: string; institution?: string };
+  expectedAudience?: number | string;
   startTime?: string;
   endTime?: string;
   isCancelled?: boolean;
@@ -276,157 +277,6 @@ function isHappeningToday(ev: CalendarEvent): boolean {
     d.getFullYear() === now.getFullYear() &&
     d.getMonth() === now.getMonth() &&
     d.getDate() === now.getDate()
-  );
-}
-
-const STATUS_BADGES: Record<string, { label: string; color: string }> = {
-  live: { label: 'Happening Now', color: COK.success },
-  upcoming: { label: 'Upcoming', color: COK.primary },
-  recurring: { label: 'Recurring', color: COK.warning },
-  past: { label: 'Completed', color: '#9E9E9E' },
-};
-
-// Full date + time, e.g. "Wed, Jul 22, 2026, 06:36 PM"
-function formatFullDateTime(iso?: string): string {
-  if (!iso) return 'Not set';
-  return new Date(iso).toLocaleString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function EventDetailsModal({
-  event,
-  window: mergedWindow,
-  onClose,
-}: {
-  event: CalendarEvent;
-  window: { start?: string; end?: string };
-  onClose: () => void;
-}) {
-  // The calendar API splits multi-day events into one slice per day; use the
-  // merged (true) event window for display and status, not the day slice.
-  const start = mergedWindow.start || event.startTime;
-  const end = mergedWindow.end || event.endTime;
-  const now = Date.now();
-  const startMs = start ? new Date(start).getTime() : NaN;
-  const endMs = end ? new Date(end).getTime() : NaN;
-  const liveNow = !event.isCancelled && !isNaN(startMs) && !isNaN(endMs) && startMs <= now && now <= endMs;
-
-  const badge = event.isCancelled
-    ? { label: 'Cancelled', color: COK.danger }
-    : liveNow
-      ? STATUS_BADGES.live
-      : event.eventStatus === 'recurring'
-        ? STATUS_BADGES.recurring
-        : !isNaN(startMs) && now < startMs
-          ? STATUS_BADGES.upcoming
-          : !isNaN(endMs) && now > endMs
-            ? STATUS_BADGES.past
-            : STATUS_BADGES[event.eventStatus || ''] || { label: 'Scheduled', color: COK.primary };
-
-  const sameDay = !!(start && end && new Date(start).toDateString() === new Date(end).toDateString());
-
-  const detailRows: Array<{ label: string; value: React.ReactNode }> = sameDay
-    ? [
-        {
-          label: 'Date',
-          value: new Date(start!).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
-        },
-        { label: 'Time', value: formatTimeRange(start, end) || 'Not set' },
-      ]
-    : [{ label: 'When', value: `${formatFullDateTime(start)} → ${formatFullDateTime(end)}` }];
-
-  detailRows.push(
-    { label: 'Room / Venue', value: event.eventRoom || 'Not specified' },
-    { label: 'Type', value: `${event.eventMeetingType === 'meet' ? 'Meeting' : 'Event'}${event.eventType ? ` · ${event.eventType}` : ''}` },
-  );
-  if (event.eventOrganizer?.fullNames) {
-    detailRows.push({
-      label: 'Organizer',
-      value: `${event.eventOrganizer.fullNames}${event.eventOrganizer.email ? ` (${event.eventOrganizer.email})` : ''}`,
-    });
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(51,51,51,0.5)' }}
-      onClick={onClose}
-    >
-      <div
-        className="bg-white w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-lg"
-        style={{ border: `1px solid ${COK.border}` }}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Event details"
-      >
-        <div
-          className="flex items-start justify-between p-4"
-          style={{ borderBottom: `1px solid ${COK.border}` }}
-        >
-          <div>
-            <span
-              className="inline-block px-2 py-0.5 text-white uppercase"
-              style={{
-                backgroundColor: badge.color,
-                fontFamily: COK.headingFont,
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: '0.5px',
-              }}
-            >
-              {badge.label}
-            </span>
-            <h3
-              className="mt-2"
-              style={{ fontFamily: COK.headingFont, fontSize: 19, fontWeight: 700, color: COK.neutralDark, margin: '8px 0 0 0' }}
-            >
-              {event.eventName}
-            </h3>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="w-8 h-8 flex items-center justify-center hover:bg-gray-50 shrink-0"
-            style={{ border: `1px solid ${COK.border}` }}
-          >
-            <FiX className="w-4 h-4" style={{ color: COK.neutralDark }} />
-          </button>
-        </div>
-
-        <div className="p-4 space-y-3">
-          {detailRows.map((row) => (
-            <div key={row.label}>
-              <CokLabel>{row.label}</CokLabel>
-              <p className="text-sm mt-0.5" style={{ fontFamily: COK.bodyFont, color: '#555555', margin: '2px 0 0 0' }}>
-                {row.value}
-              </p>
-            </div>
-          ))}
-          {event.eventDescription && (
-            <div>
-              <CokLabel>Description</CokLabel>
-              <p className="text-sm mt-0.5" style={{ fontFamily: COK.bodyFont, color: '#555555', margin: '2px 0 0 0' }}>
-                {event.eventDescription}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div
-          className="px-4 py-3 text-xs text-gray-400"
-          style={{ borderTop: `1px solid ${COK.border}`, fontFamily: COK.bodyFont }}
-        >
-         Event Information Managed by the Event Manager's office.
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -705,7 +555,7 @@ export default function MayorEventsPage() {
       </div>
 
       {selectedEvent && (
-        <EventDetailsModal
+        <MayorEventDetailsOverlay
           event={selectedEvent}
           window={(selectedEvent.eventSpecialId && mergedWindows[selectedEvent.eventSpecialId]) || {}}
           onClose={() => setSelectedEvent(null)}

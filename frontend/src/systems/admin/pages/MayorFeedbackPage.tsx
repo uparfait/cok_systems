@@ -416,13 +416,13 @@ export default function MayorFeedbackPage() {
             />
           )}
 
-          <div className="px-4 py-3 text-xs text-gray-400" style={{ borderTop: `1px solid ${COK.border}`, fontFamily: COK.bodyFont }}>
+          {/* <div className="px-4 py-3 text-xs text-gray-400" style={{ borderTop: `1px solid ${COK.border}`, fontFamily: COK.bodyFont }}>
             <CokLabel>Classification</CokLabel>
             <span>
-             <p style={{ fontFamily: COK.bodyFont, fontSize: 14, fontWeight: 900,  }}>Service feedback is tied to a department visit; general
-              feedback is submitted freely by citizens.</p>
+             <p style={{ fontFamily: COK.bodyFont, fontSize: 14, fontWeight: 900,  }}> general
+              feedback is submitted freely by</p>
             </span>
-          </div>
+          </div> */}
         </div>
       </div>
     </MainLayout>
