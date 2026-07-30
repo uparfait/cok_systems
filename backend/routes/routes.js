@@ -22,6 +22,7 @@ const department_manager = require('./department_manager_routes.js')
 const task_management = require('./task_management/routes.js')
 const notifications = require('./notifications/routes.js')
 const performance = require('./performance.js')
+const requests = require('./requests/routes.js')
 
 
 Router.use('/servicedelivery',
@@ -68,6 +69,7 @@ Router.use('/department-manager', authenticate, department_manager)
 Router.use('/tasks', authenticate, task_management)
 Router.use('/notifications', authenticate, notifications)
 Router.use('/performance', authenticate, performance)
+Router.use('/requests', requests)
 
 // Serve uploaded files
 const path = require('path')
