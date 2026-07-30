@@ -1,7 +1,38 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FiX, FiUsers, FiUser, FiLoader, FiChevronUp } from 'react-icons/fi';
-import { COK, CokLabel, CokBadge, CokTh, CokTableEmpty } from '../mayorCok';
+import { COK, CokBadge, CokTh, CokTableEmpty } from '../mayorCok';
+
+// Field label in CoK primary blue (per design rule: Montserrat, uppercase, letter-spaced)
+const BlueLabel = ({ children }: { children: React.ReactNode }) => (
+  <p
+    className="uppercase"
+    style={{
+      fontFamily: COK.headingFont,
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: '0.6px',
+      color: COK.primary,
+      margin: 0,
+    }}
+  >
+    {children}
+  </p>
+);
+
+// Blue field name above a bordered white box holding the value in body-text black
+const FieldCell = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  <div>
+    <div className="mb-1.5">
+      <BlueLabel>{label}</BlueLabel>
+    </div>
+    <div className="bg-white px-3 py-2.5" style={{ border: `1px solid ${COK.border}`, borderLeft: `2px solid ${COK.primary}` }}>
+      <p className="text-sm" style={{ fontFamily: COK.bodyFont, color: COK.neutralDark, margin: 0 }}>
+        {value}
+      </p>
+    </div>
+  </div>
+);
 
 const ATTENDANCE_URL = '/cok/api/v1/attendance';
 
@@ -140,7 +171,7 @@ export default function MayorEventDetailsOverlay({
     >
       <div
         className="bg-white w-full max-w-4xl max-h-[88vh] overflow-y-auto shadow-lg"
-        style={{ border: `1px solid ${COK.border}` }}
+        style={{ border: `1px solid ${COK.border}`, borderTop: `3px solid ${COK.primary}` }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -153,7 +184,7 @@ export default function MayorEventDetailsOverlay({
               <CokBadge label={badge.label} color={badge.color} />
               <CokBadge label={event.eventMeetingType === 'meet' ? 'Meeting' : 'Event'} color={eventAccent(event)} />
             </div>
-            <h3 className="mt-2" style={{ fontFamily: COK.headingFont, fontSize: 20, fontWeight: 700, color: COK.neutralDark, margin: '8px 0 0 0' }}>
+            <h3 className="mt-2" style={{ fontFamily: COK.headingFont, fontSize: 20, fontWeight: 800, letterSpacing: '-0.3px', color: COK.primary, margin: '8px 0 0 0' }}>
               {event.eventName}
             </h3>
           </div>
@@ -169,42 +200,36 @@ export default function MayorEventDetailsOverlay({
 
         <div className="p-4 space-y-4">
           {/* Core details grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {infoCells.map((cell) => (
-              <div key={cell.label} className="bg-white p-3" style={{ border: `1px solid ${COK.border}` }}>
-                <CokLabel>{cell.label}</CokLabel>
-                <p className="text-sm mt-1" style={{ fontFamily: COK.bodyFont, color: '#555555', margin: '4px 0 0 0' }}>
-                  {cell.value}
-                </p>
-              </div>
-            ))}
+          <div className="p-3" style={{ backgroundColor: COK.neutralLight, border: `1px solid ${COK.border}` }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {infoCells.map((cell) => (
+                <FieldCell key={cell.label} label={cell.label} value={cell.value} />
+              ))}
+            </div>
           </div>
 
           {/* Organizer information */}
-          <div className="bg-white p-3" style={{ border: `1px solid ${COK.border}`, borderLeft: `2px solid ${COK.primary}` }}>
-            <div className="flex items-center gap-2 mb-2">
-              <FiUser className="w-4 h-4" style={{ color: COK.primary }} />
-              <CokLabel>Organizer</CokLabel>
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <FiUser className="w-3.5 h-3.5" style={{ color: COK.primary }} />
+              <BlueLabel>Organizer</BlueLabel>
             </div>
-            {organizer?.fullNames ? (
-              <div className="text-sm space-y-0.5" style={{ fontFamily: COK.bodyFont, color: '#555555' }}>
-                <p style={{ fontFamily: COK.headingFont, fontWeight: 600, color: COK.neutralDark, margin: 0 }}>{organizer.fullNames}</p>
-                {organizer.email && <p style={{ margin: 0 }}>{organizer.email}</p>}
-                {(organizer.phone || organizer.telephone) && <p style={{ margin: 0 }}>{organizer.phone || organizer.telephone}</p>}
-                {organizer.institution && <p style={{ margin: 0 }}>{organizer.institution}</p>}
-              </div>
-            ) : (
-              <p className="text-sm" style={{ fontFamily: COK.bodyFont, color: '#999999', margin: 0 }}>Not specified</p>
-            )}
+            <div className="bg-white px-3 py-2.5" style={{ border: `1px solid ${COK.border}`, borderLeft: `2px solid ${COK.primary}` }}>
+              {organizer?.fullNames ? (
+                <div className="text-sm space-y-0.5" style={{ fontFamily: COK.bodyFont, color: COK.neutralDark }}>
+                  <p style={{ fontFamily: COK.headingFont, fontWeight: 700, color: COK.neutralDark, margin: 0 }}>{organizer.fullNames}</p>
+                  {organizer.email && <p style={{ margin: 0 }}>{organizer.email}</p>}
+                  {(organizer.phone || organizer.telephone) && <p style={{ margin: 0 }}>{organizer.phone || organizer.telephone}</p>}
+                  {organizer.institution && <p style={{ margin: 0 }}>{organizer.institution}</p>}
+                </div>
+              ) : (
+                <p className="text-sm" style={{ fontFamily: COK.bodyFont, color: '#999999', margin: 0 }}>Not specified</p>
+              )}
+            </div>
           </div>
 
           {event.eventDescription && (
-            <div className="bg-white p-3" style={{ border: `1px solid ${COK.border}` }}>
-              <CokLabel>Description</CokLabel>
-              <p className="text-sm mt-1" style={{ fontFamily: COK.bodyFont, color: '#555555', margin: '4px 0 0 0' }}>
-                {event.eventDescription}
-              </p>
-            </div>
+            <FieldCell label="Description" value={event.eventDescription} />
           )}
 
           {/* Attendance report, revealed on demand (past and live events only) */}
@@ -225,7 +250,7 @@ export default function MayorEventDetailsOverlay({
               <div className="flex items-center justify-between p-3" style={{ borderBottom: `1px solid ${COK.border}`, backgroundColor: COK.neutralLight }}>
                 <div className="flex items-center gap-2">
                   <FiUsers className="w-4 h-4" style={{ color: COK.primary }} />
-                  <CokLabel>Signed Attendance Report</CokLabel>
+                  <BlueLabel>Signed Attendance Report</BlueLabel>
                 </div>
                 <div className="flex items-center gap-3">
                   <span style={{ fontFamily: COK.headingFont, fontSize: 18, fontWeight: 700, color: COK.primary }}>
