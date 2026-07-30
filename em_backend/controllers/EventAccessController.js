@@ -55,7 +55,7 @@ class EventAccessController {
           <p style="margin-top: 16px;">This token is valid for <strong>15 minutes</strong>.</p>
           <p style="margin-top: 16px;">Verify your token here: <a href="${verifyUrl}" style="color: #056daa;">${verifyUrl}</a></p>
           <hr style="margin-top: 24px; border: none; border-top: 1px solid #e5e7eb;" />
-          <p style="font-size: 12px; color: #6b7280;">City of Kigali &mdash; Event Management System</p>
+          <p style="font-size: 12px; color: #6b7280;">City of Kigali  Event Management System</p>
         </div>`;
 
       const textContent = `Your event access token is: ${token}\n\nThis token is valid for 15 minutes.\n\nVerify it at: ${verifyUrl}\n\nCity of Kigali - Event Management System`;
