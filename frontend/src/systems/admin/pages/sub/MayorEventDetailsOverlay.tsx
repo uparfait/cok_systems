@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FiX, FiUsers, FiUser, FiLoader } from 'react-icons/fi';
+import { FiX, FiUsers, FiLoader } from 'react-icons/fi';
 import { COK, CokBadge, CokTh, CokTableEmpty } from '../mayorCok';
 
 // Field label in CoK primary blue (per design rule: Montserrat, uppercase, letter-spaced)
@@ -80,13 +80,6 @@ function formatTimeRange(startIso?: string, endIso?: string): string {
   return `${new Date(startIso).toLocaleTimeString([], fmt)} - ${new Date(endIso).toLocaleTimeString([], fmt)}`;
 }
 
-function formatFullDateTime(iso?: string): string {
-  if (!iso) return 'Not set';
-  return new Date(iso).toLocaleString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
-}
-
 function formatSubmittedAt(iso?: string): string {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -147,21 +140,58 @@ export default function MayorEventDetailsOverlay({
   }, [showAttendance, attendanceFetched, event.eventSpecialId]);
 
   const sameDay = !!(start && end && new Date(start).toDateString() === new Date(end).toDateString());
-  const timeValue = sameDay
-    ? `${new Date(start!).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} · ${formatTimeRange(start, end)}`
-    : `${formatFullDateTime(start)} → ${formatFullDateTime(end)}`;
-
   const organizer = event.eventOrganizer;
 
-  const infoCells: Array<{ label: string; value: React.ReactNode }> = [
-    { label: 'Type', value: event.eventMeetingType === 'meet' ? 'Meeting' : 'Event' },
-    { label: 'Event/Meet Name', value: event.eventName || '—' },
-    { label: 'Mode', value: event.eventType || '—' },
-    { label: 'Room', value: event.eventRoom || '—' },
-    { label: 'Expected Audience', value: event.expectedAudience ?? '—' },
-    { label: 'Status', value: badge.label },
-    { label: 'Time', value: timeValue },
-  ];
+  // Badge chips styled exactly like the event manager's events table
+  const meetingTypeBadge = event.eventMeetingType === 'meet'
+    ? <span className="inline-block bg-emerald-50 text-emerald-700 border border-emerald-300 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide">Meeting</span>
+    : <span className="inline-block bg-blue-50 text-sky-700 border border-blue-300 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide">Event</span>;
+
+  const modeBadge = (() => {
+    switch (event.eventType) {
+      case 'Special':
+      case 'External':
+        return <span className="inline-block bg-amber-50 text-amber-800 border border-amber-300 px-2.5 py-0.5 text-xs font-semibold">{event.eventType}</span>;
+      case 'Joint':
+        return <span className="inline-block bg-teal-50 text-teal-800 border border-teal-300 px-2.5 py-0.5 text-xs font-semibold">{event.eventType}</span>;
+      default:
+        return event.eventType
+          ? <span className="inline-block bg-indigo-50 text-indigo-800 border border-indigo-300 px-2.5 py-0.5 text-xs font-semibold">{event.eventType}</span>
+          : <span className="text-gray-400">N/A</span>;
+    }
+  })();
+
+  const statusBadge = (() => {
+    const cls = 'inline-block px-3 py-1 text-xs font-bold uppercase tracking-wide border';
+    if (event.isCancelled) return <span className={`${cls} bg-red-50 text-red-700 border-red-300`}>Cancelled</span>;
+    if (liveNow) return <span className={`${cls} bg-emerald-100 text-emerald-800 border-emerald-300`}>Live</span>;
+    if (badge.label === 'Upcoming') return <span className={`${cls} bg-sky-100 text-sky-800 border-sky-300`}>Upcoming</span>;
+    if (badge.label === 'Recurring') return <span className={`${cls} bg-violet-100 text-violet-800 border-violet-300`}>Recurring</span>;
+    if (badge.label === 'Completed') return <span className={`${cls} bg-gray-100 text-gray-500 border-gray-300`}>Past</span>;
+    return <span className={`${cls} bg-gray-100 text-gray-700 border-gray-300`}>{badge.label}</span>;
+  })();
+
+  const timeCell = start && end ? (
+    <div className="text-sm leading-snug">
+      <div className="text-gray-700">
+        {new Date(start).toLocaleDateString()}
+        {!sameDay && <> - {new Date(end).toLocaleDateString()}</>}
+      </div>
+      <div className="text-gray-500 text-xs">{formatTimeRange(start, end)}</div>
+    </div>
+  ) : (
+    <span className="text-gray-400 text-sm">N/A</span>
+  );
+
+  const organizerCell = organizer?.fullNames ? (
+    <div className="text-sm leading-snug">
+      <div className="font-semibold text-gray-900">{organizer.fullNames}</div>
+      {(organizer.phone || organizer.telephone) && <div className="text-gray-500 text-xs">{organizer.phone || organizer.telephone}</div>}
+      {organizer.email && <div className="text-gray-500 text-xs">{organizer.email}</div>}
+    </div>
+  ) : (
+    <span className="text-gray-400">N/A</span>
+  );
 
   return (
     <div
@@ -212,38 +242,39 @@ export default function MayorEventDetailsOverlay({
         </div>
 
         <div className="p-3 space-y-3">
-          {/* Core details grid */}
-          <div className="p-2.5" style={{ backgroundColor: COK.neutralLight, border: `1px solid ${COK.border}` }}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-              {infoCells.map((cell) => (
-                <FieldCell key={cell.label} label={cell.label} value={cell.value} />
-              ))}
-              {/* Organizer as a compact field spanning the remaining space */}
-              <div className="sm:col-span-2 lg:col-span-1">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <FiUser className="w-3 h-3" style={{ color: COK.primary }} />
-                  <BlueLabel>Organizer</BlueLabel>
-                </div>
-                <div className="bg-white px-2.5 py-1.5" style={{ border: `1px solid ${COK.border}` }}>
-                  {organizer?.fullNames ? (
-                    <p className="text-[13px] leading-snug" style={{ fontFamily: COK.bodyFont, color: COK.neutralDark, margin: 0 }}>
-                      <span style={{ fontFamily: COK.headingFont, fontWeight: 700 }}>{organizer.fullNames}</span>
-                      {organizer.email && <> · {organizer.email}</>}
-                      {(organizer.phone || organizer.telephone) && <> · {organizer.phone || organizer.telephone}</>}
-                      {organizer.institution && <> · {organizer.institution}</>}
-                    </p>
-                  ) : (
-                    <p className="text-[13px]" style={{ fontFamily: COK.bodyFont, color: '#999999', margin: 0 }}>Not specified</p>
-                  )}
-                </div>
-              </div>
-              {event.eventDescription && (
-                <div className="sm:col-span-2 lg:col-span-4">
-                  <FieldCell label="Description" value={event.eventDescription} />
-                </div>
-              )}
-            </div>
+          {/* Core details as a single-row table, styled like the event manager's events table */}
+          <div className="overflow-x-auto" style={{ border: `1px solid ${COK.border}` }}>
+            <table className="w-full text-sm">
+              <thead>
+                <tr>
+                  <CokTh>Type</CokTh>
+                  <CokTh>Event/Meet Name</CokTh>
+                  <CokTh>Mode</CokTh>
+                  <CokTh>Room</CokTh>
+                  <CokTh>Expected Audience</CokTh>
+                  <CokTh>Organizer</CokTh>
+                  <CokTh>Status</CokTh>
+                  <CokTh>Time</CokTh>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="bg-white">
+                  <td className="px-4 py-4 border-r" style={{ borderColor: COK.neutralLight }}>{meetingTypeBadge}</td>
+                  <td className="px-4 py-4 font-bold text-gray-900 border-r" style={{ fontFamily: COK.headingFont, borderColor: COK.neutralLight }}>{event.eventName || '—'}</td>
+                  <td className="px-4 py-4 border-r" style={{ borderColor: COK.neutralLight }}>{modeBadge}</td>
+                  <td className="px-4 py-4 text-gray-700 border-r" style={{ fontFamily: COK.bodyFont, borderColor: COK.neutralLight }}>{event.eventRoom || '—'}</td>
+                  <td className="px-4 py-4 text-gray-900 border-r" style={{ borderColor: COK.neutralLight }}>{event.expectedAudience ?? '—'}</td>
+                  <td className="px-4 py-4 border-r" style={{ borderColor: COK.neutralLight }}>{organizerCell}</td>
+                  <td className="px-4 py-4 border-r" style={{ borderColor: COK.neutralLight }}>{statusBadge}</td>
+                  <td className="px-4 py-4 whitespace-nowrap">{timeCell}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
+
+          {event.eventDescription && (
+            <FieldCell label="Description" value={event.eventDescription} />
+          )}
 
           {/* Attendance report, revealed on demand (past and live events only) */}
           {canViewAttendance && showAttendance && (
