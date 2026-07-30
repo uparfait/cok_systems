@@ -10,6 +10,7 @@ import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import Chart from 'chart.js/auto';
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, Cell, LabelList, AreaChart, Area, CartesianGrid, Legend, ComposedChart, Line } from 'recharts';
 import { COK, CokBadge } from './mayorCok';
+import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 
 // ==================== TYPES ====================
 
@@ -448,7 +449,7 @@ const DeptServicesMirror: React.FC<{
               </span>
               <div className="flex-1 h-6 bg-gray-100/80 flex justify-end overflow-hidden">
                 <div
-                  className="h-full shadow-sm transition-all duration-500"
+                  className="h-full shadow-sm-disabled transition-all duration-500"
                   style={{
                     width: `${(row.served / maxServed) * 100}%`,
                     minWidth: row.served > 0 ? 4 : 0,
@@ -471,7 +472,7 @@ const DeptServicesMirror: React.FC<{
               <div className="flex-1 h-6 bg-gray-100/80 flex justify-start overflow-hidden">
                 {/* Width maps 1:1 to the axis so a bar of 3 ends at the 3 tick */}
                 <div
-                  className="h-full shadow-sm transition-all duration-500"
+                  className="h-full shadow-sm-disabled transition-all duration-500"
                   style={{
                     width: `${(row.emp.served / maxEmp) * 100}%`,
                     minWidth: row.emp.served > 0 ? 4 : 0,
@@ -564,6 +565,7 @@ const Overview: React.FC = () => {
   );
   
   const [loading, setLoading] = useState(true);
+  const [firstTimeLoading, seTfirstTimeLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
 
   // Parking card: lot-map data + which view is shown ('map' is the default, 'trends' is the old area chart)
@@ -978,12 +980,14 @@ const Overview: React.FC = () => {
   );
   
   const chartsRef = useRef<Map<string, Chart>>(new Map());
+  const [isFetching, setIsFetching] = useState(true);
 
    // Fetch real data; silent mode refreshes in the background (socket updates)
   // without tearing the page down to the loading spinner
   const fetchData = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true);
     try {
+      setIsFetching(true)
       const [
         employeesRes, servicesRes, flaggedStatsRes,
         feedbackTotalsRes, feedbackAvgRes, hourlyParkingRes, hourlyServiceRes, departmentsRes,
@@ -1003,7 +1007,10 @@ const Overview: React.FC = () => {
         statisticsService.getParkingSlots().catch(() => null), // Slot totals for the parking lot map
         parkingService.getAllPaginated(1, 1000, 'active').catch(() => null), // Currently parked vehicles for the map
         reservationService.getAll().catch(() => null), // Reservations (plates) for the map
+        seTfirstTimeLoading(false)
       ]);
+
+   
       
       const employees = (employeesRes as any)?.data || employeesRes;
       const services = (servicesRes as any)?.data || servicesRes;
@@ -1080,6 +1087,8 @@ const Overview: React.FC = () => {
       showError('Failed to load dashboard data');
     } finally {
       setLoading(false);
+      seTfirstTimeLoading(false)
+       setIsFetching(false)
     }
   }, [showError]);
   
@@ -1142,6 +1151,24 @@ const Overview: React.FC = () => {
       events.forEach(ev => socket.off(ev, handler));
     };
   }, [socket, isConnected, fetchData]);
+
+  
+
+useEffect(() => {
+  
+  const intervalId = setInterval(() => {
+
+    if(isFetching) {
+      console.log("Already fetching");
+      return;
+    }
+    fetchData({silent: true});
+   
+    console.log("Data refreshed"); 
+  }, 5000);
+
+  return () => clearInterval(intervalId);
+}, [isFetching,fetchData]);
 
   // Fetch paginated data for modals
   const fetchModalData = useCallback(async (cardType: string, page: number = 1, limit: number = 8) => {
@@ -1293,6 +1320,7 @@ const Overview: React.FC = () => {
       setModalPagination({ currentPage: 1, totalPages: 1, totalItems: 0, limit });
     } finally {
       setModalLoading(false);
+      seTfirstTimeLoading(false)
     }
   }, []);
 
@@ -1516,7 +1544,7 @@ const Overview: React.FC = () => {
     ? data?.departments
     : data?.departments?.slice((departmentPage - 1) * departmentLimit, departmentPage * departmentLimit);
   
-  if (loading || !data) {
+  if ((loading && firstTimeLoading) || !data) {
     return (
       <MainLayout>
         <div className="flex justify-center items-center h-96">
@@ -1531,7 +1559,7 @@ const Overview: React.FC = () => {
       {/* Scopes the square-corner dashboard theme (CoK design rule: no border radius) to this page only (globals.css .cok-mayor-dash) */}
       <div className="cok-mayor-dash">
       {/* CoK design-rule page header for the mayor account */}
-      {isMayor && (
+      {/* {isMayor && (
         <div className="px-4 pt-3 pb-2">
           <h1
             style={{
@@ -1546,7 +1574,7 @@ const Overview: React.FC = () => {
             Dashboard
           </h1>
         </div>
-      )}
+      )} */}
 
       {/* Toolbar */}
       <div className="bg-white border-b border-gray-200 px-4 py-2 flex flex-wrap items-center gap-3">
@@ -1586,33 +1614,26 @@ const Overview: React.FC = () => {
         </div>
     <button
   onClick={() => fetchData()}
-  className="ml-auto text-xs px-3 py-1 text-white flex items-center gap-1"
+  className="ml-auto cursor-pointer text-xl h-[30px] max-h-[30px] px-3 py-1 text-white flex items-center gap-1"
   style={{ backgroundColor: '#056daa' }}
   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#04578a'; }}
   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#056daa'; }}
 >
-  <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M13.65 2.35A7.958 7.958 0 008 0C4.69 0 1.99 2.24 1.25 5.4m-.9 5.25A7.958 7.958 0 008 16c3.31 0 6.01-2.24 6.75-5.4M16 6l-4-4-4 4M0 10l4 4 4-4" stroke="white" strokeWidth="1.5" fill="none"/></svg>
+ 
+ {
+  loading ? <SpiralLoader color="#FFFFFF" /> : ''
+ }
+ 
   Refresh
 </button>
-        {!isMayor && (
-          <>
-            <span className="flex items-center gap-1 text-xs" title={isConnected ? 'Real-time updates active' : 'Real-time updates unavailable — use Refresh'}>
-              <span
-                className="w-2 h-2 inline-block"
-                style={{ backgroundColor: isConnected ? '#4CAF50' : '#9E9E9E' }}
-              ></span>
-              <span className="text-gray-500">{isConnected ? 'Live' : 'Offline'}</span>
-            </span>
-            <span className="text-xs text-gray-500 hidden lg:inline">{lastRefresh.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-          </>
-        )}
+     
       </div>
       
       {/* Main Content */}
       <div className="p-3 space-y-2.5">
         
         {/* CHART 1 · "Departments vs services" — drawn by DeptServicesMirror (top of file); colors from CC */}
-        <div className="bg-white border border-gray-200 p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
+        <div className="bg-white border border-gray-200 p-4 sm:p-5 shadow-sm-disabled hover:shadow-md transition-all">
           <div className="flex justify-between items-start mb-4">
             <div>
               <div className="text-base font-bold text-gray-900">Departments vs services</div>
@@ -1644,7 +1665,7 @@ const Overview: React.FC = () => {
         </div>
 
         {/* CHARTS 2 & 3 · "Requests" histograms — height: h-56 divs, colors: fill= on each <Bar>, bar width: maxBarSize */}
-        <div className="bg-white border border-gray-200 p-4 sm:p-5 shadow-sm">
+        <div className="bg-white border border-gray-200 p-4 sm:p-5 shadow-sm-disabled">
           <div className="flex justify-between items-start mb-2">
             <div>
               <div className="text-base font-bold text-gray-900">Requests</div>
@@ -1838,11 +1859,7 @@ const Overview: React.FC = () => {
               <div>
                 <div className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                   {parkingView === 'map' ? 'Parking Lot' : 'Parking Usage Trends'}
-                  {/* Realtime indicator: green when the socket connection is up, gray when offline */}
-                  <span className="flex items-center gap-1 text-[10px] font-normal text-gray-500">
-                    <span className="w-2 h-2 inline-block" style={{ backgroundColor: isConnected ? '#4CAF50' : '#9E9E9E' }}></span>
-                    {isConnected ? 'Live' : 'Offline'}
-                  </span>
+                  
                 </div>
                 <div className="text-xs text-gray-500">{parkingView === 'map' ? `Slot occupancy · vehicles checked in ${periodLabel}` : 'Check-ins vs check-outs · today'}</div>
               </div>

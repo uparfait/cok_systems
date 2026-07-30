@@ -1,4 +1,4 @@
-# City of Kigali Service Delivery & Parking Monitoring System (COK Systems)
+# City of Kigali Service Delivery & Parking Monitoring System (IKAZE)
 
 A modular React application that integrates two core systems for streamlined city hall operations:
 

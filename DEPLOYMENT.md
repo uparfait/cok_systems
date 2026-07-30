@@ -1,4 +1,4 @@
-# Deploying COK Systems on the AOS server
+# Deploying IKAZE on the AOS server
 
 The stack: **nginx** (serves the React app + proxies APIs, the only public
 container) → **backend** :2026 and **em-backend** :2027 (internal) →
