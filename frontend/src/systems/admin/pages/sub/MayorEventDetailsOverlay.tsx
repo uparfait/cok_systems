@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FiX, FiUsers, FiUser, FiLoader, FiChevronUp } from 'react-icons/fi';
+import { FiX, FiUsers, FiUser, FiLoader } from 'react-icons/fi';
 import { COK, CokBadge, CokTh, CokTableEmpty } from '../mayorCok';
 
 // Field label in CoK primary blue (per design rule: Montserrat, uppercase, letter-spaced)
@@ -23,11 +23,11 @@ const BlueLabel = ({ children }: { children: React.ReactNode }) => (
 // Blue field name above a bordered white box holding the value in body-text black
 const FieldCell = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div>
-    <div className="mb-1.5">
+    <div className="mb-1">
       <BlueLabel>{label}</BlueLabel>
     </div>
-    <div className="bg-white px-3 py-2.5" style={{ border: `1px solid ${COK.border}`, borderLeft: `2px solid ${COK.primary}` }}>
-      <p className="text-sm" style={{ fontFamily: COK.bodyFont, color: COK.neutralDark, margin: 0 }}>
+    <div className="bg-white px-2.5 py-1.5" style={{ border: `1px solid ${COK.border}`, borderLeft: `2px solid ${COK.primary}` }}>
+      <p className="text-[13px] leading-snug" style={{ fontFamily: COK.bodyFont, color: COK.neutralDark, margin: 0 }}>
         {value}
       </p>
     </div>
@@ -170,81 +170,82 @@ export default function MayorEventDetailsOverlay({
       onClick={onClose}
     >
       <div
-        className="bg-white w-full max-w-4xl max-h-[88vh] overflow-y-auto shadow-lg"
+        className="bg-white w-full max-w-5xl max-h-[92vh] overflow-y-auto shadow-lg"
         style={{ border: `1px solid ${COK.border}`, borderTop: `3px solid ${COK.primary}` }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label="Event details"
       >
-        {/* Header */}
-        <div className="flex items-start justify-between p-4 sticky top-0 bg-white z-10" style={{ borderBottom: `1px solid ${COK.border}` }}>
-          <div>
+        {/* Header — the View Attendance action lives here so it is visible without scrolling */}
+        <div className="flex items-start justify-between gap-3 p-3 sticky top-0 bg-white z-10" style={{ borderBottom: `1px solid ${COK.border}` }}>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
               <CokBadge label={badge.label} color={badge.color} />
               <CokBadge label={event.eventMeetingType === 'meet' ? 'Meeting' : 'Event'} color={eventAccent(event)} />
             </div>
-            <h3 className="mt-2" style={{ fontFamily: COK.headingFont, fontSize: 20, fontWeight: 800, letterSpacing: '-0.3px', color: COK.primary, margin: '8px 0 0 0' }}>
+            <h3 className="mt-1.5 truncate" style={{ fontFamily: COK.headingFont, fontSize: 18, fontWeight: 800, letterSpacing: '-0.3px', color: COK.primary, margin: '6px 0 0 0' }}>
               {event.eventName}
             </h3>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="w-8 h-8 flex items-center justify-center hover:bg-gray-50 shrink-0"
-            style={{ border: `1px solid ${COK.border}` }}
-          >
-            <FiX className="w-4 h-4" style={{ color: COK.neutralDark }} />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {canViewAttendance && (
+              <button
+                type="button"
+                onClick={() => setShowAttendance((v) => !v)}
+                className="flex items-center gap-2 px-3 py-2 text-white text-xs font-semibold uppercase tracking-wider transition-opacity hover:opacity-90"
+                style={{ backgroundColor: COK.primary, fontFamily: COK.headingFont, cursor: 'pointer' }}
+              >
+                <FiUsers className="w-4 h-4" />
+                {showAttendance ? 'Hide Attendance' : 'View Attendance'}
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="w-8 h-8 flex items-center justify-center hover:bg-gray-50 shrink-0"
+              style={{ border: `1px solid ${COK.border}` }}
+            >
+              <FiX className="w-4 h-4" style={{ color: COK.neutralDark }} />
+            </button>
+          </div>
         </div>
 
-        <div className="p-4 space-y-4">
+        <div className="p-3 space-y-3">
           {/* Core details grid */}
-          <div className="p-3" style={{ backgroundColor: COK.neutralLight, border: `1px solid ${COK.border}` }}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="p-2.5" style={{ backgroundColor: COK.neutralLight, border: `1px solid ${COK.border}` }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
               {infoCells.map((cell) => (
                 <FieldCell key={cell.label} label={cell.label} value={cell.value} />
               ))}
-            </div>
-          </div>
-
-          {/* Organizer information */}
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <FiUser className="w-3.5 h-3.5" style={{ color: COK.primary }} />
-              <BlueLabel>Organizer</BlueLabel>
-            </div>
-            <div className="bg-white px-3 py-2.5" style={{ border: `1px solid ${COK.border}`, borderLeft: `2px solid ${COK.primary}` }}>
-              {organizer?.fullNames ? (
-                <div className="text-sm space-y-0.5" style={{ fontFamily: COK.bodyFont, color: COK.neutralDark }}>
-                  <p style={{ fontFamily: COK.headingFont, fontWeight: 700, color: COK.neutralDark, margin: 0 }}>{organizer.fullNames}</p>
-                  {organizer.email && <p style={{ margin: 0 }}>{organizer.email}</p>}
-                  {(organizer.phone || organizer.telephone) && <p style={{ margin: 0 }}>{organizer.phone || organizer.telephone}</p>}
-                  {organizer.institution && <p style={{ margin: 0 }}>{organizer.institution}</p>}
+              {/* Organizer as a compact field spanning the remaining space */}
+              <div className="sm:col-span-2 lg:col-span-1">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <FiUser className="w-3 h-3" style={{ color: COK.primary }} />
+                  <BlueLabel>Organizer</BlueLabel>
                 </div>
-              ) : (
-                <p className="text-sm" style={{ fontFamily: COK.bodyFont, color: '#999999', margin: 0 }}>Not specified</p>
+                <div className="bg-white px-2.5 py-1.5" style={{ border: `1px solid ${COK.border}`, borderLeft: `2px solid ${COK.primary}` }}>
+                  {organizer?.fullNames ? (
+                    <p className="text-[13px] leading-snug" style={{ fontFamily: COK.bodyFont, color: COK.neutralDark, margin: 0 }}>
+                      <span style={{ fontFamily: COK.headingFont, fontWeight: 700 }}>{organizer.fullNames}</span>
+                      {organizer.email && <> · {organizer.email}</>}
+                      {(organizer.phone || organizer.telephone) && <> · {organizer.phone || organizer.telephone}</>}
+                      {organizer.institution && <> · {organizer.institution}</>}
+                    </p>
+                  ) : (
+                    <p className="text-[13px]" style={{ fontFamily: COK.bodyFont, color: '#999999', margin: 0 }}>Not specified</p>
+                  )}
+                </div>
+              </div>
+              {event.eventDescription && (
+                <div className="sm:col-span-2 lg:col-span-4">
+                  <FieldCell label="Description" value={event.eventDescription} />
+                </div>
               )}
             </div>
           </div>
 
-          {event.eventDescription && (
-            <FieldCell label="Description" value={event.eventDescription} />
-          )}
-
           {/* Attendance report, revealed on demand (past and live events only) */}
-          {canViewAttendance && !showAttendance && (
-            <button
-              type="button"
-              onClick={() => setShowAttendance(true)}
-              className="flex items-center gap-2 px-4 py-2.5 text-white text-xs font-semibold uppercase tracking-wider transition-opacity hover:opacity-90"
-              style={{ backgroundColor: COK.primary, fontFamily: COK.headingFont, cursor: 'pointer' }}
-            >
-              <FiUsers className="w-4 h-4" />
-              View Attendance
-            </button>
-          )}
-
           {canViewAttendance && showAttendance && (
             <div className="bg-white" style={{ border: `1px solid ${COK.border}` }}>
               <div className="flex items-center justify-between p-3" style={{ borderBottom: `1px solid ${COK.border}`, backgroundColor: COK.neutralLight }}>
@@ -252,23 +253,12 @@ export default function MayorEventDetailsOverlay({
                   <FiUsers className="w-4 h-4" style={{ color: COK.primary }} />
                   <BlueLabel>Signed Attendance Report</BlueLabel>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span style={{ fontFamily: COK.headingFont, fontSize: 18, fontWeight: 700, color: COK.primary }}>
-                    {attendanceLoading ? '…' : attendees.length}
-                    <span className="ml-1 text-xs font-medium" style={{ color: '#888888' }}>
-                      attendee{attendees.length === 1 ? '' : 's'}
-                    </span>
+                <span style={{ fontFamily: COK.headingFont, fontSize: 16, fontWeight: 700, color: COK.primary }}>
+                  {attendanceLoading ? '…' : attendees.length}
+                  <span className="ml-1 text-xs font-medium" style={{ color: '#888888' }}>
+                    attendee{attendees.length === 1 ? '' : 's'}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowAttendance(false)}
-                    aria-label="Hide attendance"
-                    className="w-7 h-7 flex items-center justify-center hover:bg-gray-100"
-                    style={{ border: `1px solid ${COK.border}` }}
-                  >
-                    <FiChevronUp className="w-4 h-4" style={{ color: COK.neutralDark }} />
-                  </button>
-                </div>
+                </span>
               </div>
 
               {attendanceLoading && (
@@ -289,7 +279,7 @@ export default function MayorEventDetailsOverlay({
               )}
 
               {!attendanceLoading && !attendanceError && attendees.length > 0 && (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto overflow-y-auto max-h-[36vh]">
                   <table className="w-full text-sm">
                     <thead>
                       <tr>
@@ -326,7 +316,7 @@ export default function MayorEventDetailsOverlay({
           )}
         </div>
 
-        <div className="px-4 py-3 text-xs text-gray-400" style={{ borderTop: `1px solid ${COK.border}`, fontFamily: COK.bodyFont }}>
+        <div className="px-3 py-1.5 text-[11px] text-gray-400" style={{ borderTop: `1px solid ${COK.border}`, fontFamily: COK.bodyFont }}>
           Event information managed by the Event Manager's office.
         </div>
       </div>
