@@ -100,7 +100,8 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   if (userRole.includes('receptionist')) {
     return [
       { id: 'dashboard', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiHome' },
-      { id: 'assigned-visitors', label: 'Assigned Visitors', path: `/${slug}/dashboard?tab=visitors`, icon: 'FiUsers' }
+      { id: 'assigned-visitors', label: 'Assigned Visitors', path: `/${slug}/dashboard?tab=visitors`, icon: 'FiUsers' },
+      { id: 'requests', label: 'Requests', path: `/${slug}/requests`, icon: 'FiFile' }
     ];
   }
 

@@ -14,6 +14,7 @@ import ProfilePage from "./pages/profile/ProfilePage";
 import FeedbackStatusPage from "./pages/FeedbackStatusPage";
 import UnderDevelopment from "./pages/dashboard/UnderDevelopment";
 import ProtectedRoute from "./core/components/ProtectedRoute";
+import MainLayout from "./core/components/Layout/MainLayout";
 // import ChatWidget from './core/components/ChatWidget';
 import { AuthProvider } from "./core/contexts/AuthContext";
 import { SocketProvider } from "./core/contexts/SocketContext";
@@ -60,6 +61,8 @@ import {
   EmployeeDashboard,
   VisitorDetailsPage,
 } from "./systems/serviceDelivery";
+
+import RequestsPage from "./pages/dashboard/RequestsPage";
 
 // event-managment
 
@@ -523,6 +526,17 @@ const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <VisitorDetailsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/:roleSlug/requests"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <RequestsPage />
+                      </MainLayout>
                     </ProtectedRoute>
                   }
                 />

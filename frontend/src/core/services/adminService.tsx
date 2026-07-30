@@ -2,6 +2,7 @@
 // All admin-related API endpoints are defined here
 
 import { get, post, put, del } from './apiClient';
+import requestService from './requestService';
 
 // ==================== PERMISSION TYPES ====================
 
@@ -514,13 +515,11 @@ export const statisticsService = {
   getCurrentlyParkedStats: () => get('/statistics/currently-parked'),
   getFlaggedVehiclesStats: () => get('/statistics/flagged-vehicles'),
   getEmergencyCarsStats: () => get('/statistics/emergency-cars'),
-  getEmployeePerformanceByTasksDone: () => get('/statistics/employee-performance/tasks-done'),
-  getWaitingTimeAnalytics: () => get('/statistics/waiting-time-analytics'),
-  getEmployeePerformanceByService: () => get('/statistics/employee-performance/service'),
   getParkingSlots: () => get('/smartparking/slots'),
 };
 
-export default { departmentService, employeeService, feedbackService, serviceDeliveryService, parkingService, statisticsService };
+export { requestService };
+export default { departmentService, employeeService, feedbackService, serviceDeliveryService, parkingService, statisticsService, requestService };
 
 // ==================== USER ACCOUNT LOCK/UNLOCK APIs ====================
 
