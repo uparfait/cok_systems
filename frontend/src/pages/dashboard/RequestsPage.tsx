@@ -51,12 +51,6 @@ const RequestsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold" style={{ fontFamily: "'Montserrat', sans-serif", color: '#333333' }}>
-          Incoming Correspondences
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">Manage and track all incoming correspondence requests</p>
-      </div>
       <div>
         <IncomingCorrespondences
           key={refreshKey}

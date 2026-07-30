@@ -48,7 +48,7 @@ const getPeriodBounds = (period, from, to) => {
 
 module.exports = async function get_requests(req, res) {
   try {
-    const { status, period, from, to, page = 1, limit = 50 } = req.query;
+    const { status, period, from, to, page = 1, limit = 50, q } = req.query;
     const periodStr = period || 'all';
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
@@ -63,6 +63,19 @@ module.exports = async function get_requests(req, res) {
     const bounds = getPeriodBounds(periodStr, from, to);
     if (bounds) {
       query.created_at = { $gte: bounds.start, $lte: bounds.end };
+    }
+
+    if (q && typeof q === 'string' && q.trim()) {
+      const regex = new RegExp(q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      query.$or = [
+        { 'sender.name': regex },
+        { 'sender.email': regex },
+        { 'subject': regex },
+        { 'reference_number': regex },
+        { 'recipient': regex },
+        { 'orientation': regex },
+        { 'remarks': regex },
+      ];
     }
 
     const total = await Request.countDocuments(query);
