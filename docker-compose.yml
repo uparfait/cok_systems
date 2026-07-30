@@ -28,6 +28,9 @@ services:
       JWT_REFRESH_SECRET: abd32fe-1c3f-4b6a-9d2e-0f5b8c6e7a9feeefc
       COOKIE_SECRET: abd32fe-1c3f-4b6a-9d2e-0f5b8c6e7a9f-abd32fe-1c3f-4b6a-9d2e-0f5b8c6e7a9feeefc
       CLIENT_URL_SET: uat-ikaze.kigalicity.gov.rw
+      EMAIL_USER: coksystems@kigalicity.gov.rw
+      EMAIL_PASS: CTown@2025!&
+      EMAIL_FROM: IKAZE
     volumes:
       - backend_uploads:/app/uploads
     depends_on:
@@ -44,6 +47,9 @@ services:
       DATABASE_NAME2: COK_EVENT_MNG
       FRONTEND_URL: https://uat-ikaze.kigalicity.gov.rw
       CORS_ORIGIN: https://uat-ikaze.kigalicity.gov.rw
+      EMAIL_USER: coksystems@kigalicity.gov.rw
+      EMAIL_PASS: CTown@2025!&
+      EMAIL_FROM: IKAZE
     volumes:
       - em_uploads:/app/uploads
     depends_on:
@@ -53,9 +59,12 @@ services:
   frontend:
     build: ./frontend
     restart: unless-stopped
+    
     environment:
       # Tell the internal nginx/app to listen on port 5713
       PORT: 5713
+      VITE_API_URL: https://uatps-ikaze.kigalicity.gov.rw
+      VITE_API_EVENT_URL: https://uate-ikaze.kigalicity.gov.rw
     # Expose the port so it's accessible within the Docker network
     expose:
       - "5713"
