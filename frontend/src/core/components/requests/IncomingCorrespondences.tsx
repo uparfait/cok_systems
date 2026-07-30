@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
-import { FiSearch } from 'react-icons/fi';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { FiSearch, FiCalendar, FiChevronDown, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { useSearchParams } from 'react-router-dom';
 import requestService, { type RequestDoc } from '../../../core/services/requestService';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
+import ExportModal from './ExportModal';
 
 const PERIOD_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -11,17 +12,6 @@ const PERIOD_OPTIONS = [
   { value: 'month', label: 'This Month' },
   { value: 'year', label: 'This Year' },
   { value: 'range', label: 'Custom Range' },
-];
-
-const ALL_FIELDS = [
-  { key: 'redaction_date', label: 'Redaction Date' },
-  { key: 'reference_number', label: 'Reference Number' },
-  { key: 'reception_date', label: 'Reception Date' },
-  { key: 'sender', label: 'Sender' },
-  { key: 'recipient', label: 'Recipient' },
-  { key: 'subject', label: 'Subject' },
-  { key: 'orientation', label: 'Orientation' },
-  { key: 'remarks', label: 'Remarks' },
 ];
 
 const RequestCard: React.FC<{
@@ -33,24 +23,75 @@ const RequestCard: React.FC<{
     : '';
 
   return (
-    <div
-      onClick={onClick}
-      className="cursor-pointer border-b border-gray-100 bg-white hover:bg-gray-50 transition-colors"
-      style={{ borderRadius: 0 }}
-    >
-      <div className="px-4 py-3">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate" style={{ color: '#333333' }}>
-              {request.sender?.name || request.sender?.email || 'Unknown Sender'}
-            </p>
-            <p className="text-xs sm:text-sm text-gray-600 truncate mt-0.5">
-              {request.subject || 'No subject'}
-            </p>
+<div
+  onClick={onClick}
+  className="cursor-pointer pt-3 pb-3 hover:shadow-xl hover:bg-gray-100 mb-0.5 hover:border-gray-300 transition-all duration-150 ease-in-out border-b border-gray-200 bg-gray-50 transition-colors"
+  style={{ borderRadius: 0 }}
+>
+  <div className="px-4 py-3 flex items-center justify-between gap-4">
+    
+    <div className="flex items-center gap-3 min-w-0 flex-1">
+     
+      <p 
+        className="text-sm font-bold truncate flex-shrink-0 max-w-[140px] sm:max-w-[200px]" 
+        style={{ color: '#056daa' }}
+      >
+        {request.sender?.name || request.sender?.email || 'Unknown Sender'}
+      </p>
+
+    
+      <p className="text-xs sm:text-sm text-gray-600 truncate flex-1">
+        {request.subject || 'No subject'}
+      </p>
+    </div>
+
+   
+    <span className="text-xs text-gray-400 flex-shrink-0 hidden sm:inline-block">
+      {dateStr}
+    </span>
+  </div>
+</div>
+  );
+};
+
+const RangeModal: React.FC<{
+  show: boolean;
+  onClose: () => void;
+  period: 'all' | 'today' | 'week' | 'month' | 'year' | 'range';
+  from: string;
+  to: string;
+  onApply: () => void;
+  onPeriodChange: (p: 'all' | 'today' | 'week' | 'month' | 'year' | 'range') => void;
+  onFromChange: (v: string) => void;
+  onToChange: (v: string) => void;
+}> = ({ show, onClose, period, from, to, onApply, onPeriodChange, onFromChange, onToChange }) => {
+  if (!show) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white w-full max-w-lg" style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4" style={{ backgroundColor: '#056daa', borderRadius: 0 }}>
+          <h3 className="text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>Select Range</h3>
+          <button onClick={onClose} className="p-1 text-white/80 hover:text-white transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="p-4 sm:p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: '#555555', fontFamily: "'Montserrat', sans-serif" }}>Period</label>
+            <select value={period} onChange={(e) => onPeriodChange(e.target.value as any)} className="cok-auth-input w-full py-2.5 px-3 text-sm" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+              {PERIOD_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </select>
           </div>
-          <span className="text-xs text-gray-400 sm:text-right flex-shrink-0">
-            {dateStr}
-          </span>
+          {period === 'range' && (
+            <div className="flex gap-2">
+              <input type="date" value={from} onChange={(e) => onFromChange(e.target.value)} className="cok-auth-input flex-1 py-2.5 px-3 text-sm" style={{ fontFamily: "'Montserrat', sans-serif" }} />
+              <input type="date" value={to} onChange={(e) => onToChange(e.target.value)} className="cok-auth-input flex-1 py-2.5 px-3 text-sm" style={{ fontFamily: "'Montserrat', sans-serif" }} />
+            </div>
+          )}
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 text-sm font-semibold border border-gray-300 hover:bg-gray-50 transition-colors" style={{ borderRadius: 0, color: '#333333' }}>Cancel</button>
+            <button onClick={onApply} className="flex-1 py-2.5 text-sm font-semibold text-white" style={{ backgroundColor: '#056daa', borderRadius: 0 }}>Apply</button>
+          </div>
         </div>
       </div>
     </div>
@@ -62,19 +103,27 @@ const IncomingCorrespondences: React.FC<{
   onNewRequest: () => void;
 }> = ({ onRequestClick, onNewRequest }) => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const initialStatus = (searchParams.get('status') as any) || 'all';
+  const initialPeriod = (searchParams.get('period') as any) || 'all';
+  const initialFrom = searchParams.get('from') || '';
+  const initialTo = searchParams.get('to') || '';
+  const initialPage = parseInt(searchParams.get('page') || '1', 10) || 1;
   const [requests, setRequests] = useState<RequestDoc[]>([]);
   const [loading, setLoading] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'Pending' | 'Completed' | 'Overdue' | 'Archived'>('all');
-  const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'year' | 'range' | 'all'>('all');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
-  const [appliedPeriod, setAppliedPeriod] = useState(period);
-  const [appliedFrom, setAppliedFrom] = useState(from);
-  const [appliedTo, setAppliedTo] = useState(to);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'Pending' | 'Completed' | 'Overdue' | 'Archived'>(initialStatus);
+  const [period, setPeriod] = useState<'all' | 'today' | 'week' | 'month' | 'year' | 'range'>(initialPeriod);
+  const [from, setFrom] = useState(initialFrom);
+  const [to, setTo] = useState(initialTo);
+  const [appliedPeriod, setAppliedPeriod] = useState(initialPeriod);
+  const [appliedFrom, setAppliedFrom] = useState(initialFrom);
+  const [appliedTo, setAppliedTo] = useState(initialTo);
   const [counts, setCounts] = useState({ all: 0, Pending: 0, Completed: 0, Inprogress: 0, Archived: 0 });
+  const [showRangeModal, setShowRangeModal] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [page, setPage] = useState(initialPage);
+  const [showExport, setShowExport] = useState(false);
+  const limit = 20;
 
   const statusFromFilter = (filter: string) => {
     if (filter === 'Pending') return 'Pending';
@@ -84,18 +133,29 @@ const IncomingCorrespondences: React.FC<{
     return undefined;
   };
 
-  const fetchRequests = useCallback(async (statusFilter?: string, limit = 100) => {
+  const updateUrl = useCallback((filter: string, p: string, f: string, t: string, pg = 1) => {
+    const params = new URLSearchParams();
+    if (filter !== 'all') params.set('status', filter);
+    if (p !== 'all') params.set('period', p);
+    if (f) params.set('from', f);
+    if (t) params.set('to', t);
+    if (pg > 1) params.set('page', String(pg));
+    const qs = params.toString();
+    setSearchParams(qs ? `?${qs}` : '', { replace: true });
+  }, [setSearchParams]);
+
+  const fetchRequests = useCallback(async (q = '', p = 1, statusFilter?: string) => {
     setLoading(true);
     try {
       const res = await requestService.getAll({
-        status: statusFilter || 'all',
+        status: statusFilter || statusFromFilter(activeFilter),
         period: appliedPeriod === 'all' ? undefined : appliedPeriod,
         from: appliedFrom || undefined,
         to: appliedTo || undefined,
-        page: 1,
+        page: p,
         limit,
+        q: q || undefined,
       });
-
       let data: RequestDoc[] = [];
       if (res && typeof res === 'object') {
         if (Array.isArray((res as any).data)) data = (res as any).data;
@@ -107,96 +167,59 @@ const IncomingCorrespondences: React.FC<{
     } finally {
       setLoading(false);
     }
-  }, [appliedPeriod, appliedFrom, appliedTo]);
-
-  const updateUrl = useCallback((filter: string, p: string, f: string, t: string) => {
-    const params = new URLSearchParams();
-    if (filter !== 'all') params.set('status', filter);
-    if (p !== 'all') params.set('period', p);
-    if (f) params.set('from', f);
-    if (t) params.set('to', t);
-    const qs = params.toString();
-    setSearchParams(qs ? `?${qs}` : '', { replace: true });
-  }, [setSearchParams]);
+  }, [appliedPeriod, appliedFrom, appliedTo, activeFilter]);
 
   useEffect(() => {
-    const initialStatus = (searchParams.get('status') as any) || 'all';
-    const initialPeriod = (searchParams.get('period') as any) || 'all';
-    const initialFrom = searchParams.get('from') || '';
-    const initialTo = searchParams.get('to') || '';
-    setActiveFilter(initialStatus);
-    setPeriod(initialPeriod);
-    setFrom(initialFrom);
-    setTo(initialTo);
-    setAppliedPeriod(initialPeriod);
-    setAppliedFrom(initialFrom);
-    setAppliedTo(initialTo);
-  }, [searchParams]);
+    fetchRequests('', page, statusFromFilter(activeFilter));
+  }, [fetchRequests, page, activeFilter]);
 
   useEffect(() => {
-    fetchRequests(statusFromFilter(activeFilter));
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       const targets = ['all', 'Pending', 'Completed', 'Inprogress', 'Archived'] as const;
       let changed = false;
-      const next = { ...counts };
-      (async () => {
-        for (const s of targets) {
-          const res = await requestService.getAll({ status: s === 'all' ? undefined : s, limit: 1 });
-          let data: RequestDoc[] = [];
-          if (res && typeof res === 'object') {
-            if (Array.isArray((res as any).data)) data = (res as any).data;
-            else if (Array.isArray(res)) data = res;
-          }
-          const total = (res as any)?.total ?? (Array.isArray(res) ? res.length : data.length);
-          if (next[s] !== total) {
-            next[s] = total;
-            changed = true;
-          }
+      const next = { all: 0, Pending: 0, Completed: 0, Inprogress: 0, Archived: 0 };
+      for (const s of targets) {
+        const res = await requestService.getAll({ status: s === 'all' ? undefined : s, limit: 1 });
+        let data: RequestDoc[] = [];
+        if (res && typeof res === 'object') {
+          if (Array.isArray((res as any).data)) data = (res as any).data;
+          else if (Array.isArray(res)) data = res;
         }
-        if (changed) setCounts(next);
-      })();
+        const total = (res as any)?.total ?? (Array.isArray(res) ? res.length : data.length);
+        if (next[s] !== total) changed = true;
+        next[s] = total;
+      }
+      if (changed) setCounts(next);
     }, 5000);
     return () => clearInterval(interval);
-  }, [fetchRequests, counts]);
+  }, []);
+
+  const handleFilterChange = async (filter: typeof activeFilter) => {
+    if (filter === activeFilter) return;
+    const prevFilter = activeFilter;
+    const prevStatus = statusFromFilter(prevFilter);
+    if (prevStatus) {
+      await requestService.getAll({ status: prevStatus, limit: 1 });
+    }
+    setActiveFilter(filter);
+    setPage(1);
+    updateUrl(filter, appliedPeriod, appliedFrom, appliedTo, 1);
+    await fetchRequests('', 1, statusFromFilter(filter));
+  };
 
   const handleApply = () => {
     setAppliedPeriod(period);
     setAppliedFrom(from);
     setAppliedTo(to);
-    updateUrl(activeFilter, period, from, to);
-    fetchRequests(statusFromFilter(activeFilter));
-  };
-
-  const handleFilterChange = (filter: typeof activeFilter) => {
-    setActiveFilter(filter);
-    updateUrl(filter, appliedPeriod, appliedFrom, appliedTo);
+    setPage(1);
+    fetchRequests('', 1);
+    updateUrl(activeFilter, period, from, to, 1);
   };
 
   const handleSearch = async () => {
-    setSearchTerm(searchInput);
-    setSearchLoading(true);
-    try {
-      const res = await requestService.getAll({
-        period: appliedPeriod === 'all' ? undefined : appliedPeriod,
-        from: appliedFrom || undefined,
-        to: appliedTo || undefined,
-        page: 1,
-        limit: 100,
-      });
-      let data: RequestDoc[] = [];
-      if (res && typeof res === 'object') {
-        if (Array.isArray((res as any).data)) data = (res as any).data;
-        else if (Array.isArray(res)) data = res;
-      }
-      setRequests(data);
-    } catch (error) {
-      setRequests([]);
-    } finally {
-      setSearchLoading(false);
-    }
+    setPage(1);
+    await fetchRequests(searchInput, 1);
   };
-
-  const filteredRequests = searchTerm.trim() ? requests : requests;
 
   const tabs = [
     { key: 'all', label: 'All', count: counts.all, color: '#2563EB' },
@@ -206,18 +229,82 @@ const IncomingCorrespondences: React.FC<{
     { key: 'Archived', label: 'Archived', count: counts.Archived, color: '#9E9E9E' },
   ] as const;
 
+  const totalPages = Math.max(1, Math.ceil((requests.length || 0) / limit));
+  const startIdx = (page - 1) * limit;
+  const pageItems = requests.slice(startIdx, startIdx + limit);
+
   return (
-    <div className="space-y-3" style={{ backgroundColor: '#F7F9FB', minHeight: '100%' }}>
-      <div className="flex flex-col gap-3">
-        <div className="bg-white overflow-x-auto" style={{ boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)', borderRadius: 0 }}>
-          <div className="flex items-center gap-4 px-2">
+    <div className="w-full" style={{ backgroundColor: '#F7F9FB', minHeight: '100%' }}>
+      <div className="bg-white w-full" style={{ boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)', borderRadius: 0 }}>
+        <div className="flex flex-col">
+          <div className="flex items-center gap-1 p-1">
+            <button
+              onClick={() => setShowRangeModal(true)}
+              className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+              title="Filter by period"
+              style={{ borderRadius: 0 }}
+            >
+              <FiCalendar className="w-4 h-4" />
+            </button>
+
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Search across all fields..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                className="cok-auth-input w-full py-3 px-3 pr-10 text-sm"
+                style={{ fontFamily: "'Montserrat', sans-serif", borderRadius: 0 }}
+              />
+              <button
+                onClick={handleSearch}
+                className="absolute right-0 top-0 h-full flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                style={{ width: '50px', borderRadius: 0 }}
+                title="Search"
+              >
+                <FiSearch className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="relative h-full">
+              <button
+                onClick={() => setActionsOpen(!actionsOpen)}
+                className="p-2 border border-gray-300 bg-white hover:bg-gray-50 transition-colors h-full flex items-center justify-center"
+                style={{ borderRadius: 0, color: '#333333', cursor: 'pointer' }}
+                title="Actions"
+              >
+                <FiChevronDown className="w-4 h-4" />
+              </button>
+              {actionsOpen && (
+                <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 shadow-lg z-20" style={{ borderRadius: 0 }}>
+                  <button
+                    onClick={() => { setActionsOpen(false); onNewRequest(); }}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
+                    style={{ fontFamily: "'Montserrat', sans-serif", color: '#333333', height: '100%' }}
+                  >
+                    + New Request
+                  </button>
+                  <button
+                    onClick={() => { setActionsOpen(false); setShowExport(true); }}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
+                    style={{ fontFamily: "'Montserrat', sans-serif", color: '#333333', height: '100%' }}
+                  >
+                    Export
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex overflow-x-auto" style={{ borderTop: '1px solid #f0f0f0' }}>
             {tabs.map((tab) => {
               const isActive = activeFilter === tab.key;
               return (
                 <button
                   key={tab.key}
                   onClick={() => handleFilterChange(tab.key)}
-                  className="relative flex-1 min-w-0 py-2 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap"
+                  className="relative flex-1 min-w-0 py-2 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer"
                   style={{
                     color: isActive ? tab.color : '#6b7280',
                     borderBottom: isActive ? `2px solid ${tab.color}` : '2px solid transparent',
@@ -230,323 +317,73 @@ const IncomingCorrespondences: React.FC<{
               );
             })}
           </div>
-        </div>
 
-        <div className="flex flex-col sm:flex-row gap-2">
-          <select
-            value={period}
-            onChange={(e) => setPeriod(e.target.value as any)}
-            className="cok-auth-input w-full py-2.5 px-3 text-sm"
-            style={{ fontFamily: "'Montserrat', sans-serif" }}
+          <div
+            className="relative"
+            style={{
+              minHeight: '320px',
+              maxHeight: '70vh',
+              overflowY: 'auto',
+            }}
           >
-            {PERIOD_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-          {period === 'range' && (
-            <>
-              <input
-                type="date"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                className="cok-auth-input w-full py-2.5 px-3 text-sm"
-                style={{ fontFamily: "'Montserrat', sans-serif" }}
-              />
-              <input
-                type="date"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                className="cok-auth-input w-full py-2.5 px-3 text-sm"
-                style={{ fontFamily: "'Montserrat', sans-serif" }}
-              />
-            </>
-          )}
-          <button
-            onClick={handleApply}
-            className="cok-btn-primary"
-            style={{ width: 'auto', padding: '0.6rem 1rem' }}
-          >
-            Apply
-          </button>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              placeholder="Search sender, subject, reference..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              className="cok-auth-input w-full py-2.5 px-3 pl-8 text-sm"
-              style={{ fontFamily: "'Montserrat', sans-serif" }}
-            />
-            <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            {loading ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/60 z-10">
+                <SpiralLoader />
+              </div>
+            ) : pageItems.length === 0 ? (
+              <div className="text-center py-12 text-sm text-gray-400">
+                No incoming correspondences found
+              </div>
+            ) : (
+              <div>
+                {pageItems.map((req) => (
+                  <RequestCard key={req._id} request={req} onClick={() => onRequestClick(req)} />
+                ))}
+              </div>
+            )}
           </div>
-          <button
-            onClick={handleSearch}
-            className="cok-btn-primary"
-            style={{ width: 'auto', padding: '0.6rem 1rem' }}
-          >
-            Search
-          </button>
-        </div>
 
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={onNewRequest}
-            className="cok-btn-primary"
-            style={{ width: 'auto', padding: '0.6rem 1rem' }}
-          >
-            + New Request
-          </button>
-          <ExportButton />
+          <div className="flex items-center justify-between px-4 py-2" style={{ borderTop: '1px solid #f0f0f0' }}>
+            <span className="text-xs text-gray-500">
+              Page {page} of {totalPages}
+            </span>
+            <div className="flex gap-1">
+              <button
+                onClick={() => { const np = Math.max(1, page - 1); setPage(np); }}
+                disabled={page <= 1}
+                className="cok-btn-primary disabled:opacity-50"
+                style={{ width: 'auto', padding: '0.35rem 0.6rem', borderRadius: 0 }}
+              >
+                <FiChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => { const np = Math.min(totalPages, page + 1); setPage(np); }}
+                disabled={page >= totalPages}
+                className="cok-btn-primary disabled:opacity-50"
+                style={{ width: 'auto', padding: '0.35rem 0.6rem', borderRadius: 0 }}
+              >
+                <FiChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div
-        className="bg-white overflow-hidden"
-        style={{
-          boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)',
-          borderRadius: 0,
-        }}
-      >
-        {(loading || searchLoading) ? (
-          <div className="flex items-center justify-center py-12">
-            <SpiralLoader />
-          </div>
-        ) : filteredRequests.length === 0 ? (
-          <div className="text-center py-12 text-sm text-gray-400">
-            {searchTerm ? 'No results found for your search' : 'No incoming correspondences found'}
-          </div>
-        ) : (
-          <div>
-            {filteredRequests.map((req) => (
-              <RequestCard
-                key={req._id}
-                request={req}
-                onClick={() => onRequestClick(req)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      <RangeModal
+        show={showRangeModal}
+        onClose={() => setShowRangeModal(false)}
+        period={period}
+        from={from}
+        to={to}
+        onApply={handleApply}
+        onPeriodChange={setPeriod}
+        onFromChange={setFrom}
+        onToChange={setTo}
+      />
+
+      {showExport && <ExportModal onClose={() => setShowExport(false)} />}
     </div>
   );
 };
 
 export default IncomingCorrespondences;
-
-const SENDER_LAYOUT_OPTIONS = [
-  { value: 'combined', label: 'Combined (name + email + telephone)' },
-  { value: 'separate', label: 'Separate (name, email, telephone as own columns)' },
-];
-
-const ExportButton: React.FC = () => {
-  const [showOptions, setShowOptions] = useState(false);
-  const [period, setPeriod] = useState<'all' | 'today' | 'week' | 'month' | 'year' | 'range'>('all');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
-  const [fields, setFields] = useState<string[]>(ALL_FIELDS.map(f => f.key));
-  const [title, setTitle] = useState('Incoming Correspondences Report');
-  const [senderLayout, setSenderLayout] = useState<'combined' | 'separate'>('combined');
-
-  const toggleField = (key: string) => {
-    setFields(prev =>
-      prev.includes(key) ? prev.filter(f => f !== key) : [...prev, key]
-    );
-  };
-
-  const handleDownload = async () => {
-    const url = requestService.getExportUrl({
-      period: period === 'all' ? undefined : period,
-      from: from || undefined,
-      to: to || undefined,
-      fields: fields.join(','),
-      title,
-      senderLayout,
-    });
-    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-    const response = await fetch(url, {
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`Export failed: ${response.status}`);
-    }
-    const blob = await response.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = `${title.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
-    setShowOptions(false);
-  };
-
-  return (
-    <>
-      <button
-        onClick={() => setShowOptions(!showOptions)}
-        className="flex items-center gap-2 border border-gray-300 bg-white hover:bg-gray-50 transition-colors"
-        style={{ width: 'auto', padding: '0.6rem 1rem', borderRadius: 0, color: '#333333' }}
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-        Export
-      </button>
-
-      {showOptions && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={(e) => { if (e.target === e.currentTarget) setShowOptions(false); }}
-        >
-          <div
-            className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto"
-            style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}
-          >
-            <div
-              className="flex items-center justify-between px-4 sm:px-6 py-4"
-              style={{ backgroundColor: '#056daa', borderRadius: 0 }}
-            >
-              <h3 className="text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-                Export Report
-              </h3>
-              <button
-                onClick={() => setShowOptions(false)}
-                className="p-1 text-white/80 hover:text-white transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="p-4 sm:p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: '#555555', fontFamily: "'Montserrat', sans-serif" }}>
-                  Report Title
-                </label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="cok-auth-input w-full py-2.5 px-3 text-sm"
-                  style={{ fontFamily: "'Montserrat', sans-serif" }}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: '#555555', fontFamily: "'Montserrat', sans-serif" }}>
-                  Period
-                </label>
-                <select
-                  value={period}
-                  onChange={(e) => setPeriod(e.target.value as any)}
-                  className="cok-auth-input w-full py-2.5 px-3 text-sm"
-                  style={{ fontFamily: "'Montserrat', sans-serif" }}
-                >
-                  {PERIOD_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-                {period === 'range' && (
-                  <div className="flex gap-2 mt-2">
-                    <input
-                      type="date"
-                      value={from}
-                      onChange={(e) => setFrom(e.target.value)}
-                      className="cok-auth-input flex-1 py-2.5 px-3 text-sm"
-                      style={{ fontFamily: "'Montserrat', sans-serif" }}
-                    />
-                    <input
-                      type="date"
-                      value={to}
-                      onChange={(e) => setTo(e.target.value)}
-                      className="cok-auth-input flex-1 py-2.5 px-3 text-sm"
-                      style={{ fontFamily: "'Montserrat', sans-serif" }}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: '#555555', fontFamily: "'Montserrat', sans-serif" }}>
-                  Sender layout
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {SENDER_LAYOUT_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setSenderLayout(opt.value as any)}
-                      className="flex-1 py-2 text-xs sm:text-sm border transition-colors"
-                      style={{
-                        borderRadius: 0,
-                        borderColor: senderLayout === opt.value ? '#056daa' : '#E0E0E0',
-                        backgroundColor: senderLayout === opt.value ? 'rgba(5,109,170,0.08)' : '#FFFFFF',
-                        color: senderLayout === opt.value ? '#056daa' : '#333333',
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: '#555555', fontFamily: "'Montserrat', sans-serif" }}>
-                  Columns to Include
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {ALL_FIELDS.map((field) => (
-                    <label
-                      key={field.key}
-                      className="flex items-center gap-2 px-3 py-2 cursor-pointer border border-gray-200 hover:bg-gray-50 transition-colors"
-                      style={{ borderRadius: 0, backgroundColor: fields.includes(field.key) ? '#F7F9FB' : '#FFFFFF' }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={fields.includes(field.key)}
-                        onChange={() => toggleField(field.key)}
-                        className="w-4 h-4"
-                        style={{ accentColor: '#056daa' }}
-                      />
-                      <span className="text-xs sm:text-sm" style={{ color: '#333333' }}>{field.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowOptions(false)}
-                  className="flex-1 py-2.5 text-sm font-semibold border border-gray-300 hover:bg-gray-50 transition-colors"
-                  style={{ borderRadius: 0, color: '#333333' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDownload}
-                  disabled={fields.length === 0}
-                  className="flex-1 py-2.5 text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2"
-                  style={{ backgroundColor: '#056daa', borderRadius: 0 }}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Download
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-};
