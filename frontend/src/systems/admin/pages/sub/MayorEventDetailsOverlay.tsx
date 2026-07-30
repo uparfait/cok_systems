@@ -26,7 +26,7 @@ const FieldCell = ({ label, value }: { label: string; value: React.ReactNode }) 
     <div className="mb-1">
       <BlueLabel>{label}</BlueLabel>
     </div>
-    <div className="bg-white px-2.5 py-1.5" style={{ border: `1px solid ${COK.border}`, borderLeft: `2px solid ${COK.primary}` }}>
+    <div className="bg-white px-2.5 py-1.5" style={{ border: `1px solid ${COK.border}` }}>
       <p className="text-[13px] leading-snug" style={{ fontFamily: COK.bodyFont, color: COK.neutralDark, margin: 0 }}>
         {value}
       </p>
@@ -224,7 +224,7 @@ export default function MayorEventDetailsOverlay({
                   <FiUser className="w-3 h-3" style={{ color: COK.primary }} />
                   <BlueLabel>Organizer</BlueLabel>
                 </div>
-                <div className="bg-white px-2.5 py-1.5" style={{ border: `1px solid ${COK.border}`, borderLeft: `2px solid ${COK.primary}` }}>
+                <div className="bg-white px-2.5 py-1.5" style={{ border: `1px solid ${COK.border}` }}>
                   {organizer?.fullNames ? (
                     <p className="text-[13px] leading-snug" style={{ fontFamily: COK.bodyFont, color: COK.neutralDark, margin: 0 }}>
                       <span style={{ fontFamily: COK.headingFont, fontWeight: 700 }}>{organizer.fullNames}</span>
