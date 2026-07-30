@@ -53,6 +53,7 @@ export const requestService = {
     to?: string;
     page?: number;
     limit?: number;
+    q?: string;
   }) => {
     const query = new URLSearchParams();
     if (params?.status && params.status !== 'all') query.append('status', params.status);
@@ -61,6 +62,7 @@ export const requestService = {
     if (params?.to) query.append('to', params.to);
     if (params?.page) query.append('page', String(params.page));
     if (params?.limit) query.append('limit', String(params.limit));
+    if (params?.q) query.append('q', params.q);
     const qs = query.toString();
     return get(`/requests${qs ? `?${qs}` : ''}`);
   },
