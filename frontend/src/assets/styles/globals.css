@@ -722,8 +722,9 @@ background-color: #056daa;
 
 /* Light blue-tinted canvas so white cards pop */
 .cok-mayor-dash {
-  background-color: #FFFFFF;
+ 
   min-height: 100%;
+  width: 100%;
 }
 
 /* Cards: rounded panels with a soft floating shadow, no hairline borders */

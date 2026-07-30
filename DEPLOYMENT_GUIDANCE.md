@@ -4,7 +4,7 @@
 
 ### Purpose
 
-This guide walks you through deploying the COK Systems(Ikaze) application from start to finish. It is written for system administrators, DevOps engineers, and developers who need to set up the system on a Linux server using Docker. Follow the steps in order for a first-time deployment. Later sections help with day-to-day maintenance, backups, and fixing common problems.
+This guide walks you through deploying the IKAZE(Ikaze) application from start to finish. It is written for system administrators, DevOps engineers, and developers who need to set up the system on a Linux server using Docker. Follow the steps in order for a first-time deployment. Later sections help with day-to-day maintenance, backups, and fixing common problems.
 
 ### Scope
 
@@ -455,4 +455,4 @@ No advanced monitoring dashboard is installed by default. You can add one later 
 
 | Version | Date | Author | Changes |
 |---|---|---|---|
-| 1.0 | 2026-07-24 | COK Systems Team | Initial deployment guide based on current production setup |
+| 1.0 | 2026-07-24 | IKAZE Team | Initial deployment guide based on current production setup |
