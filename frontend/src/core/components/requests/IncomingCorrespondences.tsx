@@ -125,6 +125,28 @@ const IncomingCorrespondences: React.FC<{
   const [showExport, setShowExport] = useState(false);
   const limit = 20;
 
+   const fetchCounts = useCallback(async () => {
+    const targets = ['all', 'Pending', 'Completed', 'Inprogress', 'Archived'] as const;
+    const next = { all: 0, Pending: 0, Completed: 0, Inprogress: 0, Archived: 0 };
+    for (const s of targets) {
+      const res = await requestService.getAll({ status: s === 'all' ? undefined : s, limit: 1 });
+      let data: RequestDoc[] = [];
+      if (res && typeof res === 'object') {
+        if (Array.isArray((res as any).data)) data = (res as any).data;
+        else if (Array.isArray(res)) data = res;
+      }
+      const total = (res as any)?.total ?? (Array.isArray(res) ? res.length : data.length);
+      next[s] = total;
+    }
+    setCounts(next);
+  }, []);
+
+  useEffect(() => {
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 5000);
+    return () => clearInterval(interval);
+  }, [fetchCounts]);
+
   const statusFromFilter = (filter: string) => {
     if (filter === 'Pending') return 'Pending';
     if (filter === 'Completed') return 'Completed';
@@ -147,7 +169,8 @@ const IncomingCorrespondences: React.FC<{
   const fetchRequests = useCallback(async (q = '', p = 1, statusFilter?: string) => {
     setLoading(true);
     try {
-      const res = await requestService.getAll({
+      fetchCounts();
+       const res = await requestService.getAll({
         status: statusFilter || statusFromFilter(activeFilter),
         period: appliedPeriod === 'all' ? undefined : appliedPeriod,
         from: appliedFrom || undefined,
@@ -173,26 +196,7 @@ const IncomingCorrespondences: React.FC<{
     fetchRequests('', page, statusFromFilter(activeFilter));
   }, [fetchRequests, page, activeFilter]);
 
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      const targets = ['all', 'Pending', 'Completed', 'Inprogress', 'Archived'] as const;
-      let changed = false;
-      const next = { all: 0, Pending: 0, Completed: 0, Inprogress: 0, Archived: 0 };
-      for (const s of targets) {
-        const res = await requestService.getAll({ status: s === 'all' ? undefined : s, limit: 1 });
-        let data: RequestDoc[] = [];
-        if (res && typeof res === 'object') {
-          if (Array.isArray((res as any).data)) data = (res as any).data;
-          else if (Array.isArray(res)) data = res;
-        }
-        const total = (res as any)?.total ?? (Array.isArray(res) ? res.length : data.length);
-        if (next[s] !== total) changed = true;
-        next[s] = total;
-      }
-      if (changed) setCounts(next);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+ 
 
   const handleFilterChange = async (filter: typeof activeFilter) => {
     if (filter === activeFilter) return;
@@ -240,7 +244,7 @@ const IncomingCorrespondences: React.FC<{
           <div className="flex items-center gap-1 p-1">
             <button
               onClick={() => setShowRangeModal(true)}
-              className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+              className="w-[50px] h-[50px] border border-gray-300 flex items-center justify-center cursor-pointer text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
               title="Filter by period"
               style={{ borderRadius: 0 }}
             >
@@ -250,7 +254,7 @@ const IncomingCorrespondences: React.FC<{
             <div className="relative flex-1">
               <input
                 type="text"
-                placeholder="Search across all fields..."
+                placeholder="Search..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -259,7 +263,7 @@ const IncomingCorrespondences: React.FC<{
               />
               <button
                 onClick={handleSearch}
-                className="absolute right-0 top-0 h-full flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                className="absolute cursor-pointer right-0 top-0 h-full flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
                 style={{ width: '50px', borderRadius: 0 }}
                 title="Search"
               >
@@ -270,7 +274,7 @@ const IncomingCorrespondences: React.FC<{
             <div className="relative h-full">
               <button
                 onClick={() => setActionsOpen(!actionsOpen)}
-                className="p-2 border border-gray-300 bg-white hover:bg-gray-50 transition-colors h-full flex items-center justify-center"
+                className="w-[50px] h-[50px] border border-gray-300 bg-white hover:bg-gray-50 transition-colors  flex items-center justify-center"
                 style={{ borderRadius: 0, color: '#333333', cursor: 'pointer' }}
                 title="Actions"
               >
@@ -304,11 +308,12 @@ const IncomingCorrespondences: React.FC<{
                 <button
                   key={tab.key}
                   onClick={() => handleFilterChange(tab.key)}
-                  className="relative flex-1 min-w-0 py-2 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer"
+                  className="relative hover:bg-gray-100 flex-1 min-w-0 py-2 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer"
                   style={{
+                    
                     color: isActive ? tab.color : '#6b7280',
                     borderBottom: isActive ? `2px solid ${tab.color}` : '2px solid transparent',
-                    backgroundColor: isActive ? `${tab.color}10` : 'transparent',
+                    backgroundColor: isActive ? `${tab.color}10` : '',
                   }}
                 >
                   <span className="truncate block">{tab.label}</span>
