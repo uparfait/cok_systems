@@ -55,25 +55,6 @@ const RequestForm: React.FC<{
     }
   };
 
-  const inputStyle: React.CSSProperties = {
-    fontFamily: "'Montserrat', sans-serif",
-    fontSize: '14px',
-    backgroundColor: '#F7F9FB',
-    border: '1px solid transparent',
-    borderRadius: 0,
-    boxShadow: '0px 2px 4px rgba(0,0,0,0.1)',
-    color: '#333333',
-  };
-
-  const focusInput = (e: React.FocusEvent<HTMLElement>) => {
-    e.currentTarget.style.borderColor = '#056daa';
-    e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)';
-  };
-  const blurInput = (e: React.FocusEvent<HTMLElement>) => {
-    e.currentTarget.style.borderColor = 'transparent';
-    e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)';
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div
@@ -105,10 +86,8 @@ const RequestForm: React.FC<{
                 type="date"
                 value={form.redaction_date}
                 onChange={(e) => setForm({ ...form, redaction_date: e.target.value })}
-                onFocus={focusInput}
-                onBlur={blurInput}
                 className="cok-auth-input w-full py-2.5 px-3 text-sm"
-                style={inputStyle}
+                style={{ fontFamily: "'Montserrat', sans-serif" }}
               />
             </div>
             <div>
@@ -119,10 +98,8 @@ const RequestForm: React.FC<{
                 type="text"
                 value={form.reference_number}
                 onChange={(e) => setForm({ ...form, reference_number: e.target.value })}
-                onFocus={focusInput}
-                onBlur={blurInput}
                 className="cok-auth-input w-full py-2.5 px-3 text-sm"
-                style={inputStyle}
+                style={{ fontFamily: "'Montserrat', sans-serif" }}
                 placeholder="Optional"
               />
             </div>
@@ -134,10 +111,8 @@ const RequestForm: React.FC<{
                 type="date"
                 value={form.reception_date}
                 onChange={(e) => setForm({ ...form, reception_date: e.target.value })}
-                onFocus={focusInput}
-                onBlur={blurInput}
                 className="cok-auth-input w-full py-2.5 px-3 text-sm"
-                style={inputStyle}
+                style={{ fontFamily: "'Montserrat', sans-serif" }}
               />
             </div>
             <div>
@@ -148,22 +123,13 @@ const RequestForm: React.FC<{
                 type="text"
                 value={form.recipient}
                 onChange={(e) => setForm({ ...form, recipient: e.target.value })}
-                onFocus={focusInput}
-                onBlur={blurInput}
                 className="cok-auth-input w-full py-2.5 px-3 text-sm"
-                style={inputStyle}
+                style={{ fontFamily: "'Montserrat', sans-serif" }}
               />
             </div>
           </div>
 
-          <div
-            className="border border-gray-200 p-4"
-            style={{
-              backgroundColor: '#FFFFFF',
-              boxShadow: '0 8px 40px 0 rgba(0,0,0,0.08)',
-              borderRadius: 0,
-            }}
-          >
+          <div className="border border-gray-200 p-4" style={{ borderRadius: 0 }}>
             <p className="text-xs font-semibold mb-3 uppercase tracking-wide" style={{ color: '#056daa', fontFamily: "'Montserrat', sans-serif" }}>
               Sender Information
             </p>
@@ -176,10 +142,8 @@ const RequestForm: React.FC<{
                   type="text"
                   value={form.sender_name}
                   onChange={(e) => setForm({ ...form, sender_name: e.target.value })}
-                  onFocus={focusInput}
-                  onBlur={blurInput}
                   className="cok-auth-input w-full py-2.5 px-3 text-sm"
-                  style={inputStyle}
+                  style={{ fontFamily: "'Montserrat', sans-serif" }}
                   placeholder="Optional"
                 />
               </div>
@@ -191,10 +155,8 @@ const RequestForm: React.FC<{
                   type="email"
                   value={form.sender_email}
                   onChange={(e) => setForm({ ...form, sender_email: e.target.value })}
-                  onFocus={focusInput}
-                  onBlur={blurInput}
                   className="cok-auth-input w-full py-2.5 px-3 text-sm"
-                  style={inputStyle}
+                  style={{ fontFamily: "'Montserrat', sans-serif" }}
                   placeholder="Optional"
                 />
               </div>
@@ -206,10 +168,8 @@ const RequestForm: React.FC<{
                   type="tel"
                   value={form.sender_telephone}
                   onChange={(e) => setForm({ ...form, sender_telephone: e.target.value })}
-                  onFocus={focusInput}
-                  onBlur={blurInput}
                   className="cok-auth-input w-full py-2.5 px-3 text-sm"
-                  style={inputStyle}
+                  style={{ fontFamily: "'Montserrat', sans-serif" }}
                   placeholder="Optional"
                 />
               </div>
@@ -224,10 +184,8 @@ const RequestForm: React.FC<{
               type="text"
               value={form.subject}
               onChange={(e) => setForm({ ...form, subject: e.target.value })}
-              onFocus={focusInput}
-              onBlur={blurInput}
               className="cok-auth-input w-full py-2.5 px-3 text-sm"
-              style={inputStyle}
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
               placeholder="Optional"
             />
           </div>
@@ -240,10 +198,8 @@ const RequestForm: React.FC<{
               type="text"
               value={form.orientation}
               onChange={(e) => setForm({ ...form, orientation: e.target.value })}
-              onFocus={focusInput}
-              onBlur={blurInput}
               className="cok-auth-input w-full py-2.5 px-3 text-sm"
-              style={inputStyle}
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
               placeholder="Optional"
             />
           </div>
@@ -255,11 +211,9 @@ const RequestForm: React.FC<{
             <textarea
               value={form.remarks}
               onChange={(e) => setForm({ ...form, remarks: e.target.value })}
-              onFocus={focusInput}
-              onBlur={blurInput}
               rows={3}
               className="cok-auth-input w-full py-2.5 px-3 text-sm"
-              style={{ ...inputStyle, resize: 'vertical' }}
+              style={{ fontFamily: "'Montserrat', sans-serif", resize: 'vertical' }}
               placeholder="Optional"
             />
           </div>
