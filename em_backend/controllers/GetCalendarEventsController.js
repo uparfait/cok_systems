@@ -13,6 +13,7 @@ function transformEvent(event, status, startTime, endTime, isCancelled = false) 
     eventType: event.eventType,
     eventRoom: event.eventRoom,
     eventOrganizer: event.eventOrganizer,
+    expectedAudience: event.expectedAudience,
     eventMeetingType: event.eventMeetingType || 'event',
     eventStatus: status,
     startTime,

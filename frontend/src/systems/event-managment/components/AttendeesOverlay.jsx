@@ -70,7 +70,7 @@ export default function AttendeesOverlay({ eventSpecialId, eventName, onClose })
         responseType: "blob",
       });
       const safeName = (eventName || "attendance").replace(/[^a-zA-Z0-9]/g, "_");
-      const ext = type === "excel" ? "csv" : "pdf";
+      const ext = type === "excel" ? "xlsx" : "pdf";
       const blob = new Blob([res.data]);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -173,6 +173,7 @@ export default function AttendeesOverlay({ eventSpecialId, eventName, onClose })
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Phone</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Institution</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Position</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Signature</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Submitted At</th>
                   </tr>
                 </thead>
@@ -185,6 +186,17 @@ export default function AttendeesOverlay({ eventSpecialId, eventName, onClose })
                       <td className="px-4 py-3 text-gray-600 text-xs">{a.attendeePhoneNumber || "—"}</td>
                       <td className="px-4 py-3 text-gray-600">{a.attendeeInstitution || "—"}</td>
                       <td className="px-4 py-3 text-gray-600">{a.attendeePosition}</td>
+                      <td className="px-4 py-3">
+                        {a.attendeeSignature ? (
+                          <img
+                            src={a.attendeeSignature}
+                            alt={`Signature of ${a.attendeeFullName}`}
+                            className="h-8 max-w-[110px] object-contain"
+                          />
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{formatTime(a.createdAt)}</td>
                     </tr>
                   ))}
