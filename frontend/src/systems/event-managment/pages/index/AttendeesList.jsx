@@ -1,13 +1,46 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import SpiralLoader from '../../components/SpiralLoader';
 
 const BASE_URL = '/cok/api/v1';
 const POLL_INTERVAL = 5000;
 const PRIMARY = '#056daa';
 const PRIMARY_HOVER = '#248fc2';
+
+const LOGO_URL = '/LOGO_COK_report.png';
+const LOGO_RATIO = 221 / 1116; // original logo image is 1116x221 px
+
+// Load the report logo once as a base64 data URL (null if unavailable)
+async function loadLogoDataUrl() {
+  try {
+    const res = await fetch(LOGO_URL);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+function triggerDownload(blob, filename) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
 
 function formatTime(iso) {
   if (!iso) return '—';
@@ -22,6 +55,7 @@ export default function AttendeesList() {
 
   const [attendees, setAttendees] = useState([]);
   const [eventName, setEventName] = useState('');
+  const [eventStartedAt, setEventStartedAt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
@@ -58,8 +92,9 @@ export default function AttendeesList() {
       fetchAttendees(true),
       axios.get(`${BASE_URL}/live-events`, { params: { eventSpecialId } }).catch(() => null),
     ]).then(([, evRes]) => {
-      const name = evRes?.data?.data?.[0]?.eventName || '';
-      setEventName(name);
+      const ev = evRes?.data?.data?.[0];
+      setEventName(ev?.eventName || '');
+      setEventStartedAt(ev?.startedAt || null);
     }).catch(() => setError('Failed to load attendance records.'))
       .finally(() => setLoading(false));
 
@@ -73,34 +108,157 @@ export default function AttendeesList() {
       !q ||
       a.attendeeFullName?.toLowerCase().includes(q) ||
       a.attendeeInstitution?.toLowerCase().includes(q) ||
-      a.attendeePosition?.toLowerCase().includes(q)
+      a.attendeePosition?.toLowerCase().includes(q) ||
+      a.attendeeEmail?.toLowerCase().includes(q)
     );
   });
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  function exportExcel() {
+  async function exportExcel() {
     const title = eventName || 'Attendance Report';
-    const rows = filtered.map((a, i) => ({
-      'S/N': i + 1,
-      'Full Name': a.attendeeFullName || '',
-      'Institution': a.attendeeInstitution || '',
-      'Position': a.attendeePosition || '',
-      'Signed': a.attendeeSignature ? 'Yes' : 'No',
-      'Submitted At': formatTime(a.createdAt),
-    }));
+    const logo = await loadLogoDataUrl();
 
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([
-      [title],
-      [`Total: ${filtered.length} attendee(s)   Exported: ${new Date().toLocaleString()}`],
-      [],
-    ]);
-    XLSX.utils.sheet_add_json(ws, rows, { origin: 'A4' });
-    ws['!cols'] = [{ wch: 6 }, { wch: 30 }, { wch: 28 }, { wch: 25 }, { wch: 8 }, { wch: 22 }];
-    XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
-    XLSX.writeFile(wb, `attendance-${title}.xlsx`);
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Attendance');
+    ws.columns = [
+      { width: 6 }, { width: 30 }, { width: 32 }, { width: 28 },
+      { width: 24 }, { width: 12 }, { width: 20 },
+    ];
+
+    // Logo header floats over the first rows, sized to span the table width
+    let rowCursor = 1;
+    if (logo) {
+      const imgId = wb.addImage({ base64: logo, extension: 'png' });
+      const logoWidth = 780;
+      ws.addImage(imgId, {
+        tl: { col: 0, row: 0 },
+        ext: { width: logoWidth, height: Math.round(logoWidth * LOGO_RATIO) },
+      });
+      rowCursor = 10; // leave empty rows behind the floating image
+    }
+
+    ws.getRow(rowCursor).getCell(1).value = title;
+    ws.getRow(rowCursor).getCell(1).font = { bold: true, size: 14 };
+    rowCursor += 1;
+    ws.getRow(rowCursor).getCell(1).value =
+      `Meeting held at: ${formatTime(eventStartedAt || attendees[0]?.createdAt)}`;
+    ws.getRow(rowCursor).getCell(1).font = { size: 10, color: { argb: 'FF666666' } };
+    rowCursor += 2;
+
+    const headers = ['S/N', 'Full Name', 'Email', 'Institution', 'Position', 'Signed', 'Submitted At'];
+    const headerRow = ws.getRow(rowCursor);
+    headers.forEach((h, i) => {
+      const cell = headerRow.getCell(i + 1);
+      cell.value = h;
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF056DAA' } };
+    });
+    rowCursor += 1;
+
+    filtered.forEach((a, i) => {
+      const row = ws.getRow(rowCursor + i);
+      [
+        i + 1,
+        a.attendeeFullName || '',
+        a.attendeeEmail || '',
+        a.attendeeInstitution || '',
+        a.attendeePosition || '',
+        a.attendeeSignature ? 'Yes' : 'No',
+        formatTime(a.createdAt),
+      ].forEach((v, j) => { row.getCell(j + 1).value = v; });
+    });
+
+    // Footer note below the table
+    const footerRow = ws.getRow(rowCursor + filtered.length + 1);
+    footerRow.getCell(1).value =
+      `Total: ${filtered.length} attendee(s)   Exported: ${new Date().toLocaleString()}`;
+    footerRow.getCell(1).font = { size: 9, italic: true, color: { argb: 'FF888888' } };
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    triggerDownload(blob, `attendance-${title}.xlsx`);
+  }
+
+  async function exportPdf() {
+    const title = eventName || 'Attendance Report';
+    const logo = await loadLogoDataUrl();
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+
+    const margin = 40;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const contentWidth = pageWidth - margin * 2;
+    let y = 30;
+
+    // Full-width logo header
+    if (logo) {
+      try {
+        doc.addImage(logo, 'PNG', margin, y, contentWidth, contentWidth * LOGO_RATIO);
+        y += contentWidth * LOGO_RATIO + 20;
+      } catch { /* render without logo if the image fails */ }
+    }
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(title, margin, y);
+    y += 16;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(120);
+    doc.text(`Meeting held at: ${formatTime(eventStartedAt || attendees[0]?.createdAt)}`, margin, y);
+    doc.setTextColor(0);
+    y += 10;
+
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const footerNote = `Total: ${filtered.length} attendee(s)   Exported: ${new Date().toLocaleString()}`;
+
+    autoTable(doc, {
+      startY: y,
+      head: [['S/N', 'Full Name', 'Email', 'Institution', 'Position', 'Signature', 'Submitted At']],
+      body: filtered.map((a, i) => [
+        i + 1,
+        a.attendeeFullName || '',
+        a.attendeeEmail || '',
+        a.attendeeInstitution || '',
+        a.attendeePosition || '',
+        '', // drawn as an image in didDrawCell
+        formatTime(a.createdAt),
+      ]),
+      styles: { fontSize: 8, cellPadding: 4, valign: 'middle' },
+      headStyles: { fillColor: [5, 109, 170], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [247, 249, 251] },
+      columnStyles: { 0: { cellWidth: 30 }, 5: { cellWidth: 90 } },
+      bodyStyles: { minCellHeight: 30 },
+      didDrawCell: (data) => {
+        if (data.section !== 'body' || data.column.index !== 5) return;
+        const sig = filtered[data.row.index]?.attendeeSignature;
+        if (!sig) return;
+        try {
+          // Fit inside the cell while preserving the signature's aspect ratio
+          const props = doc.getImageProperties(sig);
+          const maxW = data.cell.width - 8;
+          const maxH = data.cell.height - 6;
+          const scale = Math.min(maxW / props.width, maxH / props.height);
+          const w = props.width * scale;
+          const h = props.height * scale;
+          const x = data.cell.x + (data.cell.width - w) / 2;
+          const cy = data.cell.y + (data.cell.height - h) / 2;
+          doc.addImage(sig, 'PNG', x, cy, w, h);
+        } catch { /* skip unreadable signature images */ }
+      },
+      didDrawPage: () => {
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(136);
+        doc.text(footerNote, margin, pageHeight - 16);
+        doc.setTextColor(0);
+      },
+    });
+
+    doc.save(`attendance-${title}.pdf`);
   }
 
   const searchFocused = typeof window !== 'undefined' ? false : false;
@@ -139,21 +297,38 @@ export default function AttendeesList() {
           </div>
 
           {filtered.length > 0 && (
-            <button
-              onClick={exportExcel}
-              className="flex items-center gap-1.5 px-4 py-2.5 text-white text-xs font-semibold uppercase tracking-wider rounded-none transition-colors shrink-0"
-              style={{ backgroundColor: PRIMARY, fontFamily: "'Montserrat', sans-serif", cursor: 'pointer' }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
-              onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(1px)'; }}
-              onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-              </svg>
-              <span className="hidden sm:inline">Export Excel</span>
-              <span className="sm:hidden">Excel</span>
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={exportExcel}
+                className="flex items-center gap-1.5 px-4 py-2.5 text-white text-xs font-semibold uppercase tracking-wider rounded-none transition-colors"
+                style={{ backgroundColor: PRIMARY, fontFamily: "'Montserrat', sans-serif", cursor: 'pointer' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+                onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(1px)'; }}
+                onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                </svg>
+                <span className="hidden sm:inline">Export Excel</span>
+                <span className="sm:hidden">Excel</span>
+              </button>
+              <button
+                onClick={exportPdf}
+                className="flex items-center gap-1.5 px-4 py-2.5 text-white text-xs font-semibold uppercase tracking-wider rounded-none transition-colors"
+                style={{ backgroundColor: '#C62828', fontFamily: "'Montserrat', sans-serif", cursor: 'pointer' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#E53935'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#C62828'; }}
+                onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(1px)'; }}
+                onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                </svg>
+                <span className="hidden sm:inline">Export PDF</span>
+                <span className="sm:hidden">PDF</span>
+              </button>
+            </div>
           )}
         </div>
 
@@ -164,7 +339,7 @@ export default function AttendeesList() {
           <input
             type="text"
             value={search}
-            placeholder="Search by name, institution, position..."
+            placeholder="Search by name, institution, position, email..."
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="w-full pl-9 pr-4 py-2.5 text-sm outline-none"
             style={{
@@ -223,6 +398,7 @@ export default function AttendeesList() {
                   <tr style={{ backgroundColor: PRIMARY }}>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider w-12" style={{ color: '#FFFFFF', fontFamily: "'Montserrat', sans-serif" }}>S/N</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: '#FFFFFF', fontFamily: "'Montserrat', sans-serif" }}>Full Name</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: '#FFFFFF', fontFamily: "'Montserrat', sans-serif" }}>Email</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: '#FFFFFF', fontFamily: "'Montserrat', sans-serif" }}>Institution</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: '#FFFFFF', fontFamily: "'Montserrat', sans-serif" }}>Position</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: '#FFFFFF', fontFamily: "'Montserrat', sans-serif" }}>Signature</th>
@@ -234,6 +410,7 @@ export default function AttendeesList() {
                     <tr key={a._id} className={i % 2 === 0 ? 'bg-white' : 'bg-zinc-50'}>
                       <td className="px-4 py-3 text-xs font-mono" style={{ color: '#888888' }}>{(page - 1) * PAGE_SIZE + i + 1}</td>
                       <td className="px-4 py-3 font-medium text-zinc-900" style={{ fontFamily: "'Montserrat', sans-serif" }}>{a.attendeeFullName}</td>
+                      <td className="px-4 py-3 text-zinc-600 text-xs" style={{ fontFamily: "'Montserrat', sans-serif" }}>{a.attendeeEmail || '—'}</td>
                       <td className="px-4 py-3 text-zinc-600" style={{ fontFamily: "'Montserrat', sans-serif" }}>{a.attendeeInstitution || '—'}</td>
                       <td className="px-4 py-3 text-zinc-600" style={{ fontFamily: "'Montserrat', sans-serif" }}>{a.attendeePosition || '—'}</td>
                       <td className="px-4 py-3">
