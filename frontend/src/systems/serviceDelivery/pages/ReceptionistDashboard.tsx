@@ -449,13 +449,15 @@ const ReceptionistDashboard: React.FC = () => {
                 <FiSearch className="w-4 h-4" /> Search
               </button>
             </div>
-            <button
-              onClick={handleNewVisitor}
-              className="cok-btn-primary"
-              style={{ width: "auto", padding: "0.6rem 1rem" }}
-            >
-              New Visitor
-            </button>
+            <div className="flex justify-end">
+              <button
+                onClick={handleNewVisitor}
+                className="cok-btn-primary"
+                style={{ width: "auto", padding: "0.6rem 1rem" }}
+              >
+                New Visitor
+              </button>
+            </div>
           </div>
 
           <div
