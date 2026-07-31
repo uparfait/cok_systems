@@ -15,7 +15,7 @@ import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 // ==================== TYPES ====================
 
 interface DashboardData {
-  employeeStats: { total: number; active: number; inactive: number; locked: number };
+  employeeStats: { total: number; active: number; inactive: number; locked: number; online: number; offline: number };
   serviceStats: { total: number; completed: number; inhouse: number; by_department: Record<string, number> };
   flaggedVehicles: { 
     currently_flagged: { count: number; min_minutes: number; max_minutes: number }; 
@@ -850,13 +850,15 @@ const Overview: React.FC = () => {
 
   // Filter inside the employee account status modal; statuses use the same
   // fields as the stats endpoint: is_active and access_control.is_locked
-  const [empStatusFilter, setEmpStatusFilter] = useState<'all' | 'active' | 'inactive' | 'locked'>('all');
+  const [empStatusFilter, setEmpStatusFilter] = useState<'all' | 'active' | 'inactive' | 'locked' | 'online' | 'offline'>('all');
   const empStatusFiltered = useMemo(
     () =>
       employees.filter((e: any) =>
         empStatusFilter === 'all' ? true
         : empStatusFilter === 'locked' ? !!e.access_control?.is_locked
         : empStatusFilter === 'active' ? !!e.is_account_activated
+        : empStatusFilter === 'online' ? !!e.is_active
+        : empStatusFilter === 'offline' ? !e.is_active
         : !e.is_account_activated
       ),
     [employees, empStatusFilter]
@@ -1052,6 +1054,8 @@ const Overview: React.FC = () => {
           active: employees?.activated || 0,
           inactive: employees?.not_activated || 0,
           locked: employees?.locked || 0,
+          online: employees?.active || 0,
+          offline: employees?.inactive || 0,
         },
         serviceStats: {
           total: services?.total || 0,
@@ -2028,7 +2032,7 @@ useEffect(() => {
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <div className="text-sm font-semibold text-gray-900">Employee account status</div>
-                    <div className="text-xs text-gray-500">Activation and lock state</div>
+                    <div className="text-xs text-gray-500">Activation, lock and online state</div>
                   </div>
                   <span className="text-xs text-gray-400">Click to view employees</span>
                 </div>
@@ -2036,6 +2040,8 @@ useEffect(() => {
                   <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-600"></div>Activated {data.employeeStats.active}</div>
                   <div className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500"></div>Not activated {data.employeeStats.inactive}</div>
                   <div className="flex items-center gap-1"><div className="w-2 h-2 bg-red-600"></div>Locked {data.employeeStats.locked}</div>
+                  <div className="flex items-center gap-1"><div className="w-2 h-2 bg-green-600"></div>Active {data.employeeStats.online}</div>
+                  <div className="flex items-center gap-1"><div className="w-2 h-2 bg-gray-400"></div>Offline {data.employeeStats.offline}</div>
                 </div>
                 {/* 3D exploded pie — size: maxWidth in StatusPie3D's svg style; colors: the CC values passed below */}
                 <StatusPie3D
@@ -2043,6 +2049,8 @@ useEffect(() => {
                     { label: 'Activated', value: data.employeeStats.active, color: CC.blue },
                     { label: 'Not activated', value: data.employeeStats.inactive, color: CC.amber },
                     { label: 'Locked', value: data.employeeStats.locked, color: CC.red },
+                    { label: 'Active', value: data.employeeStats.online, color: CC.teal },
+                    { label: 'Offline', value: data.employeeStats.offline, color: '#9E9E9E' },
                   ]}
                 />
               </div>
@@ -2357,6 +2365,8 @@ useEffect(() => {
                       { key: 'active', label: 'Activated', count: employees.filter((e: any) => !!e.is_account_activated).length, chip: 'bg-green-100 text-green-800 border-green-300' },
                       { key: 'inactive', label: 'Not activated', count: employees.filter((e: any) => !e.is_account_activated).length, chip: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
                       { key: 'locked', label: 'Locked', count: employees.filter((e: any) => !!e.access_control?.is_locked).length, chip: 'bg-red-100 text-red-800 border-red-300' },
+                      { key: 'online', label: 'Active', count: employees.filter((e: any) => !!e.is_active).length, chip: 'bg-teal-100 text-teal-800 border-teal-300' },
+                      { key: 'offline', label: 'Offline', count: employees.filter((e: any) => !e.is_active).length, chip: 'bg-gray-200 text-gray-600 border-gray-400' },
                     ] as const).map(f => (
                       <button
                         key={f.key}
@@ -2418,6 +2428,9 @@ useEffect(() => {
                                         Locked
                                       </span>
                                     )}
+                                    <span className={`inline-block border px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide ${e.is_active ? 'bg-teal-100 text-teal-800 border-teal-300' : 'bg-gray-200 text-gray-600 border-gray-400'}`}>
+                                      {e.is_active ? 'Active' : 'Offline'}
+                                    </span>
                                   </div>
                                 </td>
                               </tr>
