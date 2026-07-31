@@ -99,13 +99,28 @@ const AdminSmartParkingDashboard: React.FC = () => {
   const formatDateForPDF = (d: Date) => d.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
   const truncateText = (t: string | undefined, m: number) => t ? (t.length > m ? t.substring(0, m - 3) + '...' : t) : 'N/A';
 
-  const handleDownloadReport = useCallback(() => {
+  const handleDownloadReport = useCallback(async () => {
     const doc = new jsPDF('l', 'mm', 'a4');
     const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight();
-    let y = 15;
-    try { doc.addImage('/LOGO_COK.png', 'PNG', (pw - 40) / 2, y, 40, 40); y += 48; } catch (e) { }
-    doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.text('REPUBLIC OF RWANDA', pw / 2, y, { align: 'center' }); y += 7;
-    doc.setFontSize(12); doc.text('CITY OF KIGALI', pw / 2, y, { align: 'center' }); y += 12;
+    let y = 10;
+    // Full-width report banner (Republic of Rwanda · City of Kigali), same as the attendance reports
+    try {
+      const res = await fetch('/LOGO_COK_report.png');
+      if (res.ok) {
+        const blob = await res.blob();
+        const dataUrl: string = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        const logoW = pw - 20;
+        const logoH = logoW * (221 / 1116); // original banner is 1116x221 px
+        doc.addImage(dataUrl, 'PNG', 10, y, logoW, logoH);
+        y += logoH + 10;
+      }
+    } catch (e) { /* render without the banner if it fails to load */ }
+    doc.setFont('helvetica', 'bold');
     const now = new Date();
     doc.setFontSize(9); doc.text(formatDateForPDF(now), pw / 2, y, { align: 'center' }); y += 5;
     doc.text(now.toLocaleTimeString(), pw / 2, y, { align: 'center' }); y += 12;
