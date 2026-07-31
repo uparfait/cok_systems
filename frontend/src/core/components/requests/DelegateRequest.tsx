@@ -4,6 +4,7 @@ import IncomingCorrespondences from './IncomingCorrespondences';
 import RequestStatistics from './RequestStatistics';
 import RequestForm from './RequestForm';
 import RequestDetails from './RequestDetails';
+import ExportModal from './ExportModal';
 import requestService, { type RequestDoc } from '../../../core/services/requestService';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 import { useToast } from '../../../core/contexts/ToastContext';
@@ -14,6 +15,7 @@ const DelegateRequest: React.FC<{
 }> = ({ isOpen, onClose }) => {
   const [showForm, setShowForm] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<RequestDoc | null>(null);
+  const [showExport, setShowExport] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const { showSuccess } = useToast();
 
@@ -34,7 +36,10 @@ const DelegateRequest: React.FC<{
 
   const handleDetailsClose = () => {
     setSelectedRequest(null);
-    setRefreshKey((k) => k + 1);
+  };
+
+  const handleExportClose = () => {
+    setShowExport(false);
   };
 
   if (!isOpen) return null;
@@ -63,13 +68,14 @@ const DelegateRequest: React.FC<{
 
       <div className="p-4 sm:p-6">
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <div className="xl:col-span-2">
-            <IncomingCorrespondences
-              key={refreshKey}
-              onRequestClick={handleRequestClick}
-              onNewRequest={handleNewRequest}
-            />
-          </div>
+            <div className="xl:col-span-2">
+              <IncomingCorrespondences
+                key={refreshKey}
+                onRequestClick={handleRequestClick}
+                onNewRequest={handleNewRequest}
+                onExport={() => setShowExport(true)}
+              />
+            </div>
           <div className="xl:col-span-1">
             <RequestStatistics />
           </div>
@@ -90,6 +96,8 @@ const DelegateRequest: React.FC<{
           onUpdate={handleDetailsClose}
         />
       )}
+
+      {showExport && <ExportModal onClose={handleExportClose} />}
     </div>
   );
 };

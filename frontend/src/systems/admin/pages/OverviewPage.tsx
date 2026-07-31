@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
 import { useSocket } from '../../../core/contexts/SocketContext';
-import { statisticsService, employeeService, parkingService, serviceDeliveryService, feedbackService, reservationService } from '../../../core/services/adminService';
+import { statisticsService, employeeService, parkingService, serviceDeliveryService, feedbackService, reservationService, requestService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import Chart from 'chart.js/auto';
@@ -664,53 +664,57 @@ const Overview: React.FC = () => {
 
   // Socket refreshes call this ref so fetchData doesn't need period in its deps
   const servedRefreshRef = useRef<() => void>(() => {});
-  useEffect(() => { servedRefreshRef.current = () => { fetchServedStats(period); }; }, [fetchServedStats, period]);
 
   // Distinct visitors whose entry date falls in the selected period — shown beside the chart
   const totalVisitorsInPeriod = servedStats?.total_visitors || 0;
 
-  // Visitor requests grouped by status (pending / in progress / completed), once per
-  // department (incoming requests) and once per employee (how their requests progress).
-  // Requests with no employee recorded are grouped under "Unassigned".
-  // The requests feature is not live yet — flip this to true to switch the chart
-  // from sample data to the real per-status aggregation below.
-  // The requests feature is not live yet — this chart shows clearly-labeled sample
-  // data. When the feature ships, replace this with a backend statistics endpoint
-  // (per-department / per-employee request status counts), not a client-side loop.
+  // Real request statistics from /requests/statistics: per-orientation (incoming)
+  // and per-assignee status counts, aggregated server-side for the toolbar period
+  interface RequestStatRow { name: string; pending: number; inprogress: number; completed: number; overdue: number; archived: number; total: number }
+  const [requestStats, setRequestStats] = useState<{ by_orientation: RequestStatRow[]; by_assignee: RequestStatRow[] } | null>(null);
+  const fetchRequestStats = useCallback(async (p: PeriodChoice) => {
+    try {
+      const { from, to } = periodToRange(p);
+      const res: any = await requestService.getStatistics(from ? { period: 'range', from, to } : undefined);
+      if (res?.success && res.data) {
+        setRequestStats({
+          by_orientation: res.data.by_orientation || [],
+          by_assignee: res.data.by_assignee || [],
+        });
+      }
+    } catch { /* keep the previous stats on a failed refresh */ }
+  }, [periodToRange]);
+
+  useEffect(() => { fetchRequestStats(period); }, [fetchRequestStats, period]);
+
+  // Served + request aggregates refresh together on socket-triggered refetches
+  useEffect(() => {
+    servedRefreshRef.current = () => { fetchServedStats(period); fetchRequestStats(period); };
+  }, [fetchServedStats, fetchRequestStats, period]);
+
   const requestStatuses = useMemo(() => {
-    const deptNames = (data?.departments?.map(d => d.name).slice(0, 5) || []);
-    const sampleDepts = deptNames.length
-      ? deptNames
-      : ['Urban Economy', 'Urban Planning', 'City Engineering', 'Social Development', 'Digitalization'];
-    // Use the system's real employees for the sample; only the counts are dummy
-    const realEmpNames = (servedStats?.by_employee || []).map(e => e.name).filter(Boolean).slice(0, 5);
-    const sampleEmps = realEmpNames.length
-      ? realEmpNames
-      : ['J. Mukamana', 'E. Niyonzima', 'A. Uwase', 'P. Habimana', 'C. Ingabire'];
-    const P = [7, 4, 6, 3, 5];
-    const I = [3, 5, 2, 4, 1];
-    const C = [9, 6, 4, 7, 3];
-    const O = [2, 1, 3, 2, 1];
-    const sampleRows = (names: string[]) =>
-      names.map((name, i) => ({
-        name: name.length > 14 ? name.slice(0, 13) + '…' : name,
-        fullName: name,
-        pending: P[i % P.length],
-        inprogress: I[i % I.length],
-        completed: C[i % C.length],
-        overdue: O[i % O.length],
-        total: P[i % P.length] + I[i % I.length] + C[i % C.length] + O[i % O.length],
+    const toRows = (rows: RequestStatRow[]) =>
+      rows.slice(0, 8).map(r => ({
+        name: r.name.length > 14 ? r.name.slice(0, 13) + '…' : r.name,
+        fullName: r.name,
+        pending: r.pending,
+        inprogress: r.inprogress,
+        completed: r.completed,
+        overdue: r.overdue,
+        archived: r.archived || 0,
+        total: r.total,
       }));
-    const dummyDepts = sampleRows(sampleDepts);
-    const dummyTotal = dummyDepts.reduce((s, r) => s + r.total, 0);
+    const departments = toRows(requestStats?.by_orientation || []);
+    const total = (requestStats?.by_orientation || []).reduce((s, r) => s + r.total, 0);
+    const deptCount = (requestStats?.by_orientation || []).length;
     return {
-      departments: dummyDepts,
-      employees: sampleRows(sampleEmps),
-      total: dummyTotal,
-      avgPerDept: Math.round((dummyTotal / sampleDepts.length) * 10) / 10,
-      isSample: true,
+      departments,
+      employees: toRows(requestStats?.by_assignee || []),
+      total,
+      avgPerDept: deptCount ? Math.round((total / deptCount) * 10) / 10 : 0,
+      isSample: false,
     };
-  }, [data, servedStats]);
+  }, [requestStats]);
 
   const labelForPeriod = useCallback((p: PeriodChoice) =>
     p === 'today' ? 'today'
@@ -1629,11 +1633,11 @@ useEffect(() => {
           <div className="flex justify-between items-start mb-2">
             <div>
               <div className="text-base font-bold text-gray-900">Requests</div>
-              <div className="text-xs text-gray-500 mt-0.5">Visitor requests by status · {periodLabel}</div>
+              <div className="text-xs text-gray-500 mt-0.5">Requests by status · {periodLabel}</div>
             </div>
             <div className="text-right flex-shrink-0">
               <div className="text-2xl font-bold leading-none" style={{ color: CC.purple }}>{requestStatuses.avgPerDept}</div>
-              <div className="text-[11px] uppercase tracking-wide text-gray-500 mt-1">Avg requests / department</div>
+              <div className="text-[11px] uppercase tracking-wide text-gray-500 mt-1">Avg requests / orientation</div>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 mb-3">
@@ -1641,12 +1645,18 @@ useEffect(() => {
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: CC.blue }}></div>In progress</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: CC.teal }}></div>Completed</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: CC.red }}></div>Overdue</div>
+            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: '#9E9E9E' }}></div>Archived</div>
           </div>
 
+          {requestStatuses.total === 0 ? (
+            <div className="h-40 flex items-center justify-center text-xs text-gray-400">
+              No requests recorded in this period yet.
+            </div>
+          ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.amber }}>Departments</span>
+                  <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.amber }}>Orientation</span>
                   <span className="text-xs text-gray-500">(incoming requests)</span>
                 </div>
                 {/* Scrolls horizontally when many departments (110px each) — scrollbar hidden via no-scrollbar */}
@@ -1665,6 +1675,7 @@ useEffect(() => {
                       <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} />
                       <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} />
                       <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32} />
+                      <Bar dataKey="archived" name="Archived" fill="#9E9E9E" maxBarSize={32} />
                     </BarChart>
                   </ResponsiveContainer>
                   </div>
@@ -1672,7 +1683,7 @@ useEffect(() => {
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.blue }}>Employees</span>
+                  <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: CC.blue }}>Assignees</span>
                   <span className="text-xs text-gray-500">(request progress)</span>
                 </div>
                 {/* Scrolls horizontally when many employees (110px each) — scrollbar hidden via no-scrollbar */}
@@ -1691,12 +1702,14 @@ useEffect(() => {
                       <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} />
                       <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} />
                       <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32} />
+                      <Bar dataKey="archived" name="Archived" fill="#9E9E9E" maxBarSize={32} />
                     </BarChart>
                   </ResponsiveContainer>
                   </div>
                 </div>
               </div>
             </div>
+          )}
         </div>
 
         {/* Ratings row — department averages (left) next to the banded avg-feedback chart (right) */}
@@ -2587,15 +2600,22 @@ useEffect(() => {
                         {/* Same table design rules as the event-manager events table:
                             bordered container, CoK-blue uppercase header, zebra rows, bordered cells */}
                         <div className="overflow-auto max-h-[55vh] border-2 border-gray-300">
-                          <table className="w-full border-collapse table-auto min-w-[640px]">
+                          <table className="w-full border-collapse table-fixed min-w-[720px]">
                             <thead className="sticky top-0 z-10">
                               <tr>
-                                {['Rating', 'Sentiment', 'Department', 'Comment', 'From', 'Date'].map(label => (
+                                {([
+                                  { label: 'Rating', width: 'w-24' },
+                                  { label: 'Sentiment', width: 'w-28' },
+                                  { label: 'Department', width: 'w-44' },
+                                  { label: 'Comment', width: '' },
+                                  { label: 'From', width: 'w-36' },
+                                  { label: 'Date', width: 'w-32' },
+                                ]).map(col => (
                                   <th
-                                    key={label}
-                                    className="cok-primary-bg text-white px-4 py-3.5 text-left text-xs font-bold uppercase tracking-widest whitespace-nowrap"
+                                    key={col.label}
+                                    className={`cok-primary-bg text-white px-4 py-3.5 text-left text-xs font-bold uppercase tracking-widest whitespace-nowrap ${col.width}`}
                                   >
-                                    {label}
+                                    {col.label}
                                   </th>
                                 ))}
                               </tr>
@@ -2619,15 +2639,27 @@ useEffect(() => {
                                     className={`transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50/50 hover:bg-blue-50'}`}
                                   >
                                     <td className={`${cell(0)} whitespace-nowrap`}>
-                                      <span
-                                        className="inline-flex flex-col items-center justify-center w-11 h-11"
-                                        style={{ backgroundColor: `${meta.color}1A`, borderLeft: `3px solid ${meta.color}` }}
-                                      >
-                                        <span style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 700, color: meta.color }}>
-                                          {f.rate ?? ''}
-                                        </span>
-                                        <span className="text-[9px] text-gray-400">/ {f.rate_out_of || 10}</span>
-                                      </span>
+                                      {(() => {
+                                        // Accent bar height is proportional to the rating (3/10 short, 10/10 full)
+                                        const outOf = Number(f.rate_out_of) || 10;
+                                        const pct = Math.max(0, Math.min(100, (Number(f.rate) / outOf) * 100));
+                                        return (
+                                          <span className="inline-flex items-end gap-1.5 h-11">
+                                            <span className="inline-flex items-end w-1.5 h-full bg-gray-100">
+                                              <span className="w-full" style={{ height: `${pct}%`, backgroundColor: meta.color, display: 'block' }} />
+                                            </span>
+                                            <span
+                                              className="inline-flex flex-col items-center justify-center w-11 h-11"
+                                              style={{ backgroundColor: `${meta.color}1A` }}
+                                            >
+                                              <span style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 700, color: meta.color }}>
+                                                {f.rate ?? ''}
+                                              </span>
+                                              <span className="text-[9px] text-gray-400">/ {f.rate_out_of || 10}</span>
+                                            </span>
+                                          </span>
+                                        );
+                                      })()}
                                     </td>
                                     <td className={cell(1)}>
                                       <CokBadge label={meta.label} color={meta.color} />

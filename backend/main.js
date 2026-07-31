@@ -53,6 +53,7 @@ const WebSocketService = require("./services/reatime_service/web_socket.js");
 const InitialiseAllRealtimeServices = require("./services/reatime_service/initialise_realtime_services.js");
 const taskNotificationScheduler = require("./services/task_notification_scheduler.js");
 const parkingMonitor = require("./utilities/parkingMonitor.js");
+const overdueMonitor = require("./utilities/overdueMonitor.js");
 const Audit = require("./models/audit.js");
 const User = require("./models/user.js");
 
@@ -325,6 +326,17 @@ db_connection()
         }
       } catch (monitorError) {
         console.error(" Failed to start Parking Monitor:", monitorError);
+      }
+
+      try {
+        if (typeof overdueMonitor === "function") {
+          overdueMonitor();
+          console.log("Overdue Request Monitor started successfully.");
+        } else {
+          console.log("Overdue Monitor imported, but it is not a function.");
+        }
+      } catch (overdueError) {
+        console.error("Failed to start Overdue Monitor:", overdueError);
       }
 
       server.listen(PORT, () => {
