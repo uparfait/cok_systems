@@ -516,6 +516,14 @@ export const statisticsService = {
   getFlaggedVehiclesStats: () => get('/statistics/flagged-vehicles'),
   getEmergencyCarsStats: () => get('/statistics/emergency-cars'),
   getParkingSlots: () => get('/smartparking/slots'),
+  // Server-side served aggregation for the mayor overview; from/to are ISO dates
+  getServedStats: (from?: string, to?: string) => {
+    const params = new URLSearchParams();
+    if (from) params.append('from', from);
+    if (to) params.append('to', to);
+    const qs = params.toString();
+    return get(`/statistics/served${qs ? `?${qs}` : ''}`);
+  },
 };
 
 export { requestService };

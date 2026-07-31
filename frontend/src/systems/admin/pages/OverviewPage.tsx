@@ -14,6 +14,15 @@ import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 
 // ==================== TYPES ====================
 
+// Shape of /statistics/served — all served/workload aggregation happens server-side
+interface ServedStats {
+  total_visitors: number;
+  hourly: Array<{ hour: number; count: number }>;
+  last_checkin: string | null;
+  by_department: Array<{ name: string; served: number; top_employee: { name: string; served: number } | null }>;
+  by_employee: Array<{ id: string | null; name: string; department: string | null; served: number; visitors: Array<{ visitor: string; department: string }> }>;
+}
+
 interface DashboardData {
   employeeStats: { total: number; active: number; inactive: number; locked: number; online: number; offline: number };
   serviceStats: { total: number; completed: number; inhouse: number; by_department: Record<string, number> };
@@ -273,8 +282,15 @@ const ParkingMap: React.FC<{ totalSlots: number; vehicles: any[]; reservations: 
     : s.status === 'reserved' ? `${s.id} · Reserved${s.plate ? ` ${s.plate}` : ''}`
     : `${s.id} · Available`;
 
+  // The lot is shown 50 slots at a time; legend counts always cover the whole lot
+  const SLOTS_PER_PAGE = 50;
+  const [mapPage, setMapPage] = useState(1);
+  const totalMapPages = Math.max(1, Math.ceil(slots.length / SLOTS_PER_PAGE));
+  useEffect(() => { if (mapPage > totalMapPages) setMapPage(1); }, [mapPage, totalMapPages]);
+  const pageSlots = slots.slice((mapPage - 1) * SLOTS_PER_PAGE, mapPage * SLOTS_PER_PAGE);
+
   const sections: SlotState[][] = [];
-  for (let i = 0; i < slots.length; i += 20) sections.push(slots.slice(i, i + 20));
+  for (let i = 0; i < pageSlots.length; i += 20) sections.push(pageSlots.slice(i, i + 20));
   const counts = {
     occupied: slots.filter(s => s.status === 'occupied').length,
     reserved: slots.filter(s => s.status === 'reserved').length,
@@ -302,6 +318,32 @@ const ParkingMap: React.FC<{ totalSlots: number; vehicles: any[]; reservations: 
           </div>
         ))}
       </div>
+      {/* Lot pagination — 50 slots per page */}
+      {totalMapPages > 1 && (
+        <div className="flex items-center justify-between mt-2 text-xs text-gray-600">
+          <span>
+            Slots <span className="font-semibold">COK{(mapPage - 1) * SLOTS_PER_PAGE + 1}</span>–
+            <span className="font-semibold">COK{Math.min(mapPage * SLOTS_PER_PAGE, slots.length)}</span>
+            {' '}· Page {mapPage} of {totalMapPages}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setMapPage(p => Math.max(1, p - 1))}
+              disabled={mapPage <= 1}
+              className="px-3 py-1 border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setMapPage(p => Math.min(totalMapPages, p + 1))}
+              disabled={mapPage >= totalMapPages}
+              className="px-3 py-1 border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -572,50 +614,13 @@ const Overview: React.FC = () => {
   const [parkingView, setParkingView] = useState<'map' | 'trends'>('map');
   const [parkingLot, setParkingLot] = useState<{ totalSlots: number; vehicles: any[]; reservations: any[] }>({ totalSlots: 0, vehicles: [], reservations: [] });
 
-  // Raw visitors + employee list feed the departments-vs-services chart and its
-  // employees-served breakdown; period state drives the toolbar date filter
-  const [visitors, setVisitors] = useState<any[]>([]);
+  // Served aggregates come pre-computed from /statistics/served (same pattern as
+  // the receptionist dashboard); the employee list loads only when its modal opens
+  const [servedStats, setServedStats] = useState<ServedStats | null>(null);
   const [employees, setEmployees] = useState<any[]>([]);
   const [period, setPeriod] = useState<'today' | 'week' | 'lastweek' | 'month' | 'lastmonth' | 'all' | 'range'>('month');
   const [rangeFrom, setRangeFrom] = useState('');
   const [rangeTo, setRangeTo] = useState('');
-
-  // One record per service actually delivered to a visitor: department + provider + date.
-  // Completed services come from durations.services_durations; services_status entries
-  // with a provider that never reached durations are counted once as well.
-  const servedRecords = useMemo(() => {
-    const records: Array<{ department: string; providerId?: string; providerName?: string; date?: string; visitor: string }> = [];
-    visitors.forEach((v: any) => {
-      const visitorName = v?.full_name || 'Unknown visitor';
-      const durations = v?.durations?.services_durations || [];
-      durations.forEach((s: any) => {
-        if (!s?.department_name) return;
-        records.push({
-          department: s.department_name,
-          providerId: s.provider_id,
-          providerName: s.provider_name,
-          date: s.started_at || v.entry_date,
-          visitor: visitorName,
-        });
-      });
-      (v?.services_status || []).forEach((s: any) => {
-        if (!s?.department_name || (!s.provider_id && !s.provider_name)) return;
-        const already = durations.some(
-          (d: any) => d.department_id === s.department_id && (d.provider_id || '') === (s.provider_id || '')
-        );
-        if (!already) {
-          records.push({
-            department: s.department_name,
-            providerId: s.provider_id,
-            providerName: s.provider_name,
-            date: v.entry_date,
-            visitor: visitorName,
-          });
-        }
-      });
-    });
-    return records;
-  }, [visitors]);
 
   // Period filter: today / this week / last week / this month / last month /
   // all records / custom from→to range (inclusive). Weeks run Monday → Sunday.
@@ -653,103 +658,92 @@ const Overview: React.FC = () => {
   }, [rangeFrom, rangeTo]);
   const isInPeriod = useCallback((dateStr?: string) => isDateInPeriod(dateStr, period), [isDateInPeriod, period]);
 
-  const filteredServed = useMemo(() => servedRecords.filter(r => isInPeriod(r.date)), [servedRecords, isInPeriod]);
+  // Period → from/to ISO params for the served-stats endpoint (same semantics as isDateInPeriod)
+  const periodToRange = useCallback((p: PeriodChoice): { from?: string; to?: string } => {
+    const now = new Date();
+    const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+    if (p === 'all') return {};
+    if (p === 'today') return { from: startOfDay(now).toISOString(), to: now.toISOString() };
+    if (p === 'week' || p === 'lastweek') {
+      const monday = startOfDay(now);
+      monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+      if (p === 'week') return { from: monday.toISOString(), to: now.toISOString() };
+      const lastMonday = new Date(monday);
+      lastMonday.setDate(monday.getDate() - 7);
+      return { from: lastMonday.toISOString(), to: new Date(monday.getTime() - 1).toISOString() };
+    }
+    if (p === 'month') return { from: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(), to: now.toISOString() };
+    if (p === 'lastmonth') {
+      const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const last = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      return { from: first.toISOString(), to: last.toISOString() };
+    }
+    const r: { from?: string; to?: string } = {};
+    if (rangeFrom) r.from = startOfDay(new Date(rangeFrom)).toISOString();
+    if (rangeTo) { const end = new Date(rangeTo); end.setHours(23, 59, 59, 999); r.to = end.toISOString(); }
+    return r;
+  }, [rangeFrom, rangeTo]);
+
+  // Backend-aggregated served stats, refetched when the toolbar period changes
+  const fetchServedStats = useCallback(async (p: PeriodChoice) => {
+    try {
+      const { from, to } = periodToRange(p);
+      const res: any = await statisticsService.getServedStats(from, to);
+      if (res?.success) setServedStats(res.data);
+    } catch { /* keep the previous stats on a failed refresh */ }
+  }, [periodToRange]);
+
+  useEffect(() => { fetchServedStats(period); }, [fetchServedStats, period]);
+
+  // Socket refreshes call this ref so fetchData doesn't need period in its deps
+  const servedRefreshRef = useRef<() => void>(() => {});
+  useEffect(() => { servedRefreshRef.current = () => { fetchServedStats(period); }; }, [fetchServedStats, period]);
 
   // Distinct visitors whose entry date falls in the selected period — shown beside the chart
-  const totalVisitorsInPeriod = useMemo(
-    () => visitors.filter((v: any) => isInPeriod(v?.entry_date)).length,
-    [visitors, isInPeriod]
-  );
+  const totalVisitorsInPeriod = servedStats?.total_visitors || 0;
 
   // Visitor requests grouped by status (pending / in progress / completed), once per
   // department (incoming requests) and once per employee (how their requests progress).
   // Requests with no employee recorded are grouped under "Unassigned".
   // The requests feature is not live yet — flip this to true to switch the chart
   // from sample data to the real per-status aggregation below.
-  const REQUESTS_FEATURE_READY = false;
+  // The requests feature is not live yet — this chart shows clearly-labeled sample
+  // data. When the feature ships, replace this with a backend statistics endpoint
+  // (per-department / per-employee request status counts), not a client-side loop.
   const requestStatuses = useMemo(() => {
-    type StatusCounts = { pending: number; inprogress: number; completed: number; overdue: number };
-    const emptyCounts = (): StatusCounts => ({ pending: 0, inprogress: 0, completed: 0, overdue: 0 });
-    const deptMap: Record<string, StatusCounts> = {};
-    const empMap: Record<string, StatusCounts> = {};
-    let total = 0;
-    const DAY_MS = 24 * 60 * 60 * 1000;
-    visitors.forEach((v: any) => {
-      if (!isInPeriod(v?.entry_date)) return;
-      (v?.services_status || []).forEach((s: any) => {
-        if (!s?.department_name) return;
-        // A request not yet completed and older than 24h counts as overdue
-        const ageMs = v?.entry_date ? Date.now() - new Date(v.entry_date).getTime() : 0;
-        const status: keyof StatusCounts =
-          s.s_type === 'Completed' ? 'completed'
-          : ageMs > DAY_MS ? 'overdue'
-          : s.s_type === 'Inprogress' ? 'inprogress'
-          : 'pending';
-        total += 1;
-        if (!deptMap[s.department_name]) deptMap[s.department_name] = emptyCounts();
-        deptMap[s.department_name][status] += 1;
-        const empName = s.provider_name && s.provider_name !== 'Not specified' ? s.provider_name : 'Unassigned';
-        if (!empMap[empName]) empMap[empName] = emptyCounts();
-        empMap[empName][status] += 1;
-      });
-    });
-    const toRows = (m: Record<string, StatusCounts>) =>
-      Object.entries(m)
-        .map(([name, v]) => ({
-          name: name.length > 14 ? name.slice(0, 13) + '…' : name,
-          fullName: name,
-          ...v,
-          total: v.pending + v.inprogress + v.completed + v.overdue,
-        }))
-        .sort((a, b) => b.total - a.total)
-        .slice(0, 8);
-    const deptCount = Object.keys(deptMap).length;
-
-    // No real request data yet — show clearly-labeled sample data so the chart's
-    // design is visible; it is replaced automatically once real requests exist
-    if (!REQUESTS_FEATURE_READY || total === 0) {
-      const deptNames = (data?.departments?.map(d => d.name).slice(0, 5) || []);
-      const sampleDepts = deptNames.length
-        ? deptNames
-        : ['Urban Economy', 'Urban Planning', 'City Engineering', 'Social Development', 'Digitalization'];
-      // Use the system's real employees for the sample; only the counts are dummy
-      const realEmpNames = employees.map((e: any) => e.full_name).filter(Boolean).slice(0, 5);
-      const sampleEmps = realEmpNames.length
-        ? realEmpNames
-        : ['J. Mukamana', 'E. Niyonzima', 'A. Uwase', 'P. Habimana', 'C. Ingabire'];
-      const P = [7, 4, 6, 3, 5];
-      const I = [3, 5, 2, 4, 1];
-      const C = [9, 6, 4, 7, 3];
-      const O = [2, 1, 3, 2, 1];
-      const sampleRows = (names: string[]) =>
-        names.map((name, i) => ({
-          name: name.length > 14 ? name.slice(0, 13) + '…' : name,
-          fullName: name,
-          pending: P[i % P.length],
-          inprogress: I[i % I.length],
-          completed: C[i % C.length],
-          overdue: O[i % O.length],
-          total: P[i % P.length] + I[i % I.length] + C[i % C.length] + O[i % O.length],
-        }));
-      const dummyDepts = sampleRows(sampleDepts);
-      const dummyTotal = dummyDepts.reduce((s, r) => s + r.total, 0);
-      return {
-        departments: dummyDepts,
-        employees: sampleRows(sampleEmps),
-        total: dummyTotal,
-        avgPerDept: Math.round((dummyTotal / sampleDepts.length) * 10) / 10,
-        isSample: true,
-      };
-    }
-
+    const deptNames = (data?.departments?.map(d => d.name).slice(0, 5) || []);
+    const sampleDepts = deptNames.length
+      ? deptNames
+      : ['Urban Economy', 'Urban Planning', 'City Engineering', 'Social Development', 'Digitalization'];
+    // Use the system's real employees for the sample; only the counts are dummy
+    const realEmpNames = (servedStats?.by_employee || []).map(e => e.name).filter(Boolean).slice(0, 5);
+    const sampleEmps = realEmpNames.length
+      ? realEmpNames
+      : ['J. Mukamana', 'E. Niyonzima', 'A. Uwase', 'P. Habimana', 'C. Ingabire'];
+    const P = [7, 4, 6, 3, 5];
+    const I = [3, 5, 2, 4, 1];
+    const C = [9, 6, 4, 7, 3];
+    const O = [2, 1, 3, 2, 1];
+    const sampleRows = (names: string[]) =>
+      names.map((name, i) => ({
+        name: name.length > 14 ? name.slice(0, 13) + '…' : name,
+        fullName: name,
+        pending: P[i % P.length],
+        inprogress: I[i % I.length],
+        completed: C[i % C.length],
+        overdue: O[i % O.length],
+        total: P[i % P.length] + I[i % I.length] + C[i % C.length] + O[i % O.length],
+      }));
+    const dummyDepts = sampleRows(sampleDepts);
+    const dummyTotal = dummyDepts.reduce((s, r) => s + r.total, 0);
     return {
-      departments: toRows(deptMap),
-      employees: toRows(empMap),
-      total,
-      avgPerDept: deptCount ? Math.round((total / deptCount) * 10) / 10 : 0,
-      isSample: false,
+      departments: dummyDepts,
+      employees: sampleRows(sampleEmps),
+      total: dummyTotal,
+      avgPerDept: Math.round((dummyTotal / sampleDepts.length) * 10) / 10,
+      isSample: true,
     };
-  }, [visitors, isInPeriod, data, employees]);
+  }, [data, servedStats]);
 
   const labelForPeriod = useCallback((p: PeriodChoice) =>
     p === 'today' ? 'today'
@@ -761,36 +755,19 @@ const Overview: React.FC = () => {
     : `${rangeFrom || 'start'} → ${rangeTo || 'now'}`, [rangeFrom, rangeTo]);
   const periodLabel = labelForPeriod(period);
 
-  // Every employee with the number of people they served in the selected period;
-  // providers on records that don't match an employee account still get a row.
-  // The employees endpoint populates department as { name }, so read that first;
-  // if the account has no department, fall back to where they actually served.
-  const employeeServed = useMemo(() => {
-    const counts: Record<string, { name: string; count: number; dept?: string; visitors: Array<{ visitor: string; department: string }> }> = {};
-    filteredServed.forEach(r => {
-      const key = r.providerId || r.providerName;
-      if (!key) return;
-      if (!counts[key]) counts[key] = { name: r.providerName || 'Unknown provider', count: 0, dept: r.department, visitors: [] };
-      counts[key].count += 1;
-      counts[key].visitors.push({ visitor: r.visitor, department: r.department });
-    });
-    const used = new Set<string>();
-    const rows = employees.map((e: any) => {
-      const id = e._id || e.id || '';
-      const name = e.full_name || 'Unknown';
-      let served = 0;
-      let servedDept: string | undefined;
-      const visitorsList: Array<{ visitor: string; department: string }> = [];
-      if (id && counts[id]) { served += counts[id].count; servedDept = counts[id].dept; visitorsList.push(...counts[id].visitors); used.add(id); }
-      if (counts[name]) { served += counts[name].count; servedDept = servedDept || counts[name].dept; visitorsList.push(...counts[name].visitors); used.add(name); }
-      const accountDept = e.department?.department_name || e.department?.name || e.department_name;
-      return { name, department: accountDept || servedDept || '—', served, visitors: visitorsList };
-    });
-    Object.entries(counts).forEach(([key, v]) => {
-      if (!used.has(key)) rows.push({ name: v.name, department: v.dept || '—', served: v.count, visitors: v.visitors });
-    });
-    return rows.sort((a, b) => b.served - a.served);
-  }, [employees, filteredServed]);
+  // Every employee with the number of people they served in the selected period —
+  // aggregated server-side by /statistics/served (includes zero-served employees
+  // and providers on records that don't match an employee account)
+  const employeeServed = useMemo(
+    () =>
+      (servedStats?.by_employee || []).map(e => ({
+        name: e.name,
+        department: e.department || '—',
+        served: e.served,
+        visitors: e.visitors || [],
+      })),
+    [servedStats]
+  );
 
   // Departments vs services mirrored chart: people served (left) against the
   // department's busiest employee and their services handled (right), busiest
@@ -798,31 +775,21 @@ const Overview: React.FC = () => {
   // name with a zero bar. Returns every department; the card shows the top rows.
   const deptVsServices = useMemo(() => {
     if (!data) return [] as Array<{ name: string; staff: number; served: number; emp: { name: string; served: number } }>;
-    const servedByDept: Record<string, number> = {};
-    filteredServed.forEach(r => { servedByDept[r.department] = (servedByDept[r.department] || 0) + 1; });
     const staffByDept: Record<string, number> = {};
     data.departments.forEach(d => { staffByDept[d.name] = d.staff; });
-    // Who actually served: tally services per provider inside each department from
-    // the same records that feed the left side, then keep the busiest provider
-    const perDeptProvider: Record<string, Record<string, number>> = {};
-    filteredServed.forEach(r => {
-      const provider = r.providerName || 'Unknown provider';
-      if (!perDeptProvider[r.department]) perDeptProvider[r.department] = {};
-      perDeptProvider[r.department][provider] = (perDeptProvider[r.department][provider] || 0) + 1;
-    });
     // Keyed by normalized department name so casing/spacing differences
-    // between the department list, service records and employee accounts still match
+    // between the department list and the served aggregates still match
     const norm = (s: string) => s.trim().toLowerCase();
+    const servedByDept: Record<string, number> = {};
     const topEmpByDept: Record<string, { name: string; served: number }> = {};
-    Object.entries(perDeptProvider).forEach(([dept, providers]) => {
-      const [topName, topCount] = Object.entries(providers).sort((a, b) => b[1] - a[1])[0];
-      topEmpByDept[norm(dept)] = { name: topName, served: topCount };
+    (servedStats?.by_department || []).forEach(d => {
+      servedByDept[d.name] = d.served;
+      if (d.top_employee) topEmpByDept[norm(d.name)] = { name: d.top_employee.name, served: d.top_employee.served };
     });
     // Departments with no serving records fall back to one of their employees at zero
-    employees.forEach((e: any) => {
-      const dept = e.department?.department_name || e.department?.name || e.department_name;
-      if (dept && !topEmpByDept[norm(dept)]) {
-        topEmpByDept[norm(dept)] = { name: e.full_name || 'Unknown', served: 0 };
+    (servedStats?.by_employee || []).forEach(e => {
+      if (e.department && !topEmpByDept[norm(e.department)]) {
+        topEmpByDept[norm(e.department)] = { name: e.name, served: 0 };
       }
     });
     const names = Array.from(new Set([...data.departments.map(d => d.name), ...Object.keys(servedByDept)]));
@@ -834,7 +801,7 @@ const Overview: React.FC = () => {
         emp: topEmpByDept[norm(name)] || { name: 'No employee', served: 0 },
       }))
       .sort((a, b) => b.served - a.served);
-  }, [data, filteredServed, employees]);
+  }, [data, servedStats]);
   const maxEmployeeServed = Math.max(...employeeServed.map(e => e.served), 1);
   // Mean load among employees who served at least one person; anyone above
   // 1.5× this is highlighted as overloaded in the workload chart
@@ -889,19 +856,13 @@ const Overview: React.FC = () => {
   // Empty-state flags so cards show a message instead of a blank chart
   const hasHourlyParking = !!data && data.hourlyParking.some(h => (h.check_in || 0) > 0 || (h.check_out || 0) > 0);
 
-  // Check-ins per local hour within a period, straight from the visitors list so
-  // the gauge matches the rest of the dashboard and refreshes with socket updates.
-  // The dial is dynamic: an 11-hour window that slides with the clock (8 hours
-  // back, 2 ahead), plus any hour in the period with activity.
-  const buildHourRows = useCallback((p: PeriodChoice) => {
+  // Check-ins per local hour come pre-counted from /statistics/served for the
+  // selected period. The dial is dynamic: an 11-hour window that slides with the
+  // clock (8 hours back, 2 ahead), plus any hour in the period with activity.
+  const buildDial = useCallback((hourly: Array<{ hour: number; count: number }>) => {
     const counts: Record<number, number> = {};
+    hourly.forEach(h => { if (h.count > 0) counts[h.hour] = h.count; });
     const now = new Date();
-    visitors.forEach((v: any) => {
-      if (!v?.entry_date || !isDateInPeriod(v.entry_date, p)) return;
-      const t = new Date(v.entry_date);
-      if (isNaN(t.getTime())) return;
-      counts[t.getHours()] = (counts[t.getHours()] || 0) + 1;
-    });
     let start = now.getHours() - 8;
     let end = now.getHours() + 2;
     if (start < 0) { end -= start; start = 0; }
@@ -912,19 +873,15 @@ const Overview: React.FC = () => {
     return Array.from(hours)
       .sort((a, b) => a - b)
       .map(hour => ({ hour, count: counts[hour] || 0 }));
-  }, [visitors, isDateInPeriod]);
-  const gaugeHours = useMemo(() => buildHourRows(period), [buildHourRows, period]);
+  }, []);
+  const gaugeHours = useMemo(() => buildDial(servedStats?.hourly || []), [buildDial, servedStats]);
   const hasGaugeData = gaugeHours.some(g => g.count > 0);
-  // Hour of the chronologically newest check-in (full date compared, not just hour) — drives the gauge needle
+  // Hour of the chronologically newest check-in in the period — drives the gauge needle
   const lastCheckinHour = useMemo(() => {
-    let latest: Date | null = null;
-    visitors.forEach((v: any) => {
-      if (!v?.entry_date || !isDateInPeriod(v.entry_date, period)) return;
-      const t = new Date(v.entry_date);
-      if (!isNaN(t.getTime()) && (!latest || t > latest)) latest = t;
-    });
-    return latest ? (latest as Date).getHours() : null;
-  }, [visitors, isDateInPeriod, period]);
+    if (!servedStats?.last_checkin) return null;
+    const t = new Date(servedStats.last_checkin);
+    return isNaN(t.getTime()) ? null : t.getHours();
+  }, [servedStats]);
 
   // Parking map obeys the toolbar period filter: only vehicles whose check-in falls in the period stay blue
   const parkingVehiclesInPeriod = useMemo(
@@ -954,13 +911,50 @@ const Overview: React.FC = () => {
   }, [parkingGaugeHours]);
 
   // The hourly detail modal has its own period filter; null means it follows
-  // the toolbar filter (it resets to that each time the modal opens)
+  // the toolbar filter (it resets to that each time the modal opens). A period
+  // different from the toolbar's triggers its own served-stats fetch.
   const [modalHourPeriod, setModalHourPeriod] = useState<PeriodChoice | null>(null);
   const modalHourPeriodEff: PeriodChoice = modalHourPeriod ?? period;
-  const modalHours = useMemo(() => buildHourRows(modalHourPeriodEff), [buildHourRows, modalHourPeriodEff]);
+  const [modalServedHourly, setModalServedHourly] = useState<Array<{ hour: number; count: number }> | null>(null);
+  useEffect(() => {
+    if (modalHourPeriod === null || modalHourPeriod === period) { setModalServedHourly(null); return; }
+    let ignore = false;
+    (async () => {
+      try {
+        const { from, to } = periodToRange(modalHourPeriod);
+        const res: any = await statisticsService.getServedStats(from, to);
+        if (!ignore && res?.success) setModalServedHourly(res.data?.hourly || []);
+      } catch { /* the modal falls back to the toolbar-period hours */ }
+    })();
+    return () => { ignore = true; };
+  }, [modalHourPeriod, period, periodToRange]);
+  const modalHours = useMemo(
+    () => buildDial(modalServedHourly ?? (servedStats?.hourly || [])),
+    [buildDial, modalServedHourly, servedStats]
+  );
 
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
+
+  // The employee list is only needed by the status modal's table — fetched
+  // 50 per page (receptionist pattern) whenever that modal is open
+  const EMP_STATUS_PAGE_SIZE = 50;
+  const [empStatusPage, setEmpStatusPage] = useState(1);
+  const [empStatusTotal, setEmpStatusTotal] = useState(0);
+  useEffect(() => {
+    if (selectedCard !== 'employee-status') return;
+    let ignore = false;
+    (async () => {
+      try {
+        const res: any = await employeeService.getAll(empStatusPage, EMP_STATUS_PAGE_SIZE);
+        if (!ignore && (res?.status || res?.success)) {
+          setEmployees(Array.isArray(res.data) ? res.data : []);
+          setEmpStatusTotal(res.total || 0);
+        }
+      } catch { /* the modal shows its empty state */ }
+    })();
+    return () => { ignore = true; };
+  }, [selectedCard, empStatusPage]);
   const [showAllDepartments, setShowAllDepartments] = useState(false);
   const [departmentPage, setDepartmentPage] = useState(1);
   const departmentLimit = 5;
@@ -993,7 +987,7 @@ const Overview: React.FC = () => {
       const [
         employeesRes, servicesRes, flaggedStatsRes,
         feedbackTotalsRes, feedbackAvgRes, hourlyParkingRes, hourlyServiceRes, departmentsRes,
-        flaggedCountRes, visitorsRes, allEmployeesRes, slotConfigRes, activeVehiclesRes, reservationsRes
+        slotConfigRes, activeVehiclesRes, reservationsRes
       ] = await Promise.all([
         statisticsService.getEmployeeStats(),
         statisticsService.getServiceDeliveryStats(),
@@ -1003,33 +997,27 @@ const Overview: React.FC = () => {
         statisticsService.getHourlyParkingStats(),
         statisticsService.getHourlyServiceDeliveryStats(),
         statisticsService.getDepartmentsWithLeaders(),
-        parkingService.getFlaggedActiveVehicles(1, 1000), // Get count for KPI
-        serviceDeliveryService.getAll(1, 1000, 'all'), // Every visitor (in-house + checked out) with per-service provider + date
-        employeeService.getAll(1, 1000), // Full employee list for the served-by breakdown
         statisticsService.getParkingSlots().catch(() => null), // Slot totals for the parking lot map
-        parkingService.getAllPaginated(1, 1000, 'active').catch(() => null), // Currently parked vehicles for the map
+        parkingService.getAllPaginated(1, 200, 'active').catch(() => null), // Every parked vehicle (lot holds 200 slots) so map slot colors stay accurate
         reservationService.getAll().catch(() => null), // Reservations (plates) for the map
         seTfirstTimeLoading(false)
       ]);
 
-   
-      
+      // Served/workload aggregates refresh alongside the stats (period-aware)
+      servedRefreshRef.current();
+
       const employees = (employeesRes as any)?.data || employeesRes;
       const services = (servicesRes as any)?.data || servicesRes;
       const flaggedStats = (flaggedStatsRes as any)?.data || flaggedStatsRes;
       const feedbackTotals = (feedbackTotalsRes as any)?.data || feedbackTotalsRes;
-      const flaggedCount = flaggedCountRes;
       const feedbackAvg = (feedbackAvgRes as any)?.data || feedbackAvgRes;
       const hourlyParkingRaw = (hourlyParkingRes as any)?.data?.hourly || (hourlyParkingRes as any) || [];
       const hourlyServiceRaw = (hourlyServiceRes as any)?.data?.hourly || (hourlyServiceRes as any) || [];
       const departmentsRaw = (departmentsRes as any)?.data?.departments || (departmentsRes as any)?.departments || [];
-      const visitorsRaw = (visitorsRes as any)?.data || [];
-      const allEmployeesRaw = (allEmployeesRes as any)?.data || [];
-      setVisitors(Array.isArray(visitorsRaw) ? visitorsRaw : []);
-      setEmployees(Array.isArray(allEmployeesRaw) ? allEmployeesRaw : []);
 
       // Parking lot map: slot totals + currently parked vehicles + active reservations
-      const slotCfg = (slotConfigRes as any)?.data || slotConfigRes || {};
+      const slotCfg = (slotConfigRes as any)?.data?.available_slots || slotConfigRes || {};
+      
       const activeVehiclesRaw = (activeVehiclesRes as any)?.data || [];
       const reservationsRaw = (reservationsRes as any)?.reservations || [];
       setParkingLot({
@@ -1066,7 +1054,8 @@ const Overview: React.FC = () => {
         },
         flaggedVehicles: {
           currently_flagged: {
-            count: flaggedCount?.total || 0,
+            // The stats endpoint already counts flagged vehicles server-side
+            count: flaggedStats?.currently_flagged?.count || 0,
             min_minutes: flaggedStats?.currently_flagged?.min_minutes || 0,
             max_minutes: flaggedStats?.currently_flagged?.max_minutes || 0
           },
@@ -1287,7 +1276,7 @@ useEffect(() => {
         case 'rating-analysis':
           // Pull a large page of raw feedback so sentiment can be classified per item
           response = await feedbackService.getAll(1, 100);
-          console.log('Rating analysis response:', response);
+          //console.log('Rating analysis response:', response);
           if (response && (response as any).success && (response as any).data) {
             setModalData((response as any).data);
             setModalPagination({
@@ -2026,7 +2015,7 @@ useEffect(() => {
             {/* CHART 9 · "Employee account status" — size: h-32 div + canvas classes; colors in createCharts (search: CHART 9 config) */}
             <div className="grid grid-cols-1 gap-2.5">
               <div
-                onClick={() => { setEmpStatusFilter('all'); setSelectedCard('employee-status'); }}
+                onClick={() => { setEmpStatusFilter('all'); setEmpStatusPage(1); setSelectedCard('employee-status'); }}
                 className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
               >
                 <div className="flex justify-between items-start mb-3">
@@ -2361,12 +2350,13 @@ useEffect(() => {
                   {/* Status filter chips with live counts from the real employee list */}
                   <div className="flex flex-wrap gap-2">
                     {([
-                      { key: 'all', label: 'All', count: employees.length, chip: 'bg-gray-100 text-gray-700 border-gray-300' },
-                      { key: 'active', label: 'Activated', count: employees.filter((e: any) => !!e.is_account_activated).length, chip: 'bg-green-100 text-green-800 border-green-300' },
-                      { key: 'inactive', label: 'Not activated', count: employees.filter((e: any) => !e.is_account_activated).length, chip: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-                      { key: 'locked', label: 'Locked', count: employees.filter((e: any) => !!e.access_control?.is_locked).length, chip: 'bg-red-100 text-red-800 border-red-300' },
-                      { key: 'online', label: 'Active', count: employees.filter((e: any) => !!e.is_active).length, chip: 'bg-teal-100 text-teal-800 border-teal-300' },
-                      { key: 'offline', label: 'Offline', count: employees.filter((e: any) => !e.is_active).length, chip: 'bg-gray-200 text-gray-600 border-gray-400' },
+                      // Counts come from the backend stats endpoint, same source as the pie
+                      { key: 'all', label: 'All', count: data?.employeeStats.total ?? employees.length, chip: 'bg-gray-100 text-gray-700 border-gray-300' },
+                      { key: 'active', label: 'Activated', count: data?.employeeStats.active ?? 0, chip: 'bg-green-100 text-green-800 border-green-300' },
+                      { key: 'inactive', label: 'Not activated', count: data?.employeeStats.inactive ?? 0, chip: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+                      { key: 'locked', label: 'Locked', count: data?.employeeStats.locked ?? 0, chip: 'bg-red-100 text-red-800 border-red-300' },
+                      { key: 'online', label: 'Active', count: data?.employeeStats.online ?? 0, chip: 'bg-teal-100 text-teal-800 border-teal-300' },
+                      { key: 'offline', label: 'Offline', count: data?.employeeStats.offline ?? 0, chip: 'bg-gray-200 text-gray-600 border-gray-400' },
                     ] as const).map(f => (
                       <button
                         key={f.key}
@@ -2440,6 +2430,32 @@ useEffect(() => {
                       </table>
                     </div>
                   )}
+                  {/* Server-side pagination, 50 employees per page */}
+                  {empStatusTotal > EMP_STATUS_PAGE_SIZE && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-600">
+                      <span>
+                        Page <span className="font-semibold">{empStatusPage}</span> of{' '}
+                        <span className="font-semibold">{Math.max(1, Math.ceil(empStatusTotal / EMP_STATUS_PAGE_SIZE))}</span>
+                        {' '}· {empStatusTotal} employees
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setEmpStatusPage(p => Math.max(1, p - 1))}
+                          disabled={empStatusPage <= 1}
+                          className="px-3 py-1.5 border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Previous
+                        </button>
+                        <button
+                          onClick={() => setEmpStatusPage(p => p + 1)}
+                          disabled={empStatusPage >= Math.ceil(empStatusTotal / EMP_STATUS_PAGE_SIZE)}
+                          className="px-3 py-1.5 border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -2449,7 +2465,7 @@ useEffect(() => {
                   <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-gray-600">
                     <span>Period: <span className="font-semibold capitalize">{periodLabel}</span></span>
                     <span><span className="font-semibold" style={{ color: CC.blue }}>{totalVisitorsInPeriod}</span> total visitors</span>
-                    <span><span className="font-semibold" style={{ color: CC.amber }}>{filteredServed.length}</span> people served</span>
+                    <span><span className="font-semibold" style={{ color: CC.amber }}>{(servedStats?.by_department || []).reduce((s, d) => s + d.served, 0)}</span> people served</span>
                   </div>
                   {deptVsServices.length === 0 ? (
                     <div className="h-32 flex items-center justify-center text-xs text-gray-400">

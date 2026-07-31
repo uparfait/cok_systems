@@ -38,6 +38,7 @@ module.exports = async function get_parking_slots_number(req, res, next) {
                 available_slots: parking_slots
             }
         });
+       // console.log(parking_slots)
     } catch (error) {
        console.error("Error fetching parking slots:", error);
         res.status(500).json({
