@@ -282,15 +282,8 @@ const ParkingMap: React.FC<{ totalSlots: number; vehicles: any[]; reservations: 
     : s.status === 'reserved' ? `${s.id} · Reserved${s.plate ? ` ${s.plate}` : ''}`
     : `${s.id} · Available`;
 
-  // The lot is shown 50 slots at a time; legend counts always cover the whole lot
-  const SLOTS_PER_PAGE = 50;
-  const [mapPage, setMapPage] = useState(1);
-  const totalMapPages = Math.max(1, Math.ceil(slots.length / SLOTS_PER_PAGE));
-  useEffect(() => { if (mapPage > totalMapPages) setMapPage(1); }, [mapPage, totalMapPages]);
-  const pageSlots = slots.slice((mapPage - 1) * SLOTS_PER_PAGE, mapPage * SLOTS_PER_PAGE);
-
   const sections: SlotState[][] = [];
-  for (let i = 0; i < pageSlots.length; i += 20) sections.push(pageSlots.slice(i, i + 20));
+  for (let i = 0; i < slots.length; i += 20) sections.push(slots.slice(i, i + 20));
   const counts = {
     occupied: slots.filter(s => s.status === 'occupied').length,
     reserved: slots.filter(s => s.status === 'reserved').length,
@@ -318,32 +311,6 @@ const ParkingMap: React.FC<{ totalSlots: number; vehicles: any[]; reservations: 
           </div>
         ))}
       </div>
-      {/* Lot pagination — 50 slots per page */}
-      {totalMapPages > 1 && (
-        <div className="flex items-center justify-between mt-2 text-xs text-gray-600">
-          <span>
-            Slots <span className="font-semibold">COK{(mapPage - 1) * SLOTS_PER_PAGE + 1}</span>–
-            <span className="font-semibold">COK{Math.min(mapPage * SLOTS_PER_PAGE, slots.length)}</span>
-            {' '}· Page {mapPage} of {totalMapPages}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setMapPage(p => Math.max(1, p - 1))}
-              disabled={mapPage <= 1}
-              className="px-3 py-1 border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setMapPage(p => Math.min(totalMapPages, p + 1))}
-              disabled={mapPage >= totalMapPages}
-              className="px-3 py-1 border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
