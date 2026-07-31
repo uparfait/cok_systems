@@ -43,6 +43,13 @@ const AdminSmartParkingDashboard: React.FC = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const PAGE_SIZE = 20;
 
+  // Export dialog: all records or a custom check-in date range
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportMode, setExportMode] = useState<'all' | 'range'>('all');
+  const [exportFrom, setExportFrom] = useState('');
+  const [exportTo, setExportTo] = useState('');
+  const [exporting, setExporting] = useState(false);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -99,40 +106,83 @@ const AdminSmartParkingDashboard: React.FC = () => {
   const formatDateForPDF = (d: Date) => d.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
   const truncateText = (t: string | undefined, m: number) => t ? (t.length > m ? t.substring(0, m - 3) + '...' : t) : 'N/A';
 
-  const handleDownloadReport = useCallback(async () => {
-    const doc = new jsPDF('l', 'mm', 'a4');
-    const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight();
-    let y = 10;
-    // Full-width report banner (Republic of Rwanda · City of Kigali), same as the attendance reports
+  // Fetches its own records at export time (the dashboard doesn't keep the full
+  // list in memory), optionally filtered to a check-in date range
+  const handleDownloadReport = useCallback(async (opts?: { from?: string; to?: string }) => {
+    setExporting(true);
     try {
-      const res = await fetch('/LOGO_COK_report.png');
-      if (res.ok) {
-        const blob = await res.blob();
-        const dataUrl: string = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
+      // Fetch the records fresh so the export never depends on the modal being opened
+      const r = await smartParkingService.getAllPaginated(1, 1000, 'all');
+      let records: ParkingRecord[] = Array.isArray(r?.data) ? r.data : (Array.isArray(r) ? r : []);
+      if (opts?.from) records = records.filter(rec => rec.check_in && new Date(rec.check_in) >= new Date(opts.from!));
+      if (opts?.to) records = records.filter(rec => rec.check_in && new Date(rec.check_in) <= new Date(opts.to + 'T23:59:59'));
+
+      const doc = new jsPDF('l', 'mm', 'a4');
+      const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight();
+      let y = 10;
+      // Full-width report banner (Republic of Rwanda · City of Kigali), same as the attendance reports
+      try {
+        const res = await fetch('/LOGO_COK_report.png');
+        if (res.ok) {
+          const blob = await res.blob();
+          const dataUrl: string = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+          const logoW = pw - 20;
+          const logoH = logoW * (221 / 1116); // original banner is 1116x221 px
+          doc.addImage(dataUrl, 'PNG', 10, y, logoW, logoH);
+          y += logoH + 10;
+        }
+      } catch (e) { /* render without the banner if it fails to load */ }
+      doc.setFont('helvetica', 'bold');
+      const now = new Date();
+      doc.setFontSize(9); doc.setTextColor(0, 0, 0); doc.text(formatDateForPDF(now), pw / 2, y, { align: 'center' }); y += 5;
+      doc.text(now.toLocaleTimeString(), pw / 2, y, { align: 'center' }); y += 10;
+      doc.setFontSize(16); doc.setTextColor(41, 95, 115);
+      const t = 'RECENT PARKING RECORDS'; doc.text(t, pw / 2, y, { align: 'center' });
+      doc.setDrawColor(41, 95, 115); doc.setLineWidth(0.8); doc.line((pw - doc.getTextWidth(t)) / 2 - 5, y + 2, (pw + doc.getTextWidth(t)) / 2 + 5, y + 2); y += 8;
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 100, 100);
+      // ASCII only — jsPDF's built-in fonts garble unsupported unicode chars
+      const scope = opts?.from || opts?.to
+        ? `Period: ${opts?.from || 'start'} to ${opts?.to || 'today'} (${records.length} records)`
+        : `All records (${records.length})`;
+      doc.text(scope, pw / 2, y, { align: 'center' }); y += 10;
+
+      if (records.length > 0) {
+        const rows = records.map(rec => [
+          truncateText(rec.plate_number || 'N/A', 12),
+          truncateText(rec.driver_name || 'N/A', 24),
+          truncateText(rec.driver_type || 'N/A', 12),
+          rec.status === 'active' ? 'Active' : rec.status === 'completed' ? 'Completed' : 'N/A',
+          rec.check_in ? new Date(rec.check_in).toLocaleString() : 'N/A',
+        ]);
+        autoTable(doc, {
+          startY: y,
+          head: [['Plate', 'Driver', 'Type', 'Status', 'Time']],
+          body: rows,
+          theme: 'grid',
+          headStyles: { fillColor: [41, 95, 115], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold', halign: 'center', cellPadding: 4 },
+          bodyStyles: { fontSize: 8, cellPadding: 3, halign: 'center' },
+          columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 75, halign: 'left' }, 2: { cellWidth: 45 }, 3: { cellWidth: 40 }, 4: { cellWidth: 80 } },
+          margin: { left: (pw - 280) / 2, right: (pw - 280) / 2 },
+          tableWidth: 280,
+          didDrawPage: (data) => { doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3); doc.line(10, ph - 15, pw - 10, ph - 15); doc.setFontSize(7); doc.setTextColor(128, 128, 128); doc.text('City of Kigali - Smart Parking Management System', pw / 2, ph - 12, { align: 'center' }); doc.text(`Page ${data.pageNumber}`, pw - 10, ph - 12, { align: 'right' }); },
         });
-        const logoW = pw - 20;
-        const logoH = logoW * (221 / 1116); // original banner is 1116x221 px
-        doc.addImage(dataUrl, 'PNG', 10, y, logoW, logoH);
-        y += logoH + 10;
+      } else {
+        doc.setFontSize(11); doc.setTextColor(100, 100, 100);
+        doc.text('No parking records found for this period', pw / 2, y + 30, { align: 'center' });
       }
-    } catch (e) { /* render without the banner if it fails to load */ }
-    doc.setFont('helvetica', 'bold');
-    const now = new Date();
-    doc.setFontSize(9); doc.text(formatDateForPDF(now), pw / 2, y, { align: 'center' }); y += 5;
-    doc.text(now.toLocaleTimeString(), pw / 2, y, { align: 'center' }); y += 12;
-    doc.setFontSize(16); doc.setTextColor(41, 95, 115);
-    const t = 'PARKING RECORDS REPORT'; doc.text(t, pw / 2, y, { align: 'center' });
-    doc.setDrawColor(41, 95, 115); doc.setLineWidth(0.8); doc.line((pw - doc.getTextWidth(t)) / 2 - 5, y + 2, (pw + doc.getTextWidth(t)) / 2 + 5, y + 2); y += 15;
-    if (allRecords.length > 0) {
-      const rows = allRecords.slice(0, 200).map(r => [truncateText(r.plate_number || 'N/A', 12), truncateText(r.driver_name || 'N/A', 20), truncateText(r.driver_telephone || 'N/A', 15), truncateText(r.driver_type || 'N/A', 12), r.status === 'active' ? 'Active' : r.status === 'completed' ? 'Completed' : 'N/A', r.check_in ? new Date(r.check_in).toLocaleString().substring(0, 16) : 'N/A', r.check_out ? new Date(r.check_out).toLocaleString().substring(0, 16) : 'N/A']);
-      autoTable(doc, { startY: y, head: [['Plate No.', 'Driver Name', 'Phone', 'Type', 'Status', 'Check-in', 'Check-out']], body: rows, theme: 'grid', headStyles: { fillColor: [41, 95, 115], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold', halign: 'center', cellPadding: 4 }, bodyStyles: { fontSize: 8, cellPadding: 3, halign: 'center' }, columnStyles: { 0: { cellWidth: 32 }, 1: { cellWidth: 52, halign: 'left' }, 2: { cellWidth: 38 }, 3: { cellWidth: 32 }, 4: { cellWidth: 30 }, 5: { cellWidth: 48 }, 6: { cellWidth: 48 } }, margin: { left: (pw - 280) / 2, right: (pw - 280) / 2 }, tableWidth: 280, didDrawPage: (data) => { doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3); doc.line(10, ph - 15, pw - 10, ph - 15); doc.setFontSize(7); doc.setTextColor(128, 128, 128); doc.text('City of Kigali - Smart Parking Management System', pw / 2, ph - 12, { align: 'center' }); doc.text(`Page ${data.pageNumber}`, pw - 10, ph - 12, { align: 'right' }); } });
-    } else { doc.setFontSize(11); doc.text('No parking records found', pw / 2, y + 30, { align: 'center' }); }
-    doc.save(`Parking_Records_${now.toISOString().split('T')[0]}.pdf`);
-  }, [allRecords]);
+      doc.save(`Parking_Records_${now.toISOString().split('T')[0]}.pdf`);
+      setShowExportDialog(false);
+    } catch (e) {
+      showError('Failed to export parking records');
+    } finally {
+      setExporting(false);
+    }
+  }, [showError]);
 
   if (authLoading) return <div className="flex items-center justify-center min-h-[600px]"><LoadingSpinner message="Loading dashboard..." /></div>;
 
@@ -175,7 +225,7 @@ const AdminSmartParkingDashboard: React.FC = () => {
           <div className="px-4 py-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-900">Recent Parking Records</h2>
             <div className="flex gap-2">
-              <button onClick={handleDownloadReport} className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium hover:bg-blue-700"><FiDownload className="w-3 h-3" />PDF</button>
+              <button onClick={() => { setExportMode('all'); setShowExportDialog(true); }} className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium hover:bg-blue-700"><FiDownload className="w-3 h-3" />PDF</button>
               <button onClick={() => { setShowRecordsModal(true); fetchAllRecords(1); }} className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200">View All</button>
             </div>
           </div>
@@ -187,6 +237,51 @@ const AdminSmartParkingDashboard: React.FC = () => {
         </div>
 
         <ParkingSlotConfigModal show={showSlotConfig} slotConfig={slotConfig} saving={savingSlot} onClose={() => setShowSlotConfig(false)} onChange={(e) => { const { name, value } = e.target; setSlotConfig(p => ({ ...p, [name]: value === '' ? 0 : parseInt(value) || 0 })); }} onSave={async () => { setSavingSlot(true); try { const r = await smartParkingService.updateSlotConfig(slotConfig); if (r.success) { showSuccess('Slot config updated'); setShowSlotConfig(false); fetchData(); } else showError(r.message || 'Failed'); } catch (err: any) { showError(err?.message || 'Failed'); } finally { setSavingSlot(false); } }} />
+
+        {/* Export dialog: all records or a custom check-in date range */}
+        {showExportDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(51,51,51,0.5)' }} onClick={() => !exporting && setShowExportDialog(false)}>
+            <div className="bg-white w-full max-w-md border border-gray-200 shadow-lg" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Export parking records">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <h3 className="text-sm font-bold text-gray-900">Export Parking Records</h3>
+                <button onClick={() => setShowExportDialog(false)} disabled={exporting} className="w-7 h-7 flex items-center justify-center border border-gray-200 hover:bg-gray-50"><FiX className="w-4 h-4 text-gray-600" /></button>
+              </div>
+              <div className="p-4 space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                  <input type="radio" name="export-mode" checked={exportMode === 'all'} onChange={() => setExportMode('all')} />
+                  All records
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                  <input type="radio" name="export-mode" checked={exportMode === 'range'} onChange={() => setExportMode('range')} />
+                  Custom date range (check-in date)
+                </label>
+                {exportMode === 'range' && (
+                  <div className="flex flex-wrap items-center gap-3 pl-6">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-500" htmlFor="export-from">From</label>
+                      <input id="export-from" type="date" value={exportFrom} onChange={e => setExportFrom(e.target.value)} className="h-8 px-2 text-sm border border-gray-300" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-500" htmlFor="export-to">To</label>
+                      <input id="export-to" type="date" value={exportTo} onChange={e => setExportTo(e.target.value)} className="h-8 px-2 text-sm border border-gray-300" />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-200">
+                <button onClick={() => setShowExportDialog(false)} disabled={exporting} className="px-4 py-2 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancel</button>
+                <button
+                  onClick={() => handleDownloadReport(exportMode === 'range' ? { from: exportFrom || undefined, to: exportTo || undefined } : undefined)}
+                  disabled={exporting || (exportMode === 'range' && !exportFrom && !exportTo)}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {exporting ? <FiLoader className="w-3.5 h-3.5 animate-spin" /> : <FiDownload className="w-3.5 h-3.5" />}
+                  {exporting ? 'Exporting…' : 'Export PDF'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {showRecordsModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowRecordsModal(false)}>
