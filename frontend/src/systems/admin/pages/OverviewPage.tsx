@@ -2600,15 +2600,22 @@ useEffect(() => {
                         {/* Same table design rules as the event-manager events table:
                             bordered container, CoK-blue uppercase header, zebra rows, bordered cells */}
                         <div className="overflow-auto max-h-[55vh] border-2 border-gray-300">
-                          <table className="w-full border-collapse table-auto min-w-[640px]">
+                          <table className="w-full border-collapse table-fixed min-w-[720px]">
                             <thead className="sticky top-0 z-10">
                               <tr>
-                                {['Rating', 'Sentiment', 'Department', 'Comment', 'From', 'Date'].map(label => (
+                                {([
+                                  { label: 'Rating', width: 'w-24' },
+                                  { label: 'Sentiment', width: 'w-28' },
+                                  { label: 'Department', width: 'w-44' },
+                                  { label: 'Comment', width: '' },
+                                  { label: 'From', width: 'w-36' },
+                                  { label: 'Date', width: 'w-32' },
+                                ]).map(col => (
                                   <th
-                                    key={label}
-                                    className="cok-primary-bg text-white px-4 py-3.5 text-left text-xs font-bold uppercase tracking-widest whitespace-nowrap"
+                                    key={col.label}
+                                    className={`cok-primary-bg text-white px-4 py-3.5 text-left text-xs font-bold uppercase tracking-widest whitespace-nowrap ${col.width}`}
                                   >
-                                    {label}
+                                    {col.label}
                                   </th>
                                 ))}
                               </tr>
