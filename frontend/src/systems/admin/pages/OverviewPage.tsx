@@ -1675,6 +1675,7 @@ useEffect(() => {
                       <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} />
                       <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} />
                       <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32} />
+                      <Bar dataKey="archived" name="Archived" fill="#9E9E9E" maxBarSize={32} />
                     </BarChart>
                   </ResponsiveContainer>
                   </div>
@@ -1701,6 +1702,7 @@ useEffect(() => {
                       <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} />
                       <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} />
                       <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32} />
+                      <Bar dataKey="archived" name="Archived" fill="#9E9E9E" maxBarSize={32} />
                     </BarChart>
                   </ResponsiveContainer>
                   </div>
@@ -2630,15 +2632,27 @@ useEffect(() => {
                                     className={`transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50/50 hover:bg-blue-50'}`}
                                   >
                                     <td className={`${cell(0)} whitespace-nowrap`}>
-                                      <span
-                                        className="inline-flex flex-col items-center justify-center w-11 h-11"
-                                        style={{ backgroundColor: `${meta.color}1A`, borderLeft: `3px solid ${meta.color}` }}
-                                      >
-                                        <span style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 700, color: meta.color }}>
-                                          {f.rate ?? ''}
-                                        </span>
-                                        <span className="text-[9px] text-gray-400">/ {f.rate_out_of || 10}</span>
-                                      </span>
+                                      {(() => {
+                                        // Accent bar height is proportional to the rating (3/10 short, 10/10 full)
+                                        const outOf = Number(f.rate_out_of) || 10;
+                                        const pct = Math.max(0, Math.min(100, (Number(f.rate) / outOf) * 100));
+                                        return (
+                                          <span className="inline-flex items-end gap-1.5 h-11">
+                                            <span className="inline-flex items-end w-1.5 h-full bg-gray-100">
+                                              <span className="w-full" style={{ height: `${pct}%`, backgroundColor: meta.color, display: 'block' }} />
+                                            </span>
+                                            <span
+                                              className="inline-flex flex-col items-center justify-center w-11 h-11"
+                                              style={{ backgroundColor: `${meta.color}1A` }}
+                                            >
+                                              <span style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 700, color: meta.color }}>
+                                                {f.rate ?? ''}
+                                              </span>
+                                              <span className="text-[9px] text-gray-400">/ {f.rate_out_of || 10}</span>
+                                            </span>
+                                          </span>
+                                        );
+                                      })()}
                                     </td>
                                     <td className={cell(1)}>
                                       <CokBadge label={meta.label} color={meta.color} />
