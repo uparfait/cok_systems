@@ -12,31 +12,23 @@ const PERIOD_OPTIONS = [
   { value: 'range', label: 'Custom Range' },
 ];
 
-const ALL_FIELDS = [
-  { key: 'redaction_date', label: 'Redaction Date' },
-  { key: 'reference_number', label: 'Reference Number' },
-  { key: 'reception_date', label: 'Reception Date' },
-  { key: 'sender', label: 'Sender' },
-  { key: 'recipient', label: 'Recipient' },
-  { key: 'subject', label: 'Subject' },
-  { key: 'orientation', label: 'Orientation' },
-  { key: 'remarks', label: 'Remarks' },
-];
-
 const RequestStats: React.FC = () => {
   const [stats, setStats] = useState<RequestStatistics | null>(null);
   const [loading, setLoading] = useState(false);
   const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'year' | 'range' | 'all'>('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [appliedPeriod, setAppliedPeriod] = useState<'today' | 'week' | 'month' | 'year' | 'range' | 'all'>('all');
+  const [appliedFrom, setAppliedFrom] = useState('');
+  const [appliedTo, setAppliedTo] = useState('');
 
   const fetchStatistics = async () => {
     setLoading(true);
     try {
       const res = await requestService.getStatistics({
-        period: period === 'all' ? undefined : period,
-        from: from || undefined,
-        to: to || undefined,
+        period: appliedPeriod === 'all' ? undefined : appliedPeriod,
+        from: appliedFrom || undefined,
+        to: appliedTo || undefined,
       });
 
     if (res && typeof res === 'object' && 'data' in res && res.data) {
@@ -53,7 +45,13 @@ const RequestStats: React.FC = () => {
 
   useEffect(() => {
     fetchStatistics();
-  }, [period, from, to]);
+  }, [appliedPeriod, appliedFrom, appliedTo]);
+
+  const handleApply = () => {
+    setAppliedPeriod(period);
+    setAppliedFrom(from);
+    setAppliedTo(to);
+  };
 
   const slices = stats
     ? [
@@ -61,6 +59,7 @@ const RequestStats: React.FC = () => {
         { label: 'In Progress', value: stats.Inprogress || 0, color: '#F39C12' },
         { label: 'Completed', value: stats.Completed || 0, color: '#4CAF50' },
         { label: 'Archived', value: stats.Archived || 0, color: '#9E9E9E' },
+        { label: 'Overdue', value: stats.Overdue || 0, color: '#E53935' },
       ]
     : [];
 
@@ -124,6 +123,13 @@ const RequestStats: React.FC = () => {
               />
             </>
           )}
+          <button
+            onClick={handleApply}
+            className="cok-btn-primary"
+            style={{ width: 'auto', padding: '0.6rem 1rem' }}
+          >
+            Apply
+          </button>
         </div>
 
         {loading ? (

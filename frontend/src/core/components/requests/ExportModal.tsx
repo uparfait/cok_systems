@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FiX } from 'react-icons/fi';
 import requestService from '../../../core/services/requestService';
 
 const PERIOD_OPTIONS = [
@@ -61,10 +62,10 @@ const ExportModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4" style={{ backgroundColor: '#056daa', borderRadius: 0 }}>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 cok-bg-primary" style={{ borderRadius: 0 }}>
           <h3 className="text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>Export Report</h3>
-          <button onClick={onClose} className="p-1 text-white/80 hover:text-white transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          <button onClick={onClose} className="cok-btn-outlined-reverse" style={{ padding: '0.4rem 0.8rem' }}>
+            <FiX className="w-4 h-4" />
           </button>
         </div>
         <div className="p-4 sm:p-6 space-y-4">

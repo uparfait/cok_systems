@@ -23,7 +23,7 @@ export interface RequestDoc {
   subject?: string;
   orientation?: string;
   remarks?: string;
-  status: 'Pending' | 'Inprogress' | 'Completed' | 'Archived';
+  status: 'Pending' | 'Inprogress' | 'Completed' | 'Archived' | 'Overdue';
   assigned_by: RequestAssignedBy;
   created_by: RequestAssignedBy;
   archive_reason?: string;
@@ -36,6 +36,7 @@ export interface RequestStatistics {
   Inprogress: number;
   Completed: number;
   Archived: number;
+  Overdue: number;
   total: number;
 }
 
