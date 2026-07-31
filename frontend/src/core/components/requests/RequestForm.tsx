@@ -58,21 +58,22 @@ const RequestForm: React.FC<{
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div
-        className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col"
         style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}
       >
         <div
-          className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4"
-          style={{ backgroundColor: '#056daa', borderRadius: 0 }}
+          className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 cok-bg-primary"
+          style={{ borderRadius: 0 }}
         >
           <h2 className="text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>
             {request ? 'Edit Request' : 'New Request'}
           </h2>
           <button
             onClick={onClose}
-            className="p-1 text-white/80 hover:text-white transition-colors"
+            className="cok-btn-outlined-reverse"
+            style={{ padding: '0.4rem 0.8rem' }}
           >
-            <FiX className="w-5 h-5" />
+            <FiX className="w-4 h-4" />
           </button>
         </div>
 
@@ -217,21 +218,16 @@ const RequestForm: React.FC<{
               placeholder="Optional"
             />
           </div>
+        </form>
 
-          <div className="flex gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-2.5 text-sm font-semibold border border-gray-300 hover:bg-gray-50 transition-colors"
-              style={{ borderRadius: 0, color: '#333333' }}
-            >
-              Cancel
-            </button>
+        <div className="p-4 sm:p-6 pt-2 flex flex-col gap-3 border-t" style={{ borderColor: '#E0E0E0' }}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
             <button
               type="submit"
+              onClick={handleSubmit}
               disabled={loading}
-              className="flex-1 py-2.5 text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2"
-              style={{ backgroundColor: '#056daa', borderRadius: 0 }}
+              className="cok-btn-primary flex max-h-[50px] flex-row items-center justify-center gap-2"
+              style={{ padding: '0.7rem 1.2rem', width: 'auto' }}
             >
               {loading ? (
                 <>
@@ -242,8 +238,19 @@ const RequestForm: React.FC<{
                 'Save'
               )}
             </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="cok-btn-outlined"
+              style={{ width: 'auto', padding: '0.7rem 1.2rem' }}
+            >
+              Cancel
+            </button>
           </div>
-        </form>
+          <button type="button" onClick={onClose} className="w-full cok-btn-outlined" style={{ padding: '0.9rem 1.2rem' }}>
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );

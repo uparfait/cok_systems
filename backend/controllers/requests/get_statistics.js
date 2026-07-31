@@ -62,6 +62,7 @@ module.exports = async function get_statistics(req, res) {
       Inprogress: 0,
       Completed: 0,
       Archived: 0,
+      Overdue: 0,
       total: 0
     };
 

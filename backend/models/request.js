@@ -24,7 +24,7 @@ const requestSchema = new mongoose.Schema({
   remarks: { type: String, default: '' },
   status: { 
     type: String, 
-    enum: ['Pending', 'Inprogress', 'Completed', 'Archived'], 
+    enum: ['Pending', 'Inprogress', 'Completed', 'Archived', 'Overdue'], 
     default: 'Pending' 
   },
   assigned_by: { type: assignedBySchema, required: true },
