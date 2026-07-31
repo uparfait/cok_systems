@@ -36,11 +36,10 @@ const DelegateRequest: React.FC<{
 
   const handleDetailsClose = () => {
     setSelectedRequest(null);
-    setRefreshKey((k) => k + 1);
   };
 
   const handleExportClose = () => {
-    setRefreshKey((k) => k + 1);
+    setShowExport(false);
   };
 
   if (!isOpen) return null;

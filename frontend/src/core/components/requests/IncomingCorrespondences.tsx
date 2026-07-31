@@ -145,11 +145,36 @@ const IncomingCorrespondences: React.FC<{
     }
   }, []);
 
+  const silentFetchRequests = useCallback(async () => {
+    try {
+      const res = await requestService.getAll({
+        status: statusFromFilter(activeFilter),
+        period: appliedPeriod === 'all' ? undefined : appliedPeriod,
+        from: appliedFrom || undefined,
+        to: appliedTo || undefined,
+        page,
+        limit,
+        q: searchInput || undefined,
+      });
+      let data: RequestDoc[] = [];
+      if (res && typeof res === 'object') {
+        if (Array.isArray((res as any).data)) data = (res as any).data;
+        else if (Array.isArray(res)) data = res;
+      }
+      setRequests(data);
+    } catch (error) {
+      // keep existing data on error
+    }
+  }, [activeFilter, appliedPeriod, appliedFrom, appliedTo, page, limit, searchInput]);
+
   useEffect(() => {
     fetchCounts();
-    const interval = setInterval(fetchCounts, 5000);
+    const interval = setInterval(() => {
+      fetchCounts();
+      silentFetchRequests();
+    }, 5000);
     return () => clearInterval(interval);
-  }, [fetchCounts]);
+  }, [fetchCounts, silentFetchRequests]);
 
    const statusFromFilter = (filter: string) => {
     if (filter === 'Pending') return 'Pending';

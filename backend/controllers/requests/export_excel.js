@@ -88,8 +88,7 @@ module.exports = async function export_excel(req, res) {
     sheet.mergeCells('A1:' + String.fromCharCode(64 + selectedFields.length) + '1');
     const titleCell = sheet.getCell('A1');
     titleCell.value = reportTitle;
-    titleCell.font = { bold: true, size: 16, color: { argb: 'FFFFFFFF' } };
-    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF056daa' } };
+    titleCell.font = { size: 16, color: { argb: 'FF056daa' } };
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
     sheet.getRow(1).height = 30;
 
@@ -107,8 +106,7 @@ module.exports = async function export_excel(req, res) {
       } else {
         cell.value = availableFields[field]?.header || field;
       }
-      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } };
+      cell.font = { bold: true, color: { argb: 'FF34A8DB' } };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
     });
     headerRow.height = 20;
@@ -148,7 +146,7 @@ module.exports = async function export_excel(req, res) {
     });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="${reportTitle.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.xlsx"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${reportTitle.replace(/[^a-z0-9]/gi, '_')}.xlsx"`);
 
     await workbook.xlsx.write(res);
     res.end();

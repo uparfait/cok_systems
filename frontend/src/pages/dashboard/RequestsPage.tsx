@@ -48,16 +48,14 @@ const RequestsPage: React.FC = () => {
 
   const handleFormClose = () => {
     setShowForm(false);
-    setRefreshKey((k) => k + 1);
   };
 
   const handleDetailsClose = () => {
     setSelectedRequest(null);
-    setRefreshKey((k) => k + 1);
   };
 
   const handleExportClose = () => {
-    setRefreshKey((k) => k + 1);
+    setShowExport(false);
   };
 
   return (
