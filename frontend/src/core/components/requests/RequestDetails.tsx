@@ -11,6 +11,8 @@ const RequestDetails: React.FC<{
   const [loading, setLoading] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [archiveReason, setArchiveReason] = useState('');
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [progressReason, setProgressReason] = useState('');
   const [localStatus, setLocalStatus] = useState(request.status || 'Pending');
 
   useEffect(() => {
@@ -21,6 +23,10 @@ const RequestDetails: React.FC<{
     if (!request._id || newStatus === request.status) return;
     if (newStatus === 'Archived') {
       setShowArchiveModal(true);
+      return;
+    }
+    if (newStatus === 'Inprogress') {
+      setShowProgressModal(true);
       return;
     }
     setLoading(true);
@@ -45,6 +51,21 @@ const RequestDetails: React.FC<{
       onClose();
     } catch (error) {
       console.error('Failed to archive request:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProgress = async () => {
+    if (!request._id || !progressReason.trim()) return;
+    setLoading(true);
+    try {
+      await requestService.update(request._id, { status: 'Inprogress' });
+      onUpdate();
+      setShowProgressModal(false);
+      onClose();
+    } catch (error) {
+      console.error('Failed to update status:', error);
     } finally {
       setLoading(false);
     }
@@ -91,6 +112,7 @@ const RequestDetails: React.FC<{
           <option value="Inprogress">In Progress</option>
           <option value="Completed">Completed</option>
           <option value="Archived">Archived</option>
+          <option value="Overdue">Overdue</option>
         </select>
       )
     },
@@ -103,21 +125,22 @@ const RequestDetails: React.FC<{
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div
-        className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col"
         style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}
       >
         <div
-          className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4"
-          style={{ backgroundColor: '#056daa', borderRadius: 0 }}
+          className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 cok-bg-primary"
+          style={{ borderRadius: 0 }}
         >
           <h2 className="text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>
             Request Details
           </h2>
           <button
             onClick={onClose}
-            className="p-1 text-white/80 hover:text-white transition-colors"
+            className="cok-btn-outlined-reverse"
+            style={{ padding: '0.4rem 0.8rem' }}
           >
-            <FiX className="w-5 h-5" />
+            <FiX className="w-4 h-4" />
           </button>
         </div>
 
@@ -152,6 +175,12 @@ const RequestDetails: React.FC<{
               </tbody>
             </table>
           </div>
+        </div>
+
+        <div className="p-4 sm:p-6 pt-2 flex flex-col gap-3 border-t" style={{ borderColor: '#E0E0E0' }}>
+          <button type="button" onClick={onClose} className="w-full cok-btn-outlined" style={{ padding: '0.9rem 1.2rem' }}>
+            Close
+          </button>
         </div>
       </div>
 
@@ -188,6 +217,45 @@ const RequestDetails: React.FC<{
                 style={{ backgroundColor: '#E53935', borderRadius: 0 }}
               >
                 {loading ? 'Archiving...' : 'Archive'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showProgressModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+          <div
+            className="bg-white w-full max-w-md p-6"
+            style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}
+          >
+            <h3 className="text-lg font-bold mb-4" style={{ fontFamily: "'Montserrat', sans-serif", color: '#333333' }}>
+              Mark as In Progress
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">Please provide a reason for marking this request as in progress.</p>
+            <textarea
+              value={progressReason}
+              onChange={(e) => setProgressReason(e.target.value)}
+              placeholder="Enter reason"
+              rows={4}
+              className="cok-auth-input w-full mb-4"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowProgressModal(false)}
+                className="flex-1 py-2.5 text-sm font-semibold border border-gray-300 hover:bg-gray-50 transition-colors"
+                style={{ borderRadius: 0, color: '#333333' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleProgress}
+                disabled={loading || !progressReason.trim()}
+                className="flex-1 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                style={{ backgroundColor: '#F39C12', borderRadius: 0 }}
+              >
+                {loading ? 'Saving...' : 'Mark In Progress'}
               </button>
             </div>
           </div>

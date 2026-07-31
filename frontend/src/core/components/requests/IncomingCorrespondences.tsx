@@ -101,7 +101,8 @@ const RangeModal: React.FC<{
 const IncomingCorrespondences: React.FC<{
   onRequestClick: (request: RequestDoc) => void;
   onNewRequest: () => void;
-}> = ({ onRequestClick, onNewRequest }) => {
+  onExport?: () => void;
+}> = ({ onRequestClick, onNewRequest, onExport }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialStatus = (searchParams.get('status') as any) || 'all';
   const initialPeriod = (searchParams.get('period') as any) || 'all';
@@ -111,46 +112,75 @@ const IncomingCorrespondences: React.FC<{
   const [requests, setRequests] = useState<RequestDoc[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'Pending' | 'Completed' | 'Overdue' | 'Archived'>(initialStatus);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'Pending' | 'Inprogress' | 'Completed' | 'Overdue' | 'Archived'>(initialStatus as 'all' | 'Pending' | 'Inprogress' | 'Completed' | 'Overdue' | 'Archived');
   const [period, setPeriod] = useState<'all' | 'today' | 'week' | 'month' | 'year' | 'range'>(initialPeriod);
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
   const [appliedPeriod, setAppliedPeriod] = useState(initialPeriod);
   const [appliedFrom, setAppliedFrom] = useState(initialFrom);
   const [appliedTo, setAppliedTo] = useState(initialTo);
-  const [counts, setCounts] = useState({ all: 0, Pending: 0, Completed: 0, Inprogress: 0, Archived: 0 });
+  const [counts, setCounts] = useState({ all: 0, Pending: 0, Completed: 0, Inprogress: 0, Archived: 0, Overdue: 0 });
   const [showRangeModal, setShowRangeModal] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [page, setPage] = useState(initialPage);
-  const [showExport, setShowExport] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false);
   const limit = 20;
 
-   const fetchCounts = useCallback(async () => {
-    const targets = ['all', 'Pending', 'Completed', 'Inprogress', 'Archived'] as const;
-    const next = { all: 0, Pending: 0, Completed: 0, Inprogress: 0, Archived: 0 };
-    for (const s of targets) {
-      const res = await requestService.getAll({ status: s === 'all' ? undefined : s, limit: 1 });
+  const fetchCounts = useCallback(async () => {
+    try {
+      const res = await requestService.getStatistics({ period: 'all' });
+      if (res && typeof res === 'object' && 'data' in res && res.data) {
+        const data = res.data as any;
+        setCounts({
+          all: data.total || 0,
+          Pending: data.Pending || 0,
+          Completed: data.Completed || 0,
+          Inprogress: data.Inprogress || 0,
+          Archived: data.Archived || 0,
+          Overdue: data.Overdue || 0,
+        });
+      }
+    } catch (error) {
+      // keep existing counts on error
+    }
+  }, []);
+
+  const silentFetchRequests = useCallback(async () => {
+    try {
+      const res = await requestService.getAll({
+        status: statusFromFilter(activeFilter),
+        period: appliedPeriod === 'all' ? undefined : appliedPeriod,
+        from: appliedFrom || undefined,
+        to: appliedTo || undefined,
+        page,
+        limit,
+        q: searchInput || undefined,
+      });
       let data: RequestDoc[] = [];
       if (res && typeof res === 'object') {
         if (Array.isArray((res as any).data)) data = (res as any).data;
         else if (Array.isArray(res)) data = res;
       }
-      const total = (res as any)?.total ?? (Array.isArray(res) ? res.length : data.length);
-      next[s] = total;
+      setRequests(data);
+    } catch (error) {
+      // keep existing data on error
     }
-    setCounts(next);
-  }, []);
+  }, [activeFilter, appliedPeriod, appliedFrom, appliedTo, page, limit, searchInput]);
 
   useEffect(() => {
     fetchCounts();
-    const interval = setInterval(fetchCounts, 5000);
+    const interval = setInterval(() => {
+      fetchCounts();
+      silentFetchRequests();
+    }, 5000);
     return () => clearInterval(interval);
-  }, [fetchCounts]);
+  }, [fetchCounts, silentFetchRequests]);
 
-  const statusFromFilter = (filter: string) => {
+   const statusFromFilter = (filter: string) => {
     if (filter === 'Pending') return 'Pending';
+    if (filter === 'Inprogress') return 'Inprogress';
     if (filter === 'Completed') return 'Completed';
-    if (filter === 'Overdue') return 'Inprogress';
+    if (filter === 'Overdue') return 'Overdue';
     if (filter === 'Archived') return 'Archived';
     return undefined;
   };
@@ -198,17 +228,13 @@ const IncomingCorrespondences: React.FC<{
 
  
 
-  const handleFilterChange = async (filter: typeof activeFilter) => {
+   const handleFilterChange = async (filter: typeof activeFilter) => {
     if (filter === activeFilter) return;
-    const prevFilter = activeFilter;
-    const prevStatus = statusFromFilter(prevFilter);
-    if (prevStatus) {
-      await requestService.getAll({ status: prevStatus, limit: 1 });
-    }
+    setStatusLoading(true);
     setActiveFilter(filter);
     setPage(1);
     updateUrl(filter, appliedPeriod, appliedFrom, appliedTo, 1);
-    await fetchRequests('', 1, statusFromFilter(filter));
+    setTimeout(() => setStatusLoading(false), 300);
   };
 
   const handleApply = () => {
@@ -216,7 +242,6 @@ const IncomingCorrespondences: React.FC<{
     setAppliedFrom(from);
     setAppliedTo(to);
     setPage(1);
-    fetchRequests('', 1);
     updateUrl(activeFilter, period, from, to, 1);
   };
 
@@ -228,6 +253,7 @@ const IncomingCorrespondences: React.FC<{
   const tabs = [
     { key: 'all', label: 'All', count: counts.all, color: '#2563EB' },
     { key: 'Pending', label: 'Pending', count: counts.Pending, color: '#2563EB' },
+    { key: 'Inprogress', label: 'In Progress', count: counts.Inprogress, color: '#F39C12' },
     { key: 'Completed', label: 'Completed', count: counts.Completed, color: '#4CAF50' },
     { key: 'Overdue', label: 'Overdue', count: counts.Inprogress, color: '#E53935' },
     { key: 'Archived', label: 'Archived', count: counts.Archived, color: '#9E9E9E' },
@@ -290,7 +316,7 @@ const IncomingCorrespondences: React.FC<{
                     + New Request
                   </button>
                   <button
-                    onClick={() => { setActionsOpen(false); setShowExport(true); }}
+                    onClick={() => { setActionsOpen(false); onExport?.(); }}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
                     style={{ fontFamily: "'Montserrat', sans-serif", color: '#333333', height: '100%' }}
                   >
@@ -301,27 +327,35 @@ const IncomingCorrespondences: React.FC<{
             </div>
           </div>
 
-          <div className="flex overflow-x-auto" style={{ borderTop: '1px solid #f0f0f0' }}>
-            {tabs.map((tab) => {
-              const isActive = activeFilter === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => handleFilterChange(tab.key)}
-                  className="relative hover:bg-gray-100 flex-1 min-w-0 py-2 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer"
-                  style={{
-                    
-                    color: isActive ? tab.color : '#6b7280',
-                    borderBottom: isActive ? `2px solid ${tab.color}` : '2px solid transparent',
-                    backgroundColor: isActive ? `${tab.color}10` : '',
-                  }}
-                >
-                  <span className="truncate block">{tab.label}</span>
-                  <span className="text-[10px] sm:text-xs opacity-75 block">{tab.count}</span>
-                </button>
-              );
-            })}
-          </div>
+           <div className="flex overflow-x-auto" style={{ borderTop: '1px solid #f0f0f0' }}>
+             {tabs.map((tab) => {
+               const isActive = activeFilter === tab.key;
+               const isLoading = statusLoading && isActive;
+               return (
+                 <button
+                   key={tab.key}
+                   onClick={() => handleFilterChange(tab.key)}
+                   className="relative hover:bg-gray-100 flex-1 min-w-0 py-2 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer"
+                   style={{
+                     color: isActive ? tab.color : '#6b7280',
+                     borderBottom: isActive ? `2px solid ${tab.color}` : '2px solid transparent',
+                     backgroundColor: isActive ? `${tab.color}10` : '',
+                   }}
+                 >
+                   {isLoading ? (
+                     <div className="flex items-center justify-center py-1">
+                       <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: tab.color, borderTopColor: 'transparent' }}></div>
+                     </div>
+                   ) : (
+                     <>
+                       <span className="truncate block">{tab.label}</span>
+                       <span className="text-[10px] sm:text-xs opacity-75 block">{tab.count}</span>
+                     </>
+                   )}
+                 </button>
+               );
+             })}
+           </div>
 
           <div
             className="relative"
@@ -385,8 +419,6 @@ const IncomingCorrespondences: React.FC<{
         onFromChange={setFrom}
         onToChange={setTo}
       />
-
-      {showExport && <ExportModal onClose={() => setShowExport(false)} />}
     </div>
   );
 };

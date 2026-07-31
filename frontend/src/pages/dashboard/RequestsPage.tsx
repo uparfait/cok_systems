@@ -6,6 +6,7 @@ import IncomingCorrespondences from '../../core/components/requests/IncomingCorr
 import RequestStatistics from '../../core/components/requests/RequestStatistics';
 import RequestForm from '../../core/components/requests/RequestForm';
 import RequestDetails from '../../core/components/requests/RequestDetails';
+import ExportModal from '../../core/components/requests/ExportModal';
 import requestService, { type RequestDoc } from '../../core/services/requestService';
 
 const RequestsPage: React.FC = () => {
@@ -13,6 +14,7 @@ const RequestsPage: React.FC = () => {
   const { showSuccess } = useToast();
   const [selectedRequest, setSelectedRequest] = useState<RequestDoc | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   if (authLoading) {
@@ -44,9 +46,16 @@ const RequestsPage: React.FC = () => {
     showSuccess('Request saved successfully');
   };
 
+  const handleFormClose = () => {
+    setShowForm(false);
+  };
+
   const handleDetailsClose = () => {
     setSelectedRequest(null);
-    setRefreshKey((k) => k + 1);
+  };
+
+  const handleExportClose = () => {
+    setShowExport(false);
   };
 
   return (
@@ -56,6 +65,7 @@ const RequestsPage: React.FC = () => {
           key={refreshKey}
           onRequestClick={handleRequestClick}
           onNewRequest={handleNewRequest}
+          onExport={() => setShowExport(true)}
         />
       </div>
       <div>
@@ -64,7 +74,7 @@ const RequestsPage: React.FC = () => {
 
       {showForm && (
         <RequestForm
-          onClose={() => setShowForm(false)}
+          onClose={handleFormClose}
           onSuccess={handleFormSuccess}
         />
       )}
@@ -76,6 +86,8 @@ const RequestsPage: React.FC = () => {
           onUpdate={handleDetailsClose}
         />
       )}
+
+      {showExport && <ExportModal onClose={handleExportClose} />}
     </div>
   );
 };
