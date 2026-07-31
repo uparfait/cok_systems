@@ -22,8 +22,8 @@ const RequestStats: React.FC = () => {
   const [appliedFrom, setAppliedFrom] = useState('');
   const [appliedTo, setAppliedTo] = useState('');
 
-  const fetchStatistics = async () => {
-    setLoading(true);
+  const fetchStatistics = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await requestService.getStatistics({
         period: appliedPeriod === 'all' ? undefined : appliedPeriod,
@@ -37,14 +37,21 @@ const RequestStats: React.FC = () => {
       setStats(res as RequestStatistics);
     }
     } catch (error) {
-      setStats(null);
+      if (!silent) setStats(null);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchStatistics();
+  }, [appliedPeriod, appliedFrom, appliedTo]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchStatistics(true);
+    }, 5000);
+    return () => clearInterval(interval);
   }, [appliedPeriod, appliedFrom, appliedTo]);
 
   const handleApply = () => {
