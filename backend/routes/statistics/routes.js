@@ -277,4 +277,28 @@ Router.get('/waiting-time-analytics', statisticsController.getWaitingTimeAnalyti
  */
 Router.get('/employee-performance/service', statisticsController.getEmployeePerformanceByService);
 
+/**
+ * @swagger
+ * /statistics/served:
+ *   get:
+ *     summary: "Get served statistics for the overview dashboard"
+ *     description: "Server-side aggregation of service delivery records: total visitors, hourly check-ins, served counts by department (with busiest employee) and by employee. Accepts optional from/to ISO date query params."
+ *     tags: [Statistics]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema: { type: string, format: date }
+ *       - in: query
+ *         name: to
+ *         schema: { type: string, format: date }
+ *     responses:
+ *       200:
+ *         description: Served statistics retrieved
+ *       500:
+ *         description: Internal server error
+ */
+Router.get('/served', statisticsController.getServedStatistics);
+
 module.exports = Router;
