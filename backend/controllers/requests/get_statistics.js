@@ -74,20 +74,20 @@ module.exports = async function get_statistics(req, res) {
     });
 
     // Per-orientation and per-assignee status breakdowns for the mayor dashboard.
-    // Archived requests are excluded; anything not completed and older than 24h
-    // counts as overdue.
+    // Anything not completed/archived and older than 24h counts as overdue.
     const DAY_MS = 24 * 60 * 60 * 1000;
-    const docs = await Request.find({ ...match, status: { $ne: 'Archived' } })
+    const docs = await Request.find(match)
       .select('status orientation assigned_by.name created_at')
       .lean();
 
-    const emptyCounts = () => ({ pending: 0, inprogress: 0, completed: 0, overdue: 0, total: 0 });
+    const emptyCounts = () => ({ pending: 0, inprogress: 0, completed: 0, overdue: 0, archived: 0, total: 0 });
     const orientationMap = {};
     const assigneeMap = {};
     for (const r of docs) {
       const ageMs = r.created_at ? Date.now() - new Date(r.created_at).getTime() : 0;
       const bucket =
-        r.status === 'Completed' ? 'completed'
+        r.status === 'Archived' ? 'archived'
+        : r.status === 'Completed' ? 'completed'
         : ageMs > DAY_MS ? 'overdue'
         : r.status === 'Inprogress' ? 'inprogress'
         : 'pending';

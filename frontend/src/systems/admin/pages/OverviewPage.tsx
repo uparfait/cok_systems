@@ -670,7 +670,7 @@ const Overview: React.FC = () => {
 
   // Real request statistics from /requests/statistics: per-orientation (incoming)
   // and per-assignee status counts, aggregated server-side for the toolbar period
-  interface RequestStatRow { name: string; pending: number; inprogress: number; completed: number; overdue: number; total: number }
+  interface RequestStatRow { name: string; pending: number; inprogress: number; completed: number; overdue: number; archived: number; total: number }
   const [requestStats, setRequestStats] = useState<{ by_orientation: RequestStatRow[]; by_assignee: RequestStatRow[] } | null>(null);
   const fetchRequestStats = useCallback(async (p: PeriodChoice) => {
     try {
@@ -701,6 +701,7 @@ const Overview: React.FC = () => {
         inprogress: r.inprogress,
         completed: r.completed,
         overdue: r.overdue,
+        archived: r.archived || 0,
         total: r.total,
       }));
     const departments = toRows(requestStats?.by_orientation || []);
@@ -1644,6 +1645,7 @@ useEffect(() => {
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: CC.blue }}></div>In progress</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: CC.teal }}></div>Completed</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: CC.red }}></div>Overdue</div>
+            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: '#9E9E9E' }}></div>Archived</div>
           </div>
 
           {requestStatuses.total === 0 ? (
