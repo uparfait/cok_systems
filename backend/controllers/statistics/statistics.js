@@ -1136,6 +1136,153 @@ const getEmployeePerformanceByTasksDone = async (req, res) => {
     }
 };
 
+/**
+ * Get served statistics for the mayor overview, aggregated server-side.
+ * Query params: from, to (ISO dates, both optional; omitted = all records).
+ * A service record's effective date is its started_at, falling back to the
+ * visitor's entry_date — the same rule the dashboard previously applied client-side.
+ * Returns: total_visitors, hourly check-ins, last check-in, served counts by
+ * department (with the busiest employee) and by employee (with visitor names).
+ */
+const getServedStatistics = async (req, res) => {
+    try {
+        const { from, to } = req.query;
+        const fromDate = from ? new Date(from) : null;
+        let toDate = to ? new Date(to) : null;
+        if (toDate && !isNaN(toDate.getTime()) && to.length <= 10) {
+            // Date-only "to" means the whole day inclusive
+            toDate.setHours(23, 59, 59, 999);
+        }
+        const inRange = (d) => {
+            if (!d) return false;
+            const t = new Date(d);
+            if (isNaN(t.getTime())) return false;
+            if (fromDate && t < fromDate) return false;
+            if (toDate && t > toDate) return false;
+            return true;
+        };
+        const noFilter = !fromDate && !toDate;
+
+        // Only pull docs that can contribute a record in the range
+        const dateQuery = noFilter ? {} : {
+            $or: [
+                { entry_date: { ...(fromDate && { $gte: fromDate }), ...(toDate && { $lte: toDate }) } },
+                { 'durations.services_durations.started_at': { ...(fromDate && { $gte: fromDate }), ...(toDate && { $lte: toDate }) } },
+            ],
+        };
+
+        const [visitorsDocs, users] = await Promise.all([
+            ServiceDelivery.find(dateQuery)
+                .select('full_name entry_date durations.services_durations services_status')
+                .lean(),
+            User.find({}).select('full_name department department_name').populate('department', 'department_name').lean(),
+        ]);
+
+        let totalVisitors = 0;
+        const hourlyCounts = {};
+        let lastCheckin = null;
+
+        // department -> served count; department -> provider -> count
+        const servedByDept = {};
+        const perDeptProvider = {};
+        // provider key (id or name) -> { name, dept, count, visitors }
+        const providerCounts = {};
+
+        const addRecord = (department, providerId, providerName, visitorName) => {
+            servedByDept[department] = (servedByDept[department] || 0) + 1;
+            const provider = providerName || 'Unknown provider';
+            if (!perDeptProvider[department]) perDeptProvider[department] = {};
+            perDeptProvider[department][provider] = (perDeptProvider[department][provider] || 0) + 1;
+            const key = providerId || providerName;
+            if (!key) return;
+            if (!providerCounts[key]) providerCounts[key] = { name: providerName || 'Unknown provider', dept: department, count: 0, visitors: [] };
+            providerCounts[key].count += 1;
+            providerCounts[key].visitors.push({ visitor: visitorName, department });
+        };
+
+        for (const v of visitorsDocs) {
+            const visitorName = v.full_name || 'Unknown visitor';
+            const entryInRange = noFilter || inRange(v.entry_date);
+
+            if (entryInRange && v.entry_date) {
+                totalVisitors += 1;
+                const t = new Date(v.entry_date);
+                if (!isNaN(t.getTime())) {
+                    hourlyCounts[t.getHours()] = (hourlyCounts[t.getHours()] || 0) + 1;
+                    if (!lastCheckin || t > lastCheckin) lastCheckin = t;
+                }
+            }
+
+            const durations = v.durations?.services_durations || [];
+            for (const s of durations) {
+                if (!s?.department_name) continue;
+                const effectiveDate = s.started_at || v.entry_date;
+                if (!noFilter && !inRange(effectiveDate)) continue;
+                addRecord(s.department_name, s.provider_id, s.provider_name, visitorName);
+            }
+            for (const s of v.services_status || []) {
+                if (!s?.department_name || (!s.provider_id && !s.provider_name)) continue;
+                const already = durations.some(
+                    (d) => d.department_id === s.department_id && (d.provider_id || '') === (s.provider_id || '')
+                );
+                if (already) continue;
+                if (!noFilter && !inRange(v.entry_date)) continue;
+                addRecord(s.department_name, s.provider_id, s.provider_name, visitorName);
+            }
+        }
+
+        // Busiest provider per department
+        const topEmpByDept = {};
+        for (const [dept, providers] of Object.entries(perDeptProvider)) {
+            const [topName, topCount] = Object.entries(providers).sort((a, b) => b[1] - a[1])[0];
+            topEmpByDept[dept] = { name: topName, served: topCount };
+        }
+        const byDepartment = Object.entries(servedByDept)
+            .map(([name, served]) => ({ name, served, top_employee: topEmpByDept[name] || null }))
+            .sort((a, b) => b.served - a.served);
+
+        // Every employee gets a row (0 when they served no one), then any provider
+        // from the records who has no matching account is appended
+        const used = new Set();
+        const byEmployee = users.map((u) => {
+            const id = String(u._id);
+            const name = u.full_name || 'Unknown';
+            let served = 0;
+            let servedDept;
+            const visitors = [];
+            if (providerCounts[id]) { served += providerCounts[id].count; servedDept = providerCounts[id].dept; visitors.push(...providerCounts[id].visitors); used.add(id); }
+            if (providerCounts[name]) { served += providerCounts[name].count; servedDept = servedDept || providerCounts[name].dept; visitors.push(...providerCounts[name].visitors); used.add(name); }
+            const accountDept = u.department?.department_name || u.department?.name || u.department_name;
+            return { id, name, department: accountDept || servedDept || null, served, visitors };
+        });
+        for (const [key, p] of Object.entries(providerCounts)) {
+            if (!used.has(key)) byEmployee.push({ id: null, name: p.name, department: p.dept || null, served: p.count, visitors: p.visitors });
+        }
+        byEmployee.sort((a, b) => b.served - a.served);
+
+        return res.status(200).json({
+            success: true,
+            type: 'success',
+            message: 'Served statistics retrieved successfully',
+            data: {
+                total_visitors: totalVisitors,
+                hourly: Object.entries(hourlyCounts).map(([hour, count]) => ({ hour: Number(hour), count })).sort((a, b) => a.hour - b.hour),
+                last_checkin: lastCheckin ? lastCheckin.toISOString() : null,
+                by_department: byDepartment,
+                by_employee: byEmployee,
+            },
+        });
+    } catch (error) {
+        console.error('Error in getServedStatistics:', error);
+        return res.status(500).json({
+            success: false,
+            type: 'error',
+            message: 'Something went wrong while fetching served statistics',
+            error: error.message,
+        });
+    }
+};
+
 module.exports = {
     getRolesWithPermissions,
     getDepartmentsWithLeaders,
@@ -1151,5 +1298,6 @@ module.exports = {
     getEmployeePerformanceByTasks,
     getWaitingTimeAnalytics,
     getEmployeePerformanceByService,
-    getEmployeePerformanceByTasksDone
+    getEmployeePerformanceByTasksDone,
+    getServedStatistics
 };
