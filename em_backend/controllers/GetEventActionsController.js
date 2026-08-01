@@ -3,11 +3,16 @@ const EventAction = require('../models/EventActions');
 class GetEventActionsController {
   static async handle(req, res) {
     try {
-      const { eventSpecialId, status, date, search, page = 1, limit = 10 } = req.query;
+      const { eventSpecialId, status, date, search, assignedEmail, page = 1, limit = 10 } = req.query;
 
       const query = {};
       if (eventSpecialId) query.eventSpecialId = eventSpecialId;
       if (status) query['currentStatus.status'] = status;
+      // Only actions addressed to this person (case-insensitive exact email match)
+      if (assignedEmail) {
+        const escaped = assignedEmail.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        query['assignedPerson.email'] = new RegExp(`^${escaped}$`, 'i');
+      }
       if (date) {
         const day = new Date(date);
         const next = new Date(date);
