@@ -90,7 +90,7 @@ const RangeModal: React.FC<{
           )}
           <div className="flex gap-2 pt-2">
             <button type="button" onClick={onClose} className="cok-btn-outlined flex-1" style={{ padding: '0.7rem 1.2rem' }}>Cancel</button>
-            <button onClick={onApply} className="cok-btn-primary flex-1" style={{ padding: '0.7rem 1.2rem' }}>Apply</button>
+            <button onClick={()=>{onApply();onClose()}} className="cok-btn-primary flex-1" style={{ padding: '0.7rem 1.2rem' }}>Apply</button>
           </div>
         </div>
       </div>
