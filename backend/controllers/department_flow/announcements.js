@@ -1,7 +1,6 @@
 
 const Announcement = require('../../models/announcement.js');
 const Department = require('../../models/department.js');
-const User = require('../../models/user.js');
 const Notification = require('../../models/notification.js');
 const { getDepartmentIdsForHead } = require('./visitors_by_status');
 
@@ -43,15 +42,53 @@ const createAnnouncement = async (req, res, next) => {
         }
 
         const isForAll = !department_id || department_id === ALL_DEPARTMENTS;
+        const senderId = req.user.userId.toString();
 
+        // Resolve the department leader(s) who must receive this publication.
+        // If the destination has no head of department, tell the sender and publish nothing.
+        const leaderIds = new Set();
         let targetDepartment = null;
-        if (!isForAll) {
+        const departmentsWithoutLeader = [];
+
+        if (isForAll) {
+            const departments = await Department.find({}).select('name department_leader leader');
+            departments.forEach(d => {
+                const deptLeaders = [d.department_leader, d.leader].filter(Boolean).map(id => id.toString());
+                if (deptLeaders.length === 0) {
+                    departmentsWithoutLeader.push(d.name);
+                } else {
+                    deptLeaders.forEach(id => leaderIds.add(id));
+                }
+            });
+            leaderIds.delete(senderId);
+
+            if (leaderIds.size === 0) {
+                return res.status(400).json({
+                    success: false,
+                    type: 'warning',
+                    message: 'No other department heads are assigned in the system yet — there is nobody to receive this publication.'
+                });
+            }
+        } else {
             targetDepartment = await Department.findById(department_id).select('name department_leader leader');
             if (!targetDepartment) {
                 return res.status(404).json({
                     success: false,
                     type: 'error',
                     message: 'Target department not found'
+                });
+            }
+
+            [targetDepartment.department_leader, targetDepartment.leader]
+                .filter(Boolean)
+                .forEach(id => leaderIds.add(id.toString()));
+            leaderIds.delete(senderId);
+
+            if (leaderIds.size === 0) {
+                return res.status(400).json({
+                    success: false,
+                    type: 'warning',
+                    message: `"${targetDepartment.name}" has no head of department assigned — publication not sent. Ask the administrator to assign a leader first.`
                 });
             }
         }
@@ -71,48 +108,34 @@ const createAnnouncement = async (req, res, next) => {
             }
         });
 
-        // Fan out in-platform notifications to the audience; never fail the request
+        // Notify the department leader(s); never fail the request at this point
+        let notifiedCount = 0;
         try {
-            const recipientIds = new Set();
-
-            if (isForAll) {
-                // Everyone attached to any department, plus every department leader
-                const [members, departments] = await Promise.all([
-                    User.find({ department: { $ne: null } }).select('_id'),
-                    Department.find({}).select('department_leader leader')
-                ]);
-                members.forEach(m => recipientIds.add(m._id.toString()));
-                departments.forEach(d => {
-                    if (d.department_leader) recipientIds.add(d.department_leader.toString());
-                    if (d.leader) recipientIds.add(d.leader.toString());
-                });
-            } else {
-                const members = await User.find({ department: department_id }).select('_id');
-                members.forEach(m => recipientIds.add(m._id.toString()));
-                if (targetDepartment?.department_leader) recipientIds.add(targetDepartment.department_leader.toString());
-                if (targetDepartment?.leader) recipientIds.add(targetDepartment.leader.toString());
-            }
-
-            // Don't notify the sender about their own publication
-            recipientIds.delete(req.user.userId.toString());
-
-            if (recipientIds.size > 0) {
-                const docs = Array.from(recipientIds).map(userId => ({
-                    user: userId,
-                    type: 'announcement',
-                    title: `${announcement.a_type}: ${announcement.title}`,
-                    message: announcement.message
-                }));
+            const docs = Array.from(leaderIds).map(userId => ({
+                user: userId,
+                type: 'announcement',
+                title: `${announcement.a_type}: ${announcement.title}`,
+                message: announcement.message
+            }));
+            if (docs.length > 0) {
                 await Notification.insertMany(docs, { ordered: false });
+                notifiedCount = docs.length;
             }
         } catch (notifyError) {
             console.error('Announcement notification fan-out failed:', notifyError.message);
         }
 
+        let successMessage = `Published — ${notifiedCount} department head${notifiedCount === 1 ? '' : 's'} notified`;
+        if (isForAll && departmentsWithoutLeader.length > 0) {
+            successMessage += `. Note: ${departmentsWithoutLeader.length} department${departmentsWithoutLeader.length === 1 ? ' has' : 's have'} no head assigned and could not be notified.`;
+        }
+
         return res.status(201).json({
             success: true,
             type: 'success',
-            message: 'Announcement published successfully',
+            message: successMessage,
+            notified_leaders: notifiedCount,
+            departments_without_leader: departmentsWithoutLeader,
             data: announcement
         });
 
