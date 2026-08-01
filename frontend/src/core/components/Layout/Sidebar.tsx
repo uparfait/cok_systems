@@ -397,7 +397,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   useEffect(() => {
     const updateNetwork = () => {
       const conn =
-        navigator.connection ||
+        (navigator as any).connection ||
         (navigator as any).mozConnection ||
         (navigator as any).webkitConnection;
       if (conn) {
@@ -688,9 +688,6 @@ const Sidebar: React.FC<SidebarProps> = ({
               <span className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">
                 Ikaze
               </span>
-              <div
-                className={`w-1.5 h-1.5 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"} animate-pulse`}
-              ></div>
             </div>
             <span className="text-[10px] font-mono text-gray-600">
               {currentTime.toLocaleTimeString("en-GB", {
