@@ -5,9 +5,12 @@ const User = require('../../models/user.js');
 const Notification = require('../../models/notification.js');
 const { getDepartmentIdsForHead } = require('./visitors_by_status');
 
+const ALL_DEPARTMENTS = 'all';
+
 /**
  * POST /department-manager/announcements
- * Publish an announcement, notice, or directive to one of the managed departments.
+ * Publish an announcement, notice, or directive to any department, or to all departments.
+ * Only heads of department can publish; the target department's head and members can see it.
  */
 const createAnnouncement = async (req, res, next) => {
     try {
@@ -29,8 +32,9 @@ const createAnnouncement = async (req, res, next) => {
             });
         }
 
-        const departmentIds = await getDepartmentIdsForHead(req.user.userId);
-        if (departmentIds.length === 0) {
+        // Only heads of department may publish
+        const managedIds = await getDepartmentIdsForHead(req.user.userId);
+        if (managedIds.length === 0) {
             return res.status(403).json({
                 success: false,
                 type: 'error',
@@ -38,17 +42,19 @@ const createAnnouncement = async (req, res, next) => {
             });
         }
 
-        // Default to the first managed department when none is specified
-        const targetDepartmentId = department_id || departmentIds[0];
-        if (!departmentIds.includes(targetDepartmentId)) {
-            return res.status(403).json({
-                success: false,
-                type: 'error',
-                message: 'Access denied to this department'
-            });
-        }
+        const isForAll = !department_id || department_id === ALL_DEPARTMENTS;
 
-        const department = await Department.findById(targetDepartmentId).select('name');
+        let targetDepartment = null;
+        if (!isForAll) {
+            targetDepartment = await Department.findById(department_id).select('name department_leader leader');
+            if (!targetDepartment) {
+                return res.status(404).json({
+                    success: false,
+                    type: 'error',
+                    message: 'Target department not found'
+                });
+            }
+        }
 
         const validTypes = ['Announcement', 'Notice', 'Directive'];
 
@@ -56,8 +62,8 @@ const createAnnouncement = async (req, res, next) => {
             title: title.trim(),
             message: message.trim(),
             a_type: validTypes.includes(a_type) ? a_type : 'Announcement',
-            department_id: targetDepartmentId,
-            department_name: department?.name || '',
+            department_id: isForAll ? ALL_DEPARTMENTS : department_id,
+            department_name: isForAll ? 'All Departments' : (targetDepartment?.name || ''),
             created_by: {
                 _id: req.user.userId,
                 name: req.user.full_name || '',
@@ -65,12 +71,34 @@ const createAnnouncement = async (req, res, next) => {
             }
         });
 
-        // Fan out an in-platform notification to every department member; never fail the request
+        // Fan out in-platform notifications to the audience; never fail the request
         try {
-            const members = await User.find({ department: targetDepartmentId }).select('_id');
-            if (members.length > 0) {
-                const docs = members.map(m => ({
-                    user: m._id,
+            const recipientIds = new Set();
+
+            if (isForAll) {
+                // Everyone attached to any department, plus every department leader
+                const [members, departments] = await Promise.all([
+                    User.find({ department: { $ne: null } }).select('_id'),
+                    Department.find({}).select('department_leader leader')
+                ]);
+                members.forEach(m => recipientIds.add(m._id.toString()));
+                departments.forEach(d => {
+                    if (d.department_leader) recipientIds.add(d.department_leader.toString());
+                    if (d.leader) recipientIds.add(d.leader.toString());
+                });
+            } else {
+                const members = await User.find({ department: department_id }).select('_id');
+                members.forEach(m => recipientIds.add(m._id.toString()));
+                if (targetDepartment?.department_leader) recipientIds.add(targetDepartment.department_leader.toString());
+                if (targetDepartment?.leader) recipientIds.add(targetDepartment.leader.toString());
+            }
+
+            // Don't notify the sender about their own publication
+            recipientIds.delete(req.user.userId.toString());
+
+            if (recipientIds.size > 0) {
+                const docs = Array.from(recipientIds).map(userId => ({
+                    user: userId,
                     type: 'announcement',
                     title: `${announcement.a_type}: ${announcement.title}`,
                     message: announcement.message
@@ -101,7 +129,10 @@ const createAnnouncement = async (req, res, next) => {
 
 /**
  * GET /department-manager/announcements
- * List announcements for the managed departments.
+ * List announcements visible to this head of department:
+ * - addressed to any of their managed departments
+ * - addressed to all departments
+ * - published by themselves (to any destination)
  */
 const listAnnouncements = async (req, res, next) => {
     try {
@@ -119,7 +150,14 @@ const listAnnouncements = async (req, res, next) => {
             });
         }
 
-        const filter = { department_id: { $in: departmentIds }, is_active: true };
+        const filter = {
+            is_active: true,
+            $or: [
+                { department_id: { $in: departmentIds } },
+                { department_id: ALL_DEPARTMENTS },
+                { 'created_by._id': req.user.userId }
+            ]
+        };
 
         const validTypes = ['Announcement', 'Notice', 'Directive'];
         if (a_type && validTypes.includes(a_type)) {
@@ -156,20 +194,11 @@ const listAnnouncements = async (req, res, next) => {
 
 /**
  * DELETE /department-manager/announcements/:id
- * Retract an announcement belonging to one of the managed departments (soft delete).
+ * Retract an announcement (soft delete). Only the publisher can retract it.
  */
 const deleteAnnouncement = async (req, res, next) => {
     try {
         const { id } = req.params;
-
-        const departmentIds = await getDepartmentIdsForHead(req.user.userId);
-        if (departmentIds.length === 0) {
-            return res.status(403).json({
-                success: false,
-                type: 'error',
-                message: 'No departments found for this user'
-            });
-        }
 
         const announcement = await Announcement.findById(id);
         if (!announcement || !announcement.is_active) {
@@ -180,11 +209,11 @@ const deleteAnnouncement = async (req, res, next) => {
             });
         }
 
-        if (!departmentIds.includes(announcement.department_id)) {
+        if (!announcement.created_by?._id || announcement.created_by._id.toString() !== req.user.userId.toString()) {
             return res.status(403).json({
                 success: false,
                 type: 'error',
-                message: 'Access denied to this announcement'
+                message: 'Only the publisher can retract this announcement'
             });
         }
 
