@@ -103,11 +103,9 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
       const searchQuery = search?.trim();
       let res;
       if (searchQuery) {
-        const inHouseVal = filter === "history" ? false : filter === "inhouse" ? true : true;
-        res = await serviceDeliveryService.search(searchQuery, page, itemsPerPage, inHouseVal);
+        res = await serviceDeliveryService.search(searchQuery, page, itemsPerPage, true);
       } else {
-        const inHouseVal = filter === "history" ? false : filter === "inhouse" ? true : undefined;
-        res = await serviceDeliveryService.getAll(page, itemsPerPage, inHouseVal);
+        res = await serviceDeliveryService.getServiceTrackingVisitors(page, itemsPerPage);
       }
       if (res?.success || res?.status) {
         const data = Array.isArray(res.data) ? res.data : [];

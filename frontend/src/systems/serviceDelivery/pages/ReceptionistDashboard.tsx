@@ -139,9 +139,7 @@ const ReceptionistDashboard: React.FC = () => {
     setIsLoading(true);
     if (searchTerm?.trim()) setSearchLoading(true);
     try {
-      let visitorRes = searchTerm?.trim()
-        ? await serviceDeliveryService.search(searchTerm, currentPage, 50)
-        : await serviceDeliveryService.getAll(currentPage, 50);
+      let visitorRes = await serviceDeliveryService.getDashboardVisitors(currentPage, 20);
       if (visitorRes.status || visitorRes.success) {
         const allVisitors = Array.isArray(visitorRes.data)
           ? visitorRes.data
@@ -157,14 +155,7 @@ const ReceptionistDashboard: React.FC = () => {
         );
         setVisitors(allVisitors);
         setTotalCount(visitorRes.total || 0);
-        setUnassignedVisitors(
-          allVisitors.filter(
-            (v: any) =>
-              !v.departments_assigned ||
-              !Array.isArray(v.departments_assigned) ||
-              v.departments_assigned.length === 0,
-          ),
-        );
+        setUnassignedVisitors(allVisitors);
         const counts: Record<string, number> = {};
         allVisitors.forEach((v: any) => {
           if (v.departments_assigned)

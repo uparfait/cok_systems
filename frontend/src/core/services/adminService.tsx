@@ -285,6 +285,8 @@ export const serviceDeliveryService = {
     if (inHouse !== undefined) url += `&in_house=${inHouse}`;
     return get(url);
   },
+  getDashboardVisitors: (page: number = 1, limit: number = 20) => get(`/servicedelivery/dashboard/visitors?page=${page}&limit=${limit}`),
+  getServiceTrackingVisitors: (page: number = 1, limit: number = 20) => get(`/servicedelivery/service-tracking/visitors?page=${page}&limit=${limit}`),
   search: (query: string, page: number = 1, limit: number = 50, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),
   searchVisitors: (query: string, page: number = 1, limit: number = 50, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),
   getById: (id: string) => get(`/servicedelivery/visitor/${id}`),
