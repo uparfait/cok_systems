@@ -105,19 +105,23 @@ const EmployeesPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setFormError(''); setFormSuccess('');
-    if (!formData.full_name?.trim() || !formData.email?.trim()) { setFormError('Please fill in all required fields'); return; }
+    if (!formData.full_name?.trim()) { setFormError('Full name is required'); return; }
+    if (!formData.email?.trim()) { setFormError('Email is required'); return; }
+    if (!formData.telephone?.trim()) { setFormError('Phone number is required'); return; }
     try { setSubmitting(true);
       if (editingEmployee?._id || editingEmployee?.employee_id) {
         const id = editingEmployee._id || editingEmployee.employee_id || '';
         const r = await employeeService.update(id, formData);
         if (r.success) { setFormSuccess(r.message || 'Employee updated!'); setTimeout(() => { setShowModal(false); loadEmployees(currentPage, pageLimit); }, 1500); }
-        else setFormError(r.error || 'Failed to update');
+        else setFormError(r.error || r.message || 'Failed to update');
       } else {
         const r = await employeeService.create(formData);
         if (r.success) { setFormSuccess(r.message || 'Employee created!'); setTimeout(() => { setShowModal(false); loadEmployees(currentPage, pageLimit); }, 1500); }
-        else setFormError(r.error || 'Failed to create');
+        else setFormError(r.error || r.message || 'Failed to create');
       }
-    } catch (err: any) { setFormError(err.message || 'Failed to save'); } finally { setSubmitting(false); setShowModal(false)}
+    // The modal stays open on failure so the error is actually visible;
+    // the success path closes it itself after showing the confirmation
+    } catch (err: any) { setFormError(err.error || err.message || 'Failed to save'); } finally { setSubmitting(false); }
   };
 
   const handleDeleteClick = (id: string, name: string) => { setDeletingId(id); setDeletingName(name); setShowDeleteConfirm(true); };
