@@ -1,7 +1,7 @@
 // ToastContext - Global toast notification state management
 // Provides methods to show toast notifications from anywhere in the app
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 
 // Toast types
@@ -44,8 +44,8 @@ const Toast: React.FC<{
 
   return (
     <div className={`${style.bg} shadow-lg p-4 mb-3 transform transition-all duration-300 ${isVisible && !isLeaving ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
-      <div className="flex items-center text-center  justify-center">
-        <span className={`text-sm  font-medium ${style.icon === 'text-green-500' ? 'text-green-800' : style.icon === 'text-red-500' ? 'text-red-800' : style.icon === 'text-yellow-500' ? 'text-yellow-800' : 'text-blue-800'}`}>{message?.toLocaleUpperCase()}</span>
+      <div className="flex items-center text-center justify-center">
+        <span className={`text-sm font-medium ${style.icon === 'text-green-500' ? 'text-green-800' : style.icon === 'text-red-500' ? 'text-red-800' : style.icon === 'text-yellow-500' ? 'text-yellow-800' : 'text-blue-800'}`}>{message?.toLocaleUpperCase()}</span>
         <button onClick={() => { setIsLeaving(true); setTimeout(() => onClose(id), 300); }} className="ml-2 text-gray-400 absolute right-3 top-3 hover:text-gray-600">✕</button>
       </div>
     </div>
@@ -67,14 +67,30 @@ const generateId = () => `toast-${Date.now()}-${Math.random().toString(36).subst
 
 export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
 
   const showToast = useCallback((type: ToastType, message: string, duration = 5000) => {
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
     const id = generateId();
-    setToasts((prev) => [...prev, { id, type, message, duration }]);
+    
+    // If there's already a toast showing, remove it first (with animation)
+    setToasts((prev) => {
+      // If there's an existing toast, remove it immediately
+      if (prev.length > 0) {
+        // Close the existing toast immediately
+        return [{ id, type, message, duration }];
+      }
+      return [{ id, type, message, duration }];
+    });
   }, []);
 
   // Listen for custom toast events from apiClient
@@ -99,8 +115,13 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       window.removeEventListener('cok:toast-success', handleSuccessEvent as EventListener);
       window.removeEventListener('cok:toast-error', handleErrorEvent as EventListener);
       window.removeEventListener('cok:toast-warning', handleWarningEvent as EventListener);
+      
+      // Clean up timeout on unmount
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
-  }, []);
+  }, [showToast]);
 
   const showSuccess = useCallback((message: string, duration?: number) => {
     showToast('success', message, duration);
@@ -131,7 +152,7 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       {children}
       
       {/* Toast Container - Fixed position at top-right */}
-      <div className="fixed top-0 right-0 z-[9999999]  w-full">
+      <div className="fixed top-0 right-0 z-[9999999] w-full">
         {toasts.map((toast) => (
           <Toast
             key={toast.id}

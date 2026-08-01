@@ -62,7 +62,7 @@ const BatteryIcon = ({
 }) => {
   const getColor = () => {
     if (level === undefined) return "#6b7280";
-    if (charging) return "#3b82f6"; // Blue when charging
+    if (charging) return "#056daa"; // Blue when charging
     if (level <= 20) return "#ef4444";
     if (level <= 50) return "#eab308";
     return "#22c55e";
@@ -95,7 +95,7 @@ const BatteryIcon = ({
       {charging && (
         <polyline
           points="11 3 8 11 12 11 10 21"
-          stroke="#3b82f6"
+          stroke="#056daa"
           strokeWidth="2.5"
           fill="none"
           strokeLinecap="round"
@@ -117,7 +117,7 @@ const CpuIcon = ({
     if (load === undefined) return "#6b7280";
     if (load > 70) return "#ef4444";
     if (load > 40) return "#eab308";
-    return "#3b82f6";
+    return "#056daa";
   };
 
   return (
@@ -156,7 +156,7 @@ const NetworkIcon = ({
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 24 24"
     fill="none"
-    stroke={connected ? "#3b82f6" : "#ef4444"}
+    stroke={connected ? "#056daa" : "#ef4444"}
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
@@ -165,7 +165,7 @@ const NetworkIcon = ({
     <path d="M4 8a8 8 0 0 1 16 0" />
     <path d="M7 11a5 5 0 0 1 10 0" />
     <path d="M10 14a2 2 0 0 1 4 0" />
-    <circle cx="12" cy="17" r="1.5" fill={connected ? "#3b82f6" : "#ef4444"} />
+    <circle cx="12" cy="17" r="1.5" fill={connected ? "#056daa" : "#ef4444"} />
   </svg>
 );
 
@@ -180,7 +180,7 @@ const RttIcon = ({
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 24 24"
     fill="none"
-    stroke={connected ? "#3b82f6" : "#ef4444"}
+    stroke={connected ? "#056daa" : "#ef4444"}
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
@@ -356,7 +356,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   // Battery monitoring
   useEffect(() => {
     if ("getBattery" in navigator) {
-      navigator.getBattery().then((battery) => {
+      (navigator as any).getBattery().then((battery: any) => {
         const updateBattery = () => {
           setBatteryLevel(Math.round(battery.level * 100));
           setBatteryCharging(battery.charging);
@@ -410,7 +410,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     };
 
     const conn =
-      navigator.connection ||
+      (navigator as any).connection ||
       (navigator as any).mozConnection ||
       (navigator as any).webkitConnection;
     if (conn) {
@@ -602,6 +602,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       </span>
                     )}
                   </button>
+                  
                 </div>
               ) : (
                 <button
@@ -720,7 +721,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   style={{
                     width: `${batteryLevel}%`,
                     backgroundColor: batteryCharging
-                      ? "#3b82f6"
+                      ? "#056daa"
                       : batteryLevel <= 20
                         ? "#ef4444"
                         : batteryLevel <= 50
@@ -749,7 +750,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         ? "#ef4444"
                         : cpuLoad > 40
                           ? "#eab308"
-                          : "#3b82f6",
+                          : "#056daa",
                   }}
                 />
               </div>
@@ -769,11 +770,11 @@ const Sidebar: React.FC<SidebarProps> = ({
               <div className="flex items-center justify-between mt-0.5">
                 <span className="text-[7px] text-gray-400">Mbps</span>
                 <span
-                  className={`text-[7px] font-medium ${isNetworkConnected && networkSpeed > 0 ? "text-blue-500" : "text-red-500"}`}
+                  className={`font-medium ${isNetworkConnected && networkSpeed > 0 ? "text-[#056daa] text-[8px]" : "text-red-500 text-[6px]"}`}
                 >
                   {isNetworkConnected && networkSpeed > 0
                     ? networkType
-                    : "OFFLINE"}
+                    : " OFFLINE"}
                 </span>
               </div>
             </div>
@@ -792,7 +793,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <div className="flex items-center justify-between mt-0.5">
                 <span className="text-[7px] text-gray-400">RTT</span>
                 <span
-                  className={`text-[7px] font-medium ${isNetworkConnected && networkRTT > 0 ? "text-blue-500" : "text-red-500"}`}
+                  className={`font-medium ${isNetworkConnected && networkRTT > 0 ? "text-[#056daa] text-[8px]" : "text-red-500 text-[6px]"}`}
                 >
                   {isNetworkConnected && networkRTT > 0 ? "ms" : "OFFLINE"}
                 </span>
