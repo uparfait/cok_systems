@@ -23,6 +23,8 @@ const get_active_tasks = require('../../controllers/serivice_delivery/get_active
 const multer = require('multer')
 const upload = multer()
 const update_service_status = require('../../controllers/serivice_delivery/update_service_status.js');
+const dashboard_visitors = require('../../controllers/serivice_delivery/dashboard_visitors.js');
+const service_tracking_visitors = require('../../controllers/serivice_delivery/service_tracking_visitors.js');
 
 Router.use(upload.any())
 
@@ -126,6 +128,116 @@ Router.use((error, req, res, next) => {
  *         description: Internal server error
  */
 Router.get('/visitor', auditSuccess('READ', 'visitors'), list_vistors)
+
+/**
+ * @swagger
+ * /servicedelivery/dashboard/visitors:
+ *   get:
+ *     summary: "Get dashboard visitors (unassigned)"
+ *     description: "Returns visitors assigned to the current user for the dashboard view without manual frontend filtering"
+ *     tags: [Service Delivery]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 20
+ *     responses:
+ *       200:
+ *         description: Dashboard visitors results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       full_name:
+ *                         type: string
+ *                       telephone:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                       departments_assigned:
+ *                         type: array
+ *                       current_duration:
+ *                         type: string
+ *       500:
+ *         description: Internal server error
+ */
+Router.get('/dashboard/visitors', auditSuccess('READ', 'visitors'), dashboard_visitors)
+
+/**
+ * @swagger
+ * /servicedelivery/service-tracking/visitors:
+ *   get:
+ *     summary: "Get service tracking visitors (assigned)"
+ *     description: "Returns assigned visitors for the service tracking view without manual frontend filtering"
+ *     tags: [Service Delivery]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 20
+ *     responses:
+ *       200:
+ *         description: Service tracking visitors results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       full_name:
+ *                         type: string
+ *                       telephone:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                       departments_assigned:
+ *                         type: array
+ *                       current_duration:
+ *                         type: string
+ *       500:
+ *         description: Internal server error
+ */
+Router.get('/service-tracking/visitors', auditSuccess('READ', 'visitors'), service_tracking_visitors)
 
 /**
  * @swagger
