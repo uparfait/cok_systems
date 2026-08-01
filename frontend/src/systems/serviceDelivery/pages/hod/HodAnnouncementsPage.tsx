@@ -99,9 +99,8 @@ const HodAnnouncementsPage: React.FC = () => {
         department_id: form.department_id,
       });
       if (res?.success) {
-        showSuccess(form.department_id === ALL_DEPARTMENTS
-          ? 'Published to all departments — every department has been notified'
-          : 'Published — the department and its head have been notified');
+        // Backend reports how many department heads were notified (and any skipped)
+        showSuccess(res.message || 'Published successfully');
         setShowCreate(false);
         setForm(f => ({ ...f, title: '', message: '', a_type: 'Announcement' }));
         setPage(1);
@@ -145,7 +144,7 @@ const HodAnnouncementsPage: React.FC = () => {
     <div className="p-4">
       <HodPageHeader
         title="Announcements & Directives"
-        subtitle="Publish to any department (or all) — announcements addressed to your department appear here too"
+        subtitle="Publish to any department (or all)  announcements addressed to your department appear here too"
         actions={
           <button className="cok-btn-primary px-4 py-2 text-xs flex items-center gap-1" style={{ borderRadius: 0 }} onClick={openCreate}>
             <FiPlus /> New Publication
@@ -236,8 +235,8 @@ const HodAnnouncementsPage: React.FC = () => {
             </div>
             <p className="text-xs" style={{ color: COK.gray }}>
               {form.department_id === ALL_DEPARTMENTS
-                ? 'Every department head and their staff will see this and receive a notification.'
-                : 'The selected department’s head and staff will see this and receive a notification.'}
+                ? 'The system will find every department head and notify them. Departments without an assigned head are skipped and reported back to you.'
+                : 'The system will find the selected department’s head and notify them. If that department has no head assigned, nothing is sent and you will be told.'}
             </p>
             <div className="flex justify-end gap-2 pt-3 border-t" style={{ borderColor: COK.border }}>
               <button className="cok-btn-outlined px-4 py-2 text-xs" style={{ borderRadius: 0 }} onClick={() => setShowCreate(false)}>Cancel</button>
