@@ -42,6 +42,7 @@ module.exports = async function archive_request(req, res) {
 
     requestDoc.status = 'Archived';
     requestDoc.archive_reason = reason.trim();
+    requestDoc.status_reason = reason.trim();
     requestDoc.updated_at = new Date();
     await requestDoc.save();
 

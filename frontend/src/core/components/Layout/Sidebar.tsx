@@ -50,6 +50,148 @@ const FiParkingIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// SVG Icons for system metrics
+const BatteryIcon = ({
+  className,
+  level,
+  charging,
+}: {
+  className?: string;
+  level?: number;
+  charging?: boolean;
+}) => {
+  const getColor = () => {
+    if (level === undefined) return "#6b7280";
+    if (charging) return "#3b82f6"; // Blue when charging
+    if (level <= 20) return "#ef4444";
+    if (level <= 50) return "#eab308";
+    return "#22c55e";
+  };
+
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={getColor()}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="2" y="7" width="16" height="10" rx="1" ry="1" />
+      <line x1="22" y1="11" x2="22" y2="13" />
+      {level !== undefined && level > 0 && (
+        <rect
+          x="4"
+          y="9"
+          width={Math.max(2, (level / 100) * 12)}
+          height="6"
+          fill={getColor()}
+          stroke="none"
+        />
+      )}
+      {/* Charging indicator - lightning bolt */}
+      {charging && (
+        <polyline
+          points="11 3 8 11 12 11 10 21"
+          stroke="#3b82f6"
+          strokeWidth="2.5"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+    </svg>
+  );
+};
+
+const CpuIcon = ({
+  className,
+  load,
+}: {
+  className?: string;
+  load?: number;
+}) => {
+  const getColor = () => {
+    if (load === undefined) return "#6b7280";
+    if (load > 70) return "#ef4444";
+    if (load > 40) return "#eab308";
+    return "#3b82f6";
+  };
+
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={getColor()}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="4" y="4" width="16" height="16" rx="2" ry="2" />
+      <rect x="9" y="9" width="6" height="6" />
+      <line x1="9" y1="1" x2="9" y2="4" />
+      <line x1="15" y1="1" x2="15" y2="4" />
+      <line x1="9" y1="20" x2="9" y2="23" />
+      <line x1="15" y1="20" x2="15" y2="23" />
+      <line x1="20" y1="9" x2="23" y2="9" />
+      <line x1="20" y1="14" x2="23" y2="14" />
+      <line x1="1" y1="9" x2="4" y2="9" />
+      <line x1="1" y1="14" x2="4" y2="14" />
+    </svg>
+  );
+};
+
+const NetworkIcon = ({
+  className,
+  connected,
+}: {
+  className?: string;
+  connected?: boolean;
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={connected ? "#3b82f6" : "#ef4444"}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M4 8a8 8 0 0 1 16 0" />
+    <path d="M7 11a5 5 0 0 1 10 0" />
+    <path d="M10 14a2 2 0 0 1 4 0" />
+    <circle cx="12" cy="17" r="1.5" fill={connected ? "#3b82f6" : "#ef4444"} />
+  </svg>
+);
+
+const RttIcon = ({
+  className,
+  connected,
+}: {
+  className?: string;
+  connected?: boolean;
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={connected ? "#3b82f6" : "#ef4444"}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+    <path d="M8 8a6 6 0 0 1 8 0" />
+  </svg>
+);
+
 interface SidebarLink {
   id: string;
   name: string;
@@ -105,37 +247,6 @@ const getIcon = (iconName: string): React.ComponentType<any> => {
   return icons[iconName] || FiGrid;
 };
 
-const FlipDigit: React.FC<{ digit: number }> = ({ digit }) => {
-  const [prevDigit, setPrevDigit] = useState(digit);
-  const [animating, setAnimating] = useState(false);
-
-  useEffect(() => {
-    if (digit !== prevDigit) {
-      setAnimating(true);
-      const timer = setTimeout(() => {
-        setPrevDigit(digit);
-        setAnimating(false);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [digit, prevDigit]);
-
-  return (
-    <div className="relative w-5 h-7 overflow-hidden">
-      <span
-        className={`absolute inset-0 flex items-center justify-center text-white text-base font-bold font-mono transition-transform duration-300 ${animating ? "-translate-y-full opacity-0" : "translate-y-0 opacity-100"}`}
-      >
-        {prevDigit}
-      </span>
-      <span
-        className={`absolute inset-0 flex items-center justify-center text-white text-base font-bold font-mono transition-transform duration-300 ${animating ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}
-      >
-        {digit}
-      </span>
-    </div>
-  );
-};
-
 const Sidebar: React.FC<SidebarProps> = ({
   onToggle,
   isDesktop = true,
@@ -146,7 +257,6 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const location = useLocation();
   const { user, logout } = useAuth();
-
   const navigate = useNavigate();
 
   if (links[0]?.id === "unknown") {
@@ -182,6 +292,15 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const { socket, isConnected } = useSocket();
+
+  // System metrics state
+  const [batteryLevel, setBatteryLevel] = useState<number>(0);
+  const [batteryCharging, setBatteryCharging] = useState<boolean>(false);
+  const [cpuLoad, setCpuLoad] = useState<number>(0);
+  const [networkSpeed, setNetworkSpeed] = useState<number>(0);
+  const [networkType, setNetworkType] = useState<string>("--");
+  const [networkRTT, setNetworkRTT] = useState<number>(0);
+  const [isNetworkConnected, setIsNetworkConnected] = useState<boolean>(true);
 
   const toggleMenu = (menuId: string) => {
     setExpandedMenus((prev) => {
@@ -234,6 +353,85 @@ const Sidebar: React.FC<SidebarProps> = ({
     return () => clearInterval(interval);
   }, []);
 
+  // Battery monitoring
+  useEffect(() => {
+    if ("getBattery" in navigator) {
+      navigator.getBattery().then((battery) => {
+        const updateBattery = () => {
+          setBatteryLevel(Math.round(battery.level * 100));
+          setBatteryCharging(battery.charging);
+        };
+        updateBattery();
+        battery.addEventListener("levelchange", updateBattery);
+        battery.addEventListener("chargingchange", updateBattery);
+      });
+    }
+  }, []);
+
+  // CPU load monitoring
+  useEffect(() => {
+    let lastFrameTime = performance.now();
+    const cpuHistory: number[] = [];
+
+    const measureCpuLoad = () => {
+      const now = performance.now();
+      const delta = now - lastFrameTime;
+      lastFrameTime = now;
+      const delay = Math.max(0, delta - 100);
+      const loadEstimate = Math.min(100, Math.round((delay / 100) * 100));
+
+      cpuHistory.push(loadEstimate);
+      if (cpuHistory.length > 10) cpuHistory.shift();
+
+      const avgLoad = Math.round(
+        cpuHistory.reduce((a, b) => a + b, 0) / cpuHistory.length,
+      );
+      setCpuLoad(avgLoad);
+    };
+
+    const cpuInterval = setInterval(measureCpuLoad, 100);
+    return () => clearInterval(cpuInterval);
+  }, []);
+
+  // Network monitoring
+  useEffect(() => {
+    const updateNetwork = () => {
+      const conn =
+        navigator.connection ||
+        (navigator as any).mozConnection ||
+        (navigator as any).webkitConnection;
+      if (conn) {
+        const downlink = conn.downlink || 0;
+        setNetworkSpeed(downlink);
+        setNetworkType((conn.effectiveType || "--").toUpperCase());
+        setNetworkRTT(conn.rtt || 0);
+        setIsNetworkConnected(navigator.onLine);
+      }
+    };
+
+    const conn =
+      navigator.connection ||
+      (navigator as any).mozConnection ||
+      (navigator as any).webkitConnection;
+    if (conn) {
+      conn.addEventListener("change", updateNetwork);
+    }
+
+    // Listen to online/offline events
+    window.addEventListener("online", updateNetwork);
+    window.addEventListener("offline", updateNetwork);
+
+    updateNetwork();
+
+    return () => {
+      if (conn) {
+        conn.removeEventListener("change", updateNetwork);
+      }
+      window.removeEventListener("online", updateNetwork);
+      window.removeEventListener("offline", updateNetwork);
+    };
+  }, []);
+
   const handleNavigation = (path: string) => {
     onNavigate(path);
     if (!isDesktop) {
@@ -253,21 +451,11 @@ const Sidebar: React.FC<SidebarProps> = ({
       ? (nameParts[0].charAt(0) + nameParts[1].charAt(0)).toUpperCase()
       : displayName.charAt(0).toUpperCase();
 
-  // const handleLogout = async () => {
-  //   try {
-  //     await logout();
-  //   } catch (error) {
-  //     console.error('Logout error:', error);
-  //     window.location.href = '/login';
-  //   }
-  // };
-
   const isActive = (path: string, children?: SidebarLink[]): boolean => {
     const currentPathname = location.pathname;
     const currentSearch = location.search;
     const currentFullPath = currentPathname + currentSearch;
 
-    // Match visitor detail pages to the employee dashboard link (role-slug based)
     if (
       currentPathname?.includes("/visitors/") &&
       path.endsWith("/dashboard")
@@ -280,11 +468,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     const linkPathname = path.split("?")[0];
     const linkSearch = path.includes("?") ? "?" + path.split("?")[1] : "";
 
-    // 1. Exact match including query string
-    //if()
     if (currentFullPath === path) return true;
 
-    // 2. Base path match handling tabs
     if (currentPathname === linkPathname) {
       const urlParams = new URLSearchParams(currentSearch);
       const linkParams = new URLSearchParams(linkSearch);
@@ -292,18 +477,14 @@ const Sidebar: React.FC<SidebarProps> = ({
       const currentTab = urlParams.get("tab");
       const linkTab = linkParams.get("tab");
 
-      // If the URL has a tab, only match the link that has the exact same tab
       if (currentTab) {
         if (linkTab === currentTab) return true;
-        // Special case: If URL is tab=dashboard, but the link is just the base path, highlight it
         if (currentTab === "dashboard" && !linkTab) return true;
       } else {
-        // If URL has NO tab, match the base link or the link explicitly defined as tab=dashboard
         if (!linkTab || linkTab === "dashboard") return true;
       }
     }
 
-    // 3. Sub-route matching (e.g., /smart-parking/dashboard/details matches /smart-parking/dashboard)
     if (
       currentPathname.startsWith(linkPathname + "/") &&
       linkPathname !== "/" &&
@@ -312,7 +493,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     )
       return true;
 
-    // 4. Children matching
     if (children && children.length > 0) {
       for (const child of children) {
         const childPathname = child.path.split("?")[0];
@@ -468,61 +648,164 @@ const Sidebar: React.FC<SidebarProps> = ({
           );
         })}
       </nav>
-      <div className="relative h-16 border-t border-t-gray-200 overflow-hidden">
-        <svg
-          className="absolute bottom-0 left-0 w-full h-[90%] pointer-events-none wave-svg"
-          viewBox="0 0 2 1"
-          preserveAspectRatio="none"
-        >
-          <defs>
-            <path
-              id="w"
-              d="
-          m0 1v-.5
-          q.5.5 1 0
-          t1 0 1 0 1 0
-          v.5z
-        "
-            />
-          </defs>
 
-          <g>
-            {isConnected && (
-              <>
-                <use href="#w" y="0" fill="rgba(22, 163, 74, 0.12)" />
-                <use href="#w" y=".1" fill="rgba(34, 197, 94, 0.08)" />
-                <use href="#w" y=".2" fill="rgba(74, 222, 128, 0.05)" />
-              </>
-            )}
+      {/* Bottom Component with System Metrics */}
+      <div className="relative border-t border-gray-200 bg-gradient-to-b from-white to-gray-50 overflow-hidden">
+        {/* Wave SVG Background - fixed overflow */}
+        <div className="absolute bottom-0 left-0 w-full h-full pointer-events-none overflow-hidden">
+          <svg
+            className="absolute bottom-0 left-0 w-full h-[90%] wave-svg"
+            viewBox="0 0 2 1"
+            preserveAspectRatio="none"
+            style={{ overflow: "visible" }}
+          >
+            <defs>
+              <path id="w" d="m0 1v-.5 q.5.5 1 0 t1 0 1 0 1 0 v.5z" />
+            </defs>
+            <g>
+              {isConnected ? (
+                <>
+                  <use href="#w" y="0" fill="rgba(22, 163, 74, 0.12)" />
+                  <use href="#w" y=".1" fill="rgba(34, 197, 94, 0.08)" />
+                  <use href="#w" y=".2" fill="rgba(74, 222, 128, 0.05)" />
+                </>
+              ) : (
+                <>
+                  <use href="#w" y="0" fill="rgba(220, 53, 69, 0.12)" />
+                  <use href="#w" y=".1" fill="rgba(239, 68, 68, 0.08)" />
+                  <use href="#w" y=".2" fill="rgba(248, 113, 113, 0.05)" />
+                </>
+              )}
+            </g>
+          </svg>
+        </div>
 
-            {!isConnected && (
-              <>
-                <use href="#w" y="0" fill="rgba(220, 53, 69, 0.12)" />
-                <use href="#w" y=".1" fill="rgba(239, 68, 68, 0.08)" />
-                <use href="#w" y=".2" fill="rgba(248, 113, 113, 0.05)" />
-              </>
-            )}
-          </g>
-        </svg>
-
-        <div className="relative z-10 h-full flex flex-col justify-between p-3 sm:p-4">
-          <div className="flex items-start justify-between">
-            <div className="flex flex-wrap items-end gap-2">
-              <span className="dashboard-title">IKAZE</span>
-
-              <span className="dashboard-time">
-                {currentTime.toLocaleTimeString("en-GB", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                  hour12: false,
-                })}
+        {/* Content */}
+        <div className="relative z-10 p-2 space-y-1.5">
+          {/* Time and Status */}
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">
+                Ikaze
               </span>
+              <div
+                className={`w-1.5 h-1.5 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"} animate-pulse`}
+              ></div>
+            </div>
+            <span className="text-[10px] font-mono text-gray-600">
+              {currentTime.toLocaleTimeString("en-GB", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: false,
+              })}
+            </span>
+          </div>
+
+          {/* System Metrics Grid - 4 items */}
+          <div className="grid grid-cols-4 gap-1 px-0.5">
+            {/* Battery */}
+            <div className="bg-white/80 backdrop-blur-sm rounded px-1.5 py-1 border border-gray-200/50">
+              <div className="flex items-center justify-between">
+                <BatteryIcon
+                  className="w-3 h-3 flex-shrink-0"
+                  level={batteryLevel}
+                  charging={batteryCharging}
+                />
+
+                <span className="text-[9px] font-mono font-bold text-gray-700">
+                  {batteryLevel}%
+                </span>
+              </div>
+              <div className="w-full h-1 bg-gray-200 rounded-full mt-0.5 overflow-hidden">
+                <div
+                  className="h-full transition-all duration-300 rounded-full"
+                  style={{
+                    width: `${batteryLevel}%`,
+                    backgroundColor: batteryCharging
+                      ? "#3b82f6"
+                      : batteryLevel <= 20
+                        ? "#ef4444"
+                        : batteryLevel <= 50
+                          ? "#eab308"
+                          : "#22c55e",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* CPU Load */}
+            <div className="bg-white/80 backdrop-blur-sm rounded px-1.5 py-1 border border-gray-200/50">
+              <div className="flex items-center justify-between">
+                <CpuIcon className="w-3 h-3 flex-shrink-0" load={cpuLoad} />
+                <span className="text-[9px] font-mono font-bold text-gray-700">
+                  {cpuLoad}%
+                </span>
+              </div>
+              <div className="w-full h-1 bg-gray-200 rounded-full mt-0.5 overflow-hidden">
+                <div
+                  className="h-full transition-all duration-300 rounded-full"
+                  style={{
+                    width: `${cpuLoad}%`,
+                    backgroundColor:
+                      cpuLoad > 70
+                        ? "#ef4444"
+                        : cpuLoad > 40
+                          ? "#eab308"
+                          : "#3b82f6",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Network Speed */}
+            <div className="bg-white/80 backdrop-blur-sm rounded px-1.5 py-1 border border-gray-200/50">
+              <div className="flex items-center justify-between">
+                <NetworkIcon
+                  className="w-3 h-3 flex-shrink-0"
+                  connected={isNetworkConnected && networkSpeed > 0}
+                />
+                <span className="text-[9px] font-mono font-bold text-gray-700">
+                  {networkSpeed > 0 ? networkSpeed.toFixed(1) : "0.0"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between mt-0.5">
+                <span className="text-[7px] text-gray-400">Mbps</span>
+                <span
+                  className={`text-[7px] font-medium ${isNetworkConnected && networkSpeed > 0 ? "text-blue-500" : "text-red-500"}`}
+                >
+                  {isNetworkConnected && networkSpeed > 0
+                    ? networkType
+                    : "OFFLINE"}
+                </span>
+              </div>
+            </div>
+
+            {/* RTT / Connection */}
+            <div className="bg-white/80 backdrop-blur-sm rounded px-1.5 py-1 border border-gray-200/50">
+              <div className="flex items-center justify-between">
+                <RttIcon
+                  className="w-3 h-3 flex-shrink-0"
+                  connected={isNetworkConnected && networkRTT > 0}
+                />
+                <span className="text-[9px] font-mono font-bold text-gray-700">
+                  {networkRTT > 0 ? networkRTT : "--"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between mt-0.5">
+                <span className="text-[7px] text-gray-400">RTT</span>
+                <span
+                  className={`text-[7px] font-medium ${isNetworkConnected && networkRTT > 0 ? "text-blue-500" : "text-red-500"}`}
+                >
+                  {isNetworkConnected && networkRTT > 0 ? "ms" : "OFFLINE"}
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="flex justify-end pb-1">
-            <span className="flex justify-end">
+          {/* Date */}
+          <div className="flex justify-end px-1">
+            <span className="text-[8px] text-gray-400 font-mono">
               {currentTime.getFullYear()}-
               {String(currentTime.getMonth() + 1).padStart(2, "0")}-
               {String(currentTime.getDate()).padStart(2, "0")}

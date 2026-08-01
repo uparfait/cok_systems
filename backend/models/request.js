@@ -33,6 +33,7 @@ const requestSchema = new mongoose.Schema({
     required: true 
   },
   archive_reason: { type: String, default: '' },
+  status_reason: { type: String, default: '' },
   department: {
     _id: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', default: null },
     name: { type: String, default: '' }

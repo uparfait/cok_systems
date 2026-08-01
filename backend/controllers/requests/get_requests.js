@@ -70,11 +70,20 @@ module.exports = async function get_requests(req, res) {
       query.$or = [
         { 'sender.name': regex },
         { 'sender.email': regex },
+        { 'sender.telephone': regex },
         { 'subject': regex },
         { 'reference_number': regex },
         { 'recipient': regex },
         { 'orientation': regex },
         { 'remarks': regex },
+        { redaction_date: regex },
+        { reception_date: regex },
+        { 'assigned_by.name': regex },
+        { 'department.name': regex },
+        { 'department_unit.name': regex },
+        { 'employee.name': regex },
+        { 'employee.email': regex },
+        { 'employee.telephone': regex },
       ];
     }
 

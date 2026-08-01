@@ -106,8 +106,8 @@ const ExportModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             </div>
           </div>
           <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose} disabled={downloading} className="flex-1 py-2.5 text-sm font-semibold border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50" style={{ borderRadius: 0, color: '#333333' }}>Cancel</button>
-            <button onClick={handleDownload} disabled={fields.length === 0 || downloading} className="flex-1 py-2.5 text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2" style={{ backgroundColor: '#056daa', borderRadius: 0 }}>
+            <button type="button" onClick={onClose} disabled={downloading} className="cok-btn-outlined flex-1" style={{ padding: '0.7rem 1.2rem' }}>Cancel</button>
+            <button onClick={handleDownload} disabled={fields.length === 0 || downloading} className="cok-btn-primary flex-1 flex items-center justify-center gap-2" style={{ padding: '0.7rem 1.2rem' }}>
               {downloading ? (
                 <>
                   <SpiralLoader color="#FFFFFF" />

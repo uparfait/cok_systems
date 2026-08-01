@@ -27,7 +27,7 @@ module.exports = async function update_request(req, res) {
     const allowedFields = [
       'redaction_date', 'reference_number', 'reception_date', 'sender',
       'recipient', 'subject', 'orientation', 'remarks', 'status', 'assigned_by',
-      'department', 'department_unit', 'employee'
+      'department', 'department_unit', 'employee', 'status_reason'
     ];
 
     const changedFields = [];

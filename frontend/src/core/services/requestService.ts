@@ -27,6 +27,7 @@ export interface RequestDoc {
   assigned_by: RequestAssignedBy;
   created_by: RequestAssignedBy;
   archive_reason?: string;
+  status_reason?: string;
   department?: {
     _id?: string;
     name?: string;
@@ -52,6 +53,15 @@ export interface RequestStatistics {
   Archived: number;
   Overdue: number;
   total: number;
+  by_orientation?: Array<{
+    name: string;
+    pending: number;
+    inprogress: number;
+    completed: number;
+    overdue: number;
+    archived: number;
+    total: number;
+  }>;
 }
 
 export const requestService = {

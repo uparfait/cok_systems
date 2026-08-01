@@ -122,6 +122,10 @@ const RequestDetails: React.FC<{
     rows.push({ label: 'Archive Reason', value: request.archive_reason || '-' });
   }
 
+  if (request.status_reason) {
+    rows.push({ label: 'Status Reason', value: request.status_reason });
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div
@@ -205,16 +209,16 @@ const RequestDetails: React.FC<{
             <div className="flex gap-2">
               <button
                 onClick={() => setShowArchiveModal(false)}
-                className="flex-1 py-2.5 text-sm font-semibold border border-gray-300 hover:bg-gray-50 transition-colors"
-                style={{ borderRadius: 0, color: '#333333' }}
+                className="cok-btn-outlined flex-1"
+                style={{ padding: '0.7rem 1.2rem' }}
               >
                 Cancel
               </button>
               <button
                 onClick={handleArchive}
                 disabled={loading || !archiveReason.trim()}
-                className="flex-1 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                style={{ backgroundColor: '#E53935', borderRadius: 0 }}
+                className="cok-btn-primary flex-1 disabled:opacity-50"
+                style={{ padding: '0.7rem 1.2rem', backgroundColor: '#E53935' }}
               >
                 {loading ? 'Archiving...' : 'Archive'}
               </button>
@@ -244,16 +248,16 @@ const RequestDetails: React.FC<{
             <div className="flex gap-2">
               <button
                 onClick={() => setShowProgressModal(false)}
-                className="flex-1 py-2.5 text-sm font-semibold border border-gray-300 hover:bg-gray-50 transition-colors"
-                style={{ borderRadius: 0, color: '#333333' }}
+                className="cok-btn-outlined flex-1"
+                style={{ padding: '0.7rem 1.2rem' }}
               >
                 Cancel
               </button>
               <button
                 onClick={handleProgress}
                 disabled={loading || !progressReason.trim()}
-                className="flex-1 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                style={{ backgroundColor: '#F39C12', borderRadius: 0 }}
+                className="cok-btn-primary flex-1 disabled:opacity-50"
+                style={{ padding: '0.7rem 1.2rem', backgroundColor: '#F39C12' }}
               >
                 {loading ? 'Saving...' : 'Mark In Progress'}
               </button>

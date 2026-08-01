@@ -381,14 +381,14 @@ const RequestForm: React.FC<{
                         {selectedDeptObj.name}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => { setDeptSearch(''); setDeptOpen(true); }}
-                      className="text-xs font-semibold uppercase px-2 py-1 flex-shrink-0"
-                      style={{ color: '#056daa', fontFamily: "'Montserrat', sans-serif" }}
-                    >
-                      Change
-                    </button>
+                     <button
+                       type="button"
+                       onClick={() => { setDeptSearch(''); setDeptOpen(true); }}
+                       className="cok-btn-outlined text-xs font-semibold uppercase px-2 py-1 flex-shrink-0"
+                       style={{ padding: '0.2rem 0.6rem' }}
+                     >
+                       Change
+                     </button>
                   </div>
                 ) : (
                   <div className="relative">
@@ -455,14 +455,14 @@ const RequestForm: React.FC<{
                         {selectedUnitObj.name}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => { setForm((f) => ({ ...f, department_unit_id: '', department_unit_name: '' })); setUnitSearch(''); setUnitOpen(true); }}
-                      className="text-xs font-semibold uppercase px-2 py-1 flex-shrink-0"
-                      style={{ color: '#056daa', fontFamily: "'Montserrat', sans-serif" }}
-                    >
-                      Change
-                    </button>
+                     <button
+                       type="button"
+                       onClick={() => { setForm((f) => ({ ...f, department_unit_id: '', department_unit_name: '' })); setUnitSearch(''); setUnitOpen(true); }}
+                       className="cok-btn-outlined text-xs font-semibold uppercase px-2 py-1 flex-shrink-0"
+                       style={{ padding: '0.2rem 0.6rem' }}
+                     >
+                       Change
+                     </button>
                   </div>
                 ) : (
                   <div className="relative">
@@ -532,14 +532,14 @@ const RequestForm: React.FC<{
                         {selectedEmpObj.name}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => { setForm((f) => ({ ...f, employee_id: '', employee_name: '', employee_telephone: '', employee_email: '' })); setEmpSearch(''); setEmpOpen(true); }}
-                      className="text-xs font-semibold uppercase px-2 py-1 flex-shrink-0"
-                      style={{ color: '#056daa', fontFamily: "'Montserrat', sans-serif" }}
-                    >
-                      Change
-                    </button>
+                     <button
+                       type="button"
+                       onClick={() => { setForm((f) => ({ ...f, employee_id: '', employee_name: '', employee_telephone: '', employee_email: '' })); setEmpSearch(''); setEmpOpen(true); }}
+                       className="cok-btn-outlined text-xs font-semibold uppercase px-2 py-1 flex-shrink-0"
+                       style={{ padding: '0.2rem 0.6rem' }}
+                     >
+                       Change
+                     </button>
                   </div>
                 ) : (
                   <div className="relative">
