@@ -6,7 +6,7 @@ const notificationSchema = new mongoose.Schema({
     task: { type: mongoose.Schema.Types.ObjectId, ref: 'Task' },
     type: {
         type: String,
-        enum: ['deadline_reminder', 'task_completed', 'subtask_completed', 'negative_feedback'],
+        enum: ['deadline_reminder', 'task_completed', 'subtask_completed', 'negative_feedback', 'announcement', 'task_assigned'],
         required: true
     },
     title: { type: String, required: true },

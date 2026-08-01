@@ -63,6 +63,14 @@ import {
 } from "./systems/serviceDelivery";
 
 import RequestsPage from "./pages/dashboard/RequestsPage";
+// Head of Department pages
+import HodKpisPage from "./systems/serviceDelivery/pages/hod/HodKpisPage";
+import HodEmployeesPage from "./systems/serviceDelivery/pages/hod/HodEmployeesPage";
+import HodTasksPage from "./systems/serviceDelivery/pages/hod/HodTasksPage";
+import HodAnnouncementsPage from "./systems/serviceDelivery/pages/hod/HodAnnouncementsPage";
+import HodApprovalsPage from "./systems/serviceDelivery/pages/hod/HodApprovalsPage";
+import HodAuditPage from "./systems/serviceDelivery/pages/hod/HodAuditPage";
+import HodFeedbackPage from "./systems/serviceDelivery/pages/hod/HodFeedbackPage";
 
 // event-managment
 
@@ -536,6 +544,78 @@ const App: React.FC = () => {
                     <ProtectedRoute>
                       <MainLayout>
                         <RequestsPage />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Head of Department pages */}
+                <Route
+                  path="/:roleSlug/hod/kpis"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <HodKpisPage />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/:roleSlug/hod/employees"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <HodEmployeesPage />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/:roleSlug/hod/tasks"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <HodTasksPage />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/:roleSlug/hod/announcements"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <HodAnnouncementsPage />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/:roleSlug/hod/approvals"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <HodApprovalsPage />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/:roleSlug/hod/audit"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <HodAuditPage />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/:roleSlug/hod/feedback"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <HodFeedbackPage />
                       </MainLayout>
                     </ProtectedRoute>
                   }
