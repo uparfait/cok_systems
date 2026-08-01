@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import {
@@ -259,12 +259,18 @@ const Sidebar: React.FC<SidebarProps> = ({
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
+  // Use ref to track if this is the first render
+  const isFirstRender = useRef(true);
+  // Store previous location to detect changes
+  const prevLocationRef = useRef(location.pathname);
+
   if (links[0]?.id === "unknown") {
     navigate(links[0].path);
     return <></>;
   }
 
-  const [expandedMenus, setExpandedMenus] = useState<Set<string>>(() => {
+  // Memoize the initial expanded state calculation
+  const initialExpandedMenus = useMemo(() => {
     const initial = new Set<string>();
     links.forEach((link) => {
       const children = link.children || [];
@@ -288,7 +294,11 @@ const Sidebar: React.FC<SidebarProps> = ({
       }
     });
     return initial;
-  });
+  }, [links, currentPath, location.pathname]);
+
+  const [expandedMenus, setExpandedMenus] = useState<Set<string>>(
+    initialExpandedMenus
+  );
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const { socket, isConnected } = useSocket();
@@ -314,13 +324,34 @@ const Sidebar: React.FC<SidebarProps> = ({
     });
   };
 
+  // Update expanded menus only when the location actually changes
   useEffect(() => {
+    // Skip if the location hasn't changed
+    if (prevLocationRef.current === location.pathname) {
+      return;
+    }
+    
+    // Skip first render to avoid overriding initial state
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      prevLocationRef.current = location.pathname;
+      return;
+    }
+
+    // Update previous location
+    prevLocationRef.current = location.pathname;
+
+    // Check which menus should be expanded based on current route
+    const newExpanded = new Set(expandedMenus);
+    let shouldUpdate = false;
+
     links.forEach((link) => {
       const children = link.children || [];
       const linkPath = link.path;
       let isLinkActive =
         currentPath === linkPath ||
         location.pathname.startsWith(linkPath + "/");
+      
       if (!isLinkActive && children.length > 0) {
         for (const child of children) {
           if (
@@ -334,17 +365,17 @@ const Sidebar: React.FC<SidebarProps> = ({
       }
 
       if (isLinkActive && link.id) {
-        setExpandedMenus((prev) => {
-          if (!prev.has(link.id)) {
-            const next = new Set(prev);
-            next.add(link.id);
-            return next;
-          }
-          return prev;
-        });
+        if (!newExpanded.has(link.id)) {
+          newExpanded.add(link.id);
+          shouldUpdate = true;
+        }
       }
     });
-  }, [location.pathname, currentPath, links]);
+
+    if (shouldUpdate) {
+      setExpandedMenus(newExpanded);
+    }
+  }, [location.pathname, currentPath, links, expandedMenus]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -353,7 +384,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // Battery monitoring
+  // Battery monitoring - keep as is
   useEffect(() => {
     if ("getBattery" in navigator) {
       (navigator as any).getBattery().then((battery: any) => {
@@ -368,7 +399,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   }, []);
 
-  // CPU load monitoring
+  // CPU load monitoring - keep as is
   useEffect(() => {
     let lastFrameTime = performance.now();
     const cpuHistory: number[] = [];
@@ -393,7 +424,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     return () => clearInterval(cpuInterval);
   }, []);
 
-  // Network monitoring
+  // Network monitoring - keep as is
   useEffect(() => {
     const updateNetwork = () => {
       const conn =
@@ -417,7 +448,6 @@ const Sidebar: React.FC<SidebarProps> = ({
       conn.addEventListener("change", updateNetwork);
     }
 
-    // Listen to online/offline events
     window.addEventListener("online", updateNetwork);
     window.addEventListener("offline", updateNetwork);
 

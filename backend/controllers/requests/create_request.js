@@ -30,9 +30,9 @@ module.exports = async function create_request(req, res) {
     const assignedBy = assigned_by || createdBy;
 
     const requestDoc = new Request({
-      redaction_date: redaction_date || null,
+      redaction_date: redaction_date || new Date(),
       reference_number: reference_number || '',
-      reception_date: reception_date || null,
+      reception_date: reception_date || new Date(),
       sender: sender || {},
       recipient: recipient || 'COK',
       subject: subject || '',

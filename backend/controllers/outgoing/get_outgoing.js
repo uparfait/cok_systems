@@ -1,5 +1,6 @@
-const Request = require('../../models/request.js');
+const Outgoing = require('../../models/outgoing.js');
 const mongoose = require('mongoose');
+const Request = require('../../models/request.js');
 
 const parseRange = (dateStr) => {
   if (!dateStr) return null;
@@ -46,59 +47,68 @@ const getPeriodBounds = (period, from, to) => {
   return null;
 };
 
-module.exports = async function get_requests(req, res) {
+module.exports = async function get_outgoing(req, res) {
   try {
-    const { status, period, from, to, page = 1, limit = 20, q } = req.query;
-    const periodStr = period || 'all';
+    const { page = 1, limit = 20, q, period, from, to } = req.query;
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
-    const limitNum = Math.min(20, Math.max(1, parseInt(limit, 10) || 20));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
     const skip = (pageNum - 1) * limitNum;
 
     let query = {};
 
-    if (status && status !== 'all') {
-      query.status = status;
-    }
-
-    const bounds = getPeriodBounds(periodStr, from, to);
+    const bounds = getPeriodBounds(period, from, to);
     if (bounds) {
-      query.redaction_date = { $gte: bounds.start, $lte: bounds.end };
+      query.date_of_recording = { $gte: bounds.start, $lte: bounds.end };
     }
 
     if (q && typeof q === 'string' && q.trim()) {
       const regex = new RegExp(q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      const parentMatch = {
+        $or: [
+          { reference_number: regex },
+          { 'sender.name': regex },
+          { 'sender.email': regex },
+          { subject: regex }
+        ]
+      };
+      const parentRequests = await Request.find(parentMatch).select('_id').lean();
+      const parentIds = parentRequests.map(r => r._id);
+      
       query.$or = [
-        { 'sender.name': regex },
-        { 'sender.email': regex },
-        { 'sender.telephone': regex },
-        { 'subject': regex },
         { 'reference_number': regex },
-        { 'recipient': regex },
-        { 'orientation': regex },
-        { 'remarks': regex },
-        { 'assigned_by.name': regex },
-        { 'assigned_by.title': regex },
-        { 'department.name': regex },
-        { 'department_unit.name': regex },
-        { 'employee.name': regex },
-        { 'employee.email': regex },
-        { 'employee.telephone': regex },
-        { archive_reason: regex },
-        { status_reason: regex },
+        { 'department_number': regex },
+        { 'destination': regex },
+        { 'subject': regex },
+        { 'sign_by': regex },
+        
+        { 'request_id': { $in: parentIds } }
       ];
     }
 
-    const total = await Request.countDocuments(query);
-    const data = await Request.find(query)
-      .sort({ created_at: -1 })
+    const total = await Outgoing.countDocuments(query);
+    const data = await Outgoing.find(query)
+      .sort({ date_of_recording: -1 })
       .skip(skip)
       .limit(limitNum)
       .lean();
 
+    if (q && q.trim()) {
+      const parentIds = data.map(d => d.request_id).filter(Boolean);
+      const parentRequests = await Request.find({ _id: { $in: parentIds } }).lean();
+      const parentMap = new Map(parentRequests.map(r => [r._id.toString(), r]));
+
+      data.forEach(outgoing => {
+        const parent = parentMap.get(outgoing.request_id?.toString());
+        if (parent) {
+          outgoing.parent = parent;
+        }
+      });
+    }
+
     return res.status(200).json({
       success: true,
       type: 'success',
-      message: 'Requests fetched successfully',
+      message: 'Outgoing correspondences fetched successfully',
       data,
       total,
       page: pageNum,
@@ -107,11 +117,11 @@ module.exports = async function get_requests(req, res) {
     });
 
   } catch (error) {
-    console.error('Error in get_requests:', error);
+    console.error('Error in get_outgoing:', error);
     return res.status(500).json({
       success: false,
       type: 'error',
-      message: 'Something went wrong while fetching requests'
+      message: 'Something went wrong while fetching outgoing correspondences'
     });
   }
 };

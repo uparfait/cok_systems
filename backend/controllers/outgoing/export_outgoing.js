@@ -1,5 +1,5 @@
 const ExcelJS = require('exceljs');
-const Request = require('../../models/request.js');
+const Outgoing = require('../../models/outgoing.js');
 
 const getPeriodBoundsLocal = (period, from, to) => {
   const now = new Date();
@@ -45,88 +45,59 @@ const formatDate = (d) => {
   return date.toISOString().split('T')[0];
 };
 
-module.exports = async function export_excel(req, res) {
+module.exports = async function export_outgoing(req, res) {
   try {
-    const { period, from, to, fields, title, sender_layout } = req.query;
-    const reportTitle = title || 'Incoming Correspondences Report';
-    const senderLayout = sender_layout === 'separate' ? 'separate' : 'combined';
+    const { period, from, to, title, prepared_by } = req.query;
+    const reportTitle = title || 'Outgoing Correspondences Report';
 
     const bounds = getPeriodBoundsLocal(period || 'all', from, to);
     let query = {};
     if (bounds) {
-      query.redaction_date = { $gte: bounds.start, $lte: bounds.end };
+      query.date_of_recording = { $gte: bounds.start, $lte: bounds.end };
     }
 
-    const requests = await Request.find(query).sort({ redaction_date: -1 }).lean();
+    const outgoings = await Outgoing.find(query).sort({ date_of_recording: -1 }).lean();
 
     const availableFields = {
-      redaction_date: { header: 'Redaction Date', getter: (r) => formatDate(r.redaction_date) },
-      reference_number: { header: 'Reference Number', getter: (r) => r.reference_number || '' },
-      reception_date: { header: 'Reception Date', getter: (r) => formatDate(r.reception_date) },
-      recipient: { header: 'Recipient', getter: (r) => r.recipient || 'COK' },
-      subject: { header: 'Subject', getter: (r) => r.subject || '' },
-      orientation: { header: 'Orientation', getter: (r) => r.orientation || '' },
-      remarks: { header: 'Remarks', getter: (r) => r.remarks || '' }
+      reference_number: { header: 'Reference Number', getter: (o) => o.reference_number || '' },
+      department_number: { header: 'Department Number', getter: (o) => o.department_number || '' },
+      date_of_reception: { header: 'Date of Reception', getter: (o) => formatDate(o.date_of_reception) },
+      date_of_recording: { header: 'Date of Recording', getter: (o) => formatDate(o.date_of_recording) },
+      destination: { header: 'Destination', getter: (o) => o.destination || '' },
+      subject: { header: 'Subject', getter: (o) => o.subject || '' },
+      sign_by: { header: 'Sign By', getter: (o) => o.sign_by || '' }
     };
 
-    let selectedFields = fields ? fields.split(',') : Object.keys(availableFields);
-
-    if (senderLayout === 'separate') {
-      if (!selectedFields.includes('sender_name')) selectedFields.push('sender_name');
-      if (!selectedFields.includes('sender_email')) selectedFields.push('sender_email');
-      if (!selectedFields.includes('sender_telephone')) selectedFields.push('sender_telephone');
-    } else {
-      if (!selectedFields.includes('sender')) selectedFields.push('sender');
-    }
+    const selectedFields = Object.keys(availableFields);
 
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'CoK Systems';
+    workbook.creator = 'IKAZE';
     workbook.created = new Date();
 
-    const sheet = workbook.addWorksheet('Incoming Correspondences');
+    const sheet = workbook.addWorksheet('Outgoing Correspondences');
 
     sheet.mergeCells('A1:' + String.fromCharCode(64 + selectedFields.length) + '1');
     const titleCell = sheet.getCell('A1');
     titleCell.value = reportTitle;
-    titleCell.font = { size: 16, color: { argb: 'FF056daa' } };
+    titleCell.font = { size: 16, color: { argb: 'FFE65100' } };
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
     sheet.getRow(1).height = 30;
 
     const headerRow = sheet.getRow(2);
     selectedFields.forEach((field, index) => {
       const cell = headerRow.getCell(index + 1);
-      if (field === 'sender') {
-        cell.value = 'Sender';
-      } else if (field === 'sender_name') {
-        cell.value = 'Sender Name';
-      } else if (field === 'sender_email') {
-        cell.value = 'Sender Email';
-      } else if (field === 'sender_telephone') {
-        cell.value = 'Sender Telephone';
-      } else {
-        cell.value = availableFields[field]?.header || field;
-      }
-      cell.font = { bold: true, color: { argb: 'FF34A8DB' } };
+      cell.value = availableFields[field]?.header || field;
+      cell.font = { bold: true, color: { argb: 'FFE65100' } };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
     });
     headerRow.height = 20;
 
-    requests.forEach((reqItem) => {
+    outgoings.forEach((outgoingItem) => {
       const row = sheet.addRow({});
       selectedFields.forEach((field, index) => {
         const cell = row.getCell(index + 1);
-        if (field === 'sender') {
-          cell.value = [reqItem.sender?.name, reqItem.sender?.email, reqItem.sender?.telephone].filter(Boolean).join(', ') || '';
-        } else if (field === 'sender_name') {
-          cell.value = reqItem.sender?.name || '';
-        } else if (field === 'sender_email') {
-          cell.value = reqItem.sender?.email || '';
-        } else if (field === 'sender_telephone') {
-          cell.value = reqItem.sender?.telephone || '';
-        } else {
-          const getter = availableFields[field]?.getter || (() => '');
-          cell.value = getter(reqItem);
-        }
+        const getter = availableFields[field]?.getter || (() => '');
+        cell.value = getter(outgoingItem);
       });
     });
 
@@ -152,7 +123,7 @@ module.exports = async function export_excel(req, res) {
     res.end();
 
   } catch (error) {
-    console.error('Error in export_excel:', error);
+    console.error('Error in export_outgoing:', error);
     return res.status(500).json({
       success: false,
       type: 'error',
