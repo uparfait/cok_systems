@@ -16,7 +16,8 @@ module.exports = async function create_request(req, res) {
       assigned_by,
       department,
       department_unit,
-      employee
+      employee,
+      status_reason
     } = req.body || {};
 
     const createdBy = {
@@ -42,7 +43,8 @@ module.exports = async function create_request(req, res) {
       created_by: createdBy,
       department: department || {},
       department_unit: department_unit || {},
-      employee: employee || {}
+      employee: employee || {},
+      status_reason: status_reason || ''
     });
 
     await requestDoc.save();

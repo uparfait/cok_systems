@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FiX } from 'react-icons/fi';
 import IncomingCorrespondences from './IncomingCorrespondences';
 import RequestStatistics from './RequestStatistics';
+import OrientationStats from './OrientationStats';
 import RequestForm from './RequestForm';
 import RequestDetails from './RequestDetails';
 import ExportModal from './ExportModal';
@@ -57,12 +58,13 @@ const DelegateRequest: React.FC<{
             </h2>
             <p className="text-xs text-white/80">Manage and track incoming correspondence requests</p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-white/80 hover:text-white transition-colors"
-          >
-            <FiX className="w-5 h-5 sm:w-6 sm:h-6" />
-          </button>
+           <button
+             onClick={onClose}
+             className="cok-btn-outlined-reverse"
+             style={{ padding: '0.4rem 0.8rem' }}
+           >
+             <FiX className="w-5 h-5 sm:w-6 sm:h-6" />
+           </button>
         </div>
       </div>
 
@@ -76,8 +78,9 @@ const DelegateRequest: React.FC<{
                 onExport={() => setShowExport(true)}
               />
             </div>
-          <div className="xl:col-span-1">
+          <div className="xl:col-span-1 space-y-4">
             <RequestStatistics />
+            <OrientationStats />
           </div>
         </div>
       </div>

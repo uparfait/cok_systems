@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Real-Time System Dashboard</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-blue: #38bdf8;
+      --accent-green: #22c55e;
+      --accent-yellow: #eab308;
+      --accent-purple: #a855f7;
+      --accent-red: #ef4444;
+      --border-color: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+
+    header {
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .card-title {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .metric-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .metric-unit {
+      font-size: 1rem;
+      color: var(--text-muted);
+      font-weight: normal;
+    }
+
+    .sub-details {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.5rem;
+    }
+
+    /* Progress Bar */
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background: var(--border-color);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 0.75rem;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease, background-color 0.3s ease;
+    }
+
+    /* Specific Accent Colors */
+    .clock-color { color: var(--accent-blue); }
+    .battery-color { color: var(--accent-green); }
+    .cpu-color { color: var(--accent-yellow); }
+    .memory-color { color: var(--accent-purple); }
+    .net-color { color: #f43f5e; }
+
+    .pulse-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: var(--accent-green);
+      box-shadow: 0 0 8px var(--accent-green);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.3; }
+      100% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>System & Performance Dashboard</h1>
+  </header>
+
+  <div class="dashboard-grid">
+    <!-- 1. Real-Time Clock -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Current Time</span>
+        <div class="pulse-indicator"></div>
+      </div>
+      <div class="metric-value clock-color" id="clock-time">00:00:00</div>
+      <div class="sub-details">
+        <span id="clock-date">Loading date...</span>
+        <span id="clock-zone">--</span>
+      </div>
+    </div>
+
+    <!-- 2. Battery Status -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Battery Level</span>
+      </div>
+      <div class="metric-value battery-color">
+        <span id="battery-level">--</span><span class="metric-unit">%</span>
+      </div>
+      <div class="progress-bar-container">
+        <div class="progress-bar" id="battery-bar"></div>
+      </div>
+      <div class="sub-details">
+        <span>Status: <strong id="battery-status">--</strong></span>
+        <span id="battery-time">--</span>
+      </div>
+    </div>
+
+    <!-- 3. Thread/CPU Load -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Thread Load (CPU)</span>
+      </div>
+      <div class="metric-value cpu-color">
+        <span id="cpu-load">0</span><span class="metric-unit">%</span>
+      </div>
+      <div class="progress-bar-container">
+        <div class="progress-bar" id="cpu-bar" style="background-color: var(--accent-yellow);"></div>
+      </div>
+      <div class="sub-details">
+        <span>Core Count: <strong id="cpu-cores">--</strong></span>
+        <span>Main Thread Lag</span>
+      </div>
+    </div>
+
+    <!-- 4. Browser Memory Usage -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Browser JS Memory</span>
+      </div>
+      <div class="metric-value memory-color">
+        <span id="memory-used">--</span><span class="metric-unit"> MB</span>
+      </div>
+      <div class="progress-bar-container">
+        <div class="progress-bar" id="memory-bar" style="background-color: var(--accent-purple);"></div>
+      </div>
+      <div class="sub-details">
+        <span>Heap Limit: <span id="memory-limit">--</span> MB</span>
+        <span id="memory-percent">--%</span>
+      </div>
+    </div>
+
+    <!-- 5. Network Speed & Connection -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Network Meter</span>
+      </div>
+      <div class="metric-value net-color">
+        <span id="net-down">--</span><span class="metric-unit"> Mbps</span>
+      </div>
+      <div class="sub-details">
+        <span>Effective Type: <strong id="net-type">--</strong></span>
+        <span>RTT: <strong id="net-rtt">--</strong> ms</span>
+      </div>
+      <div class="sub-details" style="margin-top: 10px;">
+        <span>Est. Latency / Download Bandwidth</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // 1. REAL-TIME CLOCK
+    // ==========================================
+    function updateClock() {
+      const now = new Date();
+      
+      const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
+      const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+      const zoneStr = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+      document.getElementById('clock-time').textContent = timeStr;
+      document.getElementById('clock-date').textContent = dateStr;
+      document.getElementById('clock-zone').textContent = zoneStr;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // ==========================================
+    // 2. BATTERY MONITOR
+    // ==========================================
+    if ('getBattery' in navigator) {
+      navigator.getBattery().then(battery => {
+        function updateBattery() {
+          const level = Math.round(battery.level * 100);
+          const isCharging = battery.charging;
+
+          document.getElementById('battery-level').textContent = level;
+          document.getElementById('battery-status').textContent = isCharging ? 'Charging' : 'Discharging';
+          
+          const bar = document.getElementById('battery-bar');
+          bar.style.width = `${level}%`;
+          bar.style.backgroundColor = isCharging ? 'var(--accent-blue)' : (level <= 20 ? 'var(--accent-red)' : 'var(--accent-green)');
+
+          let timeText = '--';
+          if (isCharging && battery.chargingTime !== Infinity) {
+            timeText = `${Math.round(battery.chargingTime / 60)}m to full`;
+          } else if (!isCharging && battery.dischargingTime !== Infinity) {
+            timeText = `${Math.round(battery.dischargingTime / 60)}m left`;
+          }
+          document.getElementById('battery-time').textContent = timeText;
+        }
+
+        updateBattery();
+        battery.addEventListener('levelchange', updateBattery);
+        battery.addEventListener('chargingchange', updateBattery);
+      });
+    } else {
+      document.getElementById('battery-status').textContent = 'API Unavailable';
+    }
+
+    // ==========================================
+    // 3. CPU / THREAD LOAD ESTIMATOR
+    // ==========================================
+    // Hardware cores
+    document.getElementById('cpu-cores').textContent = navigator.hardwareConcurrency || 'N/A';
+
+    // Measure Event-Loop Lag to estimate main-thread stress
+    let lastFrameTime = performance.now();
+    let cpuLoadHistory = [];
+
+    function measureCpuLoad() {
+      const now = performance.now();
+      const delta = now - lastFrameTime;
+      lastFrameTime = now;
+
+      // 100ms expected intervals. Deviation indicates load/delay.
+      const delay = Math.max(0, delta - 100); 
+      const loadEstimate = Math.min(100, Math.round((delay / 100) * 100));
+
+      cpuLoadHistory.push(loadEstimate);
+      if (cpuLoadHistory.length > 10) cpuLoadHistory.shift();
+
+      const avgLoad = Math.round(cpuLoadHistory.reduce((a, b) => a + b, 0) / cpuLoadHistory.length);
+
+      document.getElementById('cpu-load').textContent = avgLoad;
+      document.getElementById('cpu-bar').style.width = `${avgLoad}%`;
+    }
+    setInterval(measureCpuLoad, 100);
+
+    // ==========================================
+    // 4. BROWSER MEMORY USAGE
+    // ==========================================
+    function updateMemory() {
+      // performance.memory is non-standard (supported in Chrome/Edge/Opera)
+      if (performance && performance.memory) {
+        const memory = performance.memory;
+        const usedMB = Math.round(memory.usedJSHeapSize / (1024 * 1024));
+        const limitMB = Math.round(memory.jsHeapSizeLimit / (1024 * 1024));
+        const percent = Math.round((memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100);
+
+        document.getElementById('memory-used').textContent = usedMB;
+        document.getElementById('memory-limit').textContent = limitMB;
+        document.getElementById('memory-percent').textContent = `${percent}%`;
+        document.getElementById('memory-bar').style.width = `${percent}%`;
+      } else {
+        document.getElementById('memory-used').textContent = 'N/A';
+        document.getElementById('memory-percent').textContent = 'Unsupported';
+      }
+    }
+    setInterval(updateMemory, 2000);
+    updateMemory();
+
+    // ==========================================
+    // 5. CONNECTION / NETWORK METER
+    // ==========================================
+    function updateNetwork() {
+      const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+
+      if (conn) {
+        document.getElementById('net-down').textContent = conn.downlink || 'N/A';
+        document.getElementById('net-type').textContent = (conn.effectiveType || 'N/A').toUpperCase();
+        document.getElementById('net-rtt').textContent = conn.rtt || '0';
+      } else {
+        document.getElementById('net-type').textContent = 'API Unavailable';
+      }
+    }
+
+    if (navigator.connection) {
+      navigator.connection.addEventListener('change', updateNetwork);
+    }
+    updateNetwork();
+  </script>
+</body>
+</html>

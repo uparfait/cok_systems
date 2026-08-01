@@ -71,7 +71,7 @@ const RangeModal: React.FC<{
       <div className="bg-white w-full max-w-lg" style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
         <div className="flex items-center justify-between px-4 sm:px-6 py-4" style={{ backgroundColor: '#056daa', borderRadius: 0 }}>
           <h3 className="text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>Select Range</h3>
-          <button onClick={onClose} className="p-1 text-white/80 hover:text-white transition-colors">
+          <button onClick={onClose} className="cok-btn-outlined-reverse" style={{ padding: '0.4rem 0.8rem' }}>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -89,8 +89,8 @@ const RangeModal: React.FC<{
             </div>
           )}
           <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 text-sm font-semibold border border-gray-300 hover:bg-gray-50 transition-colors" style={{ borderRadius: 0, color: '#333333' }}>Cancel</button>
-            <button onClick={onApply} className="flex-1 py-2.5 text-sm font-semibold text-white" style={{ backgroundColor: '#056daa', borderRadius: 0 }}>Apply</button>
+            <button type="button" onClick={onClose} className="cok-btn-outlined flex-1" style={{ padding: '0.7rem 1.2rem' }}>Cancel</button>
+            <button onClick={onApply} className="cok-btn-primary flex-1" style={{ padding: '0.7rem 1.2rem' }}>Apply</button>
           </div>
         </div>
       </div>
@@ -270,27 +270,27 @@ const IncomingCorrespondences: React.FC<{
           <div className="flex items-center gap-1 p-1">
             <button
               onClick={() => setShowRangeModal(true)}
-              className="w-[50px] h-[50px] border border-gray-300 flex items-center justify-center cursor-pointer text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+              className="cok-btn-outlined flex items-center justify-center"
+              style={{ width: '50px', height: '50px', padding: 0 }}
               title="Filter by period"
-              style={{ borderRadius: 0 }}
             >
               <FiCalendar className="w-4 h-4" />
             </button>
 
-            <div className="relative flex-1">
+            <div className="flex flex-1 items-center">
               <input
                 type="text"
                 placeholder="Search..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="cok-auth-input w-full py-3 px-3 pr-10 text-sm"
+                className="cok-auth-input flex-1 py-3 px-3 text-sm"
                 style={{ fontFamily: "'Montserrat', sans-serif", borderRadius: 0 }}
               />
               <button
                 onClick={handleSearch}
-                className="absolute cursor-pointer right-0 top-0 h-full flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                style={{ width: '50px', borderRadius: 0 }}
+                className="cok-btn-primary flex items-center justify-center"
+                style={{ width: '50px', height: '50px', padding: 0, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
                 title="Search"
               >
                 <FiSearch className="w-4 h-4" />
@@ -300,8 +300,8 @@ const IncomingCorrespondences: React.FC<{
             <div className="relative h-full">
               <button
                 onClick={() => setActionsOpen(!actionsOpen)}
-                className="w-[50px] h-[50px] border border-gray-300 bg-white hover:bg-gray-50 transition-colors  flex items-center justify-center"
-                style={{ borderRadius: 0, color: '#333333', cursor: 'pointer' }}
+                className="cok-btn-outlined flex items-center justify-center"
+                style={{ width: '50px', height: '50px', padding: 0 }}
                 title="Actions"
               >
                 <FiChevronDown className="w-4 h-4" />
@@ -310,15 +310,15 @@ const IncomingCorrespondences: React.FC<{
                 <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 shadow-lg z-20" style={{ borderRadius: 0 }}>
                   <button
                     onClick={() => { setActionsOpen(false); onNewRequest(); }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
-                    style={{ fontFamily: "'Montserrat', sans-serif", color: '#333333', height: '100%' }}
+                    className="cok-btn-outlined w-full"
+                    style={{ borderRadius: 0, justifyContent: 'flex-start' }}
                   >
                     + New Request
                   </button>
                   <button
                     onClick={() => { setActionsOpen(false); onExport?.(); }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
-                    style={{ fontFamily: "'Montserrat', sans-serif", color: '#333333', height: '100%' }}
+                    className="cok-btn-outlined w-full"
+                    style={{ borderRadius: 0, justifyContent: 'flex-start' }}
                   >
                     Export
                   </button>

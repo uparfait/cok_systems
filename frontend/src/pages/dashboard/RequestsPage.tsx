@@ -4,6 +4,7 @@ import { useAuth } from '../../core/contexts/AuthContext';
 import { useToast } from '../../core/contexts/ToastContext';
 import IncomingCorrespondences from '../../core/components/requests/IncomingCorrespondences';
 import RequestStatistics from '../../core/components/requests/RequestStatistics';
+import OrientationStats from '../../core/components/requests/OrientationStats';
 import RequestForm from '../../core/components/requests/RequestForm';
 import RequestDetails from '../../core/components/requests/RequestDetails';
 import ExportModal from '../../core/components/requests/ExportModal';
@@ -68,8 +69,13 @@ const RequestsPage: React.FC = () => {
           onExport={() => setShowExport(true)}
         />
       </div>
-      <div>
-        <RequestStatistics key={`stats-${refreshKey}`} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+          <RequestStatistics key={`stats-${refreshKey}`} />
+        </div>
+        <div>
+          <OrientationStats key={`orientation-${refreshKey}`} />
+        </div>
       </div>
 
       {showForm && (
