@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FiX } from 'react-icons/fi';
 import requestService from '../../../core/services/requestService';
+import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 
 const PERIOD_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -28,35 +29,43 @@ const ExportModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [to, setTo] = useState('');
   const [fields, setFields] = useState<string[]>(ALL_FIELDS.map(f => f.key));
   const [title, setTitle] = useState('Incoming Correspondences Report');
+  const [downloading, setDownloading] = useState(false);
 
   const toggleField = (key: string) => {
     setFields(prev => prev.includes(key) ? prev.filter(f => f !== key) : [...prev, key]);
   };
 
   const handleDownload = async () => {
-    const url = requestService.getExportUrl({
-      period: period === 'all' ? undefined : period,
-      from: from || undefined,
-      to: to || undefined,
-      fields: fields.join(','),
-      title,
-      senderLayout: 'combined',
-    });
-    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-    const response = await fetch(url, {
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    });
-    if (!response.ok) throw new Error(`Export failed: ${response.status}`);
-    const blob = await response.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = `${title.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
-    onClose();
+    setDownloading(true);
+    try {
+      const url = requestService.getExportUrl({
+        period: period === 'all' ? undefined : period,
+        from: from || undefined,
+        to: to || undefined,
+        fields: fields.join(','),
+        title,
+        senderLayout: 'combined',
+      });
+      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+      const response = await fetch(url, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (!response.ok) throw new Error(`Export failed: ${response.status}`);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `${title.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+      onClose();
+    } catch (error) {
+      console.error('Export failed:', error);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -97,10 +106,19 @@ const ExportModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             </div>
           </div>
           <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 text-sm font-semibold border border-gray-300 hover:bg-gray-50 transition-colors" style={{ borderRadius: 0, color: '#333333' }}>Cancel</button>
-            <button onClick={handleDownload} disabled={fields.length === 0} className="flex-1 py-2.5 text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2" style={{ backgroundColor: '#056daa', borderRadius: 0 }}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-              Download
+            <button type="button" onClick={onClose} disabled={downloading} className="flex-1 py-2.5 text-sm font-semibold border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50" style={{ borderRadius: 0, color: '#333333' }}>Cancel</button>
+            <button onClick={handleDownload} disabled={fields.length === 0 || downloading} className="flex-1 py-2.5 text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2" style={{ backgroundColor: '#056daa', borderRadius: 0 }}>
+              {downloading ? (
+                <>
+                  <SpiralLoader color="#FFFFFF" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                  Download
+                </>
+              )}
             </button>
           </div>
         </div>

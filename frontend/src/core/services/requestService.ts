@@ -27,6 +27,20 @@ export interface RequestDoc {
   assigned_by: RequestAssignedBy;
   created_by: RequestAssignedBy;
   archive_reason?: string;
+  department?: {
+    _id?: string;
+    name?: string;
+  };
+  department_unit?: {
+    _id?: string;
+    name?: string;
+  };
+  employee?: {
+    _id?: string;
+    name?: string;
+    telephone?: string;
+    email?: string;
+  };
   created_at: string;
   updated_at: string;
 }

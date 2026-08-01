@@ -327,31 +327,27 @@ const IncomingCorrespondences: React.FC<{
             </div>
           </div>
 
-           <div className="flex overflow-x-auto" style={{ borderTop: '1px solid #f0f0f0' }}>
-             {tabs.map((tab) => {
-               const isActive = activeFilter === tab.key;
-               const isLoading = statusLoading && isActive;
-               return (
-                 <button
-                   key={tab.key}
-                   onClick={() => handleFilterChange(tab.key)}
-                   className="relative hover:bg-gray-100 flex-1 min-w-0 py-2 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer"
-                   style={{
-                     color: isActive ? tab.color : '#6b7280',
-                     borderBottom: isActive ? `2px solid ${tab.color}` : '2px solid transparent',
-                     backgroundColor: isActive ? `${tab.color}10` : '',
-                   }}
-                 >
-                   {isLoading ? (
-                     <div className="flex items-center justify-center py-1">
-                       <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: tab.color, borderTopColor: 'transparent' }}></div>
-                     </div>
-                   ) : (
+            <div className="flex justify-between overflow-x-auto" style={{ borderTop: '1px solid #f0f0f0' }}>
+              {tabs.map((tab) => {
+                const isActive = activeFilter === tab.key;
+                const isLoading = statusLoading && isActive;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => handleFilterChange(tab.key)}
+                    className="relative hover:bg-gray-100 min-w-0 flex-1  flex-shrink-0 min-w-[100px] py-2 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer"
+                    style={{
+                      color: isActive ? tab.color : '#6b7280',
+                      borderBottom: isActive ? `2px solid ${tab.color}` : '2px solid transparent',
+                      
+                    }}
+                  >
+                  
                      <>
                        <span className="truncate block">{tab.label}</span>
                        <span className="text-[10px] sm:text-xs opacity-75 block">{tab.count}</span>
                      </>
-                   )}
+                   
                  </button>
                );
              })}
