@@ -172,6 +172,7 @@ const IncomingCorrespondences: React.FC<{
       const res = await requestService.getStatistics({ period: 'all' });
       if (res && typeof res === 'object' && 'data' in res && res.data) {
         const data = res.data as any;
+        data.Outgoing = data.outgoing_total;
         
         setCounts({
           all: data.total || 0,
@@ -180,7 +181,7 @@ const IncomingCorrespondences: React.FC<{
           Inprogress: data.Inprogress || 0,
           Archived: data.Archived || 0,
           Overdue: data.Overdue || 0,
-          Outgoing: counts.Outgoing  || (counts as any).outgoing_total  || 0,
+          Outgoing:  data.Outgoing || 0,
         });
       }
     } catch (error) {
@@ -397,8 +398,8 @@ const IncomingCorrespondences: React.FC<{
     { key: 'Inprogress', label: 'In Progress', count: counts.Inprogress, color: '#F39C12' },
     { key: 'Completed', label: 'Completed', count: counts.Completed, color: '#4CAF50' },
     { key: 'Overdue', label: 'Overdue', count: counts.Overdue, color: '#E53935' },
-    { key: 'Outgoing', label: 'Outgoing', count: counts.Outgoing, color: '#056daa' },
     { key: 'Archived', label: 'Archived', count: counts.Archived, color: '#9E9E9E' },
+    { key: 'Outgoing', label: 'Outgoing', count: counts.Outgoing, color: '#056daa' }
   ] as const;
 
   const totalPages = Math.max(1, Math.ceil(((activeFilter === 'Outgoing' ? outgoingTotal : requestsTotal) || 0) / limit));
