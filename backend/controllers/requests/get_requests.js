@@ -76,14 +76,15 @@ module.exports = async function get_requests(req, res) {
         { 'recipient': regex },
         { 'orientation': regex },
         { 'remarks': regex },
-        { redaction_date: regex },
-        { reception_date: regex },
         { 'assigned_by.name': regex },
+        { 'assigned_by.title': regex },
         { 'department.name': regex },
         { 'department_unit.name': regex },
         { 'employee.name': regex },
         { 'employee.email': regex },
         { 'employee.telephone': regex },
+        { archive_reason: regex },
+        { status_reason: regex },
       ];
     }
 

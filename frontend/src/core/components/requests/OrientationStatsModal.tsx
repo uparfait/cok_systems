@@ -42,10 +42,10 @@ const PERIOD_OPTIONS = [
 const OrientationStatsModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   const [stats, setStats] = useState<RequestStatistics | null>(null);
   const [loading, setLoading] = useState(false);
-  const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'year' | 'range' | 'all'>('all');
+  const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'year' | 'range' | 'all'>('month');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [appliedPeriod, setAppliedPeriod] = useState<'today' | 'week' | 'month' | 'year' | 'range' | 'all'>('all');
+  const [appliedPeriod, setAppliedPeriod] = useState<'today' | 'week' | 'month' | 'year' | 'range' | 'all'>('month');
   const [appliedFrom, setAppliedFrom] = useState('');
   const [appliedTo, setAppliedTo] = useState('');
 
