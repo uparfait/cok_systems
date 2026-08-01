@@ -38,7 +38,7 @@ const OrientationStats: React.FC = () => {
   const fetchStatistics = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const res = await requestService.getStatistics({ period: 'all' });
+      const res = await requestService.getStatistics({ period: 'month' });
       if (res && typeof res === 'object' && 'data' in res && res.data) {
         setStats(res.data as RequestStatistics);
       }
