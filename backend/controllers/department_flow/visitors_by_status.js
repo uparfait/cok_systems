@@ -5,28 +5,39 @@ const Department = require('../../models/department.js');
 
 /**
  * Helper function to get department IDs for head of department
+ * Supports both the current schema (is_unit + parent_department) and the
+ * legacy document format (sub_department_mng), and users leading multiple departments.
  */
 const getDepartmentIdsForHead = async (userId) => {
-    const department = await Department.findOne({ department_leader: userId });
+    const ledDepartments = await Department.find({
+        $or: [{ department_leader: userId }, { leader: userId }]
+    });
 
-    if (!department) {
+    if (ledDepartments.length === 0) {
         return [];
     }
 
-    if (!department.sub_department_mng.is_sub_department) {
-        // Main department - get all sub-departments too
-        const subDepartments = await Department.find({
-            'sub_department_mng.parent_department_id': department._id.toString()
-        });
+    const ids = new Set();
 
-        return [
-            department._id.toString(),
-            ...subDepartments.map(sub => sub._id.toString())
-        ];
-    } else {
-        // Sub-department - return only this department
-        return [department._id.toString()];
+    for (const department of ledDepartments) {
+        ids.add(department._id.toString());
+
+        const isSubDepartment = department.is_unit === true ||
+            department.sub_department_mng?.is_sub_department === true;
+
+        if (!isSubDepartment) {
+            // Main department - include its sub-departments (new + legacy format)
+            const subDepartments = await Department.find({
+                $or: [
+                    { parent_department: department._id },
+                    { 'sub_department_mng.parent_department_id': department._id.toString() }
+                ]
+            });
+            subDepartments.forEach(sub => ids.add(sub._id.toString()));
+        }
     }
+
+    return Array.from(ids);
 };
 
 /**
