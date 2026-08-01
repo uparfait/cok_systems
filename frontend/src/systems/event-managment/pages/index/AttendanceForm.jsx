@@ -514,7 +514,7 @@ export default function AttendanceForm() {
 
         {/* Footer */}
         <p className="text-center text-xs text-gray-400 mt-4">
-          City of Kigali — Event Management System
+          City of Kigali Event Management System
         </p>
       </div>
     </div>
