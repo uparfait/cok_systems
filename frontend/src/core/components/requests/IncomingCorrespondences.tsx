@@ -255,7 +255,7 @@ const IncomingCorrespondences: React.FC<{
     { key: 'Pending', label: 'Pending', count: counts.Pending, color: '#2563EB' },
     { key: 'Inprogress', label: 'In Progress', count: counts.Inprogress, color: '#F39C12' },
     { key: 'Completed', label: 'Completed', count: counts.Completed, color: '#4CAF50' },
-    { key: 'Overdue', label: 'Overdue', count: counts.Inprogress, color: '#E53935' },
+    { key: 'Overdue', label: 'Overdue', count: counts.Overdue, color: '#E53935' },
     { key: 'Archived', label: 'Archived', count: counts.Archived, color: '#9E9E9E' },
   ] as const;
 
