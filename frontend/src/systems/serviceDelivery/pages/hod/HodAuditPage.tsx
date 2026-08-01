@@ -29,7 +29,7 @@ interface AuditStats {
   recent_errors: AuditLog[];
 }
 
-const LIMIT = 20;
+const LIMIT = 5;
 
 const ACTION_COLORS: Record<string, string> = {
   CREATE: COK.success,
