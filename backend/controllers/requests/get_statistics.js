@@ -44,7 +44,7 @@ module.exports = async function get_statistics(req, res) {
 
     let match = {};
     if (bounds) {
-      match.created_at = { $gte: bounds.start, $lte: bounds.end };
+      match.redaction_date = { $gte: bounds.start, $lte: bounds.end };
     }
 
     const stats = await Request.aggregate([
@@ -77,14 +77,14 @@ module.exports = async function get_statistics(req, res) {
     // Anything not completed/archived and older than 24h counts as overdue.
     const DAY_MS = 24 * 60 * 60 * 1000;
     const docs = await Request.find(match)
-      .select('status orientation assigned_by.name created_at')
+      .select('status orientation assigned_by.name redaction_date created_at')
       .lean();
 
     const emptyCounts = () => ({ pending: 0, inprogress: 0, completed: 0, overdue: 0, archived: 0, total: 0 });
     const orientationMap = {};
     const assigneeMap = {};
     for (const r of docs) {
-      const ageMs = r.created_at ? Date.now() - new Date(r.created_at).getTime() : 0;
+      const ageMs = r.redaction_date ? Date.now() - new Date(r.redaction_date).getTime() : 0;
       const bucket =
         r.status === 'Archived' ? 'archived'
         : r.status === 'Completed' ? 'completed'

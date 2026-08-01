@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FiX } from 'react-icons/fi';
+import { FiX, FiSend } from 'react-icons/fi';
 import requestService, { type RequestDoc } from '../../../core/services/requestService';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 
@@ -20,7 +20,10 @@ const RequestDetails: React.FC<{
   request: RequestDoc;
   onClose: () => void;
   onUpdate: () => void;
-}> = ({ request, onClose, onUpdate }) => {
+  onOutgoingClick?: (request: RequestDoc) => void;
+  onCreateOutgoingFromCompleted?: (request: RequestDoc) => void;
+  outgoingLoading?: boolean;
+}> = ({ request, onClose, onUpdate, onOutgoingClick, onCreateOutgoingFromCompleted, outgoingLoading }) => {
   const [loading, setLoading] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [archiveReason, setArchiveReason] = useState('');
@@ -28,6 +31,8 @@ const RequestDetails: React.FC<{
   const [progressReason, setProgressReason] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [showCompletedPrompt, setShowCompletedPrompt] = useState(false);
+  const [completedPromptLoading, setCompletedPromptLoading] = useState(false);
   const [form, setForm] = useState<FormState>({
     redaction_date: request.redaction_date ? new Date(request.redaction_date).toISOString().split('T')[0] : '',
     reference_number: request.reference_number || '',
@@ -231,6 +236,22 @@ const RequestDetails: React.FC<{
         <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 cok-bg-primary" style={{ borderRadius: 0 }}>
           <h2 className="text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>Request Details</h2>
           <div className="flex items-center gap-3">
+            {request.status === 'Completed' && onOutgoingClick && (
+              <button
+                type="button"
+                onClick={() => !outgoingLoading && onOutgoingClick(request)}
+                disabled={outgoingLoading}
+                className="cok-btn-outlined flex items-center gap-1 text-xs font-semibold uppercase"
+                style={{ padding: '0.4rem 0.8rem', borderColor: '#056daa', color: '#FFFFFF', backgroundColor: '#056daa' }}
+              >
+                {outgoingLoading ? (
+                  <div className="w-3 h-3 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#FFFFFF', borderTopColor: 'transparent' }}></div>
+                ) : (
+                  <FiSend className="w-3 h-3" />
+                )}
+                {outgoingLoading ? 'Loading...' : 'Outgoing'}
+              </button>
+            )}
             {isEdit && (
               <>
                 <button
@@ -293,6 +314,9 @@ const RequestDetails: React.FC<{
                               setStatusLoading(false);
                             } else if (newStatus === 'Inprogress') {
                               setShowProgressModal(true);
+                              setStatusLoading(false);
+                            } else if (newStatus === 'Completed' && request.status !== 'Completed') {
+                              setShowCompletedPrompt(true);
                               setStatusLoading(false);
                             } else {
                               requestService.update(request._id, { status: newStatus }).then(() => {
@@ -370,6 +394,32 @@ const RequestDetails: React.FC<{
               <button onClick={() => setShowProgressModal(false)} className="cok-btn-outlined flex-1" style={{ padding: '0.7rem 1.2rem' }}>Cancel</button>
               <button onClick={handleProgress} disabled={loading || !progressReason.trim()} className="cok-btn-primary flex-1 disabled:opacity-50" style={{ padding: '0.7rem 1.2rem', backgroundColor: '#F39C12' }}>
                 {loading ? 'Saving...' : 'Mark In Progress'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCompletedPrompt && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white w-full max-w-md p-6" style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+            <h3 className="text-lg font-bold mb-4" style={{ fontFamily: "'Montserrat', sans-serif", color: '#333333' }}>Mark as Completed</h3>
+            <p className="text-sm text-gray-600 mb-4">Do you want to create an outgoing correspondence for this request?</p>
+            <div className="flex gap-2">
+              <button onClick={() => { setShowCompletedPrompt(false); onCreateOutgoingFromCompleted?.(request); }} className="cok-btn-outlined flex-1" style={{ padding: '0.7rem 1.2rem' }} disabled={completedPromptLoading}>
+                Create Outgoing
+              </button>
+              <button onClick={() => {
+                setCompletedPromptLoading(true);
+                requestService.update(request._id, { status: 'Completed' }).then(() => {
+                  setShowCompletedPrompt(false);
+                  setCompletedPromptLoading(false);
+                  onUpdate();
+                }).catch(() => {
+                  setCompletedPromptLoading(false);
+                });
+              }} className="cok-btn-primary flex-1" style={{ padding: '0.7rem 1.2rem' }} disabled={completedPromptLoading}>
+                {completedPromptLoading ? 'Updating...' : 'Just Move to Completed'}
               </button>
             </div>
           </div>

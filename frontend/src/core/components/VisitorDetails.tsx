@@ -480,9 +480,7 @@ const VisitorDetails: React.FC<VisitorDetailsProps> = ({ isOpen, onClose, visito
                     <button type="button" onClick={handleAssignToDepartment} className="cok-btn-outlined w-full sm:w-1/2" style={{ padding: '0.7rem 1.2rem' }}>
                       Assign to Department
                     </button>
-                    <button type="button" onClick={handleDelegateRequest} className="cok-btn-outlined w-full sm:w-1/2" style={{ padding: '0.7rem 1.2rem' }}>
-                      Delegate Request
-                    </button>
+                    
                   </div>
                 )}
                 {isEdit && isEditing && (
@@ -490,9 +488,7 @@ const VisitorDetails: React.FC<VisitorDetailsProps> = ({ isOpen, onClose, visito
                     <button type="button" onClick={handleAssignToDepartment} className="cok-btn-outlined" style={{ width: 'auto', padding: '0.7rem 1.2rem' }}>
                       Assign to Department
                     </button>
-                    <button type="button" onClick={handleDelegateRequest} className="cok-btn-outlined" style={{ width: 'auto', padding: '0.7rem 1.2rem' }}>
-                      Delegate Request
-                    </button>
+                   
                   </div>
                 )}
               </div>
