@@ -53,6 +53,7 @@ export interface RequestStatistics {
   Archived: number;
   Overdue: number;
   total: number;
+  outgoing_total: number;
   by_orientation?: Array<{
     name: string;
     pending: number;

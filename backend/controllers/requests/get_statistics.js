@@ -1,4 +1,5 @@
 const Request = require('../../models/request.js');
+const Outgoing = require('../../models/outgoing.js');
 
 const getPeriodBounds = (period, from, to) => {
   const now = new Date();
@@ -106,6 +107,9 @@ module.exports = async function get_statistics(req, res) {
 
     result.by_orientation = toRows(orientationMap);
     result.by_assignee = toRows(assigneeMap);
+
+    const outgoingTotal = await Outgoing.countDocuments(bounds ? { created_at: { $gte: bounds.start, $lte: bounds.end } } : {});
+    result.outgoing_total = outgoingTotal;
 
     return res.status(200).json({
       success: true,

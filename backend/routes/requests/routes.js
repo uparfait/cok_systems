@@ -12,6 +12,7 @@ const createOutgoing = require('../../controllers/outgoing/create_outgoing.js');
 const updateOutgoing = require('../../controllers/outgoing/update_outgoing.js');
 const getOutgoing = require('../../controllers/outgoing/get_outgoing.js');
 const getOutgoingByRequest = require('../../controllers/outgoing/get_outgoing_by_request.js');
+const getOutgoingTotal = require('../../controllers/outgoing/get_outgoing_total.js');
 const exportOutgoing = require('../../controllers/outgoing/export_outgoing.js');
 
 Router.post('/create', authenticate, createRequest);
@@ -25,6 +26,7 @@ Router.post('/outgoing/create', authenticate, createOutgoing);
 Router.put('/outgoing/:id', authenticate, updateOutgoing);
 Router.get('/outgoing', authenticate, getOutgoing);
 Router.get('/outgoing/by-request/:requestId', authenticate, getOutgoingByRequest);
+Router.get('/outgoing/total', authenticate, getOutgoingTotal);
 Router.get('/outgoing/export', authenticate, exportOutgoing);
 
 module.exports = Router;

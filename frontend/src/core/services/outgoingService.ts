@@ -18,6 +18,7 @@ export interface OutgoingDoc {
   };
   created_at: string;
   updated_at: string;
+  outgoing_total: number;
 }
 
 export const outgoingService = {
@@ -41,6 +42,18 @@ export const outgoingService = {
     if (params?.q) query.append('q', params.q);
     const qs = query.toString();
     return get(`/requests/outgoing${qs ? `?${qs}` : ''}`);
+  },
+  getTotal: (params?: {
+    period?: string;
+    from?: string;
+    to?: string;
+  }) => {
+    const query = new URLSearchParams();
+    if (params?.period && params.period !== 'all') query.append('period', params.period);
+    if (params?.from) query.append('from', params.from);
+    if (params?.to) query.append('to', params.to);
+    const qs = query.toString();
+    return get(`/requests/outgoing/total${qs ? `?${qs}` : ''}`);
   },
   getExportUrl: (params?: {
     period?: string;

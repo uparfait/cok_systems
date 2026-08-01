@@ -172,6 +172,7 @@ const IncomingCorrespondences: React.FC<{
       const res = await requestService.getStatistics({ period: 'all' });
       if (res && typeof res === 'object' && 'data' in res && res.data) {
         const data = res.data as any;
+        
         setCounts({
           all: data.total || 0,
           Pending: data.Pending || 0,
@@ -179,24 +180,29 @@ const IncomingCorrespondences: React.FC<{
           Inprogress: data.Inprogress || 0,
           Archived: data.Archived || 0,
           Overdue: data.Overdue || 0,
-          Outgoing: counts.Outgoing || 0,
+          Outgoing: counts.Outgoing  || (counts as any).outgoing_total  || 0,
         });
       }
     } catch (error) {
-      // keep existing counts on error
+      
     }
   }, []);
 
   const fetchOutgoingCounts = useCallback(async () => {
     try {
-      const res = await outgoingService.getAll({ page: 1, limit: 1 });
-      if (res && typeof res === 'object' && 'total' in res) {
-        setCounts(prev => ({ ...prev, Outgoing: (res as any).total || 0 }));
+      const res = await outgoingService.getTotal({
+        period: appliedPeriod === 'all' ? undefined : appliedPeriod,
+        from: appliedFrom || undefined,
+        to: appliedTo || undefined,
+      });
+      if (res && typeof res === 'object' && 'data' in res && res.data) {
+        const data = res.data as any;
+        setOutgoingTotal(data.total || 0);
       }
     } catch (error) {
       // keep existing counts on error
     }
-  }, []);
+  }, [appliedPeriod, appliedFrom, appliedTo]);
 
   const silentFetchRequests = useCallback(async () => {
     try {
