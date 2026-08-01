@@ -10,6 +10,7 @@ import {
   FiHelpCircle,
   FiCheck,
   FiUser,
+  FiX,
 } from "react-icons/fi";
 
 interface SidebarLink {
@@ -37,7 +38,7 @@ const Header: React.FC<HeaderProps> = ({
   onNavigate,
 }) => {
   const { user, logout } = useAuth();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } =
+  const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } =
     useNotification();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -68,6 +69,19 @@ const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const getNotificationColor = (type: string) => {
+    switch (type) {
+      case "warning":
+        return "bg-yellow-500";
+      case "error":
+        return "bg-red-500";
+      case "success":
+        return "bg-green-500";
+      default:
+        return "cok-primary-bg";
+    }
+  };
+
   return (
     <>
       <header className="h-16 select-none cok-primary-bg px-4 lg:px-6 flex items-center justify-between sticky top-0 z-30 text-white">
@@ -86,11 +100,11 @@ const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center  gap-2">
+        <div className="flex items-center gap-2">
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 cursor-pointer rounded-full   hover:bg-white/10 text-white transition-colors"
+              className="relative p-2 cursor-pointer rounded-full hover:bg-white/10 text-white transition-colors"
             >
               <FiBell className="w-5 h-5" />
               {unreadCount > 0 && (
@@ -99,64 +113,6 @@ const Header: React.FC<HeaderProps> = ({
                 </span>
               )}
             </button>
-
-            {showNotifications && (
-              <div className="absolute right-0 top-full mt-3.5 w-80 bg-white rounded-none shadow-lg py-2 z-50 max-h-96 overflow-y-auto">
-                <div className="px-4 py-2 flex items-center justify-between">
-                  <h3 className="font-semibold text-gray-900">Notifications</h3>
-                  {unreadCount > 0 && (
-                    <button
-                      onClick={markAllAsRead}
-                      className="text-xs cok-primary-color-hovable cursor-pointer flex items-center gap-1"
-                    >
-                      <FiCheck className="w-3 h-3" /> Mark all read
-                    </button>
-                  )}
-                </div>
-                {notifications.length === 0 ? (
-                  <div className="px-4 py-8 text-center text-gray-500">
-                    No notifications
-                  </div>
-                ) : (
-                  notifications.slice(0, 10).map((notification) => (
-                    <div
-                      key={notification.id}
-                      onClick={() => markAsRead(notification.id)}
-                      className={`px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 ${
-                        !notification.read ? "bg-blue-50" : ""
-                      }`}
-                    >
-                      <div className="flex items-start gap-2">
-                        <div
-                          className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${
-                            notification.type === "warning"
-                              ? "bg-yellow-500"
-                              : notification.type === "error"
-                                ? "bg-red-500"
-                                : notification.type === "success"
-                                  ? "bg-green-500"
-                                  : "cok-primary-bg "
-                          }`}
-                        />
-                        <div className="flex-1 min-w-0">
-                          {notification.title && (
-                            <p className="text-sm font-medium text-gray-900">
-                              {notification.title}
-                            </p>
-                          )}
-                          <p className="text-sm text-gray-600 truncate">
-                            {notification.message}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {notification.timestamp.toLocaleTimeString()}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
           </div>
 
           <button className="p-2 rounded-full cursor-pointer hover:bg-white/10 text-white transition-colors hidden sm:block">
@@ -166,7 +122,7 @@ const Header: React.FC<HeaderProps> = ({
           <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2 p-1.5  rounded-none cursor-pointer hover:bg-white/10 transition-colors"
+              className="flex items-center gap-2 p-1.5 rounded-none cursor-pointer hover:bg-white/10 transition-colors"
             >
               <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-semibold text-sm">
                 {userInitial}
@@ -175,7 +131,6 @@ const Header: React.FC<HeaderProps> = ({
                 <p className="text-sm font-medium text-white leading-tight">
                   {displayName}
                 </p>
-                {/* <p className="text-xs text-white/80 leading-tight">{displayRole}</p> */}
               </div>
               <FiChevronDown
                 className={`w-4 h-4 text-white transition-transform hidden sm:block ${showUserMenu ? "rotate-180" : ""}`}
@@ -227,6 +182,84 @@ const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       </header>
+
+      {showNotifications && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col" style={{ borderRadius: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+            <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 cok-bg-primary" style={{ borderRadius: 0 }}>
+              <h2 className="text-lg font-bold text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                Notifications
+              </h2>
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <button
+                    onClick={markAllAsRead}
+                    className="cok-btn-outlined-reverse text-xs flex items-center gap-1"
+                    style={{ padding: '0.4rem 0.8rem' }}
+                  >
+                    <FiCheck className="w-3 h-3" /> Mark all read
+                  </button>
+                )}
+                <button onClick={() => setShowNotifications(false)} className="cok-btn-outlined-reverse" style={{ padding: '0.4rem 0.8rem' }}>
+                  <FiX className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 sm:p-6">
+              {notifications.length === 0 ? (
+                <div className="py-12 text-center text-gray-500">
+                  No notifications
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      onClick={() => markAsRead(notification.id)}
+                      className={`p-4 border cursor-pointer transition-colors ${
+                        !notification.read ? "border-blue-200 bg-blue-50" : "border-gray-200 bg-white"
+                      }`}
+                      style={{ borderRadius: 0 }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`w-2.5 h-2.5 mt-1.5 rounded-full flex-shrink-0 ${getNotificationColor(notification.type)}`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          {notification.title && (
+                            <p className="text-sm font-semibold text-gray-900 mb-1">
+                              {notification.title}
+                            </p>
+                          )}
+                          <p className="text-sm text-gray-700 break-words">
+                            {notification.message}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {notification.timestamp.toLocaleTimeString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 sm:p-6 pt-2 border-t" style={{ borderColor: '#E0E0E0' }}>
+              <button
+                type="button"
+                onClick={clearNotifications}
+                disabled={notifications.length === 0}
+                className="w-full cok-btn-outlined"
+                style={{ padding: '0.9rem 1.2rem' }}
+              >
+                Clear All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showLogoutOverlay && (
         <div className="cok-logout-overlay backdrop-blur-[12px] select-none">

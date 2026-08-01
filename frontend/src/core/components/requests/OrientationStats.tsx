@@ -85,7 +85,7 @@ const OrientationStats: React.FC = () => {
             <h3 className="text-sm font-semibold" style={{ fontFamily: "'Montserrat', sans-serif", color: '#333333' }}>
               By Orientation
             </h3>
-            <p className="text-xs text-gray-400">Top 3 orientations</p>
+            <p className="text-xs text-gray-400">Click to view all</p>
           </div>
         </div>
         <div className="text-center py-8 text-xs text-gray-400">No data available</div>
@@ -116,22 +116,22 @@ const OrientationStats: React.FC = () => {
             <h3 className="text-sm font-semibold" style={{ fontFamily: "'Montserrat', sans-serif", color: '#333333' }}>
               By Orientation
             </h3>
-            <p className="text-xs text-gray-400">Top 3 orientations</p>
+            <p className="text-xs text-gray-400">Click to view all</p>
           </div>
         </div>
-        {orientations.length > 3 && (
+        
           <button
             onClick={() => setShowModal(true)}
             className="cok-btn-outlined text-xs"
             style={{ padding: '0.3rem 0.8rem' }}
           >
-            View All
+            View in full
           </button>
-        )}
+        
       </div>
 
       <div style={{ width: '100%', height: 250 }}>
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer onClick={() => setShowModal(true)} width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis
