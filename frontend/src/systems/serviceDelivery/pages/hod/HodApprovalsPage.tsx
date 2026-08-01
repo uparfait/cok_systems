@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { FiRefreshCw, FiCheck, FiX as FiReject } from 'react-icons/fi';
-import { departmentManagerService } from '@/core/services/adminService';
+import { useAuth } from '@/core/contexts/AuthContext';
 import { useToast } from '@/core/contexts/ToastContext';
 import {
   COK, FONT, formatDate, formatDateTime,
@@ -19,6 +19,7 @@ interface EventAction {
   currentStatus?: { status: string; description?: string };
   statusHistory?: { status: string; description?: string; changedAt?: string }[];
   eventSpecialId?: string;
+  createdBy?: { name?: string; email?: string };
   createdAt?: string;
 }
 
@@ -32,6 +33,7 @@ const STATUS_COLORS: Record<string, string> = {
 const LIMIT = 10;
 
 const HodApprovalsPage: React.FC = () => {
+  const { user } = useAuth();
   const { showSuccess, showError } = useToast();
   const [actions, setActions] = useState<EventAction[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -39,38 +41,30 @@ const HodApprovalsPage: React.FC = () => {
   const [tab, setTab] = useState('Pending');
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState(false);
-  const [deptOnly, setDeptOnly] = useState(true);
-  const [teamEmails, setTeamEmails] = useState<Set<string> | null>(null);
   const [decision, setDecision] = useState<{ action: EventAction; approve: boolean } | null>(null);
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Load department member emails once, used to filter actions to "my staff"
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await departmentManagerService.getTeamMembers(1, 100);
-        if (res?.success) {
-          setTeamEmails(new Set((res.data || []).map((m: { email?: string }) => (m.email || '').toLowerCase()).filter(Boolean)));
-        } else {
-          setTeamEmails(new Set());
-        }
-      } catch {
-        setTeamEmails(new Set());
-      }
-    })();
-  }, []);
+  const myEmail = (user?.email || '').toLowerCase();
 
   const load = useCallback(async () => {
+    if (!myEmail) return;
     setLoading(true);
     setUnavailable(false);
     try {
       const statusParam = tab === 'all' ? '' : `&status=${encodeURIComponent(tab)}`;
-      const resp = await fetch(`${EM_BASE}/event-actions?page=${page}&limit=${LIMIT}${statusParam}`);
+      // Only approval requests addressed to this head of department
+      const resp = await fetch(
+        `${EM_BASE}/event-actions?page=${page}&limit=${LIMIT}&assignedEmail=${encodeURIComponent(myEmail)}${statusParam}`
+      );
       if (!resp.ok) throw new Error('bad status');
       const json = await resp.json();
       if (json?.success) {
-        setActions(json.data || []);
+        // Safety net in case the event service is an older build that ignores assignedEmail
+        const mine = (json.data || []).filter(
+          (a: EventAction) => (a.assignedPerson?.email || '').toLowerCase() === myEmail
+        );
+        setActions(mine);
         setTotalPages(json.totalPages || 1);
       } else {
         setActions([]);
@@ -81,7 +75,7 @@ const HodApprovalsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, tab]);
+  }, [page, tab, myEmail]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -105,23 +99,19 @@ const HodApprovalsPage: React.FC = () => {
       });
       const json = await resp.json();
       if (json?.success) {
-        showSuccess(approve ? 'Action approved' : 'Action rejected');
+        showSuccess(approve ? 'Request approved' : 'Request rejected');
         setDecision(null);
         setReason('');
         load();
       } else {
-        showError(json?.message || 'Failed to update action');
+        showError(json?.message || 'Failed to update the request');
       }
     } catch {
-      showError('Failed to update action');
+      showError('Failed to update the request');
     } finally {
       setSaving(false);
     }
   };
-
-  const visible = deptOnly && teamEmails && teamEmails.size > 0
-    ? actions.filter(a => a.assignedPerson?.email && teamEmails.has(a.assignedPerson.email.toLowerCase()))
-    : actions;
 
   const tabs = [
     { key: 'Pending', label: 'Pending Approval', color: COK.pending },
@@ -135,17 +125,11 @@ const HodApprovalsPage: React.FC = () => {
     <div className="p-4">
       <HodPageHeader
         title="Approvals"
-        subtitle="Approve or reject event actions submitted for your staff"
+        subtitle="Approval requests addressed to you — only items where you are the destination appear here"
         actions={
-          <>
-            <label className="flex items-center gap-2 text-xs font-semibold uppercase" style={{ color: COK.textMid, fontFamily: FONT }}>
-              <input type="checkbox" checked={deptOnly} onChange={e => setDeptOnly(e.target.checked)} />
-              My staff only
-            </label>
-            <button className="cok-btn-outlined px-3 py-2 text-xs flex items-center gap-1" style={{ borderRadius: 0 }} onClick={load}>
-              <FiRefreshCw /> Refresh
-            </button>
-          </>
+          <button className="cok-btn-outlined px-3 py-2 text-xs flex items-center gap-1" style={{ borderRadius: 0 }} onClick={load}>
+            <FiRefreshCw /> Refresh
+          </button>
         }
       />
 
@@ -153,26 +137,27 @@ const HodApprovalsPage: React.FC = () => {
         <HodTabBar tabs={tabs} active={tab} onChange={key => { setTab(key); setPage(1); }} />
 
         {loading ? (
-          <HodEmpty message="Loading actions..." />
+          <HodEmpty message="Loading approval requests..." />
         ) : unavailable ? (
           <HodEmpty message="The event management service is not reachable right now. Start it and press Refresh." />
-        ) : visible.length === 0 ? (
-          <HodEmpty message={deptOnly ? 'No actions found for your staff in this status. Untick “My staff only” to see all.' : 'No actions found in this status.'} />
+        ) : actions.length === 0 ? (
+          <HodEmpty message="No approval requests addressed to you in this status." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px]">
               <thead>
                 <tr>
-                  <HodTh>Action</HodTh>
-                  <HodTh>Assigned To</HodTh>
+                  <HodTh>Request</HodTh>
+                  <HodTh>Submitted By</HodTh>
                   <HodTh>Due Date</HodTh>
                   <HodTh>Status</HodTh>
                   <HodTh>Decision</HodTh>
                 </tr>
               </thead>
               <tbody className="divide-y" style={{ borderColor: '#F3F4F6' }}>
-                {visible.map(action => {
+                {actions.map(action => {
                   const status = action.currentStatus?.status || 'Pending';
+                  const submitter = action.createdBy?.name || action.createdBy?.email || '—';
                   return (
                     <tr key={action._id} className="hover:bg-gray-50">
                       <td className="px-3 py-2.5">
@@ -181,10 +166,10 @@ const HodApprovalsPage: React.FC = () => {
                       </td>
                       <td className="px-3 py-2.5">
                         <div className="flex items-center gap-2">
-                          <HodAvatar name={action.assignedPerson?.name} />
+                          <HodAvatar name={submitter} />
                           <div>
-                            <p className="text-sm" style={{ color: COK.textDark }}>{action.assignedPerson?.name || '—'}</p>
-                            <p className="text-xs" style={{ color: COK.gray }}>{action.assignedPerson?.email || action.assignedPerson?.role || ''}</p>
+                            <p className="text-sm" style={{ color: COK.textDark }}>{submitter}</p>
+                            <p className="text-xs" style={{ color: COK.gray }}>{action.createdBy?.email || ''}</p>
                           </div>
                         </div>
                       </td>
@@ -234,9 +219,9 @@ const HodApprovalsPage: React.FC = () => {
       </HodCard>
 
       {decision && (
-        <HodModal title={decision.approve ? 'Approve Action' : 'Reject Action'} onClose={() => setDecision(null)} maxWidth="max-w-md">
+        <HodModal title={decision.approve ? 'Approve Request' : 'Reject Request'} onClose={() => setDecision(null)} maxWidth="max-w-md">
           <p className="text-sm mb-3" style={{ color: COK.textMid }}>
-            {decision.approve ? 'Approve' : 'Reject'} “{decision.action.title}” assigned to {decision.action.assignedPerson?.name || 'staff'}?
+            {decision.approve ? 'Approve' : 'Reject'} “{decision.action.title}”?
           </p>
           <textarea
             className="cok-auth-input w-full py-2.5 px-3 text-sm"
