@@ -13,7 +13,10 @@ module.exports = async function create_request(req, res) {
       orientation,
       remarks,
       status,
-      assigned_by
+      assigned_by,
+      department,
+      department_unit,
+      employee
     } = req.body || {};
 
     const createdBy = {
@@ -36,7 +39,10 @@ module.exports = async function create_request(req, res) {
       remarks: remarks || '',
       status: status || 'Pending',
       assigned_by: assignedBy,
-      created_by: createdBy
+      created_by: createdBy,
+      department: department || {},
+      department_unit: department_unit || {},
+      employee: employee || {}
     });
 
     await requestDoc.save();

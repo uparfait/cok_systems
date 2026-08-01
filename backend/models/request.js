@@ -33,6 +33,20 @@ const requestSchema = new mongoose.Schema({
     required: true 
   },
   archive_reason: { type: String, default: '' },
+  department: {
+    _id: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', default: null },
+    name: { type: String, default: '' }
+  },
+  department_unit: {
+    _id: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', default: null },
+    name: { type: String, default: '' }
+  },
+  employee: {
+    _id: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', default: null },
+    name: { type: String, default: '' },
+    telephone: { type: String, default: '' },
+    email: { type: String, default: '' }
+  },
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now }
 });

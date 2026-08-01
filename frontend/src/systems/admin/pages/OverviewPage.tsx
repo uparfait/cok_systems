@@ -2009,7 +2009,7 @@ useEffect(() => {
                   <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-600"></div>Activated {data.employeeStats.active}</div>
                   <div className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500"></div>Not activated {data.employeeStats.inactive}</div>
                   <div className="flex items-center gap-1"><div className="w-2 h-2 bg-red-600"></div>Locked {data.employeeStats.locked}</div>
-                  <div className="flex items-center gap-1"><div className="w-2 h-2 bg-green-600"></div>Active {data.employeeStats.online}</div>
+                  <div className="flex items-center gap-1"><div className="w-2 h-2 bg-green-600"></div>Online {data.employeeStats.online}</div>
                   <div className="flex items-center gap-1"><div className="w-2 h-2 bg-gray-400"></div>Offline {data.employeeStats.offline}</div>
                 </div>
                 {/* 3D exploded pie — size: maxWidth in StatusPie3D's svg style; colors: the CC values passed below */}
@@ -2018,7 +2018,7 @@ useEffect(() => {
                     { label: 'Activated', value: data.employeeStats.active, color: CC.blue },
                     { label: 'Not activated', value: data.employeeStats.inactive, color: CC.amber },
                     { label: 'Locked', value: data.employeeStats.locked, color: CC.red },
-                    { label: 'Active', value: data.employeeStats.online, color: CC.teal },
+                    { label: 'Online', value: data.employeeStats.online, color: CC.teal },
                     { label: 'Offline', value: data.employeeStats.offline, color: '#9E9E9E' },
                   ]}
                 />
@@ -2091,7 +2091,7 @@ useEffect(() => {
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{employee.department_name || employee.department?.department_name || '____'}</td>
                                 <td className="px-2 sm:px-4 py-2">
                                   <span className={`px-1 sm:px-2 py-1 text-xs ${employee.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                    {employee.is_active ? 'Active' : 'Inactive'}
+                                    {employee.is_active ? 'Online' : 'Offline'}
                                   </span>
                                 </td>
                               </tr>
@@ -2335,7 +2335,7 @@ useEffect(() => {
                       { key: 'active', label: 'Activated', count: data?.employeeStats.active ?? 0, chip: 'bg-green-100 text-green-800 border-green-300' },
                       { key: 'inactive', label: 'Not activated', count: data?.employeeStats.inactive ?? 0, chip: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
                       { key: 'locked', label: 'Locked', count: data?.employeeStats.locked ?? 0, chip: 'bg-red-100 text-red-800 border-red-300' },
-                      { key: 'online', label: 'Active', count: data?.employeeStats.online ?? 0, chip: 'bg-teal-100 text-teal-800 border-teal-300' },
+                      { key: 'online', label: 'Online', count: data?.employeeStats.online ?? 0, chip: 'bg-teal-100 text-teal-800 border-teal-300' },
                       { key: 'offline', label: 'Offline', count: data?.employeeStats.offline ?? 0, chip: 'bg-gray-200 text-gray-600 border-gray-400' },
                     ] as const).map(f => (
                       <button
