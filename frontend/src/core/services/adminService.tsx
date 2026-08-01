@@ -353,6 +353,45 @@ export const departmentManagerService = {
     if (rating) url += `&rating=${rating}`;
     return get(url);
   },
+
+  // ---- Head of Department features ----
+  getTeamMembers: (page: number = 1, limit: number = 20, search?: string, isActive?: boolean) => {
+    let url = `/department-manager/team?page=${page}&limit=${limit}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    if (isActive !== undefined) url += `&is_active=${isActive}`;
+    return get(url);
+  },
+  getTeamTasks: (page: number = 1, limit: number = 20, status?: string, memberId?: string) => {
+    let url = `/department-manager/team-tasks?page=${page}&limit=${limit}`;
+    if (status) url += `&status=${encodeURIComponent(status)}`;
+    if (memberId) url += `&memberId=${encodeURIComponent(memberId)}`;
+    return get(url);
+  },
+  createTeamTask: (data: { title: string; description?: string; incharge: string; priority?: string; dueDate?: string; startDate?: string }) =>
+    post('/department-manager/team-tasks', data),
+  getAnnouncements: (page: number = 1, limit: number = 20, aType?: string) => {
+    let url = `/department-manager/announcements?page=${page}&limit=${limit}`;
+    if (aType) url += `&a_type=${encodeURIComponent(aType)}`;
+    return get(url);
+  },
+  createAnnouncement: (data: { title: string; message: string; a_type?: string; department_id?: string }) =>
+    post('/department-manager/announcements', data),
+  deleteAnnouncement: (id: string) => del(`/department-manager/announcements/${id}`),
+  getAuditLogs: (page: number = 1, limit: number = 20, filters?: { action?: string; resource?: string; start_date?: string; end_date?: string }) => {
+    let url = `/department-manager/audit/logs?page=${page}&limit=${limit}`;
+    if (filters?.action) url += `&action=${encodeURIComponent(filters.action)}`;
+    if (filters?.resource) url += `&resource=${encodeURIComponent(filters.resource)}`;
+    if (filters?.start_date) url += `&start_date=${encodeURIComponent(filters.start_date)}`;
+    if (filters?.end_date) url += `&end_date=${encodeURIComponent(filters.end_date)}`;
+    return get(url);
+  },
+  getAuditStats: (days: number = 30) => get(`/department-manager/audit/stats?days=${days}`),
+  getDepartmentKpis: (from?: string, to?: string) => {
+    const params: string[] = [];
+    if (from) params.push(`from=${encodeURIComponent(from)}`);
+    if (to) params.push(`to=${encodeURIComponent(to)}`);
+    return get(`/department-manager/analytics/kpis${params.length ? `?${params.join('&')}` : ''}`);
+  },
 };
 
 // ==================== SMART PARKING APIs ====================

@@ -67,6 +67,11 @@ const DepartmentSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
+  department_response_time_in_minutes: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
   is_active: {
     type: Boolean,
     default: true,

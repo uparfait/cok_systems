@@ -70,9 +70,9 @@ const updateDepartment = async (req, res, next) => {
             });
         }
 
-        // Update department
+        // Update department (schema field is `name`; API accepts `department_name`)
         const updateData = {
-            department_name: department_name.trim()
+            name: department_name.trim()
         };
 
         if (department_response_time_in_minutes !== undefined) {
