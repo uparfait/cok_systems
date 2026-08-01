@@ -94,7 +94,7 @@ const RequestStats: React.FC = () => {
         </div>
         <div>
           <h3 className="text-sm font-semibold" style={{ fontFamily: "'Montserrat', sans-serif", color: '#333333' }}>
-            Request Statistics
+            Request Overview
           </h3>
           <p className="text-xs text-gray-400">By status</p>
         </div>
