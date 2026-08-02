@@ -310,7 +310,7 @@ const LoginPage = () => {
         <div className="w-full max-w-lg h-full ">
           <div className="cok-auth-card h-full flex   justify-center flex-col  px-2 py-6 sm:px-10 sm:py-8">
             {/* Logo and intro text */}
-            <div className="text-center mb-4 sm:mb-5">
+            <div onClick={()=> navigate('/')} className="text-center cursor-pointer mb-4 sm:mb-5" title='Click to home'>
               <img
                 src={logoImage}
                 alt="City of Kigali"

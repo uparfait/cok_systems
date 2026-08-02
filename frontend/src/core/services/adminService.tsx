@@ -299,6 +299,14 @@ export const serviceDeliveryService = {
     if (history === true) url += `&history=true`;
     return get(url);
   },
+  getAssignedVisitorsGenderStats: (params?: { period?: string; from?: string; to?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.period) query.append('period', params.period);
+    if (params?.from) query.append('from', params.from);
+    if (params?.to) query.append('to', params.to);
+    const qs = query.toString();
+    return get(`/servicedelivery/assigned-visitors/gender-stats${qs ? `?${qs}` : ''}`);
+  },
   getServiceTrackingVisitors: (page: number = 1, limit: number = 20) => get(`/servicedelivery/service-tracking/visitors?page=${page}&limit=${limit}`),
   search: (query: string, page: number = 1, limit: number = 50, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),
   searchVisitors: (query: string, page: number = 1, limit: number = 50, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),

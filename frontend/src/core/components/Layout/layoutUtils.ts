@@ -112,7 +112,6 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       { id: 'dashboard', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiGrid' },
       { id: 'visitors', label: 'Visitors', path: `/${slug}/all-visitors`, icon: 'FiUsers' },
       { id: 'tasks', label: 'Task Manager', path: `/${slug}/dashboard?tab=tasks`, icon: 'FiClipboard' },
-      { id: 'performance', label: 'Performance Analytics', path: `/${slug}/dashboard?tab=performance`, icon: 'FiBarChart2' },
       { id: 'history', label: 'Service History', path: `/${slug}/dashboard?tab=history`, icon: 'FiFileText' },
       { id: 'queue', label: 'Department Queue', path: `/${slug}/dashboard?tab=queue`, icon: 'FiList' },
     ];
@@ -327,7 +326,6 @@ const getRoleSelectionNavigation = (_role: string): NavItem[] => {
       children: [
         { id: 'employee-dashboard', label: 'Dashboard', path: '/employee/dashboard', icon: 'FiGrid' },
         { id: 'employee-visitors', label: 'Visitors', path: '/employee/all-visitors', icon: 'FiUsers' },
-        { id: 'employee-performance', label: 'Performance Analytics', path: '/employee/dashboard?tab=performance', icon: 'FiBarChart2' },
         { id: 'employee-history', label: 'Service History', path: '/employee/dashboard?tab=history', icon: 'FiFileText' },
         { id: 'employee-queue', label: 'Department Queue', path: '/employee/dashboard?tab=queue', icon: 'FiList' },
       ]
