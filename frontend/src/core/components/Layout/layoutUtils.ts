@@ -167,9 +167,10 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       userRole.includes('head of department') || userRole.includes('director')) {
     return [
       { id: 'dashboard', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiGrid' },
+      { id: 'kpis', label: 'KPI Dashboard', path: `/${slug}/hod/kpis`, icon: 'FiBarChart2' },
       {
-        id: 'requests',
-        label: 'Requests',
+        id: 'visitor-requests',
+        label: 'Visitor Requests',
         path: `/${slug}/dashboard?tab=active-tasks`,
         icon: 'FiClipboard',
         children: [
@@ -177,9 +178,14 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
           { id: 'completed-requests', label: 'Completed Requests', path: `/${slug}/dashboard?tab=completed-requests`, icon: 'FiCheck' }
         ]
       },
-      { id: 'employees', label: 'Employee Management', path: `/${slug}/dashboard?tab=employees`, icon: 'FiUsers' },
-      { id: 'departments', label: 'Department Management', path: `/${slug}/dashboard?tab=departments`, icon: 'FiLayers' },
-      { id: 'feedback', label: 'Feedback & Analytics', path: `/${slug}/dashboard?tab=feedback`, icon: 'FiMessageSquare' }
+      { id: 'requests', label: 'Requests', path: `/${slug}/requests`, icon: 'FiFile' },
+      { id: 'employees', label: 'My Employees', path: `/${slug}/hod/employees`, icon: 'FiUsers' },
+      { id: 'team-tasks', label: 'Team Tasks', path: `/${slug}/hod/tasks`, icon: 'FiList' },
+      { id: 'announcements', label: 'Announcements', path: `/${slug}/hod/announcements`, icon: 'FiMessageSquare' },
+      { id: 'approvals', label: 'Approvals', path: `/${slug}/hod/approvals`, icon: 'FiUserCheck' },
+      { id: 'audit', label: 'Audit & Compliance', path: `/${slug}/hod/audit`, icon: 'FiShield' },
+      { id: 'feedback', label: 'Feedback', path: `/${slug}/hod/feedback`, icon: 'FiStar' },
+      { id: 'departments', label: 'Department Management', path: `/${slug}/dashboard?tab=departments`, icon: 'FiLayers' }
     ];
   }
 
