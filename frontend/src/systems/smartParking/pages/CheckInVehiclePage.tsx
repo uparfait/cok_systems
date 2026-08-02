@@ -470,399 +470,385 @@ const CheckInVehiclePage: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="p-6" style={{ backgroundColor: NEUTRAL_LIGHT }}>
-        <div className="flex justify-center">
-          <div className="w-full max-w-md">
-            {/* Manual Verification Panel - Centered */}
-            <div className="p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
-              <div className="-mx-6 -mt-6 px-6 pt-6 pb-4 mb-4" style={{ backgroundColor: NEUTRAL_LIGHT, borderBottom: `1px solid ${BORDER}` }}>
-                <h2 className="text-lg font-bold mb-1" style={{ color: PRIMARY, fontFamily: fontHeading }}>Plate Number Verification</h2>
-                <p className="text-xs" style={{ color: '#555555' }}>Enter plate number</p>
+      <div className="p-4 sm:p-6" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+  <div className="flex justify-center">
+    <div className="w-full max-w-md">
+      {/* Manual Verification Panel - Centered */}
+      <div className="p-4 sm:p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+        <div className="-mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 mb-4" style={{ backgroundColor: NEUTRAL_LIGHT, borderBottom: `1px solid ${BORDER}` }}>
+          <h2 className="text-base sm:text-lg font-bold mb-1" style={{ color: PRIMARY, fontFamily: fontHeading }}>Plate Number Verification</h2>
+          <p className="text-xs" style={{ color: '#555555' }}>Enter plate number</p>
+        </div>
+        
+        <div className="mb-4">
+          <label className="block mb-2 text-sm sm:text-base" style={labelStyle}>License Plate Number</label>
+          <input
+            type="text"
+            value={plateNumber}
+            onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
+            onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
+            placeholder=".........................."
+            className="cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base"
+          />
+        </div>
+
+        {verifiedData ? (
+          <div className="p-3 mb-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+            <div className="font-semibold text-sm" style={{ color: NEUTRAL_DARK }}>{verifiedData.driver_details?.name || verifiedData.driver_name || 'Unknown'}</div>
+            <div className="text-xs" style={{ color: GRAY_DISABLED }}>{verifiedData.driver_type || '___'}</div>
+            <div className="font-medium text-xs mt-1" style={{ color: SUCCESS }}>ALLOWED</div>
+          </div>
+        ) : (
+          <div className="p-3 mb-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+            <div className="text-xs text-center" style={{ color: GRAY_DISABLED }}>Enter plate above number to verify</div>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => handleVerify()}
+          disabled={verifying || !plateNumber.trim()}
+          className="w-full py-2 sm:py-3 max-h-[50px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-1 transition-colors text-sm sm:text-base"
+          style={{ ...buttonFont, border: 'none', backgroundColor: PRIMARY, color: WHITE }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+        >
+          {verifying ? (
+            <span className="flex items-center gap-2">
+              <SpiralLoader color="#FFFFFFF" />
+              <span>Verifying plate...</span>
+            </span>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <BsShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>Verify PLATE NUMBER</span>
               </div>
-              
-              <div className="mb-4">
-                <label className="block mb-2" style={labelStyle}>License Plate Number</label>
-                <input
-                  type="text"
-                  value={plateNumber}
-                  onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
-                  placeholder=".........................."
-                  className="cok-auth-input pr-3 py-3"
-                
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{/* Found Vehicle Modal */}
+{showFoundModal && verifiedData && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="w-full max-w-md mx-2 sm:mx-4 overflow-hidden max-h-[90vh] overflow-y-auto" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+      <div className="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between" style={{ backgroundColor: verifiedData.is_reserved ? 'rgba(5,109,170,0.10)' : (verifiedData.is_flagged && verifiedData.is_currently_parked) ? 'rgba(231,76,60,0.10)' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'rgba(243,156,18,0.10)' : verifiedData.is_currently_parked ? 'rgba(243,156,18,0.10)' : 'rgba(76,175,80,0.10)' }}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: verifiedData.is_reserved ? 'rgba(5,109,170,0.12)' : (verifiedData.is_flagged && verifiedData.is_currently_parked) ? 'rgba(231,76,60,0.12)' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'rgba(243,156,18,0.12)' : verifiedData.is_currently_parked ? 'rgba(243,156,18,0.12)' : 'rgba(76,175,80,0.12)' }}>
+            {verifiedData.is_reserved ? (
+              <FiAward className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: PRIMARY }} />
+            ) : verifiedData.is_flagged && verifiedData.is_currently_parked ? (
+              <FiAlertTriangle className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: DANGER }} />
+            ) : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? (
+              <FiAlertTriangle className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: WARNING }} />
+            ) : verifiedData.is_currently_parked ? (
+              <FiAlertCircle className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: WARNING }} />
+            ) : (
+              <BsShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: SUCCESS }} />
+            )}
+          </div>
+          <div>
+            <h3 className="text-base sm:text-lg font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Vehicle Verification</h3>
+            <p className="text-xs sm:text-sm" style={{ color: verifiedData.is_reserved ? PRIMARY : (verifiedData.is_flagged && verifiedData.is_currently_parked) ? DANGER : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? WARNING : verifiedData.is_currently_parked ? WARNING : SUCCESS }}>
+              {verifiedData.is_reserved ? 'Reserved Vehicle' : verifiedData.is_flagged && verifiedData.is_currently_parked ? 'Vehicle is flagged' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'Vehicle was flagged in the past' : verifiedData.is_currently_parked ? 'Already inside parking' : 'Auto-scan successful'}
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="p-4 sm:p-6">
+        {/* Avatar */}
+        <div className="flex flex-col items-center mb-4">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mb-2" style={{ backgroundColor: 'rgba(5,109,170,0.10)' }}>
+            <span className="text-2xl sm:text-3xl font-bold" style={{ color: PRIMARY, fontFamily: fontHeading }}>
+              {(verifiedData.driver_details?.name || verifiedData.driver_name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+            </span>
+          </div>
+          {(verifiedData.staff_details?.department_name) && (
+            <div className="px-3 py-1" style={{ backgroundColor: 'rgba(76,175,80,0.10)' }}>
+              <span className="text-xs font-medium" style={{ color: SUCCESS }}>{verifiedData.staff_details?.department_name}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Driver Info */}
+        <div className="mb-4 p-3" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="text-sm font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Driver Information</h4>
+              {verifiedData.is_reserved && (
+                <span className="px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'rgba(76,175,80,0.10)', color: SUCCESS }}>
+                  Reserved
+                </span>
+              )}
+            </div>
+            {/* Only show edit button if vehicle is not currently parked AND not reserved */}
+            {!verifiedData.is_currently_parked && !verifiedData.is_reserved && (
+              <button type="button" onClick={() => setIsEditingDriver(!isEditingDriver)} className="cok-btn-outlined text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-1.5">
+                {isEditingDriver ? 'Cancel' : 'Edit'}
+              </button>
+            )}
+          </div>
+
+          {isEditingDriver ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm" style={labelStyle}>Name</label>
+                <input type="text" name="name" value={driverInfo.name} onChange={handleDriverInfoChange} className="cok-auth-input pr-3 py-2 sm:py-3 text-sm" />
+              </div>
+              <div>
+                <label className="text-sm" style={labelStyle}>Phone</label>
+                <input type="tel" name="telephone" value={driverInfo.telephone} onChange={handleDriverInfoChange} className="cok-auth-input pr-3 py-2 sm:py-3 text-sm" />
+              </div>
+              <div className="col-span-1 sm:col-span-2">
+                <label className="text-sm" style={labelStyle}>
+                  Badge Number {verifiedData.is_reserved ? '(Optional for reserved)' : '*'}
+                </label>
+                <input 
+                  type="text" 
+                  name="badge_number" 
+                  value={driverInfo.badge_number} 
+                  onChange={handleDriverInfoChange} 
+                  className="cok-auth-input pr-3 py-2 sm:py-3 text-sm" 
+                  required={!verifiedData.is_reserved}
                 />
               </div>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm" style={{ color: NEUTRAL_DARK }}>
+                <FiUser className="w-4 h-4" style={{ color: GRAY_DISABLED }} />
+                {driverInfo.name || 'Not specified'}
+              </div>
+              <div className="flex items-center gap-2 text-sm" style={{ color: NEUTRAL_DARK }}>
+                <FiPhone className="w-4 h-4" style={{ color: GRAY_DISABLED }} />
+                {driverInfo.telephone || 'Not specified'}
+              </div>
+              <div className="flex items-center gap-2 text-sm font-medium" style={{ color: NEUTRAL_DARK }}>
+                <FiAward className="w-4 h-4" style={{ color: GRAY_DISABLED }} />
+                Badge: {driverInfo.badge_number || (verifiedData.is_reserved ? '___ (Reserved)' : 'Not specified')}
+              </div>
+            </div>
+          )}
+        </div>
 
-              {verifiedData ? (
-                <div className="p-3 mb-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
-                  <div className="font-semibold text-sm" style={{ color: NEUTRAL_DARK }}>{verifiedData.driver_details?.name || verifiedData.driver_name || 'Unknown'}</div>
-                  <div className="text-xs" style={{ color: GRAY_DISABLED }}>{verifiedData.driver_type || '___'}</div>
-                  <div className="font-medium text-xs mt-1" style={{ color: SUCCESS }}>ALLOWED</div>
-                </div>
-              ) : (
-                <div className="p-3 mb-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
-                  <div className="text-xs text-center" style={{ color: GRAY_DISABLED }}>Enter plate above number to verify</div>
-                </div>
-              )}
+        {/* Vehicle Info */}
+        <div className="flex justify-between items-center p-3 mb-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+          <div>
+            <p className="text-sm" style={labelStyle}>Vehicle</p>
+            <p className="font-semibold text-sm sm:text-base" style={{ color: NEUTRAL_DARK }}>{verifiedData.vehicle_category || 'Staff Vehicle'}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm" style={labelStyle}>Plate</p>
+            <p className="font-bold text-sm sm:text-base" style={{ color: NEUTRAL_DARK }}>{verifiedData.plate_number}</p>
+          </div>
+        </div>
 
-              <button
-                type="button"
-                onClick={() => handleVerify()}
-                disabled={verifying || !plateNumber.trim()}
-                className="w-full py-3 max-h-[50px]  cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-1 transition-colors"
-                style={{ ...buttonFont, border: 'none', backgroundColor: PRIMARY, color: WHITE }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
-              >
-                {verifying ? (
-                  <span className="flex items-center gap-2">
-                    <SpiralLoader color="#FFFFFFF" />
-                    <span>Verifying plate...</span>
-                  </span>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <BsShieldCheck className="w-5 h-5" />
-                      <span>Verify PLATE NUMBER</span>
-                    </div>
-                  </>
-                )}
-              </button>
+        <button
+          type="button"
+          onClick={handleConfirmEntry}
+          disabled={verifiedData.is_currently_parked}
+          className={`w-full py-2 sm:py-3 flex items-center justify-center gap-2 transition-colors text-sm sm:text-base ${verifiedData.is_currently_parked ? 'cursor-not-allowed' : ''}`}
+          style={{ ...buttonFont, border: 'none', backgroundColor: verifiedData.is_currently_parked ? GRAY_DISABLED : PRIMARY, color: WHITE }}
+          onMouseEnter={(e) => { if (!verifiedData.is_currently_parked) e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+          onMouseLeave={(e) => { if (!verifiedData.is_currently_parked) e.currentTarget.style.backgroundColor = PRIMARY; }}
+        >
+          <FiCheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+          {verifiedData.is_currently_parked ? 'Already Checked In' : verifiedData.is_reserved ? 'Confirm Entry (Reserved Vehicle)' : 'Confirm Entry & Open Gate'}
+        </button>
 
-            
+        <button type="button" onClick={closeAllModals} className="w-full mt-3 sm:mt-5 cok-btn-outlined text-sm sm:text-base py-2 sm:py-2.5">
+          {verifiedData.is_currently_parked ? 'Close' : 'Cancel'}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* Unknown Vehicle Modal */}
+{showUnknownModal && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="w-full max-w-2xl mx-2 sm:mx-4 overflow-hidden max-h-[90vh] overflow-y-auto" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+      <div className="px-4 sm:px-6 py-3 sm:py-4" style={{ backgroundColor: 'rgba(231,76,60,0.08)' }}>
+        <div className="flex items-center gap-2">
+          <FiAlertCircle className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: DANGER }} />
+          <div>
+            <h3 className="text-sm sm:text-base font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Vehicle Not Found</h3>
+            <p className="text-xs" style={{ color: '#555555' }}>This vehicle is not registered in the system</p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="px-4 sm:px-6 py-2" style={{ backgroundColor: 'rgba(231,76,60,0.12)' }}>
+        <p className="text-xs text-center" style={{ color: DANGER }}>This vehicle is not registered. Please register visitor details to grant one-time access.</p>
+      </div>
+      
+      <div className="p-4 sm:p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block mb-1 text-sm" style={labelStyle}>Plate Number</label>
+            <input type="text" name="plate_number" value={unknownForm.plate_number} disabled placeholder="Enter plate number" className="cok-auth-input pr-3 py-2 sm:py-3 text-sm uppercase" />
+          </div>
+
+          <div>
+            <label className="block mb-1 text-sm" style={labelStyle}>ID Type</label>
+            <select
+              name="id_type"
+              value={unknownForm.id_type}
+              onChange={handleInputChange}
+              className="cok-auth-input pr-3 py-2 sm:py-3 text-sm"
+            >
+              <option value="National ID">National ID</option>
+              <option value="Passport">Passport</option>
+              <option value="Driving Licence">Driving Licence</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block mb-1 text-sm" style={labelStyle}>
+              {unknownForm.id_type === 'National ID' ? 'National ID (16 digits)' : 'ID Number'}
+            </label>
+            <input 
+              type="text" 
+              name="id_number" 
+              value={unknownForm.id_number || ''} 
+              onChange={handleInputChange} 
+              placeholder={unknownForm.id_type === 'National ID' ? 'Enter 16_digit national ID' : 'Enter ID number'} 
+              className="cok-auth-input pr-3 py-2 sm:py-3 text-sm" 
+              style={{ borderColor: idError ? DANGER : '' }} 
+              onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} 
+              onBlur={(e) => { e.currentTarget.style.borderColor = idError ? DANGER : ''; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} 
+            />
+            {idError && (
+              <p className="mt-1 text-xs" style={{ color: DANGER }}>{idError}</p>
+            )}
+            {unknownForm.id_type === 'National ID' && unknownForm.id_number && !idError && (
+              <p className="mt-1 text-xs" style={{ color: SUCCESS }}>✓ National ID format valid</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block mb-1 text-sm" style={labelStyle}>Full Names</label>
+            <input type="text" name="driver_name" value={unknownForm.driver_name} onChange={handleInputChange} placeholder="Enter full names" className="cok-auth-input pr-3 py-2 sm:py-3 text-sm" />
+          </div>
+
+          <div>
+            <label className="block mb-1 text-sm" style={labelStyle}>Phone Number</label>
+            <input type="tel" name="driver_telephone" value={unknownForm.driver_telephone} onChange={handleInputChange} placeholder="Enter phone number" className="cok-auth-input pr-3 py-2 sm:py-3 text-sm" />
+          </div>
+
+          <div>
+            <label className="block mb-1 text-sm" style={labelStyle}>Email Address</label>
+            <input 
+              type="email" 
+              name="driver_email" 
+              value={unknownForm.driver_email || ''} 
+              onChange={handleInputChange} 
+              placeholder="Enter email (optional)" 
+              className="cok-auth-input pr-3 py-2 sm:py-3 text-sm" 
+              style={{ borderColor: emailError ? DANGER : '' }} 
+              onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} 
+              onBlur={(e) => { e.currentTarget.style.borderColor = emailError ? DANGER : ''; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} 
+            />
+            {emailError && (
+              <p className="mt-1 text-xs" style={{ color: DANGER }}>{emailError}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block mb-1 text-sm" style={labelStyle}>Badge Number</label>
+            <input type="text" name="badge_number" value={unknownForm.badge_number || ''} onChange={handleInputChange} placeholder="Enter badge number" className="cok-auth-input pr-3 py-2 sm:py-3 text-sm" />
+          </div>
+
+          <div>
+            <label className="block mb-1 text-sm" style={labelStyle}>Gender</label>
+            <div className="flex gap-2">
+              {['Male', 'Female'].map((gender) => (
+                <button key={gender} type="button" onClick={() => handleInputChange({ target: { name: 'driver_gender', value: gender } } as any)} className="flex-1 py-1.5 sm:py-2 transition-colors text-sm" style={{ ...buttonFont, border: 'none', backgroundColor: unknownForm.driver_gender === gender ? PRIMARY : NEUTRAL_LIGHT, color: unknownForm.driver_gender === gender ? WHITE : NEUTRAL_DARK }}>
+                  {gender}
+                </button>
+              ))}
             </div>
           </div>
         </div>
 
-        
+        <div className="flex flex-col sm:flex-row gap-2 pt-4 mt-2">
+          <button type="button" onClick={closeAllModals} className="w-full sm:flex-1 cok-btn-outlined text-sm py-2 sm:py-2.5">Cancel</button>
+          <button type="button" onClick={handleRegisterUnknown} disabled={loading || !unknownForm.driver_name || !unknownForm.driver_telephone} className="w-full sm:flex-1 px-4 py-2 sm:py-2.5 cok-btn-primary disabled:opacity-50 text-sm">
+            {loading ? "Waiting...." : "Register & Check In"}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* Already Parked Modal */}
+{showAlreadyParkedModal && verifiedData && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="max-w-md w-full p-4 sm:p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(243,156,18,0.12)' }}>
+          <FiAlertCircle className="w-6 h-6 sm:w-8 sm:h-8" style={{ color: WARNING }} />
+        </div>
+        <div>
+          <h3 className="text-lg sm:text-xl font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Vehicle Already Inside</h3>
+          <p className="text-sm" style={{ color: '#555555' }}>{verifiedData.plate_number}</p>
+        </div>
       </div>
 
-      {/* Found Vehicle Modal */}
-      {showFoundModal && verifiedData && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-md mx-4 overflow-hidden max-h-[90vh] overflow-y-auto" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
-            <div className="px-6 py-4 flex items-center justify-between" style={{ backgroundColor: verifiedData.is_reserved ? 'rgba(5,109,170,0.10)' : (verifiedData.is_flagged && verifiedData.is_currently_parked) ? 'rgba(231,76,60,0.10)' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'rgba(243,156,18,0.10)' : verifiedData.is_currently_parked ? 'rgba(243,156,18,0.10)' : 'rgba(76,175,80,0.10)' }}>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: verifiedData.is_reserved ? 'rgba(5,109,170,0.12)' : (verifiedData.is_flagged && verifiedData.is_currently_parked) ? 'rgba(231,76,60,0.12)' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'rgba(243,156,18,0.12)' : verifiedData.is_currently_parked ? 'rgba(243,156,18,0.12)' : 'rgba(76,175,80,0.12)' }}>
-                  {verifiedData.is_reserved ? (
-                    <FiAward className="w-6 h-6" style={{ color: PRIMARY }} />
-                  ) : verifiedData.is_flagged && verifiedData.is_currently_parked ? (
-                    <FiAlertTriangle className="w-6 h-6" style={{ color: DANGER }} />
-                  ) : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? (
-                    <FiAlertTriangle className="w-6 h-6" style={{ color: WARNING }} />
-                  ) : verifiedData.is_currently_parked ? (
-                    <FiAlertCircle className="w-6 h-6" style={{ color: WARNING }} />
-                  ) : (
-                    <BsShieldCheck className="w-6 h-6" style={{ color: SUCCESS }} />
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Vehicle Verification</h3>
-                  <p className="text-sm" style={{ color: verifiedData.is_reserved ? PRIMARY : (verifiedData.is_flagged && verifiedData.is_currently_parked) ? DANGER : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? WARNING : verifiedData.is_currently_parked ? WARNING : SUCCESS }}>
-                    {verifiedData.is_reserved ? 'Reserved Vehicle' : verifiedData.is_flagged && verifiedData.is_currently_parked ? 'Vehicle is flagged' : (verifiedData.was_ever_flagged && !verifiedData.is_currently_parked) ? 'Vehicle was flagged in the past' : verifiedData.is_currently_parked ? 'Already inside parking' : 'Auto-scan successful'}
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              {/* Avatar */}
-              <div className="flex flex-col items-center mb-4">
-                <div className="w-20 h-20 rounded-full flex items-center justify-center mb-2" style={{ backgroundColor: 'rgba(5,109,170,0.10)' }}>
-                  <span className="text-3xl font-bold" style={{ color: PRIMARY, fontFamily: fontHeading }}>
-                    {(verifiedData.driver_details?.name || verifiedData.driver_name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                  </span>
-                </div>
-                {(verifiedData.staff_details?.department_name) && (
-                  <div className="px-3 py-1" style={{ backgroundColor: 'rgba(76,175,80,0.10)' }}>
-                    <span className="text-xs font-medium" style={{ color: SUCCESS }}>{verifiedData.staff_details?.department_name}</span>
-                  </div>
-                )}
-              </div>
+      <div className="p-3 sm:p-4 mb-4" style={{ backgroundColor: 'rgba(243,156,18,0.10)' }}>
+        <p className="font-medium text-sm" style={{ color: WARNING }}>⚠️ This vehicle is already checked in the parking facility.</p>
+      </div>
 
-              {/* Driver Info */}
-              <div className="mb-4 p-3" style={{ backgroundColor: NEUTRAL_LIGHT }}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Driver Information</h4>
-                    {verifiedData.is_reserved && (
-                      <span className="px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'rgba(76,175,80,0.10)', color: SUCCESS }}>
-                        Reserved
-                      </span>
-                    )}
-                  </div>
-                  {/* Only show edit button if vehicle is not currently parked AND not reserved */}
-                  {!verifiedData.is_currently_parked && !verifiedData.is_reserved && (
-                    <button type="button" onClick={() => setIsEditingDriver(!isEditingDriver)} className="cok-btn-outlined" >
-                      
-                      {isEditingDriver ? 'Cancel' : 'Edit'}
-                    </button>
-                  )}
-                </div>
-
-                {isEditingDriver ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label style={labelStyle}>Name</label>
-                      <input type="text" name="name" value={driverInfo.name} onChange={handleDriverInfoChange} className="cok-auth-input pr-3 py-3"   />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Phone</label>
-                      <input type="tel" name="telephone" value={driverInfo.telephone} onChange={handleDriverInfoChange} className="cok-auth-input pr-3 py-3"   />
-                    </div>
-                    <div className="col-span-2">
-                      <label style={labelStyle}>
-                        Badge Number {verifiedData.is_reserved ? '(Optional for reserved)' : '*'}
-                      </label>
-                      <input 
-                        type="text" 
-                        name="badge_number" 
-                        value={driverInfo.badge_number} 
-                        onChange={handleDriverInfoChange} 
-                        className="cok-auth-input pr-3 py-3"  
-                        required={!verifiedData.is_reserved}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-sm" style={{ color: NEUTRAL_DARK }}>
-                      <FiUser className="w-4 h-4" style={{ color: GRAY_DISABLED }} />
-                      {driverInfo.name || 'Not specified'}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm" style={{ color: NEUTRAL_DARK }}>
-                      <FiPhone className="w-4 h-4" style={{ color: GRAY_DISABLED }} />
-                      {driverInfo.telephone || 'Not specified'}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm font-medium" style={{ color: NEUTRAL_DARK }}>
-                      <FiAward className="w-4 h-4" style={{ color: GRAY_DISABLED }} />
-                      Badge: {driverInfo.badge_number || (verifiedData.is_reserved ? '___ (Reserved)' : 'Not specified')}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Vehicle Info */}
-              <div className="flex justify-between items-center p-3 mb-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
-                <div>
-                  <p style={labelStyle}>Vehicle</p>
-                  <p className="font-semibold" style={{ color: NEUTRAL_DARK }}>{verifiedData.vehicle_category || 'Staff Vehicle'}</p>
-                </div>
-                <div className="text-right">
-                  <p style={labelStyle}>Plate</p>
-                  <p className="font-bold" style={{ color: NEUTRAL_DARK }}>{verifiedData.plate_number}</p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleConfirmEntry}
-                disabled={verifiedData.is_currently_parked}
-                className={`w-full py-3 flex items-center justify-center gap-2 transition-colors ${verifiedData.is_currently_parked ? 'cursor-not-allowed' : ''}`}
-                style={{ ...buttonFont, border: 'none', backgroundColor: verifiedData.is_currently_parked ? GRAY_DISABLED : PRIMARY, color: WHITE }}
-                onMouseEnter={(e) => { if (!verifiedData.is_currently_parked) e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
-                onMouseLeave={(e) => { if (!verifiedData.is_currently_parked) e.currentTarget.style.backgroundColor = PRIMARY; }}
-              >
-                <FiCheckCircle className="w-5 h-5" />
-                {verifiedData.is_currently_parked ? 'Already Checked In' : verifiedData.is_reserved ? 'Confirm Entry (Reserved Vehicle)' : 'Confirm Entry & Open Gate'}
-              </button>
-
-              <button type="button" onClick={closeAllModals} className="w-full mt-5 cok-btn-outlined" >
-                
-                {verifiedData.is_currently_parked ? 'Close' : 'Cancel'}
-              </button>
-            </div>
+      <div className="p-3 sm:p-4 mb-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <span style={{ color: '#555555' }}>Driver:</span>
+            <p className="font-medium" style={{ color: NEUTRAL_DARK }}>{verifiedData.driver_details?.name || verifiedData.driver_name || '___'}</p>
+          </div>
+          <div>
+            <span style={{ color: '#555555' }}>Type:</span>
+            <p className="font-medium" style={{ color: NEUTRAL_DARK }}>{verifiedData.driver_type || '___'}</p>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Unknown Vehicle Modal */}
-      {showUnknownModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-2xl mx-4 overflow-hidden max-h-[90vh] overflow-y-auto" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
-            <div className="px-6 py-4" style={{ backgroundColor: 'rgba(231,76,60,0.08)' }}>
-              <div className="flex items-center gap-2">
-                <FiAlertCircle className="w-6 h-6" style={{ color: DANGER }} />
-                <div>
-                  <h3 className="text-base font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Vehicle Not Found</h3>
-                  <p className="text-xs" style={{ color: '#555555' }}>This vehicle is not registered in the system</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="px-6 py-2" style={{ backgroundColor: 'rgba(231,76,60,0.12)' }}>
-              <p className="text-xs text-center" style={{ color: DANGER }}>This vehicle is not registered. Please register visitor details to grant one-time access.</p>
-            </div>
-            
-            <div className="p-6">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block mb-1" style={labelStyle}>Plate Number</label>
-                  <input type="text" name="plate_number" value={unknownForm.plate_number} disabled placeholder="Enter plate number" className="cok-auth-input pr-3 py-3 uppercase"  />
-                </div>
+      <button onClick={closeAllModals} className="w-full px-4 py-2 sm:py-2.5 transition-colors text-sm sm:text-base" style={{ ...buttonFont, border: 'none', backgroundColor: PRIMARY, color: WHITE }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}>Close</button>
+    </div>
+  </div>
+)}
 
-                <div>
-                  <label className="block mb-1" style={labelStyle}>ID Type</label>
-                  <select
-                    name="id_type"
-                    value={unknownForm.id_type}
-                    onChange={handleInputChange}
-                    className="cok-auth-input pr-3 py-3"  
-                  >
-                    <option value="National ID">National ID</option>
-                    <option value="Passport">Passport</option>
-                    <option value="Driving Licence">Driving Licence</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block mb-1" style={labelStyle}>
-                    {unknownForm.id_type === 'National ID' ? 'National ID (16 digits)' : 'ID Number'}
-                  </label>
-                  <input 
-                    type="text" 
-                    name="id_number" 
-                    value={unknownForm.id_number || ''} 
-                    onChange={handleInputChange} 
-                    placeholder={unknownForm.id_type === 'National ID' ? 'Enter 16_digit national ID' : 'Enter ID number'} 
-                    className="cok-auth-input pr-3 py-3" style={{  borderColor: idError ? DANGER : '' }} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = idError ? DANGER : ''; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} 
-                  />
-                  {idError && (
-                    <p className="mt-1 text-xs" style={{ color: DANGER }}>{idError}</p>
-                  )}
-                  {unknownForm.id_type === 'National ID' && unknownForm.id_number && !idError && (
-                    <p className="mt-1 text-xs" style={{ color: SUCCESS }}>✓ National ID format valid</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block mb-1" style={labelStyle}>Full Names</label>
-                  <input type="text" name="driver_name" value={unknownForm.driver_name} onChange={handleInputChange} placeholder="Enter full names" className="cok-auth-input pr-3 py-3"   />
-                </div>
-
-                <div>
-                  <label className="block mb-1" style={labelStyle}>Phone Number</label>
-                  <input type="tel" name="driver_telephone" value={unknownForm.driver_telephone} onChange={handleInputChange} placeholder="Enter phone number" className="cok-auth-input pr-3 py-3"   />
-                </div>
-
-                <div>
-                  <label className="block mb-1" style={labelStyle}>Email Address</label>
-                  <input 
-                    type="email" 
-                    name="driver_email" 
-                    value={unknownForm.driver_email || ''} 
-                    onChange={handleInputChange} 
-                    placeholder="Enter email (optional)" 
-                    className="cok-auth-input pr-3 py-3" style={{  borderColor: emailError ? DANGER : '' }} onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }} onBlur={(e) => { e.currentTarget.style.borderColor = emailError ? DANGER : ''; e.currentTarget.style.boxShadow = INPUT_SHADOW; }} 
-                  />
-                  {emailError && (
-                    <p className="mt-1 text-xs" style={{ color: DANGER }}>{emailError}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block mb-1" style={labelStyle}>Badge Number</label>
-                  <input type="text" name="badge_number" value={unknownForm.badge_number || ''} onChange={handleInputChange} placeholder="Enter badge number" className="cok-auth-input pr-3 py-3"   />
-                </div>
-
-                <div>
-                  <label className="block mb-1" style={labelStyle}>Gender</label>
-                  <div className="flex gap-2">
-                    {['Male', 'Female'].map((gender) => (
-                      <button key={gender} type="button" onClick={() => handleInputChange({ target: { name: 'driver_gender', value: gender } } as any)} className="flex-1 py-2 transition-colors" style={{ ...buttonFont, border: 'none', backgroundColor: unknownForm.driver_gender === gender ? PRIMARY : NEUTRAL_LIGHT, color: unknownForm.driver_gender === gender ? WHITE : NEUTRAL_DARK }}>
-                        {gender}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* <div>
-                  <label className="block mb-1" style={labelStyle}>Visitor Type</label>
-                  <div className="flex gap-2 flex-wrap">
-                    {['Visitor', 'Regular', 'Staff'].map((type) => (
-                      <button key={type} type="button" onClick={() => handleInputChange({ target: { name: 'driver_type', value: type } } as any)} className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium ${unknownForm.driver_type === type ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>
-                        {type}
-                      </button>
-                    ))}
-                  </div>
-                </div> */}
-                
-              </div>
-
-              <div className="flex gap-2 pt-4 mt-2">
-                <button type="button" onClick={closeAllModals} className="cok-btn-outlined" >Cancel</button>
-                <button type="button" onClick={handleRegisterUnknown} disabled={loading || !unknownForm.driver_name || !unknownForm.driver_telephone} className=" px-4 py-2.5 cok-btn-primary disabled:opacity-50 "  >
-                  {loading ? "Waiting...." : "Register & Check In"}
-                  
-                </button>
-              </div>
-            </div>
-          </div>
+{/* Flagged Vehicle Modal */}
+{showFlaggedModal && verifiedData && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="max-w-md w-full p-4 sm:p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(231,76,60,0.12)' }}>
+          <FiFlag className="w-6 h-6 sm:w-8 sm:h-8" style={{ color: DANGER }} />
         </div>
-      )}
-
-      {/* Already Parked Modal */}
-      {showAlreadyParkedModal && verifiedData && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="max-w-md w-full p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(243,156,18,0.12)' }}>
-                <FiAlertCircle className="w-8 h-8" style={{ color: WARNING }} />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Vehicle Already Inside</h3>
-                <p style={{ color: '#555555' }}>{verifiedData.plate_number}</p>
-              </div>
-            </div>
-
-            <div className="p-4 mb-4" style={{ backgroundColor: 'rgba(243,156,18,0.10)' }}>
-              <p className="font-medium" style={{ color: WARNING }}>⚠️ This vehicle is already checked in the parking facility.</p>
-            </div>
-
-            <div className="p-4 mb-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span style={{ color: '#555555' }}>Driver:</span>
-                  <p className="font-medium" style={{ color: NEUTRAL_DARK }}>{verifiedData.driver_details?.name || verifiedData.driver_name || '___'}</p>
-                </div>
-                <div>
-                  <span style={{ color: '#555555' }}>Type:</span>
-                  <p className="font-medium" style={{ color: NEUTRAL_DARK }}>{verifiedData.driver_type || '___'}</p>
-                </div>
-              </div>
-            </div>
-
-            <button onClick={closeAllModals} className="w-full px-4 py-2.5 transition-colors" style={{ ...buttonFont, border: 'none', backgroundColor: PRIMARY, color: WHITE }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}>Close</button>
-          </div>
+        <div>
+          <h3 className="text-lg sm:text-xl font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Vehicle Flagged</h3>
+          <p className="text-sm" style={{ color: '#555555' }}>{verifiedData.plate_number}</p>
         </div>
-      )}
+      </div>
 
-      {/* Flagged Vehicle Modal */}
-      {showFlaggedModal && verifiedData && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="max-w-md w-full p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(231,76,60,0.12)' }}>
-                <FiFlag className="w-8 h-8" style={{ color: DANGER }} />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Vehicle Flagged</h3>
-                <p style={{ color: '#555555' }}>{verifiedData.plate_number}</p>
-              </div>
-            </div>
+      <div className="p-3 sm:p-4 mb-4" style={{ backgroundColor: 'rgba(231,76,60,0.08)' }}>
+        <p className="font-medium text-sm" style={{ color: DANGER }}>⚠️ This vehicle has been flagged in the system!</p>
+        <p className="text-xs sm:text-sm mt-1" style={{ color: DANGER }}>Please verify vehicle and driver details before allowing entry</p>
+      </div>
 
-            <div className="p-4 mb-4" style={{ backgroundColor: 'rgba(231,76,60,0.08)' }}>
-              <p className="font-medium" style={{ color: DANGER }}>⚠️ This vehicle has been flagged in the system!</p>
-              <p className="text-sm mt-1" style={{ color: DANGER }}>Please verify vehicle and driver details before allowing entry</p>
-            </div>
-
-            <div className="flex gap-3">
-              <button onClick={closeAllModals} className="flex-1 px-4 py-2.5 transition-colors" style={{ ...buttonFont, backgroundColor: '', border: `1px solid ${PRIMARY}`, color: PRIMARY }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(5,109,170,0.08)'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ''; }}>Deny Entry</button>
-              <button onClick={() => { setShowFlaggedModal(false); setShowUnknownModal(true); }} className="flex-1 px-4 py-2.5 transition-colors" style={{ ...buttonFont, border: 'none', backgroundColor: DANGER, color: WHITE }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#C0392B'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = DANGER; }}>Allow Entry</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+        <button onClick={closeAllModals} className="w-full sm:flex-1 px-4 py-2 sm:py-2.5 transition-colors text-sm" style={{ ...buttonFont, backgroundColor: '', border: `1px solid ${PRIMARY}`, color: PRIMARY }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(5,109,170,0.08)'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ''; }}>Deny Entry</button>
+        <button onClick={() => { setShowFlaggedModal(false); setShowUnknownModal(true); }} className="w-full sm:flex-1 px-4 py-2 sm:py-2.5 transition-colors text-sm" style={{ ...buttonFont, border: 'none', backgroundColor: DANGER, color: WHITE }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#C0392B'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = DANGER; }}>Allow Entry</button>
+      </div>
+    </div>
+  </div>
+)}
     </MainLayout>
   );
 };

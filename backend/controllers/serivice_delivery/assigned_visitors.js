@@ -1,22 +1,28 @@
 const ServiceDelivery = require("../../models/service_delivery.js");
 const Department = require("../../models/department.js");
 
-module.exports = async function dashboard_visitors(req, res, next) {
+module.exports = async function assigned_visitors(req, res, next) {
   try {
     let { limit = 20, page = 1, q, in_house, history } = req.query || {};
-
-    let user_role_name = req.user?.role_name;
-    let user_department_id = req.user?.department?._id?.toString() || null;
-    let user_department_unit_id = req.user?.department_unit?.toString() || null;
 
     const limit_val = Math.min(parseInt(limit), 20);
     const skip_val = (parseInt(page) - 1) * limit_val;
 
     let filter = {};
-   
-    if (in_house === true) {
+    filter["departments_assigned"] = { $exists: true, $not: { $size: 0 } };
+    filter["departments_assigned.assigned_by.user_id"] = req.user?.id || req.user?._id;
+
+    if (in_house === 'true') {
+      filter.is_still_inhouse = true;
+    } else if (in_house === 'false') {
+      filter.is_still_inhouse = false;
+    } else if (history !== 'true') {
       filter.is_still_inhouse = true;
     }
+
+    let user_role_name = req.user?.role_name;
+    let user_department_id = req.user?.department?._id?.toString() || null;
+    let user_department_unit_id = req.user?.department_unit?.toString() || null;
 
     if (user_role_name === "Employee") {
       let departmentIds = [];
@@ -30,7 +36,7 @@ module.exports = async function dashboard_visitors(req, res, next) {
         return res.status(200).json({
           success: true,
           type: "success",
-          message: "Dashboard visitors results",
+          message: "Assigned visitors results",
           total: 0,
           page: parseInt(page),
           data: [],
@@ -129,17 +135,17 @@ module.exports = async function dashboard_visitors(req, res, next) {
     return res.status(200).json({
       success: true,
       type: "success",
-      message: "Dashboard visitors results",
+      message: "Assigned visitors results",
       total: total_count,
       page: parseInt(page),
       data: visitorsWithDuration,
     });
   } catch (error) {
-    console.error("Error in dashboard_visitors:", error);
+    console.error("Error in assigned_visitors:", error);
     return res.status(500).json({
       success: false,
       type: "error",
-      message: "Something went wrong while retrieving dashboard visitors",
+      message: "Something went wrong while retrieving assigned visitors",
       error: error.message,
     });
   }

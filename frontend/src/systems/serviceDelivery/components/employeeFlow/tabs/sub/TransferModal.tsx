@@ -9,7 +9,7 @@ const WHITE = "#FFFFFF";
 const fontHeading = "'Montserrat', sans-serif";
 const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
 
-const labelStyle: React.CSSProperties = { fontFamily: fontHeading, fontSize: 13, fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY };
+const labelStyle: React.CSSProperties = { fontFamily: fontHeading, fontSize: 13, fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: NEUTRAL_DARK };
 const btnTypography: React.CSSProperties = { fontFamily: fontHeading, fontSize: 13, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' };
 
 interface TransferModalProps {
@@ -43,7 +43,7 @@ const TransferModal: React.FC<TransferModalProps> = ({
         <div className="p-5">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-base font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Transfer Visitor</h2>
-            <button onClick={onClose} className="text-[#9E9E9E] hover:text-[#555555]"><FiX className="w-5 h-5" /></button>
+            <button onClick={onClose} className="cok-btn-outlined-reverse" style={{ padding: '0.4rem 0.8rem' }}><FiX className="w-5 h-5" /></button>
           </div>
           <div className="mb-4">
             <label className="block mb-2" style={labelStyle}>Visitor</label>
@@ -99,8 +99,8 @@ const TransferModal: React.FC<TransferModalProps> = ({
             </div>
           )}
           <div className="flex gap-3">
-            <button onClick={onClose} className="flex-1 px-4 py-2 border border-[#056daa] bg-transparent text-[#056daa] hover:bg-[rgba(5,109,170,0.08)]" style={btnTypography}>Cancel</button>
-            <button onClick={onTransfer} disabled={!transferDepartment || transferring} className="flex-1 px-4 py-2 bg-[#056daa] text-white hover:bg-[#045d94] disabled:bg-[#9E9E9E] disabled:cursor-not-allowed flex items-center justify-center gap-2" style={btnTypography}>
+            <button onClick={onClose} className="cok-btn-outlined flex-1" style={btnTypography}>Cancel</button>
+            <button onClick={onTransfer} disabled={!transferDepartment || transferring} className="cok-btn-primary flex-1 flex items-center justify-center gap-2" style={btnTypography}>
               {transferring ? <><FiRefreshCw className="w-4 h-4 animate-spin" />Transferring...</> : "Transfer Visitor"}
             </button>
           </div>

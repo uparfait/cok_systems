@@ -18,7 +18,7 @@ const PRIMARY_HOVER = "#045d94";
 const SUCCESS = "#4CAF50";
 const DANGER = "#E74C3C";
 const NEUTRAL_LIGHT = "#F7F9FB";
-const NEUTRAL_DARK = "#333333";
+const PURE_WHITE = "#FFFFFF";
 const BORDER = "#E0E0E0";
 const TERTIARY = "#CDB896";
 const WHITE = "#FFFFFF";
@@ -302,7 +302,7 @@ const CheckOutVehiclePage: React.FC = () => {
     return (
       <button
         onClick={() => openCheckoutModal(record)}
-        className="inline-flex items-center gap-1 px-3 py-1.5 transition-colors"
+        className="inline-flex cursor-pointer items-center gap-1 px-3 py-1.5 transition-colors"
         style={{
           backgroundColor: DANGER,
           color: WHITE,
@@ -344,24 +344,9 @@ const CheckOutVehiclePage: React.FC = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   placeholder="Search by plate, name, or badge..."
-                  className="w-full pl-9 pr-3 py-2 outline-none transition-all"
-                  style={{
-                    fontFamily: fontHeading,
-                    fontSize: '14px',
-                    backgroundColor: NEUTRAL_LIGHT,
-                    border: '1px solid transparent',
-                    borderRadius: 0,
-                    boxShadow: '0px 2px 4px rgba(0,0,0,0.1)',
-                    color: NEUTRAL_DARK
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = PRIMARY;
-                    e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'transparent';
-                    e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)';
-                  }}
+                  className="w-full pl-9 pr-3 py-2 cok-auth-input"
+                  
+                  
                 />
               </div>
               <button
@@ -385,29 +370,7 @@ const CheckOutVehiclePage: React.FC = () => {
               </button>
             </div>
 
-            {/* Filter Buttons - Fixed: Added all filter options */}
-            <div className="flex gap-2 flex-wrap">
-              {(['all', 'staff', 'visitors', 'regular'] as const).map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => handleFilterChange(filter)}
-                  className={getFilterButtonClass(filter)}
-                  style={{
-                    borderRadius: 0,
-                    fontFamily: fontHeading,
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    letterSpacing: '1px',
-                    textTransform: 'uppercase',
-                    border: `1px solid ${PRIMARY}`,
-                    backgroundColor: typeFilter === filter ? PRIMARY : 'transparent',
-                    color: typeFilter === filter ? WHITE : PRIMARY
-                  }}
-                >
-                  {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
-                </button>
-              ))}
-            </div>
+            
           </div>
         </div>
 
@@ -415,35 +378,36 @@ const CheckOutVehiclePage: React.FC = () => {
         <div className="overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 140px)', backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
           <div className="overflow-auto flex-1">
             <table className="w-full min-w-[1100px]">
-              <thead className="sticky top-0 z-10 shadow-sm" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+              <thead className="sticky top-0 z-10 shadow-sm cok-bg-primary">
                 <tr>
-                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
+                                    <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: PURE_WHITE }}>
+                    Buttons
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: PURE_WHITE }}>
                     Plate Number
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: PURE_WHITE }}>
                     Driver Name
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: PURE_WHITE }}>
                     Badge
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: PURE_WHITE }}>
                     Telephone
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: PURE_WHITE }}>
                     ID Number
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: PURE_WHITE }}>
                     Type
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: PURE_WHITE }}>
                     Check-in
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: PURE_WHITE }}>
                     Duration
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
-                    Actions
-                  </th>
+
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -474,13 +438,16 @@ const CheckOutVehiclePage: React.FC = () => {
                 ) : (
                   filteredRecords.map((record, index) => (
                     <tr key={record._id || index} className="hover:bg-gray-50 transition-colors duration-200">
+                                            <td className="px-3 py-3 whitespace-nowrap">
+                        {getActionButton(record)}
+                      </td>
                       <td className="px-3 py-3 whitespace-nowrap">
                         <span className="font-medium text-sm" style={{ color: record.is_flagged ? DANGER : PRIMARY }}>
                           {record.plate_number || '-'}
                         </span>
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap">
-                        <span className="text-sm" style={{ color: NEUTRAL_DARK }}>
+                        <span className="text-sm" style={{ color: PURE_WHITE }}>
                           {record.driver_name || '-'}
                         </span>
                       </td>
@@ -533,9 +500,7 @@ const CheckOutVehiclePage: React.FC = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-3 whitespace-nowrap">
-                        {getActionButton(record)}
-                      </td>
+
                     </tr>
                   ))
                 )}
@@ -600,7 +565,7 @@ const CheckOutVehiclePage: React.FC = () => {
                     <FiLogOut className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: DANGER }} />
                   </div>
                   <div>
-                    <h3 className="text-base sm:text-lg" style={{ fontFamily: fontHeading, fontWeight: 700, color: NEUTRAL_DARK }}>Confirm Checkout</h3>
+                    <h3 className="text-base sm:text-lg" style={{ fontFamily: fontHeading, fontWeight: 700, color: PURE_WHITE }}>Confirm Checkout</h3>
                   </div>
                 </div>
                 <button
@@ -618,23 +583,23 @@ const CheckOutVehiclePage: React.FC = () => {
                 <div className="grid grid-cols-2 gap-2 sm:gap-3 text-xs sm:text-sm">
                   <div>
                     <span style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Plate Number:</span>
-                    <p className="font-medium text-sm sm:text-base" style={{ color: NEUTRAL_DARK }}>{selectedRecord.plate_number}</p>
+                    <p className="font-medium text-sm sm:text-base" style={{ color: PURE_WHITE }}>{selectedRecord.plate_number}</p>
                   </div>
                   <div>
                     <span style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Driver:</span>
-                    <p className="font-medium text-sm sm:text-base" style={{ color: NEUTRAL_DARK }}>{selectedRecord.driver_name}</p>
+                    <p className="font-medium text-sm sm:text-base" style={{ color: PURE_WHITE }}>{selectedRecord.driver_name}</p>
                   </div>
                   <div>
                     <span style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Phone:</span>
-                    <p className="font-medium text-sm sm:text-base" style={{ color: NEUTRAL_DARK }}>{selectedRecord.driver_telephone}</p>
+                    <p className="font-medium text-sm sm:text-base" style={{ color: PURE_WHITE }}>{selectedRecord.driver_telephone}</p>
                   </div>
                   <div>
                     <span style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Type:</span>
-                    <p className="font-medium text-sm sm:text-base" style={{ color: NEUTRAL_DARK }}>{selectedRecord.driver_type || 'Visitor'}</p>
+                    <p className="font-medium text-sm sm:text-base" style={{ color: PURE_WHITE }}>{selectedRecord.driver_type || 'Visitor'}</p>
                   </div>
                   <div className="col-span-2">
                     <span style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Check-in:</span>
-                    <p className="font-medium text-sm sm:text-base" style={{ color: NEUTRAL_DARK }}>{formatDate(selectedRecord.check_in)}</p>
+                    <p className="font-medium text-sm sm:text-base" style={{ color: PURE_WHITE }}>{formatDate(selectedRecord.check_in)}</p>
                   </div>
                 </div>
               </div>

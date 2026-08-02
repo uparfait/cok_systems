@@ -3,9 +3,7 @@ import { FiClock, FiCheckCircle, FiRefreshCw } from 'react-icons/fi';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useSocket } from '../../../core/contexts/SocketContext';
 import { serviceDeliveryService } from '../../../core/services/adminService';
-import ProvideServicesTab from '../components/employeeFlow/tabs/ProvideServicesTab';
 
-// City of Kigali institutional design constants
 const PRIMARY = "#056daa";
 const SUCCESS = "#4CAF50";
 const WARNING = "#F39C12";
@@ -13,6 +11,7 @@ const NEUTRAL_LIGHT = "#F7F9FB";
 const NEUTRAL_DARK = "#333333";
 const WHITE = "#FFFFFF";
 const GRAY_DISABLED = "#9E9E9E";
+const BORDER = "#E0E0E0";
 const fontHeading = "'Montserrat', sans-serif";
 const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
 
@@ -64,11 +63,10 @@ const EmployeeDashboard: React.FC = () => {
               <div className="w-8 h-1 mt-1" style={{ backgroundColor: s.bar }}></div>
             </div>
           ))}
-        </div>
-        <ProvideServicesTab isDashboardView={true} />
-      </div>
-    </div>
-  );
+         </div>
+       </div>
+     </div>
+   );
 };
 
 export default EmployeeDashboard;

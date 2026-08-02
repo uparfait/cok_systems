@@ -488,7 +488,7 @@ const CheckOutPersonPage: React.FC = () => {
         return (
           <button
             onClick={() => openMarkAsInModal(record)}
-            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs transition-colors"
+            className="inline-flex cursor-pointer items-center gap-1 px-3 py-1.5 text-xs transition-colors"
             style={{ backgroundColor: SUCCESS, color: WHITE, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SUCCESS_HOVER; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}
@@ -501,7 +501,7 @@ const CheckOutPersonPage: React.FC = () => {
         return (
           <button
             onClick={() => openMarkAsOutModal(record)}
-            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs transition-colors"
+            className="inline-flex cursor-pointer items-center gap-1 px-3 py-1.5 text-xs transition-colors"
             style={{ backgroundColor: WARNING, color: WHITE, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#D68910'; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = WARNING; }}
@@ -516,7 +516,7 @@ const CheckOutPersonPage: React.FC = () => {
     return (
       <button
         onClick={() => openCheckoutModal(record)}
-        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs transition-colors"
+        className="inline-flex cursor-pointer items-center gap-1 px-3 py-1.5 text-xs transition-colors"
         style={{ backgroundColor: DANGER, color: WHITE, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#C0392B'; }}
         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = DANGER; }}
@@ -553,10 +553,8 @@ const CheckOutPersonPage: React.FC = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   placeholder="Search by name, badge, or phone..."
-                  className="w-full pl-9 pr-3 py-2 focus:outline-none"
-                  style={{ fontFamily: fontHeading, fontSize: '14px', backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)', color: NEUTRAL_DARK }}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }}
+                  className="w-full pl-9 pr-3 py-2 cok-auth-input"
+
                 />
               </div>
               <button
@@ -571,19 +569,7 @@ const CheckOutPersonPage: React.FC = () => {
               </button>
             </div>
             
-            {/* Filter Buttons - Fixed: Added all filter options */}
-            <div className="flex gap-2 flex-wrap">
-              {(['all', 'staff', 'visitors', 'regular'] as const).map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => handleFilterChange(filter)}
-                  className={getFilterButtonClass(filter)}
-                  style={getFilterButtonStyle(filter)}
-                >
-                  {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
-                </button>
-              ))}
-            </div>
+           
           </div>
         </div>
 
@@ -591,35 +577,37 @@ const CheckOutPersonPage: React.FC = () => {
         <div className="overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 140px)', backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
           <div className="overflow-auto flex-1">
             <table className="w-full min-w-[1200px]">
-              <thead className="sticky top-0 z-10" style={{ backgroundColor: NEUTRAL_LIGHT, boxShadow: `0 1px 0 0 ${BORDER}` }}>
+              <thead className="sticky top-0 z-10 cok-primary-bg" >
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: NEUTRAL_DARK }}>
+                                    <th className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: "#FFFFFF" }}>
+                    Buttons
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: "#FFFFFF" }}>
                     Visitor Name
                   </th>
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: NEUTRAL_DARK }}>
+                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: "#FFFFFF" }}>
                     Email
                   </th>
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: NEUTRAL_DARK }}>
+                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: "#FFFFFF" }}>
                     Badge
                   </th>
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: NEUTRAL_DARK }}>
+                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: "#FFFFFF" }}>
                     Telephone
                   </th>
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: NEUTRAL_DARK }}>
+                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: "#FFFFFF" }}>
                     ID Number
                   </th>
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: NEUTRAL_DARK }}>
+                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: "#FFFFFF" }}>
                     Car Plate
                   </th>
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: NEUTRAL_DARK }}>
+                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: "#FFFFFF" }}>
                     Check-in
                   </th>
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: NEUTRAL_DARK }}>
+                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: "#FFFFFF" }}>
                     Duration
                   </th>
-                  <th className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: NEUTRAL_DARK }}>
-                    Actions
-                  </th>
+                  
+
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E0E0E0]">
@@ -655,7 +643,10 @@ const CheckOutPersonPage: React.FC = () => {
                   </tr>
                 ) : (
                   filteredRecords.map((record, index) => (
-                    <tr key={record._id || index} className="hover:bg-[rgba(5,109,170,0.06)] transition-colors duration-200">
+                    <tr key={record._id || index} className="hover:bg-[rgba(5,109,170,0.06)]  transition-colors duration-200">
+                                            <td className="px-3 py-2.5 whitespace-nowrap">
+                        {getActionButton(record)}
+                      </td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 flex items-center justify-center" style={{ backgroundColor: 'rgba(76,175,80,0.1)', borderRadius: 0 }}>
@@ -713,9 +704,7 @@ const CheckOutPersonPage: React.FC = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 whitespace-nowrap">
-                        {getActionButton(record)}
-                      </td>
+
                     </tr>
                   ))
                 )}

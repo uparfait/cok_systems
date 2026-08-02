@@ -23,6 +23,7 @@ const service_delivery_schema = new mongoose.Schema({
     telephone: { type: String },
     email: { type: String },
     badge_number: { type: String },
+    registered_by: { type: String, default: '' },
     departments_assigned: [
         {
             department_id: String,
@@ -30,7 +31,12 @@ const service_delivery_schema = new mongoose.Schema({
             assigned_time: { type: Date, default: Date.now },
             reached_in: { type: Boolean, default: false },
             provider_name: String,
-            provider_id: String
+            provider_id: String,
+            assigned_by: {
+                user_id: String,
+                name: String,
+                email: String
+            }
         }
     ],
     entry_date: { type: Date, default: Date.now },

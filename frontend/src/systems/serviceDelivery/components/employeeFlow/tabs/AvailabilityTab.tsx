@@ -3,16 +3,35 @@ import React, { useState } from 'react';
 import { FiInfo, FiCheckCircle } from 'react-icons/fi';
 
 const PRIMARY = "#056daa";
-const PRIMARY_HOVER = "#045d94";
 const SUCCESS = "#4CAF50";
-const SUCCESS_HOVER = "#388E3C";
+const WARNING = "#F39C12";
 const DANGER = "#E74C3C";
 const NEUTRAL_LIGHT = "#F7F9FB";
 const NEUTRAL_DARK = "#333333";
-const TERTIARY = "#CDB896";
+const BORDER = "#E0E0E0";
+const WHITE = "#FFFFFF";
 const GRAY_DISABLED = "#9E9E9E";
 const fontHeading = "'Montserrat', sans-serif";
 const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+
+const inputStyle: React.CSSProperties = {
+  fontFamily: fontHeading,
+  fontSize: "14px",
+  backgroundColor: NEUTRAL_LIGHT,
+  border: "1px solid transparent",
+  borderRadius: 0,
+  boxShadow: "0px 2px 4px rgba(0,0,0,0.1)",
+  color: NEUTRAL_DARK,
+};
+const focusInput = (e: React.FocusEvent<HTMLElement>) => {
+  e.currentTarget.style.borderColor = PRIMARY;
+  e.currentTarget.style.boxShadow = "0px 4px 8px rgba(5,109,170,0.25)";
+};
+const blurInput = (e: React.FocusEvent<HTMLElement>) => {
+  e.currentTarget.style.borderColor = "transparent";
+  e.currentTarget.style.boxShadow = "0px 2px 4px rgba(0,0,0,0.1)";
+};
+const btnTypography: React.CSSProperties = { fontFamily: fontHeading, fontSize: 13, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' };
 
 const labelStyle: React.CSSProperties = {
   fontFamily: fontHeading,
@@ -20,7 +39,7 @@ const labelStyle: React.CSSProperties = {
   fontWeight: 600,
   letterSpacing: '0.5px',
   textTransform: 'uppercase',
-  color: TERTIARY
+  color: "#555555",
 };
 
 type StatusType = 'active' | 'away';
@@ -72,11 +91,8 @@ const AvailabilityTab: React.FC = () => {
           {/* Active / Available Option */}
           <button
             onClick={() => handleStatusChange('active')}
-            className={`w-[280px] h-[70px] p-5 flex items-center gap-4 transition-colors ${
-              currentStatus === 'active'
-                ? 'bg-white border-2 border-[#4CAF50] shadow-md'
-                : 'bg-[#F7F9FB] border border-[#E0E0E0]'
-            }`}
+            className={`cok-btn-outlined w-full h-14 p-3 flex items-center gap-3 transition-colors ${currentStatus === 'active' ? 'cok-bg-primary text-white' : 'text-[#333333]'}`}
+            style={btnTypography}
           >
             <div className={`w-4 h-4 rounded-full ${currentStatus === 'active' ? 'bg-[#4CAF50]' : 'border-2 border-gray-400'}`}></div>
             <div className="text-left">
@@ -88,11 +104,8 @@ const AvailabilityTab: React.FC = () => {
           {/* Away / On Break Option */}
           <button
             onClick={() => handleStatusChange('away')}
-            className={`w-[280px] h-[70px] p-5 flex items-center gap-4 transition-colors ${
-              currentStatus === 'away'
-                ? 'bg-[#F39C12] border-2 border-[#F39C12]'
-                : 'bg-[#D68910] border-2 border-transparent'
-            }`}
+            className={`cok-btn-outlined w-full h-14 p-3 flex items-center gap-3 transition-colors ${currentStatus === 'away' ? 'cok-bg-primary text-white' : 'text-[#333333]'}`}
+            style={btnTypography}
           >
             <div className={`w-4 h-4 rounded-full ${currentStatus === 'away' ? 'bg-white' : 'border-2 border-white/60'}`}></div>
             <div className="text-left">
@@ -109,10 +122,10 @@ const AvailabilityTab: React.FC = () => {
             value={reasonNote}
             onChange={(e) => setReasonNote(e.target.value.slice(0, 140))}
             placeholder="e.g., Taking a 30 min lunch break, Technical issue with printer..."
-            className="w-full h-[90px] p-3.5 mt-3 resize-none focus:outline-none"
-            style={{ fontFamily: fontHeading, fontSize: '14px', backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' }}
-            onFocus={(e) => { e.currentTarget.style.border = `1px solid ${PRIMARY}`; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
-            onBlur={(e) => { e.currentTarget.style.border = '1px solid transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }}
+            className="cok-auth-input w-full h-[90px] p-3.5 mt-3 resize-none"
+            style={inputStyle}
+            onFocus={focusInput}
+            onBlur={blurInput}
           />
           <p className="text-[11px] text-right mt-1" style={{ color: GRAY_DISABLED }}>{reasonNote.length}/140</p>
         </div>
@@ -121,10 +134,8 @@ const AvailabilityTab: React.FC = () => {
         <div className="flex justify-end mt-5">
           <button
             onClick={handleUpdateStatus}
-            className="text-white text-[13px] uppercase w-[160px] h-[46px] transition-colors"
-            style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', backgroundColor: PRIMARY, borderRadius: 0 }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+            className="cok-btn-primary text-white text-xs flex items-center justify-center w-full h-11"
+            style={btnTypography}
           >
             Update Status
           </button>
@@ -137,7 +148,7 @@ const AvailabilityTab: React.FC = () => {
           <div className="bg-white px-5 py-3.5 flex items-center gap-3" style={{ border: `1px solid ${SUCCESS}`, boxShadow: CARD_SHADOW }}>
             <FiCheckCircle className="w-[18px] h-[18px]" style={{ color: SUCCESS }} />
             <div>
-              <p className="text-[14px] font-bold" style={{ fontFamily: fontHeading, color: SUCCESS_HOVER }}>Status updated successfully!</p>
+              <p className="text-[14px] font-bold" style={{ fontFamily: fontHeading,  }}>Status updated successfully!</p>
               <p className="text-[#555555] text-[12px]">Your availability has been updated and the head of department has been notified.</p>
             </div>
           </div>

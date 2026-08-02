@@ -56,7 +56,17 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
               <div><label className="text-xs font-medium text-gray-700 mb-1 block">Telephone <span className="text-red-500">*</span></label><input type="tel" required value={formData.telephone} onChange={e => onChange({ ...formData, telephone: e.target.value })} className="w-full px-2.5 py-2 border border-gray-300 text-sm bg-white" placeholder="+1234567890" /></div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div><label className="text-xs font-medium text-gray-700 mb-1 block">Title</label><select value={formData.title} onChange={e => onChange({ ...formData, title: e.target.value })} className="w-full px-2.5 py-2 border border-gray-300 text-sm bg-white"><option value="">Select title</option><option value="Mr">Mr</option><option value="Mrs">Mrs</option></select></div>
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-1 block">Title <span className="text-red-500">*</span></label>
+                <input 
+                  type="text" 
+                  required 
+                  value={formData.title} 
+                  onChange={e => onChange({ ...formData, title: e.target.value })} 
+                  className="w-full px-2.5 py-2 border border-gray-300 text-sm bg-white" 
+                  placeholder="Enter job title" 
+                />
+              </div>
               <div><label className="text-xs font-medium text-gray-700 mb-1 block">Gender</label><select value={formData.gender} onChange={e => onChange({ ...formData, gender: e.target.value })} className="w-full px-2.5 py-2 border border-gray-300 text-sm bg-white"><option value="">Select gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select></div>
               <div><label className="text-xs font-medium text-gray-700 mb-1 block">ID Type</label><select value={formData.identification?.id_type || 'National ID'} onChange={e => onChange({ ...formData, identification: { ...formData.identification!, id_type: e.target.value } })} className="w-full px-2.5 py-2 border border-gray-300 text-sm bg-white"><option value="National ID">National ID</option><option value="Passport">Passport</option><option value="Driver License">Driver License</option></select></div>
             </div>

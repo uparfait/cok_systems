@@ -8,10 +8,13 @@ import { serviceDeliveryService, departmentService } from '../../../../../core/s
 
 const PRIMARY = "#056daa";
 const NEUTRAL_DARK = "#333333";
-const TERTIARY = "#CDB896";
+const BORDER = "#E0E0E0";
+const WHITE = "#FFFFFF";
+const GRAY_DISABLED = "#9E9E9E";
+const NEUTRAL_LIGHT = "#F7F9FB";
 const fontHeading = "'Montserrat', sans-serif";
 const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
-
+const TERTIARY = '#555555';
 const tableHeaderStyle: React.CSSProperties = {
   fontFamily: fontHeading,
   fontWeight: 600,
@@ -286,9 +289,9 @@ const DepartmentQueueTab: React.FC = () => {
                 </div>
               ) : (
                 <table className="w-full">
-                  <thead className="bg-[#F7F9FB] sticky top-0">
-                    <tr>
-                      <th className="px-5 py-2 text-left text-[10px] uppercase" style={tableHeaderStyle}>Visitor</th>
+<thead className="cok-bg-primary sticky top-0">
+	                       <tr>
+	                         <th className="px-5 py-2 text-left text-[10px] uppercase" style={tableHeaderStyle}>Visitor</th>
                       <th className="px-5 py-2 text-left text-[10px] uppercase" style={tableHeaderStyle}>Service</th>
                       <th className="px-5 py-2 text-left text-[10px] uppercase" style={tableHeaderStyle}>Wait Time</th>
                       <th className="px-5 py-2 text-left text-[10px] uppercase" style={tableHeaderStyle}>Status</th>
@@ -405,7 +408,7 @@ const DepartmentQueueTab: React.FC = () => {
                     {isExpanded && (
                       <div className="bg-[#F7F9FB] border-t border-[#E0E0E0] max-h-[300px] overflow-y-auto">
                         <table className="w-full">
-                          <thead className="bg-[#F7F9FB] sticky top-0">
+<thead className="cok-bg-primary sticky top-0">
                             <tr>
                               <th className="px-5 py-2 text-left text-[10px] uppercase" style={tableHeaderStyle}>Visitor</th>
                               <th className="px-5 py-2 text-left text-[10px] uppercase" style={tableHeaderStyle}>Service</th>

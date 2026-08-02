@@ -107,6 +107,11 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
         provider_name,
         provider_id,
         reached_in: false,
+        assigned_by: {
+          user_id: req.user?.id || req.user?._id || null,
+          name: req.user?.name || req.user?.full_name || 'System',
+          email: req.user?.email || ''
+        }
       },
     );
 
