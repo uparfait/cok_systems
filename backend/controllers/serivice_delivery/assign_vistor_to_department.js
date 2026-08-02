@@ -79,7 +79,7 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
     const current_time = new Date();
 
     // deny transfer if the visitor is still being served in the previous department
-    if (previous_department_id) {
+    if (true) {
       const active_service_index = visitor.services_status.findIndex(
         (s) => s.s_type === "Inprogress",
       );
@@ -98,8 +98,7 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
     // first of all empty department assigned to the visitor to avoid any conflict with the new department assignment
 
     visitor.departments_assigned.splice(
-      0,
-      visitor.departments_assigned.length,
+      0,0,
       {
         department_id: new_department_id,
         department_name: new_department_name,
@@ -115,7 +114,7 @@ module.exports = async function assign_visitor_to_department(req, res, next) {
       },
     );
 
-    visitor.services_status.splice(0, visitor.services_status.length, {
+    visitor.services_status.splice(0,0, {
       department_id: new_department_id,
       department_name: new_department_name,
       provider_name,

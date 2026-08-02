@@ -812,8 +812,7 @@ const App: React.FC = () => {
                   element={<Navigate to="/system-admin/dashboard" replace />}
                 />
 
-                {/* Default and catch-all */}
-                <Route path="/" element={<Navigate to="/login" replace />} />
+                
                 {/* route for unknown route move to under development */}
                 <Route
                   path=":roleSlug/Unknown-user"

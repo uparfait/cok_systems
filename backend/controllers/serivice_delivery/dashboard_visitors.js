@@ -14,7 +14,7 @@ module.exports = async function dashboard_visitors(req, res, next) {
 
     let filter = {};
    
-    if (in_house === true) {
+    if (in_house === true ||in_house === 'true') {
       filter.is_still_inhouse = true;
     }
 

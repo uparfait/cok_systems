@@ -59,6 +59,7 @@ module.exports = async function search_employees(req, res, next) {
 
     const employees = await user_model
       .find(search_criteria)
+      .select('-twofa_setup -password -auth -twofa_secret') 
       .limit(limit_val)
       .skip(skip_val)
       .sort({ full_name: 1 })

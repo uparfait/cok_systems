@@ -89,7 +89,7 @@ const ReceptionistVisitors: React.FC = () => {
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"all" | "inhouse" | "history">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "inhouse" | "history">("inhouse");
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [unassignedVisitors, setUnassignedVisitors] = useState<Visitor[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
@@ -274,7 +274,7 @@ const ReceptionistVisitors: React.FC = () => {
             {searchLoading ? (
               <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#FFFFFF', borderTopColor: 'transparent' }}></div>
             ) : (
-              <FiSearch className="w-4 h-4" />
+              <></>
             )}
             {searchLoading ? 'Searching...' : 'Search'}
           </button>

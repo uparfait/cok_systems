@@ -33,7 +33,7 @@ module.exports = async function get_employees(req, res, next) {
 
         // Fetch users while explicitly excluding sensitive fields
         const employees = await user_model.find(filter)
-            .select('-password -auth') 
+            .select('-twofa_setup -password -auth -twofa_secret') 
             .limit(limit_val)
             .skip(skip_val)
             .sort({ created_date: -1 })

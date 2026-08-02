@@ -24,6 +24,9 @@ import { useAuth } from "../../../core/contexts/AuthContext";
 import { useSocket } from "../../../core/contexts/SocketContext";
 import { useToast } from "../../../core/contexts/ToastContext";
 import { SkeletonCard } from "./sub/ReceptionistSkeleton";
+import RequestStats from "../../../core/components/requests/RequestStatistics";
+import OrientationStats from "../../../core/components/requests/OrientationStats";
+import AssignedVisitorsGenderChart from "../components/departmentFlow/AssignedVisitorsGenderChart";
 
 const PRIMARY = "#056daa";
 const SUCCESS = "#4CAF50";
@@ -94,7 +97,7 @@ const ReceptionistDashboard: React.FC = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      let visitorRes = await serviceDeliveryService.getDashboardVisitors(1, 20);
+      let visitorRes = await serviceDeliveryService.getDashboardVisitors(1, 20, null,true);
       if (visitorRes.status || visitorRes.success) {
         const allVisitors = Array.isArray(visitorRes.data)
           ? visitorRes.data
@@ -330,6 +333,13 @@ const ReceptionistDashboard: React.FC = () => {
             </div>
           )}
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <RequestStats />
+          <OrientationStats />
+        </div>
+
+        <AssignedVisitorsGenderChart />
       </div>
     </div>
   );

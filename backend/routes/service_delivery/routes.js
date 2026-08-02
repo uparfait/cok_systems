@@ -26,6 +26,7 @@ const update_service_status = require('../../controllers/serivice_delivery/updat
 const dashboard_visitors = require('../../controllers/serivice_delivery/dashboard_visitors.js');
 const service_tracking_visitors = require('../../controllers/serivice_delivery/service_tracking_visitors.js');
 const assigned_visitors = require('../../controllers/serivice_delivery/assigned_visitors.js');
+const assigned_visitors_gender_stats = require('../../controllers/serivice_delivery/assigned_visitors_gender_stats.js');
 
 Router.use(upload.any())
 
@@ -290,6 +291,68 @@ Router.get('/service-tracking/visitors', auditSuccess('READ', 'visitors'), servi
  *         description: Internal server error
  */
 Router.get('/assigned-visitors', auditSuccess('READ', 'visitors'), assigned_visitors)
+
+/**
+ * @swagger
+ * /servicedelivery/assigned-visitors/gender-stats:
+ *   get:
+ *     summary: "Get assigned visitors gender stats"
+ *     description: "Get gender-based statistics for visitors assigned by the current user"
+ *     tags: [Service Delivery]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: period
+ *         schema:
+ *           type: string
+ *           default: month
+ *         description: "Period filter (today, week, month, last_month, year, range)"
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: "Start date for custom range"
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: "End date for custom range"
+ *     responses:
+ *       200:
+ *         description: "Gender stats results"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 type:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       label:
+ *                         type: string
+ *                       Male:
+ *                         type: integer
+ *                       Female:
+ *                         type: integer
+ *                       Other:
+ *                         type: integer
+ *                 period:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ */
+Router.get('/assigned-visitors/gender-stats', auditSuccess('READ', 'visitors'), assigned_visitors_gender_stats)
 
 /**
  * @swagger

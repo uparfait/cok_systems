@@ -14,7 +14,7 @@ module.exports = async function get_employee_by_id(req, res, next) {
             })
         }
 
-        const employee = await user_model.findById(id).select('-password -auth').populate('department', 'department_name department_id')
+        const employee = await user_model.findById(id).select('-twofa_setup -password -auth -twofa_secret').populate('department', 'department_name department_id')
 
         if (!employee) {
             return res.status(404).json({

@@ -117,7 +117,7 @@ module.exports = async function get_employees_by_department(req, res, next) {
 
         // ── 4. Execute query ──
         let employees = await User.find(filter)
-            .select('-password -auth')
+            .select('-twofa_setup -password -auth -twofa_secret')
             .limit(limit_val)
             .skip(skip_val)
             .sort({ created_date: -1 })
@@ -134,7 +134,7 @@ module.exports = async function get_employees_by_department(req, res, next) {
             
             // Remove the $or filter entirely and just get all users, then we'll populate and filter
             const allUsers = await User.find({})
-                .select('-password -auth')
+                .select('-twofa_setup -password -auth -twofa_secret')
                 .limit(200)
                 .sort({ created_date: -1 })
                 .populate('department', 'name _id')

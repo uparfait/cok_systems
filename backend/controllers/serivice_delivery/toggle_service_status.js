@@ -80,8 +80,7 @@ module.exports = async function toggle_service_status(req, res, next) {
 
 
                 visitor.departments_assigned.splice(
-                    0,
-                    visitor.departments_assigned.length,
+                    0,0,
                 {
                     department_id: department_id,
                     department_name: user_department.department_name,
@@ -99,8 +98,7 @@ module.exports = async function toggle_service_status(req, res, next) {
                 visitor.is_being_served = true;
 
                 visitor.services_status.splice(
-                    0,
-                    visitor.services_status.length,
+                    0,0,
                     {
                         department_id: department_id,
                         department_name: user_department.department_name,
@@ -112,8 +110,7 @@ module.exports = async function toggle_service_status(req, res, next) {
 
 
                 visitor.durations.services_durations.splice(
-                    0,
-                    visitor.durations.services_durations.length,
+                    0,0,
                     {
                         department_id: department_id,
                         department_name: user_department.department_name,
@@ -150,7 +147,7 @@ module.exports = async function toggle_service_status(req, res, next) {
                 s => s.s_type !== 'Completed'
             );
 
-            console.log(visitor.services_status, "services status array")
+           // console.log(visitor.services_status, "services status array")
 
 
             if (service_index === -1) {
@@ -186,8 +183,7 @@ module.exports = async function toggle_service_status(req, res, next) {
             visitor.is_being_served = true;
 
             visitor.durations.services_durations.splice(
-                0,
-                visitor.durations.services_durations.length,
+                0,0,
                 {
                     department_id: active_service.department_id,
                     department_name: active_service.department_name,
@@ -233,9 +229,9 @@ module.exports = async function toggle_service_status(req, res, next) {
 
             const current_time = new Date();
 
-
+      
             // check if the one who is going to stop the service is the one who started it.
-            if(assigned_dept?.provider_id?.toString() !== officerId?.toString()){
+            if(active_service?.provider_id?.toString() !== officerId?.toString()){
                 return res.status(403).json({
                     success: false,
                     type: 'warning',

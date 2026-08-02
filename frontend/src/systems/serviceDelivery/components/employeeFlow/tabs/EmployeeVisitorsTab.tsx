@@ -5,6 +5,7 @@ import { useSocket } from "../../../../../core/contexts/SocketContext";
 import { useToast } from "../../../../../core/contexts/ToastContext";
 import { serviceDeliveryService, departmentService, employeeService } from "../../../../../core/services/adminService";
 import Table from "../../../../../core/components/Table";
+import EmployeeVisitorClicked from "../../../../../core/components/EmployeeVisitorClicked";
 import { TransferModal } from "./sub";
 
 const PRIMARY = "#056daa";
@@ -54,6 +55,8 @@ const EmployeeVisitorsTab: React.FC = () => {
   const [transferEmployees, setTransferEmployees] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
   const [showingTransferModal, setShowingTransferModal] = useState(false);
+  const [showVisitorDetails, setShowVisitorDetails] = useState(false);
+  const [selectedVisitorForDetails, setSelectedVisitorForDetails] = useState<any>(null);
   const [transferVisitor, setTransferVisitor] = useState<any>(null);
   const [transferDepartment, setTransferDepartment] = useState("");
   const [selectedUnit, setSelectedUnit] = useState("");
@@ -344,12 +347,16 @@ const EmployeeVisitorsTab: React.FC = () => {
             { key: "service", label: "ASSIGNED TO" },
             { key: "duration", label: "WAIT TIME" },
             { key: "status", label: "STATUS" },
-            { key: "action", label: "ACTION" },
+            { key: "action", label: "IS SERVED" },
           ]}
           data={paginatedVisitors}
           loading={loading && visitors.length === 0}
           emptyMessage="No visitors found for your department."
           headerClassName="cok-bg-primary"
+          onRowClick={(v: any) => {
+            setSelectedVisitorForDetails(v.rawVisitor || v);
+            setShowVisitorDetails(true);
+          }}
           pagination={{
             currentPage,
             totalPages,
@@ -442,21 +449,24 @@ const EmployeeVisitorsTab: React.FC = () => {
                     ✓ Served
                   </span>
                 ) : (
-                  <button
-                    title="Transfer visitor"
-                    onClick={(e) => handleTransferClick(e, v)}
-                    className="cok-btn-primary h-7 px-3 flex items-center justify-center gap-1 text-xs"
-                    style={btnTypography}
-                  >
-                    <FiArrowRightCircle className="w-3 h-3" /> Transfer
-                  </button>
+                  <span className="text-xs" style={{ color: "#555555", fontWeight: 600 }}>
+                    PENDING
+                  </span>
                 );
               default:
                 return <span className="text-xs" style={{ color: "#555555" }}>{v[header.key] || "-"}</span>;
             }
           }}
-        />
-      </div>
+         />
+       </div>
+
+      <EmployeeVisitorClicked
+        isOpen={showVisitorDetails}
+        onClose={() => { setShowVisitorDetails(false); setSelectedVisitorForDetails(null); }}
+        visitor={selectedVisitorForDetails}
+        myProviderId={myId}
+        onSaved={() => fetchAssignedVisitors(true)}
+      />
     </div>
   );
 };
