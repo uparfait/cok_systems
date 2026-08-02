@@ -9,6 +9,11 @@ const { getVisitorsByProvider } = require('../controllers/department_flow/visito
 const { getVisitorsByDepartment } = require('../controllers/department_flow/visitors_by_department');
 const { getManagedDepartments, updateDepartment } = require('../controllers/department_flow/department_management');
 const { getDepartmentFeedback } = require('../controllers/department_flow/feedback');
+const { getTeamMembers } = require('../controllers/department_flow/team');
+const { getTeamTasks, createTeamTask } = require('../controllers/department_flow/team_tasks');
+const { createAnnouncement, listAnnouncements, deleteAnnouncement } = require('../controllers/department_flow/announcements');
+const { getDepartmentAuditLogs, getDepartmentAuditStats } = require('../controllers/department_flow/audit_trail');
+const { getDepartmentKpis, getResponseTimeAnalytics } = require('../controllers/department_flow/kpis');
 
 const Router = require('express').Router();
 const authenticate = require('../middlewares/authenticate');
@@ -238,5 +243,31 @@ Router.put('/departments/:departmentId', authenticate, updateDepartment);
  *         description: Internal server error
  */
 Router.get('/feedback', authenticate, getDepartmentFeedback);
+
+/**
+ * Head of Department feature routes.
+ * All controllers below resolve the caller's managed departments via
+ * getDepartmentIdsForHead and respond 403 when the user leads no department.
+ */
+
+// Team members of the managed departments
+Router.get('/team', authenticate, getTeamMembers);
+
+// Task assignment and monitoring for department members
+Router.get('/team-tasks', authenticate, getTeamTasks);
+Router.post('/team-tasks', authenticate, createTeamTask);
+
+// Announcements, notices, and directives
+Router.get('/announcements', authenticate, listAnnouncements);
+Router.post('/announcements', authenticate, createAnnouncement);
+Router.delete('/announcements/:id', authenticate, deleteAnnouncement);
+
+// Department-scoped audit trail and compliance summary
+Router.get('/audit/logs', authenticate, getDepartmentAuditLogs);
+Router.get('/audit/stats', authenticate, getDepartmentAuditStats);
+
+// Departmental KPI dashboard (parking data intentionally excluded)
+Router.get('/analytics/kpis', authenticate, getDepartmentKpis);
+Router.get('/analytics/response-time', authenticate, getResponseTimeAnalytics);
 
 module.exports = Router;

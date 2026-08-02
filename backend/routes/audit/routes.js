@@ -4,9 +4,31 @@ const User = require('../../models/user');
 
 const authenticate = require('../../middlewares/authenticate');
 
-// Middleware to log audit events
+// Persist an audit event; never throws so it can't break the main request flow
 const logAudit = async (action, description, req, additionalData = {}) => {
- /// this function functionality made as middleware and not working again
+    try {
+        const { resource, status_code, old_values, new_values, error_message, metadata } = additionalData;
+
+        await Audit.create({
+            action,
+            description,
+            user_id: (req?.user?.userId || req?.user?._id)?.toString(),
+            user_name: req?.user?.full_name || req?.user?.name,
+            user_email: req?.user?.email,
+            resource,
+            ip_address: req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req?.ip,
+            user_agent: req?.headers?.['user-agent'],
+            method: req?.method,
+            endpoint: req?.originalUrl,
+            status_code,
+            old_values,
+            new_values,
+            error_message,
+            metadata
+        });
+    } catch (error) {
+        console.error('logAudit failed:', error.message);
+    }
 };
 
 // Export the logAudit function for use in other routes
