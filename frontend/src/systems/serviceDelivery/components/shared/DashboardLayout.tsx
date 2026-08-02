@@ -228,11 +228,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               <button
                 key={item.id}
                 onClick={() => onTabChange(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 transition-colors ${
-                  isActive && !showProfile
-                    ? 'bg-[rgba(5,109,170,0.08)] text-[#056daa] font-medium'
-                    : 'text-[#555555] hover:bg-gray-100'
-                }`}
+className={`w-full flex items-center gap-3 px-4 py-3 transition-colors ${
+	                   isActive && !showProfile
+	                     ? 'cok-primary-bg-hoverable text-[#056daa] font-medium'
+	                     : 'text-[#555555] hover:bg-gray-100'
+	                 }`}
               >
                 <item.icon className="text-lg" />
                 <span className="text-sm">{item.label}</span>
@@ -258,7 +258,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             {/* Logout Button */}
             <button
               onClick={() => setShowLogoutConfirm(true)}
-              className="p-2 text-white/80 hover:text-white"
+              className="cok-btn-outlined-reverse p-2"
             >
               <FiLogOut />
             </button>

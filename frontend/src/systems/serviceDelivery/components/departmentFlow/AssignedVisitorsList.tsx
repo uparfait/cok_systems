@@ -44,6 +44,12 @@ interface Visitor {
   entry_date?: string;
   department?: string;
   departmentName?: string;
+   registered_by?: string;
+  assigned_by?: {
+      user_id: string;
+      name: string;
+      email: string;
+    };
   departments_assigned?: Array<{
     department_id: string;
     department_name?: string;
@@ -80,7 +86,7 @@ const getColorFromName = (name?: string): string => {
 
 const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: propVisitors }) => {
   const { showSuccess, showError } = useToast();
-  const [visitors, setVisitors] = useState<Visitor[]>(propVisitors || []);
+  const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -93,20 +99,13 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
 
   const itemsPerPage = 20;
 
-  useEffect(() => {
-    if (propVisitors) setVisitors(propVisitors);
-  }, [propVisitors]);
-
   const fetchVisitors = useCallback(async (page: number, search?: string, filter?: "all" | "inhouse" | "history") => {
     setLoading(true);
     try {
       const searchQuery = search?.trim();
-      let res;
-      if (searchQuery) {
-        res = await serviceDeliveryService.search(searchQuery, page, itemsPerPage, true);
-      } else {
-        res = await serviceDeliveryService.getServiceTrackingVisitors(page, itemsPerPage);
-      }
+      const inHouse = filter === "inhouse" ? true : filter === "history" ? false : undefined;
+      const history = filter === "history" ? true : false;
+      const res = await serviceDeliveryService.getAssignedVisitors(page, itemsPerPage, searchQuery, inHouse, history);
       if (res?.success || res?.status) {
         const data = Array.isArray(res.data) ? res.data : [];
         setVisitors(data);
@@ -125,7 +124,7 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
 
   useEffect(() => {
     fetchVisitors(1, searchTerm || undefined, statusFilter);
-  }, [statusFilter]);
+  }, [statusFilter, fetchVisitors]);
 
   useEffect(() => {
     setLoading(true);
@@ -157,14 +156,24 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
     setSelectedVisitor(null);
   };
 
-  const getVisitorName = (v: Visitor) => v.full_name || v.name || v.visitorName || "Unknown";
+  const getVisitorName = (v: Visitor) => {
+    const name = v.full_name || v.name || v.visitorName;
+    if (!name || name.trim() === "") return "Unknown";
+    return name;
+  };
   const getIdentification = (v: Visitor) => !v.identification ? "---" : typeof v.identification === "string" ? v.identification : v.identification?.number || "---";
   const getBadge = (v: Visitor) => v.badge_number || v.badge || "---";
   const getDept = (v: Visitor) => {
     if (v.departments_assigned && v.departments_assigned.length > 0) return v.departments_assigned[0].department_name || v.department || "General";
     return v.department || "General";
   };
-  const getTime = (v: Visitor) => new Date(v.checkInTime || v.check_in_time || v.entry_date || "").toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) || "---";
+  const getTime = (v: Visitor) => {
+    const raw = v.checkInTime || v.check_in_time || v.entry_date || "";
+    if (!raw) return "---";
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return "---";
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
   const getStatusLabel = (v: Visitor) => {
     if (v.status && String(v.status).trim() !== "") return String(v.status);
     const st = v.services_status?.find((s: any) => s.s_type === "Inprogress");
@@ -231,9 +240,7 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
     <div className="space-y-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
       <div className="overflow-hidden" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
         <div className="p-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between" style={{ borderBottom: `1px solid ${BORDER}` }}>
-          <div>
-            <h1 className="text-base font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Service Tracking</h1>
-          </div>
+         
           <div className="flex gap-2 w-full sm:w-11/12">
             <div className="relative flex-1">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: GRAY_DISABLED }} />
@@ -324,7 +331,7 @@ const AssignedVisitorsList: React.FC<AssignedVisitorsListProps> = ({ visitors: p
                   <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-[#E0E0E0]"></div>
                   <div className="space-y-2">
                     {[
-                      { label: "Checked In", time: getTime(selectedVisitor), sub: "Main Gate", done: true, icon: FiCheck },
+                      { label: "Checked In", time: getTime(selectedVisitor), sub: selectedVisitor.registered_by || "---", done: true, icon: FiCheck },
                       { label: "Transferred", time: selectedVisitor?.departments_assigned?.[0]?.assigned_time ? new Date(selectedVisitor.departments_assigned[0].assigned_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "---", sub: `To ${getDept(selectedVisitor)}`, done: getStatusLabel(selectedVisitor) === "Completed" || getStatusLabel(selectedVisitor) === "In Progress", icon: FiArrowRightCircle },
                       { label: "Officer Accepted", time: selectedVisitor?.departments_assigned?.[0]?.provider_name || "---", sub: undefined, done: getStatusLabel(selectedVisitor) === "Completed" || getStatusLabel(selectedVisitor) === "In Progress", icon: FiUserCheck },
                       { label: "Completed", time: "✓ Service done", sub: undefined, done: getStatusLabel(selectedVisitor) === "Completed", icon: FiCheckSquare },

@@ -285,7 +285,20 @@ export const serviceDeliveryService = {
     if (inHouse !== undefined) url += `&in_house=${inHouse}`;
     return get(url);
   },
-  getDashboardVisitors: (page: number = 1, limit: number = 20) => get(`/servicedelivery/dashboard/visitors?page=${page}&limit=${limit}`),
+  getDashboardVisitors: (page: number = 1, limit: number = 20, q?: string, inHouse?: boolean, history?: boolean) => {
+    let url = `/servicedelivery/dashboard/visitors?page=${page}&limit=${limit}`;
+    if (q && q.trim()) url += `&q=${encodeURIComponent(q.trim())}`;
+    if (inHouse !== undefined) url += `&in_house=${inHouse}`;
+    if (history === true) url += `&history=true`;
+    return get(url);
+  },
+  getAssignedVisitors: (page: number = 1, limit: number = 20, q?: string, inHouse?: boolean, history?: boolean) => {
+    let url = `/servicedelivery/assigned-visitors?page=${page}&limit=${limit}`;
+    if (q && q.trim()) url += `&q=${encodeURIComponent(q.trim())}`;
+    if (inHouse !== undefined) url += `&in_house=${inHouse}`;
+    if (history === true) url += `&history=true`;
+    return get(url);
+  },
   getServiceTrackingVisitors: (page: number = 1, limit: number = 20) => get(`/servicedelivery/service-tracking/visitors?page=${page}&limit=${limit}`),
   search: (query: string, page: number = 1, limit: number = 50, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),
   searchVisitors: (query: string, page: number = 1, limit: number = 50, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),

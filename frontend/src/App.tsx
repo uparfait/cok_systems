@@ -57,10 +57,13 @@ import {
 import {
   ServiceDashboard,
   ReceptionistDashboard,
+  ReceptionistVisitors,
   DepartmentManagerDashboard,
   EmployeeDashboard,
+  EmployeeVisitorsTab,
   VisitorDetailsPage,
 } from "./systems/serviceDelivery";
+import AssignedVisitorsList from "./systems/serviceDelivery/components/departmentFlow/AssignedVisitorsList";
 
 import RequestsPage from "./pages/dashboard/RequestsPage";
 
@@ -541,6 +544,17 @@ const App: React.FC = () => {
                   }
                 />
 
+                <Route
+                  path="/:roleSlug/all-visitors"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <EmployeeVisitorsTab />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
                 {/* Shared pages */}
                 <Route
                   path="/profile"
@@ -674,6 +688,26 @@ const App: React.FC = () => {
                 <Route
                   path="/service-delivery/receptionist"
                   element={<Navigate to="/receptionist/dashboard" replace />}
+                />
+                <Route
+                  path="/receptionist/visitors"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <ReceptionistVisitors />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/receptionist/assigned"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <AssignedVisitorsList />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
                 />
                 <Route
                   path="/service-delivery/department-manager"

@@ -88,7 +88,12 @@ module.exports = async function toggle_service_status(req, res, next) {
                     assigned_time: current_time,
                     provider_name: officerName,
                     provider_id: officerId,
-                    reached_in: true
+                    reached_in: true,
+                    assigned_by: {
+                        user_id: req.user?.id || req.user?._id || null,
+                        name: req.user?.name || req.user?.full_name || 'System',
+                        email: req.user?.email || ''
+                    }
                 });
 
                 visitor.is_being_served = true;
@@ -170,6 +175,13 @@ module.exports = async function toggle_service_status(req, res, next) {
                 dept_assign.reached_in = true;
                 dept_assign.provider_id = officerId;
                 dept_assign.provider_name = officerName;
+                if (!dept_assign.assigned_by) {
+                    dept_assign.assigned_by = {
+                        user_id: req.user?.id || req.user?._id || null,
+                        name: req.user?.name || req.user?.full_name || 'System',
+                        email: req.user?.email || ''
+                    };
+                }
             }
             visitor.is_being_served = true;
 

@@ -25,6 +25,7 @@ const upload = multer()
 const update_service_status = require('../../controllers/serivice_delivery/update_service_status.js');
 const dashboard_visitors = require('../../controllers/serivice_delivery/dashboard_visitors.js');
 const service_tracking_visitors = require('../../controllers/serivice_delivery/service_tracking_visitors.js');
+const assigned_visitors = require('../../controllers/serivice_delivery/assigned_visitors.js');
 
 Router.use(upload.any())
 
@@ -238,6 +239,57 @@ Router.get('/dashboard/visitors', auditSuccess('READ', 'visitors'), dashboard_vi
  *         description: Internal server error
  */
 Router.get('/service-tracking/visitors', auditSuccess('READ', 'visitors'), service_tracking_visitors)
+
+/**
+ * @swagger
+ * /servicedelivery/assigned-visitors:
+ *   get:
+ *     summary: "Get assigned visitors"
+ *     description: "Get visitors assigned to the current user's department with search support"
+ *     tags: [Service Delivery]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *       - in: query
+ *         name: q
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: "Assigned visitors results"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 type:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       500:
+ *         description: Internal server error
+ */
+Router.get('/assigned-visitors', auditSuccess('READ', 'visitors'), assigned_visitors)
 
 /**
  * @swagger

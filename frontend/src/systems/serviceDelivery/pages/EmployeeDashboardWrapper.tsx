@@ -31,11 +31,11 @@ const EmployeeDashboardWrapper: React.FC = () => {
         return <DepartmentQueueTab />;
       case 'tasks':
         return <TaskManager />;
-      case 'services':
+       case 'services':
       case 'availability':
       case 'dashboard':
       default:
-        // Default dashboard view shows the main employee dashboard
+        // Default dashboard view shows the main employee dashboard (cards only)
         return <EmployeeDashboard />;
     }
   };

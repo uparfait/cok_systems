@@ -324,195 +324,188 @@ const CheckInPersonPage: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="p-6" style={{ backgroundColor: NEUTRAL_LIGHT, minHeight: '100%' }}>
-        <div className="max-w-2xl mx-auto">
-          <div className="p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Full Name */}
-              <div>
-                <label className="block mb-1" style={labelStyle}>
-                  Full Name <span style={{ color: DANGER }}>*</span>
-                </label>
-                <div className="relative">
-                  <FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" style={{ color: GRAY_DISABLED }} />
-                  <input
-                    type="text"
-                    name="full_name"
-                    value={formData.full_name}
-                    onChange={handleChange}
-                    required
-                    className="w-full cok-auth-input pr-3 py-3"
-                    placeholder="Enter full name"
-                  />
-                </div>
-              </div>
-
-              {/* Phone and Email */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block mb-1" style={labelStyle}>
-                    Phone Number <span style={{ color: DANGER }}>*</span>
-                  </label>
-                  <div className="relative">
-                    <FiPhone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" style={{ color: GRAY_DISABLED }} />
-                    <input
-                      type="tel"
-                      name="telephone"
-                      value={formData.telephone}
-                      onChange={handleChange}
-                      required
-                      className="w-full cok-auth-input pr-3 py-3"
-                      placeholder="Phone number"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block mb-1" style={labelStyle}>
-                    Email
-                  </label>
-                  <div className="relative">
-                    <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" style={{ color: GRAY_DISABLED }} />
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      className="w-full cok-auth-input pr-3 py-3"
-                    
-                      
-                      placeholder="Email address"
-                    />
-                  </div>
-                  {emailError && (
-                    <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{emailError}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* ID Type and ID Number */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block mb-1" style={labelStyle}>
-                    ID Type
-                  </label>
-                  <select
-                    name="id_type"
-                    value={formData.id_type}
-                    onChange={handleChange}
-                    className="w-full cok-auth-input pr-3 py-3"
-
-                  >
-                    <option value="National ID">National ID</option>
-                    <option value="Passport">Passport</option>
-                    <option value="Driving Licence">Driving Licence</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block mb-1" style={labelStyle}>
-                    ID Number
-                  </label>
-                  <div className="relative">
-                    <FiCreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" style={{ color: GRAY_DISABLED }} />
-                    <input
-                      type="text"
-                      name="id_number"
-                      value={formData.id_number}
-                      onChange={handleChange}
-                      className="w-full cok-auth-input pr-3 py-3"
-                     
-                      placeholder={formData.id_type === 'National ID' ? 'Enter 16_digit national ID' : 'Enter ID number'}
-                    />
-                  </div>
-                  {idError && (
-                    <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{idError}</p>
-                  )}
-                  {formData.id_type === 'National ID' && formData.id_number && !idError && (
-                    <p className="mt-1 text-xs" style={{ color: SUCCESS, fontFamily: fontHeading }}>✓ National ID format valid</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Gender and Badge Number */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block mb-1" style={labelStyle}>
-                    Gender
-                  </label>
-                  <select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleChange}
-                    className="w-full cok-auth-input pr-3 py-3"
-
-                  >
-                    <option value="Not specified">Not specified</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block mb-1" style={labelStyle}>
-                    Badge Number
-                  </label>
-                  <input
-                    type="text"
-                    name="badge_number"
-                    value={formData.badge_number}
-                    onChange={handleChange}
-                    className="w-full cok-auth-input pr-3 py-3"
-                    placeholder="Badge number"
-                  />
-                </div>
-              </div>
-
-              {/* Buttons */}
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData({
-                      full_name: '',
-                      telephone: '',
-                      email: '',
-                      id_type: 'National ID',
-                      id_number: '',
-                      gender: 'Not specified',
-                      badge_number: '',
-                    });
-                    setIdError(null);
-                    setEmailError(null);
-                  }}
-                  className="flex-1 px-4 py-2 cok-btn-outlined"
-                >
-                  Reset
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 px-4 py-2 cok-btn-primary disabled:opacity-50 flex items-center justify-center gap-2 "
-                  
-                >
-                  {loading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Registering...
-                    </>
-                  ) : (
-                    <>
-                      <FiPlus className="w-4 h-4" />
-                      Register Visitor
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
+     <div className="p-4 sm:p-6" style={{ backgroundColor: NEUTRAL_LIGHT, minHeight: '100%' }}>
+  <div className="max-w-2xl mx-auto">
+    <div className="p-4 sm:p-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Full Name */}
+        <div>
+          <label className="block mb-1 text-sm sm:text-base" style={labelStyle}>
+            Full Name <span style={{ color: DANGER }}>*</span>
+          </label>
+          <div className="relative">
+            <FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5" style={{ color: GRAY_DISABLED }} />
+            <input
+              type="text"
+              name="full_name"
+              value={formData.full_name}
+              onChange={handleChange}
+              required
+              className="w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base"
+              placeholder="Enter full name"
+            />
           </div>
         </div>
-      </div>
-    </MainLayout>
+
+        {/* Phone and Email - Column on mobile */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block mb-1 text-sm sm:text-base" style={labelStyle}>
+              Phone Number <span style={{ color: DANGER }}>*</span>
+            </label>
+            <div className="relative">
+              <FiPhone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5" style={{ color: GRAY_DISABLED }} />
+              <input
+                type="tel"
+                name="telephone"
+                value={formData.telephone}
+                onChange={handleChange}
+                required
+                className="w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base"
+                placeholder="Phone number"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block mb-1 text-sm sm:text-base" style={labelStyle}>
+              Email
+            </label>
+            <div className="relative">
+              <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5" style={{ color: GRAY_DISABLED }} />
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base"
+                placeholder="Email address"
+              />
+            </div>
+            {emailError && (
+              <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{emailError}</p>
+            )}
+          </div>
+        </div>
+
+        {/* ID Type and ID Number - Column on mobile */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block mb-1 text-sm sm:text-base" style={labelStyle}>
+              ID Type
+            </label>
+            <select
+              name="id_type"
+              value={formData.id_type}
+              onChange={handleChange}
+              className="w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base"
+            >
+              <option value="National ID">National ID</option>
+              <option value="Passport">Passport</option>
+              <option value="Driving Licence">Driving Licence</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block mb-1 text-sm sm:text-base" style={labelStyle}>
+              ID Number
+            </label>
+            <div className="relative">
+              <FiCreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5" style={{ color: GRAY_DISABLED }} />
+              <input
+                type="text"
+                name="id_number"
+                value={formData.id_number}
+                onChange={handleChange}
+                className="w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base"
+                placeholder={formData.id_type === 'National ID' ? 'Enter 16-digit national ID' : 'Enter ID number'}
+              />
+            </div>
+            {idError && (
+              <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{idError}</p>
+            )}
+            {formData.id_type === 'National ID' && formData.id_number && !idError && (
+              <p className="mt-1 text-xs" style={{ color: SUCCESS, fontFamily: fontHeading }}>✓ National ID format valid</p>
+            )}
+          </div>
+        </div>
+
+        {/* Gender and Badge Number - Column on mobile */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block mb-1 text-sm sm:text-base" style={labelStyle}>
+              Gender
+            </label>
+            <select
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+              className="w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base"
+            >
+              <option value="Not specified">Not specified</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block mb-1 text-sm sm:text-base" style={labelStyle}>
+              Badge Number
+            </label>
+            <input
+              type="text"
+              name="badge_number"
+              value={formData.badge_number}
+              onChange={handleChange}
+              className="w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base"
+              placeholder="Badge number"
+            />
+          </div>
+        </div>
+
+        {/* Buttons - Stack on mobile */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-4">
+          <button
+            type="button"
+            onClick={() => {
+              setFormData({
+                full_name: '',
+                telephone: '',
+                email: '',
+                id_type: 'National ID',
+                id_number: '',
+                gender: 'Not specified',
+                badge_number: '',
+              });
+              setIdError(null);
+              setEmailError(null);
+            }}
+            className="w-full sm:flex-1 px-4 py-2 sm:py-3 cok-btn-outlined text-sm sm:text-base"
+          >
+            Reset
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full sm:flex-1 px-4 py-2 sm:py-3 cok-btn-primary disabled:opacity-50 flex items-center justify-center gap-2 text-sm sm:text-base"
+          >
+            {loading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Registering...
+              </>
+            ) : (
+              <>
+                <FiPlus className="w-4 h-4" />
+                Register Visitor
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>    </MainLayout>
   );
 };
 

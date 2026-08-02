@@ -26,11 +26,32 @@ const SUCCESS = "#4CAF50";
 const WARNING = "#F39C12";
 const NEUTRAL_LIGHT = "#F7F9FB";
 const NEUTRAL_DARK = "#333333";
+const BORDER = "#E0E0E0";
+const WHITE = "#FFFFFF";
+const GRAY_DISABLED = "#9E9E9E";
 const fontHeading = "'Montserrat', sans-serif";
 const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+const inputStyle: React.CSSProperties = {
+  fontFamily: fontHeading,
+  fontSize: "14px",
+  backgroundColor: NEUTRAL_LIGHT,
+  border: "1px solid transparent",
+  borderRadius: 0,
+  boxShadow: "0px 2px 4px rgba(0,0,0,0.1)",
+  color: NEUTRAL_DARK,
+};
+const focusInput = (e: React.FocusEvent<HTMLElement>) => {
+  e.currentTarget.style.borderColor = PRIMARY;
+  e.currentTarget.style.boxShadow = "0px 4px 8px rgba(5,109,170,0.25)";
+};
+const blurInput = (e: React.FocusEvent<HTMLElement>) => {
+  e.currentTarget.style.borderColor = "transparent";
+  e.currentTarget.style.boxShadow = "0px 2px 4px rgba(0,0,0,0.1)";
+};
+const btnTypography: React.CSSProperties = { fontFamily: fontHeading, fontSize: 13, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' };
 
 const statusStyles = {
-  not_started: { bg: 'bg-[rgba(243,156,18,0.12)]', text: 'text-[#D68910]', label: 'Not Started' },
+  not_started: { bg: 'cok-bg-primary', text: 'cok-primary-color', label: 'Not Started' },
   inprogress: { bg: 'bg-[rgba(76,175,80,0.12)]', text: 'text-[#388E3C]', label: 'In Progress' },
   completed: { bg: 'bg-[rgba(51,51,51,0.08)]', text: 'text-[#555555]', label: 'Completed' },
   transfered: { bg: 'bg-[rgba(41,128,185,0.12)]', text: 'text-[#2980B9]', label: 'Transferred' },
@@ -268,11 +289,11 @@ const EmployeeDashboardTab: React.FC = () => {
           <div className="flex gap-3">
             <div className="relative">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input type="text" placeholder="Search visitor or ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-[220px] h-9 pl-10 pr-4 focus:outline-none" style={{ fontFamily: fontHeading, fontSize: '14px', backgroundColor: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' }} onFocus={(e) => { e.currentTarget.style.border = `1px solid ${PRIMARY}`; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }} onBlur={(e) => { e.currentTarget.style.border = '1px solid transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }} />
+              <input type="text" placeholder="Search visitor or ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="cok-auth-input w-[220px] h-9 pl-10 pr-4" style={inputStyle} onFocus={focusInput} onBlur={blurInput} />
             </div>
-            <button onClick={() => fetchAssignedVisitors()} className="flex items-center gap-2 h-9 px-4 bg-transparent text-[13px] uppercase transition-colors hover:bg-[rgba(5,109,170,0.06)]" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', border: `1px solid ${PRIMARY}`, color: PRIMARY, borderRadius: 0 }}>
-              <FiRefreshCw className={loading ? 'animate-spin' : ''} /> Refresh
-            </button>
+<button onClick={() => fetchAssignedVisitors()} className="cok-btn-outlined flex items-center gap-2 h-9 px-4 text-xs">
+               <FiRefreshCw className={loading ? 'animate-spin' : ''} /> Refresh
+             </button>
           </div>
         </div>
 
