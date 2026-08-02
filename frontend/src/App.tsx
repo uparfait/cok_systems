@@ -76,7 +76,6 @@ import HodAuditPage from "./systems/serviceDelivery/pages/hod/HodAuditPage";
 import HodFeedbackPage from "./systems/serviceDelivery/pages/hod/HodFeedbackPage";
 
 // event-managment
-
 import Layout from "./systems/event-managment/pages/index/Layout.jsx";
 import Request from "./systems/event-managment/pages/index/Request.jsx";
 import BookingOptions from "./systems/event-managment/pages/index/BookingOptions.jsx";
@@ -552,14 +551,17 @@ const App: React.FC = () => {
                   }
                 />
 
-<<<<<<< HEAD
                 <Route
                   path="/:roleSlug/all-visitors"
                   element={
                     <ProtectedRoute>
                       <MainLayout>
                         <EmployeeVisitorsTab />
-=======
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
                 {/* Head of Department pages */}
                 <Route
                   path="/:roleSlug/hod/kpis"
@@ -627,7 +629,6 @@ const App: React.FC = () => {
                     <ProtectedRoute>
                       <MainLayout>
                         <HodFeedbackPage />
->>>>>>> 0549c177d88b57e81d62f91098ae3e4ceac6a74d
                       </MainLayout>
                     </ProtectedRoute>
                   }
