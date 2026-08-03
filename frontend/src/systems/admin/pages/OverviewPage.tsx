@@ -66,6 +66,28 @@ const classifySentiment = (rate?: number, rateOutOf?: number): Sentiment => {
   if (ratio >= 0.4) return 'neutral';
   return 'negative';
 };
+
+// Tooltip for the Department Sentiment chart: avg rating, feedback count, and the
+// positive/neutral/negative breakdown when the row carries per-sentiment counts
+const SentimentChartTooltip = ({ active, payload }: any) => {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  const sentiment = SENTIMENT_META[classifySentiment(d.rating, 10)];
+  return (
+    <div style={{ backgroundColor: '#fff', border: `1px solid ${COK.border}`, fontSize: 12, padding: '8px 10px' }}>
+      <div style={{ fontWeight: 600, marginBottom: 2 }}>{d.fullName || d.name}</div>
+      <div>{d.rating}/10 · <span style={{ color: sentiment.color, fontWeight: 600 }}>{sentiment.label}</span></div>
+      <div>{d.count} feedback</div>
+      {d.positive !== undefined && (
+        <div style={{ marginTop: 4, paddingTop: 4, borderTop: `1px solid ${COK.border}` }}>
+          <div style={{ color: SENTIMENT_META.negative.color }}>Negative: {d.negative}</div>
+          <div style={{ color: SENTIMENT_META.neutral.color }}>Neutral: {d.neutral}</div>
+          <div style={{ color: SENTIMENT_META.positive.color }}>Positive: {d.positive}</div>
+        </div>
+      )}
+    </div>
+  );
+};
 // Helper to get chart config with dynamic Y-axis ticks
 const getChartConfig = (maxValue: number, minValue: number = 0) => {
   // Calculate dynamic step size using "nice numbers" algorithm
@@ -290,6 +312,15 @@ const ParkingMap: React.FC<{ totalSlots: number; vehicles: any[]; reservations: 
     available: slots.filter(s => s.status === 'available').length,
   };
 
+  // The lot renders as two pages of bays: the first half shows by default,
+  // the second half after clicking Next
+  const [page, setPage] = useState(0);
+  const half = Math.ceil(sections.length / 2);
+  const pageSections = page === 0 ? sections.slice(0, half) : sections.slice(half);
+  const hasTwoPages = sections.length > 1;
+  const firstSlot = (page === 0 ? 0 : half * 20) + 1;
+  const lastSlot = Math.min((page === 0 ? half : sections.length) * 20, slots.length);
+
   return (
     <div>
       <div className="flex flex-wrap gap-3 text-xs text-gray-600 mb-2">
@@ -298,8 +329,8 @@ const ParkingMap: React.FC<{ totalSlots: number; vehicles: any[]; reservations: 
         <div className="flex items-center gap-1"><div className="w-2.5 h-2.5" style={{ backgroundColor: SLOT_COLORS.available }}></div>Available {counts.available}</div>
       </div>
       <div className="flex flex-wrap gap-2">
-        {sections.map((sec, si) => (
-          <div key={si} className="bg-gray-100 p-1.5 grid grid-cols-10 gap-1">
+        {pageSections.map((sec, si) => (
+          <div key={sec[0]?.id || si} className="bg-gray-100 p-1.5 grid grid-cols-10 gap-1">
             {sec.map(s => (
               <div key={s.id} className="relative group">
                 <div className="w-3 h-6 cursor-pointer" style={{ backgroundColor: SLOT_COLORS[s.status] }}></div>
@@ -311,6 +342,29 @@ const ParkingMap: React.FC<{ totalSlots: number; vehicles: any[]; reservations: 
           </div>
         ))}
       </div>
+      {hasTwoPages && (
+        <div className="flex items-center justify-between mt-2">
+          <span className="text-xs text-gray-500">Section {page + 1} of 2 · slots COK{firstSlot}–COK{lastSlot}</span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={page === 0}
+              onClick={() => setPage(0)}
+              className={`px-2.5 py-1 border text-xs ${page === 0 ? 'text-gray-300 border-gray-200 cursor-default' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+            >
+               Previous
+            </button>
+            <button
+              type="button"
+              disabled={page === 1}
+              onClick={() => setPage(1)}
+              className={`px-2.5 py-1 border text-xs ${page === 1 ? 'text-gray-300 border-gray-200 cursor-default' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+            >
+              Next 
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -687,10 +741,24 @@ const Overview: React.FC = () => {
 
   useEffect(() => { fetchRequestStats(period); }, [fetchRequestStats, period]);
 
-  // Served + request aggregates refresh together on socket-triggered refetches
+  // Feedback sentiment (departments + general/unserviced) aggregated server-side
+  // for the toolbar period — drives the Department Sentiment chart
+  interface SentimentStatRow { name: string; average_rating: number; count: number; positive: number; neutral: number; negative: number }
+  const [feedbackSentiment, setFeedbackSentiment] = useState<{ departments: SentimentStatRow[]; general: Omit<SentimentStatRow, 'name'> } | null>(null);
+  const fetchFeedbackSentiment = useCallback(async (p: PeriodChoice) => {
+    try {
+      const { from, to } = periodToRange(p);
+      const res: any = await statisticsService.getFeedbackSentiment(from, to);
+      if (res?.success && res.data) setFeedbackSentiment(res.data);
+    } catch { /* keep the previous stats on a failed refresh */ }
+  }, [periodToRange]);
+
+  useEffect(() => { fetchFeedbackSentiment(period); }, [fetchFeedbackSentiment, period]);
+
+  // Served + request + sentiment aggregates refresh together on socket-triggered refetches
   useEffect(() => {
-    servedRefreshRef.current = () => { fetchServedStats(period); fetchRequestStats(period); };
-  }, [fetchServedStats, fetchRequestStats, period]);
+    servedRefreshRef.current = () => { fetchServedStats(period); fetchRequestStats(period); fetchFeedbackSentiment(period); };
+  }, [fetchServedStats, fetchRequestStats, fetchFeedbackSentiment, period]);
 
   const requestStatuses = useMemo(() => {
     const toRows = (rows: RequestStatRow[]) =>
@@ -817,12 +885,41 @@ const Overview: React.FC = () => {
       .slice(0, 8);
   }, [data]);
 
-  // Same departments climbing from worst to best rating, so negative sentiment
-  // sits on the left and the highest-rated department is the tallest bar on the right
-  const sentimentTrend = useMemo(
-    () => [...deptRatings].sort((a, b) => a.rating - b.rating),
-    [deptRatings]
-  );
+  // Departments climbing from worst to best rating (negative sentiment on the left),
+  // built from the period-aware sentiment endpoint, with one General (unserviced)
+  // feedback bar appended after the department bars. Falls back to the all-time
+  // department averages until the sentiment stats arrive.
+  interface SentimentTrendRow { name: string; rating: number; count: number; fullName?: string; positive?: number; neutral?: number; negative?: number; isGeneral?: boolean }
+  const sentimentTrend = useMemo<SentimentTrendRow[]>(() => {
+    if (!feedbackSentiment) return [...deptRatings].sort((a, b) => a.rating - b.rating);
+    const rows: SentimentTrendRow[] = (feedbackSentiment.departments || [])
+      .filter(d => d.count > 0)
+      .map(d => ({
+        name: d.name.length > 18 ? d.name.slice(0, 17) + '…' : d.name,
+        fullName: d.name,
+        rating: Math.round((d.average_rating || 0) * 10) / 10,
+        count: d.count,
+        positive: d.positive,
+        neutral: d.neutral,
+        negative: d.negative,
+      }))
+      .sort((a, b) => a.rating - b.rating)
+      .slice(0, 8);
+    const g = feedbackSentiment.general;
+    if (g && g.count > 0) {
+      rows.push({
+        name: 'General',
+        fullName: 'General feedback',
+        rating: Math.round((g.average_rating || 0) * 10) / 10,
+        count: g.count,
+        positive: g.positive,
+        neutral: g.neutral,
+        negative: g.negative,
+        isGeneral: true,
+      });
+    }
+    return rows;
+  }, [feedbackSentiment, deptRatings]);
 
   // Empty-state flags so cards show a message instead of a blank chart
   const hasHourlyParking = !!data && data.hourlyParking.some(h => (h.check_in || 0) > 0 || (h.check_out || 0) > 0);
@@ -853,12 +950,6 @@ const Overview: React.FC = () => {
     const t = new Date(servedStats.last_checkin);
     return isNaN(t.getTime()) ? null : t.getHours();
   }, [servedStats]);
-
-  // Parking map obeys the toolbar period filter: only vehicles whose check-in falls in the period stay blue
-  const parkingVehiclesInPeriod = useMemo(
-    () => parkingLot.vehicles.filter((v: any) => isDateInPeriod(v?.check_in, period)),
-    [parkingLot.vehicles, isDateInPeriod, period]
-  );
 
   // Parking gauge: today's VEHICLE check-ins per hour (same sliding dial window: 8h back, 2h ahead + active hours)
   const parkingGaugeHours = useMemo(() => {
@@ -1751,15 +1842,16 @@ useEffect(() => {
           <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: 0 }}>
             Department Sentiment
           </h3>
-          <div className="text-[11px] uppercase tracking-wide text-gray-400 mt-0.5 mb-2">From negative to positive · avg rating out of 10</div>
+          <div className="text-[11px] uppercase tracking-wide text-gray-400 mt-0.5 mb-2">From negative to positive · avg rating out of 10 · {periodLabel}</div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 mb-2">
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.negative.color }}></div>Negative (&lt;4)</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.neutral.color }}></div>Neutral (4–6.9)</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.positive.color }}></div>Positive (7+)</div>
+            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: COK.primary }}></div>General feedback</div>
             <div className="flex items-center gap-1.5"><div className="w-3 h-0.5" style={{ backgroundColor: CC.blue }}></div>Rating trend</div>
           </div>
           {sentimentTrend.length === 0 ? (
-            <p className="text-sm text-gray-500" style={{ fontFamily: COK.bodyFont }}>No department feedback yet.</p>
+            <p className="text-sm text-gray-500" style={{ fontFamily: COK.bodyFont }}>No feedback in this period yet.</p>
           ) : (
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -1774,18 +1866,10 @@ useEffect(() => {
                     tickLine={false}
                   />
                   <YAxis domain={[0, 10]} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
-                  <RTooltip
-                    cursor={{ fill: COK.neutralLight }}
-                    contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
-                    formatter={(value: any, name: any, entry: any) =>
-                      name === 'Rating trend'
-                        ? [null, null]
-                        : [`${value}/10 · ${SENTIMENT_META[classifySentiment(Number(value), 10)].label} (${entry?.payload?.count} feedback)`, 'Avg rating']
-                    }
-                  />
+                  <RTooltip cursor={{ fill: COK.neutralLight }} content={<SentimentChartTooltip />} />
                   <Bar dataKey="rating" name="Avg rating" barSize={34} radius={[0, 0, 0, 0]}>
                     {sentimentTrend.map((d, i) => (
-                      <Cell key={i} fill={SENTIMENT_META[classifySentiment(d.rating, 10)].color} />
+                      <Cell key={i} fill={d.isGeneral ? COK.primary : SENTIMENT_META[classifySentiment(d.rating, 10)].color} />
                     ))}
                   </Bar>
                   <Line
@@ -1834,7 +1918,7 @@ useEffect(() => {
                   {parkingView === 'map' ? 'Parking Lot' : 'Parking Usage Trends'}
                   
                 </div>
-                <div className="text-xs text-gray-500">{parkingView === 'map' ? `Slot occupancy · vehicles checked in ${periodLabel}` : 'Check-ins vs check-outs · today'}</div>
+                <div className="text-xs text-gray-500">{parkingView === 'map' ? 'Slot occupancy · all currently active vehicles' : 'Check-ins vs check-outs · today'}</div>
               </div>
               <div className="flex border border-gray-300 text-xs flex-shrink-0">
                 <button onClick={() => setParkingView('map')} className={`px-2 py-1 ${parkingView === 'map' ? 'cok-primary-bg text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Lot map</button>
@@ -1842,7 +1926,7 @@ useEffect(() => {
               </div>
             </div>
             {parkingView === 'map' ? (
-              <ParkingMap totalSlots={parkingLot.totalSlots} vehicles={parkingVehiclesInPeriod} reservations={parkingLot.reservations} />
+              <ParkingMap totalSlots={parkingLot.totalSlots} vehicles={parkingLot.vehicles} reservations={parkingLot.reservations} />
             ) : hasHourlyParking ? (
               <div className="h-48 w-full">
                 <ResponsiveContainer width="100%" height="100%">

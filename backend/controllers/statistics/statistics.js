@@ -8,6 +8,7 @@ const FlaggedVehicle = require('../../models/flagged_vehicle.js');
 const ParkingRecord = require('../../models/parking_record.js');
 const ServiceDelivery = require('../../models/service_delivery.js');
 const Feedback = require('../../models/feedback_db.js');
+const UnservicedFeedback = require('../../models/unservicedfeedback_db.js');
 const Task = require('../../models/task.js');
 
 /**
@@ -473,6 +474,89 @@ const getFeedbackAverageByDepartment = async (req, res) => {
             success: false,
             type: "error",
             message: "Something went wrong while fetching feedback average by department",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Get feedback sentiment per department plus general (unserviced) feedback,
+ * optionally limited to a created_date range (?from=ISO&to=ISO).
+ * Sentiment thresholds mirror the frontend: ratio >= 0.7 positive, >= 0.4 neutral, else negative.
+ */
+const getFeedbackSentiment = async (req, res) => {
+    try {
+        const { from, to } = req.query;
+        const dateMatch = {};
+        if (from) dateMatch.$gte = new Date(from);
+        if (to) dateMatch.$lte = new Date(to);
+        const match = Object.keys(dateMatch).length ? { created_date: dateMatch } : {};
+
+        // ratio guards against rate_out_of being missing or zero (defaults to /10)
+        const sentimentPipeline = (groupId) => ([
+            { $match: match },
+            {
+                $addFields: {
+                    ratio: {
+                        $cond: [
+                            { $gt: [{ $ifNull: ['$rate_out_of', 10] }, 0] },
+                            { $divide: [{ $ifNull: ['$rate', 0] }, { $ifNull: ['$rate_out_of', 10] }] },
+                            0
+                        ]
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: groupId,
+                    average_rating: { $avg: '$rate' },
+                    count: { $sum: 1 },
+                    positive: { $sum: { $cond: [{ $gte: ['$ratio', 0.7] }, 1, 0] } },
+                    neutral: { $sum: { $cond: [{ $and: [{ $gte: ['$ratio', 0.4] }, { $lt: ['$ratio', 0.7] }] }, 1, 0] } },
+                    negative: { $sum: { $cond: [{ $lt: ['$ratio', 0.4] }, 1, 0] } }
+                }
+            }
+        ]);
+
+        const [byDepartment, generalAgg] = await Promise.all([
+            Feedback.aggregate(sentimentPipeline('$department_name')),
+            UnservicedFeedback.aggregate(sentimentPipeline(null))
+        ]);
+
+        const departments = byDepartment
+            .filter(d => d._id)
+            .map(d => ({
+                name: d._id,
+                average_rating: d.average_rating ? parseFloat(d.average_rating.toFixed(2)) : 0,
+                count: d.count,
+                positive: d.positive,
+                neutral: d.neutral,
+                negative: d.negative
+            }));
+
+        const g = generalAgg[0];
+        const general = g
+            ? {
+                average_rating: g.average_rating ? parseFloat(g.average_rating.toFixed(2)) : 0,
+                count: g.count,
+                positive: g.positive,
+                neutral: g.neutral,
+                negative: g.negative
+            }
+            : { average_rating: 0, count: 0, positive: 0, neutral: 0, negative: 0 };
+
+        return res.status(200).json({
+            success: true,
+            type: 'success',
+            message: 'Feedback sentiment retrieved successfully',
+            data: { departments, general }
+        });
+    } catch (error) {
+        console.error("Error in getFeedbackSentiment:", error);
+        return res.status(500).json({
+            success: false,
+            type: "error",
+            message: "Something went wrong while fetching feedback sentiment",
             error: error.message
         });
     }
@@ -1293,6 +1377,7 @@ module.exports = {
     getServiceDeliveryStats,
     getFeedbackTotals,
     getFeedbackAverageByDepartment,
+    getFeedbackSentiment,
     getHourlyParkingStats,
     getHourlyServiceDeliveryStats,
     getEmployeePerformanceByTasks,
