@@ -177,6 +177,36 @@ Router.get('/feedback-average', statisticsController.getFeedbackAverageByDepartm
 
 /**
  * @swagger
+ * /statistics/feedback-sentiment:
+ *   get:
+ *     summary: "Get feedback sentiment by department plus general feedback"
+ *     description: "Average rating, feedback count, and positive/neutral/negative breakdown per department and for general (unserviced) feedback, optionally limited to a created_date range."
+ *     tags: [Statistics]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: "Start of the period (ISO date)"
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: "End of the period (ISO date)"
+ *     responses:
+ *       200:
+ *         description: Feedback sentiment retrieved
+ *       500:
+ *         description: Internal server error
+ */
+Router.get('/feedback-sentiment', statisticsController.getFeedbackSentiment);
+
+/**
+ * @swagger
  * /statistics/hourly-parking:
  *   get:
  *     summary: "Get hourly parking statistics"

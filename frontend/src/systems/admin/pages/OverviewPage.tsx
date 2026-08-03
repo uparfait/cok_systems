@@ -10,6 +10,7 @@ import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import Chart from 'chart.js/auto';
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, Cell, LabelList, AreaChart, Area, CartesianGrid, Legend, ComposedChart, Line } from 'recharts';
 import { COK, CokBadge } from './mayorCok';
+import { FiFilter } from 'react-icons/fi';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 
 // ==================== TYPES ====================
@@ -65,6 +66,28 @@ const classifySentiment = (rate?: number, rateOutOf?: number): Sentiment => {
   if (ratio >= 0.7) return 'positive';
   if (ratio >= 0.4) return 'neutral';
   return 'negative';
+};
+
+// Tooltip for the Department Sentiment chart: avg rating, feedback count, and the
+// positive/neutral/negative breakdown when the row carries per-sentiment counts
+const SentimentChartTooltip = ({ active, payload }: any) => {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  const sentiment = SENTIMENT_META[classifySentiment(d.rating, 10)];
+  return (
+    <div style={{ backgroundColor: '#fff', border: `1px solid ${COK.border}`, fontSize: 12, padding: '8px 10px' }}>
+      <div style={{ fontWeight: 600, marginBottom: 2 }}>{d.fullName || d.name}</div>
+      <div>{d.rating}/10 · <span style={{ color: sentiment.color, fontWeight: 600 }}>{sentiment.label}</span></div>
+      <div>{d.count} feedback</div>
+      {d.positive !== undefined && (
+        <div style={{ marginTop: 4, paddingTop: 4, borderTop: `1px solid ${COK.border}` }}>
+          <div style={{ color: SENTIMENT_META.negative.color }}>Negative: {d.negative}</div>
+          <div style={{ color: SENTIMENT_META.neutral.color }}>Neutral: {d.neutral}</div>
+          <div style={{ color: SENTIMENT_META.positive.color }}>Positive: {d.positive}</div>
+        </div>
+      )}
+    </div>
+  );
 };
 // Helper to get chart config with dynamic Y-axis ticks
 const getChartConfig = (maxValue: number, minValue: number = 0) => {
@@ -290,6 +313,15 @@ const ParkingMap: React.FC<{ totalSlots: number; vehicles: any[]; reservations: 
     available: slots.filter(s => s.status === 'available').length,
   };
 
+  // The lot renders as two pages of bays: the first half shows by default,
+  // the second half after clicking Next
+  const [page, setPage] = useState(0);
+  const half = Math.ceil(sections.length / 2);
+  const pageSections = page === 0 ? sections.slice(0, half) : sections.slice(half);
+  const hasTwoPages = sections.length > 1;
+  const firstSlot = (page === 0 ? 0 : half * 20) + 1;
+  const lastSlot = Math.min((page === 0 ? half : sections.length) * 20, slots.length);
+
   return (
     <div>
       <div className="flex flex-wrap gap-3 text-xs text-gray-600 mb-2">
@@ -298,8 +330,8 @@ const ParkingMap: React.FC<{ totalSlots: number; vehicles: any[]; reservations: 
         <div className="flex items-center gap-1"><div className="w-2.5 h-2.5" style={{ backgroundColor: SLOT_COLORS.available }}></div>Available {counts.available}</div>
       </div>
       <div className="flex flex-wrap gap-2">
-        {sections.map((sec, si) => (
-          <div key={si} className="bg-gray-100 p-1.5 grid grid-cols-10 gap-1">
+        {pageSections.map((sec, si) => (
+          <div key={sec[0]?.id || si} className="bg-gray-100 p-1.5 grid grid-cols-10 gap-1">
             {sec.map(s => (
               <div key={s.id} className="relative group">
                 <div className="w-3 h-6 cursor-pointer" style={{ backgroundColor: SLOT_COLORS[s.status] }}></div>
@@ -311,6 +343,29 @@ const ParkingMap: React.FC<{ totalSlots: number; vehicles: any[]; reservations: 
           </div>
         ))}
       </div>
+      {hasTwoPages && (
+        <div className="flex items-center justify-between mt-2">
+          <span className="text-xs text-gray-500">Section {page + 1} of 2 · slots COK{firstSlot}–COK{lastSlot}</span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={page === 0}
+              onClick={() => setPage(0)}
+              className={`px-2.5 py-1 border text-xs ${page === 0 ? 'text-gray-300 border-gray-200 cursor-default' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+            >
+               Previous
+            </button>
+            <button
+              type="button"
+              disabled={page === 1}
+              onClick={() => setPage(1)}
+              className={`px-2.5 py-1 border text-xs ${page === 1 ? 'text-gray-300 border-gray-200 cursor-default' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+            >
+              Next 
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -588,6 +643,11 @@ const Overview: React.FC = () => {
   const [period, setPeriod] = useState<'today' | 'week' | 'lastweek' | 'month' | 'lastmonth' | 'all' | 'range'>('month');
   const [rangeFrom, setRangeFrom] = useState('');
   const [rangeTo, setRangeTo] = useState('');
+  // Toolbar selections are drafts; they only hit the live filter when Apply is clicked
+  const [draftPeriod, setDraftPeriod] = useState<typeof period>('month');
+  const [draftRangeFrom, setDraftRangeFrom] = useState('');
+  const [draftRangeTo, setDraftRangeTo] = useState('');
+  const applyToolbarPeriod = () => { setPeriod(draftPeriod); setRangeFrom(draftRangeFrom); setRangeTo(draftRangeTo); };
 
   // Period filter: today / this week / last week / this month / last month /
   // all records / custom from→to range (inclusive). Weeks run Monday → Sunday.
@@ -687,10 +747,24 @@ const Overview: React.FC = () => {
 
   useEffect(() => { fetchRequestStats(period); }, [fetchRequestStats, period]);
 
-  // Served + request aggregates refresh together on socket-triggered refetches
+  // Feedback sentiment (departments + general/unserviced) aggregated server-side
+  // for the toolbar period — drives the Department Sentiment chart
+  interface SentimentStatRow { name: string; average_rating: number; count: number; positive: number; neutral: number; negative: number }
+  const [feedbackSentiment, setFeedbackSentiment] = useState<{ departments: SentimentStatRow[]; general: Omit<SentimentStatRow, 'name'> } | null>(null);
+  const fetchFeedbackSentiment = useCallback(async (p: PeriodChoice) => {
+    try {
+      const { from, to } = periodToRange(p);
+      const res: any = await statisticsService.getFeedbackSentiment(from, to);
+      if (res?.success && res.data) setFeedbackSentiment(res.data);
+    } catch { /* keep the previous stats on a failed refresh */ }
+  }, [periodToRange]);
+
+  useEffect(() => { fetchFeedbackSentiment(period); }, [fetchFeedbackSentiment, period]);
+
+  // Served + request + sentiment aggregates refresh together on socket-triggered refetches
   useEffect(() => {
-    servedRefreshRef.current = () => { fetchServedStats(period); fetchRequestStats(period); };
-  }, [fetchServedStats, fetchRequestStats, period]);
+    servedRefreshRef.current = () => { fetchServedStats(period); fetchRequestStats(period); fetchFeedbackSentiment(period); };
+  }, [fetchServedStats, fetchRequestStats, fetchFeedbackSentiment, period]);
 
   const requestStatuses = useMemo(() => {
     const toRows = (rows: RequestStatRow[]) =>
@@ -783,8 +857,22 @@ const Overview: React.FC = () => {
   // Expanded employee row (shows the visitors they served) in the employees detail modal
   const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
 
-  // Sentiment filter inside the ratings & sentiment analysis modal
+  // Sentiment + period filters inside the ratings & sentiment analysis modal.
+  // The period select and its custom-range dates are drafts committed on Apply;
+  // the range dates are the modal's own, independent of the toolbar range.
   const [sentimentFilter, setSentimentFilter] = useState<'all' | Sentiment>('all');
+  const [ratingPeriod, setRatingPeriod] = useState<PeriodChoice>('all');
+  const [ratingRangeFrom, setRatingRangeFrom] = useState('');
+  const [ratingRangeTo, setRatingRangeTo] = useState('');
+  const [draftRatingPeriod, setDraftRatingPeriod] = useState<PeriodChoice>('all');
+  const [draftRatingRangeFrom, setDraftRatingRangeFrom] = useState('');
+  const [draftRatingRangeTo, setDraftRatingRangeTo] = useState('');
+  const applyRatingPeriod = () => { setRatingPeriod(draftRatingPeriod); setRatingRangeFrom(draftRatingRangeFrom); setRatingRangeTo(draftRatingRangeTo); };
+  const resetRatingFilters = () => {
+    setSentimentFilter('all');
+    setRatingPeriod('all'); setRatingRangeFrom(''); setRatingRangeTo('');
+    setDraftRatingPeriod('all'); setDraftRatingRangeFrom(''); setDraftRatingRangeTo('');
+  };
 
   // Filter inside the employee account status modal; statuses use the same
   // fields as the stats endpoint: is_active and access_control.is_locked
@@ -817,12 +905,53 @@ const Overview: React.FC = () => {
       .slice(0, 8);
   }, [data]);
 
-  // Same departments climbing from worst to best rating, so negative sentiment
-  // sits on the left and the highest-rated department is the tallest bar on the right
-  const sentimentTrend = useMemo(
-    () => [...deptRatings].sort((a, b) => a.rating - b.rating),
-    [deptRatings]
-  );
+  // Departments climbing from worst to best rating (negative sentiment on the left),
+  // built from the period-aware sentiment endpoint, with one General (unserviced)
+  // feedback bar appended after the department bars. Falls back to the all-time
+  // department averages until the sentiment stats arrive.
+  // barRating draws the plain department bars; the seg* keys stack into the General
+  // bar's horizontal bands (negative → neutral → positive), each sized by that
+  // category's share of the feedback while the total height stays the avg rating
+  interface SentimentTrendRow { name: string; rating: number; count: number; fullName?: string; positive?: number; neutral?: number; negative?: number; isGeneral?: boolean; barRating?: number; segNegative?: number; segNeutral?: number; segPositive?: number }
+  const sentimentTrend = useMemo<SentimentTrendRow[]>(() => {
+    if (!feedbackSentiment) return [...deptRatings].sort((a, b) => a.rating - b.rating).map(d => ({ ...d, barRating: d.rating }));
+    const rows: SentimentTrendRow[] = (feedbackSentiment.departments || [])
+      .filter(d => d.count > 0)
+      .map(d => ({
+        name: d.name.length > 18 ? d.name.slice(0, 17) + '…' : d.name,
+        fullName: d.name,
+        rating: Math.round((d.average_rating || 0) * 10) / 10,
+        count: d.count,
+        positive: d.positive,
+        neutral: d.neutral,
+        negative: d.negative,
+        barRating: Math.round((d.average_rating || 0) * 10) / 10,
+        segNegative: 0,
+        segNeutral: 0,
+        segPositive: 0,
+      }))
+      .sort((a, b) => a.rating - b.rating)
+      .slice(0, 8);
+    const g = feedbackSentiment.general;
+    if (g && g.count > 0) {
+      const gRating = Math.round((g.average_rating || 0) * 10) / 10;
+      rows.push({
+        name: 'General',
+        fullName: 'General feedback',
+        rating: gRating,
+        count: g.count,
+        positive: g.positive,
+        neutral: g.neutral,
+        negative: g.negative,
+        isGeneral: true,
+        barRating: 0,
+        segNegative: gRating * (g.negative / g.count),
+        segNeutral: gRating * (g.neutral / g.count),
+        segPositive: gRating * (g.positive / g.count),
+      });
+    }
+    return rows;
+  }, [feedbackSentiment, deptRatings]);
 
   // Empty-state flags so cards show a message instead of a blank chart
   const hasHourlyParking = !!data && data.hourlyParking.some(h => (h.check_in || 0) > 0 || (h.check_out || 0) > 0);
@@ -854,12 +983,6 @@ const Overview: React.FC = () => {
     return isNaN(t.getTime()) ? null : t.getHours();
   }, [servedStats]);
 
-  // Parking map obeys the toolbar period filter: only vehicles whose check-in falls in the period stay blue
-  const parkingVehiclesInPeriod = useMemo(
-    () => parkingLot.vehicles.filter((v: any) => isDateInPeriod(v?.check_in, period)),
-    [parkingLot.vehicles, isDateInPeriod, period]
-  );
-
   // Parking gauge: today's VEHICLE check-ins per hour (same sliding dial window: 8h back, 2h ahead + active hours)
   const parkingGaugeHours = useMemo(() => {
     const counts: Record<number, number> = {};
@@ -885,6 +1008,8 @@ const Overview: React.FC = () => {
   // the toolbar filter (it resets to that each time the modal opens). A period
   // different from the toolbar's triggers its own served-stats fetch.
   const [modalHourPeriod, setModalHourPeriod] = useState<PeriodChoice | null>(null);
+  // Draft for the hourly modal's period select — committed on Apply
+  const [draftModalHourPeriod, setDraftModalHourPeriod] = useState<PeriodChoice | null>(null);
   const modalHourPeriodEff: PeriodChoice = modalHourPeriod ?? period;
   const [modalServedHourly, setModalServedHourly] = useState<Array<{ hour: number; count: number }> | null>(null);
   useEffect(() => {
@@ -940,10 +1065,28 @@ const Overview: React.FC = () => {
     limit: 10
   });
 
-  // Ratings-analysis rows narrowed to the selected sentiment
+  // Ratings-analysis rows narrowed to the modal's period first, then the selected
+  // sentiment; the sentiment chips count from the period-filtered set so their
+  // numbers follow the period dropdown. Custom range uses the modal's own dates.
+  const periodRatings = useMemo(
+    () => modalData.filter((f: any) => {
+      if (ratingPeriod !== 'range') return isDateInPeriod(f?.created_date, ratingPeriod);
+      if (!f?.created_date) return false;
+      const t = new Date(f.created_date);
+      if (isNaN(t.getTime())) return false;
+      if (ratingRangeFrom && t < new Date(ratingRangeFrom)) return false;
+      if (ratingRangeTo) {
+        const end = new Date(ratingRangeTo);
+        end.setHours(23, 59, 59, 999);
+        if (t > end) return false;
+      }
+      return true;
+    }),
+    [modalData, isDateInPeriod, ratingPeriod, ratingRangeFrom, ratingRangeTo]
+  );
   const filteredRatings = useMemo(
-    () => modalData.filter((f: any) => sentimentFilter === 'all' || classifySentiment(f.rate, f.rate_out_of) === sentimentFilter),
-    [modalData, sentimentFilter]
+    () => periodRatings.filter((f: any) => sentimentFilter === 'all' || classifySentiment(f.rate, f.rate_out_of) === sentimentFilter),
+    [periodRatings, sentimentFilter]
   );
   
   const chartsRef = useRef<Map<string, Chart>>(new Map());
@@ -1546,8 +1689,8 @@ useEffect(() => {
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-gray-500"><path d="M1 3h10M3 6h6M5 9h2" stroke="currentColor" strokeWidth="1.2"/></svg>
           <label className="font-medium">Period</label>
           <select
-            value={period}
-            onChange={e => setPeriod(e.target.value as typeof period)}
+            value={draftPeriod}
+            onChange={e => setDraftPeriod(e.target.value as typeof period)}
             className="text-xs px-2 py-1 border border-gray-300 bg-white"
           >
             <option value="today">Today</option>
@@ -1558,23 +1701,33 @@ useEffect(() => {
             <option value="all">All</option>
             <option value="range">Custom range</option>
           </select>
-          {period === 'range' && (
+          {draftPeriod === 'range' && (
             <>
               <input
                 type="date"
-                value={rangeFrom}
-                onChange={e => setRangeFrom(e.target.value)}
+                value={draftRangeFrom}
+                onChange={e => setDraftRangeFrom(e.target.value)}
                 className="text-xs px-1.5 py-1 border border-gray-300 bg-white"
               />
               <span className="text-gray-400">to</span>
               <input
                 type="date"
-                value={rangeTo}
-                onChange={e => setRangeTo(e.target.value)}
+                value={draftRangeTo}
+                onChange={e => setDraftRangeTo(e.target.value)}
                 className="text-xs px-1.5 py-1 border border-gray-300 bg-white"
               />
             </>
           )}
+          <button
+            type="button"
+            onClick={applyToolbarPeriod}
+            disabled={draftPeriod === period && draftRangeFrom === rangeFrom && draftRangeTo === rangeTo}
+            className="flex items-center gap-2 px-4 py-2 bg-[#056daa] text-white text-[13px] font-semibold uppercase tracking-[1px] hover:bg-[#045d94] transition-colors disabled:opacity-40 disabled:hover:bg-[#056daa] disabled:cursor-default"
+            style={{ fontFamily: COK.headingFont, borderRadius: 0 }}
+          >
+            <FiFilter className="w-4 h-4" />
+            Apply
+          </button>
         </div>
     <button
   onClick={() => fetchData()}
@@ -1716,7 +1869,7 @@ useEffect(() => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
           {/* CHART 4 · "Average Rating by Department" — height: h-64 div, color: fill= on <Bar>, thickness: barSize */}
           <div
-            onClick={() => { setSentimentFilter('all'); handleCardClick('rating-analysis'); }}
+            onClick={() => { resetRatingFilters(); handleCardClick('rating-analysis'); }}
             className="bg-white p-4 relative cursor-pointer hover:shadow-md transition-all"
             style={{ border: `1px solid ${COK.border}` }}
           >
@@ -1751,15 +1904,16 @@ useEffect(() => {
           <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: 0 }}>
             Department Sentiment
           </h3>
-          <div className="text-[11px] uppercase tracking-wide text-gray-400 mt-0.5 mb-2">From negative to positive · avg rating out of 10</div>
+          <div className="text-[11px] uppercase tracking-wide text-gray-400 mt-0.5 mb-2">From negative to positive · avg rating out of 10 · {periodLabel}</div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 mb-2">
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.negative.color }}></div>Negative (&lt;4)</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.neutral.color }}></div>Neutral (4–6.9)</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.positive.color }}></div>Positive (7+)</div>
+            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ background: `linear-gradient(to top, ${SENTIMENT_META.negative.color} 33%, ${SENTIMENT_META.neutral.color} 33% 66%, ${SENTIMENT_META.positive.color} 66%)` }}></div>General feedback </div>
             <div className="flex items-center gap-1.5"><div className="w-3 h-0.5" style={{ backgroundColor: CC.blue }}></div>Rating trend</div>
           </div>
           {sentimentTrend.length === 0 ? (
-            <p className="text-sm text-gray-500" style={{ fontFamily: COK.bodyFont }}>No department feedback yet.</p>
+            <p className="text-sm text-gray-500" style={{ fontFamily: COK.bodyFont }}>No feedback in this period yet.</p>
           ) : (
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -1774,20 +1928,17 @@ useEffect(() => {
                     tickLine={false}
                   />
                   <YAxis domain={[0, 10]} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
-                  <RTooltip
-                    cursor={{ fill: COK.neutralLight }}
-                    contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
-                    formatter={(value: any, name: any, entry: any) =>
-                      name === 'Rating trend'
-                        ? [null, null]
-                        : [`${value}/10 · ${SENTIMENT_META[classifySentiment(Number(value), 10)].label} (${entry?.payload?.count} feedback)`, 'Avg rating']
-                    }
-                  />
-                  <Bar dataKey="rating" name="Avg rating" barSize={34} radius={[0, 0, 0, 0]}>
+                  <RTooltip cursor={{ fill: COK.neutralLight }} content={<SentimentChartTooltip />} />
+                  {/* barRating renders the department bars; the seg* stack renders the General
+                      bar as horizontal negative/neutral/positive bands (same total height) */}
+                  <Bar dataKey="barRating" name="Avg rating" barSize={34} radius={[0, 0, 0, 0]} stackId="sentiment">
                     {sentimentTrend.map((d, i) => (
                       <Cell key={i} fill={SENTIMENT_META[classifySentiment(d.rating, 10)].color} />
                     ))}
                   </Bar>
+                  <Bar dataKey="segNegative" name="Negative share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.negative.color} />
+                  <Bar dataKey="segNeutral" name="Neutral share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.neutral.color} />
+                  <Bar dataKey="segPositive" name="Positive share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.positive.color} />
                   <Line
                     type="monotone"
                     dataKey="rating"
@@ -1834,7 +1985,7 @@ useEffect(() => {
                   {parkingView === 'map' ? 'Parking Lot' : 'Parking Usage Trends'}
                   
                 </div>
-                <div className="text-xs text-gray-500">{parkingView === 'map' ? `Slot occupancy · vehicles checked in ${periodLabel}` : 'Check-ins vs check-outs · today'}</div>
+                <div className="text-xs text-gray-500">{parkingView === 'map' ? 'Slot occupancy · all currently active vehicles' : 'Check-ins vs check-outs · today'}</div>
               </div>
               <div className="flex border border-gray-300 text-xs flex-shrink-0">
                 <button onClick={() => setParkingView('map')} className={`px-2 py-1 ${parkingView === 'map' ? 'cok-primary-bg text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Lot map</button>
@@ -1842,7 +1993,7 @@ useEffect(() => {
               </div>
             </div>
             {parkingView === 'map' ? (
-              <ParkingMap totalSlots={parkingLot.totalSlots} vehicles={parkingVehiclesInPeriod} reservations={parkingLot.reservations} />
+              <ParkingMap totalSlots={parkingLot.totalSlots} vehicles={parkingLot.vehicles} reservations={parkingLot.reservations} />
             ) : hasHourlyParking ? (
               <div className="h-48 w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -2571,31 +2722,76 @@ useEffect(() => {
                         <h4 style={{ fontFamily: COK.headingFont, fontSize: 14, fontWeight: 600, color: COK.neutralDark, margin: '0 0 10px 0' }}>
                           Ratings ({filteredRatings.length})
                         </h4>
-                        {/* Sentiment filter chips with live counts */}
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          <button
-                            onClick={() => setSentimentFilter('all')}
-                            className={`px-3 py-1.5 text-xs font-semibold border bg-gray-100 text-gray-700 border-gray-300 transition-colors ${sentimentFilter === 'all' ? 'ring-2 ring-blue-400' : 'opacity-80 hover:opacity-100'}`}
-                          >
-                            All ({modalData.length})
-                          </button>
-                          {(['positive', 'neutral', 'negative'] as Sentiment[]).map(s => {
-                            const count = modalData.filter((f: any) => classifySentiment(f.rate, f.rate_out_of) === s).length;
-                            return (
-                              <button
-                                key={s}
-                                onClick={() => setSentimentFilter(s)}
-                                className={`px-3 py-1.5 text-xs font-semibold border transition-colors ${sentimentFilter === s ? 'ring-2 ring-blue-400' : 'opacity-80 hover:opacity-100'}`}
-                                style={{
-                                  backgroundColor: `${SENTIMENT_META[s].color}1A`,
-                                  color: SENTIMENT_META[s].color,
-                                  borderColor: SENTIMENT_META[s].color,
-                                }}
-                              >
-                                {SENTIMENT_META[s].label} ({count})
-                              </button>
-                            );
-                          })}
+                        {/* Sentiment filter chips (counts follow the period dropdown) + modal-level period filter */}
+                        <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => setSentimentFilter('all')}
+                              className={`px-3 py-1.5 text-xs font-semibold border bg-gray-100 text-gray-700 border-gray-300 transition-colors ${sentimentFilter === 'all' ? 'ring-2 ring-blue-400' : 'opacity-80 hover:opacity-100'}`}
+                            >
+                              All ({periodRatings.length})
+                            </button>
+                            {(['positive', 'neutral', 'negative'] as Sentiment[]).map(s => {
+                              const count = periodRatings.filter((f: any) => classifySentiment(f.rate, f.rate_out_of) === s).length;
+                              return (
+                                <button
+                                  key={s}
+                                  onClick={() => setSentimentFilter(s)}
+                                  className={`px-3 py-1.5 text-xs font-semibold border transition-colors ${sentimentFilter === s ? 'ring-2 ring-blue-400' : 'opacity-80 hover:opacity-100'}`}
+                                  style={{
+                                    backgroundColor: `${SENTIMENT_META[s].color}1A`,
+                                    color: SENTIMENT_META[s].color,
+                                    borderColor: SENTIMENT_META[s].color,
+                                  }}
+                                >
+                                  {SENTIMENT_META[s].label} ({count})
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1 text-xs text-gray-600">
+                            <label className="font-medium">Period</label>
+                            <select
+                              value={draftRatingPeriod}
+                              onChange={e => setDraftRatingPeriod(e.target.value as PeriodChoice)}
+                              className="text-xs px-2 py-1 border border-gray-300 bg-white"
+                            >
+                              <option value="today">Today</option>
+                              <option value="week">This week</option>
+                              <option value="lastweek">Last week</option>
+                              <option value="month">This month</option>
+                              <option value="lastmonth">Last month</option>
+                              <option value="all">All</option>
+                              <option value="range">Custom range</option>
+                            </select>
+                            {draftRatingPeriod === 'range' && (
+                              <>
+                                <input
+                                  type="date"
+                                  value={draftRatingRangeFrom}
+                                  onChange={e => setDraftRatingRangeFrom(e.target.value)}
+                                  className="text-xs px-1.5 py-1 border border-gray-300 bg-white"
+                                />
+                                <span className="text-gray-400">to</span>
+                                <input
+                                  type="date"
+                                  value={draftRatingRangeTo}
+                                  onChange={e => setDraftRatingRangeTo(e.target.value)}
+                                  className="text-xs px-1.5 py-1 border border-gray-300 bg-white"
+                                />
+                              </>
+                            )}
+                            <button
+                              type="button"
+                              onClick={applyRatingPeriod}
+                              disabled={draftRatingPeriod === ratingPeriod && draftRatingRangeFrom === ratingRangeFrom && draftRatingRangeTo === ratingRangeTo}
+                              className="flex items-center gap-2 px-4 py-2 bg-[#056daa] text-white text-[13px] font-semibold uppercase tracking-[1px] hover:bg-[#045d94] transition-colors disabled:opacity-40 disabled:hover:bg-[#056daa] disabled:cursor-default"
+                              style={{ fontFamily: COK.headingFont, borderRadius: 0 }}
+                            >
+                              <FiFilter className="w-4 h-4" />
+                              Apply
+                            </button>
+                          </div>
                         </div>
                         {/* Same table design rules as the event-manager events table:
                             bordered container, CoK-blue uppercase header, zebra rows, bordered cells */}
@@ -2624,7 +2820,7 @@ useEffect(() => {
                               {filteredRatings.length === 0 && (
                                 <tr>
                                   <td colSpan={6} className="px-4 py-16 text-center bg-white">
-                                    <span className="text-sm font-medium text-gray-400 uppercase tracking-wide">No ratings for this sentiment</span>
+                                    <span className="text-sm font-medium text-gray-400 uppercase tracking-wide">No ratings for this filter</span>
                                   </td>
                                 </tr>
                               )}
@@ -2782,8 +2978,8 @@ useEffect(() => {
                     <div className="flex items-center gap-1 text-xs text-gray-600">
                       <label className="font-medium">Period</label>
                       <select
-                        value={modalHourPeriodEff}
-                        onChange={e => setModalHourPeriod(e.target.value as PeriodChoice)}
+                        value={draftModalHourPeriod ?? modalHourPeriodEff}
+                        onChange={e => setDraftModalHourPeriod(e.target.value as PeriodChoice)}
                         className="text-xs px-2 py-1 border border-gray-300 bg-white"
                       >
                         <option value="today">Today</option>
@@ -2794,6 +2990,16 @@ useEffect(() => {
                         <option value="all">All</option>
                         {period === 'range' && <option value="range">Custom range</option>}
                       </select>
+                      <button
+                        type="button"
+                        onClick={() => setModalHourPeriod(draftModalHourPeriod ?? modalHourPeriodEff)}
+                        disabled={(draftModalHourPeriod ?? modalHourPeriodEff) === modalHourPeriodEff}
+                        className="flex items-center gap-2 px-4 py-2 bg-[#056daa] text-white text-[13px] font-semibold uppercase tracking-[1px] hover:bg-[#045d94] transition-colors disabled:opacity-40 disabled:hover:bg-[#056daa] disabled:cursor-default"
+                        style={{ fontFamily: COK.headingFont, borderRadius: 0 }}
+                      >
+                        <FiFilter className="w-4 h-4" />
+                        Apply
+                      </button>
                     </div>
                   </div>
 
