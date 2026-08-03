@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNotification } from "../../contexts/NotificationContext";
+import { useToast } from "../../contexts/ToastContext";
+import ProfileModal from "../ProfileModal";
 import {
   FiMenu,
   FiBell,
@@ -43,6 +45,7 @@ const Header: React.FC<HeaderProps> = ({
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showLogoutOverlay, setShowLogoutOverlay] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   const displayName = user?.fullName || "User";
   const displayRole = user?.role || "Guest";
@@ -152,20 +155,20 @@ const Header: React.FC<HeaderProps> = ({
                 </div>
 
                 <div className="py-1">
-                  <button
-                    onClick={() => {
-                      onNavigate("/profile");
-                      setShowUserMenu(false);
-                    }}
-                    className={`w-full cursor-pointer flex items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50 ${
-                      currentPath === "/profile"
-                        ? "cok-primary-color bg-blue-50"
-                        : "text-gray-700"
-                    }`}
-                  >
-                    <FiUser className="w-4 h-4" />
-                    Profile
-                  </button>
+                   <button
+                     onClick={() => {
+                       setShowUserMenu(false);
+                       setShowProfileModal(true);
+                     }}
+                     className={`w-full cursor-pointer flex items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50 ${
+                       currentPath === "/profile"
+                         ? "cok-primary-color bg-blue-50"
+                         : "text-gray-700"
+                     }`}
+                   >
+                     <FiUser className="w-4 h-4" />
+                     Profile
+                   </button>
                 </div>
 
                 <div className="border-t border-gray-100 pt-1">
@@ -271,6 +274,11 @@ const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       )}
+
+      <ProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+      />
     </>
   );
 };

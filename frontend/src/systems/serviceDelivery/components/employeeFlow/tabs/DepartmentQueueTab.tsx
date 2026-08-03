@@ -1,462 +1,460 @@
-// DepartmentQueueTab - Department Queue for Employee
-// Shows all units in the department and their assigned visitors
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { FiUsers, FiClock, FiCheckCircle, FiArrowRight, FiChevronDown, FiChevronRight, FiList, FiUserCheck } from 'react-icons/fi';
-import { useAuth } from '../../../../../core/contexts/AuthContext';
-import { serviceDeliveryService, departmentService } from '../../../../../core/services/adminService';
+// DepartmentQueueTab.tsx - In-house visitors assigned to the user's department
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { FiSearch, FiUsers, FiCheckCircle, FiGrid } from "react-icons/fi";
+import { useAuth } from "../../../../../core/contexts/AuthContext";
+import { useToast } from "../../../../../core/contexts/ToastContext";
+import { serviceDeliveryService } from "../../../../../core/services/adminService";
+import Table from "../../../../../core/components/Table";
+import EmployeeVisitorClicked from "../../../../../core/components/EmployeeVisitorClicked";
 
 const PRIMARY = "#056daa";
+const SUCCESS = "#4CAF50";
+const WARNING = "#F39C12";
+const NEUTRAL_LIGHT = "#F7F9FB";
 const NEUTRAL_DARK = "#333333";
 const BORDER = "#E0E0E0";
 const WHITE = "#FFFFFF";
 const GRAY_DISABLED = "#9E9E9E";
-const NEUTRAL_LIGHT = "#F7F9FB";
 const fontHeading = "'Montserrat', sans-serif";
 const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
-const TERTIARY = '#555555';
-const tableHeaderStyle: React.CSSProperties = {
-  fontFamily: fontHeading,
-  fontWeight: 600,
-  letterSpacing: '0.5px',
-  color: TERTIARY
-};
+const btnTypography: React.CSSProperties = { fontFamily: fontHeading, fontSize: 13, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' };
 
-interface DepartmentVisitor {
+interface FormattedVisitor {
   id: string;
   visitorName: string;
-  phone: string;
-  serviceType: string;
+  visitorId: string;
+  badgeNumber: string;
+  assignedTo: string;
+  waitTime: string;
+  initials: string;
   status: string;
-  entryDate: string;
-  ticketNumber?: string;
-  providerName?: string;
-  departmentName?: string;
+  serviceStartTime: string;
+  telephone: string;
+  checkInRaw: string;
+  rawVisitor: any;
+  not_transferred_to_me: boolean;
 }
 
-interface DepartmentUnity {
-  unityId: string;
-  unityName: string;
-  visitors: DepartmentVisitor[];
+interface QueueSummary {
+  is_parent_department: boolean;
+  total_units: number;
+  visitors_in_department: number;
+  currently_serving: number;
+  units: Array<{
+    unit_id: string;
+    unit_name: string;
+    total_assigned: number;
+    currently_serving: number;
+  }>;
 }
 
 const DepartmentQueueTab: React.FC = () => {
   const { user } = useAuth();
+  const { showError } = useToast();
+
+  const currentUser = user as any;
+  const myId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || "");
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const resultsPerPage = 20;
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [visitors, setVisitors] = useState<FormattedVisitor[]>([]);
   const [loading, setLoading] = useState(true);
-  const [departmentUnities, setDepartmentUnities] = useState<DepartmentUnity[]>([]);
-  const [unassignedVisitors, setUnassignedVisitors] = useState<DepartmentVisitor[]>([]);
-  const [expandedUnities, setExpandedUnities] = useState<Set<string>>(new Set());
-  const [showUnassigned, setShowUnassigned] = useState(true);
+  const [queueSummary, setQueueSummary] = useState<QueueSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [showVisitorDetails, setShowVisitorDetails] = useState(false);
+  const [selectedVisitorForDetails, setSelectedVisitorForDetails] = useState<any>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchDepartmentQueue = useCallback(async () => {
-    const currentUser = user as any;
-    const myUserId = String(currentUser?.userId || currentUser?._id || currentUser?.id || currentUser?.employee_id || '');
-    
-    // Extract everything we can about the user's department (could be an ID or a Name depending on login state)
-    const rawDeptIdentifier = currentUser?.department_id || currentUser?.department?._id || currentUser?.department || currentUser?.department_name || '';
+  const formatVisitors = (allVisitors: any[]): FormattedVisitor[] => {
+    return allVisitors.map((v: any) => {
+      const visitorName = v.full_name || v.name || v.visitorName || "Unknown";
+      const initials = visitorName.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase();
+      let identification = "N/A";
+      if (typeof v.identification === "string") identification = v.identification;
+      else if (v.identification?.number) identification = v.identification.number;
+      const badgeNumber = v.badge_number || "";
+      const myAssignment = v.departments_assigned?.find((d: any) => String(d.provider_id) === myId);
+      const checkInTime = myAssignment?.assigned_time || v.entry_date || new Date().toISOString();
+      const serviceDuration = v.durations?.services_durations?.find((d: any) => String(d.provider_id) === myId && d.ended_at === null);
+      const serviceStartTimeVal = serviceDuration?.started_at || "";
+      let myServiceStatus = null;
+      if (Array.isArray(v.services_status)) myServiceStatus = v.services_status.find((s: any) => String(s.provider_id) === myId);
+      let status = (myServiceStatus?.s_type || v.status || "Not started").toLowerCase();
+      if (status === "not started") status = "Not started";
+      if (status === "inprogress") status = "inprogress";
+      if (status === "completed") status = "completed";
+      if (status === "transfered" || status === "transferred") status = "transfered";
+      const waitTimeEndStamp = (status === "inprogress" || status === "completed" || status === "transfered") && serviceStartTimeVal ? new Date(serviceStartTimeVal).getTime() : new Date().getTime();
+      let waitTimeString = "Just now";
+      if (checkInTime) {
+        const diffMins = Math.floor((waitTimeEndStamp - new Date(checkInTime).getTime()) / 60000);
+        if (diffMins > 0) {
+          const hours = Math.floor(diffMins / 60);
+          const mins = diffMins % 60;
+          waitTimeString = hours > 0 ? `${hours}h ${mins}m` : `${mins} mins`;
+        }
+      }
+      const assignedToDisplay = myAssignment?.provider_name || myAssignment?.department_name || "---";
+      return {
+        id: v._id || v.id,
+        visitorName,
+        visitorId: identification,
+        badgeNumber,
+        assignedTo: assignedToDisplay,
+        waitTime: waitTimeString,
+        initials,
+        status,
+        serviceStartTime: serviceStartTimeVal,
+        telephone: v.telephone || "N/A",
+        checkInRaw: checkInTime,
+        rawVisitor: v,
+        not_transferred_to_me: myServiceStatus ? String(myServiceStatus.provider_id) !== myId && myServiceStatus.s_type?.toLowerCase() === "transferred" : false,
+      };
+    }).reverse();
+  };
 
-    if (!myUserId || myUserId === 'undefined' || myUserId === '') {
-      setLoading(false);
-      return;
-    }
-
+  const fetchAssignedVisitors = useCallback(async (silent: boolean = false, page: number = currentPage, query: string = searchTerm) => {
+    if (!myId || myId === "undefined") { if (!silent) setLoading(false); return; }
     try {
-      setLoading(true);
-
-      // STEP 1: FETCH ALL DEPARTMENTS AND ROBUSTLY RESOLVE THE PARENT DEPARTMENT ID
-      let allDepartments: any[] = [];
-      const deptResponse = await departmentService.getAll() as any;
-      if (deptResponse && (deptResponse.status || deptResponse.success)) {
-        allDepartments = Array.isArray(deptResponse.data) ? deptResponse.data : (deptResponse.data?.data || []);
-      }
-      
-      // Match the employee's raw department identifier to an ACTUAL backend department _id
-      let actualParentDeptId = '';
-      const matchedDept = allDepartments.find((d: any) => 
-        String(d._id) === String(rawDeptIdentifier) || 
-        String(d.department_id) === String(rawDeptIdentifier) ||
-        String(d.department_name).toLowerCase() === String(rawDeptIdentifier).toLowerCase()
-      );
-
-      if (matchedDept) {
-        actualParentDeptId = String(matchedDept._id);
-        console.log(`Resolved Employee Dept: "${rawDeptIdentifier}" -> ID: ${actualParentDeptId}`);
+      if (!silent) setLoading(true);
+      let response;
+      if (query && query.trim()) {
+        response = await serviceDeliveryService.getCurrentVisitorsByProvider(myId, page, resultsPerPage, true);
       } else {
-        console.warn('Could not match employee department name/id to backend list:', rawDeptIdentifier);
-        // Fallback to whatever string we have if we couldn't match it
-        actualParentDeptId = String(rawDeptIdentifier);
+        response = await serviceDeliveryService.getCurrentVisitorsByProvider(myId, page, resultsPerPage, true);
       }
-
-      // STEP 2: FIND UNITS (SUB-DEPARTMENTS) BELONGING TO THIS PARENT ID
-      const subDepts = allDepartments.filter((dept: any) => {
-        return (
-          (dept.sub_department_mng?.is_sub_department === true || dept.sub_department_mng?.is_sub_department === 'true') &&
-          String(dept.sub_department_mng?.parent_department_id) === actualParentDeptId
-        );
-      });
-      
-      // Create mappings and pre-populate the buckets so empty units still show up in the UI
-      const unitNameMap = new Map<string, string>();
-      const unityBuckets = new Map<string, DepartmentVisitor[]>();
-      
-      subDepts.forEach((dept: any) => {
-        const unitId = String(dept._id || dept.department_id || '');
-        const unitName = dept.department_name || dept.name || 'Unknown Unit';
-        unitNameMap.set(unitId, unitName);
-        unityBuckets.set(unitId, []); // Pre-initialize bucket to empty array
-      });
-
-      console.log(`Found ${subDepts.length} units for this department`);
-
-      // STEP 3: GET CHECKED-IN VISITORS
-      const visitorResponse = await serviceDeliveryService.getAll(1, 10000) as any;
-      
-      if (visitorResponse && (visitorResponse.success || Array.isArray(visitorResponse.data) || Array.isArray(visitorResponse))) {
-        // Handle different possible API response shapes
-        const allVisitors = Array.isArray(visitorResponse) ? visitorResponse : (Array.isArray(visitorResponse.data) ? visitorResponse.data : (visitorResponse.data?.data || []));
-        
-        const unassigned: DepartmentVisitor[] = [];
-        
-        allVisitors.forEach((v: any) => {
-          const visitorStatus = v.status ? String(v.status).toLowerCase() : 'waiting';
-          const deptsAssigned = Array.isArray(v.departments_assigned) ? v.departments_assigned : [];
-          
-          let foundUnitId = '';
-          let foundUnitName = '';
-          let deptName = '';
-          
-          // Check if any of the assigned departments are actually one of our Units
-          for (const dept of deptsAssigned) {
-            const assignedId = String(dept.department_id || dept._id || '');
-            if (unitNameMap.has(assignedId)) {
-              foundUnitId = assignedId;
-              foundUnitName = unitNameMap.get(assignedId)!;
-              deptName = dept.department_name || '';
-              break;
-            }
-          }
-
-          // Fallback: Sometimes assigned directly via unit_id outside of the array
-          if (!foundUnitId) {
-             const flatUnitId = String(v.department_unit || v.unit_id || '');
-             if (unitNameMap.has(flatUnitId)) {
-                 foundUnitId = flatUnitId;
-                 foundUnitName = unitNameMap.get(flatUnitId)!;
-             }
-          }
-          
-          const visitorData: DepartmentVisitor = {
-            id: v._id || v.id || '',
-            visitorName: v.visitor_name || v.full_name || v.name || 'Unknown',
-            phone: v.phone || v.telephone || v.phone_number || 'N/A',
-            serviceType: v.service_type || v.service_name || v.service || 'General Service',
-            status: visitorStatus,
-            entryDate: v.entry_date || v.check_in_time || v.created_at,
-            ticketNumber: v.ticket_number || '',
-            providerName: foundUnitName,
-            departmentName: deptName
-          };
-          
-          // Place visitor in the correct bucket
-          if (foundUnitId && unityBuckets.has(foundUnitId)) {
-            unityBuckets.get(foundUnitId)!.push(visitorData);
-          } else {
-            // Not assigned to a specific sub-unit (or assigned to main dept only)
-            unassigned.push(visitorData);
-          }
-        });
-
-        // STEP 4: CONVERT BUCKETS TO COMPONENT STATE
-        const unities: DepartmentUnity[] = [];
-        unityBuckets.forEach((visitors, unitId) => {
-          unities.push({
-            unityId: unitId,
-            unityName: unitNameMap.get(unitId) || `Unit ${unitId.slice(-4)}`,
-            visitors: visitors.sort((a, b) => new Date(a.entryDate).getTime() - new Date(b.entryDate).getTime())
-          });
-        });
-
-        // Sort unities by number of visitors (busiest first), then alphabetically
-        unities.sort((a, b) => b.visitors.length - a.visitors.length || a.unityName.localeCompare(b.unityName));
-
-        setDepartmentUnities(unities);
-        setUnassignedVisitors(unassigned.sort((a, b) => new Date(a.entryDate).getTime() - new Date(b.entryDate).getTime()));
-        
-        // Expand all unities by default so users can see the queues immediately
-        setExpandedUnities(new Set(unities.map(u => u.unityId)));
+      if (response && response.success) {
+        const allVisitors: any[] = response.data || [];
+        const formatted = formatVisitors(allVisitors);
+        setVisitors(formatted);
+        setTotalCount(response.total || 0);
+        setTotalPages(Math.max(1, Math.ceil((response.total || 0) / resultsPerPage)));
+      } else {
+        setVisitors([]);
+        setTotalCount(0);
+        setTotalPages(1);
       }
     } catch (error) {
-      console.error('Error fetching department queue:', error);
+      console.error(error);
+      showError("Failed to load department queue");
+      setVisitors([]);
+      setTotalCount(0);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  }, [user]);
+  }, [myId, currentPage, searchTerm, showError]);
 
-  useEffect(() => {
-    fetchDepartmentQueue();
-  }, [fetchDepartmentQueue]);
+  const fetchQueueSummary = useCallback(async (silent: boolean = false) => {
+    if (!myId || myId === "undefined") return;
+    try {
+      if (!silent) setSummaryLoading(true);
+      const response = await serviceDeliveryService.getQueueSummary(true);
+      if (response && response.success) {
+        setQueueSummary(response);
+      } else {
+        setQueueSummary(null);
+      }
+    } catch (error) {
+      console.error(error);
+      showError("Failed to load queue summary");
+      setQueueSummary(null);
+    } finally {
+      if (!silent) setSummaryLoading(false);
+    }
+  }, [myId, showError]);
 
-  const toggleUnity = (unityId: string) => {
-    const newExpanded = new Set(expandedUnities);
-    if (newExpanded.has(unityId)) {
-      newExpanded.delete(unityId);
+  const handleSearchInput = (value: string) => {
+    setSearchTerm(value);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    if (value && value.trim().length >= 1) {
+      searchTimeoutRef.current = setTimeout(() => {
+        setCurrentPage(1);
+        fetchAssignedVisitors(false, 1, value);
+      }, 500);
     } else {
-      newExpanded.add(unityId);
+      setCurrentPage(1);
+      fetchAssignedVisitors(false, 1, "");
     }
-    setExpandedUnities(newExpanded);
   };
 
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return 'N/A';
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const handleSearch = () => {
+    setCurrentPage(1);
+    fetchAssignedVisitors(false, 1, searchTerm);
   };
 
-  const getWaitTime = (entryDate: string) => {
-    if (!entryDate) return 'N/A';
-    const entry = new Date(entryDate).getTime();
-    const now = Date.now();
-    const diffMins = Math.floor((now - entry) / 60000);
-    if (diffMins < 60) return `${diffMins}m`;
-    const hours = Math.floor(diffMins / 60);
-    const mins = diffMins % 60;
-    return `${hours}h ${mins}m`;
+  const handleRefresh = () => {
+    fetchAssignedVisitors(false, currentPage, searchTerm);
+    fetchQueueSummary();
   };
 
-  const getStatusBadge = (status: string) => {
-    const badges: Record<string, React.ReactNode> = {
-      waiting: <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-[rgba(243,156,18,0.12)] text-[#D68910]"><FiClock className="w-3 h-3 mr-1" />Waiting</span>,
-      pending: <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-[rgba(243,156,18,0.12)] text-[#D68910]"><FiClock className="w-3 h-3 mr-1" />Pending</span>,
-      in_service: <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-[rgba(76,175,80,0.12)] text-[#388E3C]"><FiUserCheck className="w-3 h-3 mr-1" />In Service</span>,
-      in_progress: <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-[rgba(76,175,80,0.12)] text-[#388E3C]"><FiUserCheck className="w-3 h-3 mr-1" />In Progress</span>,
-      serving: <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-[rgba(76,175,80,0.12)] text-[#388E3C]"><FiUserCheck className="w-3 h-3 mr-1" />Serving</span>,
-      completed: <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-[rgba(51,51,51,0.08)] text-[#555555]"><FiCheckCircle className="w-3 h-3 mr-1" />Completed</span>,
-      transferred: <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-[rgba(243,156,18,0.12)] text-[#D68910]"><FiArrowRight className="w-3 h-3 mr-1" />Transferred</span>
-    };
-    return badges[status] || badges.waiting;
-  };
+  const filteredVisitors = visitors.filter((request) => {
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = !searchTerm ||
+      request.visitorName.toLowerCase().includes(searchLower) ||
+      request.visitorId.toLowerCase().includes(searchLower) ||
+      request.badgeNumber.toLowerCase().includes(searchLower) ||
+      (request.telephone || "").toLowerCase().includes(searchLower);
+    return matchesSearch;
+  });
 
-  const totalWaiting = unassignedVisitors.length + departmentUnities.reduce((sum, u) => 
-    sum + u.visitors.filter(v => ['waiting', 'pending'].includes(v.status)).length, 0
-  );
-  const totalInService = departmentUnities.reduce((sum, u) => 
-    sum + u.visitors.filter(v => ['in_service', 'serving', 'in_progress'].includes(v.status)).length, 0
-  );
+  const paginatedVisitors = filteredVisitors.slice(0, resultsPerPage);
+
+  useEffect(() => { return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); }; }, []);
+  useEffect(() => {
+    if (myId && myId !== "undefined") {
+      fetchAssignedVisitors(false);
+      fetchQueueSummary();
+    } else if (!myId || myId === "undefined") {
+      setLoading(false);
+      setSummaryLoading(false);
+    }
+  }, [fetchAssignedVisitors, fetchQueueSummary, myId]);
+
+  // Silent refresh every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (myId && myId !== "undefined") {
+        fetchAssignedVisitors(true);
+        fetchQueueSummary(true);
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [fetchAssignedVisitors, fetchQueueSummary, myId]);
 
   return (
-    <div className="p-4">
+    <div className="space-y-4 w-full" style={{ backgroundColor: NEUTRAL_LIGHT }}>
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-base font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Department Queue</h1>
-          <p className="text-[#555555] text-xs mt-0.5">A high-level view of how many people are waiting in the entire department.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 bg-[rgba(243,156,18,0.12)] px-2.5 py-1.5">
-            <FiClock className="text-[#F39C12] w-4 h-4" />
-            <span className="text-[#D68910] text-xs font-semibold">{totalWaiting} Waiting</span>
+        <div className="px-3 py-1.5 text-xs font-bold" style={{ fontFamily: fontHeading, color: PRIMARY, backgroundColor: 'rgba(5,109,170,0.08)' }}>{totalCount} Records</div>
+      </div>
+
+      {/* Top search bar */}
+      <div className="w-full">
+        <div className="flex w-full flex-col sm:flex-row gap-2 sm:gap-3">
+          <div className="relative flex-1 min-w-0">
+            <input
+              type="text"
+              placeholder="Search by visitor name, ID, or badge..."
+              value={searchTerm}
+              onChange={(e) => handleSearchInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              className="w-full h-12 sm:h-14 pl-10 pr-3 text-base sm:text-lg cok-auth-input"
+            />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <div className="flex items-center gap-1.5 bg-[rgba(76,175,80,0.12)] px-2.5 py-1.5">
-            <FiUserCheck className="text-[#4CAF50] w-4 h-4" />
-            <span className="text-[#388E3C] text-xs font-semibold">{totalInService} In Service</span>
-          </div>
+          <button
+            onClick={handleSearch}
+            disabled={loading}
+            className="flex-shrink-0 h-12 sm:h-14 px-6 sm:px-8 cok-btn-primary flex items-center justify-center gap-2 text-base sm:text-lg whitespace-nowrap max-w-[200px] min-w-[100px] sm:min-w-[120px]"
+          >
+            {loading ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <></>
+            )}
+            <span>{loading ? "Wait" : "Search"}</span>
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mt-6">
-        {/* Unassigned Section */}
-        <div className="col-span-2 bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
-          <div
-            className="px-5 py-4 bg-[#F7F9FB] border-b border-[#E0E0E0] flex justify-between items-center cursor-pointer hover:bg-[#EFF3F7]"
-            onClick={() => setShowUnassigned(!showUnassigned)}
-          >
-            <div className="flex items-center gap-3">
-              {showUnassigned ? <FiChevronDown className="w-5 h-5 text-[#555555]" /> : <FiChevronRight className="w-5 h-5 text-[#555555]" />}
-              <span className="text-[15px] font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Checked In (Unassigned)</span>
-              <span className="bg-[rgba(243,156,18,0.12)] text-[#D68910] text-xs font-medium px-2 py-1">{unassignedVisitors.length}</span>
-            </div>
-            <span className="text-[#9E9E9E] text-[12px]">Visitors waiting for unit/provider assignment</span>
-          </div>
-          
-          {!loading && showUnassigned && (
-            <div className="max-h-[400px] overflow-y-auto">
-              {unassignedVisitors.length === 0 ? (
-                <div className="px-5 py-8 text-center">
-                  <FiUsers className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-[#9E9E9E] text-[14px]">No unassigned visitors</p>
-                </div>
-              ) : (
-                <table className="w-full">
-<thead className="cok-bg-primary sticky top-0">
-	                       <tr>
-	                         <th className="px-5 py-2 text-left text-[10px] uppercase" style={tableHeaderStyle}>Visitor</th>
-                      <th className="px-5 py-2 text-left text-[10px] uppercase" style={tableHeaderStyle}>Service</th>
-                      <th className="px-5 py-2 text-left text-[10px] uppercase" style={tableHeaderStyle}>Wait Time</th>
-                      <th className="px-5 py-2 text-left text-[10px] uppercase" style={tableHeaderStyle}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#E0E0E0]">
-                    {unassignedVisitors.map((visitor) => (
-                      <tr key={visitor.id} className="hover:bg-[#F7F9FB]">
-                        <td className="px-5 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-[#F39C12] text-white flex items-center justify-center text-[10px] font-semibold">
-                              {visitor.visitorName.charAt(0).toUpperCase()}
-                            </div>
-                            <span className="text-[#333333] text-[13px]">{visitor.visitorName}</span>
-                          </div>
-                        </td>
-                        <td className="px-5 py-3">
-                          <span className="text-[#555555] text-[12px]">{visitor.serviceType}</span>
-                        </td>
-                        <td className="px-5 py-3">
-                          <span className="text-[#9E9E9E] text-[12px]">{getWaitTime(visitor.entryDate)}</span>
-                        </td>
-                        <td className="px-5 py-3">
-                          {getStatusBadge(visitor.status)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          )}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Visitors Table */}
+        <div className="sm:col-span-2 bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW, borderRadius: 0 }}>
+          <Table
+            headers={[
+              { key: "badge", label: "BADGE" },
+              { key: "visitor", label: "NAME" },
+              { key: "id", label: "ID" },
+              { key: "phone", label: "PHONE" },
+              { key: "service", label: "ASSIGNED TO" },
+              { key: "duration", label: "WAIT TIME" },
+              { key: "status", label: "STATUS" },
+              { key: "action", label: "IS SERVED" },
+            ]}
+            data={paginatedVisitors}
+            loading={loading && visitors.length === 0}
+            emptyMessage="No visitors found in your department queue."
+            headerClassName="cok-bg-primary"
+            onRowClick={(v: any) => {
+              setSelectedVisitorForDetails(v.rawVisitor || v);
+              setShowVisitorDetails(true);
+            }}
+            pagination={{
+              currentPage,
+              totalPages,
+              totalCount,
+              itemsPerPage: resultsPerPage,
+              onPageChange: (p) => {
+                setCurrentPage(p);
+              },
+              loading,
+            }}
+            renderCell={(header, v: any) => {
+              switch (header.key) {
+                case "badge":
+                  return (
+                    <span
+                      className="text-xs px-2 py-0.5"
+                      style={{
+                        backgroundColor: "rgba(5,109,170,0.1)",
+                        color: PRIMARY,
+                        borderRadius: 0,
+                      }}
+                    >
+                      {v.badgeNumber || "---"}
+                    </span>
+                  );
+                case "visitor":
+                  return (
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-7.5 h-7.5 flex items-center justify-center text-xs font-bold"
+                        style={{
+                          backgroundColor: "rgba(5,109,170,0.1)",
+                          color: PRIMARY,
+                          borderRadius: 999,
+                        }}
+                      >
+                        {v.initials}
+                      </div>
+                      <span className="text-sm font-semibold" style={{ color: NEUTRAL_DARK }}>
+                        {v.visitorName}
+                      </span>
+                    </div>
+                  );
+                case "id":
+                  return (
+                    <span className="text-xs" style={{ color: "#555555" }}>
+                      {v.visitorId}
+                    </span>
+                  );
+                case "phone":
+                  return (
+                    <span className="text-xs" style={{ color: "#555555" }}>
+                      {v.telephone || "---"}
+                    </span>
+                  );
+                case "service":
+                  return <span className="text-xs font-medium" style={{ color: NEUTRAL_DARK }}>{v.assignedTo}</span>;
+                case "duration":
+                  return <span className="text-xs font-semibold" style={{ color: "#555555" }}>{v.waitTime}</span>;
+                case "status":
+                  return (
+                    <span
+                      className="text-xs px-2 py-0.5 font-bold uppercase"
+                      style={{
+                        borderRadius: 0,
+                        backgroundColor:
+                          v.status === "inprogress"
+                            ? "rgba(76,175,80,0.12)"
+                            : v.status === "completed"
+                              ? "rgba(51,51,51,0.08)"
+                              : v.status === "transfered"
+                                ? "rgba(41,128,185,0.12)"
+                                : "rgba(243,156,18,0.12)",
+                        color:
+                          v.status === "inprogress"
+                            ? SUCCESS
+                            : v.status === "completed"
+                              ? "#555555"
+                              : v.status === "transfered"
+                                ? "#2980B9"
+                                : WARNING,
+                      }}
+                    >
+                      {v.status === "Not started" ? "Not Started" : v.status === "inprogress" ? "In Progress" : v.status === "completed" ? "Completed" : v.status === "transfered" ? "Transferred" : v.status}
+                    </span>
+                  );
+                case "action":
+                  return v.status === "completed" ? (
+                    <span className="text-xs" style={{ color: SUCCESS, fontWeight: 600 }}>
+                      ✓ Served
+                    </span>
+                  ) : (
+                    <span className="text-xs" style={{ color: "#555555", fontWeight: 600 }}>
+                      PENDING
+                    </span>
+                  );
+                default:
+                  return <span className="text-xs" style={{ color: "#555555" }}>{v[header.key] || "-"}</span>;
+              }
+            }}
+          />
         </div>
 
-        {/* Summary Card */}
-        <div className="p-5 text-white" style={{ backgroundColor: PRIMARY, boxShadow: CARD_SHADOW }}>
+        {/* Queue Summary Sidebar */}
+        <div className="p-5 text-white" style={{ backgroundColor: PRIMARY, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
           <h3 className="text-white text-[16px] font-bold mb-4" style={{ fontFamily: fontHeading }}>Queue Summary</h3>
           <div className="space-y-4">
             <div className="bg-[rgba(255,255,255,0.1)] p-4">
               <div className="flex items-center gap-2 mb-1">
-                <FiList className="w-4 h-4 opacity-70" />
+                <FiGrid className="w-4 h-4 opacity-70" />
                 <span className="text-white/70 text-[12px]">Total Units</span>
               </div>
-              <div className="text-white text-[28px] font-bold" style={{ fontFamily: fontHeading }}>{departmentUnities.length}</div>
+              <div className="text-white text-[28px] font-bold" style={{ fontFamily: fontHeading }}>
+                {summaryLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : (queueSummary?.total_units ?? 0)}
+              </div>
             </div>
             <div className="bg-[rgba(255,255,255,0.1)] p-4">
               <div className="flex items-center gap-2 mb-1">
                 <FiUsers className="w-4 h-4 opacity-70" />
-                <span className="text-white/70 text-[12px]">Unassigned Visitors</span>
+                <span className="text-white/70 text-[12px]">Visitors in Department</span>
               </div>
-              <div className="text-white text-[28px] font-bold" style={{ fontFamily: fontHeading }}>{unassignedVisitors.length}</div>
+              <div className="text-white text-[28px] font-bold" style={{ fontFamily: fontHeading }}>
+                {summaryLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : (queueSummary?.visitors_in_department ?? 0)}
+              </div>
             </div>
             <div className="bg-[rgba(255,255,255,0.1)] p-4">
               <div className="flex items-center gap-2 mb-1">
-                <FiUserCheck className="w-4 h-4 opacity-70" />
+                <FiCheckCircle className="w-4 h-4 opacity-70" />
                 <span className="text-white/70 text-[12px]">Currently Serving</span>
               </div>
-              <div className="text-white text-[28px] font-bold" style={{ fontFamily: fontHeading }}>{totalInService}</div>
+              <div className="text-white text-[28px] font-bold" style={{ fontFamily: fontHeading }}>
+                {summaryLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : (queueSummary?.currently_serving ?? 0)}
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Department Units */}
-      <div className="mt-6 bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
-        <div className="px-5 py-4 bg-[#F7F9FB] border-b border-[#E0E0E0]">
-          <div className="flex items-center gap-3">
-            <span className="text-[15px] font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Department Units</span>
-            <span className="bg-[rgba(5,109,170,0.1)] text-[#056daa] text-xs font-medium px-2 py-1">{departmentUnities.length}</span>
-          </div>
-        </div>
-
-        {!loading && (
-          <div>
-            {departmentUnities.length === 0 ? (
-              <div className="px-5 py-12 text-center">
-                <FiUsers className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-[#9E9E9E] text-[14px]">No department units found.</p>
-              </div>
-            ) : (
-              departmentUnities.map((unity) => {
-                const isExpanded = expandedUnities.has(unity.unityId);
-                const waitingCount = unity.visitors.filter(v => ['waiting', 'pending'].includes(v.status)).length;
-                const inServiceCount = unity.visitors.filter(v => ['in_service', 'serving', 'in_progress'].includes(v.status)).length;
-                
-                return (
-                  <div key={unity.unityId} className="border-b border-[#E0E0E0] last:border-0">
-                    <div
-                      className="px-5 py-4 flex justify-between items-center cursor-pointer hover:bg-[#F7F9FB]"
-                      onClick={() => toggleUnity(unity.unityId)}
-                    >
-                      <div className="flex items-center gap-3">
-                        {isExpanded ? <FiChevronDown className="w-5 h-5 text-[#555555]" /> : <FiChevronRight className="w-5 h-5 text-[#555555]" />}
-                        <div className="w-8 h-8 rounded-full text-white flex items-center justify-center text-[14px] font-semibold" style={{ backgroundColor: PRIMARY }}>
-                          {unity.unityName.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="text-[#333333] text-[14px] font-medium">{unity.unityName}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {waitingCount > 0 && (
-                          <span className="bg-[rgba(243,156,18,0.12)] text-[#D68910] text-xs font-medium px-2 py-1">
-                            {waitingCount} waiting
-                          </span>
-                        )}
-                        {inServiceCount > 0 && (
-                          <span className="bg-[rgba(76,175,80,0.12)] text-[#388E3C] text-xs font-medium px-2 py-1">
-                            {inServiceCount} in service
-                          </span>
-                        )}
-                        <span className="text-[#9E9E9E] text-[12px]">{unity.visitors.length} total</span>
-                      </div>
+          {/* Department Units breakdown (only for parent departments) */}
+          {!summaryLoading && queueSummary && queueSummary.is_parent_department && queueSummary.units && queueSummary.units.length > 0 && (
+            <div className="mt-4">
+              <span className="text-white/70 text-[12px] font-semibold uppercase" style={{ fontFamily: fontHeading }}>
+                Department Units
+              </span>
+              <div className="mt-2 space-y-2">
+                {queueSummary.units.map((unit) => (
+                  <div key={unit.unit_id} className="bg-[rgba(255,255,255,0.1)] p-3">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-white text-[13px] font-medium">
+                        {unit.unit_name || `Unit ${unit.unit_id.slice(-4)}`}
+                      </span>
+                      <span className="text-white/70 text-[11px]">{unit.total_assigned} assigned</span>
                     </div>
-
-                    {isExpanded && (
-                      <div className="bg-[#F7F9FB] border-t border-[#E0E0E0] max-h-[300px] overflow-y-auto">
-                        <table className="w-full">
-<thead className="cok-bg-primary sticky top-0">
-                            <tr>
-                              <th className="px-5 py-2 text-left text-[10px] uppercase" style={tableHeaderStyle}>Visitor</th>
-                              <th className="px-5 py-2 text-left text-[10px] uppercase" style={tableHeaderStyle}>Service</th>
-                              <th className="px-5 py-2 text-left text-[10px] uppercase" style={tableHeaderStyle}>Arrival</th>
-                              <th className="px-5 py-2 text-left text-[10px] uppercase" style={tableHeaderStyle}>Status</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-[#E0E0E0]">
-                            {unity.visitors.length === 0 ? (
-                              <tr>
-                                <td colSpan={5} className="px-5 py-4 text-center text-[#9E9E9E] text-sm">
-                                  No visitors assigned to this unit
-                                </td>
-                              </tr>
-                            ) : (
-                              unity.visitors.map((visitor) => (
-                                <tr key={visitor.id} className="hover:bg-white">
-                                  <td className="px-5 py-3">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-6 h-6 rounded-full bg-[#9E9E9E] text-white flex items-center justify-center text-[10px] font-semibold">
-                                        {visitor.visitorName.charAt(0).toUpperCase()}
-                                      </div>
-                                      <span className="text-[#333333] text-[13px]">{visitor.visitorName}</span>
-                                    </div>
-                                  </td>
-                                  <td className="px-5 py-3">
-                                    <span className="text-[#555555] text-[12px]">{visitor.serviceType}</span>
-                                  </td>
-                                  <td className="px-5 py-3">
-                                    <span className="text-[#9E9E9E] text-[12px]">{formatDate(visitor.entryDate)}</span>
-                                  </td>
-                                  <td className="px-5 py-3">
-                                    {getStatusBadge(visitor.status)}
-                                  </td>
-                                </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#388E3C] text-[12px] font-semibold">
+                        {unit.currently_serving} serving
+                      </span>
+                    </div>
                   </div>
-                );
-              })
-            )}
-          </div>
-        )}
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
+      <EmployeeVisitorClicked
+        isOpen={showVisitorDetails}
+        onClose={() => { setShowVisitorDetails(false); setSelectedVisitorForDetails(null); }}
+        visitor={selectedVisitorForDetails}
+        myProviderId={myId}
+        onSaved={() => { fetchAssignedVisitors(true); fetchQueueSummary(true); }}
+      />
     </div>
   );
 };

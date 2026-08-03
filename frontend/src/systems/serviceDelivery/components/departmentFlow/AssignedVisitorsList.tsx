@@ -17,15 +17,7 @@ const TERTIARY = "#CDB896";
 const fontHeading = "'Montserrat', sans-serif";
 const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
 
-const focusInput = (e: React.FocusEvent<HTMLElement>) => {
-  e.currentTarget.style.borderColor = PRIMARY;
-  e.currentTarget.style.boxShadow = "0px 4px 8px rgba(5,109,170,0.25)";
-};
 
-const blurInput = (e: React.FocusEvent<HTMLElement>) => {
-  e.currentTarget.style.borderColor = "transparent";
-  e.currentTarget.style.boxShadow = "0px 2px 4px rgba(0,0,0,0.1)";
-};
 
 interface Visitor {
   _id?: string;

@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiClock, FiCheckCircle, FiRefreshCw } from 'react-icons/fi';
+import { FiClock, FiCheckCircle, FiRefreshCw, FiUsers } from 'react-icons/fi';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useSocket } from '../../../core/contexts/SocketContext';
 import { serviceDeliveryService } from '../../../core/services/adminService';
+import RequestStats from '../../../core/components/requests/RequestStatistics';
+import OrientationStats from '../../../core/components/requests/OrientationStats';
+import ServedVisitorsGenderChart from '../components/employeeFlow/tabs/sub/ServedVisitorsGenderChart';
 
 const PRIMARY = "#056daa";
 const SUCCESS = "#4CAF50";
@@ -14,6 +17,19 @@ const GRAY_DISABLED = "#9E9E9E";
 const BORDER = "#E0E0E0";
 const fontHeading = "'Montserrat', sans-serif";
 const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+
+interface Visitor {
+  _id?: string;
+  id?: string;
+  status?: string;
+  services_status?: Array<{
+    department_id: string;
+    department_name?: string;
+    s_type?: string;
+    provider_name?: string;
+    provider_id?: string;
+  }>;
+}
 
 const EmployeeDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -30,9 +46,12 @@ const EmployeeDashboard: React.FC = () => {
       setLoading(true); setFirstLoad(true);
       const response = await serviceDeliveryService.getAll() as any;
       if (response && (response.data || response.success || Array.isArray(response))) {
-        const allVisitors = Array.isArray(response.data) ? response.data : Array.isArray(response) ? response : [];
-        const myVisitors = allVisitors;
-        const records = myVisitors.map((visitor: any) => { const s = visitor.services_status?.find(() => true); return { status: (s?.s_type || visitor.status || '').toLowerCase() }; });
+        const allVisitors = Array.isArray(response.data)
+          ? response.data
+          : Array.isArray(response)
+            ? response
+            : [];
+        const records = allVisitors.map((visitor: any) => { const s = visitor.services_status?.find(() => true); return { status: (s?.s_type || visitor.status || '').toLowerCase() }; });
         setStats({
           pending: records.filter((r: any) => r.status === 'not started' || r.status === 'inprogress').length,
           transfered: records.filter((r: any) => r.status === 'transfered' || r.status === 'transferred').length,
@@ -44,12 +63,26 @@ const EmployeeDashboard: React.FC = () => {
   }, [user]);
 
   useEffect(() => { fetchDashboardStats(); }, [fetchDashboardStats]);
-  useEffect(() => { if (!socket || !isConnected) return; const h = () => fetchDashboardStats(); socket.on('new_visitor_assigned', h); return () => { socket.off('new_visitor_assigned', h); }; }, [socket, isConnected, fetchDashboardStats]);
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+    const h = () => fetchDashboardStats();
+    socket.on('new_visitor_assigned', h);
+    socket.on('visitor_checkedin', h);
+    socket.on('visitor_checkedout', h);
+    return () => {
+      socket.off('new_visitor_assigned', h);
+      socket.off('visitor_checkedin', h);
+      socket.off('visitor_checkedout', h);
+    };
+  }, [socket, isConnected, fetchDashboardStats]);
 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: NEUTRAL_LIGHT }}>
       <div className="flex-1 overflow-auto p-4">
-        <div><h1 className="text-base font-bold" style={{ fontFamily: fontHeading, color: PRIMARY }}>Service Overview</h1><p className="text-xs mt-1" style={{ color: GRAY_DISABLED }}>Manage and track visitor service requests assigned to you.</p></div>
+        <div>
+          <h1 className="text-base font-bold" style={{ fontFamily: fontHeading, color: PRIMARY }}>Service Overview</h1>
+          <p className="text-xs mt-1" style={{ color: GRAY_DISABLED }}>Manage and track visitor service requests assigned to you.</p>
+        </div>
         <div className="flex gap-3 mt-4 mb-4">
           {[
             { label: 'Pending Requests', value: stats.pending, icon: FiClock, color: WARNING, bar: 'rgba(243,156,18,0.35)' },
@@ -63,10 +96,17 @@ const EmployeeDashboard: React.FC = () => {
               <div className="w-8 h-1 mt-1" style={{ backgroundColor: s.bar }}></div>
             </div>
           ))}
-         </div>
-       </div>
-     </div>
-   );
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <RequestStats />
+          <OrientationStats />
+        </div>
+
+        <ServedVisitorsGenderChart />
+      </div>
+    </div>
+  );
 };
 
 export default EmployeeDashboard;

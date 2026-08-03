@@ -20,7 +20,7 @@ const GRAY_DISABLED = "#9E9E9E";
 
 const fontHeading = "'Montserrat', sans-serif";
 
-function RoomSelector({ form, rooms, onChange, startTime, endTime, errors, eventMeetingType, onBack }) {
+function RoomSelector({ form, rooms, audience, onChange, startTime, endTime, eventMeetingType, onBack }) {
   const [availableRooms, setAvailableRooms] = useState([]);
   const [unavailableRooms, setUnavailableRooms] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -29,6 +29,11 @@ function RoomSelector({ form, rooms, onChange, startTime, endTime, errors, event
   const [tryAgain, setTryAgain] = useState("0.0001");
 
   const hasDates = startTime && endTime;
+
+  const displayedAvailable = (availableRooms || []).filter(
+    (item) => !audience || Number(item.room?.roomCapacity) >= Number(audience)
+  );
+  const selectedRoomVisible = form.room && displayedAvailable.length > 0 && !displayedAvailable.find((r) => r.room.roomName.toLowerCase() === form.room.toLowerCase());
 
   useEffect(() => {
     if (!hasDates) return;
@@ -88,20 +93,20 @@ function RoomSelector({ form, rooms, onChange, startTime, endTime, errors, event
 
       {hasDates && !loading && searched && (
         <div className="space-y-3">
-          {form.room && availableRooms.length > 0 && !availableRooms.find((r) => r.room.roomName.toLowerCase() === form.room.toLowerCase()) && (
+          {selectedRoomVisible && (
             <div className="p-3" style={{ backgroundColor: '#FFF3E0', border: `1px solid #FFCC80` }}>
               <p className="text-xs font-medium" style={{ color: WARNING, fontFamily: fontHeading }}>
                 Previously selected room "{form.room}" is no longer available with current settings.
               </p>
             </div>
           )}
-          {availableRooms.length > 0 && (
+          {displayedAvailable.length > 0 && (
             <div>
               <p className="text-xs font-semibold mb-2" style={{ color: SUCCESS, fontFamily: fontHeading }}>
-                Available Rooms ({availableRooms.length} of {availableRooms.length + unavailableRooms.length})
+                Available Rooms ({displayedAvailable.length})
               </p>
               <div className="space-y-2">
-                {availableRooms.map((item, idx) => {
+                {displayedAvailable.map((item, idx) => {
                   const selected = isSelected(item.room.roomName);
                   return (
                     <button
@@ -136,12 +141,16 @@ function RoomSelector({ form, rooms, onChange, startTime, endTime, errors, event
               </div>
             </div>
           )}
-          {availableRooms.length === 0 && (
+          {displayedAvailable.length === 0 && (
             <div className="p-6 text-center" style={{ backgroundColor: '#FFF3E0', border: `1px solid #FFCC80` }}>
               <FiAlertCircle className="w-10 h-10 mx-auto mb-3" style={{ color: WARNING }} />
-              <p className="text-sm font-bold mb-1" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>All Rooms Are Occupied</p>
+              <p className="text-sm font-bold mb-1" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                {availableRooms.length === 0 ? 'All Rooms Are Occupied' : 'No Rooms Match Capacity'}
+              </p>
               <p className="text-xs mb-3" style={{ color: WARNING, fontFamily: fontHeading }}>
-                No rooms are available for the selected schedule: {new Date(startTime).toLocaleString()} - {new Date(endTime).toLocaleString()}
+                {availableRooms.length === 0
+                  ? `No rooms are available for the selected schedule: ${new Date(startTime).toLocaleString()} - ${new Date(endTime).toLocaleString()}`
+                  : `No available room can accommodate the expected audience of ${audience}.`}
               </p>
               <button
                 type="button"
@@ -157,7 +166,6 @@ function RoomSelector({ form, rooms, onChange, startTime, endTime, errors, event
           )}
         </div>
       )}
-      {errors.room && <p className="text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{errors.room}</p>}
     </div>
   );
 }
