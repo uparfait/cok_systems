@@ -56,6 +56,7 @@ interface EmployeeVisitorClickedProps {
   visitor: Visitor | null;
   myProviderId: string;
   onSaved?: () => void;
+  hideActions?: boolean;
 }
 
 interface FormState {
@@ -100,6 +101,7 @@ const EmployeeVisitorClicked: React.FC<EmployeeVisitorClickedProps> = ({
   visitor,
   myProviderId,
   onSaved,
+  hideActions = false,
 }) => {
   const { showSuccess, showError } = useToast();
   const [loading, setLoading] = useState(false);
@@ -569,10 +571,11 @@ const EmployeeVisitorClicked: React.FC<EmployeeVisitorClickedProps> = ({
                 </div>
               </div>
 
-              {renderVehicleSection()}
-            </div>
+            {renderVehicleSection()}
+          </div>
 
-            {/* Action buttons */}
+          {/* Action buttons */}
+          {!hideActions && (
             <div className="p-4 sm:p-6 border-t" style={{ borderColor: '#E0E0E0' }}>
               {!isEditing ? (
                 <div className="w-full">
@@ -610,6 +613,7 @@ const EmployeeVisitorClicked: React.FC<EmployeeVisitorClickedProps> = ({
                 </button>
               )}
             </div>
+          )}
           </>
         )}
 

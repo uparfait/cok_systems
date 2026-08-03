@@ -79,7 +79,7 @@ function TypeSelectionScreen({ onOpenCalendar, showCalendar, calendarEvents, cal
               <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center mb-4 sm:mb-5 transition-colors duration-200" style={{ backgroundColor: 'rgba(76,175,80,0.08)' }}>
                 <FiUsers className="w-6 h-6 sm:w-7 sm:h-7 transition-colors duration-200" style={{ color: SUCCESS }} />
               </div>
-              <h2 className="text-lg sm:text-xl font-bold mb-2" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Meet</h2>
+              <h2 className="text-lg sm:text-xl font-bold mb-2" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Meeting</h2>
               <p className="text-sm leading-relaxed mb-4" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
                 Book a room for a meeting with agenda planning.</p>
               <ul className="space-y-2 mb-6">

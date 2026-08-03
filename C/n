@@ -18,7 +18,7 @@ const PRIMARY = "#056daa";
 const PRIMARY_HOVER = "#045d94";
 const DANGER = "#E74C3C";
 const SUCCESS = "#4CAF50";
-const SUCCESS_HOVER = "#388D3C";
+const SUCCESS_HOVER = "#388E3C";
 const WARNING = "#F39C12";
 const NEUTRAL_LIGHT = "#F7F9FB";
 const NEUTRAL_DARK = "#333333";
@@ -39,6 +39,10 @@ const labelStyle = {
 };
 
 const inputClassName = "w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base";
+
+function fieldHasError(fieldErrors, name) {
+  return Boolean(fieldErrors[name]);
+}
 
 function CreateEventStepper({ currentStep, eventMeetingType, onStepClick, completedSteps }) {
   const showAgenda = eventMeetingType === "meet";
@@ -92,8 +96,6 @@ export default function BookNow() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [scheduleStart, setScheduleStart] = useState(null);
-  const [scheduleEnd, setScheduleEnd] = useState(null);
   const [trackingCode, setTrackingCode] = useState("");
   const [step, setStep] = useState(1);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -122,7 +124,10 @@ export default function BookNow() {
       return { start: null, end: null };
     }
     const start = new Date(`${snapshot.eventDate}T${snapshot.fromTime}`);
-    const end = new Date(`${snapshot.eventDate}T${snapshot.toTime}`);
+    let end = new Date(`${snapshot.eventDate}T${snapshot.toTime}`);
+    if (!isNaN(end.getTime()) && !isNaN(start.getTime()) && end <= start) {
+      end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
+    }
     return { start, end };
   };
 
@@ -147,17 +152,15 @@ export default function BookNow() {
       case 'organizerPhone':
         return value.trim() ? null : 'Phone number is required';
       case 'eventDate':
-        return f.eventDate ? null : 'Date is required';
       case 'fromTime':
-        return f.fromTime ? null : 'Start time is required';
-      case 'toTime':
+      case 'toTime': {
+        if (!f.eventDate) return 'Date is required';
+        if (!f.fromTime) return 'Start time is required';
         if (!f.toTime) return 'End time is required';
-        if (f.fromTime && f.toTime) {
-          const { start, end } = computeSchedule(f);
-          if (start && end && (isNaN(start.getTime()) || isNaN(end.getTime()))) return 'Invalid time';
-          if (start && end && end <= start) return 'End time must be after start time';
-        }
+        const { start, end } = computeSchedule(f);
+        if (start && end && end <= start) return 'End time must be after start time';
         return null;
+      }
       case 'room':
         return value ? null : 'Please select a room';
       default:
@@ -171,6 +174,7 @@ export default function BookNow() {
     names.forEach((n) => { errs[n] = validateField(n, form[n], form); });
     setFieldErrors(errs);
     const first = names.map((n) => errs[n]).find((e) => e);
+    if (first) showError(first);
     return !first;
   };
 
@@ -180,6 +184,7 @@ export default function BookNow() {
     names.forEach((n) => { errs[n] = validateField(n, form[n], form); });
     setFieldErrors(errs);
     const first = names.map((n) => errs[n]).find((e) => e);
+    if (first) showError(first);
     return !first;
   };
 
@@ -189,6 +194,7 @@ export default function BookNow() {
     names.forEach((n) => { errs[n] = validateField(n, form[n], form); });
     setFieldErrors(errs);
     const first = names.map((n) => errs[n]).find((e) => e);
+    if (first) showError(first);
     return !first;
   };
 
@@ -196,6 +202,7 @@ export default function BookNow() {
     const errs = {};
     errs.room = validateField('room', form.room, form);
     setFieldErrors(errs);
+    if (errs.room) showError(errs.room);
     return !errs.room;
   };
 
@@ -213,15 +220,8 @@ export default function BookNow() {
       return next;
     });
 
-    if (name === 'eventDate' || name === 'fromTime' || name === 'toTime') {
-      const snapshot = { ...form, [name]: value };
-      const scheduleErrs = {};
-      ['eventDate', 'fromTime', 'toTime'].forEach((n) => { scheduleErrs[n] = validateField(n, snapshot[n], snapshot); });
-      setFieldErrors((prev) => ({ ...prev, ...scheduleErrs }));
-    } else {
-      const msg = validateField(name, value, form);
-      setFieldErrors((prev) => ({ ...prev, [name]: msg }));
-    }
+    const msg = validateField(name, value, form);
+    setFieldErrors((prev) => ({ ...prev, [name]: msg }));
   }
 
   function handleNext() {
@@ -305,8 +305,6 @@ export default function BookNow() {
       const res = await axios.post(`${BASE_URL}/booking-requests`, payload);
       if (res.data.success) {
         setTrackingCode(res.data.data.trackingCode);
-        setScheduleStart(start);
-        setScheduleEnd(end);
         setSubmitted(true);
         showSuccess(res.data.message || 'Booking request submitted successfully');
       } else {
@@ -324,10 +322,11 @@ export default function BookNow() {
   }
 
   if (submitted) {
-    return <SuccessScreen trackingCode={trackingCode} eventName={form.eventName} room={form.room} startTime={scheduleStart} endTime={scheduleEnd} />;
+    return <SuccessScreen trackingCode={trackingCode} eventName={form.eventName} organizerNames={form.organizerNames} room={form.room} onNavigate={navigate} />;
   }
 
   const { start, end } = computeSchedule();
+  const scheduleHasError = fieldHasError(fieldErrors, 'eventDate') || fieldHasError(fieldErrors, 'fromTime') || fieldHasError(fieldErrors, 'toTime');
 
   return (
     <>
@@ -472,7 +471,7 @@ export default function BookNow() {
                   <input
                     type="date" name="eventDate" value={form.eventDate} onChange={handleChange}
                     className={inputClassName}
-                    style={{ borderColor: fieldErrors.eventDate ? DANGER : undefined }}
+                    style={{ borderColor: scheduleHasError ? DANGER : undefined }}
                   />
                   {fieldErrors.eventDate && <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldErrors.eventDate}</p>}
                 </div>
@@ -481,18 +480,16 @@ export default function BookNow() {
                   <input
                     type="time" name="fromTime" value={form.fromTime} onChange={handleChange}
                     className={inputClassName}
-                    style={{ borderColor: fieldErrors.fromTime ? DANGER : undefined }}
+                    style={{ borderColor: scheduleHasError ? DANGER : undefined }}
                   />
-                  {fieldErrors.fromTime && <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldErrors.fromTime}</p>}
                 </div>
                 <div className="space-y-1.5">
                   <label style={labelStyle}>To <span style={{ color: DANGER }}>*</span></label>
                   <input
                     type="time" name="toTime" value={form.toTime} onChange={handleChange}
                     className={inputClassName}
-                    style={{ borderColor: fieldErrors.toTime ? DANGER : undefined }}
+                    style={{ borderColor: scheduleHasError ? DANGER : undefined }}
                   />
-                  {fieldErrors.toTime && <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldErrors.toTime}</p>}
                 </div>
               </div>
             )}

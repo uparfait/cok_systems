@@ -299,6 +299,11 @@ export const serviceDeliveryService = {
     if (history === true) url += `&history=true`;
     return get(url);
   },
+  getQueueSummary: (inHouse?: boolean) => {
+    let url = `/servicedelivery/queue-summary`;
+    if (inHouse !== undefined) url += `?in_house=${inHouse}`;
+    return get(url);
+  },
   getAssignedVisitorsGenderStats: (params?: { period?: string; from?: string; to?: string }) => {
     const query = new URLSearchParams();
     if (params?.period) query.append('period', params.period);
@@ -306,6 +311,14 @@ export const serviceDeliveryService = {
     if (params?.to) query.append('to', params.to);
     const qs = query.toString();
     return get(`/servicedelivery/assigned-visitors/gender-stats${qs ? `?${qs}` : ''}`);
+  },
+  getServedVisitorsGenderStats: (params?: { period?: string; from?: string; to?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.period) query.append('period', params.period);
+    if (params?.from) query.append('from', params.from);
+    if (params?.to) query.append('to', params.to);
+    const qs = query.toString();
+    return get(`/servicedelivery/served-visitors/gender-stats${qs ? `?${qs}` : ''}`);
   },
   getServiceTrackingVisitors: (page: number = 1, limit: number = 20) => get(`/servicedelivery/service-tracking/visitors?page=${page}&limit=${limit}`),
   search: (query: string, page: number = 1, limit: number = 50, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),
@@ -326,10 +339,11 @@ export const serviceDeliveryService = {
     return get(url);
   },
   getCurrentVisitorsByDepartment: (departmentId: string) => get(`/servicedelivery/visitor/by-department-current/${encodeURIComponent(departmentId)}`),
-  getCurrentVisitorsByProvider: (providerId: string, page?: number, limit?: number) => {
+  getCurrentVisitorsByProvider: (providerId: string, page?: number, limit?: number, inHouse?: boolean) => {
     const params = new URLSearchParams();
     if (page) params.append('page', page.toString());
     if (limit) params.append('limit', limit.toString());
+    if (inHouse !== undefined) params.append('in_house', inHouse.toString());
     return get(`/servicedelivery/visitor/by-provider-current/${encodeURIComponent(providerId)}?${params.toString()}`);
   },
   getVisitorsByProvider: (providerId: string, page?: number, limit?: number) => {

@@ -24,6 +24,18 @@ export const serviceDeliveryService = {
     if (inHouse !== undefined) url += `&in_house=${inHouse}`
     return get(url)
   },
+  getAssignedVisitors: (page: number = 1, limit: number = 20, q?: string, inHouse?: boolean, history?: boolean) => {
+    let url = `/servicedelivery/assigned-visitors?page=${page}&limit=${limit}`
+    if (q && q.trim()) url += `&q=${encodeURIComponent(q.trim())}`
+    if (inHouse !== undefined) url += `&in_house=${inHouse}`
+    if (history === true) url += `&history=true`
+    return get(url)
+  },
+  getQueueSummary: (inHouse?: boolean) => {
+    let url = `/servicedelivery/queue-summary`
+    if (inHouse !== undefined) url += `?in_house=${inHouse}`
+    return get(url)
+  },
   search: (query: string, page: number = 1, limit: number = 50, inHouse: boolean = true) =>
     get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),
   getById: (id: string) => get(`/servicedelivery/visitor/${id}`),
@@ -37,6 +49,13 @@ export const serviceDeliveryService = {
     if (limit) url += `&limit=${limit}`
     if (is_still_inhouse !== undefined) url += `&is_still_inhouse=${is_still_inhouse}`
     return get(url)
+  },
+  getCurrentVisitorsByProvider: (providerId: string, page?: number, limit?: number, inHouse?: boolean) => {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (limit) params.append('limit', limit.toString());
+    if (inHouse !== undefined) params.append('in_house', inHouse.toString());
+    return get(`/servicedelivery/visitor/by-provider-current/${encodeURIComponent(providerId)}?${params.toString()}`)
   },
   getActiveTasks: (page: number = 1, limit: number = 10, search?: string) => {
     let url = `/servicedelivery/visitor/active-tasks?page=${page}&limit=${limit}`

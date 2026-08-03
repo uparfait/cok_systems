@@ -95,14 +95,7 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onVerified }) =
         <div className="relative z-10 flex flex-col justify-end p-7 lg:p-10 text-white w-full h-full">
          
 
-          {/* Main heading and description */}
-            <div className="space-y-2 max-w-xl ">
-              <h1 className="text-2xl md:text-3xl lg:text-4xl text-bold tracking-tight leading-snug"
-              style={{ fontWeight: 800, letterSpacing: '-0.5px' }}
-              >
-                IKAZE PORTAL
-              </h1>
-            </div>
+          
         </div>
       </div>
 

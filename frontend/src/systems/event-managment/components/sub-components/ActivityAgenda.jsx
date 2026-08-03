@@ -1,53 +1,39 @@
 import { useState } from 'react';
-import { FiPlus, FiTrash2, FiCheck, FiX, FiAlertCircle } from 'react-icons/fi';
 
 const PRIMARY = "#056daa";
-const PRIMARY_HOVER = "#045d94";
 const SUCCESS = "#4CAF50";
 const DANGER = "#E74C3C";
-const WARNING = "#F39C12";
-const NEUTRAL_LIGHT = "#F7F9FB";
 const NEUTRAL_DARK = "#333333";
 const BORDER = "#E0E0E0";
-const TERTIARY = "#CDB896";
 const WHITE = "#FFFFFF";
 const GRAY_DISABLED = "#9E9E9E";
 
 const fontHeading = "'Montserrat', sans-serif";
 
-const inputBase = {
-  fontFamily: fontHeading, fontSize: '14px', fontWeight: 500, letterSpacing: '0.2px',
-  lineHeight: '1.4', width: '100%', padding: '12px 1rem', boxSizing: 'border-box',
-  border: `1px solid ${BORDER}`, borderRadius: 0, outline: 'none',
-  transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
+const inputClassName = "w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base";
+
+const labelS = {
+  fontFamily: fontHeading, fontSize: '11px', fontWeight: 600,
+  letterSpacing: '0.5px', textTransform: 'uppercase', display: 'block',
+  color: NEUTRAL_DARK, marginBottom: '8px',
 };
 
-const focusHandlers = (hasError) => ({
-  onFocus: (e) => {
-    e.currentTarget.style.borderColor = hasError ? DANGER : PRIMARY;
-    e.currentTarget.style.boxShadow = hasError
-      ? '0px 4px 8px rgba(231,76,60,0.25)'
-      : '0px 4px 8px rgba(7,142,206,0.25)';
-  },
-  onBlur: (e) => {
-    e.currentTarget.style.borderColor = hasError ? DANGER : BORDER;
-    e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)';
-  },
-});
+const emptyItem = { fromTime: '', toTime: '', title: '', description: '' };
 
 export default function ActivityAgenda({ agenda, onChange, eventStartTime, eventEndTime, overMidnight = false }) {
-  const [editingPhase, setEditingPhase] = useState(null);
-  const [savedPhases, setSavedPhases] = useState({});
+  const [editingItem, setEditingItem] = useState(null);
+  const [savedItems, setSavedItems] = useState({});
   const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
 
   const getSavedTimeRanges = (excludeIndex) => {
     const ranges = [];
-    Object.keys(savedPhases).forEach((key) => {
+    Object.keys(savedItems).forEach((key) => {
       const idx = parseInt(key);
-      if (savedPhases[key] && idx !== excludeIndex && agenda[idx]) {
-        const phase = agenda[idx];
-        if (phase.fromTime && phase.toTime) {
-          ranges.push({ index: idx, from: phase.fromTime, to: phase.toTime });
+      if (savedItems[key] && idx !== excludeIndex && agenda[idx]) {
+        const item = agenda[idx];
+        if (item.fromTime && item.toTime) {
+          ranges.push({ index: idx, from: item.fromTime, to: item.toTime });
         }
       }
     });
@@ -58,61 +44,49 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
     const savedRanges = getSavedTimeRanges(excludeIndex);
     for (const range of savedRanges) {
       if (fromTime < range.to && toTime > range.from) {
-        return { overlapping: true, withPhase: range.index + 1 };
+        return { overlapping: true, withItem: range.index + 1 };
       }
     }
-    return { overlapping: false, withPhase: null };
+    return { overlapping: false, withItem: null };
   };
 
-  const validatePhase = (index, phase) => {
-    const phaseErrors = [];
+  const validateItem = (index, item) => {
+    const errs = { fromTime: null, toTime: null, title: null, description: null };
 
-    if (!phase.fromTime) {
-      phaseErrors.push('From time is required');
-    }
-    if (!phase.toTime) {
-      phaseErrors.push('To time is required');
-    }
-    if (!phase.title || !phase.title.trim()) {
-      phaseErrors.push('Title is required');
-    }
-    if (!phase.description || !phase.description.trim()) {
-      phaseErrors.push('Description is required');
-    }
+    if (!item.fromTime) errs.fromTime = 'From time is required';
+    if (!item.toTime) errs.toTime = 'End time is required';
+    if (!item.title || !item.title.trim()) errs.title = 'Title is required';
+    if (!item.description || !item.description.trim()) errs.description = 'Description is required';
 
-    if (phase.fromTime && phase.toTime) {
+    if (item.fromTime && item.toTime) {
       if (overMidnight && eventStartTime && eventEndTime) {
-        const inRange1 = phase.fromTime >= eventStartTime && phase.fromTime <= '23:59' && phase.toTime >= eventStartTime && phase.toTime <= '23:59';
-        const inRange2 = phase.fromTime >= '00:00' && phase.fromTime <= eventEndTime && phase.toTime >= '00:00' && phase.toTime <= eventEndTime;
-        const crossMidnight = phase.fromTime >= eventStartTime && phase.fromTime <= '23:59' && phase.toTime >= '00:00' && phase.toTime <= eventEndTime;
+        const inRange1 = item.fromTime >= eventStartTime && item.fromTime <= '23:59' && item.toTime >= eventStartTime && item.toTime <= '23:59';
+        const inRange2 = item.fromTime >= '00:00' && item.fromTime <= eventEndTime && item.toTime >= '00:00' && item.toTime <= eventEndTime;
+        const crossMidnight = item.fromTime >= eventStartTime && item.fromTime <= '23:59' && item.toTime >= '00:00' && item.toTime <= eventEndTime;
 
         if (!inRange1 && !inRange2 && !crossMidnight) {
-          phaseErrors.push(`Times must be between ${eventStartTime}-23:59 or 00:00-${eventEndTime} next day.`);
+          errs.fromTime = `Times must be between ${eventStartTime}-23:59 or 00:00-${eventEndTime} next day.`;
         }
-      } else {
-        if (eventStartTime && eventEndTime) {
-          if (phase.fromTime < eventStartTime) {
-            phaseErrors.push(`From time must be at or after ${eventStartTime}`);
-          }
-          if (phase.toTime > eventEndTime) {
-            phaseErrors.push(`To time must be at or before ${eventEndTime}`);
-          }
+      } else if (eventStartTime && eventEndTime) {
+        if (item.fromTime < eventStartTime) {
+          errs.fromTime = `From time must be at or after ${eventStartTime}`;
+        }
+        if (item.toTime > eventEndTime) {
+          errs.toTime = `To time must be at or before ${eventEndTime}`;
         }
       }
 
-      if (phase.fromTime >= phase.toTime) {
-        if (!overMidnight || phase.fromTime < phase.toTime) {
-          phaseErrors.push('To time must be after From time');
-        }
+      if (item.toTime <= item.fromTime && (!overMidnight || item.fromTime < item.toTime)) {
+        errs.toTime = errs.toTime || 'End time must be after From time';
       }
 
-      const { overlapping, withPhase } = isTimeOverlapping(phase.fromTime, phase.toTime, index);
+      const { overlapping, withItem } = isTimeOverlapping(item.fromTime, item.toTime, index);
       if (overlapping) {
-        phaseErrors.push(`Time overlaps with Phase ${withPhase}`);
+        errs.toTime = `Time overlaps with Agenda item ${withItem}`;
       }
     }
 
-    return phaseErrors;
+    return errs;
   };
 
   const handleAgendaChange = (index, field, value) => {
@@ -120,30 +94,35 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
     updated[index] = { ...updated[index], [field]: value };
     onChange(updated);
 
-    if (errors[index]) {
-      const newErrors = { ...errors };
-      delete newErrors[index];
-      setErrors(newErrors);
-    }
+    const itemErrors = validateItem(index, updated[index]);
+    setErrors((prev) => ({ ...prev, [index]: itemErrors }));
+  };
+
+  const handleBlur = (index, field) => {
+    setTouched((prev) => {
+      const next = { ...prev };
+      next[index] = { ...next[index], [field]: true };
+      return next;
+    });
   };
 
   const addAgendaItem = () => {
-    onChange([...agenda, { fromTime: '', toTime: '', title: '', description: '' }]);
-    setEditingPhase(agenda.length);
+    onChange([...agenda, { ...emptyItem }]);
+    setEditingItem(agenda.length);
   };
 
   const removeAgendaItem = (index) => {
     const updated = agenda.filter((_, i) => i !== index);
     onChange(updated);
 
-    const newSaved = { ...savedPhases };
+    const newSaved = { ...savedItems };
     delete newSaved[index];
-    const reindexed = {};
+    const reindexedSaved = {};
     Object.keys(newSaved).forEach((key) => {
       const keyNum = parseInt(key);
-      reindexed[keyNum > index ? keyNum - 1 : keyNum] = newSaved[key];
+      reindexedSaved[keyNum > index ? keyNum - 1 : keyNum] = newSaved[key];
     });
-    setSavedPhases(reindexed);
+    setSavedItems(reindexedSaved);
 
     const newErrors = { ...errors };
     delete newErrors[index];
@@ -154,158 +133,133 @@ export default function ActivityAgenda({ agenda, onChange, eventStartTime, event
     });
     setErrors(reindexedErrors);
 
-    if (editingPhase === index) setEditingPhase(null);
-    else if (editingPhase > index) setEditingPhase(editingPhase - 1);
+    const newTouched = { ...touched };
+    delete newTouched[index];
+    const reindexTouched = {};
+    Object.keys(newTouched).forEach((key) => {
+      const keyNum = parseInt(key);
+      reindexTouched[keyNum > index ? keyNum - 1 : keyNum] = newTouched[key];
+    });
+    setTouched(reindexTouched);
+
+    if (editingItem === index) setEditingItem(null);
+    else if (editingItem > index) setEditingItem(editingItem - 1);
   };
 
-  const savePhase = (index) => {
-    const phase = agenda[index];
-    const phaseErrors = validatePhase(index, phase);
+  const saveItem = (index) => {
+    const item = agenda[index];
+    const itemErrors = validateItem(index, item);
+    setErrors((prev) => ({ ...prev, [index]: itemErrors }));
+    setTouched((prev) => {
+      const next = { ...prev };
+      next[index] = { fromTime: true, toTime: true, title: true, description: true };
+      return next;
+    });
 
-    if (phaseErrors.length > 0) {
-      setErrors(prev => ({ ...prev, [index]: phaseErrors }));
-      return;
-    }
+    if (Object.values(itemErrors).some(Boolean)) return;
 
-    const newErrors = { ...errors };
-    delete newErrors[index];
-    setErrors(newErrors);
-
-    setSavedPhases(prev => ({ ...prev, [index]: true }));
-    setEditingPhase(null);
+    setSavedItems((prev) => ({ ...prev, [index]: true }));
+    setEditingItem(null);
   };
 
-  const clearPhase = (index) => {
+  const clearItem = (index) => {
     handleAgendaChange(index, 'fromTime', '');
     handleAgendaChange(index, 'toTime', '');
     handleAgendaChange(index, 'title', '');
     handleAgendaChange(index, 'description', '');
-
-    const newErrors = { ...errors };
-    delete newErrors[index];
-    setErrors(newErrors);
   };
 
   const startEditing = (index) => {
-    setSavedPhases(prev => ({ ...prev, [index]: false }));
-    setEditingPhase(index);
-    const newErrors = { ...errors };
-    delete newErrors[index];
-    setErrors(newErrors);
+    setSavedItems((prev) => ({ ...prev, [index]: false }));
+    setEditingItem(index);
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+    setTouched((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
   };
 
-  const isPhaseSaved = (index) => savedPhases[index] === true;
-  const hasErrors = (index) => errors[index] && errors[index].length > 0;
+  const isItemSaved = (index) => savedItems[index] === true;
 
   return (
     <div className="pt-2 flex flex-col gap-4">
-      <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: PRIMARY, fontFamily: fontHeading }}>Activity Agenda</h2>
+      <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: PRIMARY, fontFamily: fontHeading }}>Meeting agenda</h2>
       <div className="flex flex-col gap-4">
         {agenda.map((a, i) => (
           <AgendaItem
             key={i}
             index={i}
             item={a}
-            isSaved={isPhaseSaved(i)}
-            errors={errors[i] || []}
-            hasErrors={hasErrors(i)}
-            canRemove={true}
+            isSaved={isItemSaved(i)}
+            itemErrors={errors[i] || {}}
+            itemTouched={touched[i] || {}}
             onChange={handleAgendaChange}
-            onSave={savePhase}
-            onClear={clearPhase}
+            onBlurAction={handleBlur}
+            onSave={saveItem}
+            onClear={clearItem}
             onEdit={startEditing}
             onRemove={removeAgendaItem}
+            eventStartTime={eventStartTime}
+            eventEndTime={eventEndTime}
+            overMidnight={overMidnight}
           />
         ))}
         <button
           type="button"
           onClick={addAgendaItem}
-          className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide transition-colors pt-1"
+          className="flex items-center justify-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-center pt-1"
           style={{ color: PRIMARY, fontFamily: fontHeading }}
-          onMouseEnter={(e) => e.currentTarget.style.color = PRIMARY_HOVER}
-          onMouseLeave={(e) => e.currentTarget.style.color = PRIMARY}
         >
-          <FiPlus className="w-3.5 h-3.5" />
-          <span>Add New Phase</span>
+          Add agenda item
         </button>
       </div>
     </div>
   );
 }
 
-function AgendaItem({ index, item, isSaved, errors, hasErrors, canRemove, onChange, onSave, onClear, onEdit, onRemove }) {
+function AgendaItem({ index, item, isSaved, itemErrors, itemTouched, onChange, onBlurAction, onSave, onClear, onEdit, onRemove, eventStartTime, eventEndTime, overMidnight }) {
   const isComplete = item.fromTime && item.toTime && item.title && item.description;
+  const cardBorder = isSaved ? SUCCESS : BORDER;
 
-  const cardBg = hasErrors ? '#FFEBEE' : isSaved ? '#E8F5E9' : NEUTRAL_LIGHT;
-  const cardBorder = hasErrors ? DANGER : isSaved ? SUCCESS : BORDER;
-
-  const labelS = {
-    fontFamily: fontHeading, fontSize: '11px', fontWeight: 600,
-    letterSpacing: '0.5px', textTransform: 'uppercase', display: 'block',
-    color: TERTIARY, marginBottom: '8px',
-  };
-
-  const getInputStyle = (hasError) => ({
-    ...inputBase,
-    color: NEUTRAL_DARK,
-    backgroundColor: isSaved ? '#F2F2F2' : NEUTRAL_LIGHT,
-    borderColor: hasError ? DANGER : BORDER,
-  });
+  const fieldError = (field) => (itemTouched[field] ? itemErrors[field] : null);
+  const hasFieldError = (field) => Boolean(fieldError(field));
 
   return (
     <div
-      className="p-4 relative flex flex-col gap-3 transition-all duration-200"
-      style={{ backgroundColor: cardBg, border: `1px solid ${cardBorder}`, borderRadius: 0 }}
+      className="p-4 relative flex flex-col gap-3"
+      style={{ backgroundColor: WHITE, border: `1px solid ${cardBorder}`, borderRadius: 0 }}
     >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Phase {index + 1}</span>
-          {isSaved && !hasErrors && (
+          <span className="text-xs font-bold" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Agenda item {index + 1}</span>
+          {isSaved && (
             <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5" style={{ color: WHITE, backgroundColor: SUCCESS }}>
               Saved
             </span>
           )}
-          {hasErrors && (
-            <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5" style={{ color: WHITE, backgroundColor: DANGER }}>
-              Has Errors
-            </span>
-          )}
         </div>
         <div className="flex items-center gap-1">
-          {isSaved && !hasErrors && (
+          {isSaved && (
             <button type="button" onClick={() => onEdit(index)}
-              className="text-xs font-semibold uppercase tracking-wide px-2 py-1 transition-colors"
-              style={{ color: PRIMARY, fontFamily: fontHeading }}
-              onMouseEnter={(e) => e.currentTarget.style.color = PRIMARY_HOVER}
-              onMouseLeave={(e) => e.currentTarget.style.color = PRIMARY}>
+              className="cursor-pointer text-xs font-semibold uppercase tracking-wide px-2 py-1 text-[#056daa] hover:text-[#045a8a] hover:underline"
+              style={{ fontFamily: fontHeading }}>
               Edit
             </button>
           )}
-          {canRemove && (
-            <button type="button" onClick={() => onRemove(index)}
-              className="p-1.5 transition-colors"
-              style={{ color: GRAY_DISABLED }}
-              onMouseEnter={(e) => e.currentTarget.style.color = DANGER}
-              onMouseLeave={(e) => e.currentTarget.style.color = GRAY_DISABLED}
-              aria-label="Remove phase">
-              <FiTrash2 className="w-4 h-4" />
-            </button>
-          )}
+          <button type="button" onClick={() => onRemove(index)}
+            className="cursor-pointer text-xs font-semibold uppercase tracking-wide px-2 py-1 text-[#9E9E9E] hover:text-[#C0392B] hover:underline"
+            style={{ fontFamily: fontHeading }}
+            aria-label={`Remove agenda item ${index + 1}`}>
+            Remove
+          </button>
         </div>
       </div>
-
-      {/* Error Messages */}
-      {hasErrors && (
-        <div className="flex flex-col gap-1 p-2" style={{ backgroundColor: 'rgba(231,76,60,0.08)', border: `1px solid ${DANGER}` }}>
-          {errors.map((error, i) => (
-            <div key={i} className="flex items-start gap-1.5 text-[11px]" style={{ color: '#C62828', fontFamily: fontHeading }}>
-              <FiAlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Time Fields */}
       <div className="grid grid-cols-2 gap-3">
@@ -315,10 +269,13 @@ function AgendaItem({ index, item, isSaved, errors, hasErrors, canRemove, onChan
             type="time"
             disabled={isSaved}
             required
-            style={{ ...getInputStyle(hasErrors), ...focusHandlers(hasErrors) }}
+            className={inputClassName}
+            style={{ borderColor: hasFieldError('fromTime') ? DANGER : undefined }}
             value={item.fromTime}
+            onBlur={() => onBlurAction(index, 'fromTime')}
             onChange={(e) => onChange(index, 'fromTime', e.target.value)}
           />
+          {fieldError('fromTime') && <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldError('fromTime')}</p>}
         </div>
         <div className="flex flex-col gap-1.5">
           <label style={labelS}>To Time</label>
@@ -326,10 +283,13 @@ function AgendaItem({ index, item, isSaved, errors, hasErrors, canRemove, onChan
             type="time"
             disabled={isSaved}
             required
-            style={{ ...getInputStyle(hasErrors), ...focusHandlers(hasErrors) }}
+            className={inputClassName}
+            style={{ borderColor: hasFieldError('toTime') ? DANGER : undefined }}
             value={item.toTime}
+            onBlur={() => onBlurAction(index, 'toTime')}
             onChange={(e) => onChange(index, 'toTime', e.target.value)}
           />
+          {fieldError('toTime') && <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldError('toTime')}</p>}
         </div>
       </div>
 
@@ -341,10 +301,13 @@ function AgendaItem({ index, item, isSaved, errors, hasErrors, canRemove, onChan
           disabled={isSaved}
           required
           placeholder="e.g. Introduction"
-          style={{ ...getInputStyle(hasErrors), ...focusHandlers(hasErrors) }}
+          className={inputClassName}
+          style={{ borderColor: hasFieldError('title') ? DANGER : undefined }}
           value={item.title}
+          onBlur={() => onBlurAction(index, 'title')}
           onChange={(e) => onChange(index, 'title', e.target.value)}
         />
+        {fieldError('title') && <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldError('title')}</p>}
       </div>
 
       {/* Description */}
@@ -355,10 +318,13 @@ function AgendaItem({ index, item, isSaved, errors, hasErrors, canRemove, onChan
           required
           rows={2}
           placeholder="Provide specific agenda item context details..."
-          style={{ ...getInputStyle(hasErrors), ...focusHandlers(hasErrors), resize: 'vertical', minHeight: '60px' }}
+          className={inputClassName}
+          style={{ resize: 'vertical', minHeight: '60px', borderColor: hasFieldError('description') ? DANGER : undefined }}
           value={item.description}
+          onBlur={() => onBlurAction(index, 'description')}
           onChange={(e) => onChange(index, 'description', e.target.value)}
         />
+        {fieldError('description') && <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldError('description')}</p>}
       </div>
 
       {/* Action Buttons */}
@@ -368,23 +334,17 @@ function AgendaItem({ index, item, isSaved, errors, hasErrors, canRemove, onChan
             type="button"
             onClick={() => onSave(index)}
             disabled={!isComplete}
-            className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-white px-4 py-2.5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ backgroundColor: PRIMARY, fontFamily: fontHeading, border: '0', borderRadius: 0 }}
-            onMouseEnter={(e) => { if (isComplete) e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = PRIMARY}
+            className="cok-btn-primary text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ fontFamily: fontHeading }}
           >
-            <FiCheck className="w-3.5 h-3.5" />
             Save
           </button>
           <button
             type="button"
             onClick={() => onClear(index)}
-            className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide px-4 py-2.5 transition-colors"
-            style={{ color: NEUTRAL_DARK, backgroundColor: 'transparent', border: `1px solid ${BORDER}`, borderRadius: 0, fontFamily: fontHeading }}
-            onMouseEnter={(e) => e.currentTarget.style.borderColor = NEUTRAL_DARK}
-            onMouseLeave={(e) => e.currentTarget.style.borderColor = BORDER}
+            className="cok-btn-outlined text-xs"
+            style={{ fontFamily: fontHeading }}
           >
-            <FiX className="w-3.5 h-3.5" />
             Clear
           </button>
         </div>

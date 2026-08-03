@@ -27,6 +27,8 @@ const dashboard_visitors = require('../../controllers/serivice_delivery/dashboar
 const service_tracking_visitors = require('../../controllers/serivice_delivery/service_tracking_visitors.js');
 const assigned_visitors = require('../../controllers/serivice_delivery/assigned_visitors.js');
 const assigned_visitors_gender_stats = require('../../controllers/serivice_delivery/assigned_visitors_gender_stats.js');
+const served_visitors_gender_stats = require('../../controllers/serivice_delivery/served_visitors_gender_stats.js');
+const queue_summary = require('../../controllers/serivice_delivery/queue_summary.js');
 
 Router.use(upload.any())
 
@@ -291,6 +293,7 @@ Router.get('/service-tracking/visitors', auditSuccess('READ', 'visitors'), servi
  *         description: Internal server error
  */
 Router.get('/assigned-visitors', auditSuccess('READ', 'visitors'), assigned_visitors)
+Router.get('/queue-summary', auditSuccess('READ', 'visitors'), queue_summary)
 
 /**
  * @swagger
@@ -353,6 +356,7 @@ Router.get('/assigned-visitors', auditSuccess('READ', 'visitors'), assigned_visi
  *         description: Internal server error
  */
 Router.get('/assigned-visitors/gender-stats', auditSuccess('READ', 'visitors'), assigned_visitors_gender_stats)
+Router.get('/served-visitors/gender-stats', auditSuccess('READ', 'visitors'), served_visitors_gender_stats)
 
 /**
  * @swagger

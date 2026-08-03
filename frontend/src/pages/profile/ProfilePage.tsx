@@ -967,30 +967,6 @@ const ProfilePage: React.FC = () => {
                      </button>
                   </div>
 
-                  {/* Account Status */}
-                  <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-lg ${profileData?.is_account_activated ? 'bg-green-100' : 'bg-orange-100'}`}>
-                        <FiShield className={`w-5 h-5 ${profileData?.is_account_activated ? 'text-green-600' : 'text-orange-600'}`} />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">Account Status</p>
-                        <p className="text-sm text-gray-500">
-                          {profileData?.is_account_activated 
-                            ? 'Your account is activated and verified' 
-                            : 'Your account is pending activation'}
-                        </p>
-                      </div>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      profileData?.is_account_activated 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-orange-100 text-orange-700'
-                    }`}>
-                      {profileData?.is_account_activated ? 'Activated' : 'Pending'}
-                    </span>
-                  </div>
-
                 </div>
               </div>
             )}
