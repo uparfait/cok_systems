@@ -586,6 +586,14 @@ export const statisticsService = {
     const qs = params.toString();
     return get(`/statistics/served${qs ? `?${qs}` : ''}`);
   },
+  // Sentiment per department + general (unserviced) feedback for the selected period
+  getFeedbackSentiment: (from?: string, to?: string) => {
+    const params = new URLSearchParams();
+    if (from) params.append('from', from);
+    if (to) params.append('to', to);
+    const qs = params.toString();
+    return get(`/statistics/feedback-sentiment${qs ? `?${qs}` : ''}`);
+  },
 };
 
 export { requestService };
