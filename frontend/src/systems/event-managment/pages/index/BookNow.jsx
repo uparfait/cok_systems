@@ -375,11 +375,19 @@ export default function BookNow() {
                   </div>
                   <div className="space-y-1.5">
                     <label style={labelStyle}>Institution <span className="text-xs ml-1" style={{ color: '#9E9E9E' }}>(optional)</span></label>
-                    <input style={inputStyle} type="text" name="organizerInstitution"
-                      value={form.organizerInstitution} onChange={handleChange}
-                      placeholder="Your institution" autoComplete="organization"
-                      onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(7,142,206,0.25)'; }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }} />
+                    {/* Locked when it holds the Internal-meeting default so the value stays City of Kigali */}
+                    {(() => {
+                      const institutionLocked = form.eventType === "Internal" && form.organizerInstitution === "City of Kigali";
+                      return (
+                        <input style={{ ...inputStyle, ...(institutionLocked ? { backgroundColor: '#EEEEEE', color: GRAY_DISABLED, cursor: 'not-allowed' } : {}) }}
+                          type="text" name="organizerInstitution"
+                          value={form.organizerInstitution} onChange={handleChange}
+                          readOnly={institutionLocked}
+                          placeholder="Your institution" autoComplete="organization"
+                          onFocus={(e) => { if (institutionLocked) return; e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(7,142,206,0.25)'; }}
+                          onBlur={(e) => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }} />
+                      );
+                    })()}
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
