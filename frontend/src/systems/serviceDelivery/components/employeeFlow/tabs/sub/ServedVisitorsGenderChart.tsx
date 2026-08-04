@@ -41,7 +41,8 @@ interface DataPoint {
   Other: number;
 }
 
-const ServedVisitorsGenderChart: React.FC = () => {
+// subtitle defaults to the employee wording; the HOD dashboard passes its own
+const ServedVisitorsGenderChart: React.FC<{ subtitle?: string }> = ({ subtitle = "Served by you" }) => {
   const [period, setPeriod] = useState<"today" | "week" | "month" | "last_month" | "year" | "range">("month");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -115,7 +116,7 @@ const ServedVisitorsGenderChart: React.FC = () => {
             <h3 className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
               Served Visitors by Gender
             </h3>
-            <p className="text-xs text-gray-400">Served by you</p>
+            <p className="text-xs text-gray-400">{subtitle}</p>
           </div>
         </div>
       </div>

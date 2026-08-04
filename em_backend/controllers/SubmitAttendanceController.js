@@ -1,5 +1,6 @@
 const Attendance = require('../models/Attendance');
 const LiveEvent = require('../models/LiveEvent');
+const config = require('../configurations/config');
 
 class SubmitAttendanceController {
   static async handle(req, res) {
@@ -12,6 +13,10 @@ class SubmitAttendanceController {
         attendeePosition,
         eventSpecialId,
         attendeeSignature,
+        signatureMethod,
+        eventName,
+        eventRoom,
+        roomLocation,
       } = req.body;
 
       if (!attendeeFullName || !attendeePhoneNumber || !attendeeInstitution || !attendeePosition || !eventSpecialId) {
@@ -67,6 +72,10 @@ class SubmitAttendanceController {
         });
       }
 
+      const hasDigitalCertificate = req.file
+        ? `${config.api.basePath}/uploads/${req.file.filename}`
+        : undefined;
+
       const attendance = new Attendance({
         attendeeFullName: attendeeFullName.trim(),
         attendeeEmail: attendeeEmail ? attendeeEmail.toLowerCase().trim() : undefined,
@@ -74,8 +83,13 @@ class SubmitAttendanceController {
         attendeeInstitution: attendeeInstitution.trim(),
         attendeePosition: attendeePosition.trim(),
         eventSpecialId,
-        attendanceTime: new Date(),
+        eventName: eventName || undefined,
+        eventRoom: eventRoom || undefined,
+        roomLocation: roomLocation || undefined,
         attendeeSignature: attendeeSignature || undefined,
+        digitalCertificate: hasDigitalCertificate,
+        signatureMethod: signatureMethod || undefined,
+        attendanceTime: new Date(),
       });
 
       await attendance.save();
@@ -86,7 +100,10 @@ class SubmitAttendanceController {
         data: {
           attendeeFullName: attendance.attendeeFullName,
           attendeeEmail: attendance.attendeeEmail,
-          attendanceTime: attendance.attendanceTime
+          attendanceTime: attendance.attendanceTime,
+          signatureMethod: attendance.signatureMethod,
+          hasSignature: !!attendance.attendeeSignature,
+          hasDigitalCertificate: !!attendance.digitalCertificate,
         }
       });
     } catch (error) {

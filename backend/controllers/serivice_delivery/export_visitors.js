@@ -1,5 +1,6 @@
 const ExcelJS = require('exceljs');
 const ServiceDelivery = require('../../models/service_delivery.js');
+const { getDepartmentIdsForHead } = require('../department_flow/visitors_by_status.js');
 
 const getPeriodBounds = (period, from, to) => {
   const now = new Date();
@@ -123,6 +124,13 @@ module.exports = async function export_visitors(req, res) {
 
     if (userRole.includes('receptionist')) {
       match['departments_assigned.assigned_by.user_id'] = userId;
+    } else if (userRole.includes('head of department')) {
+      // HODs export only visitors handled in the department(s) they lead
+      const departmentIds = await getDepartmentIdsForHead(req.user?.userId || userId);
+      if (!departmentIds.length) {
+        return res.status(403).json({ success: false, message: 'No department found for this head of department' });
+      }
+      match['departments_assigned'] = { $elemMatch: { department_id: { $in: departmentIds } } };
     } else if (userRole.includes('employee') || userRole.includes('staff') || userRole.includes('officer') || userRole.includes('clerk')) {
       match['departments_assigned'] = { $elemMatch: { provider_id: userId } };
     }

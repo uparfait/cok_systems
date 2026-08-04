@@ -111,18 +111,35 @@ const generateTimeSlots = (period, bounds) => {
   return slots;
 };
 
+const { getDepartmentIdsForHead } = require('../department_flow/visitors_by_status.js');
+
 module.exports = async function served_visitors_gender_stats(req, res, next) {
   try {
     let { period = 'month', from, to } = req.query || {};
     const bounds = getPeriodBounds(period, from, to);
 
     const userId = String(req.user?.id || req.user?._id || '');
+    const roleName = req.user?.role_name || req.user?.role || '';
 
-    let match = {
-      "departments_assigned": {
-        $elemMatch: { provider_id: userId },
-      },
-    };
+    let match;
+    if (roleName === 'Head of department') {
+      // HODs see everyone served in the department(s) they lead, not just themselves
+      const departmentIds = await getDepartmentIdsForHead(req.user?.userId || userId);
+      if (!departmentIds.length) {
+        return res.status(403).json({ success: false, message: 'No department found for this head of department' });
+      }
+      match = {
+        "departments_assigned": {
+          $elemMatch: { department_id: { $in: departmentIds } },
+        },
+      };
+    } else {
+      match = {
+        "departments_assigned": {
+          $elemMatch: { provider_id: userId },
+        },
+      };
+    }
 
     if (bounds) {
       match.entry_date = { $gte: bounds.start, $lte: bounds.end };

@@ -1,5 +1,6 @@
 const ServiceDelivery = require('../../models/service_delivery.js');
 const Department = require('../../models/department.js');
+const { getDepartmentIdsForHead } = require('../department_flow/visitors_by_status.js');
 
 /**
  * Get queue summary for the current user's department.
@@ -26,6 +27,13 @@ module.exports = async function queue_summary(req, res, next) {
     let departmentIds = [];
     if (user_department_id) departmentIds.push(user_department_id);
     if (user_department_unit_id) departmentIds.push(user_department_unit_id);
+
+    // HODs may lead departments without being a member of one — resolve from
+    // department leadership (includes sub-departments) when nothing was found
+    if (user_role_name === 'Head of department') {
+      const ledIds = await getDepartmentIdsForHead(req.user?.userId || req.user?.id);
+      ledIds.forEach((id) => { if (!departmentIds.includes(id)) departmentIds.push(id); });
+    }
 
     if (departmentIds.length === 0) {
       return res.status(200).json({
