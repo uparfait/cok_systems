@@ -139,7 +139,7 @@ const FeedbackServicePage: React.FC = () => {
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ backgroundColor: '#F7F9FB', paddingTop: '80px', paddingBottom: '80px' }}>
       <div className="w-full max-w-md mx-auto">
-        <div className="bg-white p-4 sm:p-6" style={{ backgroundColor: WHITE, borderRadius: 0, border: '2px solid #056daa' }}>
+        <div className="bg-white p-6 sm:p-8" style={{ backgroundColor: WHITE, borderRadius: 0, border: '2px solid #056daa' }}>
           {/* Step: Phone */}
           {step === 'phone' && (
             <div className="space-y-4">
@@ -161,7 +161,7 @@ const FeedbackServicePage: React.FC = () => {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="Enter phone number"
-                    className="cok-auth-input pr-3 py-3 sm:py-4 text-sm sm:text-lg"
+                    className="cok-auth-input pr-3 py-3 sm:py-4 text-sm sm:text-base"
                     onKeyDown={(e) => e.key === 'Enter' && handleVerifyPhone()}
                   />
                 </div>
@@ -170,7 +170,7 @@ const FeedbackServicePage: React.FC = () => {
                 <button
                   onClick={handleVerifyPhone}
                   disabled={isVerifying || !phone.trim()}
-                  className="cok-btn-primary py-2.5 px-4 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="cok-btn-primary py-3 px-4 disabled:opacity-50 flex items-center justify-center gap-2"
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
                 >
@@ -183,7 +183,7 @@ const FeedbackServicePage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => navigate('/feedback')}
-                  className="cok-btn-outlined w-full mt-3 py-2.5"
+                  className="cok-btn-outlined w-full mt-3 py-3"
                   style={{ backgroundColor: WHITE }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = PRIMARY;
@@ -239,7 +239,7 @@ const FeedbackServicePage: React.FC = () => {
               <div className="pt-4">
                 <button
                   onClick={handleGoBack}
-                  className="cok-btn-outlined w-full py-2.5"
+                  className="cok-btn-outlined w-full py-3"
                   style={{ backgroundColor: WHITE }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = PRIMARY;
@@ -270,7 +270,7 @@ const FeedbackServicePage: React.FC = () => {
                     <button
                       key={value}
                       onClick={() => setRating(value)}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium cursor-pointer transition-all hover:scale-105 active:scale-95 ${
+                      className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium cursor-pointer transition-all hover:scale-105 active:scale-95 ${
                         value <= rating
                           ? value <= 3
                             ? 'bg-red-500 text-white'
@@ -301,7 +301,7 @@ const FeedbackServicePage: React.FC = () => {
                     onChange={(e) => setMessage(e.target.value.slice(0, 500))}
                     placeholder="Tell us about your experience..."
                     rows={3}
-                    className="cok-auth-input pr-3 py-3 sm:py-4 text-sm sm:text-lg resize-none"
+                    className="cok-auth-input pr-3 py-3 sm:py-4 text-sm sm:text-base resize-none"
                   />
                 </div>
                 <p className="text-xs text-gray-400 mt-1 text-right">{message.length}/500</p>
@@ -309,7 +309,7 @@ const FeedbackServicePage: React.FC = () => {
               <div className="flex flex-col sm:flex-row gap-2 pt-4">
                 <button
                   onClick={handleGoBack}
-                  className="cok-btn-outlined flex-1 py-2.5"
+                  className="cok-btn-outlined flex-1 py-3"
                   style={{ backgroundColor: WHITE }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = PRIMARY;
@@ -324,7 +324,7 @@ const FeedbackServicePage: React.FC = () => {
                 </button>
                 <button
                   onClick={handlePreview}
-                  className="cok-btn-primary flex-1 py-2.5 flex items-center justify-center gap-2"
+                  className="cok-btn-primary flex-1 py-3 flex items-center justify-center gap-2"
                   style={{ width: 'auto' }}
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
@@ -375,7 +375,7 @@ const FeedbackServicePage: React.FC = () => {
                 <button
                   onClick={() => setStep('rate')}
                   disabled={isSubmitting}
-                  className="cok-btn-outlined flex-1 py-2.5"
+                  className="cok-btn-outlined flex-1 py-3"
                   style={{ backgroundColor: WHITE }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = PRIMARY;
@@ -391,7 +391,7 @@ const FeedbackServicePage: React.FC = () => {
                 <button
                   onClick={handleSubmit}
                   disabled={isSubmitting}
-                  className="cok-btn-primary flex-1 py-2.5 flex items-center justify-center gap-2"
+                  className="cok-btn-primary flex-1 py-3 flex items-center justify-center gap-2"
                   style={{ backgroundColor: SUCCESS, width: 'auto' }}
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SUCCESS_HOVER; }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}
@@ -414,7 +414,7 @@ const FeedbackServicePage: React.FC = () => {
           {/* Step: Success */}
           {step === 'success' && (
             <div className="text-center space-y-4 py-4">
-              <div className="w-16 h-16 flex items-center justify-center mx-auto" style={{ backgroundColor: 'rgba(76,175,80,0.12)' }}>
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ backgroundColor: 'rgba(76,175,80,0.12)' }}>
                 <FiCheckCircle className="w-8 h-8" style={{ color: SUCCESS }} />
               </div>
               <div>
@@ -423,7 +423,7 @@ const FeedbackServicePage: React.FC = () => {
               </div>
               <button
                 onClick={() => navigate('/feedback')}
-                className="cok-btn-primary py-2.5 px-4"
+                className="cok-btn-primary py-3 px-4"
                 style={{ backgroundColor: SUCCESS }}
                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SUCCESS_HOVER; }}
                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}
@@ -436,7 +436,7 @@ const FeedbackServicePage: React.FC = () => {
           {/* Step: Error */}
           {step === 'error' && (
             <div className="text-center space-y-4 py-4">
-              <div className="w-16 h-16 flex items-center justify-center mx-auto" style={{ backgroundColor: 'rgba(231,76,60,0.12)' }}>
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ backgroundColor: 'rgba(231,76,60,0.12)' }}>
                 <FiAlertCircle className="w-8 h-8" style={{ color: DANGER }} />
               </div>
               <div>
@@ -445,7 +445,7 @@ const FeedbackServicePage: React.FC = () => {
               </div>
               <button
                 onClick={handleGoBack}
-                className="cok-btn-primary py-2.5 px-4"
+                className="cok-btn-primary py-3 px-4"
                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
               >

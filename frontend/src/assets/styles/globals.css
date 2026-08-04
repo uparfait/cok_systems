@@ -482,8 +482,9 @@ body {
   line-height: 1.4;
   text-transform: uppercase;
   color: var(--cok-neutral-dark);
-  display: block;
+  display: flex;
   margin-bottom: 8px;
+
 }
 
 .cok-auth-input {
