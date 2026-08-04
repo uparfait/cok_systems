@@ -171,7 +171,8 @@ const CheckInVehiclePage: React.FC = () => {
   const [driverInfo, setDriverInfo] = useState({
     name: '',
     telephone: '',
-    badge_number: ''
+    badge_number: '',
+    driver_type: 'Regular',
   });
 
   const [verifiedData, setVerifiedData] = useState<VehicleData | null>(null);
@@ -230,7 +231,10 @@ const CheckInVehiclePage: React.FC = () => {
         setDriverInfo({
           name: data.driver_details?.name || data.driver_name || '',
           telephone: data.driver_details?.telephone || data.driver_telephone || '',
-          badge_number: (data as any).badge_number || ''
+          badge_number: (data as any).badge_number || '',
+          driver_type: data.driver_type || data.vehicle_category || 'Regular',
+          
+          
         });
         
         // Vehicle is found in system - ALWAYS show Found Vehicle Modal
@@ -314,12 +318,12 @@ const CheckInVehiclePage: React.FC = () => {
       
       // Get identification from verified data
       const identification = verifiedData.driver_details?.identification || null;
-      
+      alert(driverType.trim())
       const checkInData = {
         plate_number: verifiedData.plate_number,
         driver_name: driverInfo.name || verifiedData.driver_details?.name || verifiedData.driver_name || '',
         driver_telephone: driverInfo.telephone || verifiedData.driver_details?.telephone || verifiedData.driver_telephone || '',
-        driver_type: driverType.trim() == "" ? "Regular" : driverType.trim(),
+        driver_type: driverType.trim() === "" ? "Regular" : driverType.trim(),
         driver_identification: identification,
         badge_number: driverInfo.badge_number?.trim() || null,
       };
@@ -395,7 +399,7 @@ const CheckInVehiclePage: React.FC = () => {
           id_type: 'National ID',
           id_number: '',
           badge_number: '',
-          driver_type: '',
+          driver_type: 'Regular',
         });
         setVerifiedData(null);
         setIdError(null);
@@ -776,11 +780,12 @@ const CheckInVehiclePage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2 pt-4 mt-2">
-          <button type="button" onClick={closeAllModals} className="w-full sm:flex-1 cok-btn-outlined text-sm py-2 sm:py-2.5">Cancel</button>
+        <div className="flex flex-col  gap-2 pt-4 mt-2">
+          
           <button type="button" onClick={handleRegisterUnknown} disabled={loading || !unknownForm.driver_name || !unknownForm.driver_telephone} className="w-full sm:flex-1 px-4 py-2 sm:py-2.5 cok-btn-primary disabled:opacity-50 text-sm">
             {loading ? "Waiting...." : "Register & Check In"}
           </button>
+          <button type="button" onClick={closeAllModals} className="w-full sm:flex-1 cok-btn-outlined text-sm py-2 sm:py-2.5">Cancel</button>
         </div>
       </div>
     </div>

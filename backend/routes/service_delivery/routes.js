@@ -31,6 +31,7 @@ const assigned_visitors_gender_stats = require('../../controllers/serivice_deliv
 const served_visitors_gender_stats = require('../../controllers/serivice_delivery/served_visitors_gender_stats.js');
 const export_visitors = require('../../controllers/serivice_delivery/export_visitors.js');
 const queue_summary = require('../../controllers/serivice_delivery/queue_summary.js');
+const checkout_with_badge = require('../../controllers/serivice_delivery/checkout_with_badge.js');
 
 Router.use(upload.any())
 
@@ -587,7 +588,7 @@ Router.get('/visitor/:id', auditSuccess('READ', 'visitors'), get_vistor_by_id)
 
 /**
  * @swagger
- * /servicedelivery/visitor/by-identification:
+ * /servicedelivery/visitor/by/identification/gate:
  *   get:
  *     summary: "Get visitor by ID type and ID number"
  *     description: "Search for a visitor record by their identification type and identification number."
@@ -635,7 +636,7 @@ Router.get('/visitor/:id', auditSuccess('READ', 'visitors'), get_vistor_by_id)
  *       500:
  *         description: Internal server error
  */
-Router.get('/visitor/by-identification', auditSuccess('READ', 'visitors'), get_visitor_by_identification)
+Router.get('/visitor/by/identification/gate', auditSuccess('READ', 'visitors'), get_visitor_by_identification)
 
 /**
  * @swagger
@@ -914,6 +915,62 @@ Router.post('/visitor/assign',
 Router.post('/visitor/checkout',
   auditSuccess('UPDATE', 'visitors', (req, res, data) => `Checked out visitor ${req.body.visitorId || 'unknown'}`),
   vistor_checkout
+)
+
+/**
+ * @swagger
+ * /servicedelivery/visitor/checkout-with-badge:
+ *   post:
+ *     summary: "Check out visitor with badge management"
+ *     description: "Check out a visitor, clear/set badge number in service_delivery and parking_record models. If a new badge is provided, it is set in all relevant models."
+ *     tags: [Service Delivery]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - visitorId
+ *             properties:
+ *               visitorId:
+ *                 type: string
+ *                 description: "Visitor's MongoDB ObjectId"
+ *                 example: "64f1a2b3c4d5e6f7a8b9c0d1"
+ *               badge_number:
+ *                 type: string
+ *                 description: "Optional new badge number to set. If omitted, badge is cleared (set to null)."
+ *                 example: "VST-2026-001"
+ *               items_exited_with:
+ *                 type: array
+ *                 description: "Items the visitor is leaving with"
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     item_name:
+ *                       type: string
+ *                       example: "Laptop Bag"
+ *                     quantity:
+ *                       type: integer
+ *                       example: 1
+ *                     description:
+ *                       type: string
+ *                       example: "Same as entered"
+ *     responses:
+ *       200:
+ *         description: Visitor checked out successfully
+ *       400:
+ *         description: Missing visitorId or invalid ID format
+ *       404:
+ *         description: Visitor not found or already checked out
+ *       500:
+ *         description: Internal server error
+ */
+Router.post('/visitor/checkout-with-badge',
+  auditSuccess('UPDATE', 'visitors', (req, res, data) => `Checked out visitor ${req.body.visitorId || 'unknown'} with badge management`),
+  checkout_with_badge
 )
 
 /**
