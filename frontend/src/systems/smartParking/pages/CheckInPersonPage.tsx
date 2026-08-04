@@ -5,7 +5,7 @@ import MainLayout from '../../../core/components/Layout/MainLayout';
 import { useToast } from '../../../core/contexts/ToastContext';
 import { useSocket } from '../../../core/contexts/SocketContext';
 import { serviceDeliveryService } from '../../../core/services/adminService';
-import { FiPlus, FiPhone, FiCreditCard, FiUser, FiMail } from 'react-icons/fi';
+import { FiPlus, FiPhone, FiCreditCard, FiUser, FiMail, FiSearch } from 'react-icons/fi';
 
 // City of Kigali (CoK) institutional design constants
 const PRIMARY = "#056daa";
@@ -253,6 +253,41 @@ const CheckInPersonPage: React.FC = () => {
     }
   };
 
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  const handleSearchVisitor = async () => {
+    if (!formData.id_number || formData.id_number.trim() === '') {
+      showWarning('Please enter an ID number to search');
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      const response = await serviceDeliveryService.getVisitorByIdentification(formData.id_type, formData.id_number.trim());
+      
+      if (response.success && response.data) {
+        const visitor = response.data;
+        setFormData({
+          full_name: visitor.full_name || '',
+          telephone: visitor.telephone || '',
+          email: visitor.email || '',
+          id_type: visitor.identification?.id_type || formData.id_type,
+          id_number: visitor.identification?.number || '',
+          gender: visitor.gender || 'Not specified',
+          badge_number: visitor.badge_number || '',
+        });
+        showSuccess('Visitor found and form auto-filled');
+      } else {
+        showWarning('No visitor found with this ID type and ID number. Please fill the form manually.');
+      }
+    } catch (error: any) {
+      console.error('Error searching visitor:', error);
+      showError(error.message || 'Failed to search for visitor');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -417,9 +452,22 @@ const CheckInPersonPage: React.FC = () => {
                 name="id_number"
                 value={formData.id_number}
                 onChange={handleChange}
-                className="w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base"
+                className="w-full cok-auth-input pr-10 pl-10 py-2 sm:py-3 text-sm sm:text-base"
                 placeholder={formData.id_type === 'National ID' ? 'Enter 16-digit national ID' : 'Enter ID number'}
               />
+              <button
+                type="button"
+                onClick={handleSearchVisitor}
+                disabled={searchLoading}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 rounded hover:bg-gray-100 disabled:opacity-50"
+                title="Search visitor by ID"
+              >
+                {searchLoading ? (
+                  <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <FiSearch className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: PRIMARY }} />
+                )}
+              </button>
             </div>
             {idError && (
               <p className="mt-1 text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{idError}</p>
