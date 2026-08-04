@@ -1,55 +1,57 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import type { Task } from '../../core/services/taskService'
+import type { EventAction } from '../../core/services/eventActionService'
 import {
-  getTasks,
-  moveTask,
-  getTaskProgress,
-  getTaskStatusColor
-} from '../../core/services/taskService'
+  getEventActions,
+  updateEventActionStatus,
+} from '../../core/services/eventActionService'
 import { useAuth } from '../../core/contexts/AuthContext'
 import { useToast } from '../../core/contexts/ToastContext'
-import useTaskRealtime from '../../core/hooks/useTaskRealtime'
-import TaskCard from './components/TaskCard'
-import TaskDetailModal from './components/TaskDetailModal'
-import CreateTaskModal from './components/CreateTaskModal'
-import './TaskManager.css'
+import FollowUpCard from './components/FollowUpCard'
+import FollowUpDetailModal from './components/FollowUpDetailModal'
+import CreateFollowUpModal from './components/CreateFollowUpModal'
 import { FiLoader } from 'react-icons/fi'
 
-interface TaskColumn {
+const PRIMARY = '#056daa'
+const BORDER = '#E0E0E0'
+const WHITE = '#FFFFFF'
+const GRAY_DISABLED = '#9E9E9E'
+const fontHeading = "'Montserrat', sans-serif"
+
+const FOLLOWUP_STATUSES = ['Pending', 'In Progress', 'Completed', 'Cancelled'] as const
+type FollowUpStatus = typeof FOLLOWUP_STATUSES[number]
+
+interface FollowUpColumn {
   id: string
   title: string
-  status: Task['status']
-  tasks: Task[]
-  gradient: string
+  status: FollowUpStatus
+  followups: EventAction[]
   headerColor: string
   borderColor: string
 }
 
-const TaskManager: React.FC = () => {
+const FollowUpManager: React.FC = () => {
   const { user } = useAuth()
   const { showSuccess, showError } = useToast()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [isDraggingScroll, setIsDraggingScroll] = useState(false)
   const [startX, setStartX] = useState(0)
   const [scrollLeft, setScrollLeft] = useState(0)
-  const [SelectedColumnStatus, setSelectedColumnStatus] = useState<Task['status']>('Under-review')
+  const [selectedColumnStatus, setSelectedColumnStatus] = useState<FollowUpStatus>('Pending')
 
-  const [columns, setColumns] = useState<TaskColumn[]>([
+  const [columns, setColumns] = useState<FollowUpColumn[]>([
     {
-      id: 'under-review',
-      title: 'Under Review',
-      status: 'Under-review',
-      tasks: [],
-      gradient: 'from-stone-50 to-stone-100/80',
-      headerColor: 'from-stone-700 to-stone-700',
-      borderColor: 'border-stone-200'
+      id: 'pending',
+      title: 'Pending',
+      status: 'Pending',
+      followups: [],
+      headerColor: 'from-amber-600 to-amber-600',
+      borderColor: 'border-amber-200'
     },
     {
       id: 'in-progress',
       title: 'In Progress',
-      status: 'In-progress',
-      tasks: [],
-      gradient: 'from-blue-50 to-indigo-50/80',
+      status: 'In Progress',
+      followups: [],
       headerColor: 'from-blue-600 to-blue-600',
       borderColor: 'border-blue-200'
     },
@@ -57,175 +59,130 @@ const TaskManager: React.FC = () => {
       id: 'completed',
       title: 'Completed',
       status: 'Completed',
-      tasks: [],
-      gradient: 'from-emerald-50 to-teal-50/80',
-      headerColor: 'from-teal-600 to-teal-600',
+      followups: [],
+      headerColor: 'from-emerald-600 to-emerald-600',
       borderColor: 'border-emerald-200'
+    },
+    {
+      id: 'cancelled',
+      title: 'Cancelled',
+      status: 'Cancelled',
+      followups: [],
+      headerColor: 'from-red-600 to-red-600',
+      borderColor: 'border-red-200'
     }
   ])
 
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [selectedFollowUp, setSelectedFollowUp] = useState<EventAction | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
-  const [loading, setLoading] = useState({
-    tasks: false,
-    columns: false
-  })
-
+  const [loading, setLoading] = useState(false)
   const [firstLoad, setFirstLoad] = useState(true)
 
-  // Load tasks
-  const loadTasks = useCallback(async (showLoader = true) => {
-    if (!user?.userId) return
-
+  const loadFollowups = useCallback(async () => {
     try {
-      if (showLoader) setLoading(prev => ({ ...prev, tasks: true }))
-      const response = await getTasks({
-        incharge: user.userId,
-        limit: 100
+      setLoading(true)
+      const response = await getEventActions({
+        limit: 100,
+        page: 1
       })
 
       if (response.status) {
-        const tasks = (response as any).data.tasks || []
+        const followups = (response as any).data?.data || []
 
-        // Group tasks by status
-        const groupedTasks = {
-          'Under-review': tasks.filter((task: Task) => task.status === 'Under-review'),
-          'In-progress': tasks.filter((task: Task) => task.status === 'In-progress'),
-          'Completed': tasks.filter((task: Task) => task.status === 'Completed')
+        const grouped = {
+          'Pending': followups.filter((f: EventAction) => f.currentStatus?.status === 'Pending'),
+          'In Progress': followups.filter((f: EventAction) => f.currentStatus?.status === 'In Progress'),
+          'Completed': followups.filter((f: EventAction) => f.currentStatus?.status === 'Completed'),
+          'Cancelled': followups.filter((f: EventAction) => f.currentStatus?.status === 'Cancelled')
         }
 
-        setColumns(prevColumns =>
-          prevColumns.map(column => ({
+        setColumns(prev =>
+          prev.map(column => ({
             ...column,
-            tasks: groupedTasks[column.status] || []
+            followups: grouped[column.status] || []
           }))
         )
       }
     } catch (error: any) {
-      showError(error?.message || 'Failed to load tasks')
+      showError(error?.message || 'Failed to load follow-ups')
     } finally {
       setFirstLoad(false)
-      if (showLoader) setLoading(prev => ({ ...prev, tasks: false }))
+      setLoading(false)
     }
-  }, [user?.userId, showError])
+  }, [showError])
 
-  // Load tasks on mount
   useEffect(() => {
-    loadTasks()
-  }, [loadTasks])
+    loadFollowups()
+  }, [loadFollowups])
 
-  // Real-time updates
-  useTaskRealtime({
-    onTaskStatusUpdated: (data) => {
-      loadTasks(false)
-    },
-    onTaskUpdated: () => {
-      loadTasks(false)
-    }
-  })
-
-  // Drag and drop state
-  const [draggedTask, setDraggedTask] = useState<Task | null>(null)
-  const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null)
-
-  const handleDragStart = (task: Task) => {
-    setDraggedTask(task)
+  const handleDragStart = (followup: EventAction) => {
+    ;(window as any).__draggedFollowUp = followup
   }
 
   const handleDragOver = (e: React.DragEvent, columnId: string) => {
     e.preventDefault()
-    setDraggedOverColumn(columnId)
+    ;(window as any).__draggedOverColumn = columnId
   }
 
   const handleDragLeave = () => {
-    setDraggedOverColumn(null)
+    ;(window as any).__draggedOverColumn = null
   }
 
   const handleDrop = async (e: React.DragEvent, columnId: string) => {
     e.preventDefault()
-    setDraggedOverColumn(null)
+    const draggedFollowUp = (window as any).__draggedFollowUp as EventAction | undefined
+    ;(window as any).__draggedFollowUp = null
+    ;(window as any).__draggedOverColumn = null
 
-    if (!draggedTask) return
+    if (!draggedFollowUp) return
 
-    const sourceColumnIndex = columns.findIndex(col =>
-      col.tasks.some(task => task._id === draggedTask._id)
-    )
-    const destinationColumnIndex = columns.findIndex(col => col.id === columnId)
+    const currentStatus = draggedFollowUp.currentStatus?.status
+    if (currentStatus === columnId) return
 
-    if (sourceColumnIndex === -1 || destinationColumnIndex === -1) return
-
-    // Allow movement in any direction (forward and backward)
-    if (sourceColumnIndex === destinationColumnIndex) {
-      setDraggedTask(null)
-      return
-    }
-
-    const destinationColumn = columns[destinationColumnIndex]
-    const newStatus = destinationColumn.status
-    const newPosition = destinationColumn.tasks.length
-
+    setLoading(true)
     try {
-      await moveTask(draggedTask._id!, draggedTask.list || '', destinationColumn.id, newPosition)
-      showSuccess(`Task moved to ${destinationColumn.title}`)
-
-      const sourceColumn = columns[sourceColumnIndex]
-      const taskIndex = sourceColumn.tasks.findIndex(task => task._id === draggedTask._id)
-      const [movedTask] = sourceColumn.tasks.splice(taskIndex, 1)
-
-      setColumns(prevColumns =>
-        prevColumns.map(column => {
-          if (column.id === columns[sourceColumnIndex].id) {
-            return { ...column, tasks: sourceColumn.tasks }
-          }
-          if (column.id === columnId) {
-            return { ...column, tasks: [...column.tasks, { ...movedTask, status: newStatus }] }
-          }
-          return column
-        })
-      )
-
-      // Update selected task if it's the one being moved
-      if (selectedTask?._id === draggedTask._id) {
-        setSelectedTask((prev) => prev ? { ...prev, status: newStatus } : null)
-      }
-    } catch (error: unknown) {
-      showError((error as Error)?.message || 'Failed to move task')
-      loadTasks(false)
+      await updateEventActionStatus(draggedFollowUp._id, {
+        status: columnId as FollowUpStatus,
+        description: draggedFollowUp.currentStatus?.description || ''
+      })
+      showSuccess(`Follow-up moved to ${columnId}`)
+      loadFollowups()
+    } catch (error: any) {
+      showError(error?.message || 'Failed to move follow-up')
     } finally {
-      setDraggedTask(null)
+      setLoading(false)
     }
   }
 
-  const handleTaskClick = (task: Task) => {
-    setSelectedTask(task)
+  const handleFollowUpClick = (followup: EventAction) => {
+    setSelectedFollowUp(followup)
     setShowDetailModal(true)
   }
 
-  const handleTaskCreated = () => {
+  const handleFollowUpCreated = () => {
     setShowCreateModal(false)
-    loadTasks()
-    showSuccess('Task created successfully')
+    loadFollowups()
+    showSuccess('Follow-up created successfully')
   }
 
-  const handleTaskUpdated = (updatedTask?: Task) => {
-    if (updatedTask && selectedTask) {
-      setSelectedTask(updatedTask)
+  const handleFollowUpUpdated = (updatedFollowUp?: EventAction) => {
+    if (updatedFollowUp && selectedFollowUp) {
+      setSelectedFollowUp(updatedFollowUp)
 
-      setColumns(prevColumns =>
-        prevColumns.map(column => ({
+      setColumns(prev =>
+        prev.map(column => ({
           ...column,
-          tasks: column.tasks.map(task =>
-            task._id === selectedTask._id ? updatedTask : task
+          followups: column.followups.map(f =>
+            f._id === selectedFollowUp._id ? updatedFollowUp : f
           )
         }))
       )
 
-      showSuccess('Task updated successfully')
+      showSuccess('Follow-up updated successfully')
     }
   }
 
-  // Horizontal scroll with drag
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!scrollContainerRef.current) return
     setIsDraggingScroll(true)
@@ -259,7 +216,6 @@ const TaskManager: React.FC = () => {
 
   return (
     <div className="task-manager-container min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
-      {/* Scrollable Columns Container */}
       <div
         ref={scrollContainerRef}
         className="columns-scroll-container overflow-x-auto overflow-y-hidden cursor-grab px-4 pb-8 pt-2"
@@ -273,21 +229,20 @@ const TaskManager: React.FC = () => {
           {columns.map((column) => (
             <div
               key={column.id}
-              className={`column-card w-[340px] md:w-[380px] flex-shrink-0 rounded-sm bg-gradient-to-br ${column.gradient} 
-                border ${column.borderColor} shadow-xl hover:shadow-2xl transition-all duration-300 
-                ${draggedOverColumn === column.id ? 'ring-4 ring-blue-400/50 ring-offset-2 scale-[1.02]' : ''} 
-                ${loading.tasks ? 'opacity-75' : ''} 
+              className={`column-card w-[340px] md:w-[380px] flex-shrink-0 rounded-sm bg-gradient-to-br border shadow-xl hover:shadow-2xl transition-all duration-300 
+                ${(window as any).__draggedOverColumn === column.id ? 'ring-4 ring-blue-400/50 ring-offset-2 scale-[1.02]' : ''} 
+                ${loading ? 'opacity-75' : ''} 
                 bg-white/40`}
               style={{
                 transform: 'perspective(1200px) rotateX(2deg)',
                 transformStyle: 'preserve-3d',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                borderColor: '#E0E0E0'
               }}
               onDragOver={(e) => handleDragOver(e, column.id)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, column.id)}
             >
-              {/* Column Header */}
               <div
                 className={`relative px-5 py-4 rounded-t-sm bg-gradient-to-r ${column.headerColor}`}
                 style={{
@@ -297,13 +252,13 @@ const TaskManager: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold text-white tracking-tight">
+                    <h2 className="text-lg font-bold text-white tracking-tight" style={{ fontFamily: fontHeading }}>
                       {column.title}
                     </h2>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-white/90 bg-white/20 px-2.5 py-0.5 rounded-full backdrop-blur-sm">
-                      {column.tasks.length}
+                    <span className="text-sm font-semibold text-white/90 bg-white/20 px-2.5 py-0.5 rounded-full backdrop-blur-sm" style={{ fontFamily: fontHeading }}>
+                      {column.followups.length}
                     </span>
                     <button
                       onClick={() => {
@@ -311,7 +266,7 @@ const TaskManager: React.FC = () => {
                         setShowCreateModal(true)
                       }}
                       className="text-white/80 hover:text-white p-1 rounded-full hover:bg-white/20 transition-colors"
-                      title={`Add task to ${column.title}`}
+                      title={`Add follow-up to ${column.title}`}
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
@@ -321,9 +276,8 @@ const TaskManager: React.FC = () => {
                 </div>
               </div>
 
-              {/* Tasks Container */}
               <div className="p-4 space-y-3 min-h-[500px] max-h-[calc(80vh-100px)] overflow-y-auto custom-scrollbar">
-                {loading.tasks && firstLoad ? (
+                {loading && firstLoad ? (
                   <div className="flex justify-center items-center py-12">
                     <div className="relative">
                       <div className="rounded-full h-8 w-8">
@@ -331,44 +285,41 @@ const TaskManager: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                ) : column.tasks.length === 0 ? (
+                ) : column.followups.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <div className="w-12 h-12 rounded-full bg-white/50 flex items-center justify-center mb-3">
                       <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                     </div>
-                    <p className="text-sm text-slate-500">No tasks</p>
+                    <p className="text-sm text-slate-500" style={{ fontFamily: fontHeading }}>No follow-ups</p>
                     <button
                       onClick={() => {
                         setSelectedColumnStatus(column.status)
                         setShowCreateModal(true)
                       }}
-                      className="mt-3 text-xs hover:cursor-pointer  text-blue-500 hover:text-blue-600 font-medium"
+                      className="mt-3 text-xs hover:cursor-pointer text-blue-500 hover:text-blue-600 font-medium"
+                      style={{ fontFamily: fontHeading }}
                     >
-                      + Add a task
+                      + Add a follow-up
                     </button>
                   </div>
                 ) : (
-                  column.tasks.map((task) => (
+                  column.followups.map((followup) => (
                     <div
-                      key={task._id}
+                      key={followup._id}
                       draggable
-                      onDragStart={() => handleDragStart(task)}
-                      className={`cursor-grab active:cursor-grabbing transition-all duration-150 ${draggedTask?._id === task._id ? 'opacity-40 rotate-1 scale-95' : 'hover:scale-[1.02]'
-                        }`}
+                      onDragStart={() => handleDragStart(followup)}
+                      className={`cursor-grab active:cursor-grabbing transition-all duration-150 ${(window as any).__draggedFollowUp?._id === followup._id ? 'opacity-40 rotate-1 scale-95' : 'hover:scale-[1.02]'}`}
                       style={{
                         transform: 'translateZ(4px)',
                         transition: 'transform 0.15s ease, opacity 0.15s ease'
                       }}
                     >
-                      <TaskCard
-                        task={task}
-                        onClick={() => handleTaskClick(task)}
-                        progress={getTaskProgress(task)}
-                        statusColor={getTaskStatusColor(task)}
-                        onUpdate={() => handleTaskClick(task)}
-                        onMove={() => loadTasks(false)}
+                      <FollowUpCard
+                        followup={followup}
+                        onClick={() => handleFollowUpClick(followup)}
+                        onUpdate={() => loadFollowups()}
                       />
                     </div>
                   ))
@@ -383,27 +334,26 @@ const TaskManager: React.FC = () => {
         </div>
       </div>
 
-      {/* Modals */}
       {showCreateModal && (
-        <CreateTaskModal
+        <CreateFollowUpModal
           onClose={() => setShowCreateModal(false)}
-          onSuccess={handleTaskCreated}
-          TaskStatus={SelectedColumnStatus}
+          onSuccess={handleFollowUpCreated}
+          FollowUpStatus={selectedColumnStatus}
         />
       )}
 
-      {showDetailModal && selectedTask && (
-        <TaskDetailModal
-          task={selectedTask}
+      {showDetailModal && selectedFollowUp && (
+        <FollowUpDetailModal
+          followup={selectedFollowUp}
           onClose={() => {
             setShowDetailModal(false)
-            setSelectedTask(null)
+            setSelectedFollowUp(null)
           }}
-          onUpdate={handleTaskUpdated}
+          onUpdate={handleFollowUpUpdated}
           onDelete={() => {
             setShowDetailModal(false)
-            setSelectedTask(null)
-            loadTasks(false)
+            setSelectedFollowUp(null)
+            loadFollowups()
           }}
         />
       )}
@@ -460,4 +410,4 @@ const TaskManager: React.FC = () => {
   )
 }
 
-export default TaskManager
+export default FollowUpManager

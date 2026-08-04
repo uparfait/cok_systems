@@ -6,7 +6,6 @@ const NavigationLinks = [
   { DisplayName: "Live", Link: "/" },
   { DisplayName: "Upcoming", Link: "/upcoming" },
   { DisplayName: "Booking", Link: "/book-a-room/options" },
-  { DisplayName: "My Tasks", Link: "/my-tasks" },
 ];
 
 const visibleCount = 3;

@@ -10,7 +10,6 @@ import {
 import LoginPage from "./pages/auth/LoginPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
-import FeedbackStatusPage from "./pages/FeedbackStatusPage";
 import FeedbackLandingPage from "./pages/feedback/FeedbackLandingPage";
 import FeedbackServicePage from "./pages/feedback/FeedbackServicePage";
 import FeedbackGeneralPage from "./pages/feedback/FeedbackGeneralPage";
@@ -68,6 +67,9 @@ import {
 import AssignedVisitorsList from "./systems/serviceDelivery/components/departmentFlow/AssignedVisitorsList";
 
 import RequestsPage from "./pages/dashboard/RequestsPage";
+// Task Management
+import TaskManager from "./systems/taskManagement/TaskManager";
+import FollowUpManager from "./systems/taskManagement/FollowUpManager";
 // Head of Department pages
 import HodKpisPage from "./systems/serviceDelivery/pages/hod/HodKpisPage";
 import HodEmployeesPage from "./systems/serviceDelivery/pages/hod/HodEmployeesPage";
@@ -230,13 +232,15 @@ const App: React.FC = () => {
                     path="my-tasks/:taskId"
                     element={<MyTasksTaskPage />}
                   />
-<Route path="feedback" element={<FeedbackLandingPage />} />
-                   <Route path="feedback/service" element={<FeedbackServicePage />} />
-                   <Route path="feedback/general" element={<FeedbackGeneralPage />} />
-
-                  <Route path="feedback-status" element={<FeedbackStatusPage />} />
-                
-                
+                  <Route path="feedback" element={<FeedbackLandingPage />} />
+                  <Route
+                    path="feedback/service"
+                    element={<FeedbackServicePage />}
+                  />
+                  <Route
+                    path="feedback/general"
+                    element={<FeedbackGeneralPage />}
+                  />
                 </Route>
 
                 {/* Public Routes */}
@@ -374,6 +378,28 @@ const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <RoleDashboardPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Task Management */}
+                <Route
+                  path="/:roleSlug/tasks"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <TaskManager />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/:roleSlug/followups"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <FollowUpManager />
+                      </MainLayout>
                     </ProtectedRoute>
                   }
                 />
@@ -643,7 +669,6 @@ const App: React.FC = () => {
                 />
 
                 {/* Shared pages */}
-            
 
                 {/* ==================== LEGACY ROUTE REDIRECTS ==================== */}
                 <Route
@@ -813,7 +838,6 @@ const App: React.FC = () => {
                   element={<Navigate to="/system-admin/dashboard" replace />}
                 />
 
-                
                 {/* route for unknown route move to under development */}
                 <Route
                   path=":roleSlug/Unknown-user"

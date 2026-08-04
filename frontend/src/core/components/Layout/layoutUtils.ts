@@ -111,7 +111,16 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     return [
       { id: 'dashboard', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiGrid' },
       { id: 'visitors', label: 'Visitors', path: `/${slug}/all-visitors`, icon: 'FiUsers' },
-      { id: 'tasks', label: 'Task Manager', path: `/${slug}/dashboard?tab=tasks`, icon: 'FiClipboard' },
+      {
+        id: 'task-manager',
+        label: 'Task Manager',
+        path: `/${slug}/tasks`,
+        icon: 'FiClipboard',
+        children: [
+          { id: 'individual-tasks', label: 'Individual Tasks', path: `/${slug}/tasks`, icon: 'FiClipboard' },
+          { id: 'follow-ups', label: 'Follow-ups', path: `/${slug}/followups`, icon: 'FiCheck' }
+        ]
+      },
       { id: 'history', label: 'Service History', path: `/${slug}/dashboard?tab=history`, icon: 'FiFileText' },
       { id: 'queue', label: 'Department Queue', path: `/${slug}/dashboard?tab=queue`, icon: 'FiList' },
     ];
@@ -179,6 +188,16 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       },
       { id: 'requests', label: 'Requests', path: `/${slug}/requests`, icon: 'FiFile' },
       { id: 'employees', label: 'My Employees', path: `/${slug}/hod/employees`, icon: 'FiUsers' },
+      {
+        id: 'task-manager',
+        label: 'Task Manager',
+        path: `/${slug}/tasks`,
+        icon: 'FiClipboard',
+        children: [
+          { id: 'individual-tasks', label: 'Individual Tasks', path: `/${slug}/tasks`, icon: 'FiClipboard' },
+          { id: 'follow-ups', label: 'Follow-ups', path: `/${slug}/followups`, icon: 'FiCheck' }
+        ]
+      },
       { id: 'team-tasks', label: 'Team Tasks', path: `/${slug}/hod/tasks`, icon: 'FiList' },
       { id: 'announcements', label: 'Announcements', path: `/${slug}/hod/announcements`, icon: 'FiMessageSquare' },
       { id: 'approvals', label: 'Approvals', path: `/${slug}/hod/approvals`, icon: 'FiUserCheck' },
@@ -222,6 +241,16 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       { id: 'status', label: 'Service Status', path: `/${slug}/dashboard?tab=status`, icon: 'FiClock' },
       { id: 'employees', label: 'Employee Management', path: `/${slug}/dashboard?tab=employees`, icon: 'FiUsers' },
       { id: 'availability', label: 'Dept. Availability', path: `/${slug}/dashboard?tab=availability`, icon: 'FiCheckCircle' },
+      {
+        id: 'task-manager',
+        label: 'Task Manager',
+        path: `/${slug}/tasks`,
+        icon: 'FiClipboard',
+        children: [
+          { id: 'individual-tasks', label: 'Individual Tasks', path: `/${slug}/tasks`, icon: 'FiClipboard' },
+          { id: 'follow-ups', label: 'Follow-ups', path: `/${slug}/followups`, icon: 'FiCheck' }
+        ]
+      },
       { id: 'reports', label: 'Reports', path: `/${slug}/dashboard?tab=reports`, icon: 'FiFile' }
     ];
   }
@@ -274,6 +303,11 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       adminChildren.push({ id: 'user-mgmt', label: 'User Management', path: `/${slug}/user-management`, icon: 'FiUser' });
     if (hasPermission(user, 'admin') || isAdmin)
       adminChildren.push({ id: 'system-audit', label: 'System Audit', path: `/${slug}/system-audit`, icon: 'FiActivity' });
+    if (hasPermission(user, 'admin') || isAdmin)
+      adminChildren.push({ id: 'task-manager', label: 'Task Manager', path: `/${slug}/tasks`, icon: 'FiClipboard', children: [
+        { id: 'admin-individual-tasks', label: 'Individual Tasks', path: `/${slug}/tasks`, icon: 'FiClipboard' },
+        { id: 'admin-follow-ups', label: 'Follow-ups', path: `/${slug}/followups`, icon: 'FiCheck' }
+      ]});
     if (adminChildren.length > 0) {
       navigation.push({ id: 'admin', label: 'Admin', path: `/${slug}/dashboard`, icon: 'FiSettings', children: adminChildren });
     }
