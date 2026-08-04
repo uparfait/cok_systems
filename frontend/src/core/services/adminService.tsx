@@ -320,6 +320,17 @@ export const serviceDeliveryService = {
     const qs = query.toString();
     return get(`/servicedelivery/served-visitors/gender-stats${qs ? `?${qs}` : ''}`);
   },
+  exportVisitors: (params?: { period?: string; from?: string; to?: string; vehicle?: string; title?: string; fields?: string[] }) => {
+    const query = new URLSearchParams();
+    if (params?.period && params.period !== 'all') query.append('period', params.period);
+    if (params?.from) query.append('from', params.from);
+    if (params?.to) query.append('to', params.to);
+    if (params?.vehicle && params.vehicle !== 'all') query.append('vehicle', params.vehicle);
+    if (params?.title) query.append('title', params.title);
+    if (params?.fields && params.fields.length > 0) query.append('fields', params.fields.join(','));
+    const qs = query.toString();
+    return `/cok/api/servicedelivery/visitors/export${qs ? `?${qs}` : ''}`;
+  },
   getServiceTrackingVisitors: (page: number = 1, limit: number = 20) => get(`/servicedelivery/service-tracking/visitors?page=${page}&limit=${limit}`),
   search: (query: string, page: number = 1, limit: number = 50, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),
   searchVisitors: (query: string, page: number = 1, limit: number = 50, inHouse: boolean = true) => get(`/servicedelivery/visitor/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}&in_house=${inHouse}`),

@@ -10,11 +10,12 @@ import { smartParkingService, statisticsService } from '../../../core/services/a
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import {
   FiTruck, FiShield, FiCheckCircle, FiAlertTriangle, FiUser, FiUserPlus,
-  FiPhone, FiX, FiEdit, FiActivity, FiCalendar, FiMapPin, FiTrendingUp, FiUsers, FiInfo, FiClock, FiCheck
+  FiPhone, FiX, FiEdit, FiActivity, FiCalendar, FiMapPin, FiTrendingUp, FiUsers, FiInfo, FiClock, FiCheck, FiDownload
 } from 'react-icons/fi';
 import { BsShieldCheck, BsExclamationTriangle } from 'react-icons/bs';
 import { MdOutlineLocalParking, MdOutlineWarning } from 'react-icons/md';
 import { FaRegIdCard } from 'react-icons/fa';
+import ExportVisitorsModal from '../../../core/components/requests/ExportVisitorsModal';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // City of Kigali (CoK) institutional design constants
@@ -97,11 +98,14 @@ const SmartParkingDashboard: React.FC = () => {
    const [showCheckoutConfirmModal, setShowCheckoutConfirmModal] = useState(false);
    const [checkoutVehicle, setCheckoutVehicle] = useState<FlaggedVehicle | null>(null);
    const [isEditingDriver, setIsEditingDriver] = useState(false);
-  const [driverInfo, setDriverInfo] = useState({
-    name: '',
-    telephone: '',
-    badge_number: ''
-  });
+   const [driverInfo, setDriverInfo] = useState({
+     name: '',
+     telephone: '',
+     badge_number: ''
+   });
+
+   // Export modal state
+   const [showExportModal, setShowExportModal] = useState(false);
 
   // Data states
   const [verifiedData, setVerifiedData] = useState<VehicleData | null>(null);
@@ -606,6 +610,20 @@ const SmartParkingDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Export Visitors Button */}
+        <div className="mb-4">
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="w-full px-6 py-3 text-white font-bold text-sm sm:text-base transition-colors flex items-center justify-center gap-2"
+            style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, letterSpacing: '1px', textTransform: 'uppercase' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+          >
+            <FiDownload className="w-5 h-5" />
+            EXPORT VISITORS DATA
+          </button>
         </div>
 
         {/* Hourly Analytics Graph */}
@@ -1274,8 +1292,11 @@ const SmartParkingDashboard: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
-      </MainLayout>
+        )}
+        {showExportModal && (
+          <ExportVisitorsModal onClose={() => setShowExportModal(false)} />
+        )}
+       </MainLayout>
     );
   };
 

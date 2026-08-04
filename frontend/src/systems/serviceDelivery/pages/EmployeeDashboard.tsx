@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiClock, FiCheckCircle, FiRefreshCw, FiUsers } from 'react-icons/fi';
+import { FiClock, FiCheckCircle, FiRefreshCw, FiUsers, FiDownload } from 'react-icons/fi';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useSocket } from '../../../core/contexts/SocketContext';
 import { serviceDeliveryService } from '../../../core/services/adminService';
 import RequestStats from '../../../core/components/requests/RequestStatistics';
 import OrientationStats from '../../../core/components/requests/OrientationStats';
 import ServedVisitorsGenderChart from '../components/employeeFlow/tabs/sub/ServedVisitorsGenderChart';
+import ExportVisitorsModal from '../../../core/components/requests/ExportVisitorsModal';
 
 const PRIMARY = "#056daa";
 const SUCCESS = "#4CAF50";
@@ -37,6 +38,7 @@ const EmployeeDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [firstLoad, setFirstLoad] = useState(true);
   const [stats, setStats] = useState({ pending: 0, transfered: 0, completed: 0 });
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const fetchDashboardStats = useCallback(async () => {
     const currentUser = user as any;
@@ -79,10 +81,7 @@ const EmployeeDashboard: React.FC = () => {
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: NEUTRAL_LIGHT }}>
       <div className="flex-1 overflow-auto p-4">
-        <div>
-          <h1 className="text-base font-bold" style={{ fontFamily: fontHeading, color: PRIMARY }}>Service Overview</h1>
-          <p className="text-xs mt-1" style={{ color: GRAY_DISABLED }}>Manage and track visitor service requests assigned to you.</p>
-        </div>
+        
         <div className="flex gap-3 mt-4 mb-4">
           {[
             { label: 'Pending Requests', value: stats.pending, icon: FiClock, color: WARNING, bar: 'rgba(243,156,18,0.35)' },
@@ -103,7 +102,24 @@ const EmployeeDashboard: React.FC = () => {
           <OrientationStats />
         </div>
 
+        <div className="mb-4">
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="w-full px-6 py-3 text-white font-bold text-sm sm:text-base transition-colors flex items-center justify-center gap-2"
+            style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, letterSpacing: '1px', textTransform: 'uppercase' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#045d94'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+          >
+            <FiDownload className="w-5 h-5" />
+            EXPORT VISITORS DATA
+          </button>
+        </div>
+
         <ServedVisitorsGenderChart />
+
+        {showExportModal && (
+          <ExportVisitorsModal onClose={() => setShowExportModal(false)} />
+        )}
       </div>
     </div>
   );

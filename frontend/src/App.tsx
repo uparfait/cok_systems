@@ -11,6 +11,9 @@ import LoginPage from "./pages/auth/LoginPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import FeedbackStatusPage from "./pages/FeedbackStatusPage";
+import FeedbackLandingPage from "./pages/feedback/FeedbackLandingPage";
+import FeedbackServicePage from "./pages/feedback/FeedbackServicePage";
+import FeedbackGeneralPage from "./pages/feedback/FeedbackGeneralPage";
 import UnderDevelopment from "./pages/dashboard/UnderDevelopment";
 import ProtectedRoute from "./core/components/ProtectedRoute";
 import MainLayout from "./core/components/Layout/MainLayout";
@@ -227,7 +230,13 @@ const App: React.FC = () => {
                     path="my-tasks/:taskId"
                     element={<MyTasksTaskPage />}
                   />
-                  <Route path="feedback" element={<FeedbackStatusPage />} />
+                  <Route path="feedback" element={<FeedbackLandingPage />}>
+                    <Route index element={<FeedbackLandingPage />} />
+                    <Route path="service" element={<FeedbackServicePage />} />
+                    <Route path="general" element={<FeedbackGeneralPage />} />
+                  </Route>
+
+                  <Route path="feedback-status" element={<FeedbackStatusPage />} />
                 
                 
                 </Route>
@@ -817,7 +826,7 @@ const App: React.FC = () => {
                   }
                 />
 
-                <Route path="*" element={<Navigate to="/login" replace />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
               {/* <ChatWidget /> */}
             </Router>
