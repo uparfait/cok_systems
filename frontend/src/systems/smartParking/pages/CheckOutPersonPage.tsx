@@ -22,7 +22,7 @@ const DANGER = "#E74C3C";
 const NEUTRAL_LIGHT = "#F7F9FB";
 const NEUTRAL_DARK = "#333333";
 const BORDER = "#E0E0E0";
-const TERTIARY = "#CDB896";
+const TERTIARY = "#056daa";
 const WHITE = "#FFFFFF";
 const GRAY_DISABLED = "#9E9E9E";
 const fontHeading = "'Montserrat', sans-serif";
@@ -83,6 +83,7 @@ const CheckOutPersonPage: React.FC = () => {
   const [selectedRecord, setSelectedRecord] = useState<VisitorRecord | null>(null);
   const [actionType, setActionType] = useState<'checkout' | 'leave' | 'return' | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [badgeInput, setBadgeInput] = useState('');
 
   // Memoized loadData function
   const loadData = useCallback(async (query: string = '', page: number = currentPage, filterType: string = typeFilter) => {
@@ -358,18 +359,23 @@ const CheckOutPersonPage: React.FC = () => {
     loadData(searchQuery, newPage, typeFilter);
   }, [searchQuery, typeFilter, totalPages, loadData]);
 
-  const handleCheckout = async () => {
+const handleCheckout = async () => {
     if (!selectedRecord) return;
-    
+
     setActionLoading(true);
     try {
-      const response = await serviceDeliveryService.checkOut(selectedRecord._id as string);
-      
+      const response = await serviceDeliveryService.checkoutWithBadge(
+        selectedRecord._id as string,
+        badgeInput || null,
+        []
+      );
+
       if (response.success) {
         showSuccess('Visitor checked out successfully!');
         setShowActionModal(false);
         setSelectedRecord(null);
         setActionType(null);
+        setBadgeInput('');
         loadData(searchQuery, currentPage, typeFilter);
       } else {
         showError(response.message || 'Failed to checkout visitor');
@@ -438,6 +444,7 @@ const CheckOutPersonPage: React.FC = () => {
     setSelectedRecord(record);
     setActionType('checkout');
     setShowActionModal(true);
+    setBadgeInput('');
   };
 
   const openMarkAsOutModal = (record: VisitorRecord) => {
@@ -779,6 +786,7 @@ const CheckOutPersonPage: React.FC = () => {
                     setShowActionModal(false);
                     setSelectedRecord(null);
                     setActionType(null);
+                    setBadgeInput('');
                   }}
                   className="p-1 transition-colors"
                   style={{ color: GRAY_DISABLED }}
@@ -817,12 +825,30 @@ const CheckOutPersonPage: React.FC = () => {
                 </div>
               </div>
 
+              <hr className="my-3" style={{ borderColor: BORDER }} />
+
+              {actionType === 'checkout' && (
+                <div className="mb-2 px-4">
+                  <label className="block mb-1 text-sm" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>
+                    Badge Number <span style={{ color: GRAY_DISABLED }}>(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={badgeInput}
+                    onChange={(e) => setBadgeInput(e.target.value)}
+                    className="w-full cok-auth-input pr-3 py-2 text-sm"
+                    placeholder="Enter badge number"
+                  />
+                </div>
+              )}
+
               <div className="flex gap-2 sm:gap-3 p-4 pt-0">
                 <button
                   onClick={() => {
                     setShowActionModal(false);
                     setSelectedRecord(null);
                     setActionType(null);
+                    setBadgeInput('');
                   }}
                   className="flex-1 px-3 sm:px-4 py-2 transition-colors"
                   style={{ backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
