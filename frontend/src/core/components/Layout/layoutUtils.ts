@@ -102,7 +102,14 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       { id: 'dashboard', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiHome' },
       { id: 'visitors', label: 'Visitors', path: `/${slug}/visitors`, icon: 'FiUsers' },
       { id: 'assigned-visitors', label: 'Assigned Visitors', path: `/${slug}/assigned`, icon: 'FiUserCheck' },
-      { id: 'requests', label: 'Requests', path: `/${slug}/requests`, icon: 'FiFile' }
+      { id: 'requests', label: 'Requests', path: `/${slug}/requests`, icon: 'FiFile' },
+      {
+        id: 'feedback', label: 'Feedback', path: '/feedback', icon: 'FiMessageSquare',
+        children: [
+          { id: 'feedback-service', label: 'Service Feedback', path: '/feedback/service', icon: 'FiStar' },
+          { id: 'feedback-general', label: 'General Feedback', path: '/feedback/general', icon: 'FiUser' },
+        ]
+      },
     ];
   }
 
@@ -114,6 +121,13 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       { id: 'tasks', label: 'Task Manager', path: `/${slug}/dashboard?tab=tasks`, icon: 'FiClipboard' },
       { id: 'history', label: 'Service History', path: `/${slug}/dashboard?tab=history`, icon: 'FiFileText' },
       { id: 'queue', label: 'Department Queue', path: `/${slug}/dashboard?tab=queue`, icon: 'FiList' },
+      {
+        id: 'feedback', label: 'Feedback', path: '/feedback', icon: 'FiMessageSquare',
+        children: [
+          { id: 'feedback-service', label: 'Service Feedback', path: '/feedback/service', icon: 'FiStar' },
+          { id: 'feedback-general', label: 'General Feedback', path: '/feedback/general', icon: 'FiUser' },
+        ]
+      },
     ];
   }
 

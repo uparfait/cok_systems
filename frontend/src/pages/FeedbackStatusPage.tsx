@@ -2,10 +2,10 @@
 // Shows all services for a phone number and the feedback status for each
 
 import React, { useState, useRef, useEffect } from 'react';
-import { FiPhone, FiCheckCircle, FiAlertCircle, FiClock, FiStar, FiMessageSquare, FiSearch } from 'react-icons/fi';
+import { FiPhone, FiCheckCircle, FiAlertCircle, FiClock, FiStar, FiMessageSquare, FiSearch, FiSend } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 import { verifyPhone, getFeedbackByPhone } from '../core/services/feedbackService';
 import { useToast } from '../core/contexts/ToastContext';
-import FeedbackModal from '../core/components/Modals/FeedbackModal';
 
 // City of Kigali (CoK) institutional design constants
 const PRIMARY = "#056daa";
@@ -90,6 +90,7 @@ interface FeedbackSummary {
 }
 
 const FeedbackStatusPage: React.FC = () => {
+  const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
 
   const [phone, setPhone] = useState('');
@@ -101,8 +102,6 @@ const FeedbackStatusPage: React.FC = () => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isLoadingFeedback, setIsLoadingFeedback] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-
-  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
 
   const handleVerifyPhone = async () => {
     if (!phone.trim()) {
@@ -169,11 +168,7 @@ const FeedbackStatusPage: React.FC = () => {
   };
 
   const handleOpenFeedbackModal = () => {
-    setIsFeedbackModalOpen(true);
-  };
-
-  const handleCloseFeedbackModal = () => {
-    setIsFeedbackModalOpen(false);
+    navigate('/feedback');
   };
 
   const renderStatusBadge = (feedbackItem: FeedbackItem | null) => {
@@ -399,7 +394,7 @@ const FeedbackStatusPage: React.FC = () => {
                                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
                                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
                               >
-                                <FiMessageSquare className="w-3 h-3" />
+                                <FiSend className="w-3 h-3" />
                                 <span className="hidden sm:inline">Submit</span>
                                 <span className="sm:hidden">Send</span>
                               </button>
@@ -441,12 +436,8 @@ const FeedbackStatusPage: React.FC = () => {
             Enter your phone number above to view your assigned departments and feedback status
           </p>
         </div>
-      )}
+       )}
 
-      <FeedbackModal
-        isOpen={isFeedbackModalOpen}
-        onClose={handleCloseFeedbackModal}
-      />
     </div>
   );
 };

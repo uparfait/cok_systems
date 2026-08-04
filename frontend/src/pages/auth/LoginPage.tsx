@@ -8,7 +8,6 @@ import PasswordSetupModal from '../../core/components/Modals/PasswordSetupModal'
 import OTPVerificationModal from '../../core/components/Modals/OTPVerificationModal';
 import TOTPSetupModal from '../../core/components/Modals/TOTPSetupModal';
 import PasswordResetOTPModal from '../../core/components/Modals/PasswordResetOTPModal';
-import FeedbackModal from '../../core/components/Modals/FeedbackModal';
 import { useAuth } from '../../core/contexts/AuthContext';
 import { useToast } from '../../core/contexts/ToastContext';
 import { getDashboardRoute } from '../../core/components/Layout/layoutUtils';
@@ -40,7 +39,6 @@ const LoginPage = () => {
   const [totpSetupUserId, setTotpSetupUserId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const navigate = useNavigate();
 
@@ -597,14 +595,9 @@ const LoginPage = () => {
           email={''}
           onVerified={handlePasswordResetOTPSuccess}
         />
-      )}
+)}
 
-      {/* Feedback Modal for visitors */}
-      <FeedbackModal
-        isOpen={showFeedbackModal}
-        onClose={() => setShowFeedbackModal(false)}
-      />
-    </div>
+     </div>
   );
 };
 

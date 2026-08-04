@@ -28,6 +28,7 @@ const service_tracking_visitors = require('../../controllers/serivice_delivery/s
 const assigned_visitors = require('../../controllers/serivice_delivery/assigned_visitors.js');
 const assigned_visitors_gender_stats = require('../../controllers/serivice_delivery/assigned_visitors_gender_stats.js');
 const served_visitors_gender_stats = require('../../controllers/serivice_delivery/served_visitors_gender_stats.js');
+const export_visitors = require('../../controllers/serivice_delivery/export_visitors.js');
 const queue_summary = require('../../controllers/serivice_delivery/queue_summary.js');
 
 Router.use(upload.any())
@@ -357,6 +358,7 @@ Router.get('/queue-summary', auditSuccess('READ', 'visitors'), queue_summary)
  */
 Router.get('/assigned-visitors/gender-stats', auditSuccess('READ', 'visitors'), assigned_visitors_gender_stats)
 Router.get('/served-visitors/gender-stats', auditSuccess('READ', 'visitors'), served_visitors_gender_stats)
+Router.get('/visitors/export', auditSuccess('READ', 'visitors'), export_visitors)
 
 /**
  * @swagger
