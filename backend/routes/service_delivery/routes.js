@@ -31,7 +31,8 @@ const assigned_visitors_gender_stats = require('../../controllers/serivice_deliv
 const served_visitors_gender_stats = require('../../controllers/serivice_delivery/served_visitors_gender_stats.js');
 const export_visitors = require('../../controllers/serivice_delivery/export_visitors.js');
 const queue_summary = require('../../controllers/serivice_delivery/queue_summary.js');
-const checkout_with_badge = require('../../controllers/serivice_delivery/checkout_with_badge.js');
+const partial_exit = require('../../controllers/serivice_delivery/partial_exit.js');
+const return_visitor = require('../../controllers/serivice_delivery/return_visitor.js');
 
 Router.use(upload.any())
 
@@ -919,10 +920,47 @@ Router.post('/visitor/checkout',
 
 /**
  * @swagger
- * /servicedelivery/visitor/checkout-with-badge:
+ * /servicedelivery/visitor/partial-exit:
  *   post:
- *     summary: "Check out visitor with badge management"
- *     description: "Check out a visitor, clear/set badge number in service_delivery and parking_record models. If a new badge is provided, it is set in all relevant models."
+ *     summary: "Partial exit - mark visitor as outside and clear badge"
+ *     description: "Mark a visitor as partially exited (outside the building). Clears the badge_number in both service_delivery and parking_record models."
+ *     tags: [Service Delivery]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - visitorId
+ *             properties:
+ *               visitorId:
+ *                 type: string
+ *                 description: "Visitor's MongoDB ObjectId"
+ *                 example: "64f1a2b3c4d5e6f7a8b9c0d1"
+ *     responses:
+ *       200:
+ *         description: Visitor marked as outside with badge cleared
+ *       400:
+ *         description: Missing visitorId or invalid ID format
+ *       404:
+ *         description: Visitor not found or already checked out
+ *       500:
+ *         description: Internal server error
+ */
+Router.post('/visitor/partial-exit',
+  auditSuccess('UPDATE', 'visitors', (req, res, data) => `Visitor ${req.body.visitorId || 'unknown'} partial exit`),
+  partial_exit
+)
+
+/**
+ * @swagger
+ * /servicedelivery/visitor/return-with-badge:
+ *   post:
+ *     summary: "Return visitor with badge management"
+ *     description: "Mark a visitor as returned inside. Optionally set a new badge number in both service_delivery and parking_record models."
  *     tags: [Service Delivery]
  *     security:
  *       - BearerAuth: []
@@ -941,36 +979,21 @@ Router.post('/visitor/checkout',
  *                 example: "64f1a2b3c4d5e6f7a8b9c0d1"
  *               badge_number:
  *                 type: string
- *                 description: "Optional new badge number to set. If omitted, badge is cleared (set to null)."
+ *                 description: "Badge number to set. If omitted, badge is cleared."
  *                 example: "VST-2026-001"
- *               items_exited_with:
- *                 type: array
- *                 description: "Items the visitor is leaving with"
- *                 items:
- *                   type: object
- *                   properties:
- *                     item_name:
- *                       type: string
- *                       example: "Laptop Bag"
- *                     quantity:
- *                       type: integer
- *                       example: 1
- *                     description:
- *                       type: string
- *                       example: "Same as entered"
  *     responses:
  *       200:
- *         description: Visitor checked out successfully
+ *         description: Visitor returned with badge updated
  *       400:
  *         description: Missing visitorId or invalid ID format
  *       404:
- *         description: Visitor not found or already checked out
+ *         description: Visitor not found
  *       500:
  *         description: Internal server error
  */
-Router.post('/visitor/checkout-with-badge',
-  auditSuccess('UPDATE', 'visitors', (req, res, data) => `Checked out visitor ${req.body.visitorId || 'unknown'} with badge management`),
-  checkout_with_badge
+Router.post('/visitor/return-with-badge',
+  auditSuccess('UPDATE', 'visitors', (req, res, data) => `Visitor ${req.body.visitorId || 'unknown'} returned with badge`),
+  return_visitor
 )
 
 /**

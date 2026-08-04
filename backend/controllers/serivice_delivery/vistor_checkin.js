@@ -6,6 +6,7 @@ const isValidPhone = (phone) => !phone || /^\+?[0-9\s\-()]{7,15}$/.test(phone)
 const isValidPlate = (plate) => !plate || /^[A-Za-z0-9\s\-]{3,10}$/.test(plate)
 const isValidBadge = (badge) => !badge || /^[A-Za-z0-9\-]+$/.test(badge)
 
+
 module.exports = async function visitor_checkin(req, res, next) {
     try {
         let {
@@ -101,6 +102,8 @@ module.exports = async function visitor_checkin(req, res, next) {
             // Clean plate number
             let plate = vehicle_storage.vehicle_details.plate_number.toString().toUpperCase().replace(/\s+/g, '')
             vehicle_storage.vehicle_details.plate_number = plate
+            const cleanPlateNumber = (plate) => plate?.replace(/\s/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || '';
+            plate = cleanPlateNumber(plate);
 
             // Look for the car
             const active_parking = await ParkingRecord.findOne({ plate_number: plate, status: 'active' })

@@ -1,4 +1,4 @@
-const EventSectionUpdateService = require('../services/EventSectionUpdateService');
+const EventSectionUpdateService = require('../../services/EventSectionUpdateService');
 
 class EventSectionUpdateController {
   static async handle(req, res) {

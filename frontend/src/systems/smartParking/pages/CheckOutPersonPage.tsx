@@ -83,7 +83,6 @@ const CheckOutPersonPage: React.FC = () => {
   const [selectedRecord, setSelectedRecord] = useState<VisitorRecord | null>(null);
   const [actionType, setActionType] = useState<'checkout' | 'leave' | 'return' | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [badgeInput, setBadgeInput] = useState('');
 
   // Memoized loadData function
   const loadData = useCallback(async (query: string = '', page: number = currentPage, filterType: string = typeFilter) => {
@@ -364,18 +363,13 @@ const handleCheckout = async () => {
 
     setActionLoading(true);
     try {
-      const response = await serviceDeliveryService.checkoutWithBadge(
-        selectedRecord._id as string,
-        badgeInput || null,
-        []
-      );
+      const response = await serviceDeliveryService.checkOut(selectedRecord._id as string);
 
       if (response.success) {
         showSuccess('Visitor checked out successfully!');
         setShowActionModal(false);
         setSelectedRecord(null);
         setActionType(null);
-        setBadgeInput('');
         loadData(searchQuery, currentPage, typeFilter);
       } else {
         showError(response.message || 'Failed to checkout visitor');
@@ -390,15 +384,13 @@ const handleCheckout = async () => {
 
   const handleMarkAsOut = async () => {
     if (!selectedRecord) return;
-    
+
     setActionLoading(true);
     try {
-      const response = await serviceDeliveryService.emergencyLeaveReturn(selectedRecord._id as string, {
-        action: 'leave'
-      });
-      
+      const response = await serviceDeliveryService.partialExit(selectedRecord._id as string);
+
       if (response.success) {
-        showSuccess('Visitor marked as outside!');
+        showSuccess(response.message || 'Visitor marked as outside successfully!');
         setShowActionModal(false);
         setSelectedRecord(null);
         setActionType(null);
@@ -407,33 +399,37 @@ const handleCheckout = async () => {
         showError(response.message || 'Failed to mark visitor as outside');
       }
     } catch (error: any) {
-      console.error('Mark as out error:', error);
+      console.error('Partial exit error:', error);
       showError(error.message || 'Failed to mark visitor as outside');
     } finally {
       setActionLoading(false);
     }
   };
 
+  const [returnBadgeInput, setReturnBadgeInput] = useState('');
+
   const handleMarkAsIn = async () => {
     if (!selectedRecord) return;
-    
+
     setActionLoading(true);
     try {
-      const response = await serviceDeliveryService.emergencyLeaveReturn(selectedRecord._id as string, {
-        action: 'return'
-      });
-      
+      const response = await serviceDeliveryService.returnWithBadge(
+        selectedRecord._id as string,
+        returnBadgeInput || null
+      );
+
       if (response.success) {
-        showSuccess('Visitor marked as returned inside!');
+        showSuccess(response.message || 'Visitor returned successfully!');
         setShowActionModal(false);
         setSelectedRecord(null);
         setActionType(null);
+        setReturnBadgeInput('');
         loadData(searchQuery, currentPage, typeFilter);
       } else {
         showError(response.message || 'Failed to mark visitor as returned');
       }
     } catch (error: any) {
-      console.error('Mark as in error:', error);
+      console.error('Return error:', error);
       showError(error.message || 'Failed to mark visitor as returned');
     } finally {
       setActionLoading(false);
@@ -444,7 +440,6 @@ const handleCheckout = async () => {
     setSelectedRecord(record);
     setActionType('checkout');
     setShowActionModal(true);
-    setBadgeInput('');
   };
 
   const openMarkAsOutModal = (record: VisitorRecord) => {
@@ -457,6 +452,7 @@ const handleCheckout = async () => {
     setSelectedRecord(record);
     setActionType('return');
     setShowActionModal(true);
+    setReturnBadgeInput('');
   };
 
   const handleAction = () => {
@@ -776,7 +772,7 @@ const handleCheckout = async () => {
                   <div>
                     <h3 className="text-base sm:text-lg font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
                       {actionType === 'checkout' ? 'Confirm Checkout' :
-                       actionType === 'leave' ? 'Partial Exit' : 'Returned'}
+                       actionType === 'leave' ? 'Partial Exit' : 'Return Visitor'}
                     </h3>
                     <p className="text-sm truncate" style={{ color: GRAY_DISABLED }}>{selectedRecord.full_name}</p>
                   </div>
@@ -786,7 +782,7 @@ const handleCheckout = async () => {
                     setShowActionModal(false);
                     setSelectedRecord(null);
                     setActionType(null);
-                    setBadgeInput('');
+                    setReturnBadgeInput('');
                   }}
                   className="p-1 transition-colors"
                   style={{ color: GRAY_DISABLED }}
@@ -827,15 +823,15 @@ const handleCheckout = async () => {
 
               <hr className="my-3" style={{ borderColor: BORDER }} />
 
-              {actionType === 'checkout' && (
+              {actionType === 'return' && (
                 <div className="mb-2 px-4">
                   <label className="block mb-1 text-sm" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>
                     Badge Number <span style={{ color: GRAY_DISABLED }}>(optional)</span>
                   </label>
                   <input
                     type="text"
-                    value={badgeInput}
-                    onChange={(e) => setBadgeInput(e.target.value)}
+                    value={returnBadgeInput}
+                    onChange={(e) => setReturnBadgeInput(e.target.value)}
                     className="w-full cok-auth-input pr-3 py-2 text-sm"
                     placeholder="Enter badge number"
                   />
@@ -848,7 +844,7 @@ const handleCheckout = async () => {
                     setShowActionModal(false);
                     setSelectedRecord(null);
                     setActionType(null);
-                    setBadgeInput('');
+                    setReturnBadgeInput('');
                   }}
                   className="flex-1 px-3 sm:px-4 py-2 transition-colors"
                   style={{ backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}

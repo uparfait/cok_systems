@@ -20,7 +20,7 @@ const DANGER = "#E74C3C";
 const NEUTRAL_LIGHT = "#F7F9FB";
 const PURE_WHITE = "#FFFFFF";
 const BORDER = "#E0E0E0";
-const TERTIARY = "#CDB896";
+const TERTIARY = "#056daa";
 const WHITE = "#FFFFFF";
 const GRAY_DISABLED = "#9E9E9E";
 const ACCENT_DARK_BLUE = "#2980B9";
@@ -447,7 +447,7 @@ const CheckOutVehiclePage: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap">
-                        <span className="text-sm" style={{ color: PURE_WHITE }}>
+                        <span className="text-sm" style={{ color: '#555555' }}>
                           {record.driver_name || '-'}
                         </span>
                       </td>
@@ -565,7 +565,7 @@ const CheckOutVehiclePage: React.FC = () => {
                     <FiLogOut className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: DANGER }} />
                   </div>
                   <div>
-                    <h3 className="text-base sm:text-lg" style={{ fontFamily: fontHeading, fontWeight: 700, color: PURE_WHITE }}>Confirm Checkout</h3>
+                    <h3 className="text-base sm:text-lg" style={{ fontFamily: fontHeading, fontWeight: 700, color: "#555555"}}>Confirm Checkout</h3>
                   </div>
                 </div>
                 <button
@@ -583,23 +583,23 @@ const CheckOutVehiclePage: React.FC = () => {
                 <div className="grid grid-cols-2 gap-2 sm:gap-3 text-xs sm:text-sm">
                   <div>
                     <span style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Plate Number:</span>
-                    <p className="font-medium text-sm sm:text-base" style={{ color: PURE_WHITE }}>{selectedRecord.plate_number}</p>
+                    <p className="font-medium text-sm sm:text-base" style={{ color: "#555555" }}>{selectedRecord.plate_number}</p>
                   </div>
                   <div>
                     <span style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Driver:</span>
-                    <p className="font-medium text-sm sm:text-base" style={{ color: PURE_WHITE }}>{selectedRecord.driver_name}</p>
+                    <p className="font-medium text-sm sm:text-base" style={{ color: "#555555" }}>{selectedRecord.driver_name}</p>
                   </div>
                   <div>
                     <span style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Phone:</span>
-                    <p className="font-medium text-sm sm:text-base" style={{ color: PURE_WHITE }}>{selectedRecord.driver_telephone}</p>
+                    <p className="font-medium text-sm sm:text-base" style={{ color: "#555555" }}>{selectedRecord.driver_telephone}</p>
                   </div>
                   <div>
                     <span style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Type:</span>
-                    <p className="font-medium text-sm sm:text-base" style={{ color: PURE_WHITE }}>{selectedRecord.driver_type || 'Visitor'}</p>
+                    <p className="font-medium text-sm sm:text-base" style={{ color: "#555555" }}>{selectedRecord.driver_type || 'Visitor'}</p>
                   </div>
                   <div className="col-span-2">
                     <span style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: TERTIARY }}>Check-in:</span>
-                    <p className="font-medium text-sm sm:text-base" style={{ color: PURE_WHITE }}>{formatDate(selectedRecord.check_in)}</p>
+                    <p className="font-medium text-sm sm:text-base" style={{ color: "#555555" }}>{formatDate(selectedRecord.check_in)}</p>
                   </div>
                 </div>
               </div>

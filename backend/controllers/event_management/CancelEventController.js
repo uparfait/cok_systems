@@ -1,4 +1,4 @@
-const CancelEventService = require('../services/CancelEventService');
+const CancelEventService = require('../../services/CancelEventService');
 
 class CancelEventController {
   static async handle(req, res) {

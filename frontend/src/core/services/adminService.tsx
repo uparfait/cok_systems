@@ -366,8 +366,9 @@ export const serviceDeliveryService = {
     return get(url);
   },
   emergencyLeaveReturn: (id: string, data: any) => post(`/servicedelivery/visitor/emergency/leave-return`, { visitor_id: id, ...data }),
-  checkoutWithBadge: (visitorId: string, badge_number?: string, items_exited_with?: any[]) =>
-    post('/servicedelivery/visitor/checkout-with-badge', { visitor_id: visitorId, badge_number: badge_number || null, items_exited_with: items_exited_with || [] }),
+  partialExit: (visitorId: string) => post('/servicedelivery/visitor/partial-exit', { visitor_id: visitorId }),
+  returnWithBadge: (visitorId: string, badge_number?: string) =>
+    post('/servicedelivery/visitor/return-with-badge', { visitor_id: visitorId, badge_number: badge_number || null }),
   update: (id: string, data: any) => put(`/servicedelivery/visitor/${id}`, data),
   updateServiceStatus: (data: any) => post(`/servicedelivery/visitor/service/status`, data),
   getActiveTasks: (page: number = 1, limit: number = 10, search?: string) => {

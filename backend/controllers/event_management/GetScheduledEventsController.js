@@ -1,6 +1,6 @@
-const LiveEvent = require('../models/LiveEvent');
-const UpcomingEvent = require('../models/UpcomingEvent');
-const RecurringEvent = require('../models/RecurringEvent');
+const LiveEvent = require('../../models/LiveEvent');
+const UpcomingEvent = require('../../models/UpcomingEvent');
+const RecurringEvent = require('../../models/RecurringEvent');
 
 class GetScheduledEventsController {
   static async handle(req, res) {

@@ -1,5 +1,5 @@
-const PostMeeting = require('../models/PostMeeting');
-const LiveEvent = require('../models/LiveEvent');
+const PostMeeting = require('../../models/PostMeeting');
+const LiveEvent = require('../../models/LiveEvent');
 
 class PostMeetingMinutesController {
   

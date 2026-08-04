@@ -1,5 +1,5 @@
-const EventService = require('../services/EventService');
-const LiveEvent = require('../models/LiveEvent');
+const EventService = require('../../services/EventService');
+const LiveEvent = require('../../models/LiveEvent');
 
 class GetLiveEventsController {
   static async handle(req, res) {
@@ -17,3 +17,4 @@ class GetLiveEventsController {
 }
 
 module.exports = GetLiveEventsController;
+

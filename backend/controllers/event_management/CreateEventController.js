@@ -1,4 +1,4 @@
-const EventService = require('../services/EventService');
+const EventService = require('../../services/EventService');
 
 class CreateEventController {
   static async handle(req, res) {
