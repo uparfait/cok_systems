@@ -10,9 +10,7 @@ import {
 import LoginPage from "./pages/auth/LoginPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
-import ProfilePage from "./pages/profile/ProfilePage";
-import FeedbackChoicePage from "./pages/FeedbackChoicePage.jsx";
-import FeedbackForm from "./pages/FeedbackForm.jsx";
+import FeedbackStatusPage from "./pages/FeedbackStatusPage";
 import UnderDevelopment from "./pages/dashboard/UnderDevelopment";
 import ProtectedRoute from "./core/components/ProtectedRoute";
 import MainLayout from "./core/components/Layout/MainLayout";
@@ -229,9 +227,9 @@ const App: React.FC = () => {
                     path="my-tasks/:taskId"
                     element={<MyTasksTaskPage />}
                   />
-                  <Route path="feedback" element={<FeedbackChoicePage />} />
-                <Route path="feedback/service" element={<FeedbackForm type="serviced" />} />
-                <Route path="feedback/general" element={<FeedbackForm type="unserviced" />} />
+                  <Route path="feedback" element={<FeedbackStatusPage />} />
+                
+                
                 </Route>
 
                 {/* Public Routes */}
@@ -638,14 +636,7 @@ const App: React.FC = () => {
                 />
 
                 {/* Shared pages */}
-                <Route
-                  path="/profile"
-                  element={
-                    <ProtectedRoute>
-                      <ProfilePage />
-                    </ProtectedRoute>
-                  }
-                />
+            
 
                 {/* ==================== LEGACY ROUTE REDIRECTS ==================== */}
                 <Route

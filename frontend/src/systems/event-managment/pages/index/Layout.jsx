@@ -2,6 +2,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import IndexHeader from "./components/IndexHeader";
 import { useEffect, useState } from "react";
 import { FiMessageSquare } from "react-icons/fi";
+import FeedbackModal from "../../../../core/components/Modals/FeedbackModal";
 
 export default function Layout() {
 
@@ -9,6 +10,7 @@ export default function Layout() {
   const [UpcomingEventsData, setUpcomingEventsData] = useState([]);
   const [count, setCount] = useState(1)
   const [activeEvent, setActiveEvent] = useState({});
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(()=> {
@@ -61,7 +63,7 @@ useEffect(() => {
        </div>
 
         <button
-          onClick={() => navigate("/feedback")}
+          onClick={() => setIsFeedbackModalOpen(true)}
           className="fixed bottom-10 right-6 z-50 flex items-center gap-2 cursor-pointer bg-[#056daa] text-white px-4 py-3 rounded-full shadow-lg transition-all duration-200 hover:scale-105"
           title="Submit Feedback"
         >
@@ -69,8 +71,12 @@ useEffect(() => {
           <span className="text-sm font-medium hidden sm:inline">Feedback</span>
         </button>
 
+        <FeedbackModal
+          isOpen={isFeedbackModalOpen}
+          onClose={() => setIsFeedbackModalOpen(false)}
+        />
 
-       {/* fotter */}
+        {/* fotter */}
 
       <footer style={{
           backgroundColor: '#078ece',
@@ -80,23 +86,23 @@ useEffect(() => {
           marginTop: 'auto'
         }}>
           
-        
-          
-          <div style={{
-            backgroundColor: '#2980B9',
-            padding: '2rem 0 1rem',
-            textAlign: 'center',
-            marginLeft: '-20px',
-            marginRight: '-20px'
-          }}>
-            <p style={{
-              fontFamily: "'Montserrat', sans-serif",
-              fontSize: '14px',
-              color: '#FFFFFF',
-              margin: 0
-            }}>&copy; {new Date().getFullYear()} <a href="#" style={{ color: '#FFFFFF', fontWeight: 600, textDecoration: 'none' }}>City of Kigali</a>. All Rights Reserved.</p>
-          </div>
-        </footer>
-     </div>
-  );
+           
+           
+           <div style={{
+             backgroundColor: '#2980B9',
+             padding: '2rem 0 1rem',
+             textAlign: 'center',
+             marginLeft: '-20px',
+             marginRight: '-20px'
+           }}>
+             <p style={{
+               fontFamily: "'Montserrat', sans-serif",
+               fontSize: '14px',
+               color: '#FFFFFF',
+               margin: 0
+             }}>&copy; {new Date().getFullYear()} <a href="#" style={{ color: '#FFFFFF', fontWeight: 600, textDecoration: 'none' }}>City of Kigali</a>. All Rights Reserved.</p>
+           </div>
+         </footer>
+      </div>
+   );
 }
