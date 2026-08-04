@@ -156,7 +156,7 @@ const setupInstallPrompt = () => {
 
 // Initialize PWA features
 const initializePWA = () => {
-  registerServiceWorker();
+  //registerServiceWorker();
   setupInstallPrompt();
 };
 
