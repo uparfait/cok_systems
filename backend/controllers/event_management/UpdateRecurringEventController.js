@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const RecurringEvent = require('../models/RecurringEvent');
+const RecurringEvent = require('../../models/RecurringEvent');
 const EventValidator = require('../validators/EventValidator');
 const RecurringValidator = require('../validators/RecurringValidator');
 const CheckRoomAvailability = require('../utilities/CheckRoomAvailability');

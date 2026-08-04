@@ -4,6 +4,10 @@ const EmergencyCar = require('../../models/emergency_car.js')
 const ServiceDelivery = require('../../models/service_delivery.js')
 const ParkingSlot = require('../../models/parking_slots.js')
 
+
+const cleanPlateNumber = (plate) => plate?.replace(/\s/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || '';
+
+
 module.exports = async function car_check_in(req, res, next) {
     try {
         let {
@@ -35,6 +39,8 @@ module.exports = async function car_check_in(req, res, next) {
                 message: "Plate number is required"
             })
         }
+
+        plate_number = cleanPlateNumber(plate_number);
 
         // Check if this is a reserved vehicle (staff or emergency reservation)
         const staff_car = await StaffCar.findOne({ plate_number, is_active: true });

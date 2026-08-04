@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const UpcomingEvent = require('../models/UpcomingEvent');
+const UpcomingEvent = require('../../models/UpcomingEvent');
 const EventValidator = require('../validators/EventValidator');
 const CheckRoomAvailability = require('../utilities/CheckRoomAvailability');
 

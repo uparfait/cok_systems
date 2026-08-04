@@ -1,4 +1,4 @@
-const Room = require('../models/Room');
+const Room = require('../../models/Room');
 
 class GetRoomByIdController {
   static async handle(req, res) {

@@ -21,6 +21,8 @@ module.exports = async function car_check_out(req, res, next) {
     }
 
     plate_number = plate_number.toString().toUpperCase().replace(/\s+/g, "");
+    const cleanPlateNumber = (plate) => plate?.replace(/\s/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || '';
+    plate_number = cleanPlateNumber(plate_number);
 
     // Find ALL active parking sessions for this plate
     const active_sessions = await ParkingRecord.find({

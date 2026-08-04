@@ -1,4 +1,4 @@
-const Room = require('../models/Room');
+const Room = require('../../models/Room');
 const RoomValidator = require('../validators/RoomValidator');
 
 class UpdateRoomController {

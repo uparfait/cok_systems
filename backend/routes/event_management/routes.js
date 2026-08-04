@@ -3,12 +3,12 @@ const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
 
-const getEventActions = require('../controllers/event_management/GetEventActionsController')
-const getEventActionById = require('../controllers/event_management/GetEventActionByIdController')
-const createEventAction = require('../controllers/event_management/CreateEventActionController')
-const updateEventAction = require('../controllers/event_management/UpdateEventActionController')
-const deleteEventAction = require('../controllers/event_management/DeleteEventActionController')
-const getMyTasks = require('../controllers/event_management/GetMyTasksController')
+const getEventActions = require('../../controllers/event_management/GetEventActionsController.js')
+const getEventActionById = require('../../controllers/event_management/GetEventActionByIdController.js')
+const createEventAction = require('../../controllers/event_management/CreateEventActionController.js')
+const updateEventAction = require('../../controllers/event_management/UpdateEventActionController.js')
+const deleteEventAction = require('../../controllers/event_management/DeleteEventActionController.js')
+const getMyTasks = require('../../controllers/event_management/GetMyTasksController.js')
 
 const uploadsDir = path.join(__dirname, '../../uploads/tasks')
 if (!fs.existsSync(uploadsDir)) {

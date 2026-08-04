@@ -1,4 +1,4 @@
-const EventAction = require('../models/EventActions');
+const EventAction = require('../../models/EventActions');
 
 class UpdateEventActionController {
   static async handle(req, res) {
@@ -48,3 +48,4 @@ class UpdateEventActionController {
 }
 
 module.exports = UpdateEventActionController;
+
