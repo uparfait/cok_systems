@@ -616,7 +616,7 @@ const SmartParkingDashboard: React.FC = () => {
         <div className="mb-4">
           <button
             onClick={() => setShowExportModal(true)}
-            className="w-full px-6 py-3 text-white font-bold text-sm sm:text-base transition-colors flex items-center justify-center gap-2"
+            className="w-full px-6 py-3 text-white font-bold text-sm sm:text-base transition-colors flex items-center justify-center gap-2 cursor-pointer"
             style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, letterSpacing: '1px', textTransform: 'uppercase' }}
             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}

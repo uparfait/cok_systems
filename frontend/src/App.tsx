@@ -230,11 +230,9 @@ const App: React.FC = () => {
                     path="my-tasks/:taskId"
                     element={<MyTasksTaskPage />}
                   />
-                  <Route path="feedback" element={<FeedbackLandingPage />}>
-                    <Route index element={<FeedbackLandingPage />} />
-                    <Route path="service" element={<FeedbackServicePage />} />
-                    <Route path="general" element={<FeedbackGeneralPage />} />
-                  </Route>
+<Route path="feedback" element={<FeedbackLandingPage />} />
+                   <Route path="feedback/service" element={<FeedbackServicePage />} />
+                   <Route path="feedback/general" element={<FeedbackGeneralPage />} />
 
                   <Route path="feedback-status" element={<FeedbackStatusPage />} />
                 

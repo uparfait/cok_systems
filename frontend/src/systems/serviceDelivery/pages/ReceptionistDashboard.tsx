@@ -5,6 +5,7 @@ import {
   FiClock,
   FiCheckCircle,
   FiGrid,
+  FiDownload,
 } from "react-icons/fi";
 import {
   AreaChart,
@@ -27,6 +28,7 @@ import { SkeletonCard } from "./sub/ReceptionistSkeleton";
 import RequestStats from "../../../core/components/requests/RequestStatistics";
 import OrientationStats from "../../../core/components/requests/OrientationStats";
 import AssignedVisitorsGenderChart from "../components/departmentFlow/AssignedVisitorsGenderChart";
+import ExportVisitorsModal from "../../../core/components/requests/ExportVisitorsModal";
 
 const PRIMARY = "#056daa";
 const SUCCESS = "#4CAF50";
@@ -89,6 +91,7 @@ const ReceptionistDashboard: React.FC = () => {
   >([]);
   const [hourlyDataLoading, setHourlyDataLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) navigate("/login");
@@ -339,7 +342,24 @@ const ReceptionistDashboard: React.FC = () => {
           <OrientationStats />
         </div>
 
+        <div className="mb-4">
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="w-full px-6 py-3 text-white font-bold text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer"
+            style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, letterSpacing: '1px', textTransform: 'uppercase' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#045d94'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+          >
+            <FiDownload className="w-5 h-5" />
+            EXPORT VISITORS DATA
+          </button>
+        </div>
+
         <AssignedVisitorsGenderChart />
+
+        {showExportModal && (
+          <ExportVisitorsModal onClose={() => setShowExportModal(false)} />
+        )}
       </div>
     </div>
   );
