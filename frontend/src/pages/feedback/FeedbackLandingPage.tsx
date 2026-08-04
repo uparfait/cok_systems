@@ -4,18 +4,17 @@ import { FiUsers, FiUser, FiArrowRight } from 'react-icons/fi';
 
 const PRIMARY = "#056daa";
 const PRIMARY_HOVER = "#045d94";
-const NEUTRAL_LIGHT = "#F7F9FB";
-const NEUTRAL_DARK = "#333333";
 const TERTIARY = "#CDB896";
 const WHITE = "#FFFFFF";
+const NEUTRAL_DARK = "#333333";
 const fontHeading = "'Montserrat', sans-serif";
 
 const FeedbackLandingPage: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ backgroundColor: NEUTRAL_LIGHT, paddingTop: '80px', paddingBottom: '80px' }}>
-      <div className="w-full max-w-lg">
+    <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ backgroundColor: '#F7F9FB', paddingTop: '80px', paddingBottom: '80px' }}>
+      <div className="w-full max-w-lg mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
             Share Your Feedback
@@ -28,14 +27,14 @@ const FeedbackLandingPage: React.FC = () => {
         <div className="space-y-4">
           <button
             onClick={() => navigate('/feedback/service')}
-            className="w-full p-6 border-2 transition-all text-left group hover:shadow-lg"
-            style={{ borderRadius: 0, borderColor: 'rgba(5,109,170,0.25)', backgroundColor: WHITE }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = PRIMARY; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(5,109,170,0.25)'; }}
+            className="w-full p-5 sm:p-6 text-left transition-all"
+            style={{ backgroundColor: WHITE, borderRadius: 0, border: '2px solid #056daa' }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = PRIMARY_HOVER; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#056daa'; }}
           >
-            <div className="flex items-start gap-4">
-              <div className="w-14 h-14 flex items-center justify-center flex-shrink-0 transition-colors" style={{ borderRadius: 0, backgroundColor: 'rgba(5,109,170,0.12)' }}>
-                <FiUsers className="w-7 h-7" style={{ color: PRIMARY }} />
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(5,109,170,0.12)' }}>
+                <FiUsers className="w-6 h-6 sm:w-7 sm:h-7" style={{ color: PRIMARY }} />
               </div>
               <div className="flex-1">
                 <p className="text-base font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>I Received a Service</p>
@@ -50,14 +49,14 @@ const FeedbackLandingPage: React.FC = () => {
 
           <button
             onClick={() => navigate('/feedback/general')}
-            className="w-full p-6 border-2 transition-all text-left group hover:shadow-lg"
-            style={{ borderRadius: 0, borderColor: 'rgba(205,184,150,0.6)', backgroundColor: WHITE }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = TERTIARY; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(205,184,150,0.6)'; }}
+            className="w-full p-5 sm:p-6 text-left transition-all"
+            style={{ backgroundColor: WHITE, borderRadius: 0, border: '2px solid #056daa' }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = PRIMARY_HOVER; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#056daa'; }}
           >
-            <div className="flex items-start gap-4">
-              <div className="w-14 h-14 flex items-center justify-center flex-shrink-0 transition-colors" style={{ borderRadius: 0, backgroundColor: 'rgba(205,184,150,0.25)' }}>
-                <FiUser className="w-7 h-7" style={{ color: TERTIARY }} />
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(205,184,150,0.25)' }}>
+                <FiUser className="w-6 h-6 sm:w-7 sm:h-7" style={{ color: TERTIARY }} />
               </div>
               <div className="flex-1">
                 <p className="text-base font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>General Feedback</p>

@@ -11,7 +11,9 @@ const getTasks = async (req, res) => {
             limit = 50,
             skip = 0,
             sortBy = 'createdAt',
-            sortOrder = 'desc'
+            sortOrder = 'desc',
+            from,
+            to
         } = req.query
 
         // Build query
@@ -29,6 +31,15 @@ const getTasks = async (req, res) => {
         if (incharge) query.incharge = incharge
         if (title) {
             query.title = { $regex: title, $options: 'i' } // Case-insensitive search
+        }
+        if (from || to) {
+            query.dueDate = {}
+            if (from) query.dueDate.$gte = new Date(from)
+            if (to) {
+                const end = new Date(to)
+                end.setHours(23, 59, 59, 999)
+                query.dueDate.$lte = end
+            }
         }
 
         // Build sort object

@@ -3,12 +3,20 @@ const EventAction = require('../models/EventActions');
 class GetEventActionsController {
   static async handle(req, res) {
     try {
-      const { eventSpecialId, status, date, search, page = 1, limit = 10 } = req.query;
+      const { eventSpecialId, status, date, from, to, search, page = 1, limit = 10 } = req.query;
 
       const query = {};
       if (eventSpecialId) query.eventSpecialId = eventSpecialId;
       if (status) query['currentStatus.status'] = status;
-      if (date) {
+      if (from || to) {
+        query.dueDate = {}
+        if (from) query.dueDate.$gte = new Date(from)
+        if (to) {
+          const end = new Date(to)
+          end.setHours(23, 59, 59, 999)
+          query.dueDate.$lte = end
+        }
+      } else if (date) {
         const day = new Date(date);
         const next = new Date(date);
         next.setDate(next.getDate() + 1);

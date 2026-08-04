@@ -147,6 +147,9 @@ export const getTasks = (params?: {
   status?: string
   priority?: string
   incharge?: string
+  title?: string
+  from?: string
+  to?: string
   limit?: number
   skip?: number
   sortBy?: string

@@ -31,10 +31,10 @@ async function submitFeedback(req, res) {
         }
 
         // Validate textmessage max 500 characters
-        if (textmessage && textmessage.length > 500) {
+        if (textmessage && textmessage.length > 1000) {
             return res.status(400).json({
                 success: false,
-                error: 'Your feedback message exceeded 500 characters'
+                error: 'Your feedback message exceeded 1000 characters'
             });
         }
 
@@ -145,7 +145,7 @@ async function submitFeedback(req, res) {
 
         return res.status(201).json({
             success: true,
-            message: 'Feedback submitted successfully',
+            message: 'Thank you for sharing your thoughts with us. We will review your comments and use them to improve.',
             data: {
                 feedback_id: feedback._id,
                 department_name: assignedDept.department_name,
@@ -157,7 +157,7 @@ async function submitFeedback(req, res) {
         console.error('Error submitting feedback:', error);
         return res.status(500).json({
             success: false,
-            error: 'Internal server error'
+            error: 'This happens! wait for a moment we will get everything ok, come back in future.'
         });
     }
 }
