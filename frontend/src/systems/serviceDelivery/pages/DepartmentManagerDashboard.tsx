@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { FiSearch, FiUser, FiUsers, FiCheckCircle, FiX, FiTrendingUp, FiMessageSquare, FiClock, FiRefreshCw, FiPlus, FiEye, FiEdit, FiArrowRightCircle, FiFileText, FiBriefcase } from "react-icons/fi";
+import { FiSearch, FiUser, FiUsers, FiCheckCircle, FiX, FiTrendingUp, FiMessageSquare, FiClock, FiRefreshCw, FiPlus, FiEye, FiEdit, FiArrowRightCircle, FiFileText, FiBriefcase, FiDownload } from "react-icons/fi";
 import { serviceDeliveryService, employeeService, departmentService, departmentManagerService } from "../../../core/services/adminService";
 import { useAuth } from "../../../core/contexts/AuthContext";
 import { useSocket } from "../../../core/contexts/SocketContext";
@@ -11,6 +11,12 @@ import { ViewEmployeeModal, EditEmployeeModal } from "./sub/DeptManagerEmployeeM
 import { AddEmployeeModal } from "./sub/DeptManagerEmployeeModals";
 import ServeVisitorModal from "../components/employeeFlow/ServeVisitorModal";
 import LiveTimer from "./sub/DeptManagerLiveTimer";
+// Employee-flow features reused in department scope (the backend scopes HODs
+// to the department(s) they lead instead of an individual provider id)
+import ServedVisitorsGenderChart from "../components/employeeFlow/tabs/sub/ServedVisitorsGenderChart";
+import ExportVisitorsModal from "../../../core/components/requests/ExportVisitorsModal";
+import ServiceHistoryTab from "../components/employeeFlow/tabs/ServiceHistoryTab";
+import DepartmentQueueTab from "../components/employeeFlow/tabs/DepartmentQueueTab";
 
 // City of Kigali institutional design constants
 const PRIMARY = "#056daa";
@@ -82,8 +88,9 @@ const DepartmentManagerDashboard: React.FC = () => {
   const [employeePage, setEmployeePage] = useState(1);
   const [employeeTotal, setEmployeeTotal] = useState(0);
   const [firstLoadDeps, setFirstLoadDeps] = useState(true); // placeholder
+  const [showExportModal, setShowExportModal] = useState(false);
 
-  useEffect(() => { const t = searchParams.get('tab'); const valid = ['dashboard','employees','departments','feedback','by-department','by-provider','availability','active-tasks','completed-requests']; setActiveTab(t && valid.includes(t) ? t : 'dashboard'); }, [searchParams]);
+  useEffect(() => { const t = searchParams.get('tab'); const valid = ['dashboard','employees','departments','feedback','by-department','by-provider','availability','active-tasks','completed-requests','history','queue']; setActiveTab(t && valid.includes(t) ? t : 'dashboard'); }, [searchParams]);
   useEffect(() => { if (!authLoading && !isAuthenticated) navigate('/login'); }, [isAuthenticated, authLoading, navigate]);
 
   const navigateToTab = (tab: string) => { setActiveTab(tab); setSearchParams({ tab }); };
@@ -91,19 +98,32 @@ const DepartmentManagerDashboard: React.FC = () => {
 
   return (
     <div className="p-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
-      {/* Tab Navigation */}
-      <div className="flex flex-wrap gap-2 mb-4 pb-2" style={{ borderBottom: `1px solid ${BORDER}` }}>
-        {['dashboard','employees','departments','feedback','active-tasks','completed-requests','by-department','by-provider','availability'].map(t => (
-          <button key={t} onClick={() => navigateToTab(t)} className="px-3 py-1.5 text-xs transition-colors" style={{ ...btnStyle, letterSpacing: '0.5px', backgroundColor: activeTab === t ? PRIMARY : WHITE, color: activeTab === t ? WHITE : NEUTRAL_DARK, border: `1px solid ${activeTab === t ? PRIMARY : BORDER}` }}>{t.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</button>
-        ))}
-      </div>
-
+      {/* Tab navigation strip removed — tabs are reached from the sidebar links (?tab=) */}
       {activeTab === 'dashboard' && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             {['Pending','Active','Completed','Feedback'].map(s => <div key={s} className="p-4" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}><div className="text-xs uppercase" style={{ fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: TERTIARY }}>{s}</div><div className="text-2xl font-bold mt-1" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>0</div></div>)}
           </div>
-          <RequestsTable status="pending" title="Pending Requests" departmentId={departmentId} showError={showError} setSelectedActiveTask={setSelectedActiveTask} setShowActiveTaskModal={setShowActiveTaskModal} setTransferVisitor={setTransferVisitor} setShowTransferModal={setShowTransferModal} showInfo={showInfo} getInitials={getInitials} />
+          {/* Department-scoped export — the backend limits the file to this HOD's department(s) */}
+          <div className="mb-4">
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="w-full px-6 py-3 text-white font-bold text-sm sm:text-base transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, letterSpacing: '1px', textTransform: 'uppercase' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+            >
+              <FiDownload className="w-5 h-5" />
+              EXPORT VISITORS DATA
+            </button>
+          </div>
+
+          {/* Served visitors by gender for the whole department, with period filters */}
+          <ServedVisitorsGenderChart subtitle={`Served in ${departmentName || 'your department'}`} />
+
+          {showExportModal && (
+            <ExportVisitorsModal onClose={() => setShowExportModal(false)} />
+          )}
         </div>
       )}
 
@@ -123,6 +143,8 @@ const DepartmentManagerDashboard: React.FC = () => {
       {activeTab === 'feedback' && <div className="text-sm p-8 text-center" style={{ color: GRAY_DISABLED }}>Feedback tab - uses APIs</div>}
       {activeTab === 'active-tasks' && <div className="text-sm p-8 text-center" style={{ color: GRAY_DISABLED }}>Active tasks tab</div>}
       {activeTab === 'completed-requests' && <RequestsTable status="completed" title="Completed Requests" departmentId={departmentId} showError={showError} setSelectedActiveTask={setSelectedActiveTask} setShowActiveTaskModal={setShowActiveTaskModal} setTransferVisitor={setTransferVisitor} setShowTransferModal={setShowTransferModal} showInfo={showInfo} getInitials={getInitials} />}
+      {activeTab === 'history' && <ServiceHistoryTab departmentScope />}
+      {activeTab === 'queue' && <DepartmentQueueTab departmentScope />}
       {activeTab === 'by-department' && <div className="text-sm p-8 text-center" style={{ color: GRAY_DISABLED }}>By department view</div>}
       {activeTab === 'by-provider' && <div className="text-sm p-8 text-center" style={{ color: GRAY_DISABLED }}>By provider view</div>}
       {activeTab === 'availability' && <DepartmentAvailabilityTab />}

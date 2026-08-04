@@ -35,7 +35,9 @@ interface FormattedVisitor {
   not_transferred_to_me: boolean;
 }
 
-const ServiceHistoryTab: React.FC = () => {
+// departmentScope: HOD mode — the backend scopes rows to the department(s) the user
+// leads, so rows are matched by their first assignment instead of the viewer's id
+const ServiceHistoryTab: React.FC<{ departmentScope?: boolean }> = ({ departmentScope = false }) => {
   const { user } = useAuth();
   const { showError } = useToast();
 
@@ -61,12 +63,20 @@ const ServiceHistoryTab: React.FC = () => {
       if (typeof v.identification === "string") identification = v.identification;
       else if (v.identification?.number) identification = v.identification.number;
       const badgeNumber = v.badge_number || "";
-      const myAssignment = v.departments_assigned?.find((d: any) => String(d.provider_id) === myId);
+      const myAssignment = departmentScope
+        ? v.departments_assigned?.[0]
+        : v.departments_assigned?.find((d: any) => String(d.provider_id) === myId);
       const checkInTime = myAssignment?.assigned_time || v.entry_date || new Date().toISOString();
-      const serviceDuration = v.durations?.services_durations?.find((d: any) => String(d.provider_id) === myId);
+      const serviceDuration = departmentScope
+        ? v.durations?.services_durations?.[0]
+        : v.durations?.services_durations?.find((d: any) => String(d.provider_id) === myId);
       const serviceStartTimeVal = serviceDuration?.started_at || "";
       let myServiceStatus = null;
-      if (Array.isArray(v.services_status)) myServiceStatus = v.services_status.find((s: any) => String(s.provider_id) === myId);
+      if (Array.isArray(v.services_status)) {
+        myServiceStatus = departmentScope
+          ? v.services_status[0]
+          : v.services_status.find((s: any) => String(s.provider_id) === myId);
+      }
       let status = (myServiceStatus?.s_type || v.status || "Not started").toLowerCase();
       if (status === "not started") status = "Not started";
       if (status === "inprogress") status = "inprogress";

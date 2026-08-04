@@ -184,6 +184,9 @@ export default function AttendanceForm() {
   });
 
   const [signature, setSignature] = useState('');
+  const [signatureMethod, setSignatureMethod] = useState('draw');
+  const [certificateFile, setCertificateFile] = useState(null);
+  const [certError, setCertError] = useState('');
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState('');
@@ -223,20 +226,45 @@ export default function AttendanceForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
+    if (signatureMethod === 'certificate' && certificateFile && certError) return;
 
     setLoading(true);
     setServerError('');
 
     try {
-      await axios.post(`${BASE_URL}/attendance`, {
-        attendeeFullName: formData.attendeeFullName.trim(),
-        attendeeEmail: formData.attendeeEmail.trim() || undefined,
-        attendeePhoneNumber: formData.attendeePhoneNumber.trim(),
-        attendeeInstitution: isInternal ? 'City of Kigali' : formData.attendeeInstitution.trim(),
-        attendeePosition: formData.attendeePosition.trim(),
-        eventSpecialId,
-        attendeeSignature: signature || undefined,
-      });
+      if (signatureMethod === 'certificate' && certificateFile) {
+        const payload = new FormData();
+        payload.append('attendeeFullName', formData.attendeeFullName.trim());
+        payload.append('attendeeEmail', formData.attendeeEmail.trim() || '');
+        payload.append('attendeePhoneNumber', formData.attendeePhoneNumber.trim());
+        payload.append('attendeeInstitution', isInternal ? 'City of Kigali' : formData.attendeeInstitution.trim());
+        payload.append('attendeePosition', formData.attendeePosition.trim());
+        payload.append('eventSpecialId', eventSpecialId);
+        payload.append('eventName', eventName);
+        payload.append('eventRoom', eventRoom);
+        payload.append('roomLocation', roomLocation);
+        payload.append('signatureMethod', 'certificate');
+        if (signature) payload.append('attendeeSignature', signature);
+        payload.append('digitalCertificate', certificateFile);
+
+        await axios.post(`${BASE_URL}/attendance`, payload, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      } else {
+        await axios.post(`${BASE_URL}/attendance`, {
+          attendeeFullName: formData.attendeeFullName.trim(),
+          attendeeEmail: formData.attendeeEmail.trim() || undefined,
+          attendeePhoneNumber: formData.attendeePhoneNumber.trim(),
+          attendeeInstitution: isInternal ? 'City of Kigali' : formData.attendeeInstitution.trim(),
+          attendeePosition: formData.attendeePosition.trim(),
+          eventSpecialId,
+          eventName,
+          eventRoom,
+          roomLocation,
+          attendeeSignature: signature || undefined,
+          signatureMethod,
+        });
+      }
       setSubmitted(true);
     } catch (err) {
       setServerError(err.response?.data?.message || 'Failed to submit attendance. Please try again.');
@@ -309,6 +337,12 @@ export default function AttendanceForm() {
             <p><span className="font-medium">Name:</span> {formData.attendeeFullName}</p>
             <p><span className="font-medium">Event:</span> {eventName}</p>
             <p><span className="font-medium">Room:</span> {eventRoom}</p>
+            {signatureMethod === 'draw' && signature && (
+              <p><span className="font-medium">Signature:</span> Drawn (base64 image saved)</p>
+            )}
+            {signatureMethod === 'certificate' && certificateFile && (
+              <p><span className="font-medium">Signature:</span> Digital Certificate ({certificateFile.name}) saved</p>
+            )}
           </div>
           <p className="text-xs text-gray-400">You may now close this page.</p>
         </div>
@@ -474,16 +508,84 @@ export default function AttendanceForm() {
             )}
           </div>
 
-          {/* Digital Signature — optional, drawn while submitting attendance */}
-          <div className="space-y-1.5">
-            <label className={labelClass}>
-              Digital Signature
-              <span className="ml-1.5 text-xs font-normal text-gray-400">(optional — draw with your finger or mouse)</span>
-            </label>
-            <SignaturePad onChange={setSignature} />
-          </div>
+           {/* Signature Method Choice — optional, choose draw or upload certificate */}
+           <div className="space-y-1.5">
+             <label className={labelClass}>
+               Signature Method
+               <span className="ml-1.5 text-xs font-normal text-gray-400">(optional)</span>
+             </label>
+             <div className="flex gap-4">
+               <label className="flex items-center gap-2 cursor-pointer">
+                 <input
+                   type="radio"
+                   name="signatureMethod"
+                   value="draw"
+                   checked={signatureMethod === 'draw'}
+                   onChange={() => { setSignatureMethod('draw'); setCertificateFile(null); setCertError(''); }}
+                   className="text-blue-600 focus:ring-blue-500"
+                 />
+                 <span className="text-sm text-gray-700">Draw Signature</span>
+               </label>
+               <label className="flex items-center gap-2 cursor-pointer">
+                 <input
+                   type="radio"
+                   name="signatureMethod"
+                   value="certificate"
+                   checked={signatureMethod === 'certificate'}
+                   onChange={() => { setSignatureMethod('certificate'); setSignature(''); }}
+                   className="text-blue-600 focus:ring-blue-500"
+                 />
+                 <span className="text-sm text-gray-700">Upload Digital Certificate</span>
+               </label>
+             </div>
+           </div>
 
-          {/* Submit */}
+           {signatureMethod === 'draw' && (
+             <div className="space-y-1.5">
+               <label className={labelClass}>
+                 Draw your signature
+                 <span className="ml-1.5 text-xs font-normal text-gray-400">(draw with your finger or mouse)</span>
+               </label>
+               <SignaturePad onChange={setSignature} />
+             </div>
+           )}
+
+           {signatureMethod === 'certificate' && (
+             <div className="space-y-1.5">
+               <label htmlFor="digitalCertificate" className={labelClass}>
+                 Digital Certificate
+                 <span className="ml-1.5 text-xs font-normal text-gray-400">(image or PDF, max 5 MB)</span>
+               </label>
+               <input
+                 type="file"
+                 id="digitalCertificate"
+                 name="digitalCertificate"
+                 accept="image/jpeg,image/png,.pdf"
+                 onChange={(e) => {
+                   const file = e.target.files?.[0] || null;
+                   const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+                   if (file && !allowedTypes.includes(file.type)) {
+                     setCertificateFile(null);
+                     setCertError('Invalid file type. Only JPEG, PNG, and PDF are supported.');
+                   } else {
+                     setCertificateFile(file);
+                     setCertError('');
+                   }
+                 }}
+                 className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+               />
+                {certificateFile && (
+                  <p className="text-xs text-gray-600">
+                    Selected: {certificateFile.name} ({(certificateFile.size / 1024).toFixed(1)} KB)
+                  </p>
+                )}
+                {certError && (
+                  <p className="text-xs text-red-500">{certError}</p>
+                )}
+             </div>
+           )}
+
+           {/* Submit */}
           <button
             type="submit"
             disabled={loading}
