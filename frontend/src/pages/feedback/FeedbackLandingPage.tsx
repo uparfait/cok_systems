@@ -27,13 +27,13 @@ const FeedbackLandingPage: React.FC = () => {
         <div className="space-y-4">
           <button
             onClick={() => navigate('/feedback/service')}
-            className="w-full p-5 sm:p-6 text-left transition-all"
+            className="w-full hover:transform hover:scale-105 cursor-pointer p-5 sm:p-6 text-left transition-all"
             style={{ backgroundColor: WHITE, borderRadius: 0, border: '2px solid #056daa' }}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = PRIMARY_HOVER; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#056daa'; }}
           >
             <div className="flex items-start gap-3 sm:gap-4">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(5,109,170,0.12)' }}>
+              <div className="w-12 rounded-full h-12 sm:w-14 sm:h-14 flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(5,109,170,0.12)' }}>
                 <FiUsers className="w-6 h-6 sm:w-7 sm:h-7" style={{ color: PRIMARY }} />
               </div>
               <div className="flex-1">
@@ -49,13 +49,13 @@ const FeedbackLandingPage: React.FC = () => {
 
           <button
             onClick={() => navigate('/feedback/general')}
-            className="w-full p-5 sm:p-6 text-left transition-all"
+            className="w-full cursor-pointer hover:transform hover:scale-105  p-5 sm:p-6 text-left transition-all"
             style={{ backgroundColor: WHITE, borderRadius: 0, border: '2px solid #056daa' }}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = PRIMARY_HOVER; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#056daa'; }}
           >
             <div className="flex items-start gap-3 sm:gap-4">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(205,184,150,0.25)' }}>
+              <div className="w-12 rounded-full h-12 sm:w-14 sm:h-14 flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(205,184,150,0.25)' }}>
                 <FiUser className="w-6 h-6 sm:w-7 sm:h-7" style={{ color: TERTIARY }} />
               </div>
               <div className="flex-1">
