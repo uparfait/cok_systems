@@ -459,7 +459,7 @@ const CheckInPersonPage: React.FC = () => {
                 type="button"
                 onClick={handleSearchVisitor}
                 disabled={searchLoading}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 rounded hover:bg-gray-100 disabled:opacity-50"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 rounded hover:bg-white cursor-pointer disabled:opacity-50"
                 title="Search visitor by ID"
               >
                 {searchLoading ? (
@@ -512,8 +512,26 @@ const CheckInPersonPage: React.FC = () => {
         </div>
 
         {/* Buttons - Stack on mobile */}
-        <div className="flex flex-col sm:flex-row gap-3 pt-4">
+        <div className="flex flex-col  gap-3 pt-4">
+
           <button
+            type="submit"
+            disabled={loading}
+            className="w-full sm:flex-1 px-4 py-2 sm:py-3 cok-btn-primary disabled:opacity-50 flex items-center justify-center gap-2 text-sm sm:text-base"
+          >
+            {loading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Registering...
+              </>
+            ) : (
+              <>
+                <FiPlus className="w-4 h-4" />
+                Register Visitor
+              </>
+            )}
+          </button>
+                    <button
             type="button"
             onClick={() => {
               setFormData({
@@ -531,23 +549,6 @@ const CheckInPersonPage: React.FC = () => {
             className="w-full sm:flex-1 px-4 py-2 sm:py-3 cok-btn-outlined text-sm sm:text-base"
           >
             Reset
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full sm:flex-1 px-4 py-2 sm:py-3 cok-btn-primary disabled:opacity-50 flex items-center justify-center gap-2 text-sm sm:text-base"
-          >
-            {loading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Registering...
-              </>
-            ) : (
-              <>
-                <FiPlus className="w-4 h-4" />
-                Register Visitor
-              </>
-            )}
           </button>
         </div>
       </form>

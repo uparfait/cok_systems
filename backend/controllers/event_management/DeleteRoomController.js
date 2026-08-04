@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
-const Room = require('../models/Room');
-const LiveEvent = require('../models/LiveEvent');
-const UpcomingEvent = require('../models/UpcomingEvent');
-const RecurringEvent = require('../models/RecurringEvent');
+const Room = require('../../models/Room');
+const LiveEvent = require('../../models/LiveEvent');
+const UpcomingEvent = require('../../models/UpcomingEvent');
+const RecurringEvent = require('../../models/RecurringEvent');
 
 class DeleteRoomController {
   static async handle(req, res) {

@@ -1,6 +1,6 @@
-const Room = require('../models/Room');
-const LiveEvent = require('../models/LiveEvent');
-const UpcomingEvent = require('../models/UpcomingEvent');
+const Room = require('../../models/Room');
+const LiveEvent = require('../../models/LiveEvent');
+const UpcomingEvent = require('../../models/UpcomingEvent');
 
 class GetActiveRoomsController {
   static async handle(req, res) {

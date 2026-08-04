@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const LiveEvent = require('../models/LiveEvent');
+const LiveEvent = require('../../models/LiveEvent');
 const EventValidator = require('../validators/EventValidator');
 const CheckRoomAvailability = require('../utilities/CheckRoomAvailability');
 

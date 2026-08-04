@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const Room = require('../models/Room');
+const Room = require('../../models/Room');
 const CheckRoomAvailability = require('../utilities/CheckRoomAvailability');
 
 class ChangeEventRoomController {
@@ -23,13 +23,13 @@ class ChangeEventRoomController {
       let Model;
       switch (eventType) {
         case 'live':
-          Model = require('../models/LiveEvent');
+          Model = require('../../models/LiveEvent');
           break;
         case 'upcoming':
-          Model = require('../models/UpcomingEvent');
+          Model = require('../../models/UpcomingEvent');
           break;
         case 'recurring':
-          Model = require('../models/RecurringEvent');
+          Model = require('../../models/RecurringEvent');
           break;
         default:
           throw new Error('Invalid event type');

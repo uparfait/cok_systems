@@ -1,6 +1,6 @@
 const QRCode = require('qrcode');
-const LiveEvent = require('../models/LiveEvent');
-const Room = require('../models/Room');
+const LiveEvent = require('../../models/LiveEvent');
+const Room = require('../../models/Room');
 
 class GenerateQrCodeController {
   static async handle(req, res) {

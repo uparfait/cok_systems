@@ -1,5 +1,5 @@
-const EventService = require('../services/EventService');
-const RecurringEvent = require('../models/RecurringEvent');
+const EventService = require('../../services/EventService');
+const RecurringEvent = require('../../models/RecurringEvent');
 
 class GetRecurringEventsController {
   static async handle(req, res) {
@@ -17,3 +17,4 @@ class GetRecurringEventsController {
 }
 
 module.exports = GetRecurringEventsController;
+

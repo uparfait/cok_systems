@@ -31,6 +31,8 @@ const assigned_visitors_gender_stats = require('../../controllers/serivice_deliv
 const served_visitors_gender_stats = require('../../controllers/serivice_delivery/served_visitors_gender_stats.js');
 const export_visitors = require('../../controllers/serivice_delivery/export_visitors.js');
 const queue_summary = require('../../controllers/serivice_delivery/queue_summary.js');
+const partial_exit = require('../../controllers/serivice_delivery/partial_exit.js');
+const return_visitor = require('../../controllers/serivice_delivery/return_visitor.js');
 
 Router.use(upload.any())
 
@@ -587,7 +589,7 @@ Router.get('/visitor/:id', auditSuccess('READ', 'visitors'), get_vistor_by_id)
 
 /**
  * @swagger
- * /servicedelivery/visitor/by-identification:
+ * /servicedelivery/visitor/by/identification/gate:
  *   get:
  *     summary: "Get visitor by ID type and ID number"
  *     description: "Search for a visitor record by their identification type and identification number."
@@ -635,7 +637,7 @@ Router.get('/visitor/:id', auditSuccess('READ', 'visitors'), get_vistor_by_id)
  *       500:
  *         description: Internal server error
  */
-Router.get('/visitor/by-identification', auditSuccess('READ', 'visitors'), get_visitor_by_identification)
+Router.get('/visitor/by/identification/gate', auditSuccess('READ', 'visitors'), get_visitor_by_identification)
 
 /**
  * @swagger
@@ -914,6 +916,84 @@ Router.post('/visitor/assign',
 Router.post('/visitor/checkout',
   auditSuccess('UPDATE', 'visitors', (req, res, data) => `Checked out visitor ${req.body.visitorId || 'unknown'}`),
   vistor_checkout
+)
+
+/**
+ * @swagger
+ * /servicedelivery/visitor/partial-exit:
+ *   post:
+ *     summary: "Partial exit - mark visitor as outside and clear badge"
+ *     description: "Mark a visitor as partially exited (outside the building). Clears the badge_number in both service_delivery and parking_record models."
+ *     tags: [Service Delivery]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - visitorId
+ *             properties:
+ *               visitorId:
+ *                 type: string
+ *                 description: "Visitor's MongoDB ObjectId"
+ *                 example: "64f1a2b3c4d5e6f7a8b9c0d1"
+ *     responses:
+ *       200:
+ *         description: Visitor marked as outside with badge cleared
+ *       400:
+ *         description: Missing visitorId or invalid ID format
+ *       404:
+ *         description: Visitor not found or already checked out
+ *       500:
+ *         description: Internal server error
+ */
+Router.post('/visitor/partial-exit',
+  auditSuccess('UPDATE', 'visitors', (req, res, data) => `Visitor ${req.body.visitorId || 'unknown'} partial exit`),
+  partial_exit
+)
+
+/**
+ * @swagger
+ * /servicedelivery/visitor/return-with-badge:
+ *   post:
+ *     summary: "Return visitor with badge management"
+ *     description: "Mark a visitor as returned inside. Optionally set a new badge number in both service_delivery and parking_record models."
+ *     tags: [Service Delivery]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - visitorId
+ *             properties:
+ *               visitorId:
+ *                 type: string
+ *                 description: "Visitor's MongoDB ObjectId"
+ *                 example: "64f1a2b3c4d5e6f7a8b9c0d1"
+ *               badge_number:
+ *                 type: string
+ *                 description: "Badge number to set. If omitted, badge is cleared."
+ *                 example: "VST-2026-001"
+ *     responses:
+ *       200:
+ *         description: Visitor returned with badge updated
+ *       400:
+ *         description: Missing visitorId or invalid ID format
+ *       404:
+ *         description: Visitor not found
+ *       500:
+ *         description: Internal server error
+ */
+Router.post('/visitor/return-with-badge',
+  auditSuccess('UPDATE', 'visitors', (req, res, data) => `Visitor ${req.body.visitorId || 'unknown'} returned with badge`),
+  return_visitor
 )
 
 /**
