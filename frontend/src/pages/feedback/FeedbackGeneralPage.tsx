@@ -15,14 +15,6 @@ const TERTIARY = "#CDB896";
 const WHITE = "#FFFFFF";
 const fontHeading = "'Montserrat', sans-serif";
 
-const handleInputFocus = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-  e.currentTarget.style.borderColor = PRIMARY;
-};
-
-const handleInputBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-  e.currentTarget.style.borderColor = 'transparent';
-};
-
 type Step = 'rate' | 'preview' | 'success' | 'error';
 
 const getStarFill = (star: number, rating: number) => {
@@ -82,16 +74,15 @@ const FeedbackGeneralPage: React.FC = () => {
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ backgroundColor: '#F7F9FB', paddingTop: '80px', paddingBottom: '80px' }}>
       <div className="w-full max-w-md mx-auto">
-        <div className="bg-white p-4 sm:p-6" style={{ backgroundColor: WHITE, borderRadius: 0, border: '2px solid #056daa' }}>
+        <div className="bg-white p-6 sm:p-8" style={{ backgroundColor: WHITE, borderRadius: 0, border: '2px solid #056daa' }}>
           {/* Step: Rate */}
           {step === 'rate' && (
             <div className="space-y-4">
-              <div className="text-center mb-2">
-                <p className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Share Your Feedback</p>
-                <p className="text-xs text-gray-500">No service required - tell us about your experience</p>
-              </div>
+              <div className="text-center mb-5">
+                <h1 className="font-semibold">Share Your Feedback </h1>
+                </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="cok-auth-label">Name (Optional)</label>
                   <div className="relative">
@@ -103,9 +94,7 @@ const FeedbackGeneralPage: React.FC = () => {
                       value={unservedName}
                       onChange={(e) => setUnservedName(e.target.value.slice(0, 200))}
                       placeholder="Enter your name"
-                      className="cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base"
-                      onFocus={handleInputFocus}
-                      onBlur={handleInputBlur}
+                      className="cok-auth-input pr-3 py-3 sm:py-4 text-sm sm:text-base"
                     />
                   </div>
                 </div>
@@ -120,9 +109,7 @@ const FeedbackGeneralPage: React.FC = () => {
                       value={unservedPhone}
                       onChange={(e) => setUnservedPhone(e.target.value)}
                       placeholder="Phone number"
-                      className="cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base"
-                      onFocus={handleInputFocus}
-                      onBlur={handleInputBlur}
+                      className="cok-auth-input pr-3 py-3 sm:py-4 text-sm sm:text-base"
                     />
                   </div>
                 </div>
@@ -135,7 +122,7 @@ const FeedbackGeneralPage: React.FC = () => {
                     <button
                       key={value}
                       onClick={() => setUnservedRating(value)}
-                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium cursor-pointer transition-all hover:scale-105 active:scale-95 ${
+                      className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium cursor-pointer transition-all hover:scale-105 active:scale-95 ${
                         value <= unservedRating
                           ? value <= 3
                             ? 'bg-red-500 text-white'
@@ -167,18 +154,24 @@ const FeedbackGeneralPage: React.FC = () => {
                     onChange={(e) => setUnservedMessage(e.target.value.slice(0, 500))}
                     placeholder="Tell us about your experience..."
                     rows={3}
-                    className="cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base resize-none"
-                    onFocus={handleInputFocus}
-                    onBlur={handleInputBlur}
+                    className="cok-auth-input pr-3 py-3 sm:py-4 text-sm sm:text-base resize-none"
                   />
                 </div>
                 <p className="text-xs text-gray-400 mt-1 text-right">{unservedMessage.length}/500</p>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-2 pt-4">
+              <div className="flex flex-col  gap-2 pt-4">
+
                 <button
+                  onClick={handlePreview}
+                  className="cok-btn-primary flex items-center justify-center gap-2"
+                  
+                >
+                  <FiEye className="w-4 text-white h-4" /> Preview
+                </button>
+                                <button
                   onClick={handleGoBack}
-                  className="cok-btn-outlined flex-1 py-2.5"
+                  className="cok-btn-outlined w-full py-3"
                   style={{ backgroundColor: WHITE }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = PRIMARY;
@@ -191,15 +184,6 @@ const FeedbackGeneralPage: React.FC = () => {
                 >
                   Cancel
                 </button>
-                <button
-                  onClick={handlePreview}
-                  className="cok-btn-primary flex-1 py-2.5 flex items-center justify-center gap-2"
-                  style={{ width: 'auto' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
-                >
-                  <FiEye className="w-4 h-4" /> Preview
-                </button>
               </div>
             </div>
           )}
@@ -209,7 +193,7 @@ const FeedbackGeneralPage: React.FC = () => {
             <div className="space-y-4">
               <div className="text-center mb-4">
                 <div className="w-12 h-12 flex items-center justify-center mx-auto mb-2" style={{ backgroundColor: 'rgba(205,184,150,0.25)' }}>
-                  <FiMessageSquare className="w-6 h-6" style={{ color: TERTIARY }} />
+                  <FiMessageSquare className="w-6 h-6" style={{ color: "white" }} />
                 </div>
                 <p className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Preview Your Feedback</p>
               </div>
@@ -242,7 +226,7 @@ const FeedbackGeneralPage: React.FC = () => {
                 <button
                   onClick={() => setStep('rate')}
                   disabled={isSubmitting}
-                  className="cok-btn-outlined flex-1 py-2.5"
+                  className="cok-btn-outlined flex-1 py-3"
                   style={{ backgroundColor: WHITE }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = PRIMARY;
@@ -258,7 +242,7 @@ const FeedbackGeneralPage: React.FC = () => {
                 <button
                   onClick={handleSubmit}
                   disabled={isSubmitting}
-                  className="cok-btn-primary flex-1 py-2.5 flex items-center justify-center gap-2"
+                  className="cok-btn-primary flex-1 py-3 flex items-center justify-center gap-2"
                   style={{ backgroundColor: SUCCESS, width: 'auto' }}
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SUCCESS_HOVER; }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}
@@ -281,16 +265,16 @@ const FeedbackGeneralPage: React.FC = () => {
           {/* Step: Success */}
           {step === 'success' && (
             <div className="text-center space-y-4 py-4">
-              <div className="w-16 h-16 flex items-center justify-center mx-auto" style={{ backgroundColor: 'rgba(76,175,80,0.12)' }}>
+              <div className="w-16 rounded-full h-16 flex items-center justify-center mx-auto" style={{ backgroundColor: 'rgba(76,175,80,0.12)' }}>
                 <FiCheckCircle className="w-8 h-8" style={{ color: SUCCESS }} />
               </div>
               <div>
                 <p className="text-lg font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Thank You!</p>
-                <p className="text-sm text-gray-500 mt-1">Your feedback has been submitted successfully.</p>
+                <p className="text-sm text-gray-500 mt-1">Thank you for sharing your thoughts with us. We will review your comments and use them to improve.</p>
               </div>
               <button
                 onClick={() => navigate('/feedback')}
-                className="cok-btn-primary py-2.5 px-4"
+                className="cok-btn-primary py-3 px-4"
                 style={{ backgroundColor: SUCCESS }}
                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SUCCESS_HOVER; }}
                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}
@@ -303,7 +287,7 @@ const FeedbackGeneralPage: React.FC = () => {
           {/* Step: Error */}
           {step === 'error' && (
             <div className="text-center space-y-4 py-4">
-              <div className="w-16 h-16 flex items-center justify-center mx-auto" style={{ backgroundColor: 'rgba(231,76,60,0.12)' }}>
+              <div className="w-16 rounded-full h-16 flex items-center justify-center mx-auto" style={{ backgroundColor: 'rgba(231,76,60,0.12)' }}>
                 <FiAlertCircle className="w-8 h-8" style={{ color: DANGER }} />
               </div>
               <div>
@@ -311,7 +295,7 @@ const FeedbackGeneralPage: React.FC = () => {
               </div>
               <button
                 onClick={handleGoBack}
-                className="cok-btn-primary py-2.5 px-4"
+                className="cok-btn-primary py-3 px-4"
                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
               >

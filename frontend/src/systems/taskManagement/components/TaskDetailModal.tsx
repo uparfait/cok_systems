@@ -1,6 +1,5 @@
-// TaskDetailModal.tsx
 import React, { useState, useRef } from 'react'
-import { FiX, FiEdit, FiPaperclip, FiMessageSquare, FiClock, FiTrash2, FiDownload, FiEye, FiUpload, FiCalendar, FiCheckCircle, FiList, FiImage } from 'react-icons/fi'
+import { FiX, FiEdit, FiPaperclip, FiMessageSquare, FiClock, FiTrash2, FiDownload, FiEye, FiUpload, FiCalendar, FiCheckCircle, FiList, FiImage, FiSave, FiPlus } from 'react-icons/fi'
 import AttachmentViewer from './AttachmentViewer'
 import ConfirmationModal from './ConfirmationModal'
 import TaskDetails from './TaskDetails'
@@ -22,6 +21,22 @@ import {
   getTaskStatusColor
 } from '../../../core/services/taskService'
 import type { Task, TaskStatus, Attachment } from '../../../core/services/taskService'
+
+const PRIMARY = '#056daa'
+const PRIMARY_HOVER = '#045d94'
+const TERTIARY = '#CDB896'
+const WHITE = '#FFFFFF'
+const BORDER = '#E0E0E0'
+const NEUTRAL_LIGHT = '#F7F9FB'
+const fontHeading = "'Montserrat', sans-serif"
+
+const labelStyle: React.CSSProperties = {
+  fontFamily: fontHeading,
+  fontSize: '13px',
+  fontWeight: 600,
+  letterSpacing: '0.5px',
+  color: TERTIARY,
+}
 
 interface ChecklistItem {
   text: string
@@ -76,26 +91,14 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
     dueDate: initialTask.dueDate ? new Date(initialTask.dueDate).toISOString().split('T')[0] : '',
     dueTime: initialTask.dueDate ? new Date(initialTask.dueDate).toTimeString().slice(0, 5) : '12:00'
   })
-
-  // Comment form
   const [commentText, setCommentText] = useState('')
-
-  // Attachment viewer
   const [viewingAttachment, setViewingAttachment] = useState<Attachment | null>(null)
-
-  // Checklist editing
   const [editingChecklist, setEditingChecklist] = useState<string | null>(null)
   const [checklistTitle, setChecklistTitle] = useState('')
   const [showAddChecklistForm, setShowAddChecklistForm] = useState(false)
   const [addChecklistForm, setAddChecklistForm] = useState({ title: '', items: [''] })
-
-
-
-  // New attachments
   const [newAttachments, setNewAttachments] = useState<File[]>([])
   const newAttachmentsRef = useRef<HTMLInputElement>(null)
-
-  // Confirmation modal
   const [confirmationModal, setConfirmationModal] = useState<{
     isOpen: boolean
     title: string
@@ -110,13 +113,11 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
     type: 'danger'
   })
 
-  // Individual update functions
   const handleTitleUpdate = async () => {
     if (!editForms.title.trim()) {
       showError('Title cannot be empty')
       return
     }
-
     setLoadingStates(prev => ({ ...prev, title: true }))
     try {
       const updatedTask = await updateTask(task._id!, { title: editForms.title.trim() })
@@ -146,21 +147,16 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
     }
   }
 
-
-
   const handleDatesUpdate = async () => {
     setLoadingStates(prev => ({ ...prev, dates: true }))
     try {
       const updateData: any = {}
-
       if (editForms.startDate && editForms.startTime) {
         updateData.startDate = new Date(`${editForms.startDate}T${editForms.startTime}`).toISOString()
       }
-
       if (editForms.dueDate && editForms.dueTime) {
         updateData.dueDate = new Date(`${editForms.dueDate}T${editForms.dueTime}`).toISOString()
       }
-
       if (Object.keys(updateData).length > 0) {
         const updatedTask = await updateTask(task._id!, updateData)
         setTask(updatedTask.data)
@@ -197,7 +193,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
       onUpdate(updatedTask.data)
       showSuccess('Checklist item updated successfully')
     } catch (error: unknown) {
-      showError((error as Error)?.message || 'Failed to update checklist item')
+      showError((error as Error)?.message || 'Failed to update checklist item text')
     } finally {
       setLoadingStates(prev => ({ ...prev, checklists: false }))
     }
@@ -227,10 +223,10 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
         setConfirmationModal(prev => ({ ...prev, isOpen: false }))
         setLoadingStates(prev => ({ ...prev, checklists: true }))
         try {
-      const updatedTask = await deleteChecklist(task._id!, checklistId)
-      setTask(updatedTask.data)
-      onUpdate(updatedTask.data)
-      showSuccess('Checklist deleted successfully')
+          const updatedTask = await deleteChecklist(task._id!, checklistId)
+          setTask(updatedTask.data)
+          onUpdate(updatedTask.data)
+          showSuccess('Checklist deleted successfully')
         } catch (error: unknown) {
           showError((error as Error)?.message || 'Failed to delete checklist')
         } finally {
@@ -248,7 +244,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
 
   const handleSaveChecklistTitle = async () => {
     if (!editingChecklist || !checklistTitle.trim()) return
-
     setLoadingStates(prev => ({ ...prev, checklists: true }))
     try {
       const updatedTask = await updateChecklist(task._id!, editingChecklist, { title: checklistTitle.trim() })
@@ -292,7 +287,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
       showError('Please fill all checklist fields')
       return
     }
-
     setLoadingStates(prev => ({ ...prev, checklists: true }))
     try {
       const updatedTask = await addChecklist(task._id!, {
@@ -311,8 +305,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
     }
   }
 
-
-
   const handleDeleteAttachment = async (attachmentId: string) => {
     const attachment = task.attachmentsFile?.find(a => a._id === attachmentId)
     setConfirmationModal({
@@ -323,10 +315,10 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
         setConfirmationModal(prev => ({ ...prev, isOpen: false }))
         setLoadingStates(prev => ({ ...prev, attachments: true }))
         try {
-      const updatedTask = await deleteAttachment(task._id!, attachmentId)
-      setTask(updatedTask.data)
-      onUpdate(updatedTask.data)
-      showSuccess('Attachment deleted successfully')
+          const updatedTask = await deleteAttachment(task._id!, attachmentId)
+          setTask(updatedTask.data)
+          onUpdate(updatedTask.data)
+          showSuccess('Attachment deleted successfully')
         } catch (error: unknown) {
           showError((error as Error)?.message || 'Failed to delete attachment')
         } finally {
@@ -339,14 +331,12 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
 
   const handleUploadAttachments = async () => {
     if (newAttachments.length === 0) return
-
     setLoadingStates(prev => ({ ...prev, attachments: true }))
     try {
       const formData = new FormData()
       newAttachments.forEach((file) => {
         formData.append('attachments', file)
       })
-
       const updatedTask = await addAttachment(task._id!, formData)
       setTask(updatedTask.data)
       onUpdate(updatedTask.data)
@@ -361,7 +351,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
 
   const handleAddComment = async () => {
     if (!commentText.trim() || !user?.userId) return
-
     setLoadingStates(prev => ({ ...prev, comments: true }))
     try {
       const updatedTask = await addComment(task._id!, user.userId, commentText.trim())
@@ -390,124 +379,80 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
 
   const progress = getTaskProgress(task)
   const statusColor = getTaskStatusColor(task)
+  const statusLabel = task.status.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[95vh] md:max-h-[90vh] flex flex-col overflow-hidden">
-        {/* -style Header */}
-        <div className="px-4 md:px-6 py-3 bg-white border-b border-gray-100 flex-shrink-0 relative">
-          <div className="flex items-start gap-3">
-            <div className="flex-1 min-w-0">
-              {editingSections.title ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={editForms.title}
-                      onChange={(e) => setEditForms(prev => ({ ...prev, title: e.target.value }))}
-                      className="flex-1 text-xl font-semibold text-gray-900 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      autoFocus
-                      placeholder="Task title"
-                      disabled={loadingStates.title}
-                    />
-                    <button
-                      onClick={handleTitleUpdate}
-                      disabled={loadingStates.title || !editForms.title.trim()}
-                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                    >
-                      {loadingStates.title ? 'Saving...' : 'Save'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditForms(prev => ({ ...prev, title: task.title }))
-                        setEditingSections(prev => ({ ...prev, title: false }))
-                      }}
-                      disabled={loadingStates.title}
-                      className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-xl md:text-2xl font-semibold text-gray-900 break-words">
-                    {task.title}
-                  </h2>
-                  {task.status !== 'Completed' && (
-                    <button
-                      onClick={() => setEditingSections(prev => ({ ...prev, title: true }))}
-                      className="ml-2 p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
-                      title="Edit title"
-                    >
-                      <FiEdit className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setConfirmationModal({
-                    isOpen: true,
-                    title: 'Delete Task',
-                    message: `Are you sure you want to delete the task "${task.title}"? This action cannot be undone and will permanently remove the task and all its data including attachments, comments, and checklists.`,
-                    onConfirm: async () => {
-                      setConfirmationModal(prev => ({ ...prev, isOpen: false }))
-                      // Perform the delete operation
-                      try {
-                        await deleteTask(task._id!)
-                        showSuccess('Task deleted successfully')
-                        if (onDelete) {
-                          onDelete()
-                        }
-                      } catch (error: unknown) {
-                        showError((error as Error)?.message || 'Failed to delete task')
-                      }
-                      onClose()
-                    },
-                    type: 'danger'
-                  })
-                }}
-                className="flex-shrink-0 p-1.5 text-red-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                title="Delete task"
-              >
-                <FiTrash2 className="w-5 h-5" />
-              </button>
-              <button
-                onClick={onClose}
-                className="flex-shrink-0 p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <FiX className="w-5 h-5" />
-              </button>
+      <div className="border border-[#E0E0E0] w-full max-w-6xl max-h-[95vh] md:max-h-[90vh] flex flex-col overflow-hidden" style={{ backgroundColor: WHITE, borderRadius: 0 }}>
+        {/* Header */}
+        <div className="px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0" style={{ backgroundColor: PRIMARY }}>
+          <div className="flex items-center gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-white" style={{ fontFamily: fontHeading }}>
+                {task.title}
+              </h2>
+              <p className="text-white/80 text-xs mt-0.5">Task</p>
             </div>
           </div>
-
-          {/* Progress Bar */}
-          {(
-            <div className="mt-3 flex items-center gap-2">
-              <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div 
-                  className="h-full rounded-full transition-all duration-300"
-                  style={{ width: `${progress}%`, backgroundColor: statusColor }}
-                />
-              </div>
-              <span className="text-xs text-gray-500 flex-shrink-0">{Math.round(progress)}%</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setConfirmationModal({
+                  isOpen: true,
+                  title: 'Delete Task',
+                  message: `Are you sure you want to delete the task "${task.title}"? This action cannot be undone and will permanently remove the task and all its data including attachments, comments, and checklists.`,
+                  onConfirm: async () => {
+                    setConfirmationModal(prev => ({ ...prev, isOpen: false }))
+                    try {
+                      await deleteTask(task._id!)
+                      showSuccess('Task deleted successfully')
+                      if (onDelete) onDelete()
+                    } catch (error: unknown) {
+                      showError((error as Error)?.message || 'Failed to delete task')
+                    }
+                    onClose()
+                  },
+                  type: 'danger'
+                })
+              }}
+              className="p-1.5 text-white/80 hover:text-white rounded hover:bg-white/20 transition-colors"
+              title="Delete task"
+            >
+              <FiTrash2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 text-white/80 hover:text-white rounded hover:bg-white/20 transition-colors"
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        {/* Content area with clean  layout */}
+        {/* Progress */}
+        <div className="px-4 md:px-6 py-2 border-b border-[#E0E0E0]" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{ width: `${progress}%`, backgroundColor: statusColor }}
+              />
+            </div>
+            <span className="text-xs text-gray-500 flex-shrink-0" style={{ fontFamily: fontHeading }}>{Math.round(progress)}%</span>
+          </div>
+        </div>
+
+        {/* Body */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-4 md:p-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
               {/* Main Content - Left Column */}
               <div className="lg:col-span-2 space-y-5">
                 {/* Task Details Section */}
-                <div className="bg-white border border-gray-100 rounded-lg overflow-hidden">
-                  <div className="px-4 py-2 bg-gray-50/50 border-b border-gray-100 flex items-center gap-2">
-                    <h3 className="text-sm font-medium text-gray-700">Description</h3>
+                <div className="border border-[#E0E0E0] overflow-hidden" style={{ backgroundColor: WHITE, borderRadius: 0 }}>
+                  <div className="px-4 py-2 border-b border-[#E0E0E0] flex items-center gap-2" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+                    <FiList className="w-3.5 h-3.5 text-gray-500" />
+                    <h3 className="text-sm font-medium text-gray-700" style={{ fontFamily: fontHeading }}>Description</h3>
                   </div>
                   <div className="p-4">
                     <TaskDetails
@@ -524,55 +469,63 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                 </div>
 
                 {/* Checklists Section */}
-                <Checklists
-                  checklists={task.checklists || []}
-                  editingChecklist={editingChecklist}
-                  checklistTitle={checklistTitle}
-                  showAddChecklistForm={showAddChecklistForm}
-                  addChecklistForm={addChecklistForm}
-                  loading={loadingStates.checklists}
-                  taskStatus={task.status}
-                  onEditChecklistTitle={handleEditChecklistTitle}
-                  onSaveChecklistTitle={handleSaveChecklistTitle}
-                  onCancelEditChecklist={handleCancelEditChecklist}
-                  onDeleteChecklist={handleDeleteChecklist}
-                  onUpdateChecklistItem={handleUpdateChecklistItem}
-                  onUpdateChecklistItemText={handleUpdateChecklistItemText}
-                  onDeleteChecklistItem={handleDeleteChecklistItem}
-                  onConfirmDeleteItem={(checklistId, itemIndex, itemText) => {
-                    setConfirmationModal({
-                      isOpen: true,
-                      title: 'Delete Checklist Item',
-                      message: `Are you sure you want to delete the item "${itemText}"? This action cannot be undone.`,
-                      onConfirm: () => {
-                        setConfirmationModal(prev => ({ ...prev, isOpen: false }))
-                        handleDeleteChecklistItem(checklistId, itemIndex)
-                      },
-                      type: 'danger'
-                    })
-                  }}
-                  onShowAddChecklistForm={() => setShowAddChecklistForm(true)}
-                  onAddChecklistItem={handleAddChecklistItem}
-                  onUpdateAddChecklistItem={handleUpdateAddChecklistItem}
-                  onRemoveAddChecklistItem={handleRemoveAddChecklistItem}
-                  onAddNewChecklist={handleAddNewChecklist}
-                  onCancelAddChecklist={() => {
-                    setShowAddChecklistForm(false)
-                    setAddChecklistForm({ title: '', items: [''] })
-                  }}
-                  onChecklistTitleChange={setChecklistTitle}
-                  onAddChecklistFormChange={(field, value) => setAddChecklistForm(prev => ({ ...prev, [field]: value }))}
-                />
+                <div className="border border-[#E0E0E0] overflow-hidden" style={{ backgroundColor: WHITE, borderRadius: 0 }}>
+                  <div className="px-4 py-2 border-b border-[#E0E0E0] flex items-center gap-2" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+                    <FiCheckCircle className="w-3.5 h-3.5 text-gray-500" />
+                    <h3 className="text-sm font-medium text-gray-700" style={{ fontFamily: fontHeading }}>Checklists</h3>
+                  </div>
+                  <div className="p-4">
+                    <Checklists
+                      checklists={task.checklists || []}
+                      editingChecklist={editingChecklist}
+                      checklistTitle={checklistTitle}
+                      showAddChecklistForm={showAddChecklistForm}
+                      addChecklistForm={addChecklistForm}
+                      loading={loadingStates.checklists}
+                      taskStatus={task.status}
+                      onEditChecklistTitle={handleEditChecklistTitle}
+                      onSaveChecklistTitle={handleSaveChecklistTitle}
+                      onCancelEditChecklist={handleCancelEditChecklist}
+                      onDeleteChecklist={handleDeleteChecklist}
+                      onUpdateChecklistItem={handleUpdateChecklistItem}
+                      onUpdateChecklistItemText={handleUpdateChecklistItemText}
+                      onDeleteChecklistItem={handleDeleteChecklistItem}
+                      onConfirmDeleteItem={(checklistId, itemIndex, itemText) => {
+                        setConfirmationModal({
+                          isOpen: true,
+                          title: 'Delete Checklist Item',
+                          message: `Are you sure you want to delete the item "${itemText}"? This action cannot be undone.`,
+                          onConfirm: () => {
+                            setConfirmationModal(prev => ({ ...prev, isOpen: false }))
+                            handleDeleteChecklistItem(checklistId, itemIndex)
+                          },
+                          type: 'danger'
+                        })
+                      }}
+                      onShowAddChecklistForm={() => setShowAddChecklistForm(true)}
+                      onAddChecklistItem={handleAddChecklistItem}
+                      onUpdateAddChecklistItem={handleUpdateAddChecklistItem}
+                      onRemoveAddChecklistItem={handleRemoveAddChecklistItem}
+                      onAddNewChecklist={handleAddNewChecklist}
+                      onCancelAddChecklist={() => {
+                        setShowAddChecklistForm(false)
+                        setAddChecklistForm({ title: '', items: [''] })
+                      }}
+                      onChecklistTitleChange={setChecklistTitle}
+                      onAddChecklistFormChange={(field, value) => setAddChecklistForm(prev => ({ ...prev, [field]: value }))}
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Sidebar - Right Column */}
               <div className="lg:col-span-1 space-y-5">
                 {/* Belongs To Section */}
                 {task.belongs?.isBelongsTo && task.belongs.itBelongsTo && (
-                  <div className="bg-white border border-gray-100 rounded-lg overflow-hidden">
-                    <div className="px-4 py-2 bg-gray-50/50 border-b border-gray-100 flex items-center gap-2">
+                  <div className="border border-[#E0E0E0] overflow-hidden" style={{ backgroundColor: WHITE, borderRadius: 0 }}>
+                    <div className="px-4 py-2 border-b border-[#E0E0E0] flex items-center gap-2" style={{ backgroundColor: NEUTRAL_LIGHT }}>
                       <FiEye className="w-3.5 h-3.5 text-gray-500" />
-                      <h3 className="text-sm font-medium text-gray-700">Belongs To</h3>
+                      <h3 className="text-sm font-medium text-gray-700" style={{ fontFamily: fontHeading }}>Belongs To</h3>
                     </div>
                     <div className="p-4">
                       <div className="flex items-center gap-3">
@@ -580,11 +533,11 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                           {task.belongs.itBelongsTo.full_name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="text-sm font-medium text-gray-900 truncate">
+                          <div className="text-sm font-medium text-gray-900 truncate" style={{ fontFamily: fontHeading }}>
                             {task.belongs.itBelongsTo.full_name}
                           </div>
                           {task.belongs.itBelongsTo.email || task.belongs.itBelongsTo.telephone && (
-                            <div className="text-xs text-gray-500 truncate">
+                            <div className="text-xs text-gray-500 truncate" style={{ fontFamily: fontHeading }}>
                               {task.belongs.itBelongsTo.email || ''}, {task.belongs.itBelongsTo.telephone || ''}
                             </div>
                           )}
@@ -594,23 +547,21 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                   </div>
                 )}
 
-                {/* Comments Section -  style */}
-                <div className="bg-white border border-gray-100 rounded-lg overflow-hidden">
-                  <div className="px-4 py-2 bg-gray-50/50 border-b border-gray-100 flex items-center gap-2">
+                {/* Comments Section */}
+                <div className="border border-[#E0E0E0] overflow-hidden" style={{ backgroundColor: WHITE, borderRadius: 0 }}>
+                  <div className="px-4 py-2 border-b border-[#E0E0E0] flex items-center gap-2" style={{ backgroundColor: NEUTRAL_LIGHT }}>
                     <FiMessageSquare className="w-3.5 h-3.5 text-gray-500" />
-                    <h3 className="text-sm font-medium text-gray-700">Activity</h3>
+                    <h3 className="text-sm font-medium text-gray-700" style={{ fontFamily: fontHeading }}>Activity</h3>
                   </div>
-                  {/* Comments List - Scrollable */}
                   <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
                     <div className="p-3">
                       <Comments
-                        comments={task.comments  || []}
+                        comments={task.comments || []}
                         formatDate={formatDate}
                       />
                     </div>
                   </div>
-                  {/* Add Comment Input - Fixed at bottom */}
-                  <div className="px-3 pb-3 border-t border-gray-100 bg-white">
+                  <div className="px-3 pb-3 border-t border-[#E0E0E0] bg-white">
                     <div className="flex gap-2 pt-3">
                       <input
                         type="text"
@@ -618,12 +569,14 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                         onChange={(e) => setCommentText(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
                         placeholder="Write a comment..."
-                        className="flex-1 px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="flex-1 px-3 py-2 text-sm bg-gray-50 border border-[#E0E0E0] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        style={{ borderRadius: 0, fontFamily: fontHeading }}
                       />
                       <button
                         onClick={handleAddComment}
                         disabled={!commentText.trim() || loadingStates.comments}
-                        className="px-3 sm:px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                        className="px-3 sm:px-4 py-2 text-sm text-white transition-colors whitespace-nowrap disabled:opacity-50"
+                        style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading }}
                       >
                         {loadingStates.comments ? 'Adding...' : 'Add'}
                       </button>
@@ -632,21 +585,21 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                 </div>
 
                 {/* Attachments Section */}
-                <div className="bg-white border border-gray-100 rounded-lg overflow-hidden">
-                  <div className="px-4 py-2 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
+                <div className="border border-[#E0E0E0] overflow-hidden" style={{ backgroundColor: WHITE, borderRadius: 0 }}>
+                  <div className="px-4 py-2 border-b border-[#E0E0E0] flex items-center justify-between" style={{ backgroundColor: NEUTRAL_LIGHT }}>
                     <div className="flex items-center gap-2">
                       <FiPaperclip className="w-3.5 h-3.5 text-gray-500" />
-                      <h3 className="text-sm font-medium text-gray-700">Attachments</h3>
+                      <h3 className="text-sm font-medium text-gray-700" style={{ fontFamily: fontHeading }}>Attachments</h3>
                       <span className="text-xs text-gray-400">({(task.attachmentsFile || []).length})</span>
                     </div>
                   </div>
 
                   {/* Upload Area */}
-                  <div className="p-3 border-b border-gray-100">
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
+                  <div className="p-3 border-b border-[#E0E0E0]">
+                    <div className="border-2 border-dashed border-gray-300 p-4 text-center hover:border-blue-400 transition-colors" style={{ borderRadius: 0 }}>
                       <FiUpload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-600 mb-2">Drop files here or click to upload</p>
-                      <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors">
+                      <p className="text-sm text-gray-600 mb-2" style={{ fontFamily: fontHeading }}>Drop files here or click to upload</p>
+                      <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1 text-white text-xs transition-colors" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading }}>
                         <FiUpload className="w-3 h-3" />
                         <span>Choose Files</span>
                         <input
@@ -663,17 +616,17 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                       </label>
                     </div>
 
-                    {/* New Attachments Preview */}
                     {newAttachments.length > 0 && (
                       <div className="mt-4 space-y-3">
                         <div className="flex items-center justify-between">
-                          <h4 className="text-sm font-medium text-gray-700">
+                          <h4 className="text-sm font-medium text-gray-700" style={{ fontFamily: fontHeading }}>
                             Ready to upload ({newAttachments.length} file{newAttachments.length !== 1 ? 's' : ''})
                           </h4>
                           <button
                             onClick={handleUploadAttachments}
                             disabled={loadingStates.attachments}
-                            className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-3 py-1 text-white text-xs transition-colors disabled:opacity-50"
+                            style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading }}
                           >
                             {loadingStates.attachments ? 'Uploading...' : 'Upload All'}
                           </button>
@@ -681,17 +634,17 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
 
                         <div className="space-y-2 max-h-48 overflow-y-auto">
                           {newAttachments.map((file, index) => (
-                            <div key={index} className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow">
+                            <div key={index} className="border border-[#E0E0E0] p-3 hover:shadow-sm transition-shadow" style={{ backgroundColor: WHITE, borderRadius: 0 }}>
                               <div className="flex items-start justify-between">
                                 <div className="flex items-start space-x-3 flex-1 min-w-0">
-                                  <div className="p-2 bg-orange-50 rounded-lg">
+                                  <div className="p-2 flex items-center justify-center" style={{ backgroundColor: NEUTRAL_LIGHT }}>
                                     <FiPaperclip className="w-4 h-4 text-orange-600" />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-gray-900 truncate" title={file.name}>
+                                    <p className="text-sm font-medium text-gray-900 truncate" title={file.name} style={{ fontFamily: fontHeading }}>
                                       {file.name}
                                     </p>
-                                    <p className="text-xs text-gray-500 mt-1">
+                                    <p className="text-xs text-gray-500 mt-1" style={{ fontFamily: fontHeading }}>
                                       {(file.size / 1024).toFixed(1)} KB • {file.type || 'Unknown type'}
                                     </p>
                                   </div>
@@ -699,7 +652,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                                 <div className="flex items-center space-x-1">
                                   <button
                                     onClick={() => {
-                                      // Create a temporary attachment object for viewing
                                       const tempUrl = URL.createObjectURL(file)
                                       const tempAttachment = {
                                         _id: `temp-${index}`,
@@ -714,7 +666,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                                       }
                                       setViewingAttachment(tempAttachment)
                                     }}
-                                    className="p-1.5 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-50 transition-colors"
+                                    className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
                                     title="Preview file"
                                   >
                                     <FiEye className="w-4 h-4" />
@@ -723,7 +675,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                                     onClick={() => {
                                       setNewAttachments(prev => prev.filter((_, i) => i !== index))
                                     }}
-                                    className="p-1.5 text-red-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors"
+                                    className="p-1.5 text-red-400 hover:text-red-600 transition-colors"
                                     title="Remove file"
                                   >
                                     <FiTrash2 className="w-4 h-4" />
@@ -743,8 +695,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                     )}
                   </div>
                   <div className="p-3 max-h-[250px] overflow-y-auto custom-scrollbar">
-
-
                     <Attachments
                       attachments={task.attachmentsFile || []}
                       loading={loadingStates.attachments}
@@ -753,7 +703,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                     />
                   </div>
                 </div>
-
               </div>
             </div>
           </div>
@@ -763,7 +712,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
           <AttachmentViewer
             attachment={viewingAttachment}
             onClose={() => {
-              // Clean up blob URL if it's a temporary attachment
               if (viewingAttachment._id?.startsWith('temp-')) {
                 URL.revokeObjectURL(viewingAttachment.url)
               }
@@ -781,8 +729,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
           type={confirmationModal.type}
         />
       </div>
-
-     
     </div>
   )
 }
