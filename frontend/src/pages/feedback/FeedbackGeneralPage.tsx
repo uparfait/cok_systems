@@ -39,7 +39,7 @@ const FeedbackGeneralPage: React.FC = () => {
 
   const [unservedName, setUnservedName] = useState('');
   const [unservedPhone, setUnservedPhone] = useState('');
-  const [unservedRating, setUnservedRating] = useState(5);
+  const [unservedRating, setUnservedRating] = useState(1);
   const [unservedMessage, setUnservedMessage] = useState('');
 
   const [step, setStep] = useState<Step>('rate');
@@ -56,7 +56,7 @@ const FeedbackGeneralPage: React.FC = () => {
         textmessage: unservedMessage.trim() || undefined,
       });
       setStep('success');
-      showSuccess('Thank you! Your feedback has been submitted successfully.');
+
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to submit feedback');
       setStep('error');
@@ -118,7 +118,7 @@ const FeedbackGeneralPage: React.FC = () => {
               <div>
                 <label className="cok-auth-label">Rating: {unservedRating}/10</label>
                 <div className="flex items-center justify-center gap-1">
-                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
                     <button
                       key={value}
                       onClick={() => setUnservedRating(value)}
@@ -182,7 +182,7 @@ const FeedbackGeneralPage: React.FC = () => {
                     e.currentTarget.style.color = PRIMARY;
                   }}
                 >
-                  Cancel
+                  Back
                 </button>
               </div>
             </div>
@@ -192,7 +192,7 @@ const FeedbackGeneralPage: React.FC = () => {
           {step === 'preview' && (
             <div className="space-y-4">
               <div className="text-center mb-4">
-                <div className="w-12 h-12 flex items-center justify-center mx-auto mb-2" style={{ backgroundColor: 'rgba(205,184,150,0.25)' }}>
+                <div className="w-12 rounded-full bg-[#056daa] h-12 flex items-center justify-center mx-auto mb-2" >
                   <FiMessageSquare className="w-6 h-6" style={{ color: "white" }} />
                 </div>
                 <p className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Preview Your Feedback</p>

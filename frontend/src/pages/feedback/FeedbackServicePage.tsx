@@ -47,7 +47,7 @@ const FeedbackServicePage: React.FC = () => {
   const [visitorName, setVisitorName] = useState('');
   const [departments, setDepartments] = useState<AssignedDepartment[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState<AssignedDepartment | null>(null);
-  const [rating, setRating] = useState(5);
+  const [rating, setRating] = useState(1);
   const [message, setMessage] = useState('');
   const [existingFeedback, setExistingFeedback] = useState<Record<string, { rate: number; department_name: string; department_id: string }>>({});
 
@@ -144,7 +144,7 @@ const FeedbackServicePage: React.FC = () => {
           {step === 'phone' && (
             <div className="space-y-4">
               <div className="text-center mb-2">
-                <div className="w-12 h-12 flex items-center justify-center mx-auto mb-2" style={{ backgroundColor: 'rgba(5,109,170,0.12)' }}>
+                <div className="w-12 rounded-full h-12 flex items-center justify-center mx-auto mb-2" style={{ backgroundColor: 'rgba(5,109,170,0.12)' }}>
                   <FiPhone className="w-6 h-6" style={{ color: PRIMARY }} />
                 </div>
                 <p className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Enter Your Phone Number</p>
@@ -194,7 +194,7 @@ const FeedbackServicePage: React.FC = () => {
                     e.currentTarget.style.color = PRIMARY;
                   }}
                 >
-                  Cancel
+                  Back
                 </button>
               </div>
             </div>
@@ -204,7 +204,7 @@ const FeedbackServicePage: React.FC = () => {
           {step === 'department' && (
             <div className="space-y-4">
               <div className="text-center mb-4">
-                <div className="w-12 h-12 flex items-center justify-center mx-auto mb-2" style={{ backgroundColor: 'rgba(76,175,80,0.12)' }}>
+                <div className="w-12  rounded-full h-12 flex items-center justify-center mx-auto mb-2" style={{ backgroundColor: 'rgba(76,175,80,0.12)' }}>
                   <FiCheckCircle className="w-6 h-6" style={{ color: SUCCESS }} />
                 </div>
                 <p className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Welcome, {visitorName}</p>
@@ -218,13 +218,13 @@ const FeedbackServicePage: React.FC = () => {
                       key={dept.department_id}
                       onClick={() => handleSelectDepartment(dept)}
                       disabled={!!hasFeedback}
-                      className={`w-full p-3 border transition-all text-left ${hasFeedback ? 'border-green-200 bg-green-50 cursor-not-allowed' : 'border-gray-200 hover:border-[#056daa] hover:bg-[#F7F9FB]'}`}
+                      className={`w-full p-3 border   cursor-pointer transition-all text-left ${hasFeedback ? 'border-green-200 bg-green-50 cursor-not-allowed' : 'border-gray-200 hover:border-[#056daa] hover:bg-[#F7F9FB]'}`}
                       style={{ borderRadius: 0 }}
                     >
                       <div className="flex items-center justify-between">
                         <div>
                           <p className={`font-medium ${hasFeedback ? 'text-green-700' : 'text-gray-900'} text-sm`}>{dept.department_name}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">Provider: {dept.provider_name}</p>
+
                         </div>
                         {hasFeedback && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
@@ -266,7 +266,7 @@ const FeedbackServicePage: React.FC = () => {
               <div>
                 <label className="cok-auth-label">Rating: {rating}/10</label>
                 <div className="flex items-center justify-center gap-1">
-                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
+                  {[ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
                     <button
                       key={value}
                       onClick={() => setRating(value)}
@@ -306,7 +306,17 @@ const FeedbackServicePage: React.FC = () => {
                 </div>
                 <p className="text-xs text-gray-400 mt-1 text-right">{message.length}/500</p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-2 pt-4">
+              <div className="flex flex-col  gap-2 pt-4">
+                                <button
+                  onClick={handlePreview}
+                  className="cok-btn-primary  flex-1 py-3 flex items-center justify-center gap-2"
+                 
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+                >
+                  <FiEye className="w-4 h-4" /> Preview
+                </button>
+                
                 <button
                   onClick={handleGoBack}
                   className="cok-btn-outlined flex-1 py-3"
@@ -322,15 +332,7 @@ const FeedbackServicePage: React.FC = () => {
                 >
                   Back
                 </button>
-                <button
-                  onClick={handlePreview}
-                  className="cok-btn-primary flex-1 py-3 flex items-center justify-center gap-2"
-                  style={{ width: 'auto' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
-                >
-                  <FiEye className="w-4 h-4" /> Preview
-                </button>
+
               </div>
             </div>
           )}
@@ -339,7 +341,7 @@ const FeedbackServicePage: React.FC = () => {
           {step === 'preview' && selectedDepartment && (
             <div className="space-y-4">
               <div className="text-center mb-4">
-                <div className="w-12 h-12 flex items-center justify-center mx-auto mb-2" style={{ backgroundColor: 'rgba(5,109,170,0.12)' }}>
+                <div className="w-12 rounded-full h-12 flex items-center justify-center mx-auto mb-2" style={{ backgroundColor: 'rgba(5,109,170,0.12)' }}>
                   <FiMessageSquare className="w-6 h-6" style={{ color: PRIMARY }} />
                 </div>
                 <p className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Preview Your Feedback</p>
@@ -350,8 +352,6 @@ const FeedbackServicePage: React.FC = () => {
                   <span className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{selectedDepartment.department_name}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500 uppercase tracking-wide">Provider</span>
-                  <span className="text-sm text-gray-700">{selectedDepartment.provider_name}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-gray-500 uppercase tracking-wide">Rating</span>
@@ -371,8 +371,28 @@ const FeedbackServicePage: React.FC = () => {
                   </div>
                 )}
               </div>
-              <div className="flex flex-col sm:flex-row gap-2 pt-4">
+              <div className="flex flex-col  gap-2 pt-4">
+
                 <button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="cok-btn-primary flex-1 py-3 flex items-center justify-center text-white gap-2"
+                  style={{ backgroundColor: SUCCESS, width: 'auto' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SUCCESS_HOVER; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                     <span className="text-white"> Submitting... </span>
+                    </>
+                  ) : (
+                    <>
+                      <FiCheckCircle className="w-4 text-white h-4" /> <span className="text-white">Submit Feedback</span>
+                    </>
+                  )}
+                </button>
+                                <button
                   onClick={() => setStep('rate')}
                   disabled={isSubmitting}
                   className="cok-btn-outlined flex-1 py-3"
@@ -388,38 +408,19 @@ const FeedbackServicePage: React.FC = () => {
                 >
                   Edit
                 </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
-                  className="cok-btn-primary flex-1 py-3 flex items-center justify-center gap-2"
-                  style={{ backgroundColor: SUCCESS, width: 'auto' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SUCCESS_HOVER; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                      Submitting...
-                    </>
-                  ) : (
-                    <>
-                      <FiCheckCircle className="w-4 h-4" /> Submit Feedback
-                    </>
-                  )}
-                </button>
               </div>
             </div>
           )}
 
           {/* Step: Success */}
-          {step === 'success' && (
+          {(step === 'success') && (
             <div className="text-center space-y-4 py-4">
               <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ backgroundColor: 'rgba(76,175,80,0.12)' }}>
                 <FiCheckCircle className="w-8 h-8" style={{ color: SUCCESS }} />
               </div>
               <div>
                 <p className="text-lg font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Thank You!</p>
-                <p className="text-sm text-gray-500 mt-1">Your feedback has been submitted successfully.</p>
+                <p className="text-sm text-gray-500 mt-1">Thank you for sharing your thoughts with us. We will review your comments and use them to improve.</p>
               </div>
               <button
                 onClick={() => navigate('/feedback')}
