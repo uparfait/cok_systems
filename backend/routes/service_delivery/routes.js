@@ -10,6 +10,7 @@ const { auditSuccess, auditError, auditUserActions } = require('../../middleware
 // Parfait's controllers
 const assign_vistor_to_department = require('../../controllers/serivice_delivery/assign_vistor_to_department.js')
 const get_vistor_by_id = require('../../controllers/serivice_delivery/get_vistor_by_id.js')
+const get_visitor_by_identification = require('../../controllers/serivice_delivery/get_visitor_by_identification.js')
 const list_vistors = require('../../controllers/serivice_delivery/list_vistors.js')
 const search_vistor = require('../../controllers/serivice_delivery/search_vistor.js')
 const vistor_checkin = require('../../controllers/serivice_delivery/vistor_checkin.js')
@@ -583,6 +584,58 @@ Router.get('/visitor/by-provider', auditSuccess('READ', 'visitors'), get_visitor
  *         description: Internal server error
  */
 Router.get('/visitor/:id', auditSuccess('READ', 'visitors'), get_vistor_by_id)
+
+/**
+ * @swagger
+ * /servicedelivery/visitor/by-identification:
+ *   get:
+ *     summary: "Get visitor by ID type and ID number"
+ *     description: "Search for a visitor record by their identification type and identification number."
+ *     tags: [Service Delivery]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: id_type
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: "Type of identification (e.g. National ID, Passport, Driving Licence)"
+ *         example: "National ID"
+ *       - in: query
+ *         name: id_number
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: "Identification number"
+ *         example: "1199880077881122"
+ *     responses:
+ *       200:
+ *         description: Visitor found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 type:
+ *                   type: string
+ *                   example: "success"
+ *                 message:
+ *                   type: string
+ *                   example: "Visitor found"
+ *                 data:
+ *                   type: object
+ *       400:
+ *         description: Missing required parameters
+ *       404:
+ *         description: Visitor not found
+ *       500:
+ *         description: Internal server error
+ */
+Router.get('/visitor/by-identification', auditSuccess('READ', 'visitors'), get_visitor_by_identification)
 
 /**
  * @swagger

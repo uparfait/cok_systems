@@ -153,9 +153,29 @@ const setupInstallPrompt = () => {
     window.dispatchEvent(new CustomEvent('pwa-installed'));
   });
 };
+async function clearServiceWorkersAndReload() {
+  if (!('serviceWorker' in navigator)) return;
 
+  try {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    if (registrations.length === 0) return;
+    await Promise.all(registrations.map(r => r.unregister()));
+
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(key => caches.delete(key)));
+    }
+
+    window.location.reload();
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+clearServiceWorkersAndReload();
 // Initialize PWA features
 const initializePWA = () => {
+  clearServiceWorkersAndReload();
   //registerServiceWorker();
   setupInstallPrompt();
 };
