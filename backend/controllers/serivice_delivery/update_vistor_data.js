@@ -40,6 +40,9 @@ module.exports = async function visitor_update(req, res, next) {
         if (updates.vehicle_storage?.vehicle_details?.plate_number) {
             let plate = updates.vehicle_storage.vehicle_details.plate_number
                 .toString().toUpperCase().replace(/\s+/g, '')
+
+            const cleanPlateNumber = (plate) => plate?.replace(/\s/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || '';
+            plate = cleanPlateNumber(plate);
             
             // Update plate in the local update object
             updateData['vehicle_storage.vehicle_details.plate_number'] = plate

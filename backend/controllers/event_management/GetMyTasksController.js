@@ -1,4 +1,4 @@
-const EventAction = require('../models/EventActions');
+const EventAction = require('../../models/EventActions');
 const crypto = require('crypto');
 
 const tokens = new Map(); // email → { token, expires }
@@ -56,3 +56,4 @@ class GetMyTasksController {
 }
 
 module.exports = GetMyTasksController;
+

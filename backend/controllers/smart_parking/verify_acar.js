@@ -19,7 +19,8 @@ module.exports = async function verify_car(req, res, next) {
       });
     }
 
-    plate_number = plate_number.toString().toUpperCase().replace(/\s+/g, "");
+    const cleanPlateNumber = (plate) => plate?.replace(/\s/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase() || '';
+    plate_number = cleanPlateNumber(plate_number);
 
     // Check if it's currently parked - get the MOST RECENT active record
     const active_parking = await ParkingRecord.findOne({

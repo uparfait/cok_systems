@@ -1,5 +1,5 @@
-const Attendance = require('../models/Attendance');
-const LiveEvent = require('../models/LiveEvent');
+const Attendance = require('../../models/Attendance');
+const LiveEvent = require('../../models/LiveEvent');
 
 class SubmitAttendanceController {
   static async handle(req, res) {
@@ -83,3 +83,4 @@ class SubmitAttendanceController {
 }
 
 module.exports = SubmitAttendanceController;
+

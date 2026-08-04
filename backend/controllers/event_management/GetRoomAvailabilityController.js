@@ -1,4 +1,4 @@
-const Room = require('../models/Room');
+const Room = require('../../models/Room');
 const CheckRoomAvailability = require('../utilities/CheckRoomAvailability');
 
 class GetRoomAvailabilityController {

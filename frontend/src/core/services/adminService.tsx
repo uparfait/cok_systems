@@ -337,7 +337,7 @@ export const serviceDeliveryService = {
   getById: (id: string) => get(`/servicedelivery/visitor/${id}`),
   getVisitorById: (id: string) => get(`/servicedelivery/visitor/${id}`),
   getVisitorByIdentification: (id_type: string, id_number: string) =>
-    get(`/servicedelivery/visitor/by-identification?id_type=${encodeURIComponent(id_type)}&id_number=${encodeURIComponent(id_number)}`),
+    get(`/servicedelivery/visitor/by/identification/gate?id_type=${encodeURIComponent(id_type)}&id_number=${encodeURIComponent(id_number)}`),
   checkIn: (data: any) => post('/servicedelivery/visitor/checkin', data),
   checkOut: (id: string) => post(`/servicedelivery/visitor/checkout`, { visitor_id: id }),
   toggleStatus: (visitorId: string, departmentId: string, status: string, providerId?: string, providerName?: string) => post(`/servicedelivery/visitor/service/status`, { visitor_id: visitorId, department_id: departmentId, status, provider_id: providerId, provider_name: providerName }),
@@ -366,6 +366,9 @@ export const serviceDeliveryService = {
     return get(url);
   },
   emergencyLeaveReturn: (id: string, data: any) => post(`/servicedelivery/visitor/emergency/leave-return`, { visitor_id: id, ...data }),
+  partialExit: (visitorId: string) => post('/servicedelivery/visitor/partial-exit', { visitor_id: visitorId }),
+  returnWithBadge: (visitorId: string, badge_number?: string) =>
+    post('/servicedelivery/visitor/return-with-badge', { visitor_id: visitorId, badge_number: badge_number || null }),
   update: (id: string, data: any) => put(`/servicedelivery/visitor/${id}`, data),
   updateServiceStatus: (data: any) => post(`/servicedelivery/visitor/service/status`, data),
   getActiveTasks: (page: number = 1, limit: number = 10, search?: string) => {

@@ -1,4 +1,4 @@
-const PostponeEventService = require('../services/PostponeEventService');
+const PostponeEventService = require('../../services/PostponeEventService');
 
 class PostponeEventController {
   static async handle(req, res) {
