@@ -218,7 +218,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
         {/* Primary color header */}
         <div className="sticky top-0 z-20 cok-bg-primary px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm" style={{ backgroundColor: 'transparent' }}>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm bg-white/30" >
               {getInitials(displayName)}
             </div>
             <h2 className="text-white font-bold text-lg sm:text-xl uppercase tracking-wide" style={{
@@ -242,7 +242,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
           <nav className="flex overflow-x-auto">
             <button
               onClick={() => { setActiveTab('profile'); setShowPasswordForm(false); }}
-              className={`flex items-center justify-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
+              className={`flex cursor-pointer items-center justify-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
                 activeTab === 'profile'
                   ? 'text-[#056daa] border-b-2 border-[#056daa] bg-blue-50'
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
@@ -254,7 +254,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
             </button>
             <button
               onClick={() => { setActiveTab('security'); setShowPasswordForm(false); }}
-              className={`flex items-center justify-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
+              className={`flex cursor-pointer items-center justify-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
                 activeTab === 'security'
                   ? 'text-[#056daa] border-b-2 border-[#056daa] bg-blue-50'
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
@@ -328,13 +328,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                       <p className="text-sm font-medium" style={{ color: NEUTRAL_DARK }}>{departmentName || 'Not assigned'}</p>
                     </div>
 
-                    <div className="p-4" style={{ backgroundColor: 'rgba(5,109,170,0.04)', borderRadius: 0 }}>
-                      <div className="flex items-center gap-3 mb-1">
-                        <FiShield className="w-4 h-4" style={{ color: PRIMARY }} />
-                        <span className="text-xs font-semibold uppercase" style={{ color: GRAY_DISABLED, fontFamily: fontHeading, letterSpacing: '0.5px' }}>Role</span>
-                      </div>
-                      <p className="text-sm font-medium" style={{ color: NEUTRAL_DARK }}>{getRoleDisplayName(role)}</p>
-                    </div>
+
 
                     <div className="p-4" style={{ backgroundColor: 'rgba(5,109,170,0.04)', borderRadius: 0 }}>
                       <div className="flex items-center gap-3 mb-1">
