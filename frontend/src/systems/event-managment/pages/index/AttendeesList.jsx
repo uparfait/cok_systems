@@ -49,6 +49,37 @@ function formatTime(iso) {
     + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+// Drawn signatures live in attendeeSignature (base64); uploaded ones are stored
+// in digitalCertificate as a served file URL — display whichever exists
+const IMAGE_FILE_REGEX = /\.(png|jpe?g|gif|webp)(\?.*)?$/i;
+
+function signatureImageSrc(a) {
+  if (a?.attendeeSignature) return a.attendeeSignature;
+  if (a?.digitalCertificate && IMAGE_FILE_REGEX.test(a.digitalCertificate)) return a.digitalCertificate;
+  return null;
+}
+
+function hasSignature(a) {
+  return !!(a?.attendeeSignature || a?.digitalCertificate);
+}
+
+// Fetch an uploaded signature file as a data URL so exports can embed it
+async function toDataUrl(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 export default function AttendeesList() {
   const { id: eventSpecialId } = useParams();
   const navigate = useNavigate();
@@ -165,7 +196,7 @@ export default function AttendeesList() {
         a.attendeeEmail || '',
         a.attendeeInstitution || '',
         a.attendeePosition || '',
-        a.attendeeSignature ? 'Yes' : 'No',
+        hasSignature(a) ? 'Yes' : 'No',
         formatTime(a.createdAt),
       ].forEach((v, j) => { row.getCell(j + 1).value = v; });
     });
@@ -186,6 +217,15 @@ export default function AttendeesList() {
   async function exportPdf() {
     const title = eventName || 'Attendance Report';
     const logo = await loadLogoDataUrl();
+    // Resolve every signature to a data URL up front: drawn ones already are,
+    // uploaded image files are fetched so jsPDF can embed them synchronously
+    const sigDataUrls = await Promise.all(
+      filtered.map(async (a) => {
+        if (a.attendeeSignature) return a.attendeeSignature;
+        const src = signatureImageSrc(a);
+        return src ? await toDataUrl(src) : null;
+      })
+    );
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
 
     const margin = 40;
@@ -234,7 +274,7 @@ export default function AttendeesList() {
       bodyStyles: { minCellHeight: 30 },
       didDrawCell: (data) => {
         if (data.section !== 'body' || data.column.index !== 5) return;
-        const sig = filtered[data.row.index]?.attendeeSignature;
+        const sig = sigDataUrls[data.row.index];
         if (!sig) return;
         try {
           // Fit inside the cell while preserving the signature's aspect ratio
@@ -246,7 +286,8 @@ export default function AttendeesList() {
           const h = props.height * scale;
           const x = data.cell.x + (data.cell.width - w) / 2;
           const cy = data.cell.y + (data.cell.height - h) / 2;
-          doc.addImage(sig, 'PNG', x, cy, w, h);
+          const fmt = /^data:image\/jpe?g/i.test(sig) ? 'JPEG' : 'PNG';
+          doc.addImage(sig, fmt, x, cy, w, h);
         } catch { /* skip unreadable signature images */ }
       },
       didDrawPage: () => {
@@ -414,12 +455,22 @@ export default function AttendeesList() {
                       <td className="px-4 py-3 text-zinc-600" style={{ fontFamily: "'Montserrat', sans-serif" }}>{a.attendeeInstitution || '—'}</td>
                       <td className="px-4 py-3 text-zinc-600" style={{ fontFamily: "'Montserrat', sans-serif" }}>{a.attendeePosition || '—'}</td>
                       <td className="px-4 py-3">
-                        {a.attendeeSignature ? (
+                        {signatureImageSrc(a) ? (
                           <img
-                            src={a.attendeeSignature}
+                            src={signatureImageSrc(a)}
                             alt={`Signature of ${a.attendeeFullName}`}
                             className="h-8 max-w-[110px] object-contain"
                           />
+                        ) : a.digitalCertificate ? (
+                          <a
+                            href={a.digitalCertificate}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs underline"
+                            style={{ color: PRIMARY }}
+                          >
+                            View file
+                          </a>
                         ) : (
                           <span style={{ color: '#CCCCCC' }}>—</span>
                         )}

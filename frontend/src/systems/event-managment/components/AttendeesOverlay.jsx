@@ -15,6 +15,14 @@ function formatTime(iso) {
   );
 }
 
+// Drawn signatures live in attendeeSignature (base64); uploaded ones are stored
+// in digitalCertificate as a served file URL — display whichever exists
+function signatureImageSrc(a) {
+  if (a?.attendeeSignature) return a.attendeeSignature;
+  if (a?.digitalCertificate && /\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(a.digitalCertificate)) return a.digitalCertificate;
+  return null;
+}
+
 export default function AttendeesOverlay({ eventSpecialId, eventName, onClose }) {
   const [attendees, setAttendees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -187,12 +195,16 @@ export default function AttendeesOverlay({ eventSpecialId, eventName, onClose })
                       <td className="px-4 py-3 text-gray-600">{a.attendeeInstitution || "—"}</td>
                       <td className="px-4 py-3 text-gray-600">{a.attendeePosition}</td>
                       <td className="px-4 py-3">
-                        {a.attendeeSignature ? (
+                        {signatureImageSrc(a) ? (
                           <img
-                            src={a.attendeeSignature}
+                            src={signatureImageSrc(a)}
                             alt={`Signature of ${a.attendeeFullName}`}
                             className="h-8 max-w-[110px] object-contain"
                           />
+                        ) : a.digitalCertificate ? (
+                          <a href={a.digitalCertificate} target="_blank" rel="noopener noreferrer" className="text-xs underline text-sky-700">
+                            View file
+                          </a>
                         ) : (
                           <span className="text-gray-300">—</span>
                         )}
