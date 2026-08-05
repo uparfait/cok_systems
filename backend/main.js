@@ -363,3 +363,6 @@ db_connection()
     console.log(error);
     process.exit(1);
   });
+
+  console.log("ALL  ENVIROMOMENT VARIABLES")
+  console.log(process.env)
