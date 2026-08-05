@@ -48,7 +48,9 @@ interface QueueSummary {
   }>;
 }
 
-const DepartmentQueueTab: React.FC = () => {
+// departmentScope: HOD mode — the backend already scopes the queue to the department(s)
+// the user leads; rows are matched by their first assignment and actions are hidden
+const DepartmentQueueTab: React.FC<{ departmentScope?: boolean }> = ({ departmentScope = false }) => {
   const { user } = useAuth();
   const { showError } = useToast();
 
@@ -76,12 +78,20 @@ const DepartmentQueueTab: React.FC = () => {
       if (typeof v.identification === "string") identification = v.identification;
       else if (v.identification?.number) identification = v.identification.number;
       const badgeNumber = v.badge_number || "";
-      const myAssignment = v.departments_assigned?.find((d: any) => String(d.provider_id) === myId);
+      const myAssignment = departmentScope
+        ? v.departments_assigned?.[0]
+        : v.departments_assigned?.find((d: any) => String(d.provider_id) === myId);
       const checkInTime = myAssignment?.assigned_time || v.entry_date || new Date().toISOString();
-      const serviceDuration = v.durations?.services_durations?.find((d: any) => String(d.provider_id) === myId && d.ended_at === null);
+      const serviceDuration = departmentScope
+        ? v.durations?.services_durations?.find((d: any) => d.ended_at === null)
+        : v.durations?.services_durations?.find((d: any) => String(d.provider_id) === myId && d.ended_at === null);
       const serviceStartTimeVal = serviceDuration?.started_at || "";
       let myServiceStatus = null;
-      if (Array.isArray(v.services_status)) myServiceStatus = v.services_status.find((s: any) => String(s.provider_id) === myId);
+      if (Array.isArray(v.services_status)) {
+        myServiceStatus = departmentScope
+          ? v.services_status[0]
+          : v.services_status.find((s: any) => String(s.provider_id) === myId);
+      }
       let status = (myServiceStatus?.s_type || v.status || "Not started").toLowerCase();
       if (status === "not started") status = "Not started";
       if (status === "inprogress") status = "inprogress";
@@ -454,6 +464,7 @@ const DepartmentQueueTab: React.FC = () => {
         visitor={selectedVisitorForDetails}
         myProviderId={myId}
         onSaved={() => { fetchAssignedVisitors(true); fetchQueueSummary(true); }}
+        hideActions={departmentScope}
       />
     </div>
   );

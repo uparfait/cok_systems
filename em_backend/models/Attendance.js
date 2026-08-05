@@ -44,6 +44,31 @@ const attendanceSchema = new mongoose.Schema({
     required: false,
     maxlength: [200000, 'Signature image too large']
   },
+  digitalCertificate: {
+    type: String, // uploaded digital certificate file URL — optional
+    required: false,
+    maxlength: [1000, 'Certificate URL too large']
+  },
+  signatureMethod: {
+    type: String,
+    enum: ['draw', 'certificate'],
+    default: null,
+  },
+  eventName: {
+    type: String,
+    required: false,
+    trim: true,
+  },
+  eventRoom: {
+    type: String,
+    required: false,
+    trim: true,
+  },
+  roomLocation: {
+    type: String,
+    required: false,
+    trim: true,
+  },
 }, { timestamps: true });
 
 attendanceSchema.index({ attendanceTime: 1 });
