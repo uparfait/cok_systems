@@ -27,18 +27,29 @@ transporter.verify((error, success) => {
 const PRIMARY_COLOR = '#056daa';
 const PRIMARY_HOVER = '#248fc2';
 
+// Official report banner (Republic of Rwanda · City of Kigali) embedded inline in
+// every email via CID; falls back to the plain blue text banner if the file is missing
+const LOGO_BANNER_PATH = process.env.CLIENT_URL_SET + '/LOGO_COK_report.png';
+const HAS_LOGO_BANNER = require('fs').existsSync(LOGO_BANNER_PATH);
+const LOGO_BANNER_CID = 'cok_header_banner';
+
 function htmlWrapper(bodyHtml) {
+    const headerHtml = HAS_LOGO_BANNER
+        ? `<div style="background-color: #ffffff; text-align: center; border: 1px solid #E0E0E0; border-bottom: none; border-radius: 4px 4px 0 0;">
+                <img src="${LOGO_BANNER_CID}" alt="Republic of Rwanda - City of Kigali" style="width: 100%; max-width: 600px; display: block;" />
+            </div>`
+        : `<div style="background-color: ${PRIMARY_COLOR}; padding: 20px; text-align: center; border-radius: 4px 4px 0 0;">
+                <h2 style="color: #ffffff; margin: 0; font-family: 'Montserrat', sans-serif; font-weight: 700; letter-spacing: -0.5px;">City of Kigali</h2>
+            </div>`;
     return `
         <div style="font-family: 'Montserrat', sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
-            <div style="background-color: ${PRIMARY_COLOR}; padding: 20px; text-align: center; border-radius: 4px 4px 0 0;">
-                <h2 style="color: #ffffff; margin: 0; font-family: 'Montserrat', sans-serif; font-weight: 700; letter-spacing: -0.5px;">City of Kigali</h2>
-            </div>
+            ${headerHtml}
             <div style="background-color: #ffffff; padding: 30px; border: 1px solid #E0E0E0; border-top: none; border-radius: 0 0 4px 4px;">
                 ${bodyHtml}
             </div>
             <div style="margin-top: 20px; padding: 15px; background-color: #F7F9FB; border: 1px solid #E0E0E0; border-radius: 4px; text-align: center;">
-                <p style="font-size: 13px; color: #9E9E9E; margin: 0; font-family: 'Merriweather', serif;">
-                    City of Kigali  Digital Services Department
+                <p style="font-size: 13px; color: #9E9E9E; margin: 0; font-family: 'Montserrat', serif;">
+                    City of Kigali
                 </p>
             </div>
         </div>
@@ -179,6 +190,8 @@ async function sendEmail(toEmail, subject, htmlContent, textContent) {
             to: toEmail,
             text: textContent,
             html: htmlContent,
+            // Inline header banner referenced by cid: in htmlWrapper
+            attachments: HAS_LOGO_BANNER ? [logoBannerAttachment] : [],
         });
         return { success: true };
     } catch (error) {
@@ -195,14 +208,16 @@ async function sendEmailWithFile(toEmail, subject, htmlContent, textContent, fil
             to: toEmail,
             text: textContent,
             html: htmlContent,
+            // Inline header banner referenced by cid: in htmlWrapper
+            attachments: HAS_LOGO_BANNER ? [logoBannerAttachment] : [],
         };
 
         if (fileData && fileData.content) {
-            mailOptions.attachments = [{
+            mailOptions.attachments.push({
                 content: fileData.content,
                 filename: fileData.filename || 'Eat.ics',
                 contentType: 'text/calendar; charset=UTF-8; method=REQUEST',
-            }];
+            });
         }
 
         await transporter.sendMail(mailOptions);

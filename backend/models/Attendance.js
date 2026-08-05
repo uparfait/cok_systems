@@ -33,7 +33,7 @@ const attendanceSchema = new mongoose.Schema({
   attendeePosition: {
     type: String,
     required: [true, 'Your Position is required'],
-    trim: true
+    trim: true,
   },
   attendanceTime: {
     type: Date,

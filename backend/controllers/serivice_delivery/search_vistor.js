@@ -1,5 +1,6 @@
 const ServiceDelivery = require('../../models/service_delivery.js')
 const Department = require('../../models/department.js')
+const { getDepartmentIdsForHead } = require('../department_flow/visitors_by_status.js')
 
 module.exports = async function search_visitors(req, res, next) {
     try {
@@ -30,6 +31,30 @@ module.exports = async function search_visitors(req, res, next) {
         // If specifically requested true/false, add it to criteria
         if (in_house === 'true' || in_house === true) search_criteria.is_still_inhouse = true
         if (in_house === 'false' || in_house === false) search_criteria.is_still_inhouse = false
+
+        // Scope results the same way as list_visitors: employees see their
+        // department/unit, HODs see the department(s) they lead (+ sub-departments)
+        if (user_role_name === 'Employee') {
+            const departmentIds = []
+            if (user_department_id) departmentIds.push(user_department_id)
+            if (user_department_unit_id) departmentIds.push(user_department_unit_id)
+            if (!departmentIds.length) {
+                return res.status(200).json({
+                    success: true, type: 'success', message: 'Visitor search results',
+                    total: 0, page: parseInt(page), data: []
+                })
+            }
+            search_criteria['departments_assigned'] = { $elemMatch: { department_id: { $in: departmentIds } } }
+        } else if (user_role_name === 'Head of department') {
+            const departmentIds = await getDepartmentIdsForHead(req.user?.userId || req.user?.id)
+            if (!departmentIds.length) {
+                return res.status(403).json({
+                    success: false, type: 'error',
+                    message: 'You are not assigned as a leader of any department'
+                })
+            }
+            search_criteria['departments_assigned'] = { $elemMatch: { department_id: { $in: departmentIds } } }
+        }
 
         const visitors = await ServiceDelivery.find(search_criteria)
             .limit(limit_val)
