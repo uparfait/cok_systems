@@ -6,8 +6,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
 import { useSocket } from '../../../core/contexts/SocketContext';
-import { smartParkingService, statisticsService } from '../../../core/services/adminService';
+import { smartParkingService, statisticsService, parkingService, reservationService } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
+import ParkingLotMap from '../../../core/components/ParkingLotMap';
 import {
   FiTruck, FiShield, FiCheckCircle, FiAlertTriangle, FiUser, FiUserPlus,
   FiPhone, FiX, FiEdit, FiActivity, FiCalendar, FiMapPin, FiTrendingUp, FiUsers, FiInfo, FiClock, FiCheck, FiDownload
@@ -132,6 +133,9 @@ const SmartParkingDashboard: React.FC = () => {
       staffAvailableSlots: 0
    });
 
+  // Parking lot map data: slot totals + currently parked vehicles + active reservations
+  const [parkingLot, setParkingLot] = useState<{ totalSlots: number; vehicles: any[]; reservations: any[] }>({ totalSlots: 0, vehicles: [], reservations: [] });
+
   // Flagged vehicles
   const [flaggedVehicles, setFlaggedVehicles] = useState<FlaggedVehicle[]>([]);
   const [modalFlaggedVehicles, setModalFlaggedVehicles] = useState<FlaggedVehicle[]>([]);
@@ -187,6 +191,19 @@ const SmartParkingDashboard: React.FC = () => {
     try {
       const currentlyParkedResponse = await statisticsService.getCurrentlyParkedStats();
       const slotsResponse = await statisticsService.getParkingSlots();
+
+      // Lot map data: every active vehicle + active reservations (same sources as the mayor overview map)
+      const [activeVehiclesRes, reservationsRes] = await Promise.all([
+        parkingService.getAllPaginated(1, 200, 'active').catch(() => null),
+        reservationService.getAll().catch(() => null),
+      ]);
+      const activeVehiclesRaw = (activeVehiclesRes as any)?.data || [];
+      const reservationsRaw = (reservationsRes as any)?.reservations || [];
+      setParkingLot({
+        totalSlots: Number((slotsResponse as any)?.data?.available_slots?.totalSlots) || 0,
+        vehicles: Array.isArray(activeVehiclesRaw) ? activeVehiclesRaw : [],
+        reservations: (Array.isArray(reservationsRaw) ? reservationsRaw : []).filter((r: any) => r?.status === 'active'),
+      });
 
   if (currentlyParkedResponse.success && currentlyParkedResponse.data) {
          const { total, by_driver_type } = currentlyParkedResponse.data;
@@ -624,6 +641,26 @@ const SmartParkingDashboard: React.FC = () => {
             <FiDownload className="w-5 h-5" />
             EXPORT VISITORS DATA
           </button>
+        </div>
+
+        {/* Parking Status Map */}
+        <div className="p-4 sm:p-5 mb-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2" style={{ backgroundColor: 'rgba(5,109,170,0.1)' }}>
+              <MdOutlineLocalParking className="w-5 h-5 text-[#056daa]" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Parking Status</h2>
+              <p className="text-xs text-[#555555]">Slot occupancy · all currently active vehicles</p>
+            </div>
+          </div>
+          {statsLoading ? (
+            <div className="flex items-center justify-center h-32">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#056daa] border-t-transparent"></div>
+            </div>
+          ) : (
+            <ParkingLotMap totalSlots={parkingLot.totalSlots} vehicles={parkingLot.vehicles} reservations={parkingLot.reservations} />
+          )}
         </div>
 
         {/* Hourly Analytics Graph */}
