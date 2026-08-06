@@ -581,6 +581,9 @@ export const reservationService = {
   reactivateReservation: (id: string) => put(`/smartparking/reservations/${id}/reactivate`, {}),
   bulkCancelReservations: (items: Array<{ id: string; type: 'visitor' | 'staff' }>) => post('/smartparking/reservations/bulk-cancel', { items }),
   bulkDeleteReservations: (items: Array<{ id: string; type: 'visitor' | 'staff' }>) => post('/smartparking/reservations/bulk-delete', { items }),
+  getBatches: () => get('/smartparking/reservation-batches'),
+  cancelBatch: (id: string, type: 'visitor' | 'staff') => put('/smartparking/reservation-batches/cancel', { id, type }),
+  rescheduleBatch: (id: string, type: 'visitor' | 'staff', start_date: string, end_date: string) => put('/smartparking/reservation-batches/reschedule', { id, type, start_date, end_date }),
 };
 
 export const serviceDeliveryServiceWithVisitors = { ...serviceDeliveryService, getAllVisitors: serviceDeliveryService.getAll };
