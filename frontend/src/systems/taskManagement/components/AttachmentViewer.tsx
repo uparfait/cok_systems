@@ -1,8 +1,26 @@
 // AttachmentViewer - Component to view attachments based on file type
 
 import React from 'react'
-import { FiX, FiFile, FiImage, FiFileText, FiDownload, FiVideo, FiMusic } from 'react-icons/fi'
+import { FiX, FiFile, FiImage, FiFileText, FiDownload, FiVideo, FiMusic, FiPaperclip } from 'react-icons/fi'
 import type { Attachment } from '../../../core/services/taskService'
+
+const PRIMARY = "#056daa"
+const NEUTRAL_DARK = "#333333"
+const NEUTRAL_LIGHT = "#F7F9FB"
+const WHITE = "#FFFFFF"
+const GRAY_DISABLED = "#9E9E9E"
+const DANGER = "#E74C3C"
+const SUCCESS = "#4CAF50"
+const fontHeading = "'Montserrat', sans-serif"
+
+const labelStyle: React.CSSProperties = {
+  fontFamily: fontHeading,
+  fontSize: '13px',
+  fontWeight: 600,
+  letterSpacing: '0.5px',
+  textTransform: 'uppercase',
+  color: NEUTRAL_DARK,
+}
 
 interface AttachmentViewerProps {
   attachment: Attachment
@@ -10,23 +28,20 @@ interface AttachmentViewerProps {
 }
 
 const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachment, onClose }) => {
-  
+
   const getFileType = (filename: string, type?: string): string => {
-    // First check the type field (which contains our enum values from backend)
     if (type) {
       if (type === 'image') return 'image'
       if (type === 'video') return 'video'
       if (type === 'audio') return 'audio'
       if (type === 'document') {
-        // For documents, check file extension to determine display method
         const ext = filename.toLowerCase().split('.').pop() || ''
         if (ext === 'pdf') return 'pdf'
         if (['txt', 'md', 'csv', 'json', 'xml', 'html', 'css', 'js', 'ts'].includes(ext)) return 'text'
-        return 'document' // Office docs, etc. - download only
+        return 'document'
       }
     }
 
-    // Fallback to file extension if type is not available
     const ext = filename.toLowerCase().split('.').pop() || ''
     if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) return 'image'
     if (['mp4', 'avi', 'mov', 'mkv', 'webm'].includes(ext)) return 'video'
@@ -37,8 +52,20 @@ const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachment, onClose
     return 'other'
   }
 
+  const getFileIcon = (fileType: string) => {
+    switch (fileType) {
+      case 'image': return <FiImage className="w-5 h-5" style={{ color: SUCCESS }} />
+      case 'video': return <FiVideo className="w-5 h-5" style={{ color: '#9C27B0' }} />
+      case 'audio': return <FiMusic className="w-5 h-5" style={{ color: '#3F51B5' }} />
+      case 'pdf': return <FiFileText className="w-5 h-5" style={{ color: DANGER }} />
+      case 'document': return <FiFileText className="w-5 h-5" style={{ color: '#F39C12' }} />
+      case 'text': return <FiFileText className="w-5 h-5" style={{ color: PRIMARY }} />
+      default: return <FiFile className="w-5 h-5" style={{ color: GRAY_DISABLED }} />
+    }
+  }
+
   const fileType = getFileType(attachment.filename, attachment.type)
- // alert(`Determined file type: ${fileType} for filename: ${attachment.filename} with type field: ${attachment.type}`) // Debugging alert
+
   const renderContent = () => {
     switch (fileType) {
       case 'image':
@@ -78,7 +105,6 @@ const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachment, onClose
         )
       case 'pdf':
       case 'text':
-        // Only use iframe for PDFs and plain text files that browsers can display
         return (
           <div className="w-full h-[70vh]">
             <iframe
@@ -89,18 +115,18 @@ const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachment, onClose
           </div>
         )
       case 'document':
-        // For office documents and other complex documents, show download message
         return (
           <div className="text-center py-8">
-            <FiFileText className="w-12 h-12 text-red-400 mx-auto mb-4" />
-            <p className="text-gray-600 mb-2">Document Preview Not Available</p>
-            <p className="text-sm text-gray-500 mb-4">
+            <FiFileText className="w-12 h-12 mx-auto mb-4" style={{ color: DANGER }} />
+            <p className="mb-2" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Document Preview Not Available</p>
+            <p className="text-sm mb-4" style={{ color: GRAY_DISABLED }}>
               This document type cannot be previewed in the browser.
             </p>
             <a
               href={attachment.url}
               download={attachment.originalName}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 cok-btn-primary"
+              style={{ width: 'auto', textDecoration: 'none' }}
             >
               <FiDownload className="w-4 h-4" />
               Download File
@@ -110,12 +136,12 @@ const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachment, onClose
       default:
         return (
           <div className="text-center py-8">
-            <FiFile className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">Preview not available for this file type</p>
-            <p className="text-sm text-gray-500 mt-2">
+            <FiFile className="w-12 h-12 mx-auto mb-4" style={{ color: GRAY_DISABLED }} />
+            <p style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Preview not available for this file type</p>
+            <p className="text-sm mt-2" style={{ color: GRAY_DISABLED }}>
               This file type cannot be previewed in the browser.
             </p>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm mt-1" style={{ color: GRAY_DISABLED }}>
               Use the download button to access the file.
             </p>
           </div>
@@ -125,45 +151,46 @@ const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachment, onClose
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-[95vw] sm:w-[90vw] max-w-7xl max-h-[90vh] min-h-[80vh] overflow-hidden">
-        {/* Header */}
-        <div className="relative p-4 border-b border-gray-200">
-          <div className="flex items-center space-x-3 pr-40 sm:pr-48">
-            {fileType === 'image' && <FiImage className="w-5 h-5 text-green-600" />}
-            {fileType === 'video' && <FiVideo className="w-5 h-5 text-purple-600" />}
-            {fileType === 'audio' && <FiMusic className="w-5 h-5 text-indigo-600" />}
-            {fileType === 'pdf' && <FiFileText className="w-5 h-5 text-red-600" />}
-            {fileType === 'document' && <FiFileText className="w-5 h-5 text-orange-600" />}
-            {fileType === 'text' && <FiFileText className="w-5 h-5 text-blue-600" />}
-            {fileType === 'other' && <FiFile className="w-5 h-5 text-gray-600" />}
-            <div className="min-w-0 flex-1 max-w-[calc(100vw-12rem)] sm:max-w-none">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{attachment.filename}</h3>
+      <div className="bg-white w-[95vw] max-w-7xl max-h-[90vh] flex flex-col">
+        {/* Header with cok-bg-primary */}
+        <div className="flex items-center justify-between px-6 py-4 flex-shrink-0 cok-bg-primary" style={{ borderRadius: 0 }}>
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="p-2 flex-shrink-0" style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}>
+              {getFileIcon(fileType)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base sm:text-lg font-semibold truncate" style={{ color: WHITE, fontFamily: fontHeading }}>
+                {attachment.originalName}
+              </h2>
               {attachment.description && (
-                <p className="text-sm text-gray-600 truncate hidden sm:block">{attachment.description}</p>
+                <p className="text-xs truncate hidden sm:block" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                  {attachment.description}
+                </p>
               )}
             </div>
           </div>
-          <div className="absolute top-4 right-4 flex items-center space-x-1 sm:space-x-2">
+          <div className="flex items-center gap-2 flex-shrink-0 ml-3">
             <a
               href={attachment.url}
-              download={attachment.filename}
-              className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
-              title="Download file"
+              download={attachment.originalName}
+              className="cok-btn-outlined-reverse"
+              style={{ padding: '0.4rem 0.8rem', textDecoration: 'none' }}
             >
               <FiDownload className="w-4 h-4" />
-              <span className="hidden sm:inline">Download</span>
             </a>
             <button
+              type="button"
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+              className="cok-btn-outlined-reverse"
+              style={{ padding: '0.4rem 0.8rem' }}
             >
-              <FiX className="w-5 h-5" />
+              <FiX className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-4 overflow-auto">
+        <div className="flex-1 overflow-auto p-4">
           {renderContent()}
         </div>
       </div>
