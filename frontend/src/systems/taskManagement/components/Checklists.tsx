@@ -1,7 +1,26 @@
-// Checklists - Component for checklists management
+// Checklists - Component for checklists management with CoK design
 
 import React, { useState } from 'react'
-import { FiEdit, FiTrash2, FiPlus, FiX, FiCheck, FiX as FiXIcon } from 'react-icons/fi'
+import { FiEdit, FiTrash2, FiPlus, FiX, FiCheck } from 'react-icons/fi'
+
+const PRIMARY = '#056daa'
+const NEUTRAL_DARK = '#333333'
+const NEUTRAL_LIGHT = '#F7F9FB'
+const WHITE = '#FFFFFF'
+const GRAY_DISABLED = '#9E9E9E'
+const BORDER = '#E0E0E0'
+const DANGER = '#E74C3C'
+const SUCCESS = '#4CAF50'
+const fontHeading = "'Montserrat', sans-serif"
+
+const labelStyle: React.CSSProperties = {
+  fontFamily: fontHeading,
+  fontSize: '13px',
+  fontWeight: 600,
+  letterSpacing: '0.5px',
+  textTransform: 'uppercase',
+  color: NEUTRAL_DARK,
+}
 
 interface ChecklistItem {
   text: string
@@ -87,226 +106,254 @@ const Checklists: React.FC<ChecklistsProps> = ({
   }
 
   return (
-<div>
-  {/* Added pt-6 for padding before the checklist section starts */}
-  <div className="pt-6">
-    <div className="flex items-center justify-between mb-3">
-      <h3 className="text-sm font-medium text-gray-700">Checklists ({checklists?.length || 0})</h3>
-      {taskStatus !== 'Completed' && (
-        <button onClick={onShowAddChecklistForm} disabled={loading} className="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-700">
-          <span>+</span>
-          <span>Add Checklist</span>
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <label className="block text-sm" style={labelStyle}>
+          Checklists ({checklists?.length || 0})
+        </label>
+        <button
+          type="button"
+          onClick={onShowAddChecklistForm}
+          disabled={loading}
+          className="flex items-center gap-1 text-sm font-medium cursor-pointer"
+          style={{ color: PRIMARY, fontFamily: fontHeading }}
+        >
+          <FiPlus className="w-4 h-4" />
+          Add Checklist
         </button>
-      )}
-    </div>
+      </div>
 
-    <div className="space-y-2">
-      {checklists?.map((checklist: Checklist) => (
-        <div key={checklist._id} className="bg-gray-50 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-3">
-            {editingChecklist === checklist._id ? (
-              <div className="flex items-center space-x-2 flex-1">
-                <input
-                  type="text"
-                  value={checklistTitle}
-                  onChange={(e) => onChecklistTitleChange(e.target.value)}
-                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={loading}
-                />
-                <button
-                  onClick={onSaveChecklistTitle}
-                  disabled={loading}
-                  className="px-2 py-1 text-xs text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={onCancelEditChecklist}
-                  disabled={loading}
-                  className="px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              /* Flex container to keep Title and Actions on the same line */
-              <div className="flex items-center justify-between w-full">
-                {/* Applied text-lg for size and font-bold for weight */}
-                <h2 className="text-lg font-bold text-gray-900 truncate mr-4">
-                  {checklist.title}
-                </h2>
-                <div className="flex items-center space-x-2 shrink-0">
-                  <button
-                    onClick={() => onEditChecklistTitle(checklist._id!, checklist.title)}
+      <div className="space-y-3">
+        {checklists?.map((checklist: Checklist) => (
+          <div key={checklist._id} className="border p-4" style={{ borderColor: BORDER, backgroundColor: WHITE, borderRadius: 0 }}>
+            <div className="flex items-center justify-between mb-3">
+              {editingChecklist === checklist._id ? (
+                <div className="flex items-center gap-2 flex-1">
+                  <input
+                    type="text"
+                    value={checklistTitle}
+                    onChange={(e) => onChecklistTitleChange(e.target.value)}
+                    className="flex-1 cok-auth-input"
+                    style={{ fontSize: '13px' }}
                     disabled={loading}
-                    className="text-gray-400 hover:text-blue-600 disabled:opacity-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={onSaveChecklistTitle}
+                    disabled={loading}
+                    className="cok-btn-primary"
+                    style={{ width: 'auto', padding: '0.4rem 0.8rem' }}
                   >
-                    <FiEdit className="w-4 h-4" />
+                    Save
                   </button>
                   <button
-                    onClick={() => onDeleteChecklist(checklist._id!)}
+                    type="button"
+                    onClick={onCancelEditChecklist}
                     disabled={loading}
-                    className="text-gray-400 hover:text-red-600 disabled:opacity-50"
+                    className="cok-btn-outlined"
                   >
-                    <FiTrash2 className="w-4 h-4" />
+                    Cancel
                   </button>
                 </div>
-              </div>
-            )}
-          </div>
+              ) : (
+                <div className="flex items-center justify-between w-full">
+                  <h4 className="text-sm font-medium truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                    {checklist.title}
+                  </h4>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => onEditChecklistTitle(checklist._id!, checklist.title)}
+                      disabled={loading}
+                      className="p-1 cursor-pointer"
+                      style={{ color: PRIMARY }}
+                      title="Edit checklist"
+                    >
+                      <FiEdit className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteChecklist(checklist._id!)}
+                      disabled={loading}
+                      className="p-1 cursor-pointer"
+                      style={{ color: DANGER }}
+                      title="Delete checklist"
+                    >
+                      <FiTrash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
-          <div className="space-y-2">
-            {checklist.items?.map((item: ChecklistItem, index: number) => {
-              const isEditing = editingItem?.checklistId === checklist._id && editingItem?.itemIndex === index
-              return (
-                <div key={index} className="flex items-center space-x-3 group">
-                  <input
-                    type="checkbox"
-                    checked={item.completed}
-                    onChange={(e) => onUpdateChecklistItem(checklist._id!, index, e.target.checked)}
-                    disabled={loading}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 disabled:opacity-50"
-                  />
-                  {isEditing ? (
-                    <div className="flex-1 flex items-center space-x-2">
-                      <input
-                        type="text"
-                        value={editingItemText}
-                        onChange={(e) => setEditingItemText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') saveEditingItem()
-                          if (e.key === 'Escape') cancelEditingItem()
-                        }}
-                        className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        autoFocus
-                      />
-                      <button
-                        onClick={saveEditingItem}
-                        disabled={!editingItemText.trim()}
-                        className="p-1 text-green-600 hover:text-green-700 disabled:opacity-50"
-                      >
-                        <FiCheck className="w-4 h-4" />
-                      </button>
-                      <button onClick={cancelEditingItem} className="p-1 text-gray-600 hover:text-gray-700">
-                        <FiXIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Added break-words to ensure checklist items also wrap correctly */}
-                      <span
-                        className={`flex-1 cursor-pointer break-words text-sm ${
-                          item.completed ? 'line-through text-gray-500' : 'text-gray-900'
-                        } hover:bg-gray-50 px-1 py-0.5 rounded`}
-                        onClick={() => taskStatus !== 'Completed' && startEditingItem(checklist._id!, index, item.text)}
-                        title={taskStatus !== 'Completed' ? 'Click to edit' : ''}
-                      >
-                        {item.text}
-                      </span>
-                      {taskStatus !== 'Completed' && (
-                        <div className="opacity-0 group-hover:opacity-100 flex items-center space-x-1 transition-opacity">
+            <div className="space-y-2">
+              {checklist.items?.map((item: ChecklistItem, index: number) => {
+                const isEditing = editingItem?.checklistId === checklist._id && editingItem?.itemIndex === index
+                return (
+                  <div key={index} className="flex items-center gap-3 p-2" style={{ backgroundColor: NEUTRAL_LIGHT, borderRadius: 0 }}>
+                    <input
+                      type="checkbox"
+                      checked={item.completed}
+                      onChange={(e) => onUpdateChecklistItem(checklist._id!, index, e.target.checked)}
+                      disabled={loading}
+                      className="w-4 h-4"
+                      style={{ accentColor: PRIMARY }}
+                    />
+                    {isEditing ? (
+                      <div className="flex-1 flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editingItemText}
+                          onChange={(e) => setEditingItemText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveEditingItem()
+                            if (e.key === 'Escape') cancelEditingItem()
+                          }}
+                          className="flex-1 cok-auth-input"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={saveEditingItem}
+                          disabled={!editingItemText.trim()}
+                          className="p-1 cursor-pointer"
+                          style={{ color: SUCCESS }}
+                        >
+                          <FiCheck className="w-4 h-4" />
+                        </button>
+                        <button type="button" onClick={cancelEditingItem} className="p-1 cursor-pointer" style={{ color: GRAY_DISABLED }}>
+                          <FiX className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <span
+                          className={`flex-1 text-sm ${item.completed ? 'line-through' : ''}`}
+                          style={{ color: item.completed ? GRAY_DISABLED : NEUTRAL_DARK }}
+                        >
+                          {item.text}
+                        </span>
+                        <div className="flex items-center gap-1 flex-shrink-0">
                           <button
+                            type="button"
                             onClick={() => startEditingItem(checklist._id!, index, item.text)}
                             disabled={loading}
-                            className="p-1 text-gray-400 hover:text-blue-600 disabled:opacity-50"
+                            className="p-1 cursor-pointer"
+                            style={{ color: GRAY_DISABLED }}
                             title="Edit item"
                           >
                             <FiEdit className="w-3 h-3" />
                           </button>
                           <button
+                            type="button"
                             onClick={() => onConfirmDeleteItem(checklist._id!, index, item.text)}
                             disabled={loading}
-                            className="p-1 text-gray-400 hover:text-red-600 disabled:opacity-50"
+                            className="p-1 cursor-pointer"
+                            style={{ color: DANGER }}
                             title="Delete item"
                           >
                             <FiTrash2 className="w-3 h-3" />
                           </button>
                         </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )
-            })}
+                      </>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
 
-      {(!checklists || checklists.length === 0) && (
-        <div className="text-center py-6 text-gray-500">
-          <FiTrash2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">No checklists yet</p>
+        {(!checklists || checklists.length === 0) && (
+          <div className="text-center py-6" style={{ color: GRAY_DISABLED }}>
+            <FiTrash2 className="w-8 h-8 mx-auto mb-2 opacity-30" />
+            <p className="text-sm">No checklists yet</p>
+          </div>
+        )}
+      </div>
+
+      {/* Add Checklist Form */}
+      {showAddChecklistForm && (
+        <div className="border p-4 mt-4" style={{ borderColor: BORDER, backgroundColor: NEUTRAL_LIGHT, borderRadius: 0 }}>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs mb-1" style={labelStyle}>
+                Checklist Title
+              </label>
+              <input
+                type="text"
+                placeholder="Enter checklist title"
+                value={addChecklistForm.title}
+                onChange={(e) => onAddChecklistFormChange('title', e.target.value)}
+                className="cok-auth-input"
+                disabled={loading}
+              />
+            </div>
+            <div>
+              <label className="block text-xs mb-2" style={labelStyle}>
+                Items
+              </label>
+              <div className="space-y-2">
+                {addChecklistForm.items.map((item, index) => (
+                  <div key={index} className="flex items-center gap-3 border p-3" style={{ borderColor: BORDER, backgroundColor: WHITE, borderRadius: 0 }}>
+                    <input
+                      type="text"
+                      placeholder="Enter item text"
+                      value={item}
+                      onChange={(e) => onUpdateAddChecklistItem(index, e.target.value)}
+                      className="flex-1 cok-auth-input"
+                      disabled={loading}
+                    />
+                    {addChecklistForm.items.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => onRemoveAddChecklistItem(index)}
+                        disabled={loading}
+                        className="p-1 cursor-pointer"
+                        style={{ color: DANGER }}
+                      >
+                        <FiTrash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={onAddChecklistItem}
+                disabled={loading}
+                className="mt-2 flex items-center gap-1 text-sm font-medium cursor-pointer"
+                style={{ color: PRIMARY, fontFamily: fontHeading }}
+              >
+                <FiPlus className="w-4 h-4" />
+                Add Item
+              </button>
+            </div>
+
+            <div className="flex gap-2 pt-2" style={{ borderTop: `1px solid ${BORDER}` }}>
+              <button
+                type="button"
+                onClick={onAddNewChecklist}
+                disabled={loading}
+                className="cok-btn-primary"
+                style={{ width: 'auto', padding: '0.6rem 1rem' }}
+              >
+                {loading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />}
+                Add Checklist
+              </button>
+              <button
+                type="button"
+                onClick={onCancelAddChecklist}
+                disabled={loading}
+                className="cok-btn-outlined"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
-
-    {/* Add Checklist Form */}
-    {showAddChecklistForm && taskStatus !== 'Completed' && (
-      <div className="bg-gray-50 rounded-lg p-4 mt-4">
-        <div className="space-y-3">
-          <input
-            type="text"
-            placeholder="Checklist title"
-            value={addChecklistForm.title}
-            onChange={(e) => onAddChecklistFormChange('title', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={loading}
-          />
-          {addChecklistForm.items.map((item, index) => (
-            <div key={index} className="flex space-x-2">
-              <input
-                type="text"
-                placeholder="Item text"
-                value={item}
-                onChange={(e) => onUpdateAddChecklistItem(index, e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={loading}
-              />
-              {addChecklistForm.items.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => onRemoveAddChecklistItem(index)}
-                  disabled={loading}
-                  className="px-2 py-2 text-red-500 hover:text-red-700"
-                >
-                  <FiX className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={onAddChecklistItem}
-            disabled={loading}
-            className="text-sm text-blue-600 hover:text-blue-700"
-          >
-            + Add Item
-          </button>
-          <div className="flex space-x-2 pt-2">
-            <button
-              type="button"
-              onClick={onAddNewChecklist}
-              disabled={loading}
-              className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-            >
-              {loading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>}
-              Add Checklist
-            </button>
-            <button
-              type="button"
-              onClick={onCancelAddChecklist}
-              disabled={loading}
-              className="px-4 py-2 text-gray-600 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-  </div>
-</div>
-
   )
 }
 
