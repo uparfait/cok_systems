@@ -12,7 +12,12 @@ const emergency_car_schema = new mongoose.Schema({
         },
         telephone_number: String,
         slot_number: String,
-        is_flagged: { type: Boolean, default: false }
+        is_flagged: { type: Boolean, default: false },
+        // A reservation never expires: it stays active until the vehicle checks in (is_used)
+        // or the reservation is cancelled (is_cancelled) — both tracked per visitor
+        is_used: { type: Boolean, default: false },
+        used_at: { type: Date },
+        is_cancelled: { type: Boolean, default: false }
     }],
     validity: {
         from: { type: Date },

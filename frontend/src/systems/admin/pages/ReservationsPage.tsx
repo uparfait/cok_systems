@@ -7,7 +7,7 @@ import { reservationService } from '../../../core/services/adminService';
 import { FiInfo, FiSearch, FiEdit2, FiTrash2, FiClock, FiCheck, FiDownload, FiLoader } from 'react-icons/fi';
 import { VisitorReservationForm, StaffBookingForm } from './sub/ReservationForms';
 
-interface Reservation { id: string; visitor_name: string; plate_number: string; telephone: string; id_type?: string; id_number?: string; expected_arrival: string; type: 'visitor' | 'staff'; status: 'active' | 'expired' | 'cancelled'; created_at?: string; }
+interface Reservation { id: string; visitor_name: string; plate_number: string; telephone: string; id_type?: string; id_number?: string; expected_arrival: string; type: 'visitor' | 'staff'; status: 'active' | 'expired' | 'cancelled' | 'checked_in' | 'used'; created_at?: string; }
 interface ReservationFormData { plate_number: string; driver_name: string; id_type: string; id_number: string; telephone_number: string; slot_number: string; arrival_time?: string; }
 interface StaffBookingData { staff_name: string; phone: string; plate_number: string; department_name?: string; owner_title?: string; id_type?: string; identification?: string; }
 
@@ -77,9 +77,9 @@ const ReservationsPage: React.FC = () => {
   };
 
   const downloadVisitorTemplate = () => {
-    const h = ['Name', 'Plate Number', 'ID Type', 'ID Number', 'Phone', 'Slot Number'];
+    const h = ['Name', 'Plate Number', 'ID Type', 'ID Number', 'Phone'];
     const csvRows = [h.join(',')];
-    csvRows.push(['', '', 'NID', '', '', ''].join(','));
+    csvRows.push(['', '', 'NID', '', ''].join(','));
     const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'visitor_reservation_template.csv'; link.click();
     showSuccess('Template downloaded');
@@ -142,7 +142,7 @@ const ReservationsPage: React.FC = () => {
                     <td className="px-4 py-3 text-sm text-gray-600">{r.plate_number}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{r.telephone}</td>
                     <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 font-medium ${r.type === 'staff' ? 'bg-purple-50 text-purple-700' : 'bg-green-50 text-green-700'}`}>{r.type}</span></td>
-                    <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 font-medium ${r.status === 'active' ? 'bg-green-50 text-green-700' : r.status === 'cancelled' ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-700'}`}>{r.status}</span></td>
+                    <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 font-medium ${r.status === 'active' ? 'bg-green-50 text-green-700' : r.status === 'cancelled' ? 'bg-red-50 text-red-700' : r.status === 'checked_in' ? 'bg-blue-50 text-blue-700' : r.status === 'used' ? 'bg-purple-50 text-purple-700' : 'bg-gray-50 text-gray-700'}`}>{r.status === 'checked_in' ? 'checked in' : r.status}</span></td>
                     <td className="px-4 py-3"><div className="flex items-center gap-2">{r.status !== 'cancelled' ? <button onClick={() => handleCancelClick(r)} className="text-red-500 hover:text-red-700"><FiTrash2 className="w-3.5 h-3.5" /></button> : <button onClick={async () => { const d = await reservationService.reactivateReservation(r.id); if (d.success) { showSuccess('Reactivated'); fetchReservations(); } }} className="text-green-500"><FiCheck className="w-3.5 h-3.5" /></button>}</div></td>
                   </tr>
                 )) : <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">No reservations found</td></tr>}
