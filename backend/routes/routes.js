@@ -24,6 +24,7 @@ const notifications = require('./notifications/routes.js')
 const performance = require('./performance.js')
 const requests = require('./requests/routes.js')
 const event_management = require('./event_management/routes.js')
+const data_management = require('./data_management/routes.js')
 
 
 Router.use('/servicedelivery',
@@ -72,6 +73,7 @@ Router.use('/notifications', authenticate, notifications)
 Router.use('/performance', authenticate, performance)
 Router.use('/requests', requests)
 Router.use('/v1/event-actions', event_management)
+Router.use('/data-management', authenticate, data_management)
 
 // Serve uploaded files
 const path = require('path')

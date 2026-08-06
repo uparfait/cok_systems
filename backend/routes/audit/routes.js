@@ -361,14 +361,22 @@ Router.delete('/logs/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const auditLog = await Audit.findByIdAndDelete(id);
-
+    const auditLog = await Audit.findById(id);
     if (!auditLog) {
       return res.status(404).json({
         success: false,
         message: 'Audit log not found'
       });
     }
+
+    if (auditLog.un_deletable) {
+      return res.status(403).json({
+        success: false,
+        message: 'This audit log cannot be deleted'
+      });
+    }
+
+    await Audit.findByIdAndDelete(id);
 
     await logAudit('DELETE', `Deleted audit log: ${auditLog.description}`, req, {
       resource: 'audit_logs',

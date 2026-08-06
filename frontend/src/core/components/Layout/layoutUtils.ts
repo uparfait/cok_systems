@@ -293,6 +293,8 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     if (hasPermission(user, 'admin') || isAdmin)
       adminChildren.push({ id: 'system-audit', label: 'System Audit', path: `/${slug}/system-audit`, icon: 'FiActivity' });
     if (hasPermission(user, 'admin') || isAdmin)
+      adminChildren.push({ id: 'storage-management', label: 'Storage Management', path: `/${slug}/storage-management`, icon: 'FiHardDrive' });
+    if (hasPermission(user, 'admin') || isAdmin)
       adminChildren.push({ id: 'task-manager', label: 'Task Manager', path: `/${slug}/tasks`, icon: 'FiClipboard', children: [
         { id: 'admin-individual-tasks', label: 'Individual Tasks', path: `/${slug}/tasks`, icon: 'FiClipboard' },
         { id: 'admin-follow-ups', label: 'Follow-ups', path: `/${slug}/followups`, icon: 'FiCheck' }

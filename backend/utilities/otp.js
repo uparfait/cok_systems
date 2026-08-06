@@ -26,7 +26,7 @@ const generateOTP = (length = OTP_LENGTH) => {
 const generateOTPWithExpiry = () => {
     return {
         otp: generateOTP(),
-        expiresAt: new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000) // exires in 5 minutes
+        expiresAt: Date.now() + OTP_EXPIRY_SECONDS * 1000
     };
 };
 
@@ -47,7 +47,7 @@ const validateOTP = (inputOTP, storedOTP, expiresAt) => {
     }
 
     // Check if OTP has expired
-    if (new Date() > new Date(expiresAt)) {
+    if (Date.now() > expiresAt) {
         return {
             valid: false,
             error: 'OTP has expired'

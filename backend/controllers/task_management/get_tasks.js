@@ -42,6 +42,8 @@ const getTasks = async (req, res) => {
             }
         }
 
+        query.createdBy = req.user.id || req.user._id || null // Ensure the query is filtered by the authenticated user
+
         // Build sort object
         const sort = {}
         sort[sortBy] = sortOrder === 'desc' ? -1 : 1
@@ -54,6 +56,8 @@ const getTasks = async (req, res) => {
             .sort(sort)
             .limit(parseInt(limit))
             .skip(parseInt(skip))
+
+
 
         const total = await Task.countDocuments(query)
 
