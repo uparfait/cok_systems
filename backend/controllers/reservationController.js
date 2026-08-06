@@ -3,6 +3,24 @@ const mongoose = require('mongoose');
 const EmergencyCar = require('../models/emergency_car');
 const ParkingSlot = require('../models/parking_slots');
 
+// Plates are stored normalized (UPPERCASE, no spaces) so check-in/verify lookups always match
+const normalizePlate = (p) => String(p || '').toUpperCase().replace(/\s+/g, '');
+
+// Template "Date" column → reservation expiry (valid through the END of that day).
+// Accepts JS Dates, Excel serial numbers, and date strings (e.g. 2026-12-31).
+// Missing/unreadable dates return null = the reservation never expires.
+const parseTemplateDate = (raw) => {
+    if (raw === undefined || raw === null || raw === '') return null;
+    let d = null;
+    if (raw instanceof Date) d = raw;
+    else if (typeof raw === 'number') d = new Date(Math.round((raw - 25569) * 86400 * 1000)); // Excel serial day
+    else d = new Date(String(raw).trim());
+    if (!d || isNaN(d.getTime())) return null;
+    const end = new Date(d);
+    end.setHours(23, 59, 59, 999);
+    return end;
+};
+
 /**
  * OPTION A: Single Visitor Reservation
  * Used when the Admin fills out a web form for a single guest.
@@ -17,7 +35,7 @@ const registerSingleReservation = async (req, res) => {
 
         // 1. Create the single visitor object
         const singleVisitor = {
-            plate_number,
+            plate_number: normalizePlate(plate_number),
             driver_name,
             driver_type: 'visitor',
             driver_identification: {
@@ -29,15 +47,16 @@ const registerSingleReservation = async (req, res) => {
             is_flagged: false
         };
 
-        // 2. Save it inside the EmergencyCar batch format (with space = 1)
+        // 2. Save it inside the EmergencyCar batch format (with space = 1).
+        // No expiry date: the reservation stays valid until the vehicle checks in or it is cancelled.
         const newReservation = new EmergencyCar({
             total_reserved_space: 1,
             visitor_info: [singleVisitor],
             validity: {
                 from: new Date(),
-                to: new Date(new Date().setHours(23, 59, 59, 999)) // Valid until end of today
+                to: null
             },
-            registered_by: 'Super_Admin' 
+            registered_by: 'Super_Admin'
         });
 
 await newReservation.save();
@@ -48,6 +67,9 @@ await newReservation.save();
              parkingSlot.visitorReservationCount = (parkingSlot.visitorReservationCount || 0) + 1;
              await parkingSlot.save();
          }
+
+         // Live-refresh dashboards showing reserved counts / the parking status map
+         global.WebsocketIO?.emit('parking_update', { type: 'info', message: 'New visitor reservation registered' });
 
          res.status(201).json({
             success: true,
@@ -110,9 +132,9 @@ const bulkUploadReservations = async (req, res) => {
             return res.status(400).json({ success: false, message: 'The uploaded Excel file(s) are empty.' });
         }
 
-        // 4. Map the newly combined, single list
+        // 4. Map the newly combined, single list (plates normalized; rows without a plate are skipped)
         const mappedVisitors = allVisitorsData.map(row => ({
-            plate_number: row['Plate Number'] || row['plate number'] || '',
+            plate_number: normalizePlate(row['Plate Number'] || row['plate number'] || ''),
             driver_name: row['Name'] || row['name'] || '',
             driver_type: 'visitor',
             driver_identification: {
@@ -120,19 +142,24 @@ const bulkUploadReservations = async (req, res) => {
                 number: String(row['ID Number'] || row['id_number'] || '')
             },
             telephone_number: String(row['Phone'] || row['phone'] || ''),
-            slot_number: String(row['Slot Number'] || row['slot number'] || ''), 
+            valid_until: parseTemplateDate(row['Date'] || row['date'] || row['Valid Until'] || row['valid_until']),
             is_flagged: false
-        }));
+        })).filter(v => v.plate_number);
 
-        // 5. Save everything as ONE single database document
+        if (mappedVisitors.length === 0) {
+            return res.status(400).json({ success: false, message: 'No rows with a plate number found in the uploaded file(s).' });
+        }
+
+        // 5. Save everything as ONE single database document.
+        // No expiry date: each reservation stays valid until its vehicle checks in or it is cancelled.
         const newReservationBatch = new EmergencyCar({
             total_reserved_space: mappedVisitors.length,
             visitor_info: mappedVisitors,
             validity: {
                 from: new Date(),
-                to: new Date(new Date().setHours(23, 59, 59, 999)) // Valid until end of today
+                to: null
             },
-            registered_by: 'Super_Admin_Bulk_Upload' 
+            registered_by: 'Super_Admin_Bulk_Upload'
         });
 
         // --- 2. THE TRANSACTION BUBBLE (Database Actions) ---
@@ -157,6 +184,9 @@ const bulkUploadReservations = async (req, res) => {
             
             // End the session after committing
             session.endSession();
+
+        // Live-refresh dashboards showing reserved counts / the parking status map
+        global.WebsocketIO?.emit('parking_update', { type: 'info', message: `${mappedVisitors.length} visitor reservations uploaded` });
 
         res.status(201).json({
             success: true,

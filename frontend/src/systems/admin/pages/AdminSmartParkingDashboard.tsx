@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import ExcelJS from 'exceljs';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
@@ -106,37 +107,51 @@ const AdminSmartParkingDashboard: React.FC = () => {
   const formatDateForPDF = (d: Date) => d.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
   const truncateText = (t: string | undefined, m: number) => t ? (t.length > m ? t.substring(0, m - 3) + '...' : t) : 'N/A';
 
-  // Fetches its own records at export time (the dashboard doesn't keep the full
+  // Fetches records fresh at export time (the dashboard doesn't keep the full
   // list in memory), optionally filtered to a check-in date range
+  const fetchExportRecords = useCallback(async (opts?: { from?: string; to?: string }) => {
+    const r = await smartParkingService.getAllPaginated(1, 1000, 'all');
+    let records: ParkingRecord[] = Array.isArray(r?.data) ? r.data : (Array.isArray(r) ? r : []);
+    if (opts?.from) records = records.filter(rec => rec.check_in && new Date(rec.check_in) >= new Date(opts.from!));
+    if (opts?.to) records = records.filter(rec => rec.check_in && new Date(rec.check_in) <= new Date(opts.to + 'T23:59:59'));
+    return records;
+  }, []);
+
+  // Official report banner (Republic of Rwanda · City of Kigali) as a base64 data URL
+  const loadReportBanner = async (): Promise<string | null> => {
+    try {
+      const res = await fetch('/LOGO_COK_report.png');
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  };
+
   const handleDownloadReport = useCallback(async (opts?: { from?: string; to?: string }) => {
     setExporting(true);
     try {
-      // Fetch the records fresh so the export never depends on the modal being opened
-      const r = await smartParkingService.getAllPaginated(1, 1000, 'all');
-      let records: ParkingRecord[] = Array.isArray(r?.data) ? r.data : (Array.isArray(r) ? r : []);
-      if (opts?.from) records = records.filter(rec => rec.check_in && new Date(rec.check_in) >= new Date(opts.from!));
-      if (opts?.to) records = records.filter(rec => rec.check_in && new Date(rec.check_in) <= new Date(opts.to + 'T23:59:59'));
+      const records = await fetchExportRecords(opts);
 
       const doc = new jsPDF('l', 'mm', 'a4');
       const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight();
       let y = 10;
       // Full-width report banner (Republic of Rwanda · City of Kigali), same as the attendance reports
-      try {
-        const res = await fetch('/LOGO_COK_report.png');
-        if (res.ok) {
-          const blob = await res.blob();
-          const dataUrl: string = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
+      const banner = await loadReportBanner();
+      if (banner) {
+        try {
           const logoW = pw - 20;
           const logoH = logoW * (221 / 1116); // original banner is 1116x221 px
-          doc.addImage(dataUrl, 'PNG', 10, y, logoW, logoH);
+          doc.addImage(banner, 'PNG', 10, y, logoW, logoH);
           y += logoH + 10;
-        }
-      } catch (e) { /* render without the banner if it fails to load */ }
+        } catch (e) { /* render without the banner if it fails to load */ }
+      }
       doc.setFont('helvetica', 'bold');
       const now = new Date();
       doc.setFontSize(9); doc.setTextColor(0, 0, 0); doc.text(formatDateForPDF(now), pw / 2, y, { align: 'center' }); y += 5;
@@ -182,7 +197,86 @@ const AdminSmartParkingDashboard: React.FC = () => {
     } finally {
       setExporting(false);
     }
-  }, [showError]);
+  }, [showError, fetchExportRecords]);
+
+  // Excel export — same records, dialog, and banner as the PDF report
+  const handleDownloadExcel = useCallback(async (opts?: { from?: string; to?: string }) => {
+    setExporting(true);
+    try {
+      const records = await fetchExportRecords(opts);
+      const now = new Date();
+
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Parking Records');
+      ws.columns = [{ width: 6 }, { width: 18 }, { width: 30 }, { width: 16 }, { width: 14 }, { width: 24 }];
+
+      // Banner floats over the first rows, sized to span the table width
+      let rowCursor = 1;
+      const banner = await loadReportBanner();
+      if (banner) {
+        const imgId = wb.addImage({ base64: banner, extension: 'png' });
+        const logoWidth = 660;
+        const logoHeight = logoWidth * (221 / 1116);
+        ws.addImage(imgId, { tl: { col: 0, row: 0 }, ext: { width: logoWidth, height: logoHeight } });
+        rowCursor = Math.ceil(logoHeight / 15) + 2;
+      }
+
+      const titleRow = ws.getRow(rowCursor);
+      titleRow.getCell(1).value = 'RECENT PARKING RECORDS';
+      titleRow.getCell(1).font = { bold: true, size: 14, color: { argb: 'FF295F73' } };
+      rowCursor += 1;
+
+      const scopeRow = ws.getRow(rowCursor);
+      scopeRow.getCell(1).value = opts?.from || opts?.to
+        ? `Period: ${opts?.from || 'start'} to ${opts?.to || 'today'} (${records.length} records)`
+        : `All records (${records.length})`;
+      scopeRow.getCell(1).font = { size: 9, italic: true, color: { argb: 'FF888888' } };
+      rowCursor += 2;
+
+      const headers = ['S/N', 'Plate', 'Driver', 'Type', 'Status', 'Check-in Time'];
+      const headerRow = ws.getRow(rowCursor);
+      headers.forEach((h, i) => {
+        const cell = headerRow.getCell(i + 1);
+        cell.value = h;
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF295F73' } };
+      });
+      rowCursor += 1;
+
+      records.forEach((rec, i) => {
+        const row = ws.getRow(rowCursor + i);
+        [
+          i + 1,
+          rec.plate_number || 'N/A',
+          rec.driver_name || 'N/A',
+          rec.driver_type || 'N/A',
+          rec.status === 'active' ? 'Active' : rec.status === 'completed' ? 'Completed' : 'N/A',
+          rec.check_in ? new Date(rec.check_in).toLocaleString() : 'N/A',
+        ].forEach((v, j) => { row.getCell(j + 1).value = v; });
+      });
+
+      const footerRow = ws.getRow(rowCursor + records.length + 1);
+      footerRow.getCell(1).value =
+        `City of Kigali - Smart Parking Management System   Exported: ${now.toLocaleString()}`;
+      footerRow.getCell(1).font = { size: 9, italic: true, color: { argb: 'FF888888' } };
+
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Parking_Records_${now.toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      setShowExportDialog(false);
+    } catch (e) {
+      showError('Failed to export parking records');
+    } finally {
+      setExporting(false);
+    }
+  }, [showError, fetchExportRecords]);
 
   if (authLoading) return <div className="flex items-center justify-center min-h-[600px]"><LoadingSpinner message="Loading dashboard..." /></div>;
 
@@ -225,7 +319,7 @@ const AdminSmartParkingDashboard: React.FC = () => {
           <div className="px-4 py-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-900">Recent Parking Records</h2>
             <div className="flex gap-2">
-              <button onClick={() => { setExportMode('all'); setShowExportDialog(true); }} className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium hover:bg-blue-700"><FiDownload className="w-3 h-3" />PDF</button>
+              <button onClick={() => { setExportMode('all'); setShowExportDialog(true); }} className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium hover:bg-blue-700"><FiDownload className="w-3 h-3" />Export</button>
               <button onClick={() => { setShowRecordsModal(true); fetchAllRecords(1); }} className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200">View All</button>
             </div>
           </div>
@@ -270,6 +364,14 @@ const AdminSmartParkingDashboard: React.FC = () => {
               </div>
               <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-200">
                 <button onClick={() => setShowExportDialog(false)} disabled={exporting} className="px-4 py-2 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancel</button>
+                <button
+                  onClick={() => handleDownloadExcel(exportMode === 'range' ? { from: exportFrom || undefined, to: exportTo || undefined } : undefined)}
+                  disabled={exporting || (exportMode === 'range' && !exportFrom && !exportTo)}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-green-700 text-white text-xs font-medium hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {exporting ? <FiLoader className="w-3.5 h-3.5 animate-spin" /> : <FiDownload className="w-3.5 h-3.5" />}
+                  {exporting ? 'Exporting…' : 'Export Excel'}
+                </button>
                 <button
                   onClick={() => handleDownloadReport(exportMode === 'range' ? { from: exportFrom || undefined, to: exportTo || undefined } : undefined)}
                   disabled={exporting || (exportMode === 'range' && !exportFrom && !exportTo)}

@@ -40,7 +40,7 @@ export default function TaskTools({ task }) {
         'Full Name': a.attendeeFullName || '',
         'Institution': a.attendeeInstitution || '',
         'Position': a.attendeePosition || '',
-        'Signed': a.attendeeSignature ? 'Yes' : 'No',
+        'Signed': (a.attendeeSignature || a.digitalCertificate) ? 'Yes' : 'No',
         'Submitted At': new Date(a.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
       }));
       const wb = XLSX.utils.book_new();
