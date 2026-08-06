@@ -4,14 +4,12 @@ const EmergencyCarHistory = require('../models/emergency_car_history');
 const StaffCar = require('../models/staff_car');
 const ParkingSlot = require('../models/parking_slots');
 const ParkingRecord = require('../models/parking_record');
-
-// Plates are stored normalized (UPPERCASE, no spaces) so check-in/verify lookups always match
-const normalizePlate = (p) => String(p || '').toUpperCase().replace(/\s+/g, '');
+const { normalizePlate, parseTemplateDate } = require('../utilities/reservationUtils');
 
 /**
- * Auto-cancel visitor reservations whose valid_until date has passed.
+ * Auto-cancel reservations (visitor entries AND staff cars) whose End Date has passed.
  * Runs lazily whenever the reservation list is fetched; expired entries are marked
- * cancelled and the pending-reservation counter is decremented accordingly.
+ * cancelled and the pending-reservation counters are decremented accordingly.
  */
 const autoCancelExpiredReservations = async () => {
     const now = new Date();
@@ -30,15 +28,24 @@ const autoCancelExpiredReservations = async () => {
         if (doc.visitor_info.every(v => v.is_cancelled)) doc.is_active = false;
         await doc.save();
     }
-    if (expiredCount > 0) {
+
+    // Staff cars with a window that ended are deactivated the same way
+    const expiredStaff = await StaffCar.find({ is_active: true, valid_until: { $ne: null, $lt: now } });
+    for (const car of expiredStaff) {
+        car.is_active = false;
+        await car.save();
+    }
+
+    if (expiredCount > 0 || expiredStaff.length > 0) {
         const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
         if (parkingSlot) {
             parkingSlot.visitorReservationCount = Math.max(0, (parkingSlot.visitorReservationCount || 0) - expiredCount);
+            parkingSlot.staffReservationCount = Math.max(0, (parkingSlot.staffReservationCount || 0) - expiredStaff.length);
             await parkingSlot.save();
         }
-        global.WebsocketIO?.emit('parking_update', { type: 'info', message: `${expiredCount} expired reservation(s) auto-cancelled` });
+        global.WebsocketIO?.emit('parking_update', { type: 'info', message: `${expiredCount + expiredStaff.length} expired reservation(s) auto-cancelled` });
     }
-    return expiredCount;
+    return expiredCount + expiredStaff.length;
 };
 
 /**
@@ -94,6 +101,7 @@ const getAllReservations = async (req, res) => {
                         id_type: visitor.driver_identification?.id_type || visitor.id_type,
                         id_number: visitor.driver_identification?.number || visitor.id_number,
                         expected_arrival: reservation.validity?.from ? new Date(reservation.validity.from).toISOString() : new Date().toISOString(),
+                        valid_from: visitor.valid_from || null,
                         valid_until: visitor.valid_until || null,
                         type: 'visitor',
                         status: status,
@@ -127,6 +135,7 @@ const getAllReservations = async (req, res) => {
                         id_type: visitor.driver_identification?.id_type || visitor.id_type,
                         id_number: visitor.driver_identification?.number || visitor.id_number,
                         expected_arrival: reservation.validity?.from ? new Date(reservation.validity.from).toISOString() : new Date().toISOString(),
+                        valid_from: visitor.valid_from || null,
                         valid_until: visitor.valid_until || null,
                         type: 'visitor',
                         status: status,
@@ -148,6 +157,8 @@ const getAllReservations = async (req, res) => {
                 id_type: reservation.id_type,
                 id_number: reservation.identification,
                 expected_arrival: reservation.createdAt ? new Date(reservation.createdAt).toISOString() : new Date().toISOString(),
+                valid_from: reservation.valid_from || null,
+                valid_until: reservation.valid_until || null,
                 type: 'staff',
                 status: !reservation.is_active ? 'cancelled'
                     : insidePlates.has(normalizePlate(reservation.plate_number)) ? 'checked_in'
@@ -454,11 +465,12 @@ const bulkUploadStaff = async (req, res) => {
             });
         }
 
+        const batchName = file.originalname || null;
         const staffBookings = [];
         for (const row of data) {
             const staff_name = row['Staff Name'] || row['staff_name'] || row['Name'] || row['name'];
             const plate_number = row['Plate Number'] || row['plate_number'] || row['Plate'] || row['plate'];
-            
+
             if (staff_name && plate_number) {
                 staffBookings.push({
                     owner_name: staff_name,
@@ -468,35 +480,48 @@ const bulkUploadStaff = async (req, res) => {
                     owner_title: String(row['Title'] || row['title'] || ''),
                     id_type: String(row['ID Type'] || row['id_type'] || 'NID'),
                     identification: String(row['ID Number'] || row['id_number'] || ''),
+                    valid_from: parseTemplateDate(row['Start Date'] || row['start date'] || row['Start'] || row['start'], false),
+                    valid_until: parseTemplateDate(row['End Date'] || row['end date'] || row['End'] || row['end'] || row['Date'] || row['date'], true),
+                    batch_name: batchName,
                     is_active: true
                 });
             }
         }
 
-        if (staffBookings.length === 0) {
+        // Same window rules as visitor uploads: End Date in the past or Start after End = skipped
+        const uploadTime = new Date();
+        const isBadRow = (v) => (v.valid_until && v.valid_until < uploadTime)
+            || (v.valid_from && v.valid_until && v.valid_from > v.valid_until);
+        const skippedRows = staffBookings.filter(isBadRow);
+        const validBookings = staffBookings.filter(v => !isBadRow(v));
+
+        if (validBookings.length === 0) {
             return res.status(400).json({
                 success: false,
-                message: 'No valid staff records found in the file'
+                message: staffBookings.length === 0
+                    ? 'No valid staff records found in the file'
+                    : `All ${skippedRows.length} row(s) have an End Date that already passed or a Start Date after the End Date (format is day/month/year). Nothing was registered.`
             });
         }
 
         // Insert all staff bookings
-        await StaffCar.insertMany(staffBookings);
+        await StaffCar.insertMany(validBookings);
 
 // Increment reservation count (do NOT affect RegularAvailableSlots)
          const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
          if (parkingSlot) {
-             parkingSlot.staffReservationCount = (parkingSlot.staffReservationCount || 0) + staffBookings.length;
+             parkingSlot.staffReservationCount = (parkingSlot.staffReservationCount || 0) + validBookings.length;
              await parkingSlot.save();
          }
 
         // Live-refresh dashboards showing reserved counts / the parking status map
-        global.WebsocketIO?.emit('parking_update', { type: 'info', message: `${staffBookings.length} staff reservations uploaded` });
+        global.WebsocketIO?.emit('parking_update', { type: 'info', message: `${validBookings.length} staff reservations uploaded` });
 
         res.status(201).json({
             success: true,
-            message: `Successfully uploaded ${staffBookings.length} staff reservations`,
-            count: staffBookings.length
+            message: `Successfully uploaded ${validBookings.length} staff reservation(s).`
+                + (skippedRows.length ? ` ${skippedRows.length} row(s) skipped — End Date already passed or Start Date after End Date (format is day/month/year).` : ''),
+            count: validBookings.length
         });
     } catch (error) {
         console.error('Error in bulk staff upload:', error);
@@ -620,6 +645,185 @@ const bulkReservationAction = (mode) => async (req, res) => {
 const bulkCancelReservations = bulkReservationAction('cancel');
 const bulkDeleteReservations = bulkReservationAction('delete');
 
+/**
+ * List upload batches: visitor uploads (one EmergencyCar document each) and staff
+ * uploads (StaffCar records grouped by their file name). Searchable by file name.
+ */
+const getReservationBatches = async (req, res) => {
+    try {
+        try { await autoCancelExpiredReservations(); } catch (e) { console.error('Auto-cancel sweep failed:', e); }
+
+        const batches = [];
+
+        const visitorDocs = await EmergencyCar.find({ batch_name: { $ne: null } }).lean();
+        for (const doc of visitorDocs) {
+            const entries = doc.visitor_info || [];
+            const starts = entries.map(v => v.valid_from).filter(Boolean).map(d => new Date(d).getTime());
+            const ends = entries.map(v => v.valid_until).filter(Boolean).map(d => new Date(d).getTime());
+            batches.push({
+                id: doc._id.toString(),
+                type: 'visitor',
+                batch_name: doc.batch_name,
+                uploaded_at: doc._id.getTimestamp(),
+                total: entries.length,
+                active: entries.filter(v => !v.is_used && !v.is_cancelled).length,
+                used: entries.filter(v => v.is_used).length,
+                cancelled: entries.filter(v => v.is_cancelled && !v.is_used).length,
+                start_date: starts.length ? new Date(Math.min(...starts)) : null,
+                end_date: ends.length ? new Date(Math.max(...ends)) : null
+            });
+        }
+
+        const staffDocs = await StaffCar.find({ batch_name: { $ne: null } }).lean();
+        const byName = new Map();
+        staffDocs.forEach(c => {
+            if (!byName.has(c.batch_name)) byName.set(c.batch_name, []);
+            byName.get(c.batch_name).push(c);
+        });
+        for (const [name, cars] of byName) {
+            const starts = cars.map(c => c.valid_from).filter(Boolean).map(d => new Date(d).getTime());
+            const ends = cars.map(c => c.valid_until).filter(Boolean).map(d => new Date(d).getTime());
+            batches.push({
+                id: name,
+                type: 'staff',
+                batch_name: name,
+                uploaded_at: cars[0]?._id ? cars[0]._id.getTimestamp() : null,
+                total: cars.length,
+                active: cars.filter(c => c.is_active).length,
+                used: 0,
+                cancelled: cars.filter(c => !c.is_active).length,
+                start_date: starts.length ? new Date(Math.min(...starts)) : null,
+                end_date: ends.length ? new Date(Math.max(...ends)) : null
+            });
+        }
+
+        batches.sort((a, b) => new Date(b.uploaded_at || 0) - new Date(a.uploaded_at || 0));
+        return res.status(200).json({ success: true, batches, total: batches.length });
+    } catch (error) {
+        console.error('Error listing reservation batches:', error);
+        return res.status(500).json({ success: false, message: 'Error listing reservation batches', error: error.message });
+    }
+};
+
+/**
+ * Cancel every pending reservation in an uploaded batch.
+ * Body: { id, type: 'visitor' | 'staff' } — visitor id is the batch document id,
+ * staff id is the batch (file) name.
+ */
+const cancelReservationBatch = async (req, res) => {
+    try {
+        const { id, type } = req.body || {};
+        if (!id || !type) return res.status(400).json({ success: false, message: 'Batch id and type are required' });
+
+        let cancelledPending = 0;
+
+        if (type === 'visitor') {
+            const doc = await EmergencyCar.findById(id);
+            if (!doc) return res.status(404).json({ success: false, message: 'Batch not found' });
+            doc.visitor_info.forEach(v => {
+                if (!v.is_used && !v.is_cancelled) { v.is_cancelled = true; cancelledPending++; }
+            });
+            if (doc.visitor_info.every(v => v.is_cancelled || v.is_used)) doc.is_active = false;
+            await doc.save();
+
+            const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+            if (parkingSlot && cancelledPending > 0) {
+                parkingSlot.visitorReservationCount = Math.max(0, (parkingSlot.visitorReservationCount || 0) - cancelledPending);
+                await parkingSlot.save();
+            }
+        } else {
+            const cars = await StaffCar.find({ batch_name: id, is_active: true });
+            if (cars.length === 0) return res.status(404).json({ success: false, message: 'No active reservations found in this batch' });
+            for (const car of cars) {
+                const inside = await ParkingRecord.findOne({ plate_number: car.plate_number, status: 'active' });
+                car.is_active = false;
+                await car.save();
+                if (!inside) cancelledPending++;
+            }
+            const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+            if (parkingSlot && cancelledPending > 0) {
+                parkingSlot.staffReservationCount = Math.max(0, (parkingSlot.staffReservationCount || 0) - cancelledPending);
+                await parkingSlot.save();
+            }
+        }
+
+        global.WebsocketIO?.emit('parking_update', { type: 'info', message: `Reservation batch cancelled (${cancelledPending} pending entries)` });
+        return res.status(200).json({ success: true, message: `Batch cancelled — ${cancelledPending} pending reservation(s) released`, cancelled: cancelledPending });
+    } catch (error) {
+        console.error('Error cancelling reservation batch:', error);
+        return res.status(500).json({ success: false, message: 'Error cancelling reservation batch', error: error.message });
+    }
+};
+
+/**
+ * Reschedule an uploaded batch: the given Start/End dates REPLACE the dates from the
+ * file for every entry that has not been used yet. Cancelled/expired entries are
+ * revived so the whole upload becomes valid for the new window.
+ * Body: { id, type: 'visitor' | 'staff', start_date, end_date }
+ */
+const rescheduleReservationBatch = async (req, res) => {
+    try {
+        const { id, type, start_date, end_date } = req.body || {};
+        if (!id || !type) return res.status(400).json({ success: false, message: 'Batch id and type are required' });
+
+        const newFrom = parseTemplateDate(start_date, false);
+        const newUntil = parseTemplateDate(end_date, true);
+        if (end_date && !newUntil) return res.status(400).json({ success: false, message: 'End date is not a valid date' });
+        if (start_date && !newFrom) return res.status(400).json({ success: false, message: 'Start date is not a valid date' });
+        if (newUntil && newUntil < new Date()) return res.status(400).json({ success: false, message: 'The new End Date has already passed' });
+        if (newFrom && newUntil && newFrom > newUntil) return res.status(400).json({ success: false, message: 'Start Date must be before End Date' });
+
+        let updated = 0;
+        let revived = 0;
+
+        if (type === 'visitor') {
+            const doc = await EmergencyCar.findById(id);
+            if (!doc) return res.status(404).json({ success: false, message: 'Batch not found' });
+            doc.visitor_info.forEach(v => {
+                if (v.is_used) return; // the vehicle already came — nothing to reschedule
+                v.valid_from = newFrom;
+                v.valid_until = newUntil;
+                if (v.is_cancelled) { v.is_cancelled = false; revived++; }
+                updated++;
+            });
+            doc.is_active = true;
+            await doc.save();
+
+            const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+            if (parkingSlot && revived > 0) {
+                parkingSlot.visitorReservationCount = (parkingSlot.visitorReservationCount || 0) + revived;
+                await parkingSlot.save();
+            }
+        } else {
+            const cars = await StaffCar.find({ batch_name: id });
+            if (cars.length === 0) return res.status(404).json({ success: false, message: 'Batch not found' });
+            for (const car of cars) {
+                car.valid_from = newFrom;
+                car.valid_until = newUntil;
+                if (!car.is_active) { car.is_active = true; revived++; }
+                await car.save();
+                updated++;
+            }
+            const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+            if (parkingSlot && revived > 0) {
+                parkingSlot.staffReservationCount = (parkingSlot.staffReservationCount || 0) + revived;
+                await parkingSlot.save();
+            }
+        }
+
+        global.WebsocketIO?.emit('parking_update', { type: 'info', message: 'Reservation batch rescheduled' });
+        return res.status(200).json({
+            success: true,
+            message: `${updated} reservation(s) rescheduled${revived ? ` (${revived} reactivated)` : ''}`,
+            updated,
+            revived
+        });
+    } catch (error) {
+        console.error('Error rescheduling reservation batch:', error);
+        return res.status(500).json({ success: false, message: 'Error rescheduling reservation batch', error: error.message });
+    }
+};
+
 module.exports = {
     getAllReservations,
     createStaffBooking,
@@ -627,5 +831,8 @@ module.exports = {
     reactivateReservation,
     bulkUploadStaff,
     bulkCancelReservations,
-    bulkDeleteReservations
+    bulkDeleteReservations,
+    getReservationBatches,
+    cancelReservationBatch,
+    rescheduleReservationBatch
 };

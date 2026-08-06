@@ -8,7 +8,7 @@ import { reservationService } from '../../../core/services/adminService';
 import { FiInfo, FiSearch, FiEdit2, FiTrash2, FiClock, FiCheck, FiDownload, FiLoader } from 'react-icons/fi';
 import { VisitorReservationForm, StaffBookingForm } from './sub/ReservationForms';
 
-interface Reservation { id: string; visitor_name: string; plate_number: string; telephone: string; id_type?: string; id_number?: string; expected_arrival: string; type: 'visitor' | 'staff'; status: 'active' | 'expired' | 'cancelled' | 'checked_in' | 'used'; valid_until?: string | null; created_at?: string; }
+interface Reservation { id: string; visitor_name: string; plate_number: string; telephone: string; id_type?: string; id_number?: string; expected_arrival: string; type: 'visitor' | 'staff'; status: 'active' | 'expired' | 'cancelled' | 'checked_in' | 'used'; valid_from?: string | null; valid_until?: string | null; created_at?: string; }
 
 // City of Kigali (CoK) institutional design constants — same set as the receptionist dashboard
 const PRIMARY = '#056daa';
@@ -33,6 +33,17 @@ const STATUS_CHIP: Record<Reservation['status'], { bg: string; text: string; lab
 };
 
 const initialsOf = (name: string) => (name || '?').split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
+
+// A reservation can be cancelled while it still has validity: active ones always;
+// checked-in/used ones only while the End Date has not passed (null = open-ended)
+const isCancellable = (r: Reservation) =>
+  r.status === 'active' ? true
+  : (r.status === 'checked_in' || r.status === 'used')
+    ? (!r.valid_until || new Date(r.valid_until) >= new Date())
+    : false;
+
+// One uploaded file = one batch, named after the file — cancel/reschedule it as a whole
+interface ReservationBatch { id: string; type: 'visitor' | 'staff'; batch_name: string; uploaded_at?: string | null; total: number; active: number; used: number; cancelled: number; start_date?: string | null; end_date?: string | null; }
 interface ReservationFormData { plate_number: string; driver_name: string; id_type: string; id_number: string; telephone_number: string; slot_number: string; arrival_time?: string; }
 interface StaffBookingData { staff_name: string; phone: string; plate_number: string; department_name?: string; owner_title?: string; id_type?: string; identification?: string; }
 
@@ -43,10 +54,23 @@ const ReservationsPage: React.FC = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 5;
+  // Search box draft — applied on Enter or the Search button (clearing applies immediately)
+  const [draftSearch, setDraftSearch] = useState('');
 
-  // Page shows one view at a time: the reservation forms (default) or the reservation list
-  const [view, setView] = useState<'management' | 'list'>('management');
+  // Page shows one view at a time: forms (default), the reservation list, or uploaded batches
+  const [view, setView] = useState<'management' | 'list' | 'batches'>('management');
+
+  // Uploaded-file batches: list + search + pagination + action modals
+  const [batches, setBatches] = useState<ReservationBatch[]>([]);
+  const [batchSearch, setBatchSearch] = useState('');
+  const [draftBatchSearch, setDraftBatchSearch] = useState('');
+  const [batchPage, setBatchPage] = useState(1);
+  const [batchToCancel, setBatchToCancel] = useState<ReservationBatch | null>(null);
+  const [batchToReschedule, setBatchToReschedule] = useState<ReservationBatch | null>(null);
+  const [resStart, setResStart] = useState('');
+  const [resEnd, setResEnd] = useState('');
+  const [batchLoading, setBatchLoading] = useState(false);
   const visitorFileInputRef = useRef<HTMLInputElement>(null);
   const staffFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -69,11 +93,39 @@ const ReservationsPage: React.FC = () => {
     return next;
   });
 
-  useEffect(() => { fetchReservations(); }, []);
+  useEffect(() => { fetchReservations(); fetchBatches(); }, []);
 
   const fetchReservations = async () => {
     try { const r = await reservationService.getAll(); if (r.success) setReservations(r.reservations || []); }
     catch (error) { console.error(error); }
+  };
+
+  const fetchBatches = async () => {
+    try { const r: any = await reservationService.getBatches(); if (r.success) setBatches(r.batches || []); }
+    catch (error) { console.error(error); }
+  };
+
+  const confirmBatchCancel = async () => {
+    if (!batchToCancel) return;
+    setBatchLoading(true);
+    try {
+      const d: any = await reservationService.cancelBatch(batchToCancel.id, batchToCancel.type);
+      if (d.success) { showSuccess(d.message || 'Batch cancelled'); fetchBatches(); fetchReservations(); }
+      else showError(d.message || 'Failed');
+    } catch (error) { showError(error.message); } finally { setBatchLoading(false); setBatchToCancel(null); }
+  };
+
+  // Reschedule replaces the dates of every not-yet-used reservation in the batch
+  // (cancelled/expired ones are revived for the new window)
+  const confirmBatchReschedule = async () => {
+    if (!batchToReschedule) return;
+    if (!resStart && !resEnd) { showError('Set a start date, an end date, or both'); return; }
+    setBatchLoading(true);
+    try {
+      const d: any = await reservationService.rescheduleBatch(batchToReschedule.id, batchToReschedule.type, resStart, resEnd);
+      if (d.success) { showSuccess(d.message || 'Batch rescheduled'); fetchBatches(); fetchReservations(); setBatchToReschedule(null); setResStart(''); setResEnd(''); }
+      else showError(d.message || 'Failed');
+    } catch (error) { showError(error.message); } finally { setBatchLoading(false); }
   };
 
   const handleVisitorSubmit = async (e: React.FormEvent) => {
@@ -146,21 +198,24 @@ const ReservationsPage: React.FC = () => {
   };
 
   const downloadVisitorTemplate = () => {
-    // Date = last day the reservation is valid, written as day/month/year; leave empty for no expiry
+    // Start Date / End Date (day/month/year) define the reservation window; the vehicle
+    // is only received as reserved between those days. Leave a date empty for open-ended.
     buildTemplate(
-      ['Name', 'Plate Number', 'ID Type', 'ID Number', 'Phone', 'Date'],
-      ['', '', 'NID', '', '', '31/12/2026'],
-      [3, 4, 5], // ID Number, Phone, Date stay text
+      ['Name', 'Plate Number', 'ID Type', 'ID Number', 'Phone', 'Start Date', 'End Date'],
+      ['', '', 'NID', '', '', '10/08/2026', '31/12/2026'],
+      [3, 4, 5, 6], // ID Number, Phone and both dates stay text
       'Visitors',
       'visitor_reservation_template.xlsx'
     );
   };
 
   const downloadStaffTemplate = () => {
+    // Same window rules as visitor uploads: Start/End Date in day/month/year;
+    // leave both empty for a permanent allocation
     buildTemplate(
-      ['Staff Name', 'Plate Number', 'Phone', 'Department', 'Title', 'ID Type', 'ID Number'],
-      ['', '', '', '', '', 'NID', ''],
-      [2, 6], // Phone, ID Number stay text
+      ['Staff Name', 'Plate Number', 'Phone', 'Department', 'Title', 'ID Type', 'ID Number', 'Start Date', 'End Date'],
+      ['', '', '', '', '', 'NID', '', '10/08/2026', '31/12/2026'],
+      [2, 6, 7, 8], // Phone, ID Number and both dates stay text
       'Staff',
       'staff_booking_template.xlsx'
     );
@@ -194,9 +249,23 @@ const ReservationsPage: React.FC = () => {
     } catch (error) { showError(error.message); } finally { setBulkLoading(false); setBulkAction(null); }
   };
 
-  const filteredReservations = useMemo(() => reservations.filter(r => r.status !== 'cancelled' && (r.visitor_name.toLowerCase().includes(searchTerm.toLowerCase()) || r.plate_number.toLowerCase().includes(searchTerm.toLowerCase()))), [reservations, searchTerm]);
+  const filteredReservations = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    return reservations.filter(r => r.status !== 'cancelled' && (
+      (r.visitor_name || '').toLowerCase().includes(q)
+      || (r.plate_number || '').toLowerCase().includes(q)
+      || (r.telephone || '').toLowerCase().includes(q)
+    ));
+  }, [reservations, searchTerm]);
   const totalPages = Math.ceil(filteredReservations.length / itemsPerPage);
   const paginated = filteredReservations.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const filteredBatches = useMemo(
+    () => batches.filter(b => (b.batch_name || '').toLowerCase().includes(batchSearch.toLowerCase())),
+    [batches, batchSearch]
+  );
+  const batchTotalPages = Math.ceil(filteredBatches.length / itemsPerPage);
+  const paginatedBatches = filteredBatches.slice((batchPage - 1) * itemsPerPage, batchPage * itemsPerPage);
 
   if (authLoading) return <div className="flex items-center justify-center min-h-[600px]"><LoadingSpinner message="Loading..." /></div>;
 
@@ -207,9 +276,13 @@ const ReservationsPage: React.FC = () => {
           <div>
             <h1 className="text-lg font-bold flex items-center gap-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
               <FiInfo className="w-4 h-4" style={{ color: PRIMARY }} />
-              {view === 'management' ? 'Parking Reservation Management' : 'Reservation List'}
+              {view === 'management' ? 'Parking Reservation Management' : view === 'list' ? 'Reservation List' : 'Uploaded Files'}
             </h1>
-            <p className="text-xs mt-0.5 text-[#555555]">{view === 'management' ? 'Manage visitor and staff parking slot allocations' : 'View and manage all parking reservations'}</p>
+            <p className="text-xs mt-0.5 text-[#555555]">
+              {view === 'management' ? 'Manage visitor and staff parking slot allocations'
+              : view === 'list' ? 'View and manage all parking reservations'
+              : 'Cancel or reschedule a whole uploaded file at once'}
+            </p>
           </div>
           {/* View switch: forms (default) or the reservation list — CoK square uppercase buttons */}
           <div className="flex gap-3 self-start sm:self-auto">
@@ -227,6 +300,13 @@ const ReservationsPage: React.FC = () => {
             >
               View Reservation List ({filteredReservations.length})
             </button>
+            <button
+              onClick={() => { setView('batches'); fetchBatches(); }}
+              className="px-4 py-2 text-xs font-semibold uppercase transition-colors"
+              style={{ fontFamily: fontHeading, letterSpacing: '1px', borderRadius: 0, border: `1px solid ${PRIMARY}`, backgroundColor: view === 'batches' ? PRIMARY : 'transparent', color: view === 'batches' ? '#fff' : PRIMARY }}
+            >
+              Uploaded Files ({batches.length})
+            </button>
           </div>
         </div>
 
@@ -239,44 +319,57 @@ const ReservationsPage: React.FC = () => {
 
         {view === 'list' && (
         <div className="bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
-          <div className="px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <h2 className="text-[16px] font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Reservation List</h2>
-              <p className="text-xs text-[#555555] mt-0.5">View and manage all parking reservations</p>
+          {/* Search bar directly above the table: full-width input with an attached solid Search button */}
+          <div className="px-6 pt-5 pb-3 flex items-center gap-3">
+            <div className="relative flex-1">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search Plate, Name, Phone..."
+                value={draftSearch}
+                onChange={e => { setDraftSearch(e.target.value); if (e.target.value === '') { setSearchTerm(''); setCurrentPage(1); } }}
+                onKeyDown={e => { if (e.key === 'Enter') { setSearchTerm(draftSearch); setCurrentPage(1); } }}
+                className="w-full h-11 pl-10 pr-4 text-sm focus:outline-none"
+                style={{ fontFamily: fontHeading, backgroundColor: '#fff', border: `1px solid ${BORDER}`, borderRadius: 0 }}
+                onFocus={(e) => { e.currentTarget.style.border = `1px solid ${PRIMARY}`; }}
+                onBlur={(e) => { e.currentTarget.style.border = `1px solid ${BORDER}`; }}
+              />
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={downloadHistoryCSV}
-                className="flex items-center gap-2 h-9 px-4 bg-transparent text-[13px] font-semibold uppercase transition-colors hover:bg-[rgba(5,109,170,0.08)]"
-                style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}
-              >
-                <FiClock className="w-4 h-4" /> History
-              </button>
-              <div className="relative">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search visitor or plate..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className="w-[220px] h-9 pl-10 pr-4 text-[12px] focus:outline-none"
-                  style={{ fontFamily: fontHeading, background: NEUTRAL_LIGHT, border: '1px solid transparent', borderRadius: 0, boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' }}
-                  onFocus={(e) => { e.currentTarget.style.border = `1px solid ${PRIMARY}`; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(5,109,170,0.25)'; }}
-                  onBlur={(e) => { e.currentTarget.style.border = '1px solid transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)'; }}
-                />
-              </div>
-            </div>
+            <button
+              onClick={() => { setSearchTerm(draftSearch); setCurrentPage(1); }}
+              className="h-11 px-6 text-white text-[13px] font-semibold uppercase transition-colors flex-shrink-0"
+              style={{ fontFamily: fontHeading, backgroundColor: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+            >
+              Search
+            </button>
+            <button
+              onClick={downloadHistoryCSV}
+              className="flex items-center gap-2 h-11 px-4 bg-transparent text-[13px] font-semibold uppercase transition-colors hover:bg-[rgba(5,109,170,0.08)] flex-shrink-0"
+              style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}
+            >
+              <FiClock className="w-4 h-4" /> History
+            </button>
           </div>
-          {selectedKeys.size > 0 && (
+          {selectedKeys.size > 0 && (() => {
+            // "Cancel Selected" only appears when EVERY selected reservation can still be
+            // cancelled — checked-in ones qualify only while their End Date has days left
+            const selectedRows = reservations.filter(r => selectedKeys.has(keyOf(r)));
+            const canCancelSelection = selectedRows.length > 0 && selectedRows.every(isCancellable);
+            return (
             <div className="px-6 py-2.5 flex items-center justify-between gap-3" style={{ backgroundColor: 'rgba(5,109,170,0.06)', borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
               <span className="text-[13px] font-semibold" style={{ fontFamily: fontHeading, color: PRIMARY }}>{selectedKeys.size} selected</span>
               <div className="flex items-center gap-2">
-                <button onClick={() => setBulkAction('cancel')} disabled={bulkLoading} className="px-3 py-1.5 text-white text-xs font-semibold uppercase disabled:opacity-50" style={{ fontFamily: fontHeading, backgroundColor: WARNING, letterSpacing: '1px', borderRadius: 0 }}>Cancel Selected</button>
+                {canCancelSelection && (
+                  <button onClick={() => setBulkAction('cancel')} disabled={bulkLoading} className="px-3 py-1.5 text-white text-xs font-semibold uppercase disabled:opacity-50" style={{ fontFamily: fontHeading, backgroundColor: WARNING, letterSpacing: '1px', borderRadius: 0 }}>Cancel Selected</button>
+                )}
                 <button onClick={() => setBulkAction('delete')} disabled={bulkLoading} className="px-3 py-1.5 text-white text-xs font-semibold uppercase disabled:opacity-50" style={{ fontFamily: fontHeading, backgroundColor: DANGER, letterSpacing: '1px', borderRadius: 0 }}>Delete Selected</button>
                 <button onClick={() => setSelectedKeys(new Set())} className="px-3 py-1.5 text-xs font-semibold uppercase hover:bg-[rgba(5,109,170,0.08)]" style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>Clear</button>
               </div>
             </div>
-          )}
+            );
+          })()}
           <div className="overflow-x-auto px-6">
             <table className="w-full min-w-[720px]">
               {/* Solid CoK-blue header bar — same as the receptionist Assigned Visitors table */}
@@ -294,7 +387,7 @@ const ReservationsPage: React.FC = () => {
                       className="w-3.5 h-3.5 cursor-pointer"
                     />
                   </th>
-                  {['Visitor Name', 'Plate Number', 'Telephone', 'Valid Until', 'Type', 'Status', 'Action'].map(h => (
+                  {['Visitor Name', 'Plate Number', 'Telephone', 'Period', 'Type', 'Status', 'Action'].map(h => (
                     <th key={h} className="text-left py-3 px-0 text-xs uppercase tracking-wider font-semibold text-white" style={{ fontFamily: fontHeading, letterSpacing: '0.5px' }}>{h}</th>
                   ))}
                 </tr>
@@ -315,7 +408,11 @@ const ReservationsPage: React.FC = () => {
                     </td>
                     <td className="py-3 text-[#333] text-[13px] font-mono font-semibold">{r.plate_number}</td>
                     <td className="py-3 text-[#555555] text-[13px]">{r.telephone || '—'}</td>
-                    <td className="py-3 text-[#555555] text-[13px] font-medium">{r.valid_until ? new Date(r.valid_until).toLocaleDateString() : '—'}</td>
+                    <td className="py-3 text-[#555555] text-[13px] font-medium whitespace-nowrap">
+                      {(r.valid_from || r.valid_until)
+                        ? `${r.valid_from ? new Date(r.valid_from).toLocaleDateString() : 'Any'} → ${r.valid_until ? new Date(r.valid_until).toLocaleDateString() : 'No expiry'}`
+                        : '—'}
+                    </td>
                     <td className="py-3">
                       <span className="inline-flex items-center px-3 py-1 text-[12px] font-bold uppercase tracking-wide" style={{ backgroundColor: r.type === 'staff' ? 'rgba(41,128,185,0.12)' : 'rgba(76,175,80,0.12)', color: r.type === 'staff' ? ACCENT_DARK_BLUE : '#388E3C' }}>
                         {r.type}
@@ -328,9 +425,11 @@ const ReservationsPage: React.FC = () => {
                     </td>
                     <td className="py-3">
                       <div className="flex items-center gap-2">
-                        {r.status !== 'cancelled'
-                          ? <button onClick={() => handleCancelClick(r)} title="Cancel reservation" className="p-1.5 transition-colors hover:bg-[rgba(231,76,60,0.1)]" style={{ color: DANGER, borderRadius: 0 }}><FiTrash2 className="w-4 h-4" /></button>
-                          : <button onClick={async () => { const d = await reservationService.reactivateReservation(r.id); if (d.success) { showSuccess('Reactivated'); fetchReservations(); } }} title="Reactivate" className="p-1.5 transition-colors hover:bg-[rgba(76,175,80,0.1)]" style={{ color: '#388E3C', borderRadius: 0 }}><FiCheck className="w-4 h-4" /></button>}
+                        {r.status === 'cancelled'
+                          ? <button onClick={async () => { const d = await reservationService.reactivateReservation(r.id); if (d.success) { showSuccess('Reactivated'); fetchReservations(); } }} title="Reactivate" className="p-1.5 transition-colors hover:bg-[rgba(76,175,80,0.1)]" style={{ color: '#388E3C', borderRadius: 0 }}><FiCheck className="w-4 h-4" /></button>
+                          : isCancellable(r)
+                            ? <button onClick={() => handleCancelClick(r)} title="Cancel reservation" className="p-1.5 transition-colors hover:bg-[rgba(231,76,60,0.1)]" style={{ color: DANGER, borderRadius: 0 }}><FiTrash2 className="w-4 h-4" /></button>
+                            : <span className="text-xs text-[#9E9E9E]">—</span>}
                       </div>
                     </td>
                   </tr>
@@ -350,6 +449,144 @@ const ReservationsPage: React.FC = () => {
             </div>
           )}
         </div>
+        )}
+
+        {view === 'batches' && (
+        <div className="bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
+          {/* Search by uploaded file name */}
+          <div className="px-6 pt-5 pb-3 flex items-center gap-3">
+            <div className="relative flex-1">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search by file name..."
+                value={draftBatchSearch}
+                onChange={e => { setDraftBatchSearch(e.target.value); if (e.target.value === '') { setBatchSearch(''); setBatchPage(1); } }}
+                onKeyDown={e => { if (e.key === 'Enter') { setBatchSearch(draftBatchSearch); setBatchPage(1); } }}
+                className="w-full h-11 pl-10 pr-4 text-sm focus:outline-none"
+                style={{ fontFamily: fontHeading, backgroundColor: '#fff', border: `1px solid ${BORDER}`, borderRadius: 0 }}
+                onFocus={(e) => { e.currentTarget.style.border = `1px solid ${PRIMARY}`; }}
+                onBlur={(e) => { e.currentTarget.style.border = `1px solid ${BORDER}`; }}
+              />
+            </div>
+            <button
+              onClick={() => { setBatchSearch(draftBatchSearch); setBatchPage(1); }}
+              className="h-11 px-6 text-white text-[13px] font-semibold uppercase transition-colors flex-shrink-0"
+              style={{ fontFamily: fontHeading, backgroundColor: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+            >
+              Search
+            </button>
+          </div>
+          <div className="overflow-x-auto px-6">
+            <table className="w-full min-w-[820px]">
+              <thead className="cok-bg-primary sticky top-0 z-10 shadow-sm">
+                <tr>
+                  {['File Name', 'Type', 'Uploaded', 'Reservations', 'Period', 'Action'].map(h => (
+                    <th key={h} className="text-left py-3 px-3 text-xs uppercase tracking-wider font-semibold text-white" style={{ fontFamily: fontHeading, letterSpacing: '0.5px' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedBatches.length > 0 ? paginatedBatches.map(b => (
+                  <tr key={`${b.type}:${b.id}`} className="h-14" style={{ borderBottom: `1px solid ${BORDER}` }}>
+                    <td className="py-3 px-3 text-[#333] text-[13px] font-medium">{b.batch_name}</td>
+                    <td className="py-3 px-3">
+                      <span className="inline-flex items-center px-3 py-1 text-[12px] font-bold uppercase tracking-wide" style={{ backgroundColor: b.type === 'staff' ? 'rgba(41,128,185,0.12)' : 'rgba(76,175,80,0.12)', color: b.type === 'staff' ? ACCENT_DARK_BLUE : '#388E3C' }}>
+                        {b.type}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 text-[#555555] text-[13px]">{b.uploaded_at ? new Date(b.uploaded_at).toLocaleDateString() : '—'}</td>
+                    <td className="py-3 px-3 text-[#555555] text-[13px] whitespace-nowrap">
+                      {b.total} total · <span style={{ color: '#388E3C' }}>{b.active} active</span> · {b.used} used · <span style={{ color: DANGER }}>{b.cancelled} cancelled</span>
+                    </td>
+                    <td className="py-3 px-3 text-[#555555] text-[13px] font-medium whitespace-nowrap">
+                      {(b.start_date || b.end_date)
+                        ? `${b.start_date ? new Date(b.start_date).toLocaleDateString() : 'Any'} → ${b.end_date ? new Date(b.end_date).toLocaleDateString() : 'No expiry'}`
+                        : '—'}
+                    </td>
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => { setBatchToReschedule(b); setResStart(''); setResEnd(''); }}
+                          className="px-3 py-1.5 text-white text-[11px] font-semibold uppercase"
+                          style={{ fontFamily: fontHeading, backgroundColor: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}
+                        >
+                          Reschedule
+                        </button>
+                        {b.active > 0 && (
+                          <button
+                            onClick={() => setBatchToCancel(b)}
+                            className="px-3 py-1.5 text-[11px] font-semibold uppercase hover:bg-[rgba(231,76,60,0.08)]"
+                            style={{ fontFamily: fontHeading, border: `1px solid ${DANGER}`, color: DANGER, letterSpacing: '1px', borderRadius: 0 }}
+                          >
+                            Cancel Batch
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )) : <tr><td colSpan={6} className="py-10 text-center text-[13px] text-[#9E9E9E]">No uploaded files found</td></tr>}
+              </tbody>
+            </table>
+          </div>
+          {batchTotalPages > 1 && (
+            <div className="px-6 py-3 flex items-center justify-between" style={{ borderTop: `1px solid ${BORDER}` }}>
+              <span className="text-[12px] text-[#555555]" style={{ fontFamily: fontHeading }}>
+                Page {batchPage} of {batchTotalPages} · {filteredBatches.length} files
+              </span>
+              <div className="flex gap-2">
+                <button onClick={() => setBatchPage(p => Math.max(1, p - 1))} disabled={batchPage <= 1} className="px-3 py-1.5 text-[12px] font-semibold uppercase disabled:opacity-40 hover:bg-[rgba(5,109,170,0.08)]" style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>Prev</button>
+                <button onClick={() => setBatchPage(p => Math.min(batchTotalPages, p + 1))} disabled={batchPage >= batchTotalPages} className="px-3 py-1.5 text-[12px] font-semibold uppercase disabled:opacity-40 hover:bg-[rgba(5,109,170,0.08)]" style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>Next</button>
+              </div>
+            </div>
+          )}
+        </div>
+        )}
+
+        {batchToCancel && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white w-full max-w-md p-6" style={{ boxShadow: CARD_SHADOW, borderRadius: 0 }}>
+              <h3 className="text-[16px] font-bold mb-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Cancel Whole Upload</h3>
+              <p className="text-sm text-[#555555] mb-5">
+                Cancel all <strong>{batchToCancel.active}</strong> active reservation(s) from <strong>{batchToCancel.batch_name}</strong>?
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setBatchToCancel(null)} disabled={batchLoading} className="flex-1 px-3 py-2 text-sm font-semibold uppercase hover:bg-[rgba(5,109,170,0.08)] disabled:opacity-50" style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>No</button>
+                <button onClick={confirmBatchCancel} disabled={batchLoading} className="flex-1 px-3 py-2 text-white text-sm font-semibold uppercase disabled:opacity-50" style={{ fontFamily: fontHeading, backgroundColor: DANGER, letterSpacing: '1px', borderRadius: 0 }}>
+                  {batchLoading ? 'Working…' : 'Yes, Cancel All'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {batchToReschedule && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white w-full max-w-md p-6" style={{ boxShadow: CARD_SHADOW, borderRadius: 0 }}>
+              <h3 className="text-[16px] font-bold mb-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Reschedule Upload</h3>
+              <p className="text-sm text-[#555555] mb-4">
+                Set a new reservation window for every pending reservation in <strong>{batchToReschedule.batch_name}</strong>. The dates from the file are replaced; cancelled or expired entries become active again.
+              </p>
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                <div>
+                  <label className="cok-auth-label">Start Date</label>
+                  <input type="date" value={resStart} onChange={e => setResStart(e.target.value)} className="w-full px-3 py-2.5 text-sm focus:outline-none" style={{ fontFamily: fontHeading, border: `2px solid ${BORDER}`, borderRadius: 0 }} />
+                </div>
+                <div>
+                  <label className="cok-auth-label">End Date</label>
+                  <input type="date" value={resEnd} onChange={e => setResEnd(e.target.value)} className="w-full px-3 py-2.5 text-sm focus:outline-none" style={{ fontFamily: fontHeading, border: `2px solid ${BORDER}`, borderRadius: 0 }} />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => { setBatchToReschedule(null); setResStart(''); setResEnd(''); }} disabled={batchLoading} className="flex-1 px-3 py-2 text-sm font-semibold uppercase hover:bg-[rgba(5,109,170,0.08)] disabled:opacity-50" style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>Close</button>
+                <button onClick={confirmBatchReschedule} disabled={batchLoading} className="flex-1 px-3 py-2 text-white text-sm font-semibold uppercase disabled:opacity-50" style={{ fontFamily: fontHeading, backgroundColor: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>
+                  {batchLoading ? 'Working…' : 'Apply New Dates'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {bulkAction && (

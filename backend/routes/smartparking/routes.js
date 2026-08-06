@@ -9,7 +9,7 @@ const multer = require('multer');
 const { auditSuccess, auditError, auditUserActions } = require('../../middlewares/audit');
 
 const { bulkUploadReservations, registerSingleReservation } = require('../../controllers/reservationController');
-const { getAllReservations, createStaffBooking, cancelReservation, reactivateReservation, bulkUploadStaff, bulkCancelReservations, bulkDeleteReservations } = require('../../controllers/reservationsController');
+const { getAllReservations, createStaffBooking, cancelReservation, reactivateReservation, bulkUploadStaff, bulkCancelReservations, bulkDeleteReservations, getReservationBatches, cancelReservationBatch, rescheduleReservationBatch } = require('../../controllers/reservationsController');
 
 // parfait's controllers
 const check_in = require('../../controllers/smart_parking/check_in.js')
@@ -311,6 +311,57 @@ Router.post('/reservations/bulk-cancel',
 Router.post('/reservations/bulk-delete',
   auditSuccess('DELETE', 'reservations', (req, res, data) => `Bulk deleted ${req.body?.items?.length || 0} reservations`),
   bulkDeleteReservations
+);
+
+/**
+ * @swagger
+ * /smartparking/reservation-batches:
+ *   get:
+ *     summary: "List uploaded reservation batches"
+ *     description: "Each bulk upload (visitor or staff) is a batch named after its file. Returns counts, window, and status per batch."
+ *     tags: [Smart Parking]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Batches listed
+ */
+Router.get('/reservation-batches', getReservationBatches);
+
+/**
+ * @swagger
+ * /smartparking/reservation-batches/cancel:
+ *   put:
+ *     summary: "Cancel a whole uploaded batch"
+ *     description: "Cancels every pending reservation in the batch. Body: { id, type: 'visitor' | 'staff' }"
+ *     tags: [Smart Parking]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Batch cancelled
+ */
+Router.put('/reservation-batches/cancel',
+  auditSuccess('UPDATE', 'reservations', (req, res, data) => `Cancelled reservation batch ${req.body?.id}`),
+  cancelReservationBatch
+);
+
+/**
+ * @swagger
+ * /smartparking/reservation-batches/reschedule:
+ *   put:
+ *     summary: "Reschedule a whole uploaded batch"
+ *     description: "Replaces Start/End dates for every not-yet-used reservation in the batch and revives cancelled/expired ones. Body: { id, type, start_date, end_date }"
+ *     tags: [Smart Parking]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Batch rescheduled
+ */
+Router.put('/reservation-batches/reschedule',
+  auditSuccess('UPDATE', 'reservations', (req, res, data) => `Rescheduled reservation batch ${req.body?.id}`),
+  rescheduleReservationBatch
 );
 
 /**
