@@ -32,19 +32,18 @@ interface TaskColumn {
   borderColor: string
 }
 
-interface FlyingTask {
-  task: Task
-  fromRect: DOMRect
-  toRect: DOMRect
-  columnId: string
+interface OptimisticMove {
+  taskId: string
+  fromColumnId: string
+  toColumnId: string
+  toPosition: number
+  taskSnapshot: Task
 }
 
 const TaskManager: React.FC = () => {
   const { user } = useAuth()
   const { showSuccess, showError } = useToast()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const taskRefs = useRef<Record<string, HTMLDivElement | null>>({})
-  const flyingRef = useRef<HTMLDivElement | null>(null)
   const [isDraggingScroll, setIsDraggingScroll] = useState(false)
   const [startX, setStartX] = useState(0)
   const [scrollLeft, setScrollLeft] = useState(0)
@@ -86,8 +85,7 @@ const TaskManager: React.FC = () => {
   })
 
   const [firstLoad, setFirstLoad] = useState(true)
-  const [flyingTask, setFlyingTask] = useState<FlyingTask | null>(null)
-  const [dropTargetId, setDropTargetId] = useState<string | null>(null)
+  const [optimisticMove, setOptimisticMove] = useState<OptimisticMove | null>(null)
 
   const loadTasks = useCallback(async (showLoader = true) => {
     if (!user?.userId) return
@@ -137,6 +135,7 @@ const TaskManager: React.FC = () => {
   })
 
   const [draggedTask, setDraggedTask] = useState<Task | null>(null)
+  const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null)
 
   const handleDragStart = (task: Task) => {
     setDraggedTask(task)
@@ -144,54 +143,16 @@ const TaskManager: React.FC = () => {
 
   const handleDragOver = (e: React.DragEvent, columnId: string) => {
     e.preventDefault()
-    setDropTargetId(columnId)
+    setDraggedOverColumn(columnId)
   }
 
-  const handleDragLeave = (e: React.DragEvent, columnId: string) => {
-    if (e.currentTarget === e.target) {
-      setDropTargetId(null)
-    }
-  }
-
-  const animateTaskMove = (task: Task, fromRect: DOMRect, toColumnId: string) => {
-    const toColumn = columns.find(c => c.id === toColumnId)
-    if (!toColumn) return
-
-    const targetEl = taskRefs.current[task._id!]
-    if (!targetEl) return
-
-    const toRect = targetEl.getBoundingClientRect()
-
-    const flying = document.createElement('div')
-    flying.style.position = 'fixed'
-    flying.style.left = `${fromRect.left}px`
-    flying.style.top = `${fromRect.top}px`
-    flying.style.width = `${fromRect.width}px`
-    flying.style.height = `${fromRect.height}px`
-    flying.style.zIndex = '9999'
-    flying.style.pointerEvents = 'none'
-    flying.style.transition = 'all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-    flying.innerHTML = targetEl.outerHTML
-    document.body.appendChild(flying)
-
-    targetEl.style.opacity = '0'
-
-    requestAnimationFrame(() => {
-      flying.style.left = `${toRect.left}px`
-      flying.style.top = `${toRect.top}px`
-      flying.style.width = `${toRect.width}px`
-      flying.style.height = `${toRect.height}px`
-    })
-
-    setTimeout(() => {
-      flying.remove()
-      targetEl.style.opacity = '1'
-    }, 500)
+  const handleDragLeave = () => {
+    setDraggedOverColumn(null)
   }
 
   const handleDrop = async (e: React.DragEvent, columnId: string) => {
     e.preventDefault()
-    setDropTargetId(null)
+    setDraggedOverColumn(null)
 
     if (!draggedTask) return
 
@@ -207,49 +168,61 @@ const TaskManager: React.FC = () => {
       return
     }
 
-    const sourceColumn = columns[sourceColumnIndex]
     const destinationColumn = columns[destinationColumnIndex]
     const newStatus = destinationColumn.status
     const newPosition = destinationColumn.tasks.length
 
+    const sourceColumn = columns[sourceColumnIndex]
     const taskIndex = sourceColumn.tasks.findIndex(task => task._id === draggedTask._id)
-    const movedTask = sourceColumn.tasks[taskIndex]
-
-    const sourceEl = taskRefs.current[draggedTask._id!]
-    const fromRect = sourceEl ? sourceEl.getBoundingClientRect() : new DOMRect()
+    const [movedTask] = sourceColumn.tasks.splice(taskIndex, 1)
 
     const updatedColumns = columns.map(column => {
       if (column.id === sourceColumn.id) {
-        return {
-          ...column,
-          tasks: column.tasks.filter((_, idx) => idx !== taskIndex)
-        }
+        return { ...column, tasks: sourceColumn.tasks }
       }
       if (column.id === columnId) {
-        return {
-          ...column,
-          tasks: [...column.tasks, { ...movedTask, status: newStatus }]
-        }
+        return { ...column, tasks: [...column.tasks, { ...movedTask, status: newStatus }] }
       }
       return column
+    })
+
+    setOptimisticMove({
+      taskId: draggedTask._id,
+      fromColumnId: sourceColumn.id,
+      toColumnId: columnId,
+      toPosition: newPosition,
+      taskSnapshot: movedTask
     })
 
     setColumns(updatedColumns)
     setDraggedTask(null)
 
-    if (sourceEl) {
-      animateTaskMove(movedTask, fromRect, columnId)
-    }
-
     try {
       await moveTask(draggedTask._id!, draggedTask.list || '', destinationColumn.id, newPosition)
       showSuccess(`Task moved to ${destinationColumn.title}`)
+      setOptimisticMove(null)
 
       if (selectedTask?._id === draggedTask._id) {
         setSelectedTask((prev) => prev ? { ...prev, status: newStatus } : null)
       }
     } catch (error: unknown) {
       showError((error as Error)?.message || 'Failed to move task')
+      
+      setColumns(prevColumns =>
+        prevColumns.map(column => {
+          if (column.id === sourceColumn.id) {
+            const revertedTasks = [...column.tasks]
+            revertedTasks.splice(taskIndex, 0, movedTask)
+            return { ...column, tasks: revertedTasks }
+          }
+          if (column.id === columnId) {
+            return { ...column, tasks: column.tasks.filter(t => t._id !== draggedTask._id) }
+          }
+          return column
+        })
+      )
+
+      setOptimisticMove(null)
       loadTasks(false)
     }
   }
@@ -314,7 +287,7 @@ const TaskManager: React.FC = () => {
   }
 
   const getColumnBorderColor = (columnId: string) => {
-    if (dropTargetId === columnId) {
+    if (draggedOverColumn === columnId) {
       return PRIMARY
     }
     return BORDER
@@ -339,13 +312,13 @@ const TaskManager: React.FC = () => {
               className="w-[340px] md:w-[380px] flex-shrink-0 flex flex-col"
               style={{
                 backgroundColor: WHITE,
-                border: `2px solid ${getColumnBorderColor(column.id)}`,
+                border: `3px solid ${getColumnBorderColor(column.id)}`,
                 borderRadius: 0,
                 opacity: loading.tasks && firstLoad ? 0.75 : 1,
                 transition: 'border-color 0.2s ease'
               }}
               onDragOver={(e) => handleDragOver(e, column.id)}
-              onDragLeave={(e) => handleDragLeave(e, column.id)}
+              onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, column.id)}
             >
               {/* Column Header */}
@@ -413,30 +386,34 @@ const TaskManager: React.FC = () => {
                     </button>
                   </div>
                 ) : (
-                  column.tasks.map((task) => (
-                    <div
-                      key={task._id}
-                      ref={el => taskRefs.current[task._id!] = el}
-                      draggable
-                      onDragStart={() => handleDragStart(task)}
-                      className="cursor-grab active:cursor-grabbing"
-                      style={{
-                        transition: 'opacity 0.3s ease, transform 0.3s ease',
-                        opacity: draggedTask?._id === task._id ? 0.4 : 1,
-                        transform: draggedTask?._id === task._id ? 'scale(0.95)' : 'scale(1)'
-                      }}
-                    >
-                      <TaskCard
-                        task={task}
-                        onClick={() => handleTaskClick(task)}
-                        progress={getTaskProgress(task)}
-                        statusColor={getTaskStatusColor(task)}
-                        onUpdate={() => handleTaskClick(task)}
-                        onMove={() => loadTasks(false)}
-                        draggedTaskId={draggedTask?._id || null}
-                      />
-                    </div>
-                  ))
+                  column.tasks.map((task) => {
+                    const isOptimistic = optimisticMove?.taskId === task._id
+                    return (
+                      <div
+                        key={task._id}
+                        draggable
+                        onDragStart={() => handleDragStart(task)}
+                        className="cursor-grab active:cursor-grabbing"
+                        style={{
+                          transition: 'opacity 0.3s ease, transform 0.3s ease',
+                          opacity: draggedTask?._id === task._id ? 0.4 : 1,
+                          transform: draggedTask?._id === task._id ? 'scale(0.95)' : 'scale(1)',
+                          outline: isOptimistic ? `2px solid ${PRIMARY}` : 'none',
+                          outlineOffset: isOptimistic ? '2px' : '0'
+                        }}
+                      >
+                        <TaskCard
+                          task={task}
+                          onClick={() => handleTaskClick(task)}
+                          progress={getTaskProgress(task)}
+                          statusColor={getTaskStatusColor(task)}
+                          onUpdate={() => handleTaskClick(task)}
+                          onMove={() => loadTasks(false)}
+                          draggedTaskId={draggedTask?._id || null}
+                        />
+                      </div>
+                    )
+                  })
                 )}
               </div>
             </div>
