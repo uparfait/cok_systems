@@ -410,115 +410,115 @@ const StatusPie3D: React.FC<{ slices: Array<{ label: string; value: number; colo
   );
 };
 
-// Mirrored departments-vs-services chart: orange bars (people served) grow left
-// from the center divider, blue bars (services handled by the department's top
-// employee) grow right, both aligned to their number lines.
+// Mirrored departments-vs-staff chart: amber bars (staff assigned) grow left
+// from the center divider, teal/red stacked bars (served vs not served) grow
+// right, both aligned to their number lines.
 // Used by the dashboard card (top rows) and the detail modal (all rows, scrollable).
 const DeptServicesMirror: React.FC<{
-  rows: Array<{ name: string; staff: number; served: number; emp: { name: string; served: number } }>;
-  cc: { amber: string; blue: string };
+  rows: Array<{ name: string; staff: number; served: number; notServed: number }>;
+  cc: { amber: string; teal: string; red: string };
   scroll?: boolean;
-  onLeftClick?: () => void;
-  onRightClick?: () => void;
-}> = ({ rows, cc, scroll, onLeftClick, onRightClick }) => {
-  const maxServed = Math.max(...rows.map(r => r.served), 1);
-  const maxEmp = Math.max(...rows.map(r => r.emp.served), 1);
-  // At most ~6 axis ticks regardless of scale
+}> = ({ rows, cc, scroll }) => {
+  const maxLeft = Math.max(...rows.map(r => r.staff), 1);
+  const maxRight = Math.max(...rows.map(r => r.served + r.notServed), 1);
   const makeTicks = (max: number) => {
     const step = Math.max(1, Math.ceil(max / 5));
     const ticks: number[] = [];
     for (let v = 0; v <= Math.floor(max); v += step) ticks.push(v);
     return ticks;
   };
-  const leftTicks = makeTicks(maxServed);
-  const rightTicks = makeTicks(maxEmp);
+  const leftTicks = makeTicks(maxLeft);
+  const rightTicks = makeTicks(maxRight);
 
   return (
     <div>
-      {/* Column headers, underlined in their series color like the reference design.
-          Each half is its own click target when a handler is provided. */}
       <div className="flex items-center gap-3 mb-4">
-        <div
-          className={`flex-1 flex items-center gap-2 pb-2 border-b-[3px] ${onLeftClick ? 'cursor-pointer' : ''}`}
-          style={{ borderColor: cc.amber }}
-          onClick={onLeftClick}
-        >
+        <div className="flex-1 flex items-center gap-2 pb-2 border-b-[3px]" style={{ borderColor: cc.amber }}>
           <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: cc.amber }}>
             Departments
           </span>
-          <span className="text-xs text-gray-500">(people served)</span>
+          <span className="text-xs text-gray-500">(people assigned)</span>
         </div>
-        <div
-          className={`flex-1 flex items-center justify-end gap-2 pb-2 border-b-[3px] ${onRightClick ? 'cursor-pointer' : ''}`}
-          style={{ borderColor: cc.blue }}
-          onClick={onRightClick}
-        >
-          <span className="text-xs text-gray-500">(services by top employee)</span>
-          <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: cc.blue }}>
-            Services
+        <div className="flex-1 flex items-center justify-end gap-2 pb-2 border-b-[3px]" style={{ borderColor: cc.teal }}>
+          <span className="text-xs text-gray-500">(served vs not served)</span>
+          <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: cc.teal }}>
+            Attendance
           </span>
         </div>
       </div>
 
-      {/* Mirrored rows: orange bars grow left from the center divider, blue bars grow right.
-          Bars sit on a soft full-width track; a white-fade gradient gives them depth. */}
       <div className={scroll ? 'space-y-3 max-h-[55vh] overflow-y-auto pr-1' : 'space-y-3'}>
-        {rows.map(row => (
-          <div
-            key={row.name}
-            className="flex items-center py-0.5 hover:bg-gray-50 transition-colors"
-            title={`${row.name}: ${row.served} people served · ${row.staff} staff · top employee: ${row.emp.name} (${row.emp.served} services)`}
-          >
+        {rows.map(row => {
+          const notServed = Math.max(0, row.staff - row.served);
+          const servedPct = row.staff > 0 ? (row.served / row.staff) * 100 : 0;
+          const notServedPct = row.staff > 0 ? (notServed / row.staff) * 100 : 0;
+          return (
             <div
-              className={`flex-1 flex items-center gap-2.5 min-w-0 ${onLeftClick ? 'cursor-pointer' : ''}`}
-              onClick={onLeftClick}
+              key={row.name}
+              className="flex items-center py-0.5 hover:bg-gray-50 transition-colors"
+              title={`${row.name}: ${row.staff} assigned · ${row.served} served · ${notServed} not served`}
             >
-              <span className="w-40 sm:w-48 flex-shrink-0 text-right text-[13px] font-medium text-gray-700 truncate">
-                {row.name} <span className="text-gray-400 font-normal">({row.served})</span>
-              </span>
-              <div className="flex-1 h-6 bg-gray-100/80 flex justify-end overflow-hidden">
-                <div
-                  className="h-full shadow-sm-disabled transition-all duration-500"
-                  style={{
-                    width: `${(row.served / maxServed) * 100}%`,
-                    minWidth: row.served > 0 ? 4 : 0,
-                    backgroundColor: cc.amber,
-                    backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.08), rgba(255,255,255,0.28))',
-                  }}
-                ></div>
+              <div className="flex-1 flex items-center gap-2.5 min-w-0">
+                <span className="w-40 sm:w-48 flex-shrink-0 text-right text-[13px] font-medium text-gray-700 truncate">
+                  {row.name} <span className="text-gray-400 font-normal">({row.staff})</span>
+                </span>
+                <div className="flex-1 h-6 bg-gray-100/80 flex justify-end overflow-hidden">
+                  <div
+                    className="h-full shadow-sm-disabled transition-all duration-500"
+                    style={{
+                      width: `${(row.staff / maxLeft) * 100}%`,
+                      minWidth: row.staff > 0 ? 4 : 0,
+                      backgroundColor: cc.amber,
+                      backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.08), rgba(255,255,255,0.28))',
+                    }}
+                  ></div>
+                </div>
+              </div>
+
+              <div
+                className="w-[3px] self-stretch mx-1 flex-shrink-0"
+                style={{ background: `linear-gradient(to bottom, ${cc.amber}, ${cc.teal})` }}
+              ></div>
+
+              <div className="flex-1 flex items-center gap-2.5 min-w-0">
+                <div className="flex-1 h-6 bg-gray-100/80 flex justify-start overflow-hidden">
+                  <div className="flex h-full w-full">
+                    {notServed > 0 && (
+                      <div
+                        className="h-full shadow-sm-disabled transition-all duration-500"
+                        style={{
+                          width: `${(notServed / maxLeft) * 100}%`,
+                          minWidth: notServed > 0 ? 2 : 0,
+                          backgroundColor: cc.red,
+                          backgroundImage: 'linear-gradient(to left, rgba(0,0,0,0.08), rgba(255,255,255,0.25))',
+                        }}
+                      ></div>
+                    )}
+                    {row.served > 0 && (
+                      <div
+                        className="h-full shadow-sm-disabled transition-all duration-500"
+                        style={{
+                          width: `${(row.served / maxLeft) * 100}%`,
+                          minWidth: row.served > 0 ? 2 : 0,
+                          backgroundColor: cc.teal,
+                          backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.08), rgba(255,255,255,0.25))',
+                        }}
+                      ></div>
+                    )}
+                  </div>
+                </div>
+                <span
+                  className="w-40 sm:w-48 flex-shrink-0 text-[13px] font-medium text-gray-700 truncate"
+                  title={`${row.served} served · ${notServed} not served`}
+                >
+                  <span style={{ color: cc.teal }}>{row.served}</span>
+                  <span className="text-gray-300 mx-1">/</span>
+                  <span style={{ color: cc.red }}>{notServed}</span>
+                </span>
               </div>
             </div>
-
-            <div
-              className="w-[3px] self-stretch mx-1 flex-shrink-0"
-              style={{ background: `linear-gradient(to bottom, ${cc.amber}, ${cc.blue})` }}
-            ></div>
-
-            <div
-              className={`flex-1 flex items-center gap-2.5 min-w-0 ${onRightClick ? 'cursor-pointer' : ''}`}
-              onClick={onRightClick}
-            >
-              <div className="flex-1 h-6 bg-gray-100/80 flex justify-start overflow-hidden">
-                {/* Width maps 1:1 to the axis so a bar of 3 ends at the 3 tick */}
-                <div
-                  className="h-full shadow-sm-disabled transition-all duration-500"
-                  style={{
-                    width: `${(row.emp.served / maxEmp) * 100}%`,
-                    minWidth: row.emp.served > 0 ? 4 : 0,
-                    backgroundColor: cc.blue,
-                    backgroundImage: 'linear-gradient(to left, rgba(0,0,0,0.08), rgba(255,255,255,0.28))',
-                  }}
-                ></div>
-              </div>
-              <span
-                className="w-40 sm:w-48 flex-shrink-0 text-[13px] font-medium text-gray-700 truncate"
-                title={`${row.emp.name} · ${row.emp.served} services`}
-              >
-                {row.emp.name} <span className="text-gray-400 font-normal">({row.emp.served})</span>
-              </span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Scale row aligned with bar areas */}
@@ -528,7 +528,7 @@ const DeptServicesMirror: React.FC<{
           <div className="flex-1 relative px-1" style={{ height: 24 }}>
             <div className="absolute inset-x-1 top-0 h-px bg-gray-900"></div>
             {leftTicks.map((tick) => {
-              const pct = maxServed > 0 ? ((maxServed - tick) / maxServed) * 100 : 0;
+              const pct = maxLeft > 0 ? ((maxLeft - tick) / maxLeft) * 100 : 0;
               return (
                 <div key={tick} className="absolute top-0 flex flex-col items-center" style={{ left: `calc(${pct}% + 4px)`, transform: 'translateX(-50%)' }}>
                   <div className="w-px h-2 bg-gray-900"></div>
@@ -538,13 +538,12 @@ const DeptServicesMirror: React.FC<{
             })}
           </div>
         </div>
-        {/* Spacer matching the rows' center divider width, keeps the axes aligned */}
         <div className="w-[3px] mx-1 flex-shrink-0"></div>
         <div className="flex-1 flex items-center gap-2.5 min-w-0">
           <div className="flex-1 relative px-1" style={{ height: 24 }}>
             <div className="absolute inset-x-1 top-0 h-px bg-gray-900"></div>
             {rightTicks.map((tick) => {
-              const pct = maxEmp > 0 ? (tick / maxEmp) * 100 : 0;
+              const pct = maxRight > 0 ? (tick / maxRight) * 100 : 0;
               return (
                 <div key={tick} className="absolute top-0 flex flex-col items-center" style={{ left: `calc(${pct}% + 4px)`, transform: 'translateX(-50%)' }}>
                   <div className="w-px h-2 bg-gray-900"></div>
@@ -780,38 +779,27 @@ const Overview: React.FC = () => {
     [servedStats]
   );
 
-  // Departments vs services mirrored chart: people served (left) against the
-  // department's busiest employee and their services handled (right), busiest
-  // departments first. Departments where no one served still get an employee
-  // name with a zero bar. Returns every department; the card shows the top rows.
+  // Departments vs services mirrored chart: staff assigned (left) against
+  // served vs not served (right), busiest departments first.
+  // Returns every department; the card shows the top rows.
   const deptVsServices = useMemo(() => {
-    if (!data) return [] as Array<{ name: string; staff: number; served: number; emp: { name: string; served: number } }>;
+    if (!data) return [] as Array<{ name: string; staff: number; served: number; notServed: number }>;
     const staffByDept: Record<string, number> = {};
     data.departments.forEach(d => { staffByDept[d.name] = d.staff; });
-    // Keyed by normalized department name so casing/spacing differences
-    // between the department list and the served aggregates still match
     const norm = (s: string) => s.trim().toLowerCase();
     const servedByDept: Record<string, number> = {};
-    const topEmpByDept: Record<string, { name: string; served: number }> = {};
     (servedStats?.by_department || []).forEach(d => {
       servedByDept[d.name] = d.served;
-      if (d.top_employee) topEmpByDept[norm(d.name)] = { name: d.top_employee.name, served: d.top_employee.served };
-    });
-    // Departments with no serving records fall back to one of their employees at zero
-    (servedStats?.by_employee || []).forEach(e => {
-      if (e.department && !topEmpByDept[norm(e.department)]) {
-        topEmpByDept[norm(e.department)] = { name: e.name, served: 0 };
-      }
     });
     const names = Array.from(new Set([...data.departments.map(d => d.name), ...Object.keys(servedByDept)]));
     return names
-      .map(name => ({
-        name,
-        staff: staffByDept[name] || 0,
-        served: servedByDept[name] || 0,
-        emp: topEmpByDept[norm(name)] || { name: 'No employee', served: 0 },
-      }))
-      .sort((a, b) => b.served - a.served);
+      .map(name => {
+        const staff = staffByDept[name] || 0;
+        const served = servedByDept[name] || 0;
+        const notServed = Math.max(0, staff - served);
+        return { name, staff, served, notServed };
+      })
+      .sort((a, b) => b.staff - a.staff);
   }, [data, servedStats]);
   const maxEmployeeServed = Math.max(...employeeServed.map(e => e.served), 1);
   // Mean load among employees who served at least one person; anyone above
@@ -1728,7 +1716,7 @@ useEffect(() => {
               <div className="text-2xl font-bold leading-none" style={{ color: CC.blue }}>{totalVisitorsInPeriod}</div>
               <div className="text-[11px] uppercase tracking-wide text-gray-500 mt-1">Total visitors · {periodLabel}</div>
               <div className="text-xs text-gray-400 mt-0.5">
-                Click <span style={{ color: CC.amber }} className="font-semibold">left</span> for departments · <span style={{ color: CC.blue }} className="font-semibold">right</span> for employees
+                Staff assigned vs served · {periodLabel}
               </div>
             </div>
           </div>
@@ -1739,10 +1727,8 @@ useEffect(() => {
             </div>
           ) : (
             <DeptServicesMirror
-              rows={deptVsServices.slice(0, 8)}
-              cc={CC}
-              onLeftClick={() => setSelectedCard('dept-served')}
-              onRightClick={() => setSelectedCard('employee-served')}
+              rows={deptVsServices}
+              cc={{ amber: CC.amber, teal: CC.teal, red: CC.red }}
             />
           )}
         </div>
@@ -2621,8 +2607,8 @@ useEffect(() => {
                   {/* Headline stats — all obey the toolbar period filter */}
                   <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-gray-600">
                     <span>Period: <span className="font-semibold capitalize">{periodLabel}</span></span>
-                    <span><span className="font-semibold" style={{ color: CC.blue }}>{totalVisitorsInPeriod}</span> total visitors</span>
-                    <span><span className="font-semibold" style={{ color: CC.amber }}>{(servedStats?.by_department || []).reduce((s, d) => s + d.served, 0)}</span> people served</span>
+                    <span><span className="font-semibold" style={{ color: CC.amber }}>{totalVisitorsInPeriod}</span> total visitors</span>
+                    <span><span className="font-semibold" style={{ color: CC.teal }}>{(servedStats?.by_department || []).reduce((s, d) => s + d.served, 0)}</span> people served</span>
                   </div>
                   {deptVsServices.length === 0 ? (
                     <div className="h-32 flex items-center justify-center text-xs text-gray-400">
@@ -2631,26 +2617,42 @@ useEffect(() => {
                   ) : (
                     <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-2">
                       {deptVsServices.map((d, idx) => {
-                        const maxServedAll = Math.max(...deptVsServices.map(r => r.served), 1);
+                        const notServed = Math.max(0, d.staff - d.served);
+                        const maxStaff = Math.max(...deptVsServices.map(r => r.staff), 1);
                         return (
                           <div key={idx} className="flex items-center gap-2 text-xs hover:bg-gray-50 px-1 py-1">
                             <span className="w-44 sm:w-56 flex-shrink-0 truncate text-right font-medium text-gray-800" title={d.name}>
-                              {d.name} <span className="text-gray-400 font-normal">({d.staff} staff)</span>
+                              {d.name} <span className="text-gray-400 font-normal">({d.staff})</span>
                             </span>
                             <div className="flex-1 h-5 bg-gray-100 overflow-hidden">
-                              {d.served > 0 && (
-                                <div
-                                  className="h-full transition-all duration-500"
-                                  style={{
-                                    width: `${(d.served / maxServedAll) * 100}%`,
-                                    minWidth: 4,
-                                    backgroundColor: CC.amber,
-                                    backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.06), rgba(255,255,255,0.25))',
-                                  }}
-                                ></div>
-                              )}
+                              <div className="flex h-full">
+                                {d.served > 0 && (
+                                  <div
+                                    className="h-full transition-all duration-500"
+                                    style={{
+                                      width: `${(d.served / maxStaff) * 100}%`,
+                                      minWidth: d.served > 0 ? 2 : 0,
+                                      backgroundColor: CC.teal,
+                                    }}
+                                  ></div>
+                                )}
+                                {notServed > 0 && (
+                                  <div
+                                    className="h-full transition-all duration-500"
+                                    style={{
+                                      width: `${(notServed / maxStaff) * 100}%`,
+                                      minWidth: notServed > 0 ? 2 : 0,
+                                      backgroundColor: CC.red,
+                                    }}
+                                  ></div>
+                                )}
+                              </div>
                             </div>
-                            <span className="w-10 text-right font-semibold" style={{ color: d.served > 0 ? CC.amber : '#9ca3af' }}>{d.served}</span>
+                            <span className="w-16 text-right font-semibold flex items-center justify-end gap-1">
+                              <span style={{ color: CC.teal }}>{d.served}</span>
+                              <span className="text-gray-300">/</span>
+                              <span style={{ color: CC.red }}>{notServed}</span>
+                            </span>
                           </div>
                         );
                       })}

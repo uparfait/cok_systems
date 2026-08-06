@@ -28,15 +28,25 @@ module.exports = async function verify_car(req, res, next) {
       status: "active",
     }).sort({ check_in: -1 });
 
-    //  Check if it's a registered Staff Car (for active)
+    //  Check if it's a registered Staff Car (for active).
+    // Staff reservations honor the same window when one is set (nulls = permanent).
+    const staff_now = new Date();
     const staff_car = await StaffCar.findOne({
-      $and: [{ plate_number }, { is_active: true }],
+      plate_number,
+      is_active: true,
+      $and: [
+        { $or: [{ valid_from: null }, { valid_from: { $lte: staff_now } }] },
+        { $or: [{ valid_until: null }, { valid_until: { $gte: staff_now } }] },
+      ],
     });
 
     //  Check if it's a reserved Emergency/Visitor Car
     // We look inside the visitor_info array of the EmergencyCar model.
     // Reservations never expire: they stay valid until used (vehicle checked in) or cancelled.
 
+    // A visitor reservation only counts INSIDE its window (Start Date → End Date);
+    // outside the window the vehicle is treated as a regular arrival.
+    const now_ts = new Date();
     const emergency_reservation = await EmergencyCar.findOne({
       is_active: true,
       visitor_info: {
@@ -44,8 +54,11 @@ module.exports = async function verify_car(req, res, next) {
           plate_number,
           is_used: { $ne: true },
           is_cancelled: { $ne: true },
-          // valid_until null/missing = never expires; a set date is valid through that day
-          $or: [{ valid_until: null }, { valid_until: { $gte: new Date() } }],
+          // null sides are open-ended
+          $and: [
+            { $or: [{ valid_from: null }, { valid_from: { $lte: now_ts } }] },
+            { $or: [{ valid_until: null }, { valid_until: { $gte: now_ts } }] },
+          ],
         },
       },
     });
@@ -140,7 +153,8 @@ module.exports = async function verify_car(req, res, next) {
       // Extract driver details from emergency_reservation visitor_info
       const visitorInfo = emergency_reservation.visitor_info?.find(
         (v) => v.plate_number === plate_number && !v.is_used && !v.is_cancelled &&
-          (!v.valid_until || v.valid_until >= new Date()),
+          (!v.valid_from || v.valid_from <= now_ts) &&
+          (!v.valid_until || v.valid_until >= now_ts),
       );
       console.log("Found visitorInfo:", visitorInfo);
       if (visitorInfo) {
