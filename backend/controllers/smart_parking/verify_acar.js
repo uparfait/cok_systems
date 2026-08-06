@@ -33,41 +33,19 @@ module.exports = async function verify_car(req, res, next) {
       $and: [{ plate_number }, { is_active: true }],
     });
 
-    // check if active parking was reserved as staff or visitor and not exipired yet. We check both staff and emergency reservations to determine if it's reserved.
-
-    if (active_parking) {
-        console.log("Active parking found:", active_parking);
-        
-      if (active_parking.driver_type === "staff") {
-        const is_still_valid_staff_reservation = await StaffCar.findOne({
-          $and: [{ plate_number }, { is_active: true }],
-        });
-        if (!is_still_valid_staff_reservation) {
-          active_parking = null;
-        }
-      } else if (active_parking.driver_type === "visitor") {
-        const is_still_valid_emergency_reservation = await EmergencyCar.findOne(
-          {
-            "visitor_info.plate_number": plate_number,
-            "validity.to": { $gte: new Date() },
-            is_active: true,
-          },
-        );
-        if (!is_still_valid_emergency_reservation) {
-          active_parking = null;
-        }
-      }
-      
-    }
-
     //  Check if it's a reserved Emergency/Visitor Car
-    // We look inside the visitor_info array of the EmergencyCar model
-    // Also check is_active on the main document
+    // We look inside the visitor_info array of the EmergencyCar model.
+    // Reservations never expire: they stay valid until used (vehicle checked in) or cancelled.
 
     const emergency_reservation = await EmergencyCar.findOne({
-      "visitor_info.plate_number": plate_number,
-      "validity.to": { $gte: new Date() }, // Ensure reservation hasn't expired
-      is_active: true, // Check if the emergency car record is active
+      is_active: true,
+      visitor_info: {
+        $elemMatch: {
+          plate_number,
+          is_used: { $ne: true },
+          is_cancelled: { $ne: true },
+        },
+      },
     });
 
     console.log("Emergency reservation found:", emergency_reservation);
@@ -159,7 +137,7 @@ module.exports = async function verify_car(req, res, next) {
 
       // Extract driver details from emergency_reservation visitor_info
       const visitorInfo = emergency_reservation.visitor_info?.find(
-        (v) => v.plate_number === plate_number,
+        (v) => v.plate_number === plate_number && !v.is_used && !v.is_cancelled,
       );
       console.log("Found visitorInfo:", visitorInfo);
       if (visitorInfo) {

@@ -43,11 +43,15 @@ module.exports = async function car_check_in(req, res, next) {
         plate_number = cleanPlateNumber(plate_number);
 
         // Check if this is a reserved vehicle (staff or emergency reservation)
+        // Normalize BEFORE the reservation lookups so stored plates always match
+        plate_number = plate_number.toString().toUpperCase().replace(/\s+/g, '')
+
+        // Check if this is a reserved vehicle (staff or emergency reservation).
+        // Reservations never expire: they stay valid until used (vehicle checked in) or cancelled.
         const staff_car = await StaffCar.findOne({ plate_number, is_active: true });
         const emergency_reservation = await EmergencyCar.findOne({
-            "visitor_info.plate_number": plate_number,
-            "validity.to": { $gte: new Date() },
-            is_active: true
+            is_active: true,
+            visitor_info: { $elemMatch: { plate_number, is_used: { $ne: true }, is_cancelled: { $ne: true } } }
         });
 
         const is_reserved = (staff_car?.is_active) || !!emergency_reservation;
@@ -69,9 +73,6 @@ module.exports = async function car_check_in(req, res, next) {
         }
 
 
-
-        // Normalize plate number
-        plate_number = plate_number.toString().toUpperCase().replace(/\s+/g, '')
 
         // check in service delivery and in parking if no one with that badge number currently in house
 
@@ -117,17 +118,23 @@ module.exports = async function car_check_in(req, res, next) {
             slot_number = "#S"
         }
 
-        // 2. EmergencyCar (check visitor_info array) - reuse the already fetched emergency_reservation
-        if (!driver_name && emergency_reservation) {
-            const visitor = emergency_reservation.visitor_info.find(v => v.plate_number === plate_number)
+        // 2. EmergencyCar (check visitor_info array) - reuse the already fetched emergency_reservation.
+        // A matched reservation ALWAYS classifies the vehicle as a reserved visitor (so the visitor
+        // pool decrements), even when the gate registrar typed/edited the driver details.
+        let reserved_visitor = null
+        if (!staff_car && emergency_reservation) {
+            const visitor = emergency_reservation.visitor_info.find(v => v.plate_number === plate_number && !v.is_used && !v.is_cancelled)
             if (visitor) {
-                driver_name = visitor.driver_name
+                reserved_visitor = visitor
                 driver_type = "visitor"
-                driver_telephone = visitor.telephone_number
+                driver_name = driver_name || visitor.driver_name
+                driver_telephone = driver_telephone || visitor.telephone_number
                 slot_number = visitor.slot_number || 'Not Specified'
-                driver_email = visitor.email || null
-                driver_identification = visitor.driver_identification || null
-                driver_gender = visitor.gender || null
+                driver_email = driver_email || visitor.email || null
+                driver_identification = (driver_identification && Object.keys(driver_identification).length > 0)
+                    ? driver_identification
+                    : (visitor.driver_identification || null)
+                driver_gender = driver_gender || visitor.gender || null
             }
         }
 
@@ -168,6 +175,13 @@ module.exports = async function car_check_in(req, res, next) {
 
         await new_parking.save()
 
+        // The vehicle arrived: consume its reservation so it stops counting as reserved
+        if (reserved_visitor) {
+            reserved_visitor.is_used = true
+            reserved_visitor.used_at = check_in_date
+            await emergency_reservation.save()
+        }
+
 // Update slot counts based on driver type
         // RegularAvailableSlots tracks actual vehicles inside (decrements on check-in)
         // Staff/Visitor available slots track their pool, occupied tracks actual inside
@@ -176,6 +190,10 @@ module.exports = async function car_check_in(req, res, next) {
             if (driver_type.toLowerCase() === 'visitor') {
                 parkingSlotDoc.visitorsAvailableSlots = Math.max(0, (parkingSlotDoc.visitorsAvailableSlots || 0) - 1);
                 parkingSlotDoc.visitorOccupiedCount = (parkingSlotDoc.visitorOccupiedCount || 0) + 1;
+                // A consumed reservation no longer counts as pending
+                if (reserved_visitor) {
+                    parkingSlotDoc.visitorReservationCount = Math.max(0, (parkingSlotDoc.visitorReservationCount || 0) - 1);
+                }
             } else if (driver_type.toLowerCase() === 'staff') {
                 parkingSlotDoc.staffAvailableSlots = Math.max(0, (parkingSlotDoc.staffAvailableSlots || 0) - 1);
                 parkingSlotDoc.staffOccupiedCount = (parkingSlotDoc.staffOccupiedCount || 0) + 1;

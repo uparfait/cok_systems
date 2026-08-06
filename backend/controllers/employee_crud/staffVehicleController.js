@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 const xlsx = require('xlsx');
-const StaffCar = require('../../models/staff_car'); 
+const StaffCar = require('../../models/staff_car');
+
+// Plates are stored normalized (UPPERCASE, no spaces) so check-in/verify lookups always match
+const normalizePlate = (p) => String(p || '').toUpperCase().replace(/\s+/g, '');
 
 /**
  * OPTION A: Single Staff Registration
@@ -15,7 +18,7 @@ const registerSingleStaffCar = async (req, res) => {
         }
 
         const newStaffCar = new StaffCar({
-            plate_number,
+            plate_number: normalizePlate(plate_number),
             id_type: id_type || 'NID', // Saves 'NID' if they leave it blank
             identification: identification || '',
             owner_name: owner_name || '',
@@ -75,7 +78,7 @@ const bulkUploadStaffCars = async (req, res) => {
 
         // Map the Excel columns to include ID Type
         const mappedStaff = allStaffData.map(row => ({
-            plate_number: row['Plate Number'] || row['plate number'] || '',
+            plate_number: normalizePlate(row['Plate Number'] || row['plate number'] || ''),
             owner_name: row['Name'] || row['Owner Name'] || row['name'] || '',
             id_type: row['ID Type'] || row['id type'] || 'NID', // <--- Extracts ID Type from Excel
             identification: String(row['Identification'] || row['ID'] || ''),
