@@ -61,16 +61,19 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
     checklists: false,
     comments: false,
     attachments: false,
-    status: false
+    status: false,
+    priority: false
   })
   const [editingSections, setEditingSections] = useState({
     title: false,
     description: false,
-    dates: false
+    dates: false,
+    priority: false
   })
   const [editForms, setEditForms] = useState({
     title: initialTask.title,
     description: initialTask.description || '',
+    priority: initialTask.priority || 'Medium',
     startDate: initialTask.startDate ? new Date(initialTask.startDate).toISOString().split('T')[0] : '',
     startTime: initialTask.startDate ? new Date(initialTask.startDate).toTimeString().slice(0, 5) : '12:00',
     dueDate: initialTask.dueDate ? new Date(initialTask.dueDate).toISOString().split('T')[0] : '',
@@ -97,6 +100,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
     onConfirm: () => {},
     type: 'danger'
   })
+  const [deleteConfirmLoading, setDeleteConfirmLoading] = useState(false)
 
   const handleTitleUpdate = async () => {
     if (!editForms.title.trim()) {
@@ -129,6 +133,21 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
       showError((error as Error)?.message || 'Failed to update description')
     } finally {
       setLoadingStates(prev => ({ ...prev, description: false }))
+    }
+  }
+
+  const handlePriorityUpdate = async () => {
+    setLoadingStates(prev => ({ ...prev, priority: true }))
+    try {
+      const updatedTask = await updateTask(task._id!, { priority: editForms.priority })
+      setTask(updatedTask.data)
+      setEditingSections(prev => ({ ...prev, priority: false }))
+      onUpdate(updatedTask.data)
+      showSuccess('Priority updated successfully')
+    } catch (error: unknown) {
+      showError((error as Error)?.message || 'Failed to update priority')
+    } finally {
+      setLoadingStates(prev => ({ ...prev, priority: false }))
     }
   }
 
@@ -377,6 +396,11 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
     })
   }
 
+  const handleClose = () => {
+    onUpdate(task)
+    onClose()
+  }
+
   const progress = task.status === 'Completed' && (!task.checklists || task.checklists.length === 0)
     ? 100
     : getTaskProgress(task)
@@ -405,6 +429,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                   title: 'Delete Task',
                   message: `Are you sure you want to delete the task "${task.title}"? This action cannot be undone and will permanently remove the task and all its data including attachments, comments, and checklists.`,
                   onConfirm: async () => {
+                    setDeleteConfirmLoading(true)
                     setConfirmationModal(prev => ({ ...prev, isOpen: false }))
                     try {
                       await deleteTask(task._id!)
@@ -412,6 +437,8 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                       if (onDelete) onDelete()
                     } catch (error: unknown) {
                       showError((error as Error)?.message || 'Failed to delete task')
+                    } finally {
+                      setDeleteConfirmLoading(false)
                     }
                     onClose()
                   },
@@ -421,12 +448,17 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
               className="cok-btn-outlined-reverse"
               style={{ padding: '0.4rem 0.8rem' }}
               title="Delete task"
+              disabled={deleteConfirmLoading}
             >
-              <FiTrash2 className="w-4 h-4" />
+              {deleteConfirmLoading ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <FiTrash2 className="w-4 h-4" />
+              )}
             </button>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="cok-btn-outlined-reverse"
               style={{ padding: '0.4rem 0.8rem' }}
             >
@@ -489,6 +521,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
                       onEditFormChange={(field, value) => setEditForms(prev => ({ ...prev, [field]: value }))}
                       onSaveDescription={handleDescriptionUpdate}
                       onSaveDates={handleDatesUpdate}
+                      onSavePriority={handlePriorityUpdate}
                     />
                   </div>
                 </div>
@@ -754,6 +787,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
           title={confirmationModal.title}
           message={confirmationModal.message}
           type={confirmationModal.type}
+          loading={deleteConfirmLoading}
         />
       </div>
     </div>
