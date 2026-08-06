@@ -339,7 +339,7 @@ async function requestDeleteToken(req, res) {
     }
 
     for (const col of collections) {
-      if (PROTECTED_COLLECTIONS.includes(col) || col === 'room' || col === 'audits') {
+      if (PROTECTED_COLLECTIONS.includes(col) || col === 'room') {
         return res.status(403).json({
           success: false,
           type: 'error',
