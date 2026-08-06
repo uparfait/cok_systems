@@ -1,21 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import {
-  FiAlertTriangle,
-  FiClipboard,
-  FiCheck,
-  FiUser,
-  FiSearch,
-} from 'react-icons/fi';
+import { FiSearch } from 'react-icons/fi';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import {
   COK,
   CokLoadingOverlay,
   CokPageHeader,
-  CokStatCard,
-  CokBadge,
   CokTab,
-  CokTh,
   CokTableEmpty,
   CokPagination,
 } from './mayorCok';
@@ -53,6 +44,86 @@ function isAssigned(action: EventAction): boolean {
 }
 
 type TabKey = 'all' | 'overdue' | 'assigned' | 'pending' | 'inProgress' | 'completed';
+
+const initialsOf = (name?: string) =>
+  (name || '?').split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
+
+// Soft tint background from a 6-digit hex color (for status chips)
+const tint = (hex: string) => `${hex}1F`;
+
+// Flat donut chart: colored ring segments with % labels on the slices, the total in
+// the center hole, and a legend row on top (reference-image style)
+const ActionsDonut: React.FC<{
+  total: number;
+  segments: Array<{ label: string; value: number; color: string }>;
+}> = ({ total, segments }) => {
+  const data = segments.filter(s => s.value > 0);
+  const sum = data.reduce((s, d) => s + d.value, 0);
+
+  const cx = 110, cy = 110, rO = 96, rI = 58;
+  const pt = (r: number, ang: number) => ({ x: cx + r * Math.cos(ang), y: cy + r * Math.sin(ang) });
+  let angle = -Math.PI / 2;
+  const slices = data.map(d => {
+    const sweep = (d.value / sum) * Math.PI * 2;
+    const a0 = angle, a1 = angle + sweep, mid = angle + sweep / 2;
+    angle = a1;
+    const o0 = pt(rO, a0), o1 = pt(rO, a1), i0 = pt(rI, a0), i1 = pt(rI, a1);
+    const large = sweep > Math.PI ? 1 : 0;
+    return {
+      ...d,
+      mid,
+      pct: Math.round((d.value / sum) * 100),
+      path: `M ${o0.x} ${o0.y} A ${rO} ${rO} 0 ${large} 1 ${o1.x} ${o1.y} L ${i1.x} ${i1.y} A ${rI} ${rI} 0 ${large} 0 ${i0.x} ${i0.y} Z`,
+    };
+  });
+
+  return (
+    <div className="flex flex-col items-center">
+      {/* Legends */}
+      <div className="flex flex-wrap justify-center gap-x-5 gap-y-1.5 mb-3">
+        {segments.map(s => (
+          <div key={s.label} className="flex items-center gap-1.5 text-xs" style={{ fontFamily: COK.headingFont, color: COK.neutralDark }}>
+            <span className="w-2.5 h-2.5 inline-block" style={{ backgroundColor: s.color }}></span>
+            {s.label} ({s.value})
+          </div>
+        ))}
+      </div>
+      {sum === 0 ? (
+        <div className="h-40 flex items-center justify-center text-xs text-gray-400">No actions recorded yet</div>
+      ) : (
+        <svg viewBox="0 0 220 220" className="w-full" style={{ maxWidth: 260 }}>
+          {slices.map(s => <path key={s.label} d={s.path} fill={s.color} />)}
+          {slices.map(s => {
+            const lp = pt((rO + rI) / 2, s.mid);
+            // Very thin slices keep their % just outside the ring instead of on it
+            const outside = s.pct < 6;
+            const op = pt(rO + 12, s.mid);
+            return (
+              <text
+                key={`l${s.label}`}
+                x={outside ? op.x : lp.x}
+                y={outside ? op.y : lp.y}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize="13"
+                fontWeight="700"
+                fill={outside ? COK.neutralDark : '#ffffff'}
+              >
+                {s.pct}%
+              </text>
+            );
+          })}
+          <text x={cx} y={cy - 10} textAnchor="middle" fontSize="11" fontWeight="700" fill="#6b7280" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+            Total Actions
+          </text>
+          <text x={cx} y={cy + 14} textAnchor="middle" fontSize="26" fontWeight="800" fill={COK.neutralDark}>
+            {total}
+          </text>
+        </svg>
+      )}
+    </div>
+  );
+};
 
 export default function MayorActionsPage() {
   const [actions, setActions] = useState<EventAction[]>([]);
@@ -154,37 +225,6 @@ export default function MayorActionsPage() {
       <div className="p-4 space-y-4" style={{ backgroundColor: COK.neutralLight, minHeight: '100%' }}>
         <CokPageHeader title="Actions" />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <CokStatCard
-            label="Total Actions"
-            value={counts.all}
-            accent={COK.primary}
-            loading={loading}
-            icon={<FiClipboard className="w-5 h-5" style={{ color: COK.primary }} />}
-          />
-          <CokStatCard
-            label="Over Deadline"
-            value={counts.overdue}
-            accent={COK.danger}
-            loading={loading}
-            icon={<FiAlertTriangle className="w-5 h-5" style={{ color: COK.danger }} />}
-          />
-          <CokStatCard
-            label="Assigned"
-            value={counts.assigned}
-            accent={COK.warning}
-            loading={loading}
-            icon={<FiUser className="w-5 h-5" style={{ color: COK.warning }} />}
-          />
-          <CokStatCard
-            label="Completed"
-            value={counts.completed}
-            accent={COK.success}
-            loading={loading}
-            icon={<FiCheck className="w-5 h-5" style={{ color: COK.success }} />}
-          />
-        </div>
-
         <div className="bg-white relative" style={{ border: `1px solid ${COK.border}` }}>
           {loading && <CokLoadingOverlay />}
 
@@ -216,31 +256,26 @@ export default function MayorActionsPage() {
           {!error && !loading && filtered.length === 0 && <CokTableEmpty message="No actions found" />}
 
           {paged.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse table-auto">
-                <thead className="sticky top-0 z-10">
+            <div className="overflow-x-auto px-4">
+              {/* Same table language as the System Admin reservation list: solid CoK-blue
+                  header, hairline row dividers, avatar initials, soft-tint status chips */}
+              <table className="w-full min-w-[720px]">
+                <thead className="cok-bg-primary sticky top-0 z-10 shadow-sm">
                   <tr>
-                    <CokTh>Action</CokTh>
-                    <CokTh>Assigned To</CokTh>
-                    <CokTh>Due Date</CokTh>
-                    <CokTh center>Status</CokTh>
+                    {['Action', 'Assigned To', 'Due Date', 'Status'].map((h) => (
+                      <th key={h} className="text-left py-3 px-3 text-xs uppercase tracking-wider font-semibold text-white" style={{ fontFamily: COK.headingFont, letterSpacing: '0.5px' }}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {paged.map((a, rowIndex) => {
+                  {paged.map((a) => {
                     const overdue = isOverdue(a);
                     const status = a.currentStatus?.status || 'Pending';
+                    const statusColor = STATUS_COLORS[status] || COK.primary;
                     return (
-                      <tr
-                        key={a._id}
-                        className={`transition-colors duration-100 ${
-                          rowIndex % 2 === 0 ? 'bg-white hover:bg-blue-50/30' : 'bg-gray-50/50 hover:bg-blue-50/30'
-                        }`}
-                      >
-                        <td className="px-4 py-3 border-r border-gray-200 align-top max-w-xs">
-                          <p
-                            style={{ fontFamily: COK.headingFont, fontSize: 13, fontWeight: 600, color: COK.neutralDark, margin: 0 }}
-                          >
+                      <tr key={a._id} className="h-14" style={{ borderBottom: `1px solid ${COK.border}` }}>
+                        <td className="py-3 px-3 max-w-xs">
+                          <p style={{ fontFamily: COK.headingFont, fontSize: 13, fontWeight: 600, color: COK.neutralDark, margin: 0 }}>
                             {a.title}
                           </p>
                           {a.actionDescription && (
@@ -249,20 +284,25 @@ export default function MayorActionsPage() {
                             </p>
                           )}
                         </td>
-                        <td className="px-4 py-3 border-r border-gray-200 align-top">
+                        <td className="py-3 px-3">
                           {isAssigned(a) ? (
-                            <>
-                              <p className="text-sm" style={{ color: COK.neutralDark, margin: 0 }}>{a.assignedPerson!.name}</p>
-                              {a.assignedPerson?.email && (
-                                <p className="text-xs text-gray-400" style={{ margin: 0 }}>{a.assignedPerson.email}</p>
-                              )}
-                            </>
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0" style={{ backgroundColor: COK.primary, fontFamily: COK.headingFont }}>
+                                {initialsOf(a.assignedPerson?.name)}
+                              </div>
+                              <div>
+                                <p className="text-[13px] font-medium" style={{ color: COK.neutralDark, margin: 0 }}>{a.assignedPerson!.name}</p>
+                                {a.assignedPerson?.email && (
+                                  <p className="text-xs text-gray-400" style={{ margin: 0 }}>{a.assignedPerson.email}</p>
+                                )}
+                              </div>
+                            </div>
                           ) : (
                             <span className="text-xs text-gray-400 italic">Unassigned</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 border-r border-gray-200 align-top whitespace-nowrap">
-                          <span className="text-sm" style={{ color: overdue ? COK.danger : COK.neutralDark, fontWeight: overdue ? 600 : 400 }}>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <span className="text-[13px] font-medium" style={{ color: overdue ? COK.danger : '#555555' }}>
                             {a.dueDate
                               ? new Date(a.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                               : '—'}
@@ -273,8 +313,10 @@ export default function MayorActionsPage() {
                             </p>
                           )}
                         </td>
-                        <td className="px-4 py-3 align-top text-center">
-                          <CokBadge label={status} color={STATUS_COLORS[status] || COK.primary} />
+                        <td className="py-3 px-3">
+                          <span className="inline-flex items-center px-3 py-1 text-[12px] font-bold uppercase tracking-wide" style={{ backgroundColor: tint(statusColor), color: statusColor }}>
+                            {status}
+                          </span>
                         </td>
                       </tr>
                     );
@@ -299,6 +341,25 @@ export default function MayorActionsPage() {
           >
             View only actions are managed by the Event Manager's office.
           </div>
+        </div>
+
+        {/* Actions overview donut — replaces the old stat cards, placed below the table */}
+        <div className="bg-white p-4" style={{ border: `1px solid ${COK.border}` }}>
+          <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: '0 0 12px 0' }}>
+            Actions Overview
+          </h3>
+          {loading ? (
+            <div className="h-48 flex items-center justify-center text-xs text-gray-400">Loading…</div>
+          ) : (
+            <ActionsDonut
+              total={counts.all}
+              segments={[
+                { label: 'Over Deadline', value: counts.overdue, color: COK.danger },
+                { label: 'Assigned', value: counts.assigned, color: COK.warning },
+                { label: 'Completed', value: counts.completed, color: COK.success },
+              ]}
+            />
+          )}
         </div>
       </div>
     </MainLayout>
