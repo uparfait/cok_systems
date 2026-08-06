@@ -166,6 +166,53 @@ async function resetPassword(req, res, next) {
     // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword.trim(), SALT_ROUNDS);
 
+    // Check if 2FA is disabled or already verified - skip TOTP setup
+    const is2FADisabled = user.is_2FA_disabled === true;
+    const is2FAVerified = user.twofa_setup?.verified === true;
+
+    if (is2FADisabled || is2FAVerified) {
+      // Update password only, preserve existing 2FA setup
+      await User.findByIdAndUpdate(userId, {
+        $set: {
+          password: hashedPassword,
+          auth: {
+            access_token: {
+              token: null,
+              token_type: null,
+              expires_at: null
+            }
+          }
+        }
+      });
+
+      // Log successful password reset
+      await logAuditEvent('UPDATE', `Password successfully reset for ${user.email} (2FA setup skipped)`, req, {
+        resource: 'users',
+        resource_id: user._id.toString(),
+        status_code: 200,
+        metadata: { email: user.email, twofa_skipped: true }
+      });
+
+      // Send confirmation email
+      try {
+        await email.sendPasswordChangedEmail(user.email, user.full_name);
+      } catch (emailError) {
+        console.error("Failed to send password change confirmation email:", emailError);
+      }
+
+      // Reset login attempts for the user
+      await resetLoginAttempts(userId);
+
+      return res.status(200).json({
+        status: true,
+        error: null,
+        message: "Password reset successfully",
+        data: {
+          requiresTOTPSetup: false,
+        },
+      });
+    }
+
     // Generate new TOTP secret for 2FA setup (stored in twofa_setup, NOT twofa_secret)
     const { secret, otpauthUrl } = totp.generateTOTPSecret(user.email);
     const qrCodeDataUrl = await totp.generateQRCode(otpauthUrl);
