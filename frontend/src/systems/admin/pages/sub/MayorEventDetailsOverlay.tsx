@@ -1,38 +1,25 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FiX, FiUsers, FiLoader } from 'react-icons/fi';
+import {
+  FiX,
+  FiUsers,
+  FiLoader,
+  FiClock,
+  FiMapPin,
+  FiTag,
+  FiLayers,
+  FiActivity,
+  FiUser,
+  FiFileText,
+  FiMail,
+  FiPhone,
+  FiBriefcase,
+} from 'react-icons/fi';
 import { COK, CokBadge, CokTh, CokTableEmpty } from '../mayorCok';
 
-// Field label in CoK primary blue (per design rule: Montserrat, uppercase, letter-spaced)
-const BlueLabel = ({ children }: { children: React.ReactNode }) => (
-  <p
-    className="uppercase"
-    style={{
-      fontFamily: COK.headingFont,
-      fontSize: 11,
-      fontWeight: 700,
-      letterSpacing: '0.6px',
-      color: COK.primary,
-      margin: 0,
-    }}
-  >
-    {children}
-  </p>
-);
-
-// Blue field name above a bordered white box holding the value in body-text black
-const FieldCell = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div>
-    <div className="mb-1">
-      <BlueLabel>{label}</BlueLabel>
-    </div>
-    <div className="bg-white px-2.5 py-1.5" style={{ border: `1px solid ${COK.border}` }}>
-      <p className="text-[13px] leading-snug" style={{ fontFamily: COK.bodyFont, color: COK.neutralDark, margin: 0 }}>
-        {value}
-      </p>
-    </div>
-  </div>
-);
+// Employee-account design constants (same values as EmployeeDashboard / DepartmentQueueTab)
+const CARD_SHADOW = '0 8px 40px 0 rgba(0,0,0,0.08)';
+const fontHeading = COK.headingFont;
 
 const ATTENDANCE_URL = '/cok/api/v1/attendance';
 
@@ -60,7 +47,16 @@ interface AttendanceRecord {
   attendeeInstitution?: string;
   attendeePosition?: string;
   attendeeSignature?: string;
+  digitalCertificate?: string;
   createdAt?: string;
+}
+
+// Drawn signatures live in attendeeSignature (base64); uploaded ones are stored
+// in digitalCertificate as a served file URL — display whichever exists
+function signatureImageSrc(a: AttendanceRecord): string | null {
+  if (a.attendeeSignature) return a.attendeeSignature;
+  if (a.digitalCertificate && /\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(a.digitalCertificate)) return a.digitalCertificate;
+  return null;
 }
 
 const STATUS_BADGES: Record<string, { label: string; color: string }> = {
@@ -85,6 +81,42 @@ function formatSubmittedAt(iso?: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })
     + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// Detail card styled exactly like the employee dashboard stat cards:
+// white card with soft shadow, faded corner circle holding the icon,
+// small gray label, bold Montserrat value, and a colored underline bar
+function DetailCard({
+  label,
+  value,
+  icon: Icon,
+  accent,
+}: {
+  label: string;
+  value: React.ReactNode;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  accent: string;
+}) {
+  return (
+    <div className="bg-white p-[18px_20px] relative overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
+      <div className="absolute top-0 right-0 w-16 h-16">
+        <div
+          className="absolute top-0 right-0 w-28 h-28 rounded-full opacity-20 -translate-x-6 -translate-y-8"
+          style={{ backgroundColor: accent }}
+        />
+      </div>
+      <div className="flex justify-between items-start relative z-10">
+        <span className="text-[12px] uppercase" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: '#555555' }}>
+          {label}
+        </span>
+        <Icon className="w-4 h-4" style={{ color: accent }} />
+      </div>
+      <div className="mt-2 relative z-10 text-[15px] font-bold leading-snug" style={{ fontFamily: fontHeading, color: COK.neutralDark }}>
+        {value}
+      </div>
+      <div className="w-10 h-1.5 mt-2" style={{ backgroundColor: accent }} />
+    </div>
+  );
 }
 
 export default function MayorEventDetailsOverlay({
@@ -141,57 +173,23 @@ export default function MayorEventDetailsOverlay({
 
   const sameDay = !!(start && end && new Date(start).toDateString() === new Date(end).toDateString());
   const organizer = event.eventOrganizer;
+  const accent = eventAccent(event);
+  const organizerInitials = (organizer?.fullNames || '?')
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
 
-  // Badge chips styled exactly like the event manager's events table
-  const meetingTypeBadge = event.eventMeetingType === 'meet'
-    ? <span className="inline-block bg-emerald-50 text-emerald-700 border border-emerald-300 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide">Meeting</span>
-    : <span className="inline-block bg-blue-50 text-sky-700 border border-blue-300 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide">Event</span>;
-
-  const modeBadge = (() => {
-    switch (event.eventType) {
-      case 'Special':
-      case 'External':
-        return <span className="inline-block bg-amber-50 text-amber-800 border border-amber-300 px-2.5 py-0.5 text-xs font-semibold">{event.eventType}</span>;
-      case 'Joint':
-        return <span className="inline-block bg-teal-50 text-teal-800 border border-teal-300 px-2.5 py-0.5 text-xs font-semibold">{event.eventType}</span>;
-      default:
-        return event.eventType
-          ? <span className="inline-block bg-indigo-50 text-indigo-800 border border-indigo-300 px-2.5 py-0.5 text-xs font-semibold">{event.eventType}</span>
-          : <span className="text-gray-400">N/A</span>;
-    }
-  })();
-
-  const statusBadge = (() => {
-    const cls = 'inline-block px-3 py-1 text-xs font-bold uppercase tracking-wide border';
-    if (event.isCancelled) return <span className={`${cls} bg-red-50 text-red-700 border-red-300`}>Cancelled</span>;
-    if (liveNow) return <span className={`${cls} bg-emerald-100 text-emerald-800 border-emerald-300`}>Live</span>;
-    if (badge.label === 'Upcoming') return <span className={`${cls} bg-sky-100 text-sky-800 border-sky-300`}>Upcoming</span>;
-    if (badge.label === 'Recurring') return <span className={`${cls} bg-violet-100 text-violet-800 border-violet-300`}>Recurring</span>;
-    if (badge.label === 'Completed') return <span className={`${cls} bg-gray-100 text-gray-500 border-gray-300`}>Past</span>;
-    return <span className={`${cls} bg-gray-100 text-gray-700 border-gray-300`}>{badge.label}</span>;
-  })();
-
-  const timeCell = start && end ? (
-    <div className="text-sm leading-snug">
-      <div className="text-gray-700">
+  const timeValue = start && end ? (
+    <>
+      <div>
         {new Date(start).toLocaleDateString()}
-        {!sameDay && <> - {new Date(end).toLocaleDateString()}</>}
+        {!sameDay && <> — {new Date(end).toLocaleDateString()}</>}
       </div>
-      <div className="text-gray-500 text-xs">{formatTimeRange(start, end)}</div>
-    </div>
-  ) : (
-    <span className="text-gray-400 text-sm">N/A</span>
-  );
-
-  const organizerCell = organizer?.fullNames ? (
-    <div className="text-sm leading-snug">
-      <div className="font-semibold text-gray-900">{organizer.fullNames}</div>
-      {(organizer.phone || organizer.telephone) && <div className="text-gray-500 text-xs">{organizer.phone || organizer.telephone}</div>}
-      {organizer.email && <div className="text-gray-500 text-xs">{organizer.email}</div>}
-    </div>
-  ) : (
-    <span className="text-gray-400">N/A</span>
-  );
+      <div className="text-[12px] font-medium mt-0.5" style={{ color: '#555555' }}>{formatTimeRange(start, end)}</div>
+    </>
+  ) : 'N/A';
 
   return (
     <div
@@ -200,21 +198,28 @@ export default function MayorEventDetailsOverlay({
       onClick={onClose}
     >
       <div
-        className="bg-white w-full max-w-5xl max-h-[92vh] overflow-y-auto shadow-lg"
-        style={{ border: `1px solid ${COK.border}`, borderTop: `3px solid ${COK.primary}` }}
+        className="w-full max-w-4xl max-h-[92vh] overflow-y-auto"
+        style={{ backgroundColor: COK.neutralLight, boxShadow: CARD_SHADOW, borderRadius: 0 }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label="Event details"
       >
-        {/* Header — the View Attendance action lives here so it is visible without scrolling */}
-        <div className="flex items-start justify-between gap-3 p-3 sticky top-0 bg-white z-10" style={{ borderBottom: `1px solid ${COK.border}` }}>
+        {/* Header — white card bar with badges, title, and actions */}
+        <div
+          className="flex items-start justify-between gap-3 p-5 sticky top-0 z-10"
+          style={{ backgroundColor: '#FFFFFF', borderBottom: `1px solid ${COK.border}` }}
+        >
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <CokBadge label={badge.label} color={badge.color} />
-              <CokBadge label={event.eventMeetingType === 'meet' ? 'Meeting' : 'Event'} color={eventAccent(event)} />
+              <CokBadge label={event.eventMeetingType === 'meet' ? 'Meeting' : 'Event'} color={accent} />
+              {event.eventType && <CokBadge label={event.eventType} color={COK.tertiary} />}
             </div>
-            <h3 className="mt-1.5 truncate" style={{ fontFamily: COK.headingFont, fontSize: 18, fontWeight: 800, letterSpacing: '-0.3px', color: COK.primary, margin: '6px 0 0 0' }}>
+            <h3
+              className="mt-2 truncate"
+              style={{ fontFamily: fontHeading, fontSize: 20, fontWeight: 800, letterSpacing: '-0.3px', color: COK.primary, margin: '8px 0 0 0' }}
+            >
               {event.eventName}
             </h3>
           </div>
@@ -223,8 +228,10 @@ export default function MayorEventDetailsOverlay({
               <button
                 type="button"
                 onClick={() => setShowAttendance((v) => !v)}
-                className="flex items-center gap-2 px-3 py-2 text-white text-xs font-semibold uppercase tracking-wider transition-opacity hover:opacity-90"
-                style={{ backgroundColor: COK.primary, fontFamily: COK.headingFont, cursor: 'pointer' }}
+                className="flex items-center gap-2 px-4 py-2.5 text-white text-xs font-semibold uppercase transition-colors"
+                style={{ backgroundColor: COK.primary, fontFamily: fontHeading, letterSpacing: '1px', borderRadius: 0, cursor: 'pointer' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#045d94'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = COK.primary; }}
               >
                 <FiUsers className="w-4 h-4" />
                 {showAttendance ? 'Hide Attendance' : 'View Attendance'}
@@ -233,74 +240,116 @@ export default function MayorEventDetailsOverlay({
             <button
               onClick={onClose}
               aria-label="Close"
-              className="w-8 h-8 flex items-center justify-center hover:bg-gray-50 shrink-0"
-              style={{ border: `1px solid ${COK.border}` }}
+              className="w-9 h-9 flex items-center justify-center hover:bg-gray-50 shrink-0"
+              style={{ border: `1px solid ${COK.border}`, borderRadius: 0 }}
             >
               <FiX className="w-4 h-4" style={{ color: COK.neutralDark }} />
             </button>
           </div>
         </div>
 
-        <div className="p-3 space-y-3">
-          {/* Core details as a single-row table, styled like the event manager's events table */}
-          <div className="overflow-x-auto" style={{ border: `1px solid ${COK.border}` }}>
-            <table className="w-full text-sm">
-              <thead>
-                <tr>
-                  <CokTh>Type</CokTh>
-                  <CokTh>Event/Meet Name</CokTh>
-                  <CokTh>Mode</CokTh>
-                  <CokTh>Room</CokTh>
-                  <CokTh>Expected Audience</CokTh>
-                  <CokTh>Organizer</CokTh>
-                  <CokTh>Status</CokTh>
-                  <CokTh>Time</CokTh>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="bg-white">
-                  <td className="px-4 py-4 border-r" style={{ borderColor: COK.neutralLight }}>{meetingTypeBadge}</td>
-                  <td className="px-4 py-4 font-bold text-gray-900 border-r" style={{ fontFamily: COK.headingFont, borderColor: COK.neutralLight }}>{event.eventName || '—'}</td>
-                  <td className="px-4 py-4 border-r" style={{ borderColor: COK.neutralLight }}>{modeBadge}</td>
-                  <td className="px-4 py-4 text-gray-700 border-r" style={{ fontFamily: COK.bodyFont, borderColor: COK.neutralLight }}>{event.eventRoom || '—'}</td>
-                  <td className="px-4 py-4 text-gray-900 border-r" style={{ borderColor: COK.neutralLight }}>{event.expectedAudience ?? '—'}</td>
-                  <td className="px-4 py-4 border-r" style={{ borderColor: COK.neutralLight }}>{organizerCell}</td>
-                  <td className="px-4 py-4 border-r" style={{ borderColor: COK.neutralLight }}>{statusBadge}</td>
-                  <td className="px-4 py-4 whitespace-nowrap">{timeCell}</td>
-                </tr>
-              </tbody>
-            </table>
+        <div className="p-5 space-y-4">
+          {/* Detail cards — same look as the employee dashboard stat cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <DetailCard label="Type" value={event.eventMeetingType === 'meet' ? 'Meeting' : 'Event'} icon={FiTag} accent={accent} />
+            <DetailCard label="Mode" value={event.eventType || 'N/A'} icon={FiLayers} accent={COK.warning} />
+            <DetailCard label="Status" value={badge.label} icon={FiActivity} accent={badge.color} />
+            <DetailCard label="Room" value={event.eventRoom || 'N/A'} icon={FiMapPin} accent={COK.primary} />
+            <DetailCard label="Expected Audience" value={event.expectedAudience ?? 'N/A'} icon={FiUsers} accent={COK.success} />
+            <DetailCard label="Date & Time" value={timeValue} icon={FiClock} accent={COK.tertiary} />
           </div>
 
+          {/* Organizer — white card with avatar circle, like the employee visitor rows */}
+          <div className="bg-white p-5" style={{ boxShadow: CARD_SHADOW }}>
+            <div className="flex items-center gap-2 mb-3">
+              <FiUser className="w-4 h-4" style={{ color: COK.primary }} />
+              <span className="text-[12px] uppercase" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: '#555555' }}>
+                Organizer
+              </span>
+            </div>
+            {organizer?.fullNames ? (
+              <div className="flex items-center gap-3 flex-wrap">
+                <div
+                  className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                  style={{ backgroundColor: 'rgba(5,109,170,0.1)', color: COK.primary, fontFamily: fontHeading }}
+                >
+                  {organizerInitials}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[15px] font-bold" style={{ fontFamily: fontHeading, color: COK.neutralDark }}>
+                    {organizer.fullNames}
+                  </div>
+                  <div className="flex items-center gap-4 flex-wrap mt-1">
+                    {(organizer.phone || organizer.telephone) && (
+                      <span className="flex items-center gap-1 text-xs" style={{ color: '#555555' }}>
+                        <FiPhone className="w-3 h-3" style={{ color: COK.primary }} />
+                        {organizer.phone || organizer.telephone}
+                      </span>
+                    )}
+                    {organizer.email && (
+                      <span className="flex items-center gap-1 text-xs" style={{ color: '#555555' }}>
+                        <FiMail className="w-3 h-3" style={{ color: COK.primary }} />
+                        {organizer.email}
+                      </span>
+                    )}
+                    {organizer.institution && (
+                      <span className="flex items-center gap-1 text-xs" style={{ color: '#555555' }}>
+                        <FiBriefcase className="w-3 h-3" style={{ color: COK.primary }} />
+                        {organizer.institution}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <span className="text-sm" style={{ color: '#9E9E9E' }}>N/A</span>
+            )}
+          </div>
+
+          {/* Description card */}
           {event.eventDescription && (
-            <FieldCell label="Description" value={event.eventDescription} />
+            <div className="bg-white p-5" style={{ boxShadow: CARD_SHADOW }}>
+              <div className="flex items-center gap-2 mb-3">
+                <FiFileText className="w-4 h-4" style={{ color: COK.primary }} />
+                <span className="text-[12px] uppercase" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: '#555555' }}>
+                  Description
+                </span>
+              </div>
+              <p className="text-sm leading-relaxed" style={{ fontFamily: COK.bodyFont, color: COK.neutralDark, margin: 0 }}>
+                {event.eventDescription}
+              </p>
+            </div>
           )}
 
-          {/* Attendance report, revealed on demand (past and live events only) */}
+          {/* Attendance report — blue summary header panel like the employee Queue Summary */}
           {canViewAttendance && showAttendance && (
-            <div className="bg-white" style={{ border: `1px solid ${COK.border}` }}>
-              <div className="flex items-center justify-between p-3" style={{ borderBottom: `1px solid ${COK.border}`, backgroundColor: COK.neutralLight }}>
+            <div className="bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
+              <div className="flex items-center justify-between p-4 text-white" style={{ backgroundColor: COK.primary }}>
                 <div className="flex items-center gap-2">
-                  <FiUsers className="w-4 h-4" style={{ color: COK.primary }} />
-                  <BlueLabel>Signed Attendance Report</BlueLabel>
+                  <FiUsers className="w-4 h-4 opacity-80" />
+                  <span className="text-[13px] font-bold uppercase" style={{ fontFamily: fontHeading, letterSpacing: '0.5px' }}>
+                    Signed Attendance Report
+                  </span>
                 </div>
-                <span style={{ fontFamily: COK.headingFont, fontSize: 16, fontWeight: 700, color: COK.primary }}>
-                  {attendanceLoading ? '…' : attendees.length}
-                  <span className="ml-1 text-xs font-medium" style={{ color: '#888888' }}>
+                <div className="bg-[rgba(255,255,255,0.15)] px-3 py-1">
+                  <span style={{ fontFamily: fontHeading, fontSize: 16, fontWeight: 700 }}>
+                    {attendanceLoading ? '…' : attendees.length}
+                  </span>
+                  <span className="ml-1 text-xs opacity-80">
                     attendee{attendees.length === 1 ? '' : 's'}
                   </span>
-                </span>
+                </div>
               </div>
 
               {attendanceLoading && (
                 <div className="flex items-center justify-center py-10">
                   <FiLoader className="w-5 h-5 animate-spin" style={{ color: COK.primary }} />
-                  <span className="ml-2 text-sm" style={{ fontFamily: COK.headingFont, color: '#888888' }}>Loading attendance…</span>
+                  <span className="ml-2 text-sm" style={{ fontFamily: fontHeading, color: '#888888' }}>Loading attendance…</span>
                 </div>
               )}
 
               {!attendanceLoading && attendanceError && (
-                <div className="m-3 p-3 text-sm" style={{ backgroundColor: '#FFEBEE', border: '1px solid #FFCDD2', color: '#C62828', fontFamily: COK.headingFont }}>
+                <div className="m-4 p-3 text-sm" style={{ backgroundColor: '#FFEBEE', border: '1px solid #FFCDD2', color: '#C62828', fontFamily: fontHeading }}>
                   {attendanceError}
                 </div>
               )}
@@ -326,12 +375,16 @@ export default function MayorEventDetailsOverlay({
                       {attendees.map((a, i) => (
                         <tr key={a._id} style={{ backgroundColor: i % 2 === 0 ? '#FFFFFF' : COK.neutralLight }}>
                           <td className="px-4 py-3 text-xs font-mono" style={{ color: '#888888' }}>{i + 1}</td>
-                          <td className="px-4 py-3 font-medium" style={{ fontFamily: COK.headingFont, color: COK.neutralDark }}>{a.attendeeFullName}</td>
+                          <td className="px-4 py-3 font-medium" style={{ fontFamily: fontHeading, color: COK.neutralDark }}>{a.attendeeFullName}</td>
                           <td className="px-4 py-3" style={{ fontFamily: COK.bodyFont, color: '#555555' }}>{a.attendeeInstitution || '—'}</td>
                           <td className="px-4 py-3" style={{ fontFamily: COK.bodyFont, color: '#555555' }}>{a.attendeePosition || '—'}</td>
                           <td className="px-4 py-3">
-                            {a.attendeeSignature ? (
-                              <img src={a.attendeeSignature} alt={`Signature of ${a.attendeeFullName}`} className="h-8 max-w-[110px] object-contain" />
+                            {signatureImageSrc(a) ? (
+                              <img src={signatureImageSrc(a) as string} alt={`Signature of ${a.attendeeFullName}`} className="h-8 max-w-[110px] object-contain" />
+                            ) : a.digitalCertificate ? (
+                              <a href={a.digitalCertificate} target="_blank" rel="noopener noreferrer" className="text-xs underline" style={{ color: COK.primary }}>
+                                View file
+                              </a>
                             ) : (
                               <span style={{ color: '#CCCCCC' }}>—</span>
                             )}
@@ -347,7 +400,7 @@ export default function MayorEventDetailsOverlay({
           )}
         </div>
 
-        <div className="px-3 py-1.5 text-[11px] text-gray-400" style={{ borderTop: `1px solid ${COK.border}`, fontFamily: COK.bodyFont }}>
+        <div className="px-5 py-2 text-[11px]" style={{ color: '#9E9E9E', borderTop: `1px solid ${COK.border}`, backgroundColor: '#FFFFFF', fontFamily: COK.bodyFont }}>
           Event information managed by the Event Manager's office.
         </div>
       </div>

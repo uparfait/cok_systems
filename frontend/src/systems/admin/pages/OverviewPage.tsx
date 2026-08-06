@@ -12,6 +12,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, 
 import { COK, CokBadge } from './mayorCok';
 import { FiFilter } from 'react-icons/fi';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
+import ParkingLotMap from '../../../core/components/ParkingLotMap';
 
 // ==================== TYPES ====================
 
@@ -89,6 +90,27 @@ const SentimentChartTooltip = ({ active, payload }: any) => {
     </div>
   );
 };
+// Bar value label like the reference design: the count with its share of the row total
+// ("650" over "(32%)"), drawn just under the top of the bar. Bars too short to fit the
+// text get the label above them in gray instead. Static — no animation, no blinking.
+const makeStatusBarLabel = (rows: Array<{ total?: number }>) => (props: any) => {
+  const { x = 0, y = 0, width = 0, height = 0, index, value } = props;
+  const num = Number(value);
+  if (!num || Number.isNaN(num)) return null;
+  const total = Number(rows[index]?.total) || 0;
+  const pct = total > 0 ? Math.round((num / total) * 100) : null;
+  const cx = x + width / 2;
+  const inside = height >= (pct !== null ? 26 : 14);
+  const fill = inside ? '#ffffff' : '#6b7280';
+  const baseY = inside ? y + 11 : y - (pct !== null ? 15 : 4);
+  return (
+    <text x={cx} y={baseY} textAnchor="middle" fontSize={9} fontWeight={600} fill={fill}>
+      <tspan x={cx}>{Number.isInteger(num) ? num : num.toFixed(2)}</tspan>
+      {pct !== null && <tspan x={cx} dy={10}>({pct}%)</tspan>}
+    </text>
+  );
+};
+
 // Helper to get chart config with dynamic Y-axis ticks
 const getChartConfig = (maxValue: number, minValue: number = 0) => {
   // Calculate dynamic step size using "nice numbers" algorithm
@@ -266,105 +288,48 @@ const HourGauge: React.FC<{ hours: Array<{ hour: number; count: number }>; lastH
   );
 };
 
-// Parking lot map — one cell per slot: blue = occupied (hover shows plate), yellow = reserved, green = available
-const ParkingMap: React.FC<{ totalSlots: number; vehicles: any[]; reservations: any[] }> = ({ totalSlots, vehicles, reservations }) => {
-  const SLOT_COLORS = { occupied: 'rgb(246, 59, 59)', reserved: '#F5C542', available: '#4CAF50' } as const;
-  type SlotState = { id: string; status: keyof typeof SLOT_COLORS; plate?: string; who?: string };
-  const slots = useMemo<SlotState[]>(() => {
-    const n = Math.max(totalSlots, vehicles.length + reservations.length, 1);
-    // Slots numbered COK1, COK2, ... shown in bays of 20
-    const list: SlotState[] = Array.from({ length: n }, (_, i) => ({
-      id: `COK${i + 1}`,
-      status: 'available',
-    }));
-    const byId = new Map(list.map(s => [s.id, s]));
-    const unplaced: any[] = [];
-    // Vehicles whose recorded slot matches a COK number (e.g. "COK12" or "12") land exactly; the rest fill from the front
-    vehicles.forEach(v => {
-      const raw = String(v?.slot_number || '').replace(/\s+/g, '').toUpperCase();
-      const target = byId.get(/^\d+$/.test(raw) ? `COK${raw}` : raw);
-      if (target && target.status === 'available') Object.assign(target, { status: 'occupied', plate: v.plate_number, who: v.driver_name });
-      else unplaced.push(v);
-    });
-    let head = 0;
-    unplaced.forEach(v => {
-      while (head < list.length && list[head].status !== 'available') head++;
-      if (head < list.length) Object.assign(list[head], { status: 'occupied', plate: v.plate_number, who: v.driver_name });
-    });
-    // Reservations fill from the back so they cluster away from parked cars
-    let tail = list.length - 1;
-    reservations.forEach(r => {
-      while (tail >= 0 && list[tail].status !== 'available') tail--;
-      if (tail >= 0) Object.assign(list[tail], { status: 'reserved', plate: r.plate_number, who: r.visitor_name });
-    });
-    return list;
-  }, [totalSlots, vehicles, reservations]);
-
-  const hoverText = (s: SlotState) =>
-    s.status === 'occupied' ? `${s.id} · Occupied ${s.plate || 'plate not recorded'}`
-    : s.status === 'reserved' ? `${s.id} · Reserved${s.plate ? ` ${s.plate}` : ''}`
-    : `${s.id} · Available`;
-
-  const sections: SlotState[][] = [];
-  for (let i = 0; i < slots.length; i += 20) sections.push(slots.slice(i, i + 20));
-  const counts = {
-    occupied: slots.filter(s => s.status === 'occupied').length,
-    reserved: slots.filter(s => s.status === 'reserved').length,
-    available: slots.filter(s => s.status === 'available').length,
-  };
-
-  // The lot renders as two pages of bays: the first half shows by default,
-  // the second half after clicking Next
-  const [page, setPage] = useState(0);
-  const half = Math.ceil(sections.length / 2);
-  const pageSections = page === 0 ? sections.slice(0, half) : sections.slice(half);
-  const hasTwoPages = sections.length > 1;
-  const firstSlot = (page === 0 ? 0 : half * 20) + 1;
-  const lastSlot = Math.min((page === 0 ? half : sections.length) * 20, slots.length);
-
+// Circular occupancy chart — thick donut ring filled by the occupied share, percentage centered inside.
+// Occupancy % = parked vehicles ÷ total slots (e.g. 162 parked of 406 slots → 40%).
+const ParkingOccupancyDonut: React.FC<{ occupied: number; totalSlots: number; onViewMap?: () => void }> = ({ occupied, totalSlots, onViewMap }) => {
+  const pct = totalSlots > 0 ? Math.min(100, Math.round((occupied / totalSlots) * 100)) : 0;
+  const R = 70;
+  const CIRC = 2 * Math.PI * R;
+  const STROKE = 22;
   return (
-    <div>
-      <div className="flex flex-wrap gap-3 text-xs text-gray-600 mb-2">
-        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5" style={{ backgroundColor: SLOT_COLORS.occupied }}></div>Occupied {counts.occupied}</div>
-        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5" style={{ backgroundColor: SLOT_COLORS.reserved }}></div>Reserved {counts.reserved}</div>
-        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5" style={{ backgroundColor: SLOT_COLORS.available }}></div>Available {counts.available}</div>
+    <div className="flex flex-col items-center py-2">
+      <svg viewBox="0 0 200 200" className="w-full" style={{ maxWidth: 220 }}>
+        <defs>
+          <linearGradient id="occGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#E53935" />
+            <stop offset="100%" stopColor="#B71C1C" />
+          </linearGradient>
+        </defs>
+        {/* Track ring */}
+        <circle cx="100" cy="100" r={R} fill="none" stroke="#E8EBF3" strokeWidth={STROKE} />
+        {/* Progress arc starts at 12 o'clock */}
+        <circle
+          cx="100" cy="100" r={R} fill="none"
+          stroke="url(#occGrad)" strokeWidth={STROKE} strokeLinecap="round"
+          strokeDasharray={`${(pct / 100) * CIRC} ${CIRC}`}
+          transform="rotate(-90 100 100)"
+          style={{ transition: 'stroke-dasharray 0.6s ease' }}
+        />
+        <text x="100" y="100" textAnchor="middle" dominantBaseline="central" fontSize="34" fontWeight="800" fill="#C62828">
+          {pct}%
+        </text>
+      </svg>
+      <div className="text-sm font-semibold text-gray-800 mt-1">Parking occupancy</div>
+      <div className="text-xs text-gray-500 mt-0.5">
+        {occupied} of {totalSlots} slots occupied
       </div>
-      <div className="flex flex-wrap gap-2">
-        {pageSections.map((sec, si) => (
-          <div key={sec[0]?.id || si} className="bg-gray-100 p-1.5 grid grid-cols-10 gap-1">
-            {sec.map(s => (
-              <div key={s.id} className="relative group">
-                <div className="w-3 h-6 cursor-pointer" style={{ backgroundColor: SLOT_COLORS[s.status] }}></div>
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block whitespace-nowrap bg-gray-900 text-white text-[10px] px-2 py-1 z-20 pointer-events-none">
-                  {hoverText(s)}
-                </div>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-      {hasTwoPages && (
-        <div className="flex items-center justify-between mt-2">
-          <span className="text-xs text-gray-500">Section {page + 1} of 2 · slots COK{firstSlot}–COK{lastSlot}</span>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={page === 0}
-              onClick={() => setPage(0)}
-              className={`px-2.5 py-1 border text-xs ${page === 0 ? 'text-gray-300 border-gray-200 cursor-default' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
-            >
-               Previous
-            </button>
-            <button
-              type="button"
-              disabled={page === 1}
-              onClick={() => setPage(1)}
-              className={`px-2.5 py-1 border text-xs ${page === 1 ? 'text-gray-300 border-gray-200 cursor-default' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
-            >
-              Next 
-            </button>
-          </div>
-        </div>
+      {onViewMap && (
+        <button
+          type="button"
+          onClick={onViewMap}
+          className="mt-3 px-4 py-1.5 border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+        >
+          View map
+        </button>
       )}
     </div>
   );
@@ -632,8 +597,9 @@ const Overview: React.FC = () => {
   const [firstTimeLoading, seTfirstTimeLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
 
-  // Parking card: lot-map data + which view is shown ('map' is the default, 'trends' is the old area chart)
-  const [parkingView, setParkingView] = useState<'map' | 'trends'>('map');
+  // Parking card: lot-map data + which view is shown ('chart' occupancy donut is the default,
+  // 'map' is the slot map opened via View map, 'trends' is the old area chart)
+  const [parkingView, setParkingView] = useState<'chart' | 'map' | 'trends'>('chart');
   const [parkingLot, setParkingLot] = useState<{ totalSlots: number; vehicles: any[]; reservations: any[] }>({ totalSlots: 0, vehicles: [], reservations: [] });
 
   // Served aggregates come pre-computed from /statistics/served (same pattern as
@@ -1824,11 +1790,21 @@ useEffect(() => {
                         contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
                         labelFormatter={(_l: any, payload: any) => payload?.[0]?.payload?.fullName || _l}
                       />
-                      <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32} />
-                      <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} />
-                      <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} />
-                      <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32} />
-                      <Bar dataKey="archived" name="Archived" fill="#9E9E9E" maxBarSize={32} />
+                      <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.departments)} />
+                      </Bar>
+                      <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.departments)} />
+                      </Bar>
+                      <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.departments)} />
+                      </Bar>
+                      <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.departments)} />
+                      </Bar>
+                      <Bar dataKey="archived" name="Archived" fill="#9E9E9E" maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.departments)} />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                   </div>
@@ -1851,11 +1827,21 @@ useEffect(() => {
                         contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
                         labelFormatter={(_l: any, payload: any) => payload?.[0]?.payload?.fullName || _l}
                       />
-                      <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32} />
-                      <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} />
-                      <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} />
-                      <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32} />
-                      <Bar dataKey="archived" name="Archived" fill="#9E9E9E" maxBarSize={32} />
+                      <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.employees)} />
+                      </Bar>
+                      <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.employees)} />
+                      </Bar>
+                      <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.employees)} />
+                      </Bar>
+                      <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.employees)} />
+                      </Bar>
+                      <Bar dataKey="archived" name="Archived" fill="#9E9E9E" maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.employees)} />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                   </div>
@@ -1892,7 +1878,13 @@ useEffect(() => {
                       contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
                       formatter={(value: any, _n: any, entry: any) => [`${value}/10 (${entry?.payload?.count} feedback)`, 'Avg rating']}
                     />
-                    <Bar dataKey="rating" fill={COK.primary} radius={[0, 0, 0, 0]} barSize={16} />
+                    <Bar dataKey="rating" fill={COK.primary} radius={[0, 0, 0, 0]} barSize={16} isAnimationActive={false}>
+                      <LabelList position="insideEnd" fontSize={10} fill="#ffffff" formatter={(value: any) => {
+                        const num = Number(value);
+                        if (Number.isNaN(num)) return value;
+                        return Number.isInteger(num) ? String(num) : num.toFixed(2);
+                      }} />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1931,14 +1923,37 @@ useEffect(() => {
                   <RTooltip cursor={{ fill: COK.neutralLight }} content={<SentimentChartTooltip />} />
                   {/* barRating renders the department bars; the seg* stack renders the General
                       bar as horizontal negative/neutral/positive bands (same total height) */}
-                  <Bar dataKey="barRating" name="Avg rating" barSize={34} radius={[0, 0, 0, 0]} stackId="sentiment">
+                  <Bar dataKey="barRating" name="Avg rating" barSize={34} radius={[0, 0, 0, 0]} stackId="sentiment" isAnimationActive={false}>
                     {sentimentTrend.map((d, i) => (
                       <Cell key={i} fill={SENTIMENT_META[classifySentiment(d.rating, 10)].color} />
                     ))}
+                    <LabelList position="insideEnd" fontSize={9} fill="#ffffff" formatter={(value: any) => {
+                      const num = Number(value);
+                      if (Number.isNaN(num)) return value;
+                      return Number.isInteger(num) ? String(num) : num.toFixed(2);
+                    }} />
                   </Bar>
-                  <Bar dataKey="segNegative" name="Negative share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.negative.color} />
-                  <Bar dataKey="segNeutral" name="Neutral share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.neutral.color} />
-                  <Bar dataKey="segPositive" name="Positive share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.positive.color} />
+                  <Bar dataKey="segNegative" name="Negative share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.negative.color} isAnimationActive={false}>
+                    <LabelList position="insideEnd" fontSize={9} fill="#ffffff" formatter={(value: any) => {
+                      const num = Number(value);
+                      if (Number.isNaN(num)) return value;
+                      return Number.isInteger(num) ? String(num) : num.toFixed(2);
+                    }} />
+                  </Bar>
+                  <Bar dataKey="segNeutral" name="Neutral share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.neutral.color} isAnimationActive={false}>
+                    <LabelList position="insideEnd" fontSize={9} fill="#ffffff" formatter={(value: any) => {
+                      const num = Number(value);
+                      if (Number.isNaN(num)) return value;
+                      return Number.isInteger(num) ? String(num) : num.toFixed(2);
+                    }} />
+                  </Bar>
+                  <Bar dataKey="segPositive" name="Positive share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.positive.color} isAnimationActive={false}>
+                    <LabelList position="insideEnd" fontSize={9} fill="#ffffff" formatter={(value: any) => {
+                      const num = Number(value);
+                      if (Number.isNaN(num)) return value;
+                      return Number.isInteger(num) ? String(num) : num.toFixed(2);
+                    }} />
+                  </Bar>
                   <Line
                     type="monotone"
                     dataKey="rating"
@@ -1947,6 +1962,7 @@ useEffect(() => {
                     strokeWidth={2}
                     dot={{ r: 4, fill: CC.blue, stroke: '#fff', strokeWidth: 2 }}
                     activeDot={{ r: 5 }}
+                    isAnimationActive={false}
                   />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -1977,23 +1993,33 @@ useEffect(() => {
             )}
           </div>
 
-          {/* CHART 7 · Parking card — lot map by default (ParkingMap component), toggle to the old trends area chart */}
+          {/* CHART 7 · Parking card — occupancy donut by default, View map opens the lot map, toggle to the old trends area chart */}
           <div className="bg-white border border-gray-200 p-3">
             <div className="flex justify-between items-start mb-3">
               <div>
                 <div className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  {parkingView === 'map' ? 'Parking Lot' : 'Parking Usage Trends'}
-                  
+                  {parkingView === 'chart' ? 'Parking Occupancy' : parkingView === 'map' ? 'Parking Lot' : 'Parking Usage Trends'}
+
                 </div>
-                <div className="text-xs text-gray-500">{parkingView === 'map' ? 'Slot occupancy · all currently active vehicles' : 'Check-ins vs check-outs · today'}</div>
+                <div className="text-xs text-gray-500">
+                  {parkingView === 'chart' ? 'Occupied share of all parking slots · live'
+                  : parkingView === 'map' ? 'Slot occupancy · all currently active vehicles'
+                  : 'Check-ins vs check-outs · today'}
+                </div>
               </div>
               <div className="flex border border-gray-300 text-xs flex-shrink-0">
-                <button onClick={() => setParkingView('map')} className={`px-2 py-1 ${parkingView === 'map' ? 'cok-primary-bg text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Lot map</button>
+                <button onClick={() => setParkingView('chart')} className={`px-2 py-1 ${parkingView === 'chart' ? 'cok-primary-bg text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Occupancy</button>
                 <button onClick={() => setParkingView('trends')} className={`px-2 py-1 ${parkingView === 'trends' ? 'cok-primary-bg text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Trends</button>
               </div>
             </div>
-            {parkingView === 'map' ? (
-              <ParkingMap totalSlots={parkingLot.totalSlots} vehicles={parkingLot.vehicles} reservations={parkingLot.reservations} />
+            {parkingView === 'chart' ? (
+              <ParkingOccupancyDonut
+                occupied={parkingLot.vehicles.length}
+                totalSlots={parkingLot.totalSlots}
+                onViewMap={() => setParkingView('map')}
+              />
+            ) : parkingView === 'map' ? (
+              <ParkingLotMap totalSlots={parkingLot.totalSlots} vehicles={parkingLot.vehicles} reservations={parkingLot.reservations} />
             ) : hasHourlyParking ? (
               <div className="h-48 w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -2003,8 +2029,8 @@ useEffect(() => {
                     <YAxis tick={{ fontSize: 11 }} />
                     <RTooltip />
                     <Legend />
-                    <Area type="monotone" dataKey="check_in" stroke="#3b82f6" fill="rgba(59,130,246,0.1)" name="Check-ins" />
-                    <Area type="monotone" dataKey="check_out" stroke="#ef4444" fill="rgba(239,68,68,0.1)" name="Check-outs" />
+                    <Area type="monotone" dataKey="check_in" stroke="#3b82f6" fill="rgba(59,130,246,0.1)" name="Check-ins" isAnimationActive={false} />
+                    <Area type="monotone" dataKey="check_out" stroke="#ef4444" fill="rgba(239,68,68,0.1)" name="Check-outs" isAnimationActive={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -3027,7 +3053,7 @@ useEffect(() => {
                           <XAxis dataKey="hour" tickFormatter={(v: number) => formatHourLabel(Number(v))} tick={{ fontSize: 11 }} />
                           <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                           <RTooltip labelFormatter={(v: any) => formatHourLabel(Number(v))} />
-                          <Area type="monotone" dataKey="check_in" stroke="#3b82f6" fill="rgba(59,130,246,0.15)" name="Check-ins" />
+                          <Area type="monotone" dataKey="check_in" stroke="#3b82f6" fill="rgba(59,130,246,0.15)" name="Check-ins" isAnimationActive={false} />
                         </AreaChart>
                       </ResponsiveContainer>
                     ) : (
