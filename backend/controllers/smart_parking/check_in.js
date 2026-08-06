@@ -51,7 +51,13 @@ module.exports = async function car_check_in(req, res, next) {
         const staff_car = await StaffCar.findOne({ plate_number, is_active: true });
         const emergency_reservation = await EmergencyCar.findOne({
             is_active: true,
-            visitor_info: { $elemMatch: { plate_number, is_used: { $ne: true }, is_cancelled: { $ne: true } } }
+            visitor_info: { $elemMatch: {
+                plate_number,
+                is_used: { $ne: true },
+                is_cancelled: { $ne: true },
+                // valid_until null/missing = never expires; a set date is valid through that day
+                $or: [{ valid_until: null }, { valid_until: { $gte: new Date() } }]
+            } }
         });
 
         const is_reserved = (staff_car?.is_active) || !!emergency_reservation;
@@ -123,7 +129,9 @@ module.exports = async function car_check_in(req, res, next) {
         // pool decrements), even when the gate registrar typed/edited the driver details.
         let reserved_visitor = null
         if (!staff_car && emergency_reservation) {
-            const visitor = emergency_reservation.visitor_info.find(v => v.plate_number === plate_number && !v.is_used && !v.is_cancelled)
+            const visitor = emergency_reservation.visitor_info.find(v =>
+                v.plate_number === plate_number && !v.is_used && !v.is_cancelled &&
+                (!v.valid_until || v.valid_until >= new Date()))
             if (visitor) {
                 reserved_visitor = visitor
                 driver_type = "visitor"

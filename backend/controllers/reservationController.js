@@ -6,6 +6,21 @@ const ParkingSlot = require('../models/parking_slots');
 // Plates are stored normalized (UPPERCASE, no spaces) so check-in/verify lookups always match
 const normalizePlate = (p) => String(p || '').toUpperCase().replace(/\s+/g, '');
 
+// Template "Date" column → reservation expiry (valid through the END of that day).
+// Accepts JS Dates, Excel serial numbers, and date strings (e.g. 2026-12-31).
+// Missing/unreadable dates return null = the reservation never expires.
+const parseTemplateDate = (raw) => {
+    if (raw === undefined || raw === null || raw === '') return null;
+    let d = null;
+    if (raw instanceof Date) d = raw;
+    else if (typeof raw === 'number') d = new Date(Math.round((raw - 25569) * 86400 * 1000)); // Excel serial day
+    else d = new Date(String(raw).trim());
+    if (!d || isNaN(d.getTime())) return null;
+    const end = new Date(d);
+    end.setHours(23, 59, 59, 999);
+    return end;
+};
+
 /**
  * OPTION A: Single Visitor Reservation
  * Used when the Admin fills out a web form for a single guest.
@@ -127,6 +142,7 @@ const bulkUploadReservations = async (req, res) => {
                 number: String(row['ID Number'] || row['id_number'] || '')
             },
             telephone_number: String(row['Phone'] || row['phone'] || ''),
+            valid_until: parseTemplateDate(row['Date'] || row['date'] || row['Valid Until'] || row['valid_until']),
             is_flagged: false
         })).filter(v => v.plate_number);
 

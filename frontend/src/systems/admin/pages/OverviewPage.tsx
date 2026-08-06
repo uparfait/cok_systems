@@ -1769,11 +1769,21 @@ useEffect(() => {
                         contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
                         labelFormatter={(_l: any, payload: any) => payload?.[0]?.payload?.fullName || _l}
                       />
-                      <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32} />
-                      <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} />
-                      <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} />
-                      <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32} />
-                      <Bar dataKey="archived" name="Archived" fill="#9E9E9E" maxBarSize={32} />
+                      <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32}>
+                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      </Bar>
+                      <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32}>
+                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      </Bar>
+                      <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32}>
+                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      </Bar>
+                      <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32}>
+                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      </Bar>
+                      <Bar dataKey="archived" name="Archived" fill="#9E9E9E" maxBarSize={32}>
+                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                   </div>
@@ -1796,11 +1806,21 @@ useEffect(() => {
                         contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
                         labelFormatter={(_l: any, payload: any) => payload?.[0]?.payload?.fullName || _l}
                       />
-                      <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32} />
-                      <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} />
-                      <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} />
-                      <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32} />
-                      <Bar dataKey="archived" name="Archived" fill="#9E9E9E" maxBarSize={32} />
+                      <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32}>
+                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      </Bar>
+                      <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32}>
+                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      </Bar>
+                      <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32}>
+                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      </Bar>
+                      <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32}>
+                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      </Bar>
+                      <Bar dataKey="archived" name="Archived" fill="#9E9E9E" maxBarSize={32}>
+                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                   </div>
@@ -1837,7 +1857,9 @@ useEffect(() => {
                       contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
                       formatter={(value: any, _n: any, entry: any) => [`${value}/10 (${entry?.payload?.count} feedback)`, 'Avg rating']}
                     />
-                    <Bar dataKey="rating" fill={COK.primary} radius={[0, 0, 0, 0]} barSize={16} />
+                    <Bar dataKey="rating" fill={COK.primary} radius={[0, 0, 0, 0]} barSize={16}>
+                      <LabelList position="right" fontSize={10} fill="#6b7280" />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1880,10 +1902,17 @@ useEffect(() => {
                     {sentimentTrend.map((d, i) => (
                       <Cell key={i} fill={SENTIMENT_META[classifySentiment(d.rating, 10)].color} />
                     ))}
+                    <LabelList position="right" fontSize={9} fill="#6b7280" />
                   </Bar>
-                  <Bar dataKey="segNegative" name="Negative share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.negative.color} />
-                  <Bar dataKey="segNeutral" name="Neutral share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.neutral.color} />
-                  <Bar dataKey="segPositive" name="Positive share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.positive.color} />
+                  <Bar dataKey="segNegative" name="Negative share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.negative.color}>
+                    <LabelList position="right" fontSize={9} fill="#6b7280" />
+                  </Bar>
+                  <Bar dataKey="segNeutral" name="Neutral share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.neutral.color}>
+                    <LabelList position="right" fontSize={9} fill="#6b7280" />
+                  </Bar>
+                  <Bar dataKey="segPositive" name="Positive share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.positive.color}>
+                    <LabelList position="right" fontSize={9} fill="#6b7280" />
+                  </Bar>
                   <Line
                     type="monotone"
                     dataKey="rating"
