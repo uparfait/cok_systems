@@ -1,7 +1,7 @@
 // TaskDetails - Component for task details editing with CoK design
 
 import React from 'react'
-import { FiCalendar, FiEdit, FiCheck, FiX } from 'react-icons/fi'
+import { FiCalendar, FiEdit, FiCheck, FiX, FiFlag } from 'react-icons/fi'
 
 const PRIMARY = '#056daa'
 const NEUTRAL_DARK = '#333333'
@@ -11,6 +11,7 @@ const GRAY_DISABLED = '#9E9E9E'
 const BORDER = '#E0E0E0'
 const DANGER = '#E74C3C'
 const SUCCESS = '#4CAF50'
+const WARNING = '#F39C12'
 const fontHeading = "'Montserrat', sans-serif"
 
 const labelStyle: React.CSSProperties = {
@@ -28,10 +29,12 @@ interface TaskDetailsProps {
     title: boolean
     description: boolean
     dates: boolean
+    priority: boolean
   }
   editForms: {
     title: string
     description: string
+    priority: string
     startDate: string
     startTime: string
     dueDate: string
@@ -41,11 +44,13 @@ interface TaskDetailsProps {
     title: boolean
     description: boolean
     dates: boolean
+    priority: boolean
   }
   onEditSection: (section: string, value: boolean) => void
   onEditFormChange: (field: string, value: string) => void
   onSaveDescription: () => void
   onSaveDates: () => void
+  onSavePriority: () => void
 }
 
 const TaskDetails: React.FC<TaskDetailsProps> = ({
@@ -56,13 +61,29 @@ const TaskDetails: React.FC<TaskDetailsProps> = ({
   onEditSection,
   onEditFormChange,
   onSaveDescription,
-  onSaveDates
+  onSaveDates,
+  onSavePriority
 }) => {
+  const getPriorityBadgeStyle = (priority: string): React.CSSProperties => {
+    switch (priority) {
+      case 'Low':
+        return { backgroundColor: '#E9F5EA', color: SUCCESS }
+      case 'Medium':
+        return { backgroundColor: '#FFF8E1', color: WARNING }
+      case 'High':
+        return { backgroundColor: '#FFF3E0', color: '#FF7043' }
+      case 'Urgent':
+        return { backgroundColor: '#FFEBEE', color: DANGER }
+      default:
+        return { backgroundColor: NEUTRAL_LIGHT, color: GRAY_DISABLED }
+    }
+  }
+
   return (
     <div style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, borderRadius: 0 }}>
       <div className="space-y-4">
         {/* Description */}
-        <div>
+        <div className="pl-4 sm:pl-6">
           <div className="flex items-center justify-between mb-2">
             <label className="block text-sm" style={labelStyle}>
               Description
@@ -121,8 +142,83 @@ const TaskDetails: React.FC<TaskDetailsProps> = ({
           )}
         </div>
 
+        {/* Priority */}
+        <div className="pl-4 sm:pl-6">
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm" style={labelStyle}>
+              Priority
+            </label>
+            {!editingSections.priority && (
+              <button
+                type="button"
+                onClick={() => onEditSection('priority', true)}
+                className="p-1 cursor-pointer"
+                style={{ color: GRAY_DISABLED }}
+                title="Edit priority"
+              >
+                <FiEdit className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          {editingSections.priority ? (
+            <div className="space-y-2">
+              <select
+                value={editForms.priority}
+                onChange={(e) => onEditFormChange('priority', e.target.value)}
+                className="cok-auth-input"
+                disabled={loadingStates.priority}
+              >
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+                <option value="Urgent">Urgent</option>
+              </select>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={onSavePriority}
+                  disabled={loadingStates.priority}
+                  className="cok-btn-primary"
+                  style={{ width: 'auto', padding: '0.6rem 1rem' }}
+                >
+                  {loadingStates.priority ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onEditFormChange('priority', task.priority || 'Medium')
+                    onEditSection('priority', false)
+                  }}
+                  disabled={loadingStates.priority}
+                  className="cok-btn-outlined"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <FiFlag className="w-3 h-3" style={{ color: GRAY_DISABLED }} />
+              <span
+                className="text-xs px-2 py-0.5 inline-block"
+                style={{
+                  ...getPriorityBadgeStyle(task.priority || 'Medium'),
+                  fontFamily: fontHeading,
+                  borderRadius: 0,
+                  fontWeight: 600,
+                  letterSpacing: '0.5px',
+                  textTransform: 'uppercase'
+                }}
+              >
+                {task.priority || 'Medium'}
+              </span>
+            </div>
+          )}
+        </div>
+
         {/* Status */}
-        <div>
+        <div className="pl-4 sm:pl-6">
           <label className="block text-sm mb-1" style={labelStyle}>
             Status
           </label>
@@ -139,7 +235,7 @@ const TaskDetails: React.FC<TaskDetailsProps> = ({
         </div>
 
         {/* Dates */}
-        <div>
+        <div className="pl-4 sm:pl-6">
           <div className="flex items-center justify-between mb-2">
             <label className="block text-sm" style={labelStyle}>
               Timeline

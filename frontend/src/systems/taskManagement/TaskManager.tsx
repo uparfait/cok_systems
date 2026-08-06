@@ -3,7 +3,6 @@ import type { Task } from '../../core/services/taskService'
 import {
   getTasks,
   moveTask,
-  deleteTask,
   getTaskProgress,
   getTaskStatusColor
 } from '../../core/services/taskService'
@@ -74,8 +73,7 @@ const TaskManager: React.FC = () => {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [loading, setLoading] = useState({
     tasks: false,
-    columns: false,
-    delete: false
+    columns: false
   })
 
   const [firstLoad, setFirstLoad] = useState(true)
@@ -221,22 +219,6 @@ const TaskManager: React.FC = () => {
       )
 
       showSuccess('Task updated successfully')
-    }
-  }
-
-  const handleDeleteTask = async () => {
-    if (!selectedTask?._id) return
-    setLoading(prev => ({ ...prev, delete: true }))
-    try {
-      await deleteTask(selectedTask._id)
-      showSuccess('Task deleted successfully')
-      setShowDetailModal(false)
-      setSelectedTask(null)
-      loadTasks(false)
-    } catch (error: unknown) {
-      showError((error as Error)?.message || 'Failed to delete task')
-    } finally {
-      setLoading(prev => ({ ...prev, delete: false }))
     }
   }
 
@@ -410,7 +392,11 @@ const TaskManager: React.FC = () => {
             setSelectedTask(null)
           }}
           onUpdate={handleTaskUpdated}
-          onDelete={handleDeleteTask}
+          onDelete={() => {
+            setShowDetailModal(false)
+            setSelectedTask(null)
+            loadTasks(false)
+          }}
         />
       )}
 
