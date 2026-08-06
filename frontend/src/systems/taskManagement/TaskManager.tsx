@@ -15,12 +15,19 @@ import CreateTaskModal from './components/CreateTaskModal'
 import './TaskManager.css'
 import { FiLoader } from 'react-icons/fi'
 
+const PRIMARY = '#056daa'
+const WHITE = '#FFFFFF'
+const NEUTRAL_DARK = '#333333'
+const NEUTRAL_LIGHT = '#F7F9FB'
+const GRAY_DISABLED = '#9E9E9E'
+const BORDER = '#E0E0E0'
+const fontHeading = "'Montserrat', sans-serif"
+
 interface TaskColumn {
   id: string
   title: string
   status: Task['status']
   tasks: Task[]
-  gradient: string
   headerColor: string
   borderColor: string
 }
@@ -40,27 +47,24 @@ const TaskManager: React.FC = () => {
       title: 'Under Review',
       status: 'Under-review',
       tasks: [],
-      gradient: 'from-stone-50 to-stone-100/80',
-      headerColor: 'from-stone-700 to-stone-700',
-      borderColor: 'border-stone-200'
+      headerColor: '#6B7280',
+      borderColor: '#E0E0E0'
     },
     {
       id: 'in-progress',
       title: 'In Progress',
       status: 'In-progress',
       tasks: [],
-      gradient: 'from-blue-50 to-indigo-50/80',
-      headerColor: 'from-blue-600 to-blue-600',
-      borderColor: 'border-blue-200'
+      headerColor: PRIMARY,
+      borderColor: '#E0E0E0'
     },
     {
       id: 'completed',
       title: 'Completed',
       status: 'Completed',
       tasks: [],
-      gradient: 'from-emerald-50 to-teal-50/80',
-      headerColor: 'from-teal-600 to-teal-600',
-      borderColor: 'border-emerald-200'
+      headerColor: '#0D9488',
+      borderColor: '#E0E0E0'
     }
   ])
 
@@ -74,7 +78,6 @@ const TaskManager: React.FC = () => {
 
   const [firstLoad, setFirstLoad] = useState(true)
 
-  // Load tasks
   const loadTasks = useCallback(async (showLoader = true) => {
     if (!user?.userId) return
 
@@ -88,7 +91,6 @@ const TaskManager: React.FC = () => {
       if (response.status) {
         const tasks = (response as any).data.tasks || []
 
-        // Group tasks by status
         const groupedTasks = {
           'Under-review': tasks.filter((task: Task) => task.status === 'Under-review'),
           'In-progress': tasks.filter((task: Task) => task.status === 'In-progress'),
@@ -110,12 +112,10 @@ const TaskManager: React.FC = () => {
     }
   }, [user?.userId, showError])
 
-  // Load tasks on mount
   useEffect(() => {
     loadTasks()
   }, [loadTasks])
 
-  // Real-time updates
   useTaskRealtime({
     onTaskStatusUpdated: (data) => {
       loadTasks(false)
@@ -125,7 +125,6 @@ const TaskManager: React.FC = () => {
     }
   })
 
-  // Drag and drop state
   const [draggedTask, setDraggedTask] = useState<Task | null>(null)
   const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null)
 
@@ -155,7 +154,6 @@ const TaskManager: React.FC = () => {
 
     if (sourceColumnIndex === -1 || destinationColumnIndex === -1) return
 
-    // Allow movement in any direction (forward and backward)
     if (sourceColumnIndex === destinationColumnIndex) {
       setDraggedTask(null)
       return
@@ -185,7 +183,6 @@ const TaskManager: React.FC = () => {
         })
       )
 
-      // Update selected task if it's the one being moved
       if (selectedTask?._id === draggedTask._id) {
         setSelectedTask((prev) => prev ? { ...prev, status: newStatus } : null)
       }
@@ -225,7 +222,6 @@ const TaskManager: React.FC = () => {
     }
   }
 
-  // Horizontal scroll with drag
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!scrollContainerRef.current) return
     setIsDraggingScroll(true)
@@ -258,12 +254,12 @@ const TaskManager: React.FC = () => {
   }
 
   return (
-    <div className="task-manager-container min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+    <div className="min-h-screen" style={{ backgroundColor: NEUTRAL_LIGHT }}>
       {/* Scrollable Columns Container */}
       <div
         ref={scrollContainerRef}
-        className="columns-scroll-container overflow-x-auto overflow-y-hidden cursor-grab px-4 pb-8 pt-2"
-        style={{ scrollbarWidth: 'thin', WebkitOverflowScrolling: 'touch' }}
+        className="overflow-x-auto overflow-y-hidden px-4 pb-8 pt-2"
+        style={{ scrollbarWidth: 'thin', WebkitOverflowScrolling: 'touch', cursor: 'grab' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -273,15 +269,12 @@ const TaskManager: React.FC = () => {
           {columns.map((column) => (
             <div
               key={column.id}
-              className={`column-card w-[340px] md:w-[380px] flex-shrink-0 rounded-sm bg-gradient-to-br ${column.gradient} 
-                border ${column.borderColor} shadow-xl hover:shadow-2xl transition-all duration-300 
-                ${draggedOverColumn === column.id ? 'ring-4 ring-blue-400/50 ring-offset-2 scale-[1.02]' : ''} 
-                ${loading.tasks ? 'opacity-75' : ''} 
-                bg-white/40`}
+              className="w-[340px] md:w-[380px] flex-shrink-0 flex flex-col"
               style={{
-                transform: 'perspective(1200px) rotateX(2deg)',
-                transformStyle: 'preserve-3d',
-                transition: 'all 0.2s ease'
+                backgroundColor: WHITE,
+                border: `1px solid ${BORDER}`,
+                borderRadius: 0,
+                opacity: loading.tasks && firstLoad ? 0.75 : 1
               }}
               onDragOver={(e) => handleDragOver(e, column.id)}
               onDragLeave={handleDragLeave}
@@ -289,28 +282,32 @@ const TaskManager: React.FC = () => {
             >
               {/* Column Header */}
               <div
-                className={`relative px-5 py-4 rounded-t-sm bg-gradient-to-r ${column.headerColor}`}
-                style={{
-                  transform: 'translateZ(8px)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                }}
+                className="px-5 py-4 flex-shrink-0"
+                style={{ backgroundColor: column.headerColor }}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold text-white tracking-tight">
-                      {column.title}
+                    <h2 className="text-lg font-semibold" style={{ color: WHITE, fontFamily: fontHeading }}>
+                      {column.title?.toLocaleUpperCase()}
                     </h2>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-white/90 bg-white/20 px-2.5 py-0.5 rounded-full backdrop-blur-sm">
+                    <span className="text-sm font-semibold px-2.5 py-0.5" style={{
+                      color: WHITE,
+                      backgroundColor: 'rgba(255,255,255,0.2)',
+                      fontFamily: fontHeading,
+                      borderRadius: 4e5
+                    }}>
                       {column.tasks.length}
                     </span>
                     <button
+                      type="button"
                       onClick={() => {
                         setSelectedColumnStatus(column.status)
                         setShowCreateModal(true)
                       }}
-                      className="text-white/80 hover:text-white p-1 rounded-full hover:bg-white/20 transition-colors"
+                      className="p-1 cursor-pointer"
+                      style={{ color: 'rgba(255,255,255,0.8)' }}
                       title={`Add task to ${column.title}`}
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -322,29 +319,27 @@ const TaskManager: React.FC = () => {
               </div>
 
               {/* Tasks Container */}
-              <div className="p-4 space-y-3 min-h-[500px] max-h-[calc(80vh-100px)] overflow-y-auto custom-scrollbar">
+              <div className="flex-1 p-4 space-y-3 min-h-[500px] max-h-[calc(80vh-100px)] overflow-y-auto custom-scrollbar">
                 {loading.tasks && firstLoad ? (
                   <div className="flex justify-center items-center py-12">
-                    <div className="relative">
-                      <div className="rounded-full h-8 w-8">
-                        <FiLoader className="animate-spin text-blue-500" size={32} />
-                      </div>
-                    </div>
+                    <div className="w-8 h-8 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : column.tasks.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="w-12 h-12 rounded-full bg-white/50 flex items-center justify-center mb-3">
-                      <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-12 h-12 flex items-center justify-center mb-3" style={{ backgroundColor: NEUTRAL_LIGHT, borderRadius: 0 }}>
+                      <svg className="w-6 h-6" style={{ color: GRAY_DISABLED }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                     </div>
-                    <p className="text-sm text-slate-500">No tasks</p>
+                    <p className="text-sm" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>No tasks</p>
                     <button
+                      type="button"
                       onClick={() => {
                         setSelectedColumnStatus(column.status)
                         setShowCreateModal(true)
                       }}
-                      className="mt-3 text-xs hover:cursor-pointer  text-blue-500 hover:text-blue-600 font-medium"
+                      className="mt-3 text-xs cursor-pointer font-medium"
+                      style={{ color: PRIMARY, fontFamily: fontHeading }}
                     >
                       + Add a task
                     </button>
@@ -355,11 +350,11 @@ const TaskManager: React.FC = () => {
                       key={task._id}
                       draggable
                       onDragStart={() => handleDragStart(task)}
-                      className={`cursor-grab active:cursor-grabbing transition-all duration-150 ${draggedTask?._id === task._id ? 'opacity-40 rotate-1 scale-95' : 'hover:scale-[1.02]'
-                        }`}
+                      className="cursor-grab active:cursor-grabbing"
                       style={{
-                        transform: 'translateZ(4px)',
-                        transition: 'transform 0.15s ease, opacity 0.15s ease'
+                        transition: 'opacity 0.15s ease, transform 0.15s ease',
+                        opacity: draggedTask?._id === task._id ? 0.4 : 1,
+                        transform: draggedTask?._id === task._id ? 'scale(0.95)' : 'scale(1)'
                       }}
                     >
                       <TaskCard
@@ -369,14 +364,11 @@ const TaskManager: React.FC = () => {
                         statusColor={getTaskStatusColor(task)}
                         onUpdate={() => handleTaskClick(task)}
                         onMove={() => loadTasks(false)}
+                        draggedTaskId={draggedTask?._id || null}
                       />
                     </div>
                   ))
                 )}
-              </div>
-
-              <div className="px-4 pb-3 pt-1">
-                <div className="h-1 w-full bg-gradient-to-r from-transparent via-white/40 to-transparent rounded-full" />
               </div>
             </div>
           ))}
@@ -423,37 +415,28 @@ const TaskManager: React.FC = () => {
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: rgba(0,0,0,0.3);
         }
-        
+
         .columns-scroll-container {
           scrollbar-width: thin;
           scrollbar-color: rgba(0,0,0,0.2) transparent;
         }
-        
+
         .columns-scroll-container::-webkit-scrollbar {
           height: 6px;
         }
-        
+
         .columns-scroll-container::-webkit-scrollbar-track {
           background: transparent;
           border-radius: 10px;
         }
-        
+
         .columns-scroll-container::-webkit-scrollbar-thumb {
           background: rgba(0,0,0,0.15);
           border-radius: 10px;
         }
-        
+
         .columns-scroll-container::-webkit-scrollbar-thumb:hover {
           background: rgba(0,0,0,0.25);
-        }
-        
-        .column-card {
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        
-        .column-card:hover {
-          transform: perspective(1200px) rotateX(1deg) translateY(-4px);
-          box-shadow: 0 25px 40px -12px rgba(0, 0, 0, 0.25);
         }
       `}</style>
     </div>

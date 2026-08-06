@@ -1,34 +1,17 @@
 /* TaskManager.css - Custom styles for task management system */
 
 .task-manager-container {
-  font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: var(--cok-font-heading);
 }
 
-/* Transparent column backgrounds */
-.task-column-under-review {
-  background: transparent;
-  border: 1px solid #e2e8f0;
-}
-
-.task-column-in-progress {
-  background: transparent;
-  border: 1px solid #bfdbfe;
-}
-
-.task-column-completed {
-  background: transparent;
-  border: 1px solid #bbf7d0;
-}
-
-/* Task card hover effects */
+/* Task card base */
 .task-card {
-  transition: all 0.2s ease-in-out;
   cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
 .task-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  transform: scale(1);
 }
 
 /* Progress bar colors */
@@ -48,124 +31,30 @@
   background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
 }
 
-/* Priority badges */
-.priority-high {
-  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-  color: #dc2626;
+/* Status indicators */
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  display: inline-block;
+  margin-right: 6px;
 }
 
-.priority-medium {
-  background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
-  color: #d97706;
+.status-under-review {
+  background-color: #6b7280;
 }
 
-.priority-low {
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-  color: #16a34a;
+.status-in-progress {
+  background-color: #056daa;
 }
 
-/* Drag and drop styles */
-.dragging {
-  opacity: 0.5;
-  transform: rotate(5deg);
-}
-
-.drop-zone {
-  transition: background-color 0.2s ease;
-}
-
-.drop-zone:hover {
-  background-color: rgba(255, 255, 255, 0.3);
-}
-
-/* Modal animations */
-.modal-enter {
-  opacity: 0;
-  transform: scale(0.95);
-}
-
-.modal-enter-active {
-  opacity: 1;
-  transform: scale(1);
-  transition: opacity 300ms, transform 300ms;
-}
-
-.modal-exit {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.modal-exit-active {
-  opacity: 0;
-  transform: scale(0.95);
-  transition: opacity 300ms, transform 300ms;
-}
-
-/* Responsive adjustments */
-@media (max-width: 1024px) {
-  .task-manager-container {
-    padding: 1rem;
-  }
-
-  /* Enable horizontal scrolling on tablets and below */
-  .task-columns-grid {
-    display: flex;
-    overflow-x: auto;
-    overflow-y: hidden;
-    gap: 1rem;
-    padding-bottom: 1rem;
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 #f8fafc;
-  }
-
-  .task-columns-grid::-webkit-scrollbar {
-    height: 6px;
-  }
-
-  .task-columns-grid::-webkit-scrollbar-track {
-    background: #f8fafc;
-    border-radius: 3px;
-  }
-
-  .task-columns-grid::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
-  }
-
-  .task-columns-grid::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-  }
-}
-
-@media (max-width: 768px) {
-  .task-manager-container {
-    padding: 0.75rem;
-  }
-}
-
-/* Custom scrollbar for columns */
-.task-column-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.task-column-scroll::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 3px;
-}
-
-.task-column-scroll::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 3px;
-}
-
-.task-column-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.5);
+.status-completed {
+  background-color: #10b981;
 }
 
 /* Loading spinner */
 .task-loading-spinner {
   border: 3px solid #f3f3f3;
-  border-top: 3px solid #3498db;
+  border-top: 3px solid #056daa;
   border-radius: 50%;
   width: 40px;
   height: 40px;
@@ -177,23 +66,19 @@
   100% { transform: rotate(360deg); }
 }
 
-/* Status indicators */
-.status-indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-  margin-right: 6px;
+/* Custom scrollbar for columns */
+.task-column-scroll::-webkit-scrollbar {
+  width: 4px;
 }
 
-.status-under-review {
-  background-color: #6b7280;
+.task-column-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
 }
 
-.status-in-progress {
-  background-color: #3b82f6;
+.task-column-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
 }
 
-.status-completed {
-  background-color: #10b981;
+.task-column-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
 }
