@@ -5,7 +5,8 @@ import React, { useMemo, useState } from 'react';
 const SLOT_COLORS = { occupied: 'rgb(246, 59, 59)', reserved: '#F5C542', available: '#4CAF50' } as const;
 type SlotState = { id: string; status: keyof typeof SLOT_COLORS; plate?: string; who?: string };
 
-const ParkingLotMap: React.FC<{ totalSlots: number; vehicles: any[]; reservations: any[] }> = ({ totalSlots, vehicles, reservations }) => {
+// compact renders smaller slot cells inside a capped, scrollable area so the map fits in a stat-card grid cell
+const ParkingLotMap: React.FC<{ totalSlots: number; vehicles: any[]; reservations: any[]; compact?: boolean }> = ({ totalSlots, vehicles, reservations, compact }) => {
   const slots = useMemo<SlotState[]>(() => {
     const n = Math.max(totalSlots, vehicles.length + reservations.length, 1);
     // Slots numbered COK1, COK2, ... shown in bays of 20
@@ -49,14 +50,16 @@ const ParkingLotMap: React.FC<{ totalSlots: number; vehicles: any[]; reservation
     available: slots.filter(s => s.status === 'available').length,
   };
 
-  // The lot renders as two pages of bays: the first half shows by default,
-  // the second half after clicking Next
+  // The lot renders paginated: full size shows the bays in two halves; compact shows
+  // 2 bays (40 slots) per page so the card keeps the same height as its neighbors
   const [page, setPage] = useState(0);
-  const half = Math.ceil(sections.length / 2);
-  const pageSections = page === 0 ? sections.slice(0, half) : sections.slice(half);
-  const hasTwoPages = sections.length > 1;
-  const firstSlot = (page === 0 ? 0 : half * 20) + 1;
-  const lastSlot = Math.min((page === 0 ? half : sections.length) * 20, slots.length);
+  const baysPerPage = compact ? 2 : Math.ceil(sections.length / 2);
+  const pageCount = Math.max(1, Math.ceil(sections.length / baysPerPage));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageSections = sections.slice(safePage * baysPerPage, (safePage + 1) * baysPerPage);
+  const hasPages = pageCount > 1;
+  const firstSlot = safePage * baysPerPage * 20 + 1;
+  const lastSlot = Math.min((safePage * baysPerPage + pageSections.length) * 20, slots.length);
 
   return (
     <div>
@@ -65,12 +68,12 @@ const ParkingLotMap: React.FC<{ totalSlots: number; vehicles: any[]; reservation
         <div className="flex items-center gap-1"><div className="w-2.5 h-2.5" style={{ backgroundColor: SLOT_COLORS.reserved }}></div>Reserved {counts.reserved}</div>
         <div className="flex items-center gap-1"><div className="w-2.5 h-2.5" style={{ backgroundColor: SLOT_COLORS.available }}></div>Available {counts.available}</div>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className={compact ? 'flex flex-wrap gap-1.5' : 'flex flex-wrap gap-2'}>
         {pageSections.map((sec, si) => (
-          <div key={sec[0]?.id || si} className="bg-gray-100 p-1.5 grid grid-cols-10 gap-1">
+          <div key={sec[0]?.id || si} className={`bg-gray-100 grid grid-cols-10 ${compact ? 'p-1 gap-0.5' : 'p-1.5 gap-1'}`}>
             {sec.map(s => (
               <div key={s.id} className="relative group">
-                <div className="w-3 h-6 cursor-pointer" style={{ backgroundColor: SLOT_COLORS[s.status] }}></div>
+                <div className={`cursor-pointer ${compact ? 'w-2 h-4' : 'w-3 h-6'}`} style={{ backgroundColor: SLOT_COLORS[s.status] }}></div>
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block whitespace-nowrap bg-gray-900 text-white text-[10px] px-2 py-1 z-20 pointer-events-none">
                   {hoverText(s)}
                 </div>
@@ -79,23 +82,25 @@ const ParkingLotMap: React.FC<{ totalSlots: number; vehicles: any[]; reservation
           </div>
         ))}
       </div>
-      {hasTwoPages && (
-        <div className="flex items-center justify-between mt-2">
-          <span className="text-xs text-gray-500">Section {page + 1} of 2 · slots COK{firstSlot}–COK{lastSlot}</span>
-          <div className="flex gap-2">
+      {hasPages && (
+        <div className={`flex items-center justify-between gap-1 ${compact ? 'mt-1.5' : 'mt-2'}`}>
+          <span className={`text-gray-500 ${compact ? 'text-[10px]' : 'text-xs'}`}>
+            {compact ? `COK${firstSlot}–${lastSlot} · ${safePage + 1}/${pageCount}` : `Section ${safePage + 1} of ${pageCount} · slots COK${firstSlot}–COK${lastSlot}`}
+          </span>
+          <div className={`flex ${compact ? 'gap-1' : 'gap-2'}`}>
             <button
               type="button"
-              disabled={page === 0}
-              onClick={() => setPage(0)}
-              className={`px-2.5 py-1 border text-xs ${page === 0 ? 'text-gray-300 border-gray-200 cursor-default' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+              disabled={safePage === 0}
+              onClick={() => setPage(Math.max(0, safePage - 1))}
+              className={`border ${compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs'} ${safePage === 0 ? 'text-gray-300 border-gray-200 cursor-default' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
             >
-               Previous
+              {compact ? 'Prev' : 'Previous'}
             </button>
             <button
               type="button"
-              disabled={page === 1}
-              onClick={() => setPage(1)}
-              className={`px-2.5 py-1 border text-xs ${page === 1 ? 'text-gray-300 border-gray-200 cursor-default' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+              disabled={safePage === pageCount - 1}
+              onClick={() => setPage(Math.min(pageCount - 1, safePage + 1))}
+              className={`border ${compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs'} ${safePage === pageCount - 1 ? 'text-gray-300 border-gray-200 cursor-default' : 'text-gray-700 border-gray-300 hover:bg-gray-100'}`}
             >
               Next
             </button>

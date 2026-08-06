@@ -296,6 +296,12 @@ export const apiRequest = async (
 
   if (data) {
     config.data = data;
+    // FormData must go out as multipart: the instance-level 'application/json' default
+    // would make axios serialize the FormData to JSON and silently drop the files.
+    // Axios replaces 'multipart/form-data' with the real boundary header at send time.
+    if (typeof FormData !== 'undefined' && data instanceof FormData) {
+      config.headers = { ...config.headers, 'Content-Type': 'multipart/form-data' };
+    }
   }
 
   try {
