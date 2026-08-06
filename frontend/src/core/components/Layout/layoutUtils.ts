@@ -102,7 +102,17 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       { id: 'dashboard', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiHome' },
       { id: 'visitors', label: 'Visitors', path: `/${slug}/visitors`, icon: 'FiUsers' },
       { id: 'assigned-visitors', label: 'Assigned Visitors', path: `/${slug}/assigned`, icon: 'FiUserCheck' },
-      { id: 'requests', label: 'Requests', path: `/${slug}/requests`, icon: 'FiFile' }
+      { id: 'requests', label: 'Requests', path: `/${slug}/requests`, icon: 'FiFile' },
+      {
+        id: 'task-manager',
+        label: 'Task Manager',
+        path: `/${slug}/tasks`,
+        icon: 'FiClipboard',
+        children: [
+          { id: 'individual-tasks', label: 'Individual Tasks', path: `/${slug}/tasks`, icon: 'FiClipboard' },
+          { id: 'follow-ups', label: 'Follow-ups', path: `/${slug}/followups`, icon: 'FiCheck' }
+        ]
+      },
     ];
   }
 
@@ -130,6 +140,16 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   if (userRole.includes('event manager') || userRole.includes('event-manager')) {
     return [
       { id: 'dashboard', label: 'Dashboard', path: `/${slug}`, icon: 'FiBarChart2' },
+      {
+        id: 'task-manager',
+        label: 'Task Manager',
+        path: `/${slug}/tasks`,
+        icon: 'FiClipboard',
+        children: [
+          { id: 'individual-tasks', label: 'Individual Tasks', path: `/${slug}/tasks`, icon: 'FiClipboard' },
+          { id: 'follow-ups', label: 'Follow-ups', path: `/${slug}/followups`, icon: 'FiCheck' }
+        ]
+      },
       {
         id: 'rooms',
         label: 'Rooms',
@@ -244,7 +264,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     ];
   }
 
-  // Mayor Role Interceptor 
+  // Mayor Role Interceptor
 
   if(userRole.includes('mayor')) {
 
@@ -256,6 +276,16 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       { id: 'mayor-actions', label: 'Actions', path: `/${slug}/actions`, icon: 'FiCheck' },
       { id: 'service-dashboard', label: 'Service Delivery Dashboard', path: `/${slug}/service-delivery/dashboard`, icon: 'FiClipboard' },
       { id: 'mayor-feedback', label: 'Feedback Analysis', path: `/${slug}/feedback-analysis`, icon: 'FiMessageSquare' },
+      {
+        id: 'task-manager',
+        label: 'Task Manager',
+        path: `/${slug}/tasks`,
+        icon: 'FiClipboard',
+        children: [
+          { id: 'individual-tasks', label: 'Individual Tasks', path: `/${slug}/tasks`, icon: 'FiClipboard' },
+          { id: 'follow-ups', label: 'Follow-ups', path: `/${slug}/followups`, icon: 'FiCheck' }
+        ]
+      },
     ];
   }
 
@@ -276,12 +306,14 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
 
   const navigation: NavItem[] = [];
 
-  const hasAdminAccess = hasPermission(user, 'admin') || hasPermission(user, 'departments') ||
-                        hasPermission(user, 'employees') || hasPermission(user, 'roles_management');
+const hasAdminAccess = hasPermission(user, 'admin') || hasPermission(user, 'departments') ||
+                         hasPermission(user, 'employees') || hasPermission(user, 'roles_management');
   if (hasAdminAccess || isAdmin) {
     const adminChildren: NavItem[] = [];
     if (hasPermission(user, 'admin') || isAdmin)
       adminChildren.push({ id: 'admin-dashboard', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiHome' });
+    if (hasPermission(user, 'admin') || isAdmin)
+      adminChildren.push({ id: 'overview', label: 'Overview', path: `/${slug}/overview`, icon: 'FiBarChart2' });
     if (hasPermission(user, 'departments') || isAdmin)
       adminChildren.push({ id: 'departments', label: 'Departments', path: `/${slug}/departments`, icon: 'FiGrid' });
     if (hasPermission(user, 'employees') || isAdmin)
@@ -294,13 +326,22 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
       adminChildren.push({ id: 'system-audit', label: 'System Audit', path: `/${slug}/system-audit`, icon: 'FiActivity' });
     if (hasPermission(user, 'admin') || isAdmin)
       adminChildren.push({ id: 'storage-management', label: 'Storage Management', path: `/${slug}/storage-management`, icon: 'FiHardDrive' });
-    if (hasPermission(user, 'admin') || isAdmin)
-      adminChildren.push({ id: 'task-manager', label: 'Task Manager', path: `/${slug}/tasks`, icon: 'FiClipboard', children: [
-        { id: 'admin-individual-tasks', label: 'Individual Tasks', path: `/${slug}/tasks`, icon: 'FiClipboard' },
-        { id: 'admin-follow-ups', label: 'Follow-ups', path: `/${slug}/followups`, icon: 'FiCheck' }
-      ]});
     if (adminChildren.length > 0) {
       navigation.push({ id: 'admin', label: 'Admin', path: `/${slug}/dashboard`, icon: 'FiSettings', children: adminChildren });
+    }
+
+    // Task Manager - standalone entry for admin
+    if (hasPermission(user, 'admin') || isAdmin) {
+      navigation.push({
+        id: 'task-manager',
+        label: 'Task Manager',
+        path: `/${slug}/tasks`,
+        icon: 'FiClipboard',
+        children: [
+          { id: 'individual-tasks', label: 'Individual Tasks', path: `/${slug}/tasks`, icon: 'FiClipboard' },
+          { id: 'follow-ups', label: 'Follow-ups', path: `/${slug}/followups`, icon: 'FiCheck' }
+        ]
+      });
     }
   }
 
