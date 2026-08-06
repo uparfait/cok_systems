@@ -60,7 +60,7 @@ async function sendOTPEmail(email, otp, type = 'login') {
     const subject = type === 'password_reset' ? 'Your Password Reset Code' : 'Your Verification Code';
     const message = `Your verification code is: ${otp}. This code will expire in 5 minutes.`;
 
-    const htmlContent = htmlWrapper(`
+    const htmlContent = htmlWbrevorrapper(`
         <h2 style="color: ${PRIMARY_COLOR}; font-family: 'Montserrat', sans-serif; font-size: 22px; margin-top: 0;">${subject}</h2>
         <p style="font-family: 'Merriweather', serif; font-size: 16px; color: #555555;">Your verification code is:</p>
         <div style="background: #f5f5f5; padding: 15px; font-size: 28px; font-weight: bold; letter-spacing: 5px; text-align: center; margin: 20px 0; border: 2px solid ${PRIMARY_COLOR}; border-radius: 4px; color: ${PRIMARY_COLOR};">
