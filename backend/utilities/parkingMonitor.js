@@ -23,6 +23,8 @@ const startParkingMonitor = () => {
                 is_flagged: false
             });
 
+           // console.log(activeRecords.length + ' active parking records found for monitoring.');
+
             // 2. Loop through each car currently parked
             for (let record of activeRecords) {
                 // Ensure check_in exists to prevent errors

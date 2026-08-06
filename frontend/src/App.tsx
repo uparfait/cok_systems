@@ -43,6 +43,7 @@ import {
   MayorEventsPage,
   MayorActionsPage,
   MayorFeedbackPage,
+  StorageManagement,
 } from "./systems/admin";
 
 // Smart Parking imports
@@ -455,6 +456,16 @@ const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <Analytics />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/:roleSlug/storage-management"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <StorageManagement />
+                      </MainLayout>
                     </ProtectedRoute>
                   }
                 />

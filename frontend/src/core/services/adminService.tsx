@@ -452,18 +452,18 @@ export const departmentManagerService = {
 export const parkingService = {
   getAll: async () => {
     try {
-      const response = await get(`/smartparking/vehicle?status=all&limit=50&page=1`);
+      const response = await get(`/smartparking/vehicle?status=active&limit=50&page=1`);
       if (response.success) return { success: true, data: response.data || [], total: response.total || 0 };
       return { success: false, data: [], total: 0 };
     } catch (error) {
       return { success: false, data: [], total: 0 };
     }
   },
-  getAllPaginated: (page: number = 1, limit: number = 50, status: string = 'all') => get(`/smartparking/vehicle?status=${status}&page=${page}&limit=${limit}`),
+  getAllPaginated: (page: number = 1, limit: number = 50, status: string = 'active') => get(`/smartparking/vehicle?status=${status}&page=${page}&limit=${limit}`),
   update: (id: string, data: any) => put(`/smartparking/vehicle/${id}`, data),
   getAllVehicles: async () => {
     try {
-      const response = await get(`/smartparking/vehicle?status=all&limit=50&page=1`);
+      const response = await get(`/smartparking/vehicle?status=active&limit=50&page=1`);
       if (response.success) return { success: true, data: response.data || [] };
       return { success: false, data: [] };
     } catch (error) {
@@ -487,7 +487,7 @@ export const parkingService = {
   },
   getLongDurationVehicles: async (date: string | null = null) => {
     try {
-      let queryParams = 'status=all&limit=100';
+      let queryParams = 'status=active&limit=100';
       if (date) queryParams += `&date=${date}`;
       const response = await get(`/smartparking/vehicle?${queryParams}`);
       if (response.success && response.data) {
@@ -608,7 +608,6 @@ export const statisticsService = {
   getFlaggedVehiclesStats: () => get('/statistics/flagged-vehicles'),
   getEmergencyCarsStats: () => get('/statistics/emergency-cars'),
   getParkingSlots: () => get('/smartparking/slots'),
-  // Server-side served aggregation for the mayor overview; from/to are ISO dates
   getServedStats: (from?: string, to?: string) => {
     const params = new URLSearchParams();
     if (from) params.append('from', from);
@@ -616,7 +615,6 @@ export const statisticsService = {
     const qs = params.toString();
     return get(`/statistics/served${qs ? `?${qs}` : ''}`);
   },
-  // Sentiment per department + general (unserviced) feedback for the selected period
   getFeedbackSentiment: (from?: string, to?: string) => {
     const params = new URLSearchParams();
     if (from) params.append('from', from);
