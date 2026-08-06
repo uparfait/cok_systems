@@ -90,6 +90,27 @@ const SentimentChartTooltip = ({ active, payload }: any) => {
     </div>
   );
 };
+// Bar value label like the reference design: the count with its share of the row total
+// ("650" over "(32%)"), drawn just under the top of the bar. Bars too short to fit the
+// text get the label above them in gray instead. Static — no animation, no blinking.
+const makeStatusBarLabel = (rows: Array<{ total?: number }>) => (props: any) => {
+  const { x = 0, y = 0, width = 0, height = 0, index, value } = props;
+  const num = Number(value);
+  if (!num || Number.isNaN(num)) return null;
+  const total = Number(rows[index]?.total) || 0;
+  const pct = total > 0 ? Math.round((num / total) * 100) : null;
+  const cx = x + width / 2;
+  const inside = height >= (pct !== null ? 26 : 14);
+  const fill = inside ? '#ffffff' : '#6b7280';
+  const baseY = inside ? y + 11 : y - (pct !== null ? 15 : 4);
+  return (
+    <text x={cx} y={baseY} textAnchor="middle" fontSize={9} fontWeight={600} fill={fill}>
+      <tspan x={cx}>{Number.isInteger(num) ? num : num.toFixed(2)}</tspan>
+      {pct !== null && <tspan x={cx} dy={10}>({pct}%)</tspan>}
+    </text>
+  );
+};
+
 // Helper to get chart config with dynamic Y-axis ticks
 const getChartConfig = (maxValue: number, minValue: number = 0) => {
   // Calculate dynamic step size using "nice numbers" algorithm
@@ -1769,20 +1790,20 @@ useEffect(() => {
                         contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
                         labelFormatter={(_l: any, payload: any) => payload?.[0]?.payload?.fullName || _l}
                       />
-                      <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32}>
-                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.departments)} />
                       </Bar>
-                      <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32}>
-                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.departments)} />
                       </Bar>
-                      <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32}>
-                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.departments)} />
                       </Bar>
-                      <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32}>
-                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.departments)} />
                       </Bar>
-                      <Bar dataKey="archived" name="Archived" fill="#9E9E9E" maxBarSize={32}>
-                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      <Bar dataKey="archived" name="Archived" fill="#9E9E9E" maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.departments)} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -1806,20 +1827,20 @@ useEffect(() => {
                         contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
                         labelFormatter={(_l: any, payload: any) => payload?.[0]?.payload?.fullName || _l}
                       />
-                      <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32}>
-                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.employees)} />
                       </Bar>
-                      <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32}>
-                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.employees)} />
                       </Bar>
-                      <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32}>
-                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.employees)} />
                       </Bar>
-                      <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32}>
-                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.employees)} />
                       </Bar>
-                      <Bar dataKey="archived" name="Archived" fill="#9E9E9E" maxBarSize={32}>
-                        <LabelList position="top" fontSize={10} fill="#6b7280" />
+                      <Bar dataKey="archived" name="Archived" fill="#9E9E9E" maxBarSize={32} isAnimationActive={false}>
+                        <LabelList content={makeStatusBarLabel(requestStatuses.employees)} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -1857,8 +1878,12 @@ useEffect(() => {
                       contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
                       formatter={(value: any, _n: any, entry: any) => [`${value}/10 (${entry?.payload?.count} feedback)`, 'Avg rating']}
                     />
-                    <Bar dataKey="rating" fill={COK.primary} radius={[0, 0, 0, 0]} barSize={16}>
-                      <LabelList position="right" fontSize={10} fill="#6b7280" />
+                    <Bar dataKey="rating" fill={COK.primary} radius={[0, 0, 0, 0]} barSize={16} isAnimationActive={false}>
+                      <LabelList position="insideEnd" fontSize={10} fill="#ffffff" formatter={(value: any) => {
+                        const num = Number(value);
+                        if (Number.isNaN(num)) return value;
+                        return Number.isInteger(num) ? String(num) : num.toFixed(2);
+                      }} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -1898,20 +1923,36 @@ useEffect(() => {
                   <RTooltip cursor={{ fill: COK.neutralLight }} content={<SentimentChartTooltip />} />
                   {/* barRating renders the department bars; the seg* stack renders the General
                       bar as horizontal negative/neutral/positive bands (same total height) */}
-                  <Bar dataKey="barRating" name="Avg rating" barSize={34} radius={[0, 0, 0, 0]} stackId="sentiment">
+                  <Bar dataKey="barRating" name="Avg rating" barSize={34} radius={[0, 0, 0, 0]} stackId="sentiment" isAnimationActive={false}>
                     {sentimentTrend.map((d, i) => (
                       <Cell key={i} fill={SENTIMENT_META[classifySentiment(d.rating, 10)].color} />
                     ))}
-                    <LabelList position="right" fontSize={9} fill="#6b7280" />
+                    <LabelList position="insideEnd" fontSize={9} fill="#ffffff" formatter={(value: any) => {
+                      const num = Number(value);
+                      if (Number.isNaN(num)) return value;
+                      return Number.isInteger(num) ? String(num) : num.toFixed(2);
+                    }} />
                   </Bar>
-                  <Bar dataKey="segNegative" name="Negative share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.negative.color}>
-                    <LabelList position="right" fontSize={9} fill="#6b7280" />
+                  <Bar dataKey="segNegative" name="Negative share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.negative.color} isAnimationActive={false}>
+                    <LabelList position="insideEnd" fontSize={9} fill="#ffffff" formatter={(value: any) => {
+                      const num = Number(value);
+                      if (Number.isNaN(num)) return value;
+                      return Number.isInteger(num) ? String(num) : num.toFixed(2);
+                    }} />
                   </Bar>
-                  <Bar dataKey="segNeutral" name="Neutral share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.neutral.color}>
-                    <LabelList position="right" fontSize={9} fill="#6b7280" />
+                  <Bar dataKey="segNeutral" name="Neutral share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.neutral.color} isAnimationActive={false}>
+                    <LabelList position="insideEnd" fontSize={9} fill="#ffffff" formatter={(value: any) => {
+                      const num = Number(value);
+                      if (Number.isNaN(num)) return value;
+                      return Number.isInteger(num) ? String(num) : num.toFixed(2);
+                    }} />
                   </Bar>
-                  <Bar dataKey="segPositive" name="Positive share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.positive.color}>
-                    <LabelList position="right" fontSize={9} fill="#6b7280" />
+                  <Bar dataKey="segPositive" name="Positive share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.positive.color} isAnimationActive={false}>
+                    <LabelList position="insideEnd" fontSize={9} fill="#ffffff" formatter={(value: any) => {
+                      const num = Number(value);
+                      if (Number.isNaN(num)) return value;
+                      return Number.isInteger(num) ? String(num) : num.toFixed(2);
+                    }} />
                   </Bar>
                   <Line
                     type="monotone"
@@ -1921,6 +1962,7 @@ useEffect(() => {
                     strokeWidth={2}
                     dot={{ r: 4, fill: CC.blue, stroke: '#fff', strokeWidth: 2 }}
                     activeDot={{ r: 5 }}
+                    isAnimationActive={false}
                   />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -1987,8 +2029,8 @@ useEffect(() => {
                     <YAxis tick={{ fontSize: 11 }} />
                     <RTooltip />
                     <Legend />
-                    <Area type="monotone" dataKey="check_in" stroke="#3b82f6" fill="rgba(59,130,246,0.1)" name="Check-ins" />
-                    <Area type="monotone" dataKey="check_out" stroke="#ef4444" fill="rgba(239,68,68,0.1)" name="Check-outs" />
+                    <Area type="monotone" dataKey="check_in" stroke="#3b82f6" fill="rgba(59,130,246,0.1)" name="Check-ins" isAnimationActive={false} />
+                    <Area type="monotone" dataKey="check_out" stroke="#ef4444" fill="rgba(239,68,68,0.1)" name="Check-outs" isAnimationActive={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -3011,7 +3053,7 @@ useEffect(() => {
                           <XAxis dataKey="hour" tickFormatter={(v: number) => formatHourLabel(Number(v))} tick={{ fontSize: 11 }} />
                           <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                           <RTooltip labelFormatter={(v: any) => formatHourLabel(Number(v))} />
-                          <Area type="monotone" dataKey="check_in" stroke="#3b82f6" fill="rgba(59,130,246,0.15)" name="Check-ins" />
+                          <Area type="monotone" dataKey="check_in" stroke="#3b82f6" fill="rgba(59,130,246,0.15)" name="Check-ins" isAnimationActive={false} />
                         </AreaChart>
                       </ResponsiveContainer>
                     ) : (
