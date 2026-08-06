@@ -859,13 +859,10 @@ const Overview: React.FC = () => {
       .slice(0, 8);
   }, [data]);
 
-  // Departments climbing from worst to best rating (negative sentiment on the left),
-  // built from the period-aware sentiment endpoint, with one General (unserviced)
-  // feedback bar appended after the department bars. Falls back to the all-time
-  // department averages until the sentiment stats arrive.
-  // barRating draws the plain department bars; the seg* keys stack into the General
-  // bar's horizontal bands (negative → neutral → positive), each sized by that
-  // category's share of the feedback while the total height stays the avg rating
+  // Departments sorted by average rating ascending — drives the sentiment chart.
+  // Each row carries the sentiment breakdown so the bar can be colored by
+  // negative / neutral / positive. General (unserviced) feedback is appended
+  // as its own row.
   interface SentimentTrendRow { name: string; rating: number; count: number; fullName?: string; positive?: number; neutral?: number; negative?: number; isGeneral?: boolean; barRating?: number; segNegative?: number; segNeutral?: number; segPositive?: number }
   const sentimentTrend = useMemo<SentimentTrendRow[]>(() => {
     if (!feedbackSentiment) return [...deptRatings].sort((a, b) => a.rating - b.rating).map(d => ({ ...d, barRating: d.rating }));
@@ -1775,20 +1772,22 @@ useEffect(() => {
                         cursor={{ fill: COK.neutralLight }}
                         contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
                         labelFormatter={(_l: any, payload: any) => payload?.[0]?.payload?.fullName || _l}
+                        formatter={(value: any, name: any) => {
+                          const payload = (value as any)?.payload;
+                          if (!payload) return [value, name];
+                          const total = payload.total || 0;
+                          const entries = [
+                            ['Pending', payload.pending],
+                            ['In progress', payload.inprogress],
+                            ['Completed', payload.completed],
+                            ['Overdue', payload.overdue],
+                            ['Archived', payload.archived],
+                          ].filter(([, v]) => v > 0);
+                          const lines = entries.map(([k, v]) => `${k}: ${v} (${total > 0 ? Math.round((v / total) * 100) : 0}%)`);
+                          return [lines.join('\n'), 'Breakdown'];
+                        }}
                       />
-                      <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32} isAnimationActive={false}>
-                        <LabelList content={makeStatusBarLabel(requestStatuses.departments)} />
-                      </Bar>
-                      <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} isAnimationActive={false}>
-                        <LabelList content={makeStatusBarLabel(requestStatuses.departments)} />
-                      </Bar>
-                      <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} isAnimationActive={false}>
-                        <LabelList content={makeStatusBarLabel(requestStatuses.departments)} />
-                      </Bar>
-                      <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32} isAnimationActive={false}>
-                        <LabelList content={makeStatusBarLabel(requestStatuses.departments)} />
-                      </Bar>
-                      <Bar dataKey="archived" name="Archived" fill="#9E9E9E" maxBarSize={32} isAnimationActive={false}>
+                      <Bar dataKey="total" name="Total requests" fill={CC.purple} maxBarSize={32} isAnimationActive={false}>
                         <LabelList content={makeStatusBarLabel(requestStatuses.departments)} />
                       </Bar>
                     </BarChart>
@@ -1812,20 +1811,22 @@ useEffect(() => {
                         cursor={{ fill: COK.neutralLight }}
                         contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
                         labelFormatter={(_l: any, payload: any) => payload?.[0]?.payload?.fullName || _l}
+                        formatter={(value: any, name: any) => {
+                          const payload = (value as any)?.payload;
+                          if (!payload) return [value, name];
+                          const total = payload.total || 0;
+                          const entries = [
+                            ['Pending', payload.pending],
+                            ['In progress', payload.inprogress],
+                            ['Completed', payload.completed],
+                            ['Overdue', payload.overdue],
+                            ['Archived', payload.archived],
+                          ].filter(([, v]) => v > 0);
+                          const lines = entries.map(([k, v]) => `${k}: ${v} (${total > 0 ? Math.round((v / total) * 100) : 0}%)`);
+                          return [lines.join('\n'), 'Breakdown'];
+                        }}
                       />
-                      <Bar dataKey="pending" name="Pending" fill={CC.amber} maxBarSize={32} isAnimationActive={false}>
-                        <LabelList content={makeStatusBarLabel(requestStatuses.employees)} />
-                      </Bar>
-                      <Bar dataKey="inprogress" name="In progress" fill={CC.blue} maxBarSize={32} isAnimationActive={false}>
-                        <LabelList content={makeStatusBarLabel(requestStatuses.employees)} />
-                      </Bar>
-                      <Bar dataKey="completed" name="Completed" fill={CC.teal} maxBarSize={32} isAnimationActive={false}>
-                        <LabelList content={makeStatusBarLabel(requestStatuses.employees)} />
-                      </Bar>
-                      <Bar dataKey="overdue" name="Overdue" fill={CC.red} maxBarSize={32} isAnimationActive={false}>
-                        <LabelList content={makeStatusBarLabel(requestStatuses.employees)} />
-                      </Bar>
-                      <Bar dataKey="archived" name="Archived" fill="#9E9E9E" maxBarSize={32} isAnimationActive={false}>
+                      <Bar dataKey="total" name="Total requests" fill={CC.purple} maxBarSize={32} isAnimationActive={false}>
                         <LabelList content={makeStatusBarLabel(requestStatuses.employees)} />
                       </Bar>
                     </BarChart>
@@ -1882,20 +1883,19 @@ useEffect(() => {
           <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: 0 }}>
             Department Sentiment
           </h3>
-          <div className="text-[11px] uppercase tracking-wide text-gray-400 mt-0.5 mb-2">From negative to positive · avg rating out of 10 · {periodLabel}</div>
+          <div className="text-[11px] uppercase tracking-wide text-gray-400 mt-0.5 mb-2">Average rating out of 10 · {periodLabel}</div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 mb-2">
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.negative.color }}></div>Negative (&lt;4)</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.neutral.color }}></div>Neutral (4–6.9)</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.positive.color }}></div>Positive (7+)</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ background: `linear-gradient(to top, ${SENTIMENT_META.negative.color} 33%, ${SENTIMENT_META.neutral.color} 33% 66%, ${SENTIMENT_META.positive.color} 66%)` }}></div>General feedback </div>
-            <div className="flex items-center gap-1.5"><div className="w-3 h-0.5" style={{ backgroundColor: CC.blue }}></div>Rating trend</div>
           </div>
           {sentimentTrend.length === 0 ? (
             <p className="text-sm text-gray-500" style={{ fontFamily: COK.bodyFont }}>No feedback in this period yet.</p>
           ) : (
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={sentimentTrend} margin={{ top: 15, right: 15, left: -22, bottom: 30 }}>
+                <BarChart data={sentimentTrend} margin={{ top: 15, right: 15, left: -22, bottom: 30 }}>
                   <XAxis
                     dataKey="name"
                     interval={0}
@@ -1907,11 +1907,9 @@ useEffect(() => {
                   />
                   <YAxis domain={[0, 10]} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
                   <RTooltip cursor={{ fill: COK.neutralLight }} content={<SentimentChartTooltip />} />
-                  {/* barRating renders the department bars; the seg* stack renders the General
-                      bar as horizontal negative/neutral/positive bands (same total height) */}
-                  <Bar dataKey="barRating" name="Avg rating" barSize={34} radius={[0, 0, 0, 0]} stackId="sentiment" isAnimationActive={false}>
+                  <Bar dataKey="rating" name="Avg rating" barSize={34} radius={[0, 0, 0, 0]} isAnimationActive={false}>
                     {sentimentTrend.map((d, i) => (
-                      <Cell key={i} fill={SENTIMENT_META[classifySentiment(d.rating, 10)].color} />
+                      <Cell key={i} fill={d.isGeneral ? `linear-gradient(to top, ${SENTIMENT_META.negative.color} 33%, ${SENTIMENT_META.neutral.color} 33% 66%, ${SENTIMENT_META.positive.color} 66%)` : SENTIMENT_META[classifySentiment(d.rating, 10)].color} />
                     ))}
                     <LabelList position="insideEnd" fontSize={9} fill="#ffffff" formatter={(value: any) => {
                       const num = Number(value);
@@ -1919,38 +1917,7 @@ useEffect(() => {
                       return Number.isInteger(num) ? String(num) : num.toFixed(2);
                     }} />
                   </Bar>
-                  <Bar dataKey="segNegative" name="Negative share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.negative.color} isAnimationActive={false}>
-                    <LabelList position="insideEnd" fontSize={9} fill="#ffffff" formatter={(value: any) => {
-                      const num = Number(value);
-                      if (Number.isNaN(num)) return value;
-                      return Number.isInteger(num) ? String(num) : num.toFixed(2);
-                    }} />
-                  </Bar>
-                  <Bar dataKey="segNeutral" name="Neutral share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.neutral.color} isAnimationActive={false}>
-                    <LabelList position="insideEnd" fontSize={9} fill="#ffffff" formatter={(value: any) => {
-                      const num = Number(value);
-                      if (Number.isNaN(num)) return value;
-                      return Number.isInteger(num) ? String(num) : num.toFixed(2);
-                    }} />
-                  </Bar>
-                  <Bar dataKey="segPositive" name="Positive share" barSize={34} stackId="sentiment" fill={SENTIMENT_META.positive.color} isAnimationActive={false}>
-                    <LabelList position="insideEnd" fontSize={9} fill="#ffffff" formatter={(value: any) => {
-                      const num = Number(value);
-                      if (Number.isNaN(num)) return value;
-                      return Number.isInteger(num) ? String(num) : num.toFixed(2);
-                    }} />
-                  </Bar>
-                  <Line
-                    type="monotone"
-                    dataKey="rating"
-                    name="Rating trend"
-                    stroke={CC.blue}
-                    strokeWidth={2}
-                    dot={{ r: 4, fill: CC.blue, stroke: '#fff', strokeWidth: 2 }}
-                    activeDot={{ r: 5 }}
-                    isAnimationActive={false}
-                  />
-                </ComposedChart>
+                </BarChart>
               </ResponsiveContainer>
             </div>
           )}
