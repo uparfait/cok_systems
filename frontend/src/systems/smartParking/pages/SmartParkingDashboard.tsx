@@ -546,86 +546,101 @@ const SmartParkingDashboard: React.FC = () => {
 
         {/* Main Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-4">
-          <div className="p-5 transition-shadow duration-300" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+          <div className="p-3 transition-shadow duration-300" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium mb-1" style={{ color: PRIMARY, fontFamily: fontHeading }}>Available Slots</p>
+                <p className="text-xs font-medium mb-0.5" style={{ color: PRIMARY, fontFamily: fontHeading }}>Available Slots</p>
                 {statsLoading ? (
-                  <div className="h-9 w-16 animate-pulse mt-1" style={{ backgroundColor: 'rgba(5,109,170,0.12)' }}></div>
+                  <div className="h-7 w-12 animate-pulse mt-1" style={{ backgroundColor: 'rgba(5,109,170,0.12)' }}></div>
                 ) : (
-                  <h3 className="text-3xl font-bold" style={{ color: PRIMARY, fontFamily: fontHeading }}>{stats.availableSlots}</h3>
+                  <h3 className="text-xl font-bold" style={{ color: PRIMARY, fontFamily: fontHeading }}>{stats.availableSlots}</h3>
                 )}
-                <p className="text-[#555555] text-xs mt-2 flex items-center gap-1">
+                <p className="text-[#555555] text-xs mt-1 flex items-center gap-1">
                   <FiMapPin className="w-3 h-3" />
                   Out of {stats.totalSlots} total
                 </p>
               </div>
-              <div className="p-3" style={{ backgroundColor: 'rgba(5,109,170,0.08)' }}>
-                <MdOutlineLocalParking className="w-6 h-6" style={{ color: PRIMARY }} />
+              <div className="p-2" style={{ backgroundColor: 'rgba(5,109,170,0.08)' }}>
+                <MdOutlineLocalParking className="w-5 h-5" style={{ color: PRIMARY }} />
               </div>
             </div>
 </div>
 
-          <div className="p-5 transition-shadow duration-300" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+          <div className="p-3 transition-shadow duration-300" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium mb-1" style={{ color: SUCCESS_HOVER, fontFamily: fontHeading }}>Regular Available</p>
+                <p className="text-xs font-medium mb-0.5" style={{ color: SUCCESS_HOVER, fontFamily: fontHeading }}>Regular Available</p>
                 {statsLoading ? (
-                  <div className="h-9 w-16 animate-pulse mt-1" style={{ backgroundColor: 'rgba(76,175,80,0.12)' }}></div>
+                  <div className="h-7 w-12 animate-pulse mt-1" style={{ backgroundColor: 'rgba(76,175,80,0.12)' }}></div>
                 ) : (
-                  <h3 className="text-3xl font-bold" style={{ color: SUCCESS_HOVER, fontFamily: fontHeading }}>{stats.regularAvailable}</h3>
+                  <h3 className="text-xl font-bold" style={{ color: SUCCESS_HOVER, fontFamily: fontHeading }}>{stats.regularAvailable}</h3>
                 )}
-                <p className="text-[#555555] text-xs mt-2 flex items-center gap-1">
+                <p className="text-[#555555] text-xs mt-1 flex items-center gap-1">
                   <FiMapPin className="w-3 h-3" /> {stats.regularTotal} allocated
                 </p>
               </div>
-              <div className="p-3" style={{ backgroundColor: 'rgba(76,175,80,0.1)' }}>
-                <FiTruck className="w-6 h-6" style={{ color: SUCCESS }} />
+              <div className="p-2" style={{ backgroundColor: 'rgba(76,175,80,0.1)' }}>
+                <FiTruck className="w-5 h-5" style={{ color: SUCCESS }} />
               </div>
             </div>
           </div>
 
 
           {/* Staff Reserved */}
-          <div className="p-5 transition-shadow duration-300" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+          <div className="p-3 transition-shadow duration-300" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium mb-1" style={{ color: ACCENT_DARK_BLUE, fontFamily: fontHeading }}>Staff Reserved</p>
+                <p className="text-xs font-medium mb-0.5" style={{ color: ACCENT_DARK_BLUE, fontFamily: fontHeading }}>Staff Reserved</p>
 {statsLoading ? (
-                   <div className="h-9 w-16 animate-pulse mt-1" style={{ backgroundColor: 'rgba(41,128,185,0.12)' }}></div>
+                   <div className="h-7 w-12 animate-pulse mt-1" style={{ backgroundColor: 'rgba(41,128,185,0.12)' }}></div>
                  ) : (
-                   <h3 className="text-3xl font-bold" style={{ color: ACCENT_DARK_BLUE, fontFamily: fontHeading }}>{stats.staffAvailableSlots}</h3>
+                   <h3 className="text-xl font-bold" style={{ color: ACCENT_DARK_BLUE, fontFamily: fontHeading }}>{stats.staffAvailableSlots}</h3>
                  )}
-                 <p className="text-[#333333] text-xs mt-2 flex items-center gap-1">
+                 <p className="text-[#333333] text-xs mt-1 flex items-center gap-1">
                     <FiUsers className="w-3 h-3" />
-                    {stats.staffReservedSlots} allocated
+                    Out of {stats.staffReservedSlots} allocated
                   </p>
                </div>
-              <div className="p-3" style={{ backgroundColor: 'rgba(41,128,185,0.1)' }}>
-                <FiShield className="w-6 h-6" style={{ color: ACCENT_DARK_BLUE }} />
+              <div className="p-2" style={{ backgroundColor: 'rgba(41,128,185,0.1)' }}>
+                <FiShield className="w-5 h-5" style={{ color: ACCENT_DARK_BLUE }} />
               </div>
             </div>
           </div>
 
           {/* Visitor Reserved */}
-          <div className="p-5 transition-shadow duration-300" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+          <div className="p-3 transition-shadow duration-300" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium mb-1" style={{ color: WARNING, fontFamily: fontHeading }}>Visitor Reserved</p>
+                <p className="text-xs font-medium mb-0.5" style={{ color: WARNING, fontFamily: fontHeading }}>Visitor Reserved</p>
 {statsLoading ? (
-                   <div className="h-9 w-16 animate-pulse mt-1" style={{ backgroundColor: 'rgba(243,156,18,0.12)' }}></div>
+                   <div className="h-7 w-12 animate-pulse mt-1" style={{ backgroundColor: 'rgba(243,156,18,0.12)' }}></div>
                  ) : (
-                   <h3 className="text-3xl font-bold" style={{ color: WARNING, fontFamily: fontHeading }}>{stats.visitorAvailableSlots}</h3>
+                   <h3 className="text-xl font-bold" style={{ color: WARNING, fontFamily: fontHeading }}>{stats.visitorAvailableSlots}</h3>
                  )}
-                  <p className="text-[#333333] text-xs mt-2 flex items-center gap-1">
+                  <p className="text-[#333333] text-xs mt-1 flex items-center gap-1">
                     <FiTrendingUp className="w-3 h-3" />
-                    {stats.visitorReservedSlots} allocated
+                    Out of {stats.visitorReservedSlots} allocated
                   </p>
                </div>
-              <div className="p-3" style={{ backgroundColor: 'rgba(243,156,18,0.1)' }}>
-                <FiUserPlus className="w-6 h-6" style={{ color: WARNING }} />
+              <div className="p-2" style={{ backgroundColor: 'rgba(243,156,18,0.1)' }}>
+                <FiUserPlus className="w-5 h-5" style={{ color: WARNING }} />
               </div>
             </div>
+          </div>
+
+          {/* Parking Status map — fills the last grid column beside the stat cards (full row on small screens) */}
+          <div className="p-3 transition-shadow duration-300 col-span-2 sm:col-span-3 lg:col-span-1" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
+            <div className="flex items-center gap-1.5 mb-2">
+              <MdOutlineLocalParking className="w-4 h-4" style={{ color: PRIMARY }} />
+              <p className="text-xs font-medium" style={{ color: PRIMARY, fontFamily: fontHeading }}>Parking Status</p>
+            </div>
+            {statsLoading ? (
+              <div className="flex items-center justify-center h-24">
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#056daa] border-t-transparent"></div>
+              </div>
+            ) : (
+              <ParkingLotMap compact totalSlots={parkingLot.totalSlots} vehicles={parkingLot.vehicles} reservations={parkingLot.reservations} />
+            )}
           </div>
         </div>
 
@@ -641,26 +656,6 @@ const SmartParkingDashboard: React.FC = () => {
             <FiDownload className="w-5 h-5" />
             EXPORT VISITORS DATA
           </button>
-        </div>
-
-        {/* Parking Status Map */}
-        <div className="p-4 sm:p-5 mb-6" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW }}>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="p-2" style={{ backgroundColor: 'rgba(5,109,170,0.1)' }}>
-              <MdOutlineLocalParking className="w-5 h-5 text-[#056daa]" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Parking Status</h2>
-              <p className="text-xs text-[#555555]">Slot occupancy · all currently active vehicles</p>
-            </div>
-          </div>
-          {statsLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#056daa] border-t-transparent"></div>
-            </div>
-          ) : (
-            <ParkingLotMap totalSlots={parkingLot.totalSlots} vehicles={parkingLot.vehicles} reservations={parkingLot.reservations} />
-          )}
         </div>
 
         {/* Hourly Analytics Graph */}
