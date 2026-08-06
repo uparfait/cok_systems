@@ -7,14 +7,19 @@ const ParkingSlot = require('../models/parking_slots');
 const normalizePlate = (p) => String(p || '').toUpperCase().replace(/\s+/g, '');
 
 // Template "Date" column → reservation expiry (valid through the END of that day).
-// Accepts JS Dates, Excel serial numbers, and date strings (e.g. 2026-12-31).
+// Template format is day/month/year (e.g. 31/12/2026, also - or . separators); JS Dates,
+// Excel serial numbers, and ISO strings are accepted too.
 // Missing/unreadable dates return null = the reservation never expires.
 const parseTemplateDate = (raw) => {
     if (raw === undefined || raw === null || raw === '') return null;
     let d = null;
     if (raw instanceof Date) d = raw;
     else if (typeof raw === 'number') d = new Date(Math.round((raw - 25569) * 86400 * 1000)); // Excel serial day
-    else d = new Date(String(raw).trim());
+    else {
+        const s = String(raw).trim();
+        const dmy = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/); // day/month/year
+        d = dmy ? new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1])) : new Date(s);
+    }
     if (!d || isNaN(d.getTime())) return null;
     const end = new Date(d);
     end.setHours(23, 59, 59, 999);

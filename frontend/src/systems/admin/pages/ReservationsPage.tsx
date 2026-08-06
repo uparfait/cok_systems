@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import * as XLSX from 'xlsx';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
 import MainLayout from '../../../core/components/Layout/MainLayout';
@@ -115,23 +116,54 @@ const ReservationsPage: React.FC = () => {
     catch (error) { showError(error.message); } finally { setLoading(false); }
   };
 
-  const downloadVisitorTemplate = () => {
-    // Date = last day the reservation is valid (YYYY-MM-DD); leave empty for no expiry
-    const h = ['Name', 'Plate Number', 'ID Type', 'ID Number', 'Phone', 'Date'];
-    const csvRows = [h.join(',')];
-    csvRows.push(['', '', 'NID', '', '', '2026-12-31'].join(','));
-    const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'visitor_reservation_template.csv'; link.click();
+  // Build an .xlsx template where the given columns are pre-formatted as TEXT for the
+  // first 100 data rows \u2014 long ID numbers keep their digits (no scientific notation)
+  // and dates typed as day/month/year stay literal instead of being auto-converted.
+  const buildTemplate = (headers: string[], example: string[], textCols: number[], sheetName: string, fileName: string) => {
+    const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+    for (let r = 1; r <= 100; r++) {
+      for (const c of textCols) {
+        const addr = XLSX.utils.encode_cell({ r, c });
+        if (!ws[addr]) ws[addr] = { t: 's', v: '' };
+        ws[addr].t = 's';
+        ws[addr].z = '@';
+      }
+    }
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 100, c: headers.length - 1 } });
+    ws['!cols'] = headers.map(() => ({ wch: 18 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    // Download via a plain anchor (like the old CSV path) so the file saves immediately
+    // with its name instead of opening a save-as dialog
+    const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(link.href);
     showSuccess('Template downloaded');
   };
 
+  const downloadVisitorTemplate = () => {
+    // Date = last day the reservation is valid, written as day/month/year; leave empty for no expiry
+    buildTemplate(
+      ['Name', 'Plate Number', 'ID Type', 'ID Number', 'Phone', 'Date'],
+      ['', '', 'NID', '', '', '31/12/2026'],
+      [3, 4, 5], // ID Number, Phone, Date stay text
+      'Visitors',
+      'visitor_reservation_template.xlsx'
+    );
+  };
+
   const downloadStaffTemplate = () => {
-    const h = ['Staff Name', 'Plate Number', 'Phone', 'Department', 'Title', 'ID Type', 'ID Number'];
-    const csvRows = [h.join(',')];
-    csvRows.push(['', '', '', '', '', 'NID', ''].join(','));
-    const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'staff_booking_template.csv'; link.click();
-    showSuccess('Template downloaded');
+    buildTemplate(
+      ['Staff Name', 'Plate Number', 'Phone', 'Department', 'Title', 'ID Type', 'ID Number'],
+      ['', '', '', '', '', 'NID', ''],
+      [2, 6], // Phone, ID Number stay text
+      'Staff',
+      'staff_booking_template.xlsx'
+    );
   };
 
   const downloadHistoryCSV = () => {
@@ -180,18 +212,18 @@ const ReservationsPage: React.FC = () => {
             <p className="text-xs mt-0.5 text-[#555555]">{view === 'management' ? 'Manage visitor and staff parking slot allocations' : 'View and manage all parking reservations'}</p>
           </div>
           {/* View switch: forms (default) or the reservation list — CoK square uppercase buttons */}
-          <div className="flex self-start sm:self-auto" style={{ border: `1px solid ${PRIMARY}` }}>
+          <div className="flex gap-3 self-start sm:self-auto">
             <button
               onClick={() => setView('management')}
               className="px-4 py-2 text-xs font-semibold uppercase transition-colors"
-              style={{ fontFamily: fontHeading, letterSpacing: '1px', borderRadius: 0, backgroundColor: view === 'management' ? PRIMARY : 'transparent', color: view === 'management' ? '#fff' : PRIMARY }}
+              style={{ fontFamily: fontHeading, letterSpacing: '1px', borderRadius: 0, border: `1px solid ${PRIMARY}`, backgroundColor: view === 'management' ? PRIMARY : 'transparent', color: view === 'management' ? '#fff' : PRIMARY }}
             >
               Reservation Management
             </button>
             <button
               onClick={() => setView('list')}
               className="px-4 py-2 text-xs font-semibold uppercase transition-colors"
-              style={{ fontFamily: fontHeading, letterSpacing: '1px', borderRadius: 0, borderLeft: `1px solid ${PRIMARY}`, backgroundColor: view === 'list' ? PRIMARY : 'transparent', color: view === 'list' ? '#fff' : PRIMARY }}
+              style={{ fontFamily: fontHeading, letterSpacing: '1px', borderRadius: 0, border: `1px solid ${PRIMARY}`, backgroundColor: view === 'list' ? PRIMARY : 'transparent', color: view === 'list' ? '#fff' : PRIMARY }}
             >
               View Reservation List ({filteredReservations.length})
             </button>
@@ -247,9 +279,10 @@ const ReservationsPage: React.FC = () => {
           )}
           <div className="overflow-x-auto px-6">
             <table className="w-full min-w-[720px]">
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                  <th className="text-left py-3 pr-2 w-8">
+              {/* Solid CoK-blue header bar — same as the receptionist Assigned Visitors table */}
+              <thead className="cok-bg-primary sticky top-0 z-10 shadow-sm">
+                <tr>
+                  <th className="text-left py-3 px-3 w-10">
                     <input
                       type="checkbox"
                       checked={paginated.length > 0 && paginated.every(r => selectedKeys.has(keyOf(r)))}
@@ -262,14 +295,14 @@ const ReservationsPage: React.FC = () => {
                     />
                   </th>
                   {['Visitor Name', 'Plate Number', 'Telephone', 'Valid Until', 'Type', 'Status', 'Action'].map(h => (
-                    <th key={h} className="text-left py-3 px-0 text-[11px] uppercase tracking-wider font-semibold" style={{ fontFamily: fontHeading, color: TERTIARY, letterSpacing: '0.5px' }}>{h}</th>
+                    <th key={h} className="text-left py-3 px-0 text-xs uppercase tracking-wider font-semibold text-white" style={{ fontFamily: fontHeading, letterSpacing: '0.5px' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {paginated.length > 0 ? paginated.map(r => (
                   <tr key={keyOf(r)} className="h-14" style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: selectedKeys.has(keyOf(r)) ? 'rgba(5,109,170,0.05)' : 'transparent' }}>
-                    <td className="py-3 pr-2">
+                    <td className="py-3 px-3">
                       <input type="checkbox" checked={selectedKeys.has(keyOf(r))} onChange={() => toggleSelected(r)} className="w-3.5 h-3.5 cursor-pointer" />
                     </td>
                     <td className="py-3">
