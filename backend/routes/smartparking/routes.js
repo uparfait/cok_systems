@@ -9,7 +9,7 @@ const multer = require('multer');
 const { auditSuccess, auditError, auditUserActions } = require('../../middlewares/audit');
 
 const { bulkUploadReservations, registerSingleReservation } = require('../../controllers/reservationController');
-const { getAllReservations, createStaffBooking, cancelReservation, reactivateReservation, bulkUploadStaff } = require('../../controllers/reservationsController');
+const { getAllReservations, createStaffBooking, cancelReservation, reactivateReservation, bulkUploadStaff, bulkCancelReservations, bulkDeleteReservations } = require('../../controllers/reservationsController');
 
 // parfait's controllers
 const check_in = require('../../controllers/smart_parking/check_in.js')
@@ -275,6 +275,42 @@ Router.put('/reservations/:id/cancel',
 Router.put('/reservations/:id/reactivate',
   auditSuccess('UPDATE', 'reservations', (req, res, data) => `Reactivated reservation ${req.params.id}`),
   reactivateReservation
+);
+
+/**
+ * @swagger
+ * /smartparking/reservations/bulk-cancel:
+ *   post:
+ *     summary: "Bulk cancel selected reservations"
+ *     description: "Cancel several reservations at once. Body: { items: [{ id, type: 'visitor' | 'staff' }] }"
+ *     tags: [Smart Parking]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Bulk cancel processed
+ */
+Router.post('/reservations/bulk-cancel',
+  auditSuccess('UPDATE', 'reservations', (req, res, data) => `Bulk cancelled ${req.body?.items?.length || 0} reservations`),
+  bulkCancelReservations
+);
+
+/**
+ * @swagger
+ * /smartparking/reservations/bulk-delete:
+ *   post:
+ *     summary: "Bulk delete selected reservations"
+ *     description: "Permanently delete several reservations at once. Body: { items: [{ id, type: 'visitor' | 'staff' }] }"
+ *     tags: [Smart Parking]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Bulk delete processed
+ */
+Router.post('/reservations/bulk-delete',
+  auditSuccess('DELETE', 'reservations', (req, res, data) => `Bulk deleted ${req.body?.items?.length || 0} reservations`),
+  bulkDeleteReservations
 );
 
 /**

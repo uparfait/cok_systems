@@ -43,6 +43,8 @@ module.exports = async function verify_car(req, res, next) {
           plate_number,
           is_used: { $ne: true },
           is_cancelled: { $ne: true },
+          // valid_until null/missing = never expires; a set date is valid through that day
+          $or: [{ valid_until: null }, { valid_until: { $gte: new Date() } }],
         },
       },
     });
@@ -136,7 +138,8 @@ module.exports = async function verify_car(req, res, next) {
 
       // Extract driver details from emergency_reservation visitor_info
       const visitorInfo = emergency_reservation.visitor_info?.find(
-        (v) => v.plate_number === plate_number && !v.is_used && !v.is_cancelled,
+        (v) => v.plate_number === plate_number && !v.is_used && !v.is_cancelled &&
+          (!v.valid_until || v.valid_until >= new Date()),
       );
       console.log("Found visitorInfo:", visitorInfo);
       if (visitorInfo) {
