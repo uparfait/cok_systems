@@ -250,8 +250,6 @@ const TaskManager: React.FC = () => {
           )
         }))
       )
-
-      showSuccess('Task updated successfully')
     }
   }
 
@@ -436,6 +434,8 @@ const TaskManager: React.FC = () => {
           onClose={() => {
             setShowDetailModal(false)
             setSelectedTask(null)
+            loadTasks(false)
+            
           }}
           onUpdate={handleTaskUpdated}
           onDelete={() => {
