@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const DepartmentSchema = new mongoose.Schema({
-  name: {
+  department_name: {
     type: String,
     required: [true, 'Department name is required'],
     unique: true,

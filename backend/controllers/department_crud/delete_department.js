@@ -60,7 +60,7 @@ module.exports = async function delete_department(req, res, next) {
             success: true,
             type: "success",
             message: "Department deleted successfully",
-            data: { id: deleted_dept._id, name: deleted_dept.name }
+            data: { id: deleted_dept._id, name: deleted_dept.department_name }
         })
 
     } catch (error) {

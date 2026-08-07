@@ -23,7 +23,7 @@ module.exports = async function list_all_departments(req, res, next) {
             .populate('leader', 'full_name email title')
             .populate('department_leader', 'full_name email title')
             .populate('employees', 'full_name email')
-            .populate('parent_department', 'name')
+            .populate('parent_department', 'department_name')
 
         // For each main department, fetch its SUB-DEPARTMENTS (units)
         // Supports both new format (is_unit=true + parent_department) and legacy format (sub_department_mng)

@@ -542,7 +542,8 @@ body {
   color: #056daa;
 }
 .cok-primary-color-hovable:hover {
-  color: #045d94;
+  cursor: pointer;
+  color: #0c7bc1;
 }
 .cok-primary-bg {
   background-color: #056daa;;

@@ -7,14 +7,14 @@ async function updateDepartment(req, res) {
 
     // Check if updating name and it already exists
     if (name) {
-      const existingDept = await Department.findOne({ name, _id: { $ne: id } });
+      const existingDept = await Department.findOne({department_name: name, _id: { $ne: id } });
       if (existingDept) {
         return res.status(400).json({ success: false, message: 'Department with this name already exists' });
       }
     }
 
     const updateData = {};
-    if (name !== undefined) updateData.name = name;
+    if (name !== undefined) updateData.department_name = name;
     if (description !== undefined) updateData.description = description;
     if (room_number !== undefined) updateData.room_number = room_number;
     if (is_unit !== undefined) updateData.is_unit = is_unit;
@@ -54,7 +54,7 @@ async function updateDepartment(req, res) {
       .populate('leader', 'full_name email')
       .populate('department_leader', 'full_name email')
       .populate('employees', 'full_name email')
-      .populate('parent_department', 'name');
+      .populate('parent_department', 'department_name');
 
     if (!updatedDepartment) {
       return res.status(404).json({ success: false, message: 'Department not found' });
