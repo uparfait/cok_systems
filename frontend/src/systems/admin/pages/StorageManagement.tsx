@@ -144,7 +144,7 @@ const StorageManagement: React.FC = () => {
     <div className="space-y-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
     
 
-      <StorageStatsCards
+      {/* <StorageStatsCards
         totalStorageFormatted={totalStorageFormatted}
         totalRecords={totalRecords}
         onRefresh={fetchStats}
@@ -152,7 +152,7 @@ const StorageManagement: React.FC = () => {
 
       <StorageBarChart
         collections={collections}
-      />
+      /> */}
 
       <DataManagementSection
         deleteStep={deleteStep}
