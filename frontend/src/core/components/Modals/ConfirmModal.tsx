@@ -1,7 +1,17 @@
-
 import React from 'react';
 import type { ReactNode } from 'react';
 import { FiAlertTriangle, FiCheck, FiX, FiLoader } from 'react-icons/fi';
+
+// CoK Design System Colors
+const PRIMARY = '#056daa';
+const WHITE = '#FFFFFF';
+const NEUTRAL_DARK = '#333333';
+const NEUTRAL_LIGHT = '#F7F9FB';
+const BORDER = '#E0E0E0';
+const DANGER = '#E74C3C';
+const WARNING = '#F39C12';
+const SUCCESS = '#4CAF50';
+const fontHeading = "'Montserrat', sans-serif";
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -26,107 +36,230 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   type = 'danger',
   isLoading = false,
 }) => {
+  const [isConfirmHovered, setIsConfirmHovered] = React.useState(false);
+
   if (!isOpen) return null;
+
+  const getIconColor = () => {
+    switch (type) {
+      case 'danger': return DANGER;
+      case 'warning': return WARNING;
+      case 'success': return SUCCESS;
+      case 'info':
+      default: return PRIMARY;
+    }
+  };
 
   const getTypeStyles = () => {
     switch (type) {
       case 'danger':
         return {
-          icon: 'bg-red-100 text-red-600',
-          button: 'bg-red-600 hover:bg-red-700',
-          iconElement: <FiAlertTriangle className="w-6 h-6" />
+          iconBg: DANGER,
+          iconElement: <FiAlertTriangle className="w-5 h-5" style={{ color: WHITE }} />,
         };
       case 'warning':
         return {
-          icon: 'bg-yellow-100 text-yellow-600',
-          button: 'bg-yellow-600 hover:bg-yellow-700',
-          iconElement: <FiAlertTriangle className="w-6 h-6" />
+          iconBg: WARNING,
+          iconElement: <FiAlertTriangle className="w-5 h-5" style={{ color: WHITE }} />,
         };
       case 'success':
         return {
-          icon: 'bg-green-100 text-green-600',
-          button: 'bg-green-600 hover:bg-green-700',
-          iconElement: <FiCheck className="w-6 h-6" />
+          iconBg: SUCCESS,
+          iconElement: <FiCheck className="w-5 h-5" style={{ color: WHITE }} />,
         };
       case 'info':
       default:
         return {
-          icon: 'bg-blue-100 text-blue-600',
-          button: 'bg-blue-600 hover:bg-blue-700',
-          iconElement: <FiAlertTriangle className="w-6 h-6" />
+          iconBg: PRIMARY,
+          iconElement: <FiAlertTriangle className="w-5 h-5" style={{ color: WHITE }} />,
         };
     }
+  };
+
+  const getConfirmButtonStyle = (): React.CSSProperties => {
+    const baseStyle = {
+      backgroundColor: DANGER,
+      color: WHITE,
+      border: 0,
+      borderRadius: 0,
+      padding: '0.6rem 1rem',
+      width: '100%',
+      cursor: 'pointer',
+      fontFamily: fontHeading,
+      fontSize: '13px',
+      fontWeight: 600,
+      letterSpacing: '1px',
+      textTransform: 'uppercase' as const,
+      opacity: isLoading ? 0.5 : 1,
+      transition: 'background-color 0.2s ease',
+    };
+
+    switch (type) {
+      case 'danger':
+        return { ...baseStyle, backgroundColor: DANGER };
+      case 'warning':
+        return { ...baseStyle, backgroundColor: WARNING };
+      case 'success':
+        return { ...baseStyle, backgroundColor: SUCCESS };
+      case 'info':
+      default:
+        return { ...baseStyle, backgroundColor: PRIMARY };
+    }
+  };
+
+  const getConfirmButtonHoverStyle = (): React.CSSProperties => {
+    switch (type) {
+      case 'danger': return { backgroundColor: '#C62828' };
+      case 'warning': return { backgroundColor: '#E65100' };
+      case 'success': return { backgroundColor: '#388E3C' };
+      case 'info':
+      default: return { backgroundColor: '#045d94' };
+    }
+  };
+
+  const confirmButtonStyle = {
+    ...getConfirmButtonStyle(),
+    ...(isConfirmHovered && !isLoading ? getConfirmButtonHoverStyle() : {}),
   };
 
   const styles = getTypeStyles();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onCancel}
       />
       
-      {/* Modal Content */}
-      <div className="relative bg-white shadow-2xl w-full max-w-md mx-4 transform animate-scaleIn">
-        {/* Header with Close Button */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="text-xl font-bold text-gray-900">
-            {title}
-          </h3>
+      {/* Modal Content - CoK Design */}
+      <div className="relative bg-white w-full max-w-md flex flex-col" style={{ borderRadius: 0 }}>
+        {/* Header with primary color */}
+        <div 
+          className="px-6 py-4 flex items-center justify-between flex-shrink-0" 
+          style={{ 
+            backgroundColor: PRIMARY, 
+            borderRadius: 0 
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div 
+              className="p-2 flex-shrink-0" 
+              style={{ 
+                backgroundColor: 'rgba(255,255,255,0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {styles.iconElement}
+            </div>
+            <h3 
+              className="text-lg font-semibold" 
+              style={{ 
+                color: WHITE, 
+                fontFamily: fontHeading,
+                margin: 0,
+              }}
+            >
+              {title}
+            </h3>
+          </div>
           <button
+            type="button"
             onClick={onCancel}
             disabled={isLoading}
-            className="p-1 cursor-pointer hover:bg-gray-100 rounded-0.75 transition-colors disabled:opacity-50"
-            title="Close"
+            style={{
+              padding: '0.4rem 0.8rem',
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.3)',
+              color: WHITE,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background-color 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
-            <FiX className="w-5 h-5 text-gray-500" />
+            <FiX className="w-4 h-4" style={{ color: WHITE }} />
           </button>
         </div>
-        
+
         {/* Content */}
-        <div className="p-6">
-          {/* Icon */}
-          <div className={`mx-auto w-16 h-16 ${styles.icon} rounded-full flex items-center justify-center mb-4`}>
-            {styles.iconElement}
-          </div>
-          
-          {/* Message */}
-          <div className="text-center mb-6">
-            <p className="text-gray-600">
-              {message}
-            </p>
-          </div>
-          
-          {/* Buttons */}
-          <div className="flex gap-3">
-            <button
-              onClick={onCancel}
-              disabled={isLoading}
-              className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-[5px] cursor-pointer hover:bg-gray-50 font-medium transition-colors flex items-center justify-center gap-2"
-            >
-              <FiX className="w-4 h-4" />
-              {cancelText}
-            </button>
-            <button
-              onClick={onConfirm}
-              disabled={isLoading}
-              className={`flex-1 px-4 py-2.5 ${styles.button} text-white rounded-[5px] cursor-pointer font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50`}
-            >
-              {isLoading ? (
-                <>
-             <FiLoader className="w-6 h-6 animate-spin text-white" />
-                  {confirmText}
-                </>
-              ) : (
-                <>
-                  <FiCheck className="w-4 h-4" />
-                  {confirmText}
-                </>
-              )}
-            </button>
-          </div>
+        <div className="px-6 py-4">
+          <p 
+            className="text-sm leading-relaxed" 
+            style={{ 
+              color: NEUTRAL_DARK, 
+              fontFamily: fontHeading,
+              margin: 0,
+            }}
+          >
+            {message}
+          </p>
+        </div>
+
+        {/* Actions */}
+        <div 
+          className="px-6 py-4 flex flex-col sm:flex-row gap-3" 
+          style={{ 
+            borderTop: `1px solid ${BORDER}`,
+            flexDirection: 'column',
+          }}
+        >
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isLoading}
+            style={confirmButtonStyle}
+            onMouseEnter={() => setIsConfirmHovered(true)}
+            onMouseLeave={() => setIsConfirmHovered(false)}
+            className="flex items-center justify-center gap-2"
+          >
+            {isLoading ? (
+              <>
+                <FiLoader className="w-4 h-4 animate-spin" style={{ color: WHITE }} />
+                {confirmText}
+              </>
+            ) : (
+              confirmText
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isLoading}
+            style={{
+              width: '100%',
+              padding: '0.6rem 1rem',
+              backgroundColor: 'transparent',
+              color: NEUTRAL_DARK,
+              border: `1px solid ${BORDER}`,
+              borderRadius: 0,
+              cursor: 'pointer',
+              fontFamily: fontHeading,
+              fontSize: '13px',
+              fontWeight: 600,
+              letterSpacing: '1px',
+              textTransform: 'uppercase',
+              transition: 'all 0.2s ease',
+              opacity: isLoading ? 0.5 : 1,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = NEUTRAL_LIGHT;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            {cancelText}
+          </button>
         </div>
       </div>
     </div>

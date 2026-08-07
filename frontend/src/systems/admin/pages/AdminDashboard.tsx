@@ -116,14 +116,12 @@ const AdminDashboard: React.FC = () => {
   const fetchVisitorsPage = useCallback(async (page: number) => { if (modalLoading) return; setModalLoading(true); try { const r = await serviceDeliveryService.getAll(page, MODAL_PAGE_SIZE, true); const records = r?.data?.data || r?.data || r || []; setAllVisitorRecords(Array.isArray(records) ? records : []); setVisitorsPage(page); } catch (error) { } finally { setModalLoading(false); } }, [modalLoading]);
   const handleRefresh = useCallback(() => { loadData(); fetchHourlyAnalytics(); }, [loadData, fetchHourlyAnalytics]);
 
-  const colorClasses = useMemo(() => ({ blue: { bg: 'bg-blue-600', text: 'text-blue-600', light: 'bg-blue-50' }, green: { bg: 'bg-green-600', text: 'text-green-600', light: 'bg-green-50' }, purple: { bg: 'bg-purple-600', text: 'text-purple-600', light: 'bg-purple-50' }, orange: { bg: 'bg-orange-600', text: 'text-orange-600', light: 'bg-orange-50' }, red: { bg: 'bg-red-600', text: 'text-red-600', light: 'bg-red-50' }, indigo: { bg: 'bg-indigo-600', text: 'text-indigo-600', light: 'bg-indigo-50' } }), []);
+  const colorClasses = useMemo(() => ({ blue: { bg: 'cok-bg-primary', text: 'text-blue-600', light: 'bg-blue-50' }, green: { bg: 'bg-green-600', text: 'text-green-600', light: 'bg-green-50' }, purple: { bg: 'bg-purple-600', text: 'text-purple-600', light: 'bg-purple-50' }, orange: { bg: 'bg-orange-600', text: 'text-orange-600', light: 'bg-orange-50' }, red: { bg: 'bg-red-600', text: 'text-red-600', light: 'bg-red-50' }, indigo: { bg: 'bg-indigo-600', text: 'text-indigo-600', light: 'bg-indigo-50' } }), []);
   const quickActions = useMemo(() => [
     { title: 'Manage Departments', description: 'Add, edit, or remove departments', icon: HiOutlineOfficeBuilding, color: 'blue', path: '/admin/departments' },
     { title: 'Employee Management', description: 'View and manage employee records', icon: FiUsers, color: 'green', path: '/admin/employees' },
-    { title: 'Smart Parking', description: 'Monitor and manage parking system', icon: FiTruck, color: 'purple', path: '/smart_parking/dashboard' },
-    { title: 'Service Delivery', description: 'Track and manage visitor services', icon: FiGrid, color: 'orange', path: '/service_delivery/dashboard' },
-    { title: 'System Reports', description: 'View analytics and reports', icon: HiOutlineChartBar, color: 'indigo', path: '/admin/reports' },
-    { title: 'System Settings', description: 'Configure system preferences', icon: FiSettings, color: 'gray', path: '/admin/settings' },
+    { title: 'Smart Parking', description: 'Monitor  parking system', icon: FiTruck, color: 'purple', path: '/system-admin/smart-parking' },
+    { title: 'Service Delivery', description: 'Track visitor services', icon: FiGrid, color: 'orange', path: '/system-admin/service-delivery/analytics' },
   ], []);
   const statCards = useMemo(() => [
     { label: 'Total Departments', value: stats.departments, icon: HiOutlineOfficeBuilding, color: 'blue', subtext: stats.departments > 0 ? 'Active in system' : 'No departments', trend: stats.departments > 0 ? `${stats.departments} departments` : 'No data', path: '/admin/departments' },
@@ -143,17 +141,12 @@ const AdminDashboard: React.FC = () => {
       <div className="space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-800 flex items-center rounded-full justify-center shadow-lg shadow-blue-200"><HiOutlineShieldCheck className="w-6 h-6 text-white" /></div>
-            <div><h1 className="text-lg lg:text-xl font-bold text-gray-900">{user?.role ? user.role.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + ' Dashboard' : 'Admin Dashboard'}</h1><p className="text-xs text-gray-500 mt-0.5">Welcome back! Here's what's happening.</p>
-              <div className="flex items-center gap-4 mt-1">{lastUpdated && <p className="text-xs text-gray-400 flex items-center gap-1"><FiClock className="w-3 h-3" />Last updated: {lastUpdated.toLocaleTimeString()}</p>}<div className="flex items-center gap-1.5"><span className={`w-2 rounded-full h-2 ${socketConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} /><span className="text-xs text-gray-500">{socketConnected ? 'Live' : 'Connecting...'}</span></div>{isOffline && <div className="flex items-center gap-1.5 text-amber-600"><FiWifiOff className="w-3 h-3" /><span className="text-xs">Offline</span></div>}</div></div>
-          </div>
-          <button onClick={handleRefresh} disabled={loading} className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 text-sm font-medium transition-all disabled:opacity-50"><FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh</button>
+             </div>
+          <button onClick={handleRefresh} disabled={loading} className="flex cursor-pointer items-center gap-2 px-3 py-2 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 text-sm font-medium transition-all disabled:opacity-50"><FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh</button>
         </div>
 
-        {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 flex items-center justify-between"><div className="flex items-center gap-2"><FiAlertTriangle className="w-5 h-5 flex-shrink-0" /><span className="text-sm">{error}</span></div><button onClick={handleRefresh} className="text-xs px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 font-medium">Retry</button></div>}
-        {realtimeNotification && <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 flex items-center gap-3"><FiActivity className="w-5 h-5" /><span className="text-sm font-medium">{realtimeNotification}</span><span className="text-xs text-blue-200 ml-auto">Live Update</span></div>}
-        {isOffline && <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-3 flex items-center gap-3"><FiWifiOff className="w-5 h-5" /><span className="text-sm font-medium">You are offline. Some features may not work.</span></div>}
-
+        {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 flex items-center justify-between"><div className="flex items-center gap-2"><FiAlertTriangle className="w-5 h-5 flex-shrink-0" /><span className="text-sm">{error}</span></div><button onClick={handleRefresh} className="text-xs cursor-pointer px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 font-medium">Retry</button></div>}
+       
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">{statCards.map((stat, index) => <StatCard key={index} stat={stat} onClick={() => stat.path && navigate(stat.path)} colorClasses={colorClasses} loading={loading && firstLoad} />)}</div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -162,11 +155,11 @@ const AdminDashboard: React.FC = () => {
               <div className="bg-white border border-gray-200 overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white flex items-center justify-between">
                   <div className="flex items-center gap-2"><FiTruck className="w-4 h-4 text-purple-600" /><h2 className="text-sm font-semibold text-gray-900">Recent Parking</h2></div>
-                  <button onClick={handleOpenParkingModal} className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">View All <FiArrowRight className="w-3 h-3" /></button>
+                  <button onClick={handleOpenParkingModal} className="text-xs cok-primary-color-hovable font-medium flex items-center gap-1">View All <FiArrowRight className="w-3 h-3" /></button>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-blue-600 text-white"><tr><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Vehicle</th><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Status</th><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Time</th></tr></thead>
+                    <thead className="cok-bg-primary text-white"><tr><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Vehicle</th><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Status</th><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Time</th></tr></thead>
                     <tbody className="divide-y divide-gray-50">
                       {(loadingStates.parking && firstLoad) ? <LoadingInline message="Loading parking..." />
                         : recentParking.length > 0 ? recentParking.slice(0, 5).map((r: any) => (
@@ -184,11 +177,11 @@ const AdminDashboard: React.FC = () => {
               <div className="bg-white border border-gray-200 overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white flex items-center justify-between">
                   <div className="flex items-center gap-2"><FiUsers className="w-4 h-4 text-green-600" /><h2 className="text-sm font-semibold text-gray-900">Recent Visitors</h2></div>
-                  <button onClick={handleOpenVisitorsModal} className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">View All <FiArrowRight className="w-3 h-3" /></button>
+                  <button onClick={handleOpenVisitorsModal} className="text-xs cok-primary-color-hovable font-medium flex items-center gap-1">View All <FiArrowRight className="w-3 h-3" /></button>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-blue-600 text-white"><tr><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Name</th><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Status</th><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Department</th></tr></thead>
+                    <thead className="cok-bg-primary text-white"><tr><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Name</th><th className="px-3 py-2 text-left text-xs font-semibold uppercase">Status</th><th className="px-3 py-2 text-left text-xs font-semibold  uppercase">Department</th></tr></thead>
                     <tbody className="divide-y divide-gray-50">
                       {(loadingStates.visitors && firstLoad) ? <LoadingInline message="Loading visitors..." />
                         : recentVisitors.length > 0 ? recentVisitors.slice(0, 5).map((v: any) => (

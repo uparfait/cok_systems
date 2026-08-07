@@ -5,7 +5,7 @@ async function createDepartment(req, res) {
     const { name, description, room_number, is_unit, parent_department, leader, department_leader, employees, services, department_id } = req.body;
 
     // Check if department with this name already exists
-    const existingDept = await Department.findOne({ name });
+    const existingDept = await Department.findOne({ department_name: name });
     if (existingDept) {
       return res.status(400).json({ success: false, message: 'Department with this name already exists' });
     }
@@ -13,7 +13,7 @@ async function createDepartment(req, res) {
     const leaderId = leader || department_leader;
 
     const newDepartment = new Department({
-      name,
+      department_name: name,
       description: description || '',
       room_number: room_number || '',
       is_unit: is_unit || false,
@@ -37,7 +37,7 @@ async function createDepartment(req, res) {
       .populate('leader', 'full_name email')
       .populate('department_leader', 'full_name email')
       .populate('employees', 'full_name email')
-      .populate('parent_department', 'name');
+      .populate('parent_department', 'department_name');
 
     res.status(201).json({ 
       success: true, 

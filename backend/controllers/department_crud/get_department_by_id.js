@@ -19,7 +19,7 @@ module.exports = async function get_department_by_id(req, res, next) {
             .populate('leader', 'full_name email title')
             .populate('department_leader', 'full_name email title')
             .populate('employees', 'full_name email')
-            .populate('parent_department', 'name')
+            .populate('parent_department', 'department_name')
 
         if (!department) {
             return res.status(404).json({
