@@ -13,10 +13,6 @@
       "destination": "https://cok-bc.onrender.com/cok/api/:path*"
     },
     {
-      "source": "/uploads/:path*",
-      "destination": "https://cok-bc.onrender.com/uploads/:path*"
-    },
-    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

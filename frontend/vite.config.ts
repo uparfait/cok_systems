@@ -31,12 +31,6 @@ export default defineConfig({
         changeOrigin: true,
         secure: !!process.env.VITE_API_URL,
       },
-
-      '/uploads': {
-        target: process.env.VITE_API_URL || 'http://localhost:2026',
-        changeOrigin: true,
-        secure: !!process.env.VITE_API_URL,
-      },
     },
   },
 })

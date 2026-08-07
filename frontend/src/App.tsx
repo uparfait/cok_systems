@@ -285,9 +285,15 @@ const App: React.FC = () => {
 
                 {/* ==================== ROLE-BASED ROUTES ==================== */}
                 {/* Dashboard - role-specific component chosen at runtime */}
+                
 
                 {/* Separated Private/Authenticated Route View Wrapper */}
-                <Route path="/event-manager" element={<DashboardLayout />}>
+                <Route path="/event-manager" element={
+                  <ProtectedRoute>
+                  <DashboardLayout />
+                  </ProtectedRoute>
+                  }>
+                
                   <Route index element={<DashboardPage />} />
 
                   {/* Rooms Management Routes */}
