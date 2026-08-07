@@ -42,7 +42,7 @@ const addAttachment = async (req, res) => {
                 processedAttachments.push({
                     filename: file.filename,
                     originalName: file.originalname,
-                    url: process.env.TASK_ATTACHMENTS_URL ?  process.env.TASK_ATTACHMENTS_URL + `/uploads/tasks/attachments/${file.filename}` : `/uploads/tasks/attachments/${file.filename}`,
+                    url: process.env.TASK_ATTACHMENTS_URL ?  process.env.TASK_ATTACHMENTS_URL + `/cok/api/uploads/tasks/attachments/${file.filename}` : `/cok/api/uploads/tasks/attachments/${file.filename}`,
                     uploadedBy: req.user?.id || req.body.incharge, // Assuming auth middleware sets req.user
                     type: getAttachmentType(file.mimetype)
                 })

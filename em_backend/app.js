@@ -5,7 +5,7 @@ const config = require("./configurations/config");
 const helmet = require("helmet");
 const compression = require("compression");
 const cors = require("cors");
-const rateLimit = require("express-rate-limit");
+// const rateLimit = require("express-rate-limit");
 const Router = require("./Router");
 
 const path = require("path");
@@ -20,11 +20,11 @@ app.use(cors(config.cors));
 app.use(express.json({ limit: '300kb' })); // allows optional base64 signature in attendance payloads
 app.use(express.urlencoded({ extended: true }));
 
-const limiter = rateLimit({
-  windowMs: config.rateLimit.windowMs,
-  max: config.rateLimit.maxRequests,
-  message: "Too many requests from this IP",
-});
+// const limiter = rateLimit({
+//   windowMs: config.rateLimit.windowMs,
+//   max: config.rateLimit.maxRequests,
+//   message: "Too many requests from this IP",
+// });
 
 //app.use(limiter);
 

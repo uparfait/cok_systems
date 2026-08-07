@@ -147,8 +147,8 @@ const getAttachmentType = (mimeType) => {
           originalName: file.originalname,
           url: process.env.TASK_ATTACHMENTS_URL
             ? process.env.TASK_ATTACHMENTS_URL +
-              `/uploads/tasks/attachments/${file.filename}`
-            : `/uploads/tasks/attachments/${file.filename}`,
+              `/cok/api/uploads/tasks/attachments/${file.filename}`
+            : `/cok/api/uploads/tasks/attachments/${file.filename}`,
           uploadedBy: incharge,
           type: getAttachmentType(file.mimetype),
         });

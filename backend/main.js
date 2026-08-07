@@ -226,7 +226,7 @@ app.use(
 app.use(express.json());
 // add static file serving middleware for the uploads/tasks/attachments directory
 app.use(
-  "/uploads/tasks/attachments",
+  "/cok/api/uploads/tasks/attachments",
   express.static(path.join(__dirname, "uploads/tasks/attachments")),
 );
 app.use(express.urlencoded({ extended: true }));

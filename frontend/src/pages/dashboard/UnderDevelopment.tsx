@@ -33,14 +33,14 @@ const UnderDevelopment: React.FC<UnderDevelopmentProps> = ({ departmentName }) =
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 border-3 border-gray-300 to-gray-100 flex items-center justify-center p-6">
       <div className="max-w-2xl w-full">
         {/* Main Card */}
-        <div className="bg-white rounded-3xl shadow-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white   border border-gray-200 overflow-hidden">
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-blue-800 px-8 py-10 text-center">
             <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FiSettings className="w-10 h-10 text-white" />
+              <FiSettings className="w-10 h-10 text-white animate-spin " />
             </div>
             <h1 className="text-2xl lg:text-3xl font-bold text-white mb-2">
               Unknown
@@ -53,13 +53,13 @@ const UnderDevelopment: React.FC<UnderDevelopmentProps> = ({ departmentName }) =
           {/* Content */}
           <div className="px-8 py-8">
             {/* Alert */}
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+            <div className="bg-amber-50 border border-amber-200  p-4 mb-6">
               <div className="flex items-start gap-3">
                 <FiAlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="font-medium text-amber-900">Need immediate access?</p>
                   <p className="text-sm text-amber-700 mt-1">
-                    Contact an administrator to assign you a role or access to the system.
+                    Contact an administrator to assign you a role to access the system.
                   </p>
                 </div>
               </div>
