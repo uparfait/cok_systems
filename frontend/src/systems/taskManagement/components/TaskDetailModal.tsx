@@ -397,7 +397,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task: initialTask, on
   }
 
   const handleClose = () => {
-    onUpdate(task)
+   // onUpdate(task)
     onClose()
   }
 
