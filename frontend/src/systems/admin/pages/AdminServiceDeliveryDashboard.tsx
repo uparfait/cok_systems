@@ -16,6 +16,17 @@ interface Visitor { _id: string; full_name?: string; name?: string; visitorName?
 interface HourlyData { hour: number; visitors_checked_in: number; }
 interface ServiceDeliveryStats { total: number; inhouse: number; completed: number; by_status: { [key: string]: number }; by_department: { [key: string]: number }; }
 
+// City of Kigali (CoK) institutional design constants — same set as the reservations tables
+const PRIMARY = '#056daa';
+const PRIMARY_HOVER = '#045d94';
+const NEUTRAL_DARK = '#333333';
+const BORDER = '#E0E0E0';
+const WARNING = '#F39C12';
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = '0 8px 40px 0 rgba(0,0,0,0.08)';
+
+const initialsOf = (name: string) => (name || '?').split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
+
 const AdminServiceDeliveryDashboard: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -28,6 +39,8 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
   const [hourlyData, setHourlyData] = useState<HourlyData[]>([]);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  // Search box draft — applied on Enter or the Search button (clearing applies immediately)
+  const [draftSearch, setDraftSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -61,6 +74,8 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
 
   const filteredVisitors = visitors.filter(v => { const n = v.full_name || v.name || v.visitorName || ''; const ms = !searchQuery || n.toLowerCase().includes(searchQuery.toLowerCase()) || (v.telephone || v.phone || '').toLowerCase().includes(searchQuery.toLowerCase()); const ms2 = statusFilter === 'all' || (statusFilter === 'inside' && v.is_still_inhouse) || (statusFilter === 'left' && !v.is_still_inhouse); return ms && ms2; });
   useEffect(() => setCurrentPage(1), [searchQuery, statusFilter]);
+  const totalPages = Math.ceil(filteredVisitors.length / itemsPerPage);
+  const paginatedVisitors = filteredVisitors.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const getDeptName = (v: Visitor) => v.departments_assigned?.length ? (v.departments_assigned.find(d => d.reached_in)?.department_name || v.departments_assigned[0]?.department_name || '___') : 'Not Yet Assigned';
   const getStaff = (v: Visitor) => { const s = v.services_status?.find(s => s.s_type === 'Inprogress'); if (s?.provider_name) return s.provider_name; const c = v.services_status?.find(s => s.s_type === 'Completed'); if (c?.provider_name) return c.provider_name; const r = v.departments_assigned?.find(d => d.reached_in); if (r?.provider_name) return r.provider_name; return v.departments_assigned?.length ? 'Not Yet Served' : 'Not Yet Assigned'; };
@@ -179,23 +194,107 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
             : <div className="h-48"><ResponsiveContainer width="100%" height="100%"><AreaChart data={hourlyData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="hour" tickFormatter={(v: number) => `${v}:00`} tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Area type="monotone" dataKey="visitors_checked_in" stroke="#10b981" fill="rgba(16,185,129,0.1)" name="Visitors" /></AreaChart></ResponsiveContainer></div>}
         </div>
 
-        <div className="bg-white border border-gray-200 overflow-hidden">
-          <div className="px-4 py-3  flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-900">Current Visitors</h2>
-            <button onClick={() => { setExportMode('all'); setShowExportDialog(true); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium hover:bg-blue-700"><FiDownload className="w-3 h-3" />Export PDF</button>
+        <div className="bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
+          <div className="px-6 pt-5 flex items-center justify-between">
+            <h2 className="text-sm font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Current Visitors</h2>
+            <button
+              onClick={() => { setExportMode('all'); setShowExportDialog(true); }}
+              className="flex items-center gap-2 h-9 px-4 bg-transparent text-[12px] font-semibold uppercase transition-colors hover:bg-[rgba(5,109,170,0.08)]"
+              style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}
+            >
+              <FiDownload className="w-3.5 h-3.5" /> Export PDF
+            </button>
           </div>
-          <div className="px-4 py-2 bg-gray-50 flex flex-wrap gap-3 items-center">
-            <div className="flex-1 min-w-[200px] relative"><FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" /><input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-8 pr-3 py-1.5 border border-gray-300 text-sm" /></div>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-1.5 border border-gray-300 text-sm"><option value="all">All</option><option value="inside">Inside</option><option value="left">Checked Out</option></select>
+          {/* Search bar in the reservations-table style: full-width input with an attached solid Search button */}
+          <div className="px-6 pt-4 pb-3 flex items-center gap-3">
+            <div className="relative flex-1">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search Name, Phone..."
+                value={draftSearch}
+                onChange={e => { setDraftSearch(e.target.value); if (e.target.value === '') setSearchQuery(''); }}
+                onKeyDown={e => { if (e.key === 'Enter') setSearchQuery(draftSearch); }}
+                className="w-full h-11 pl-10 pr-4 text-sm focus:outline-none"
+                style={{ fontFamily: fontHeading, backgroundColor: '#fff', border: `1px solid ${BORDER}`, borderRadius: 0 }}
+                onFocus={(e) => { e.currentTarget.style.border = `1px solid ${PRIMARY}`; }}
+                onBlur={(e) => { e.currentTarget.style.border = `1px solid ${BORDER}`; }}
+              />
+            </div>
+            <button
+              onClick={() => setSearchQuery(draftSearch)}
+              className="h-11 px-6 text-white text-[13px] font-semibold uppercase transition-colors flex-shrink-0"
+              style={{ fontFamily: fontHeading, backgroundColor: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+            >
+              Search
+            </button>
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              className="h-11 px-3 text-sm focus:outline-none flex-shrink-0 cursor-pointer"
+              style={{ fontFamily: fontHeading, border: `1px solid ${BORDER}`, borderRadius: 0, color: NEUTRAL_DARK, backgroundColor: '#fff' }}
+            >
+              <option value="all">All</option>
+              <option value="inside">Inside</option>
+              <option value="left">Checked Out</option>
+            </select>
           </div>
-          <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
-            <table className="w-full"><thead className="bg-blue-600 sticky top-0 z-10"><tr>{['Visitor Name', 'Department', 'Staff', 'Badge', 'Check-in', 'Check-out', 'Status'].map(h => <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-white/95 uppercase">{h}</th>)}</tr></thead>
-              <tbody className="divide-y">{loading ? <tr><td colSpan={7} className="px-3 py-6 text-center"><div className="h-6 w-6 mx-auto" >< FiLoader className='animate-spin h-6 w-6 text-blue-600' /> </div></td></tr>
-                : filteredVisitors.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((v, i) => { const st = getStatus(v); return <tr key={v._id || i} className="hover:bg-gray-50"><td className="px-3 py-2.5 text-sm font-medium text-gray-900">{v.full_name || v.name || v.visitorName || '___'}</td><td className="px-3 py-2.5 text-xs text-gray-600">{getDeptName(v)}</td><td className="px-3 py-2.5 text-xs"><span className={getStaff(v).includes('Not') ? 'text-orange-500' : 'text-gray-600'}>{getStaff(v)}</span></td><td className="px-3 py-2.5 text-xs text-gray-600">{v.badge_number || '___'}</td><td className="px-3 py-2.5 text-xs text-gray-600">{v.entry_date ? new Date(v.entry_date).toLocaleString() : '___'}</td><td className="px-3 py-2.5 text-xs text-gray-600">{v.exist_date ? new Date(v.exist_date).toLocaleString() : (v.is_still_inhouse ? '-' : '___')}</td><td className="px-3 py-2.5"><span className={`text-xs px-2 py-0.5 font-medium ${st.color === 'green' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{st.text}</span></td></tr>; })}
+          <div className="overflow-x-auto px-6">
+            <table className="w-full min-w-[820px]">
+              {/* Solid CoK-blue header bar — same as the reservations tables */}
+              <thead className="cok-bg-primary sticky top-0 z-10 shadow-sm">
+                <tr>
+                  {['Visitor Name', 'Department', 'Staff', 'Badge', 'Check-in', 'Check-out', 'Status'].map(h => (
+                    <th key={h} className="text-left py-3 px-3 text-xs uppercase tracking-wider font-semibold text-white" style={{ fontFamily: fontHeading, letterSpacing: '0.5px' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={7} className="py-10 text-center"><FiLoader className="animate-spin h-6 w-6 mx-auto" style={{ color: PRIMARY }} /></td></tr>
+                ) : paginatedVisitors.length > 0 ? paginatedVisitors.map((v, i) => {
+                  const st = getStatus(v);
+                  const name = v.full_name || v.name || v.visitorName || '___';
+                  const staff = getStaff(v);
+                  return (
+                    <tr key={v._id || i} className="h-14" style={{ borderBottom: `1px solid ${BORDER}` }}>
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0" style={{ backgroundColor: PRIMARY, fontFamily: fontHeading }}>
+                            {initialsOf(name)}
+                          </div>
+                          <span className="text-[#333] text-[13px] font-medium">{name}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-3 text-[#555555] text-[13px]">{getDeptName(v)}</td>
+                      <td className="py-3 px-3 text-[13px]" style={{ color: staff.includes('Not') ? WARNING : '#555555' }}>{staff}</td>
+                      <td className="py-3 px-3 text-[#333] text-[13px] font-mono font-semibold">{v.badge_number || '—'}</td>
+                      <td className="py-3 px-3 text-[#555555] text-[13px] whitespace-nowrap">{v.entry_date ? new Date(v.entry_date).toLocaleString() : '—'}</td>
+                      <td className="py-3 px-3 text-[#555555] text-[13px] whitespace-nowrap">{v.exist_date ? new Date(v.exist_date).toLocaleString() : (v.is_still_inhouse ? '-' : '—')}</td>
+                      <td className="py-3 px-3">
+                        <span className="inline-flex items-center px-3 py-1 text-[12px] font-bold uppercase tracking-wide" style={{ backgroundColor: st.color === 'green' ? 'rgba(76,175,80,0.12)' : 'rgba(51,51,51,0.08)', color: st.color === 'green' ? '#388E3C' : '#555555' }}>
+                          {st.text}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                }) : <tr><td colSpan={7} className="py-10 text-center text-[13px] text-[#9E9E9E]">No visitors found</td></tr>}
               </tbody>
             </table>
           </div>
-          {filteredVisitors.length > 0 && <div className="px-4 py-3 border-t flex items-center justify-between text-xs"><span>Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredVisitors.length)} of {filteredVisitors.length}</span><div className="flex gap-1">{Array.from({ length: Math.ceil(filteredVisitors.length / itemsPerPage) }, (_, i) => i + 1).slice(Math.max(0, currentPage - 3), Math.min(Math.ceil(filteredVisitors.length / itemsPerPage), currentPage + 2)).map(p => <button key={p} onClick={() => setCurrentPage(p)} className={`px-2.5 py-1 border text-xs ${currentPage === p ? 'bg-blue-600 text-white border-green-600' : 'border-gray-300 hover:bg-gray-50'}`}>{p}</button>)}</div></div>}
+          {totalPages > 1 && (
+            <div className="px-6 py-3 flex items-center justify-between" style={{ borderTop: `1px solid ${BORDER}` }}>
+              <span className="text-[12px] text-[#555555]" style={{ fontFamily: fontHeading }}>
+                Page {currentPage} of {totalPages} · {filteredVisitors.length} visitors
+              </span>
+              <div className="flex gap-2">
+                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1} className="px-3 py-1.5 text-[12px] font-semibold uppercase disabled:opacity-40 hover:bg-[rgba(5,109,170,0.08)]" style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>Prev</button>
+                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} className="px-3 py-1.5 text-[12px] font-semibold uppercase disabled:opacity-40 hover:bg-[rgba(5,109,170,0.08)]" style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>Next</button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Export dialog: all visitors or a custom check-in date range */}
