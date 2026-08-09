@@ -824,6 +824,57 @@ const rescheduleReservationBatch = async (req, res) => {
     }
 };
 
+/**
+ * Permanently delete an uploaded batch and every reservation in it.
+ * Body: { id, type: 'visitor' | 'staff' } — visitor id is the batch document id,
+ * staff id is the batch (file) name.
+ */
+const deleteReservationBatch = async (req, res) => {
+    try {
+        const { id, type } = req.body || {};
+        if (!id || !type) return res.status(400).json({ success: false, message: 'Batch id and type are required' });
+
+        let deleted = 0;
+        let releasedPending = 0; // pending entries whose slot counter must be given back
+
+        if (type === 'visitor') {
+            const doc = await EmergencyCar.findById(id);
+            if (!doc) return res.status(404).json({ success: false, message: 'Batch not found' });
+            deleted = doc.visitor_info.length;
+            releasedPending = doc.visitor_info.filter(v => !v.is_used && !v.is_cancelled).length;
+            await EmergencyCar.deleteOne({ _id: doc._id });
+
+            const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+            if (parkingSlot && releasedPending > 0) {
+                parkingSlot.visitorReservationCount = Math.max(0, (parkingSlot.visitorReservationCount || 0) - releasedPending);
+                await parkingSlot.save();
+            }
+        } else {
+            const cars = await StaffCar.find({ batch_name: id });
+            if (cars.length === 0) return res.status(404).json({ success: false, message: 'Batch not found' });
+            for (const car of cars) {
+                if (car.is_active) {
+                    const inside = await ParkingRecord.findOne({ plate_number: car.plate_number, status: 'active' });
+                    if (!inside) releasedPending++;
+                }
+                await StaffCar.deleteOne({ _id: car._id });
+                deleted++;
+            }
+            const parkingSlot = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' });
+            if (parkingSlot && releasedPending > 0) {
+                parkingSlot.staffReservationCount = Math.max(0, (parkingSlot.staffReservationCount || 0) - releasedPending);
+                await parkingSlot.save();
+            }
+        }
+
+        global.WebsocketIO?.emit('parking_update', { type: 'info', message: `Reservation batch deleted (${deleted} entries)` });
+        return res.status(200).json({ success: true, message: `Batch deleted — ${deleted} reservation(s) removed`, deleted });
+    } catch (error) {
+        console.error('Error deleting reservation batch:', error);
+        return res.status(500).json({ success: false, message: 'Error deleting reservation batch', error: error.message });
+    }
+};
+
 module.exports = {
     getAllReservations,
     createStaffBooking,
@@ -834,5 +885,6 @@ module.exports = {
     bulkDeleteReservations,
     getReservationBatches,
     cancelReservationBatch,
-    rescheduleReservationBatch
+    rescheduleReservationBatch,
+    deleteReservationBatch
 };
