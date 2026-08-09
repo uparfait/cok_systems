@@ -11,6 +11,7 @@ import autoTable from 'jspdf-autotable';
 import { FiUsers, FiUserPlus, FiClock, FiCheckCircle, FiRefreshCw, FiSearch, FiDownload, FiLoader } from 'react-icons/fi';
 import { HiOutlineClipboardList } from 'react-icons/hi';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import EmployeeAccountStatusCard from './sub/EmployeeAccountStatusCard';
 
 interface Visitor { _id: string; full_name?: string; name?: string; visitorName?: string; telephone?: string; phone?: string; badge_number?: string; departments_assigned?: Array<{ department_id: string; department_name: string; assigned_time: Date; reached_in: boolean; provider_name?: string; provider_id?: string }>; services_status?: Array<{ department_name: string; department_id: string; provider_name?: string; provider_id?: string; s_type: string }>; entry_date?: string; exist_date?: string; is_still_inhouse?: boolean; }
 interface HourlyData { hour: number; visitors_checked_in: number; }
@@ -296,6 +297,9 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Employee account status (activation / lock / online) — moved here from the mayor overview page */}
+        <EmployeeAccountStatusCard />
 
         {/* Export dialog: all visitors or a custom check-in date range */}
         {showExportDialog && (
