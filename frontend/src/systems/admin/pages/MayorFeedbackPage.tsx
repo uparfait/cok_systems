@@ -1,21 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import {
-  FiMessageSquare,
-  FiStar,
-  FiThumbsUp,
-  FiGlobe,
   FiUser,
   FiPhone,
 } from 'react-icons/fi';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import {
   COK,
   CokLabel,
   CokLoadingOverlay,
   CokPageHeader,
-  CokStatCard,
   CokBadge,
   CokTab,
   CokTh,
@@ -43,6 +38,9 @@ interface FeedbackItem {
   category: Category;
   sentiment: Sentiment;
 }
+
+// Donut slice palette for the Feedback by Department card — same set as the admin analytics page
+const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 const SENTIMENT_META: Record<Sentiment, { label: string; color: string }> = {
   positive: { label: 'Positive', color: COK.success },
@@ -153,6 +151,18 @@ export default function MayorFeedbackPage() {
     { name: 'Negative', value: stats.negative, color: COK.danger },
   ];
 
+  // Feedback volume per department for the donut (service feedback carries the department name)
+  const feedbackPieData = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const i of items) {
+      if (i.category !== 'service' || !i.department_name) continue;
+      map[i.department_name] = (map[i.department_name] || 0) + 1;
+    }
+    return Object.entries(map)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [items]);
+
   const filtered = useMemo(() => {
     let list = items;
     if (categoryTab !== 'all') list = list.filter((i) => i.category === categoryTab);
@@ -190,39 +200,38 @@ export default function MayorFeedbackPage() {
           title="Feedback Analysis"
         />
 
-        {/* Summary tiles */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <CokStatCard
-            label="Total Feedback"
-            value={stats.total}
-            sub={`${stats.service} service · ${stats.general} general`}
-            accent={COK.primary}
-            loading={loading}
-            icon={<FiMessageSquare className="w-5 h-5" style={{ color: COK.primary }} />}
-          />
-          <CokStatCard
-            label="Average Rating"
-            value={`${stats.avgOutOf10}/10`}
-            accent={COK.warning}
-            loading={loading}
-            icon={<FiStar className="w-5 h-5" style={{ color: COK.warning }} />}
-          />
-          <CokStatCard
-            label="Positive Share"
-            value={`${stats.positivePct}%`}
-            sub={`${stats.positive} positive submissions`}
-            accent={COK.success}
-            loading={loading}
-            icon={<FiThumbsUp className="w-5 h-5" style={{ color: COK.success }} />}
-          />
-          <CokStatCard
-            label="General Feedback"
-            value={stats.general}
-            sub="Not tied to a service visit"
-            accent={COK.primaryDark}
-            loading={loading}
-            icon={<FiGlobe className="w-5 h-5" style={{ color: COK.primaryDark }} />}
-          />
+        {/* Feedback by Department donut — replaces the old summary tiles */}
+        <div className="bg-white p-4 relative" style={{ border: `1px solid ${COK.border}` }}>
+          {loading && <CokLoadingOverlay />}
+          <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: '0 0 16px 0' }}>
+            Feedback by Department
+          </h3>
+          {feedbackPieData.length === 0 && !loading ? (
+            <p className="text-sm text-gray-500" style={{ fontFamily: COK.bodyFont }}>No department feedback yet.</p>
+          ) : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  {/* Bigger circle + thicker ring inside the same card height */}
+                  <Pie
+                    data={feedbackPieData}
+                    cx="50%"
+                    cy="47%"
+                    innerRadius={68}
+                    outerRadius={108}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {feedbackPieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
         {/* Charts */}
@@ -272,6 +281,7 @@ export default function MayorFeedbackPage() {
               </div>
             )}
           </div>
+
         </div>
 
         {/* Classified feedback list */}

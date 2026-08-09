@@ -8,7 +8,7 @@ import { statisticsService, employeeService, parkingService, serviceDeliveryServ
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import Chart from 'chart.js/auto';
-import { BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, Cell, LabelList, AreaChart, Area, CartesianGrid, Legend, ComposedChart, Line, PieChart, Pie } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, Cell, LabelList, AreaChart, Area, CartesianGrid, Legend, ComposedChart, Line } from 'recharts';
 import { COK, CokBadge } from './mayorCok';
 import { FiFilter } from 'react-icons/fi';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
@@ -337,9 +337,6 @@ const ParkingOccupancyDonut: React.FC<{ occupied: number; totalSlots: number; on
 
 // StatusPie3D moved to sub/EmployeeAccountStatusCard.tsx along with the employee account status card
 
-// Donut slice palette for the Feedback by Department card — same set as the admin analytics page
-const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
-
 // Mirrored departments-vs-staff chart: amber bars (staff assigned) grow left
 // from the center divider, teal/red stacked bars (served vs not served) grow
 // right, both aligned to their number lines.
@@ -525,15 +522,6 @@ const Overview: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [firstTimeLoading, seTfirstTimeLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
-
-  // Feedback counts per department for the donut card (only departments with feedback)
-  const feedbackPieData = useMemo(
-    () =>
-      Object.entries(data?.feedbackTotals.by_department || {})
-        .map(([dept, count]) => ({ name: dept, value: Number(count) || 0 }))
-        .filter(d => d.value > 0),
-    [data]
-  );
 
   // Parking card: lot-map data + which view is shown ('chart' occupancy donut is the default,
   // 'map' is the slot map opened via View map, 'trends' is the old area chart)
@@ -2025,39 +2013,8 @@ useEffect(() => {
               
             </div>
             
-        {/* Feedback by Department donut — moved here from the admin analytics page
-            (replaces the Employee account status card, now on the admin Service Delivery dashboard) */}
-        <div className="grid grid-cols-1 gap-2.5">
-          <div className="bg-white border border-gray-200 p-3">
-            <div className="text-sm font-semibold text-gray-900">Feedback by Department</div>
-            <div className="text-xs text-gray-500 mb-3">Share of received feedback per department</div>
-            {feedbackPieData.length > 0 ? (
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={feedbackPieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {feedbackPieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <RTooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="h-64 flex items-center justify-center text-xs text-gray-400">No feedback data available</div>
-            )}
-          </div>
-        </div>
+        {/* "Employee account status" moved to the admin Service Delivery dashboard;
+            "Feedback by Department" lives on the mayor feedback-analysis page */}
 
       </div>
       
