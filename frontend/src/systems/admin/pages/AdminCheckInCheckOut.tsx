@@ -52,7 +52,8 @@ const AdminCheckInCheckOut: React.FC = () => {
 
   const fetchVisitors = useCallback(async () => {
     setLoading(true);
-    try { const r = await serviceDeliveryService.getAll(1, 1000); const d = r?.data || []; const v = Array.isArray(d) ? d : []; setVisitors(v); setRealPendingExitCount(v.filter(x => x.is_still_inhouse && x.marked_as_out).length); }
+    // 'all' is required — without it the backend defaults to in-house only and the Checked Out tab stays empty
+    try { const r = await serviceDeliveryService.getAll(1, 1000, 'all'); const d = r?.data || []; const v = Array.isArray(d) ? d : []; setVisitors(v); setRealPendingExitCount(v.filter(x => x.is_still_inhouse && x.marked_as_out).length); }
     catch (error) { showError('Failed to load visitors'); }
     finally { setLoading(false); setFirstLoad(false); }
   }, [showError]);
@@ -70,7 +71,8 @@ const AdminCheckInCheckOut: React.FC = () => {
     let filtered = [...visitors];
     if (activeTab === 'inside') filtered = filtered.filter(v => (v.is_still_inhouse || v.status === 'Inside') && !v.marked_as_out);
     else if (activeTab === 'pending') filtered = filtered.filter(v => v.is_still_inhouse && v.marked_as_out);
-    else filtered = filtered.filter(v => !v.is_still_inhouse && v.status !== 'Inside' && !v.marked_as_out);
+    // Checked out = no longer in-house; marked_as_out may stay true after a full checkout, so it must not exclude here
+    else filtered = filtered.filter(v => !v.is_still_inhouse && v.status !== 'Inside');
     if (searchQuery) filtered = filtered.filter(v => (v.full_name || v.name || v.visitorName || '').toLowerCase().includes(searchQuery.toLowerCase()) || (v.telephone || v.phone || '').includes(searchQuery));
     setFilteredVisitors(filtered);
   }, [visitors, searchQuery, activeTab]);
@@ -101,7 +103,7 @@ const AdminCheckInCheckOut: React.FC = () => {
     doc.text(t, pw / 2, y, { align: 'center' }); doc.setDrawColor(34, 197, 94); doc.setLineWidth(0.8); doc.line((pw - doc.getTextWidth(t)) / 2 - 5, y + 2, (pw + doc.getTextWidth(t)) / 2 + 5, y + 2); y += 15;
     const insideVisitors = visitors.filter(v => (v.is_still_inhouse || v.status === 'Inside') && !v.marked_as_out);
     const pendingVisitors = visitors.filter(v => v.is_still_inhouse && v.marked_as_out);
-    const checkedOutVisitors = visitors.filter(v => !v.is_still_inhouse && v.status !== 'Inside' && !v.marked_as_out);
+    const checkedOutVisitors = visitors.filter(v => !v.is_still_inhouse && v.status !== 'Inside');
     const trunc = (t: string | undefined, m: number) => t ? (t.length > m ? t.substring(0, m) + '...' : t) : 'N/A';
     const fmt = (d: string | undefined) => d ? new Date(d).toLocaleString().substring(0, 16) : 'N/A';
     const addTable = (data: Visitor[], header: string[], color: [number, number, number]) => {
