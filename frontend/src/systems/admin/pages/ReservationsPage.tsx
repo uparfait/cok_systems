@@ -5,7 +5,7 @@ import { useToast } from '../../../core/contexts/ToastContext';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import { reservationService } from '../../../core/services/adminService';
-import { FiInfo, FiSearch, FiEdit2, FiTrash2, FiClock, FiCheck, FiDownload, FiLoader } from 'react-icons/fi';
+import { FiInfo, FiSearch, FiEdit2, FiTrash2, FiClock, FiCheck, FiDownload, FiLoader, FiXCircle } from 'react-icons/fi';
 import { VisitorReservationForm, StaffBookingForm } from './sub/ReservationForms';
 
 interface Reservation { id: string; visitor_name: string; plate_number: string; telephone: string; id_type?: string; id_number?: string; expected_arrival: string; type: 'visitor' | 'staff'; status: 'active' | 'expired' | 'cancelled' | 'checked_in' | 'used'; valid_from?: string | null; valid_until?: string | null; created_at?: string; }
@@ -80,6 +80,8 @@ const ReservationsPage: React.FC = () => {
   const [staffBulkFile, setStaffBulkFile] = useState<File | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
+  const [reservationToDelete, setReservationToDelete] = useState<Reservation | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Multi-select for bulk cancel/delete — keyed by `${type}:${id}` since visitor and staff ids come from different collections
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
@@ -233,6 +235,20 @@ const ReservationsPage: React.FC = () => {
     if (!reservationToCancel) return;
     try { const d = await reservationService.cancelReservation(reservationToCancel.id, reservationToCancel.type); if (d.success) { showSuccess('Cancelled'); setTimeout(fetchReservations, 500); } else showError(d.message || 'Failed'); }
     catch (error) { showError(error.message); } finally { setShowCancelModal(false); setReservationToCancel(null); }
+  };
+
+  // Permanent single-row delete — reuses the bulk-delete endpoint with one item
+  const confirmDelete = async () => {
+    if (!reservationToDelete) return;
+    setDeleteLoading(true);
+    try {
+      const d = await reservationService.bulkDeleteReservations([{ id: reservationToDelete.id, type: reservationToDelete.type }]);
+      if (d.success) {
+        showSuccess('Reservation deleted');
+        setSelectedKeys(prev => { const next = new Set(prev); next.delete(keyOf(reservationToDelete)); return next; });
+        fetchReservations();
+      } else showError(d.message || 'Failed');
+    } catch (error) { showError(error.message); } finally { setDeleteLoading(false); setReservationToDelete(null); }
   };
 
   // Bulk cancel/delete of every selected reservation
@@ -425,11 +441,13 @@ const ReservationsPage: React.FC = () => {
                     </td>
                     <td className="py-3">
                       <div className="flex items-center gap-2">
-                        {r.status === 'cancelled'
-                          ? <button onClick={async () => { const d = await reservationService.reactivateReservation(r.id); if (d.success) { showSuccess('Reactivated'); fetchReservations(); } }} title="Reactivate" className="p-1.5 transition-colors hover:bg-[rgba(76,175,80,0.1)]" style={{ color: '#388E3C', borderRadius: 0 }}><FiCheck className="w-4 h-4" /></button>
-                          : isCancellable(r)
-                            ? <button onClick={() => handleCancelClick(r)} title="Cancel reservation" className="p-1.5 transition-colors hover:bg-[rgba(231,76,60,0.1)]" style={{ color: DANGER, borderRadius: 0 }}><FiTrash2 className="w-4 h-4" /></button>
-                            : <span className="text-xs text-[#9E9E9E]">—</span>}
+                        {r.status === 'cancelled' && (
+                          <button onClick={async () => { const d = await reservationService.reactivateReservation(r.id); if (d.success) { showSuccess('Reactivated'); fetchReservations(); } }} title="Reactivate" className="p-1.5 transition-colors hover:bg-[rgba(76,175,80,0.1)]" style={{ color: '#388E3C', borderRadius: 0 }}><FiCheck className="w-4 h-4" /></button>
+                        )}
+                        {r.status !== 'cancelled' && isCancellable(r) && (
+                          <button onClick={() => handleCancelClick(r)} title="Cancel reservation" className="p-1.5 transition-colors hover:bg-[rgba(243,156,18,0.12)]" style={{ color: WARNING, borderRadius: 0 }}><FiXCircle className="w-4 h-4" /></button>
+                        )}
+                        <button onClick={() => setReservationToDelete(r)} title="Delete reservation" className="p-1.5 transition-colors hover:bg-[rgba(231,76,60,0.1)]" style={{ color: DANGER, borderRadius: 0 }}><FiTrash2 className="w-4 h-4" /></button>
                       </div>
                     </td>
                   </tr>
@@ -602,6 +620,23 @@ const ReservationsPage: React.FC = () => {
                 <button onClick={() => setBulkAction(null)} disabled={bulkLoading} className="flex-1 px-3 py-2 text-sm font-semibold uppercase hover:bg-[rgba(5,109,170,0.08)] disabled:opacity-50" style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>No</button>
                 <button onClick={confirmBulkAction} disabled={bulkLoading} className="flex-1 px-3 py-2 text-white text-sm font-semibold uppercase disabled:opacity-50" style={{ fontFamily: fontHeading, backgroundColor: bulkAction === 'delete' ? DANGER : WARNING, letterSpacing: '1px', borderRadius: 0 }}>
                   {bulkLoading ? 'Working…' : bulkAction === 'delete' ? 'Yes, Delete' : 'Yes, Cancel'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {reservationToDelete && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white w-full max-w-md p-6" style={{ boxShadow: CARD_SHADOW, borderRadius: 0 }}>
+              <h3 className="text-[16px] font-bold mb-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Delete Reservation</h3>
+              <p className="text-sm text-[#555555] mb-5">
+                Permanently delete the reservation for <strong>{reservationToDelete.visitor_name}</strong> ({reservationToDelete.plate_number})? This cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setReservationToDelete(null)} disabled={deleteLoading} className="flex-1 px-3 py-2 text-sm font-semibold uppercase hover:bg-[rgba(5,109,170,0.08)] disabled:opacity-50" style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>No</button>
+                <button onClick={confirmDelete} disabled={deleteLoading} className="flex-1 px-3 py-2 text-white text-sm font-semibold uppercase disabled:opacity-50" style={{ fontFamily: fontHeading, backgroundColor: DANGER, letterSpacing: '1px', borderRadius: 0 }}>
+                  {deleteLoading ? 'Deleting…' : 'Yes, Delete'}
                 </button>
               </div>
             </div>
