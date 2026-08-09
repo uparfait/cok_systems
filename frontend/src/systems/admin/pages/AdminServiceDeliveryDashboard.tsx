@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { useSocket } from '../../../core/contexts/SocketContext';
 import { statisticsService, serviceDeliveryService, departmentService } from '../../../core/services/adminService';
@@ -31,6 +31,9 @@ const initialsOf = (name: string) => (name || '?').split(' ').filter(Boolean).ma
 const AdminServiceDeliveryDashboard: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
+  // This dashboard is shared via /:roleSlug/service-delivery/dashboard — the mayor sees it too
+  const { roleSlug } = useParams();
+  const isMayor = roleSlug === 'mayor';
   const { showSuccess, showError } = useToast();
   const { socket, isConnected } = useSocket();
   const [loading, setLoading] = useState(true);
@@ -298,8 +301,8 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
           )}
         </div>
 
-        {/* Employee account status (activation / lock / online) — moved here from the mayor overview page */}
-        <EmployeeAccountStatusCard />
+        {/* Employee account status (activation / lock / online) — admin only, hidden on the mayor's view */}
+        {!isMayor && <EmployeeAccountStatusCard />}
 
         {/* Export dialog: all visitors or a custom check-in date range */}
         {showExportDialog && (
