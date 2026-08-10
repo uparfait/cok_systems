@@ -9,7 +9,7 @@ const multer = require('multer');
 const { auditSuccess, auditError, auditUserActions } = require('../../middlewares/audit');
 
 const { bulkUploadReservations, registerSingleReservation } = require('../../controllers/reservationController');
-const { getAllReservations, createStaffBooking, cancelReservation, reactivateReservation, bulkUploadStaff, bulkCancelReservations, bulkDeleteReservations, getReservationBatches, cancelReservationBatch, rescheduleReservationBatch } = require('../../controllers/reservationsController');
+const { getAllReservations, createStaffBooking, cancelReservation, reactivateReservation, bulkUploadStaff, bulkCancelReservations, bulkDeleteReservations, getReservationBatches, cancelReservationBatch, rescheduleReservationBatch, deleteReservationBatch } = require('../../controllers/reservationsController');
 
 // parfait's controllers
 const check_in = require('../../controllers/smart_parking/check_in.js')
@@ -362,6 +362,24 @@ Router.put('/reservation-batches/cancel',
 Router.put('/reservation-batches/reschedule',
   auditSuccess('UPDATE', 'reservations', (req, res, data) => `Rescheduled reservation batch ${req.body?.id}`),
   rescheduleReservationBatch
+);
+
+/**
+ * @swagger
+ * /smartparking/reservation-batches/delete:
+ *   post:
+ *     summary: "Permanently delete a whole uploaded batch"
+ *     description: "Removes every reservation in the batch from the database. Body: { id, type: 'visitor' | 'staff' }"
+ *     tags: [Smart Parking]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Batch deleted
+ */
+Router.post('/reservation-batches/delete',
+  auditSuccess('DELETE', 'reservations', (req, res, data) => `Deleted reservation batch ${req.body?.id}`),
+  deleteReservationBatch
 );
 
 /**

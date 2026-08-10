@@ -1,14 +1,12 @@
 import { useState, useCallback, useMemo } from 'react';
 import {
   FiCalendar,
-  FiClipboard,
-  FiXCircle,
   FiLoader,
   FiChevronLeft,
   FiChevronRight,
   FiClock,
 } from 'react-icons/fi';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { useDashboard } from '../../event-managment/pages/dashboard/hooks/useDashboard';
 import MayorEventDetailsOverlay from './sub/MayorEventDetailsOverlay';
@@ -133,48 +131,53 @@ function EventsFilterBar({
   );
 }
 
-// ==================== Summary Cards ====================
+// ==================== Summary Donut ====================
+// Replaces the four summary cards — same donut style as the mayor feedback-analysis page
 
-const SUMMARY_CARDS = [
-  { key: 'totalEventsHeld', label: 'Total Events Held', icon: FiCalendar, accent: COK.primary },
-  { key: 'totalMeetingsHeld', label: 'Total Meetings Held', icon: FiClipboard, accent: COK.success },
-  { key: 'totalEventsCanceled', label: 'Events Canceled', icon: FiXCircle, accent: COK.danger },
-  { key: 'totalMeetingsCanceled', label: 'Meetings Canceled', icon: FiXCircle, accent: COK.warning },
+const SUMMARY_SLICES = [
+  { key: 'totalEventsHeld', label: 'Total Events Held', color: COK.primary },
+  { key: 'totalMeetingsHeld', label: 'Total Meetings Held', color: COK.success },
+  { key: 'totalEventsCanceled', label: 'Events Canceled', color: COK.danger },
+  { key: 'totalMeetingsCanceled', label: 'Meetings Canceled', color: COK.warning },
 ];
 
-function EventsSummaryCards({ summary, loading }: { summary: Record<string, number> | null; loading: boolean }) {
+function EventsSummaryDonut({ summary, loading }: { summary: Record<string, number> | null; loading: boolean }) {
+  const all = SUMMARY_SLICES.map((s) => ({ name: s.label, value: summary ? summary[s.key] ?? 0 : 0, color: s.color }));
+  // Zero categories can't render as slices, but the legend still lists all four with their counts
+  const data = all.filter((s) => s.value > 0);
+  const legendPayload = all.map((s) => ({ id: s.name, value: `${s.name} (${s.value})`, type: 'square' as const, color: s.color }));
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-      {SUMMARY_CARDS.map((card) => {
-        const Icon = card.icon;
-        const value = summary ? summary[card.key] ?? 0 : 0;
-        return (
-          <div
-            key={card.key}
-            className="bg-white p-4 relative transition-shadow duration-200 hover:shadow-md"
-            style={{ border: `1px solid ${COK.border}` }}
-          >
-            {loading && <LoadingOverlay />}
-            <div className="flex items-center justify-between" style={{ borderLeft: `2px solid ${card.accent}`, paddingLeft: 10 }}>
-              <div>
-                <CokLabel>{card.label}</CokLabel>
-                <p
-                  className="mt-1"
-                  style={{ fontFamily: COK.headingFont, fontSize: 28, fontWeight: 700, color: COK.neutralDark, margin: 0 }}
-                >
-                  {value.toLocaleString()}
-                </p>
-              </div>
-              <div
-                className="w-11 h-11 flex items-center justify-center"
-                style={{ backgroundColor: `${card.accent}1A` }}
+    <div className="bg-white p-4 relative" style={{ border: `1px solid ${COK.border}` }}>
+      {loading && <LoadingOverlay />}
+      <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: '0 0 16px 0' }}>
+        Events & Meetings Summary
+      </h3>
+      {data.length === 0 && !loading ? (
+        <p className="text-sm text-gray-500" style={{ fontFamily: COK.bodyFont }}>No events or meetings in this period.</p>
+      ) : (
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={data}
+                cx="50%"
+                cy="47%"
+                innerRadius={68}
+                outerRadius={108}
+                paddingAngle={4}
+                dataKey="value"
               >
-                <Icon className="w-5 h-5" style={{ color: card.accent }} />
-              </div>
-            </div>
-          </div>
-        );
-      })}
+                {data.map((entry) => (
+                  <Cell key={entry.name} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }} />
+              <Legend wrapperStyle={{ fontSize: 12 }} payload={legendPayload} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 }
@@ -540,7 +543,7 @@ export default function MayorEventsPage() {
           loading={loadingStats}
         />
 
-        <EventsSummaryCards summary={summary} loading={loadingStats} />
+        <EventsSummaryDonut summary={summary} loading={loadingStats} />
 
         <EventsTaskStatusChart data={taskStatus} loading={loadingStats} />
 

@@ -4,8 +4,9 @@ import { useAuth } from '../../../core/contexts/AuthContext';
 import { useToast } from '../../../core/contexts/ToastContext';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
+import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import { reservationService } from '../../../core/services/adminService';
-import { FiInfo, FiSearch, FiEdit2, FiTrash2, FiClock, FiCheck, FiDownload, FiLoader } from 'react-icons/fi';
+import { FiInfo, FiSearch, FiEdit2, FiTrash2, FiClock, FiCheck, FiDownload, FiLoader, FiXCircle } from 'react-icons/fi';
 import { VisitorReservationForm, StaffBookingForm } from './sub/ReservationForms';
 
 interface Reservation { id: string; visitor_name: string; plate_number: string; telephone: string; id_type?: string; id_number?: string; expected_arrival: string; type: 'visitor' | 'staff'; status: 'active' | 'expired' | 'cancelled' | 'checked_in' | 'used'; valid_from?: string | null; valid_until?: string | null; created_at?: string; }
@@ -67,6 +68,7 @@ const ReservationsPage: React.FC = () => {
   const [draftBatchSearch, setDraftBatchSearch] = useState('');
   const [batchPage, setBatchPage] = useState(1);
   const [batchToCancel, setBatchToCancel] = useState<ReservationBatch | null>(null);
+  const [batchToDelete, setBatchToDelete] = useState<ReservationBatch | null>(null);
   const [batchToReschedule, setBatchToReschedule] = useState<ReservationBatch | null>(null);
   const [resStart, setResStart] = useState('');
   const [resEnd, setResEnd] = useState('');
@@ -80,6 +82,8 @@ const ReservationsPage: React.FC = () => {
   const [staffBulkFile, setStaffBulkFile] = useState<File | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
+  const [reservationToDelete, setReservationToDelete] = useState<Reservation | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Multi-select for bulk cancel/delete — keyed by `${type}:${id}` since visitor and staff ids come from different collections
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
@@ -113,6 +117,17 @@ const ReservationsPage: React.FC = () => {
       if (d.success) { showSuccess(d.message || 'Batch cancelled'); fetchBatches(); fetchReservations(); }
       else showError(d.message || 'Failed');
     } catch (error) { showError(error.message); } finally { setBatchLoading(false); setBatchToCancel(null); }
+  };
+
+  // Permanently removes the whole uploaded file and every reservation in it
+  const confirmBatchDelete = async () => {
+    if (!batchToDelete) return;
+    setBatchLoading(true);
+    try {
+      const d: any = await reservationService.deleteBatch(batchToDelete.id, batchToDelete.type);
+      if (d.success) { showSuccess(d.message || 'Batch deleted'); fetchBatches(); fetchReservations(); }
+      else showError(d.message || 'Failed');
+    } catch (error) { showError(error.message); } finally { setBatchLoading(false); setBatchToDelete(null); }
   };
 
   // Reschedule replaces the dates of every not-yet-used reservation in the batch
@@ -235,6 +250,20 @@ const ReservationsPage: React.FC = () => {
     catch (error) { showError(error.message); } finally { setShowCancelModal(false); setReservationToCancel(null); }
   };
 
+  // Permanent single-row delete — reuses the bulk-delete endpoint with one item
+  const confirmDelete = async () => {
+    if (!reservationToDelete) return;
+    setDeleteLoading(true);
+    try {
+      const d = await reservationService.bulkDeleteReservations([{ id: reservationToDelete.id, type: reservationToDelete.type }]);
+      if (d.success) {
+        showSuccess('Reservation deleted');
+        setSelectedKeys(prev => { const next = new Set(prev); next.delete(keyOf(reservationToDelete)); return next; });
+        fetchReservations();
+      } else showError(d.message || 'Failed');
+    } catch (error) { showError(error.message); } finally { setDeleteLoading(false); setReservationToDelete(null); }
+  };
+
   // Bulk cancel/delete of every selected reservation
   const confirmBulkAction = async () => {
     if (!bulkAction || selectedKeys.size === 0) return;
@@ -351,6 +380,14 @@ const ReservationsPage: React.FC = () => {
             >
               <FiClock className="w-4 h-4" /> History
             </button>
+            {/* Deletes the checked rows — prompts to tick some first when nothing is selected */}
+            <button
+              onClick={() => { if (selectedKeys.size === 0) { showError('Tick the reservations you want to delete first'); return; } setBulkAction('delete'); }}
+              className="flex items-center gap-2 h-11 px-4 bg-transparent text-[13px] font-semibold uppercase transition-colors hover:bg-[rgba(231,76,60,0.08)] flex-shrink-0"
+              style={{ fontFamily: fontHeading, border: `1px solid ${DANGER}`, color: DANGER, letterSpacing: '1px', borderRadius: 0 }}
+            >
+              <FiTrash2 className="w-4 h-4" /> Delete{selectedKeys.size > 0 ? ` (${selectedKeys.size})` : ''}
+            </button>
           </div>
           {selectedKeys.size > 0 && (() => {
             // "Cancel Selected" only appears when EVERY selected reservation can still be
@@ -425,11 +462,13 @@ const ReservationsPage: React.FC = () => {
                     </td>
                     <td className="py-3">
                       <div className="flex items-center gap-2">
-                        {r.status === 'cancelled'
-                          ? <button onClick={async () => { const d = await reservationService.reactivateReservation(r.id); if (d.success) { showSuccess('Reactivated'); fetchReservations(); } }} title="Reactivate" className="p-1.5 transition-colors hover:bg-[rgba(76,175,80,0.1)]" style={{ color: '#388E3C', borderRadius: 0 }}><FiCheck className="w-4 h-4" /></button>
-                          : isCancellable(r)
-                            ? <button onClick={() => handleCancelClick(r)} title="Cancel reservation" className="p-1.5 transition-colors hover:bg-[rgba(231,76,60,0.1)]" style={{ color: DANGER, borderRadius: 0 }}><FiTrash2 className="w-4 h-4" /></button>
-                            : <span className="text-xs text-[#9E9E9E]">—</span>}
+                        {r.status === 'cancelled' && (
+                          <button onClick={async () => { const d = await reservationService.reactivateReservation(r.id); if (d.success) { showSuccess('Reactivated'); fetchReservations(); } }} title="Reactivate" className="p-1.5 transition-colors hover:bg-[rgba(76,175,80,0.1)]" style={{ color: '#388E3C', borderRadius: 0 }}><FiCheck className="w-4 h-4" /></button>
+                        )}
+                        {r.status !== 'cancelled' && isCancellable(r) && (
+                          <button onClick={() => handleCancelClick(r)} title="Cancel reservation" className="p-1.5 transition-colors hover:bg-[rgba(243,156,18,0.12)]" style={{ color: WARNING, borderRadius: 0 }}><FiXCircle className="w-4 h-4" /></button>
+                        )}
+                        <button onClick={() => setReservationToDelete(r)} title="Delete reservation" className="p-1.5 transition-colors hover:bg-[rgba(231,76,60,0.1)]" style={{ color: DANGER, borderRadius: 0 }}><FiTrash2 className="w-4 h-4" /></button>
                       </div>
                     </td>
                   </tr>
@@ -524,6 +563,13 @@ const ReservationsPage: React.FC = () => {
                             Cancel Batch
                           </button>
                         )}
+                        <button
+                          onClick={() => setBatchToDelete(b)}
+                          className="px-3 py-1.5 text-white text-[11px] font-semibold uppercase"
+                          style={{ fontFamily: fontHeading, backgroundColor: DANGER, letterSpacing: '1px', borderRadius: 0 }}
+                        >
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -545,22 +591,29 @@ const ReservationsPage: React.FC = () => {
         </div>
         )}
 
-        {batchToCancel && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white w-full max-w-md p-6" style={{ boxShadow: CARD_SHADOW, borderRadius: 0 }}>
-              <h3 className="text-[16px] font-bold mb-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Cancel Whole Upload</h3>
-              <p className="text-sm text-[#555555] mb-5">
-                Cancel all <strong>{batchToCancel.active}</strong> active reservation(s) from <strong>{batchToCancel.batch_name}</strong>?
-              </p>
-              <div className="flex gap-3">
-                <button onClick={() => setBatchToCancel(null)} disabled={batchLoading} className="flex-1 px-3 py-2 text-sm font-semibold uppercase hover:bg-[rgba(5,109,170,0.08)] disabled:opacity-50" style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>No</button>
-                <button onClick={confirmBatchCancel} disabled={batchLoading} className="flex-1 px-3 py-2 text-white text-sm font-semibold uppercase disabled:opacity-50" style={{ fontFamily: fontHeading, backgroundColor: DANGER, letterSpacing: '1px', borderRadius: 0 }}>
-                  {batchLoading ? 'Working…' : 'Yes, Cancel All'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <ConfirmModal
+          isOpen={!!batchToCancel}
+          title="Cancel Whole Upload"
+          message={<>Cancel all <strong>{batchToCancel?.active}</strong> active reservation(s) from <strong>{batchToCancel?.batch_name}</strong>?</>}
+          confirmText="Yes, Cancel All"
+          cancelText="No"
+          type="warning"
+          isLoading={batchLoading}
+          onConfirm={confirmBatchCancel}
+          onCancel={() => setBatchToCancel(null)}
+        />
+
+        <ConfirmModal
+          isOpen={!!batchToDelete}
+          title="Delete Whole Upload"
+          message={<>Permanently delete <strong>{batchToDelete?.batch_name}</strong> and all its <strong>{batchToDelete?.total}</strong> reservation(s)? This cannot be undone.</>}
+          confirmText="Yes, Delete All"
+          cancelText="No"
+          type="danger"
+          isLoading={batchLoading}
+          onConfirm={confirmBatchDelete}
+          onCancel={() => setBatchToDelete(null)}
+        />
 
         {batchToReschedule && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
@@ -589,37 +642,42 @@ const ReservationsPage: React.FC = () => {
           </div>
         )}
 
-        {bulkAction && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white w-full max-w-md p-6" style={{ boxShadow: CARD_SHADOW, borderRadius: 0 }}>
-              <h3 className="text-[16px] font-bold mb-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{bulkAction === 'delete' ? 'Delete Reservations' : 'Cancel Reservations'}</h3>
-              <p className="text-sm text-[#555555] mb-5">
-                {bulkAction === 'delete'
-                  ? <>Permanently delete <strong>{selectedKeys.size}</strong> selected reservation(s)? This cannot be undone.</>
-                  : <>Cancel <strong>{selectedKeys.size}</strong> selected reservation(s)?</>}
-              </p>
-              <div className="flex gap-3">
-                <button onClick={() => setBulkAction(null)} disabled={bulkLoading} className="flex-1 px-3 py-2 text-sm font-semibold uppercase hover:bg-[rgba(5,109,170,0.08)] disabled:opacity-50" style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>No</button>
-                <button onClick={confirmBulkAction} disabled={bulkLoading} className="flex-1 px-3 py-2 text-white text-sm font-semibold uppercase disabled:opacity-50" style={{ fontFamily: fontHeading, backgroundColor: bulkAction === 'delete' ? DANGER : WARNING, letterSpacing: '1px', borderRadius: 0 }}>
-                  {bulkLoading ? 'Working…' : bulkAction === 'delete' ? 'Yes, Delete' : 'Yes, Cancel'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <ConfirmModal
+          isOpen={!!bulkAction}
+          title={bulkAction === 'delete' ? 'Delete Reservations' : 'Cancel Reservations'}
+          message={bulkAction === 'delete'
+            ? <>Permanently delete <strong>{selectedKeys.size}</strong> selected reservation(s)? This cannot be undone.</>
+            : <>Cancel <strong>{selectedKeys.size}</strong> selected reservation(s)?</>}
+          confirmText={bulkAction === 'delete' ? 'Yes, Delete' : 'Yes, Cancel'}
+          cancelText="No"
+          type={bulkAction === 'delete' ? 'danger' : 'warning'}
+          isLoading={bulkLoading}
+          onConfirm={confirmBulkAction}
+          onCancel={() => setBulkAction(null)}
+        />
 
-        {showCancelModal && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white w-full max-w-md p-6" style={{ boxShadow: CARD_SHADOW, borderRadius: 0 }}>
-              <h3 className="text-[16px] font-bold mb-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Cancel Reservation</h3>
-              <p className="text-sm text-[#555555] mb-5">Are you sure you want to cancel the reservation for <strong>{reservationToCancel?.visitor_name}</strong>?</p>
-              <div className="flex gap-3">
-                <button onClick={() => setShowCancelModal(false)} className="flex-1 px-3 py-2 text-sm font-semibold uppercase hover:bg-[rgba(5,109,170,0.08)]" style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>No</button>
-                <button onClick={confirmCancel} className="flex-1 px-3 py-2 text-white text-sm font-semibold uppercase" style={{ fontFamily: fontHeading, backgroundColor: DANGER, letterSpacing: '1px', borderRadius: 0 }}>Yes, Cancel</button>
-              </div>
-            </div>
-          </div>
-        )}
+        <ConfirmModal
+          isOpen={!!reservationToDelete}
+          title="Delete Reservation"
+          message={<>Permanently delete the reservation for <strong>{reservationToDelete?.visitor_name}</strong> ({reservationToDelete?.plate_number})? This cannot be undone.</>}
+          confirmText="Yes, Delete"
+          cancelText="No"
+          type="danger"
+          isLoading={deleteLoading}
+          onConfirm={confirmDelete}
+          onCancel={() => setReservationToDelete(null)}
+        />
+
+        <ConfirmModal
+          isOpen={showCancelModal}
+          title="Cancel Reservation"
+          message={<>Are you sure you want to cancel the reservation for <strong>{reservationToCancel?.visitor_name}</strong>?</>}
+          confirmText="Yes, Cancel"
+          cancelText="No"
+          type="warning"
+          onConfirm={confirmCancel}
+          onCancel={() => setShowCancelModal(false)}
+        />
       </div>
     </MainLayout>
   );
