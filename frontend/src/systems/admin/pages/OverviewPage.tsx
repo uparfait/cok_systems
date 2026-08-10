@@ -21,7 +21,8 @@ interface ServedStats {
   total_visitors: number;
   hourly: Array<{ hour: number; count: number }>;
   last_checkin: string | null;
-  by_department: Array<{ name: string; served: number; top_employee: { name: string; served: number } | null }>;
+  by_department: Array<{ name: string; served: number; assigned: number; not_served: number; top_employee: { name: string; served: number } | null }>;
+  assigned_by_department: Array<{ name: string; assigned: number }>;
   by_employee: Array<{ id: string | null; name: string; department: string | null; served: number; visitors: Array<{ visitor: string; department: string }> }>;
 }
 
@@ -342,11 +343,11 @@ const ParkingOccupancyDonut: React.FC<{ occupied: number; totalSlots: number; on
 // right, both aligned to their number lines.
 // Used by the dashboard card (top rows) and the detail modal (all rows, scrollable).
 const DeptServicesMirror: React.FC<{
-  rows: Array<{ name: string; staff: number; served: number; notServed: number }>;
+  rows: Array<{ name: string; assigned: number; served: number; notServed: number }>;
   cc: { amber: string; teal: string; red: string };
   scroll?: boolean;
 }> = ({ rows, cc, scroll }) => {
-  const maxLeft = Math.max(...rows.map(r => r.staff), 1);
+  const maxLeft = Math.max(...rows.map(r => r.assigned), 1);
   const maxRight = Math.max(...rows.map(r => r.served + r.notServed), 1);
   const makeTicks = (max: number) => {
     const step = Math.max(1, Math.ceil(max / 5));
@@ -376,29 +377,35 @@ const DeptServicesMirror: React.FC<{
 
       <div className={scroll ? 'space-y-3 max-h-[55vh] overflow-y-auto pr-1' : 'space-y-3'}>
         {rows.map(row => {
-          const notServed = Math.max(0, row.staff - row.served);
-          const servedPct = row.staff > 0 ? (row.served / row.staff) * 100 : 0;
-          const notServedPct = row.staff > 0 ? (notServed / row.staff) * 100 : 0;
+          const notServed = Math.max(0, row.assigned - row.served);
           return (
             <div
               key={row.name}
               className="flex items-center py-0.5 hover:bg-gray-50 transition-colors"
-              title={`${row.name}: ${row.staff} assigned · ${row.served} served · ${notServed} not served`}
+              title={`${row.name}: ${row.assigned} assigned · ${row.served} served · ${notServed} not served`}
             >
               <div className="flex-1 flex items-center gap-2.5 min-w-0">
                 <span className="w-40 sm:w-48 flex-shrink-0 text-right text-[13px] font-medium text-gray-700 truncate">
-                  {row.name} <span className="text-gray-400 font-normal">({row.staff})</span>
+                  {row.name}
                 </span>
-                <div className="flex-1 h-6 bg-gray-100/80 flex justify-end overflow-hidden">
+                <div className="flex-1 h-6 bg-gray-100/80 flex items-center justify-end overflow-hidden">
+                  {/* Counts that can't fit inside a narrow bar are printed just before it */}
+                  {(row.assigned / maxLeft) * 100 < 12 && (
+                    <span className="text-[11px] font-bold pr-1 leading-none" style={{ color: cc.amber }}>{row.assigned}</span>
+                  )}
                   <div
-                    className="h-full shadow-sm-disabled transition-all duration-500"
+                    className="h-full shadow-sm-disabled transition-all duration-500 flex items-center justify-center"
                     style={{
-                      width: `${(row.staff / maxLeft) * 100}%`,
-                      minWidth: row.staff > 0 ? 4 : 0,
+                      width: `${(row.assigned / maxLeft) * 100}%`,
+                      minWidth: row.assigned > 0 ? 4 : 0,
                       backgroundColor: cc.amber,
                       backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.08), rgba(255,255,255,0.28))',
                     }}
-                  ></div>
+                  >
+                    {(row.assigned / maxLeft) * 100 >= 12 && (
+                      <span className="text-[11px] font-bold text-white leading-none">{row.assigned}</span>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -408,40 +415,47 @@ const DeptServicesMirror: React.FC<{
               ></div>
 
               <div className="flex-1 flex items-center gap-2.5 min-w-0">
-                <div className="flex-1 h-6 bg-gray-100/80 flex justify-start overflow-hidden">
-                  <div className="flex h-full w-full">
-                    {notServed > 0 && (
-                      <div
-                        className="h-full shadow-sm-disabled transition-all duration-500"
-                        style={{
-                          width: `${(notServed / maxLeft) * 100}%`,
-                          minWidth: notServed > 0 ? 2 : 0,
-                          backgroundColor: cc.red,
-                          backgroundImage: 'linear-gradient(to left, rgba(0,0,0,0.08), rgba(255,255,255,0.25))',
-                        }}
-                      ></div>
-                    )}
-                    {row.served > 0 && (
-                      <div
-                        className="h-full shadow-sm-disabled transition-all duration-500"
-                        style={{
-                          width: `${(row.served / maxLeft) * 100}%`,
-                          minWidth: row.served > 0 ? 2 : 0,
-                          backgroundColor: cc.teal,
-                          backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.08), rgba(255,255,255,0.25))',
-                        }}
-                      ></div>
-                    )}
-                  </div>
+                <div className="flex-1 h-6 bg-gray-100/80 flex items-center justify-start overflow-hidden">
+                  {notServed > 0 && (
+                    <div
+                      className="h-full shadow-sm-disabled transition-all duration-500 flex items-center justify-center"
+                      style={{
+                        width: `${(notServed / maxLeft) * 100}%`,
+                        minWidth: 2,
+                        backgroundColor: cc.red,
+                        backgroundImage: 'linear-gradient(to left, rgba(0,0,0,0.08), rgba(255,255,255,0.25))',
+                      }}
+                    >
+                      {(notServed / maxLeft) * 100 >= 12 && (
+                        <span className="text-[11px] font-bold text-white leading-none">{notServed}</span>
+                      )}
+                    </div>
+                  )}
+                  {row.served > 0 && (
+                    <div
+                      className="h-full shadow-sm-disabled transition-all duration-500 flex items-center justify-center"
+                      style={{
+                        width: `${(row.served / maxLeft) * 100}%`,
+                        minWidth: 2,
+                        backgroundColor: cc.teal,
+                        backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.08), rgba(255,255,255,0.25))',
+                      }}
+                    >
+                      {(row.served / maxLeft) * 100 >= 12 && (
+                        <span className="text-[11px] font-bold text-white leading-none">{row.served}</span>
+                      )}
+                    </div>
+                  )}
+                  {/* Counts whose segments are too narrow appear right after the bars */}
+                  {((notServed > 0 && (notServed / maxLeft) * 100 < 12) || (row.served > 0 && (row.served / maxLeft) * 100 < 12) || (notServed === 0 && row.served === 0)) && (
+                    <span className="text-[11px] font-bold pl-1 leading-none whitespace-nowrap">
+                      {(notServed === 0 && row.served === 0) && <span className="text-gray-400">0</span>}
+                      {notServed > 0 && (notServed / maxLeft) * 100 < 12 && <span style={{ color: cc.red }}>{notServed}</span>}
+                      {notServed > 0 && (notServed / maxLeft) * 100 < 12 && row.served > 0 && (row.served / maxLeft) * 100 < 12 && <span className="text-gray-300"> / </span>}
+                      {row.served > 0 && (row.served / maxLeft) * 100 < 12 && <span style={{ color: cc.teal }}>{row.served}</span>}
+                    </span>
+                  )}
                 </div>
-                <span
-                  className="w-40 sm:w-48 flex-shrink-0 text-[13px] font-medium text-gray-700 truncate"
-                  title={`${row.served} served · ${notServed} not served`}
-                >
-                  <span style={{ color: cc.teal }}>{row.served}</span>
-                  <span className="text-gray-300 mx-1">/</span>
-                  <span style={{ color: cc.red }}>{notServed}</span>
-                </span>
               </div>
             </div>
           );
@@ -479,7 +493,6 @@ const DeptServicesMirror: React.FC<{
               );
             })}
           </div>
-          <span className="w-40 sm:w-48 flex-shrink-0"></span>
         </div>
       </div>
     </div>
@@ -705,27 +718,27 @@ const Overview: React.FC = () => {
     [servedStats]
   );
 
-  // Departments vs services mirrored chart: staff assigned (left) against
-  // served vs not served (right), busiest departments first.
-  // Returns every department; the card shows the top rows.
+  // Departments vs services mirrored chart: visitors assigned to the department
+  // (left) against served vs not served (right), busiest departments first.
+  // Only departments with at least one assigned visitor are shown.
   const deptVsServices = useMemo(() => {
-    if (!data) return [] as Array<{ name: string; staff: number; served: number; notServed: number }>;
-    const staffByDept: Record<string, number> = {};
-    data.departments.forEach(d => { staffByDept[d.name] = d.staff; });
-    const norm = (s: string) => s.trim().toLowerCase();
+    if (!data) return [] as Array<{ name: string; assigned: number; served: number; notServed: number }>;
+    const assignedByDept: Record<string, number> = {};
+    (servedStats?.assigned_by_department || []).forEach(d => {
+      assignedByDept[d.name] = d.assigned;
+    });
     const servedByDept: Record<string, number> = {};
     (servedStats?.by_department || []).forEach(d => {
       servedByDept[d.name] = d.served;
     });
-    const names = Array.from(new Set([...data.departments.map(d => d.name), ...Object.keys(servedByDept)]));
-    return names
-      .map(name => {
-        const staff = staffByDept[name] || 0;
+    return Object.entries(assignedByDept)
+      .filter(([, assigned]) => assigned > 0)
+      .map(([name, assigned]) => {
         const served = servedByDept[name] || 0;
-        const notServed = Math.max(0, staff - served);
-        return { name, staff, served, notServed };
+        const notServed = Math.max(0, assigned - served);
+        return { name, assigned, served, notServed };
       })
-      .sort((a, b) => b.staff - a.staff);
+      .sort((a, b) => b.assigned - a.assigned);
   }, [data, servedStats]);
   const maxEmployeeServed = Math.max(...employeeServed.map(e => e.served), 1);
   // Mean load among employees who served at least one person; anyone above
@@ -775,42 +788,46 @@ const Overview: React.FC = () => {
   // as its own row.
   interface SentimentTrendRow { name: string; rating: number; count: number; fullName?: string; positive?: number; neutral?: number; negative?: number; isGeneral?: boolean; barRating?: number; segNegative?: number; segNeutral?: number; segPositive?: number }
   const sentimentTrend = useMemo<SentimentTrendRow[]>(() => {
-    if (!feedbackSentiment) return [...deptRatings].sort((a, b) => a.rating - b.rating).map(d => ({ ...d, barRating: d.rating }));
-    const rows: SentimentTrendRow[] = (feedbackSentiment.departments || [])
-      .filter(d => d.count > 0)
-      .map(d => ({
-        name: d.name.length > 18 ? d.name.slice(0, 17) + '…' : d.name,
-        fullName: d.name,
-        rating: Math.round((d.average_rating || 0) * 10) / 10,
-        count: d.count,
-        positive: d.positive,
-        neutral: d.neutral,
-        negative: d.negative,
-        barRating: Math.round((d.average_rating || 0) * 10) / 10,
-        segNegative: 0,
-        segNeutral: 0,
-        segPositive: 0,
-      }))
-      .sort((a, b) => a.rating - b.rating)
-      .slice(0, 8);
-    const g = feedbackSentiment.general;
-    if (g && g.count > 0) {
-      const gRating = Math.round((g.average_rating || 0) * 10) / 10;
-      rows.push({
-        name: 'General',
-        fullName: 'General feedback',
-        rating: gRating,
-        count: g.count,
-        positive: g.positive,
-        neutral: g.neutral,
-        negative: g.negative,
-        isGeneral: true,
-        barRating: 0,
-        segNegative: gRating * (g.negative / g.count),
-        segNeutral: gRating * (g.neutral / g.count),
-        segPositive: gRating * (g.positive / g.count),
+    // Every row (departments AND general) becomes a stacked bar: total length = avg rating,
+    // split into negative/neutral/positive proportional to each sentiment's feedback count
+    const toRow = (label: string, fullName: string, s: Omit<SentimentStatRow, 'name'>, isGeneral = false): SentimentTrendRow => {
+      const rating = Math.round((s.average_rating || 0) * 10) / 10;
+      const total = s.count || 1;
+      return {
+        name: label.length > 18 ? label.slice(0, 17) + '…' : label,
+        fullName,
+        rating,
+        count: s.count,
+        positive: s.positive,
+        neutral: s.neutral,
+        negative: s.negative,
+        isGeneral,
+        barRating: rating,
+        segNegative: rating * ((s.negative || 0) / total),
+        segNeutral: rating * ((s.neutral || 0) / total),
+        segPositive: rating * ((s.positive || 0) / total),
+      };
+    };
+    if (!feedbackSentiment) {
+      // Fallback without per-sentiment counts: the whole bar takes its own rating's color band
+      return [...deptRatings].sort((a, b) => b.rating - a.rating).map(d => {
+        const s = classifySentiment(d.rating, 10);
+        return {
+          ...d,
+          barRating: d.rating,
+          segNegative: s === 'negative' ? d.rating : 0,
+          segNeutral: s === 'neutral' ? d.rating : 0,
+          segPositive: s === 'positive' ? d.rating : 0,
+        };
       });
     }
+    const rows: SentimentTrendRow[] = (feedbackSentiment.departments || [])
+      .filter(d => d.count > 0)
+      .map(d => toRow(d.name, d.name, d))
+      .sort((a, b) => b.rating - a.rating)
+      .slice(0, 8);
+    const g = feedbackSentiment.general;
+    if (g && g.count > 0) rows.push(toRow('General', 'General feedback', g, true));
     return rows;
   }, [feedbackSentiment, deptRatings]);
 
@@ -1593,20 +1610,8 @@ useEffect(() => {
         
         {/* CHART 1 · "Departments vs services" — drawn by DeptServicesMirror (top of file); colors from CC */}
         <div className="bg-white border border-gray-200 p-4 sm:p-5 shadow-sm-disabled hover:shadow-md transition-all">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <div className="text-base font-bold text-gray-900">Departments vs services</div>
-              <div className="text-xs text-gray-500 mt-0.5">
-                People served against services handled per employee · {periodLabel}
-              </div>
-            </div>
-            <div className="text-right flex-shrink-0">
-              <div className="text-2xl font-bold leading-none" style={{ color: CC.blue }}>{totalVisitorsInPeriod}</div>
-              <div className="text-[11px] uppercase tracking-wide text-gray-500 mt-1">Total visitors · {periodLabel}</div>
-              <div className="text-xs text-gray-400 mt-0.5">
-                Staff assigned vs served · {periodLabel}
-              </div>
-            </div>
+          <div className="mb-4">
+            <div className="text-base font-bold text-gray-900">Department and services</div>
           </div>
 
           {deptVsServices.length === 0 ? (
@@ -1784,28 +1789,27 @@ useEffect(() => {
           {sentimentTrend.length === 0 ? (
             <p className="text-sm text-gray-500" style={{ fontFamily: COK.bodyFont }}>No feedback in this period yet.</p>
           ) : (
+            /* Rotated like "Average Rating by Department": horizontal bars, department names on the left */
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={sentimentTrend} margin={{ top: 15, right: 15, left: -22, bottom: 30 }}>
-                  <XAxis
-                    dataKey="name"
-                    interval={0}
-                    angle={-30}
-                    textAnchor="end"
-                    tick={{ fontSize: 10, fill: '#6b7280' }}
-                    axisLine={{ stroke: COK.border }}
-                    tickLine={false}
-                  />
-                  <YAxis domain={[0, 10]} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                <BarChart data={sentimentTrend} layout="vertical" margin={{ top: 5, right: 32, left: 10, bottom: 5 }}>
+                  <XAxis type="number" domain={[0, 10]} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={130} interval={0} tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
                   <RTooltip cursor={{ fill: COK.neutralLight }} content={<SentimentChartTooltip />} />
-                  <Bar dataKey="rating" name="Avg rating" barSize={34} radius={[0, 0, 0, 0]} isAnimationActive={false}>
-                    {sentimentTrend.map((d, i) => (
-                      <Cell key={i} fill={d.isGeneral ? `linear-gradient(to top, ${SENTIMENT_META.negative.color} 33%, ${SENTIMENT_META.neutral.color} 33% 66%, ${SENTIMENT_META.positive.color} 66%)` : SENTIMENT_META[classifySentiment(d.rating, 10)].color} />
-                    ))}
-                    <LabelList position="insideEnd" fontSize={9} fill="#ffffff" formatter={(value: any) => {
+                  {/* Stacked segments: bar length = avg rating, split by sentiment share; counts printed inside */}
+                  <Bar dataKey="segNegative" name="Negative" stackId="rating" barSize={16} isAnimationActive={false} fill={SENTIMENT_META.negative.color}>
+                    <LabelList dataKey="negative" position="center" fontSize={10} fill="#ffffff" fontWeight={700} formatter={(v: any) => (v ? v : '')} />
+                  </Bar>
+                  <Bar dataKey="segNeutral" name="Neutral" stackId="rating" isAnimationActive={false} fill={SENTIMENT_META.neutral.color}>
+                    <LabelList dataKey="neutral" position="center" fontSize={10} fill="#ffffff" fontWeight={700} formatter={(v: any) => (v ? v : '')} />
+                  </Bar>
+                  <Bar dataKey="segPositive" name="Positive" stackId="rating" isAnimationActive={false} fill={SENTIMENT_META.positive.color}>
+                    <LabelList dataKey="positive" position="center" fontSize={10} fill="#ffffff" fontWeight={700} formatter={(v: any) => (v ? v : '')} />
+                    {/* Average rating printed after the whole stack */}
+                    <LabelList dataKey="rating" position="right" fontSize={10} fill={COK.neutralDark} fontWeight={700} formatter={(value: any) => {
                       const num = Number(value);
                       if (Number.isNaN(num)) return value;
-                      return Number.isInteger(num) ? String(num) : num.toFixed(2);
+                      return Number.isInteger(num) ? String(num) : num.toFixed(1);
                     }} />
                   </Bar>
                 </BarChart>
@@ -2041,7 +2045,7 @@ useEffect(() => {
                 {selectedCard === 'service-hourly' && 'Hourly Service Check-ins - Detailed View'}
                 {selectedCard === 'parking-hourly' && 'Hourly Parking Check-ins - Detailed View'}
                 {selectedCard === 'rating-analysis' && 'Ratings & Sentiment Analysis'}
-                {selectedCard === 'dept-served' && 'Departments & People Served'}
+                {selectedCard === 'dept-served' && 'Visitors Assigned vs Served'}
                 {selectedCard === 'employee-served' && 'Employees & Who They Served'}
               </h3>
               <button
@@ -2319,8 +2323,10 @@ useEffect(() => {
                   {/* Headline stats — all obey the toolbar period filter */}
                   <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-gray-600">
                     <span>Period: <span className="font-semibold capitalize">{periodLabel}</span></span>
-                    <span><span className="font-semibold" style={{ color: CC.amber }}>{totalVisitorsInPeriod}</span> total visitors</span>
-                    <span><span className="font-semibold" style={{ color: CC.teal }}>{(servedStats?.by_department || []).reduce((s, d) => s + d.served, 0)}</span> people served</span>
+                    <span><span className="font-semibold" style={{ color: CC.amber }}>
+                      {(servedStats?.assigned_by_department || []).reduce((s, d) => s + d.assigned, 0)}
+                    </span> visitors assigned</span>
+                    <span><span className="font-semibold" style={{ color: CC.teal }}>{(servedStats?.by_department || []).reduce((s, d) => s + d.served, 0)}</span> served</span>
                   </div>
                   {deptVsServices.length === 0 ? (
                     <div className="h-32 flex items-center justify-center text-xs text-gray-400">
@@ -2329,12 +2335,12 @@ useEffect(() => {
                   ) : (
                     <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-2">
                       {deptVsServices.map((d, idx) => {
-                        const notServed = Math.max(0, d.staff - d.served);
-                        const maxStaff = Math.max(...deptVsServices.map(r => r.staff), 1);
+                        const notServed = Math.max(0, d.assigned - d.served);
+                        const maxAssigned = Math.max(...deptVsServices.map(r => r.assigned), 1);
                         return (
                           <div key={idx} className="flex items-center gap-2 text-xs hover:bg-gray-50 px-1 py-1">
                             <span className="w-44 sm:w-56 flex-shrink-0 truncate text-right font-medium text-gray-800" title={d.name}>
-                              {d.name} <span className="text-gray-400 font-normal">({d.staff})</span>
+                              {d.name} <span className="text-gray-400 font-normal">({d.assigned})</span>
                             </span>
                             <div className="flex-1 h-5 bg-gray-100 overflow-hidden">
                               <div className="flex h-full">
@@ -2342,7 +2348,7 @@ useEffect(() => {
                                   <div
                                     className="h-full transition-all duration-500"
                                     style={{
-                                      width: `${(d.served / maxStaff) * 100}%`,
+                                      width: `${(d.served / maxAssigned) * 100}%`,
                                       minWidth: d.served > 0 ? 2 : 0,
                                       backgroundColor: CC.teal,
                                     }}
@@ -2352,7 +2358,7 @@ useEffect(() => {
                                   <div
                                     className="h-full transition-all duration-500"
                                     style={{
-                                      width: `${(notServed / maxStaff) * 100}%`,
+                                      width: `${(notServed / maxAssigned) * 100}%`,
                                       minWidth: notServed > 0 ? 2 : 0,
                                       backgroundColor: CC.red,
                                     }}

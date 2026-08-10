@@ -34,14 +34,25 @@ const ServiceDeliveryDashboard: React.FC = () => {
   const [error, setError] = useState('');
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [period, setPeriod] = useState<string>('all');
 
-  useEffect(() => { if (!authLoading && !isAuthenticated) navigate('/login'); else if (isAuthenticated) loadData(); }, [isAuthenticated, authLoading, navigate]);
+  const PERIODS = [
+    { key: 'today', label: 'Today' },
+    { key: 'thisweek', label: 'This Week' },
+    { key: 'lastweek', label: 'Last Week' },
+    { key: 'month', label: 'This Month' },
+    { key: 'last_month', label: 'Last Month' },
+    { key: 'year', label: 'This Year' },
+    { key: 'all', label: 'All' },
+  ];
 
   const loadData = async () => {
     setLoading(true); setError('');
-    try { const r = await serviceDeliveryService.getAllVisitors(); if (r.status) setVisitors(r.data || []); else setError(r.message || r.error || 'Failed'); }
+    try { const r = await serviceDeliveryService.getAll(1, 50, undefined, period === 'all' ? undefined : period); if (r.status) setVisitors(r.data || []); else setError(r.message || r.error || 'Failed'); }
     catch (err: any) { setError(err?.message || err?.error || 'Failed'); } finally { setLoading(false); }
   };
+
+  useEffect(() => { if (!authLoading && !isAuthenticated) navigate('/login'); else if (isAuthenticated) loadData(); }, [isAuthenticated, authLoading, navigate, period]);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) { loadData(); return; }
@@ -81,6 +92,23 @@ const ServiceDeliveryDashboard: React.FC = () => {
         </div>
 
         <div className="p-3" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
+          <div className="flex gap-2 mb-3 flex-wrap">
+            {PERIODS.map(p => (
+              <button
+                key={p.key}
+                onClick={() => { setPeriod(p.key); }}
+                className="px-2.5 py-1 text-xs font-medium transition-colors"
+                style={{
+                  ...btnStyle,
+                  backgroundColor: period === p.key ? PRIMARY : 'transparent',
+                  color: period === p.key ? WHITE : PRIMARY,
+                  border: `1px solid ${PRIMARY}`,
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
           <div className="flex gap-3">
             <div className="flex-1 relative"><FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: GRAY_DISABLED }} /><input type="text" placeholder="Search by name, phone..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} className="w-full pl-8 pr-3 py-1.5 text-sm outline-none transition-all" style={inputStyle} onFocus={focusInput} onBlur={blurInput} /></div>
             <button onClick={handleSearch} className="px-3 py-1.5 bg-transparent hover:bg-gray-100 text-xs transition-colors" style={{ ...btnStyle, border: `1px solid ${PRIMARY}`, color: PRIMARY }}>Search</button>
