@@ -14,7 +14,6 @@ async function migrateData() {
   let atlasConn, prodConn;
 
   try {
-    // 1. Establish Connections
     console.log("Connecting to Atlas MongoDB...");
     atlasConn = await mongoose.createConnection(db_cok_campass_conne, {
       maxPoolSize: 10,
@@ -27,38 +26,36 @@ async function migrateData() {
       minPoolSize: 2,
     }).asPromise();
 
-    // 2. Get Native DB Instances
-    // For the default DB in the URI
-    const db1Src = atlasConn.db; 
+    const db1Src = atlasConn.db;
     const db1Dest = prodConn.db;
 
-    // For the secondary DB, use .useDb().db to get the native driver instance
     const db2Src = atlasConn.useDb('COK_EVENT_MNG').db;
     const db2Dest = prodConn.useDb('COK_EVENT_MNG').db;
 
-    // 3. Helper to migrate collections between two native DBs
     const migrateCollections = async (srcDb, destDb, dbNameLabel) => {
       console.log(`Starting migration for ${dbNameLabel}...`);
       
-      // listCollections() returns a cursor, toArray() resolves it
       const collections = await srcDb.listCollections().toArray();
 
       for (const collectionInfo of collections) {
         const collectionName = collectionInfo.name;
         
-        // Skip system collections
         if (collectionName.startsWith('system.')) continue;
 
         const srcCollection = srcDb.collection(collectionName);
         const destCollection = destDb.collection(collectionName);
 
-        // Check if collection exists in destination
-        const existing = await destDb.listCollections({ name: collectionName }).toArray();
-        if (existing.length === 0) {
-          await destDb.createCollection(collectionName);
+        try {
+          await destCollection.drop();
+          console.log(`  [${dbNameLabel}] Dropped existing collection: ${collectionName}`);
+        } catch (error) {
+          if (error.code === 26) {
+            console.log(`  [${dbNameLabel}] Collection does not exist: ${collectionName}`);
+          } else {
+            console.log(`  [${dbNameLabel}] Error dropping collection: ${error.message}`);
+          }
         }
 
-        // Migrate in batches
         const batchSize = 1000;
         let skip = 0;
         let totalMigrated = 0;
@@ -67,10 +64,7 @@ async function migrateData() {
           const data = await srcCollection.find().skip(skip).limit(batchSize).toArray();
           if (data.length === 0) break;
 
-          // Use ordered: false to continue on duplicate key errors if re-running
-          await destCollection.insertMany(data, { ordered: false }).catch(err => {
-            if (err.code !== 11000) throw err; // Ignore duplicate key errors
-          });
+          await destCollection.insertMany(data, { ordered: false });
           
           totalMigrated += data.length;
           skip += batchSize;
@@ -79,17 +73,15 @@ async function migrateData() {
       }
     };
 
-    // 4. Execute Migrations
     await migrateCollections(db1Src, db1Dest, "DB1 (cok)");
     await migrateCollections(db2Src, db2Dest, "DB2 (COK_EVENT_MNG)");
 
-    console.log("✅ Data migration completed successfully.");
+    console.log("Data migration completed successfully.");
 
   } catch (error) {
-    console.error("❌ Error during data migration:", error);
+    console.error("Error during data migration:", error);
     process.exitCode = 1;
   } finally {
-    // 5. Clean up connections
     if (atlasConn) await atlasConn.close();
     if (prodConn) await prodConn.close();
     console.log("Connections closed.");
