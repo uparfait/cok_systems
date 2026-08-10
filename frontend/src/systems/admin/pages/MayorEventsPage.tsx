@@ -132,7 +132,7 @@ function EventsFilterBar({
 }
 
 // ==================== Summary Donut ====================
-// Replaces the four summary cards — same donut style as the mayor feedback-analysis page
+// Replaces the four summary cards  same donut style as the mayor feedback-analysis page
 
 const SUMMARY_SLICES = [
   { key: 'totalEventsHeld', label: 'Total Events Held', color: COK.primary },
@@ -173,7 +173,7 @@ function EventsSummaryDonut({ summary, loading }: { summary: Record<string, numb
                 ))}
               </Pie>
               <Tooltip contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }} />
-              <Legend wrapperStyle={{ fontSize: 12 }} payload={legendPayload} />
+              {/*<Legend wrapperStyle={{ fontSize: 12 }} payload={legendPayload} />*/}
             </PieChart>
           </ResponsiveContainer>
         </div>
