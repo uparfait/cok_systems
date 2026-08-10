@@ -175,7 +175,7 @@ export const CokPagination = ({
             className="px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             style={{ border: `2px solid ${COK.border}`, fontFamily: COK.headingFont, color: COK.neutralDark }}
           >
-            ← Back
+            Back
           </button>
 
           {getPageNumbers().map((page) => (
@@ -201,7 +201,7 @@ export const CokPagination = ({
             className="px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             style={{ border: `2px solid ${COK.border}`, fontFamily: COK.headingFont, color: COK.neutralDark }}
           >
-            Forward →
+            Forward 
           </button>
         </div>
       </div>
