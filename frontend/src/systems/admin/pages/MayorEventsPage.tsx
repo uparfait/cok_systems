@@ -173,7 +173,7 @@ function EventsSummaryDonut({ summary, loading }: { summary: Record<string, numb
                 ))}
               </Pie>
               <Tooltip contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }} />
-              <Legend wrapperStyle={{ fontSize: 12 }} payload={legendPayload} />
+              {/*<Legend wrapperStyle={{ fontSize: 12 }} payload={legendPayload} />*/}
             </PieChart>
           </ResponsiveContainer>
         </div>
