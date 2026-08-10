@@ -365,12 +365,12 @@ const DeptServicesMirror: React.FC<{
           <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: cc.amber }}>
             Departments
           </span>
-          <span className="text-xs text-gray-500">(people assigned)</span>
+          <span className="text-xs text-gray-500">(people oriented)</span>
         </div>
         <div className="flex-1 flex items-center justify-end gap-2 pb-2 border-b-[3px]" style={{ borderColor: cc.teal }}>
           <span className="text-xs text-gray-500">(served vs not served)</span>
           <span className="text-sm font-extrabold tracking-wide uppercase" style={{ color: cc.teal }}>
-            Attendance
+            Visitors
           </span>
         </div>
       </div>
@@ -389,8 +389,8 @@ const DeptServicesMirror: React.FC<{
                   {row.name}
                 </span>
                 <div className="flex-1 h-6 bg-gray-100/80 flex items-center justify-end overflow-hidden">
-                  {/* Counts that can't fit inside a narrow bar are printed just before it */}
-                  {(row.assigned / maxLeft) * 100 < 12 && (
+                  {/* Counts that can't fit inside a narrow bar are printed just before it; zero stays blank */}
+                  {row.assigned > 0 && (row.assigned / maxLeft) * 100 < 12 && (
                     <span className="text-[11px] font-bold pr-1 leading-none" style={{ color: cc.amber }}>{row.assigned}</span>
                   )}
                   <div
@@ -446,10 +446,9 @@ const DeptServicesMirror: React.FC<{
                       )}
                     </div>
                   )}
-                  {/* Counts whose segments are too narrow appear right after the bars */}
-                  {((notServed > 0 && (notServed / maxLeft) * 100 < 12) || (row.served > 0 && (row.served / maxLeft) * 100 < 12) || (notServed === 0 && row.served === 0)) && (
+                  {/* Counts whose segments are too narrow appear right after the bars; zeros stay blank */}
+                  {((notServed > 0 && (notServed / maxLeft) * 100 < 12) || (row.served > 0 && (row.served / maxLeft) * 100 < 12)) && (
                     <span className="text-[11px] font-bold pl-1 leading-none whitespace-nowrap">
-                      {(notServed === 0 && row.served === 0) && <span className="text-gray-400">0</span>}
                       {notServed > 0 && (notServed / maxLeft) * 100 < 12 && <span style={{ color: cc.red }}>{notServed}</span>}
                       {notServed > 0 && (notServed / maxLeft) * 100 < 12 && row.served > 0 && (row.served / maxLeft) * 100 < 12 && <span className="text-gray-300"> / </span>}
                       {row.served > 0 && (row.served / maxLeft) * 100 < 12 && <span style={{ color: cc.teal }}>{row.served}</span>}
@@ -720,7 +719,7 @@ const Overview: React.FC = () => {
 
   // Departments vs services mirrored chart: visitors assigned to the department
   // (left) against served vs not served (right), busiest departments first.
-  // Only departments with at least one assigned visitor are shown.
+  // EVERY department appears, including those with no visitors yet.
   const deptVsServices = useMemo(() => {
     if (!data) return [] as Array<{ name: string; assigned: number; served: number; notServed: number }>;
     const assignedByDept: Record<string, number> = {};
@@ -731,9 +730,14 @@ const Overview: React.FC = () => {
     (servedStats?.by_department || []).forEach(d => {
       servedByDept[d.name] = d.served;
     });
-    return Object.entries(assignedByDept)
-      .filter(([, assigned]) => assigned > 0)
-      .map(([name, assigned]) => {
+    // Union of the registered department list and any name appearing in the stats
+    const names = new Set<string>([
+      ...data.departments.map(d => d.name),
+      ...Object.keys(assignedByDept),
+    ]);
+    return Array.from(names)
+      .map(name => {
+        const assigned = assignedByDept[name] || 0;
         const served = servedByDept[name] || 0;
         const notServed = Math.max(0, assigned - served);
         return { name, assigned, served, notServed };
