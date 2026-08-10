@@ -4,7 +4,7 @@ import {
   FiUser,
   FiPhone,
 } from 'react-icons/fi';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import {
   COK,
@@ -151,7 +151,8 @@ export default function MayorFeedbackPage() {
     { name: 'Negative', value: stats.negative, color: COK.danger },
   ];
 
-  // Feedback volume per department for the donut (service feedback carries the department name)
+  // Total ratings per department for the bar chart — every department, largest first
+  // (service feedback carries the department name; axis labels truncate, tooltip keeps the full name)
   const feedbackPieData = useMemo(() => {
     const map: Record<string, number> = {};
     for (const i of items) {
@@ -159,7 +160,11 @@ export default function MayorFeedbackPage() {
       map[i.department_name] = (map[i.department_name] || 0) + 1;
     }
     return Object.entries(map)
-      .map(([name, value]) => ({ name, value }))
+      .map(([name, value]) => ({
+        name: name.length > 28 ? name.slice(0, 27) + '…' : name,
+        fullName: name,
+        value,
+      }))
       .sort((a, b) => b.value - a.value);
   }, [items]);
 
@@ -200,7 +205,7 @@ export default function MayorFeedbackPage() {
           title="Feedback Analysis"
         />
 
-        {/* Feedback by Department donut — replaces the old summary tiles */}
+        {/* Feedback by Department bar chart — replaces the old summary tiles */}
         <div className="bg-white p-4 relative" style={{ border: `1px solid ${COK.border}` }}>
           {loading && <CokLoadingOverlay />}
           <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: '0 0 16px 0' }}>
@@ -211,24 +216,23 @@ export default function MayorFeedbackPage() {
           ) : (
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  {/* Bigger circle + thicker ring inside the same card height */}
-                  <Pie
-                    data={feedbackPieData}
-                    cx="50%"
-                    cy="47%"
-                    innerRadius={68}
-                    outerRadius={108}
-                    paddingAngle={4}
-                    dataKey="value"
-                  >
+                <BarChart data={feedbackPieData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={200} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                  <Tooltip
+                    cursor={{ fill: COK.neutralLight }}
+                    contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
+                    formatter={(value: any) => [`${value} rating(s)`, 'Total']}
+                    labelFormatter={(_label: any, payload: any) => payload?.[0]?.payload?.fullName || _label}
+                  />
+                  <Bar dataKey="value" radius={[0, 0, 0, 0]}>
                     {feedbackPieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                      <Cell key={entry.fullName} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                     ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                </PieChart>
+                    {/* Count printed inside each bar */}
+                    <LabelList dataKey="value" position="center" style={{ fill: '#fff', fontWeight: 700, fontSize: 12 }} />
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             </div>
           )}
