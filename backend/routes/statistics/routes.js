@@ -331,4 +331,31 @@ Router.get('/employee-performance/service', statisticsController.getEmployeePerf
  */
 Router.get('/served', statisticsController.getServedStatistics);
 
+/**
+ * @swagger
+ * /statistics/visitors-timeline:
+ *   get:
+ *     summary: "Get visitor check-ins bucketed over a period"
+ *     description: "Counts service delivery check-ins grouped by hour, day, week, or month between from and to. Used by the mayor's service delivery timeline chart."
+ *     tags: [Statistics]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema: { type: string, format: date-time }
+ *       - in: query
+ *         name: to
+ *         schema: { type: string, format: date-time }
+ *       - in: query
+ *         name: granularity
+ *         schema: { type: string, enum: [hour, day, week, month] }
+ *     responses:
+ *       200:
+ *         description: Visitors timeline retrieved
+ *       500:
+ *         description: Internal server error
+ */
+Router.get('/visitors-timeline', statisticsController.getVisitorsTimeline);
+
 module.exports = Router;

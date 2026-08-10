@@ -19,10 +19,15 @@ export interface Visitor {
 }
 
 export const serviceDeliveryService = {
-  getAll: (page: number = 1, limit: number = 50, inHouse?: boolean) => {
-    let url = `/servicedelivery/visitor?page=${page}&limit=${limit}`
-    if (inHouse !== undefined) url += `&in_house=${inHouse}`
-    return get(url)
+  getAll: (page: number = 1, limit: number = 50, inHouse?: boolean, period?: string, from?: string, to?: string) => {
+    const params = new URLSearchParams();
+    params.append('page', String(page));
+    params.append('limit', String(limit));
+    if (inHouse !== undefined) params.append('in_house', String(inHouse));
+    if (period) params.append('period', period);
+    if (from) params.append('from', from);
+    if (to) params.append('to', to);
+    return get(`/servicedelivery/visitor?${params.toString()}`)
   },
   getAssignedVisitors: (page: number = 1, limit: number = 20, q?: string, inHouse?: boolean, history?: boolean) => {
     let url = `/servicedelivery/assigned-visitors?page=${page}&limit=${limit}`

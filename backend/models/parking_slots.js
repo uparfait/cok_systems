@@ -16,11 +16,11 @@ const parkingSlotSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
-    visitorsAvailableSlots: {
+    visitorsAvailableSlots: {    
         type: Number,
         required: true
     },
-    staffAvailableSlots: {
+    staffAvailableSlots: {  
         type: Number,
         required: true
     },
