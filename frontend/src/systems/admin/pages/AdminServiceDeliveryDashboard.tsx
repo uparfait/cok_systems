@@ -12,6 +12,7 @@ import { FiUsers, FiUserPlus, FiClock, FiCheckCircle, FiRefreshCw, FiSearch, FiD
 import { HiOutlineClipboardList } from 'react-icons/hi';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import EmployeeAccountStatusCard from './sub/EmployeeAccountStatusCard';
+import MayorVisitorsTimeline from './sub/MayorVisitorsTimeline';
 
 interface Visitor { _id: string; full_name?: string; name?: string; visitorName?: string; telephone?: string; phone?: string; badge_number?: string; departments_assigned?: Array<{ department_id: string; department_name: string; assigned_time: Date; reached_in: boolean; provider_name?: string; provider_id?: string }>; services_status?: Array<{ department_name: string; department_id: string; provider_name?: string; provider_id?: string; s_type: string }>; entry_date?: string; exist_date?: string; is_still_inhouse?: boolean; }
 interface HourlyData { hour: number; visitors_checked_in: number; }
@@ -73,8 +74,9 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
   }, [showError]);
 
   useEffect(() => { if (!authLoading && !isAuthenticated) navigate('/login'); }, [authLoading, isAuthenticated, navigate]);
-  useEffect(() => { if (isAuthenticated && !authLoading) fetchData(); }, [isAuthenticated, authLoading, fetchData]);
-  useEffect(() => { if (!socket || !isConnected) return; socket.on('visitor_checkedin', () => fetchData()); socket.on('visitor_checkedout', () => fetchData()); return () => { socket.off('visitor_checkedin'); socket.off('visitor_checkedout'); }; }, [socket, isConnected, fetchData]);
+  // The mayor's view is only the timeline chart — skip the admin dashboard data fetches for it
+  useEffect(() => { if (isAuthenticated && !authLoading && !isMayor) fetchData(); }, [isAuthenticated, authLoading, fetchData, isMayor]);
+  useEffect(() => { if (!socket || !isConnected || isMayor) return; socket.on('visitor_checkedin', () => fetchData()); socket.on('visitor_checkedout', () => fetchData()); return () => { socket.off('visitor_checkedin'); socket.off('visitor_checkedout'); }; }, [socket, isConnected, fetchData, isMayor]);
 
   const filteredVisitors = visitors.filter(v => { const n = v.full_name || v.name || v.visitorName || ''; const ms = !searchQuery || n.toLowerCase().includes(searchQuery.toLowerCase()) || (v.telephone || v.phone || '').toLowerCase().includes(searchQuery.toLowerCase()); const ms2 = statusFilter === 'all' || (statusFilter === 'inside' && v.is_still_inhouse) || (statusFilter === 'left' && !v.is_still_inhouse); return ms && ms2; });
   useEffect(() => setCurrentPage(1), [searchQuery, statusFilter]);
@@ -164,6 +166,15 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
   }, [showError]);
 
   if (authLoading) return <div className="flex items-center justify-center min-h-[600px]"><LoadingSpinner message="Loading..." /></div>;
+
+  // Mayor view: nothing but the filterable visitors timeline chart
+  if (isMayor) {
+    return (
+      <MainLayout>
+        <MayorVisitorsTimeline />
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>

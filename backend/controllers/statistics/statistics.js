@@ -1257,7 +1257,7 @@ const getServedStatistics = async (req, res) => {
 
         const [visitorsDocs, users] = await Promise.all([
             ServiceDelivery.find(dateQuery)
-                .select('full_name entry_date durations.services_durations services_status')
+                .select('full_name entry_date durations.services_durations services_status departments_assigned')
                 .lean(),
             User.find({}).select('full_name department department_name').populate('department', 'department_name').lean(),
         ]);
@@ -1266,8 +1266,10 @@ const getServedStatistics = async (req, res) => {
         const hourlyCounts = {};
         let lastCheckin = null;
 
-        // department -> served count; department -> provider -> count
+        // department -> served count (visitors who actually received a service)
         const servedByDept = {};
+        // department -> assigned count (visitors who were oriented/assigned to the dept)
+        const assignedByDept = {};
         const perDeptProvider = {};
         // provider key (id or name) -> { name, dept, count, visitors }
         const providerCounts = {};
@@ -1284,6 +1286,10 @@ const getServedStatistics = async (req, res) => {
             providerCounts[key].visitors.push({ visitor: visitorName, department });
         };
 
+        const addAssigned = (department, visitorName) => {
+            assignedByDept[department] = (assignedByDept[department] || 0) + 1;
+        };
+
         for (const v of visitorsDocs) {
             const visitorName = v.full_name || 'Unknown visitor';
             const entryInRange = noFilter || inRange(v.entry_date);
@@ -1295,6 +1301,15 @@ const getServedStatistics = async (req, res) => {
                     hourlyCounts[t.getHours()] = (hourlyCounts[t.getHours()] || 0) + 1;
                     if (!lastCheckin || t > lastCheckin) lastCheckin = t;
                 }
+            }
+
+            // Count visitors assigned to each department (from departments_assigned)
+            const assignments = v.departments_assigned || [];
+            for (const a of assignments) {
+                if (!a?.department_name) continue;
+                const effectiveDate = a.assigned_time || v.entry_date;
+                if (!noFilter && !inRange(effectiveDate)) continue;
+                addAssigned(a.department_name, visitorName);
             }
 
             const durations = v.durations?.services_durations || [];
@@ -1322,8 +1337,8 @@ const getServedStatistics = async (req, res) => {
             topEmpByDept[dept] = { name: topName, served: topCount };
         }
         const byDepartment = Object.entries(servedByDept)
-            .map(([name, served]) => ({ name, served, top_employee: topEmpByDept[name] || null }))
-            .sort((a, b) => b.served - a.served);
+            .map(([name, served]) => ({ name, served, assigned: assignedByDept[name] || 0, not_served: Math.max(0, (assignedByDept[name] || 0) - served), top_employee: topEmpByDept[name] || null }))
+            .sort((a, b) => b.assigned - a.assigned);
 
         // Every employee gets a row (0 when they served no one), then any provider
         // from the records who has no matching account is appended
@@ -1353,6 +1368,9 @@ const getServedStatistics = async (req, res) => {
                 hourly: Object.entries(hourlyCounts).map(([hour, count]) => ({ hour: Number(hour), count })).sort((a, b) => a.hour - b.hour),
                 last_checkin: lastCheckin ? lastCheckin.toISOString() : null,
                 by_department: byDepartment,
+                assigned_by_department: Object.entries(assignedByDept)
+                    .map(([name, assigned]) => ({ name, assigned }))
+                    .sort((a, b) => b.assigned - a.assigned),
                 by_employee: byEmployee,
             },
         });
@@ -1363,6 +1381,61 @@ const getServedStatistics = async (req, res) => {
             type: 'error',
             message: 'Something went wrong while fetching served statistics',
             error: error.message,
+        });
+    }
+};
+
+/**
+ * Visitor check-ins bucketed over a period for the mayor's timeline chart.
+ * Query: from, to (ISO dates), granularity: 'hour' | 'day' | 'week' | 'month'.
+ * Buckets use local server time; keys are '%Y-%m-%dT%H' / '%Y-%m-%d' / '%G-W%V' / '%Y-%m'.
+ */
+const getVisitorsTimeline = async (req, res) => {
+    try {
+        const { from, to, granularity = 'day' } = req.query;
+        const now = new Date();
+        const fromDate = from ? new Date(from) : new Date(now.getFullYear(), 0, 1);
+        const toDate = to ? new Date(to) : now;
+        if (isNaN(fromDate) || isNaN(toDate)) {
+            return res.status(400).json({ success: false, message: 'Invalid from/to date' });
+        }
+        const tzOffset = -now.getTimezoneOffset() * 60 * 1000;
+
+        const FORMATS = {
+            hour: '%Y-%m-%dT%H',
+            day: '%Y-%m-%d',
+            week: '%G-W%V',
+            month: '%Y-%m'
+        };
+        const format = FORMATS[granularity] || FORMATS.day;
+
+        const rows = await ServiceDelivery.aggregate([
+            { $match: { entry_date: { $gte: fromDate, $lte: toDate } } },
+            {
+                $group: {
+                    _id: { $dateToString: { format, date: { $add: ['$entry_date', tzOffset] } } },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                granularity: FORMATS[granularity] ? granularity : 'day',
+                from: fromDate,
+                to: toDate,
+                total: rows.reduce((s, r) => s + r.count, 0),
+                buckets: rows.map(r => ({ bucket: r._id, count: r.count }))
+            }
+        });
+    } catch (error) {
+        console.error('Error in getVisitorsTimeline:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Something went wrong while fetching the visitors timeline',
+            error: error.message
         });
     }
 };
@@ -1384,5 +1457,6 @@ module.exports = {
     getWaitingTimeAnalytics,
     getEmployeePerformanceByService,
     getEmployeePerformanceByTasksDone,
-    getServedStatistics
+    getServedStatistics,
+    getVisitorsTimeline
 };

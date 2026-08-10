@@ -6,7 +6,7 @@ import {
   FiChevronRight,
   FiClock,
 } from 'react-icons/fi';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { useDashboard } from '../../event-managment/pages/dashboard/hooks/useDashboard';
 import MayorEventDetailsOverlay from './sub/MayorEventDetailsOverlay';
@@ -127,57 +127,6 @@ function EventsFilterBar({
       >
         {loading ? 'Refreshing...' : 'Refresh'}
       </button>
-    </div>
-  );
-}
-
-// ==================== Summary Donut ====================
-// Replaces the four summary cards  same donut style as the mayor feedback-analysis page
-
-const SUMMARY_SLICES = [
-  { key: 'totalEventsHeld', label: 'Total Events Held', color: COK.primary },
-  { key: 'totalMeetingsHeld', label: 'Total Meetings Held', color: COK.success },
-  { key: 'totalEventsCanceled', label: 'Events Canceled', color: COK.danger },
-  { key: 'totalMeetingsCanceled', label: 'Meetings Canceled', color: COK.warning },
-];
-
-function EventsSummaryDonut({ summary, loading }: { summary: Record<string, number> | null; loading: boolean }) {
-  const all = SUMMARY_SLICES.map((s) => ({ name: s.label, value: summary ? summary[s.key] ?? 0 : 0, color: s.color }));
-  // Zero categories can't render as slices, but the legend still lists all four with their counts
-  const data = all.filter((s) => s.value > 0);
-  const legendPayload = all.map((s) => ({ id: s.name, value: `${s.name} (${s.value})`, type: 'square' as const, color: s.color }));
-
-  return (
-    <div className="bg-white p-4 relative" style={{ border: `1px solid ${COK.border}` }}>
-      {loading && <LoadingOverlay />}
-      <h3 style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 600, color: COK.neutralDark, margin: '0 0 16px 0' }}>
-        Events & Meetings Summary
-      </h3>
-      {data.length === 0 && !loading ? (
-        <p className="text-sm text-gray-500" style={{ fontFamily: COK.bodyFont }}>No events or meetings in this period.</p>
-      ) : (
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="47%"
-                innerRadius={68}
-                outerRadius={108}
-                paddingAngle={4}
-                dataKey="value"
-              >
-                {data.map((entry) => (
-                  <Cell key={entry.name} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }} />
-              {/*<Legend wrapperStyle={{ fontSize: 12 }} payload={legendPayload} />*/}
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      )}
     </div>
   );
 }
@@ -482,7 +431,6 @@ export default function MayorEventsPage() {
   const {
     dateRange,
     setDateRange,
-    summary,
     taskStatus,
     calendarEvents,
     loadingStats,
@@ -542,8 +490,6 @@ export default function MayorEventsPage() {
           onRefresh={handleRefresh}
           loading={loadingStats}
         />
-
-        <EventsSummaryDonut summary={summary} loading={loadingStats} />
 
         <EventsTaskStatusChart data={taskStatus} loading={loadingStats} />
 
