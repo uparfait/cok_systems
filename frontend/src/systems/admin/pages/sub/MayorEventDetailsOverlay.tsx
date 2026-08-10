@@ -15,7 +15,7 @@ import {
   FiPhone,
   FiBriefcase,
 } from 'react-icons/fi';
-import { COK, CokBadge, CokTh, CokTableEmpty } from '../mayorCok';
+import { COK, CokTh, CokTableEmpty } from '../mayorCok';
 
 // Employee-account design constants (same values as EmployeeDashboard / DepartmentQueueTab)
 const CARD_SHADOW = '0 8px 40px 0 rgba(0,0,0,0.08)';
@@ -66,10 +66,6 @@ const STATUS_BADGES: Record<string, { label: string; color: string }> = {
   past: { label: 'Completed', color: '#9E9E9E' },
 };
 
-function eventAccent(ev: MayorCalendarEvent): string {
-  return ev.eventMeetingType === 'meet' ? COK.primary : COK.success;
-}
-
 function formatTimeRange(startIso?: string, endIso?: string): string {
   if (!startIso || !endIso) return '';
   const fmt: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' };
@@ -83,38 +79,33 @@ function formatSubmittedAt(iso?: string): string {
     + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-// Detail card styled exactly like the employee dashboard stat cards:
-// white card with soft shadow, faded corner circle holding the icon,
-// small gray label, bold Montserrat value, and a colored underline bar
+// Detail card following the CoK design rules: white square card with soft shadow,
+// gray uppercase label, bold neutral-dark value, and a uniform primary-blue icon
+// in a tinted square at the top-right — no per-card accent colors
 function DetailCard({
   label,
   value,
   icon: Icon,
-  accent,
 }: {
   label: string;
   value: React.ReactNode;
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
-  accent: string;
 }) {
   return (
-    <div className="bg-white p-[18px_20px] relative overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
-      <div className="absolute top-0 right-0 w-16 h-16">
-        <div
-          className="absolute top-0 right-0 w-28 h-28 rounded-full opacity-20 -translate-x-6 -translate-y-8"
-          style={{ backgroundColor: accent }}
-        />
+    <div className="p-4" style={{ backgroundColor: '#FFFFFF', boxShadow: CARD_SHADOW, borderRadius: 0 }}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] uppercase" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: '#555555', margin: '0 0 4px 0' }}>
+            {label}
+          </p>
+          <div className="text-[15px] font-bold leading-snug" style={{ fontFamily: fontHeading, color: COK.neutralDark }}>
+            {value}
+          </div>
+        </div>
+        <div className="p-2 shrink-0" style={{ backgroundColor: 'rgba(5,109,170,0.08)', borderRadius: 0 }}>
+          <Icon className="w-4 h-4" style={{ color: COK.primary }} />
+        </div>
       </div>
-      <div className="flex justify-between items-start relative z-10">
-        <span className="text-[12px] uppercase" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: '#555555' }}>
-          {label}
-        </span>
-        <Icon className="w-4 h-4" style={{ color: accent }} />
-      </div>
-      <div className="mt-2 relative z-10 text-[15px] font-bold leading-snug" style={{ fontFamily: fontHeading, color: COK.neutralDark }}>
-        {value}
-      </div>
-      <div className="w-10 h-1.5 mt-2" style={{ backgroundColor: accent }} />
     </div>
   );
 }
@@ -173,7 +164,6 @@ export default function MayorEventDetailsOverlay({
 
   const sameDay = !!(start && end && new Date(start).toDateString() === new Date(end).toDateString());
   const organizer = event.eventOrganizer;
-  const accent = eventAccent(event);
   const organizerInitials = (organizer?.fullNames || '?')
     .split(' ')
     .map((w) => w[0])
@@ -205,33 +195,41 @@ export default function MayorEventDetailsOverlay({
         aria-modal="true"
         aria-label="Event details"
       >
-        {/* Header — white card bar with badges, title, and actions */}
+        {/* Header — solid CoK-blue bar with the meeting/event name, status chips, and actions */}
         <div
           className="flex items-start justify-between gap-3 p-5 sticky top-0 z-10"
-          style={{ backgroundColor: '#FFFFFF', borderBottom: `1px solid ${COK.border}` }}
+          style={{ backgroundColor: COK.primary }}
         >
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <CokBadge label={badge.label} color={badge.color} />
-              <CokBadge label={event.eventMeetingType === 'meet' ? 'Meeting' : 'Event'} color={accent} />
-              {event.eventType && <CokBadge label={event.eventType} color={COK.tertiary} />}
-            </div>
             <h3
-              className="mt-2 truncate"
-              style={{ fontFamily: fontHeading, fontSize: 20, fontWeight: 800, letterSpacing: '-0.3px', color: COK.primary, margin: '8px 0 0 0' }}
+              className="truncate"
+              style={{ fontFamily: fontHeading, fontSize: 20, fontWeight: 800, letterSpacing: '-0.3px', color: '#FFFFFF', margin: 0 }}
             >
-              {event.eventName}
+              {event.eventName || 'Untitled Event'}
             </h3>
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              {[
+                badge.label,
+                event.eventMeetingType === 'meet' ? 'Meeting' : 'Event',
+                ...(event.eventType ? [event.eventType] : []),
+              ].map((label) => (
+                <span
+                  key={label}
+                  className="px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide"
+                  style={{ fontFamily: fontHeading, backgroundColor: 'rgba(255,255,255,0.15)', color: '#FFFFFF' }}
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {canViewAttendance && (
               <button
                 type="button"
                 onClick={() => setShowAttendance((v) => !v)}
-                className="flex items-center gap-2 px-4 py-2.5 text-white text-xs font-semibold uppercase transition-colors"
-                style={{ backgroundColor: COK.primary, fontFamily: fontHeading, letterSpacing: '1px', borderRadius: 0, cursor: 'pointer' }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#045d94'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = COK.primary; }}
+                className="flex items-center gap-2 px-4 py-2.5 text-white text-xs font-semibold uppercase transition-colors hover:bg-[rgba(255,255,255,0.12)]"
+                style={{ backgroundColor: 'transparent', border: '1px solid #FFFFFF', fontFamily: fontHeading, letterSpacing: '1px', borderRadius: 0, cursor: 'pointer' }}
               >
                 <FiUsers className="w-4 h-4" />
                 {showAttendance ? 'Hide Attendance' : 'View Attendance'}
@@ -240,32 +238,35 @@ export default function MayorEventDetailsOverlay({
             <button
               onClick={onClose}
               aria-label="Close"
-              className="w-9 h-9 flex items-center justify-center hover:bg-gray-50 shrink-0"
-              style={{ border: `1px solid ${COK.border}`, borderRadius: 0 }}
+              className="w-9 h-9 flex items-center justify-center shrink-0 transition-colors hover:bg-[rgba(255,255,255,0.12)]"
+              style={{ border: '1px solid #FFFFFF', borderRadius: 0 }}
             >
-              <FiX className="w-4 h-4" style={{ color: COK.neutralDark }} />
+              <FiX className="w-4 h-4" style={{ color: '#FFFFFF' }} />
             </button>
           </div>
         </div>
 
         <div className="p-5 space-y-4">
-          {/* Detail cards — same look as the employee dashboard stat cards */}
+          {/* Detail cards — uniform CoK styling, primary icons only */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <DetailCard label="Type" value={event.eventMeetingType === 'meet' ? 'Meeting' : 'Event'} icon={FiTag} accent={accent} />
-            <DetailCard label="Mode" value={event.eventType || 'N/A'} icon={FiLayers} accent={COK.warning} />
-            <DetailCard label="Status" value={badge.label} icon={FiActivity} accent={badge.color} />
-            <DetailCard label="Room" value={event.eventRoom || 'N/A'} icon={FiMapPin} accent={COK.primary} />
-            <DetailCard label="Expected Audience" value={event.expectedAudience ?? 'N/A'} icon={FiUsers} accent={COK.success} />
-            <DetailCard label="Date & Time" value={timeValue} icon={FiClock} accent={COK.tertiary} />
+            <DetailCard label="Type" value={event.eventMeetingType === 'meet' ? 'Meeting' : 'Event'} icon={FiTag} />
+            <DetailCard label="Mode" value={event.eventType || 'N/A'} icon={FiLayers} />
+            <DetailCard label="Status" value={badge.label} icon={FiActivity} />
+            <DetailCard label="Room" value={event.eventRoom || 'N/A'} icon={FiMapPin} />
+            <DetailCard label="Expected Audience" value={event.expectedAudience ?? 'N/A'} icon={FiUsers} />
+            <DetailCard label="Date & Time" value={timeValue} icon={FiClock} />
           </div>
 
           {/* Organizer — white card with avatar circle, like the employee visitor rows */}
           <div className="bg-white p-5" style={{ boxShadow: CARD_SHADOW }}>
+            {/* Section header in the receptionist style: round tinted icon chip + small semibold title */}
             <div className="flex items-center gap-2 mb-3">
-              <FiUser className="w-4 h-4" style={{ color: COK.primary }} />
-              <span className="text-[12px] uppercase" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: '#555555' }}>
+              <div className="p-1.5" style={{ backgroundColor: 'rgba(5,109,170,0.08)', borderRadius: 999 }}>
+                <FiUser className="w-4 h-4" style={{ color: COK.primary }} />
+              </div>
+              <h3 className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: COK.neutralDark, margin: 0 }}>
                 Organizer
-              </span>
+              </h3>
             </div>
             {organizer?.fullNames ? (
               <div className="flex items-center gap-3 flex-wrap">
@@ -310,10 +311,12 @@ export default function MayorEventDetailsOverlay({
           {event.eventDescription && (
             <div className="bg-white p-5" style={{ boxShadow: CARD_SHADOW }}>
               <div className="flex items-center gap-2 mb-3">
-                <FiFileText className="w-4 h-4" style={{ color: COK.primary }} />
-                <span className="text-[12px] uppercase" style={{ fontFamily: fontHeading, fontWeight: 600, letterSpacing: '0.5px', color: '#555555' }}>
+                <div className="p-1.5" style={{ backgroundColor: 'rgba(5,109,170,0.08)', borderRadius: 999 }}>
+                  <FiFileText className="w-4 h-4" style={{ color: COK.primary }} />
+                </div>
+                <h3 className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: COK.neutralDark, margin: 0 }}>
                   Description
-                </span>
+                </h3>
               </div>
               <p className="text-sm leading-relaxed" style={{ fontFamily: COK.bodyFont, color: COK.neutralDark, margin: 0 }}>
                 {event.eventDescription}
