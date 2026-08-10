@@ -1,15 +1,66 @@
 const ServiceDelivery = require("../../models/service_delivery.js");
 const Department = require("../../models/department.js");
 
+const getPeriodBounds = (period, from, to) => {
+  const now = new Date();
+  const startOfDay = (d) => { const r = new Date(d); r.setHours(0, 0, 0, 0); return r; };
+  const endOfDay = (d) => { const r = new Date(d); r.setHours(23, 59, 59, 999); return r; };
+
+  if (period === 'today') {
+    return { start: startOfDay(now), end: endOfDay(now) };
+  }
+  if (period === 'week' || period === 'thisweek') {
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    return { start: monday, end: sunday };
+  }
+  if (period === 'lastweek' || period === 'last_week') {
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7) - 7);
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    return { start: monday, end: sunday };
+  }
+  if (period === 'month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+  if (period === 'last_month') {
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const end = new Date(now.getFullYear(), now.getMonth(), 0);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+  if (period === 'year') {
+    const start = new Date(now.getFullYear(), 0, 1);
+    const end = new Date(now.getFullYear(), 11, 31);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+  if (period === 'range' && from) {
+    const start = startOfDay(from);
+    const end = to ? endOfDay(to) : endOfDay(now);
+    return { start, end };
+  }
+  return null;
+};
+
 module.exports = async function list_visitors(req, res, next) {
     try {
-      let { in_house = true, limit = 20, page = 1 } = req.query || {};
+      let { in_house = true, limit = 20, page = 1, period, from, to } = req.query || {};
   
       let user_role_name = req.user?.role_name;
       let user_department_id = req.user?.department?._id?.toString() || null;
       let user_department_unit_id = req.user?.department_unit?.toString() || null;
-      //let filter_role_names = ['Employee', 'Head of department']
-  
+   
       const limit_val = Math.min(parseInt(limit), 1000);
       const skip_val = (parseInt(page) - 1) * limit_val;
   
@@ -18,6 +69,12 @@ module.exports = async function list_visitors(req, res, next) {
         filter.is_still_inhouse = true;
       if (in_house === "false" || in_house === false)
         filter.is_still_inhouse = false;
+  
+      // Date filtering via entry_date
+      const bounds = getPeriodBounds(period, from, to);
+      if (bounds) {
+        filter.entry_date = { $gte: bounds.start, $lte: bounds.end };
+      }
   
       // if user role is employee check  if has department unit and only fetch visitors of that department unit
       // if not has a department unit fetch the one in department

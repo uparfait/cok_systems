@@ -28,9 +28,6 @@ const unservicedfeedbackSchema = new Schema({
     }
 });
 
-/* Unique compound index to ensure one feedback per phone number per department
-unservicedfeedbackSchema.index({ telephone:
-
 const UnservicedFeedback = mongoose.model("unservicedfeedback_db", unservicedfeedbackSchema);
 
-module.exports = UnservicedFeedback;*/
+module.exports = UnservicedFeedback;
