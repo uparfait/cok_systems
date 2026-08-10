@@ -179,10 +179,10 @@ const PWAInstallPromptWrapper: React.FC = () => {
 // Main App Component
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <NotificationProvider>
-          <ToastProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <SocketProvider>
+          <NotificationProvider>
             <Router>
               <Routes>
                 <Route path="/" element={<Layout />}>
@@ -836,10 +836,10 @@ const App: React.FC = () => {
               </Routes>
               {/* <ChatWidget /> */}
             </Router>
-          </ToastProvider>
-        </NotificationProvider>
-      </SocketProvider>
-    </AuthProvider>
+          </NotificationProvider>
+        </SocketProvider>
+      </AuthProvider>
+    </ToastProvider>
   );
 };
 
