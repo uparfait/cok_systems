@@ -12,6 +12,25 @@ import autoTable from 'jspdf-autotable';
 
 interface Visitor { _id: string; full_name?: string; name?: string; visitorName?: string; telephone?: string; phone?: string; email?: string; identification?: { id_type?: string; number?: string }; badge_number?: string; department?: string; departmentName?: string; departments_assigned?: Array<{ department_id: string; department_name: string; assigned_time: Date; reached_in: boolean; provider_name: string; provider_id: string }>; purpose?: string; status?: string; checkInTime?: string; checkIn?: string; checkOutTime?: string; checkOut?: string; entry_date?: string; exist_date?: string; exit_date?: string; is_still_inhouse?: boolean; marked_as_out?: boolean; current_duration?: string; current_duration_hours?: number; services_status?: Array<{ s_type: string; status: string; notes?: string }>; }
 
+// City of Kigali (CoK) institutional design constants — same set as the reservations tables
+const PRIMARY = '#056daa';
+const PRIMARY_HOVER = '#045d94';
+const NEUTRAL_DARK = '#333333';
+const BORDER = '#E0E0E0';
+const WARNING = '#F39C12';
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = '0 8px 40px 0 rgba(0,0,0,0.08)';
+
+const initialsOf = (name: string) => (name || '?').split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
+
+// Status chips in the reservations style: bold uppercase on a soft tint
+const statusChipOf = (v: Visitor) =>
+  v.is_still_inhouse
+    ? (v.marked_as_out
+      ? { bg: 'rgba(243,156,18,0.12)', text: WARNING, label: 'Pending Exit' }
+      : { bg: 'rgba(76,175,80,0.12)', text: '#388E3C', label: 'Inside' })
+    : { bg: 'rgba(51,51,51,0.08)', text: '#555555', label: 'Checked Out' };
+
 const AdminCheckInCheckOut: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -33,7 +52,8 @@ const AdminCheckInCheckOut: React.FC = () => {
 
   const fetchVisitors = useCallback(async () => {
     setLoading(true);
-    try { const r = await serviceDeliveryService.getAll(1, 1000); const d = r?.data || []; const v = Array.isArray(d) ? d : []; setVisitors(v); setRealPendingExitCount(v.filter(x => x.is_still_inhouse && x.marked_as_out).length); }
+    // 'all' is required — without it the backend defaults to in-house only and the Checked Out tab stays empty
+    try { const r = await serviceDeliveryService.getAll(1, 1000, 'all'); const d = r?.data || []; const v = Array.isArray(d) ? d : []; setVisitors(v); setRealPendingExitCount(v.filter(x => x.is_still_inhouse && x.marked_as_out).length); }
     catch (error) { showError('Failed to load visitors'); }
     finally { setLoading(false); setFirstLoad(false); }
   }, [showError]);
@@ -51,10 +71,18 @@ const AdminCheckInCheckOut: React.FC = () => {
     let filtered = [...visitors];
     if (activeTab === 'inside') filtered = filtered.filter(v => (v.is_still_inhouse || v.status === 'Inside') && !v.marked_as_out);
     else if (activeTab === 'pending') filtered = filtered.filter(v => v.is_still_inhouse && v.marked_as_out);
-    else filtered = filtered.filter(v => !v.is_still_inhouse && v.status !== 'Inside' && !v.marked_as_out);
+    // Checked out = no longer in-house; marked_as_out may stay true after a full checkout, so it must not exclude here
+    else filtered = filtered.filter(v => !v.is_still_inhouse && v.status !== 'Inside');
     if (searchQuery) filtered = filtered.filter(v => (v.full_name || v.name || v.visitorName || '').toLowerCase().includes(searchQuery.toLowerCase()) || (v.telephone || v.phone || '').includes(searchQuery));
     setFilteredVisitors(filtered);
   }, [visitors, searchQuery, activeTab]);
+
+  // Pagination in the reservations-table style
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  useEffect(() => setCurrentPage(1), [searchQuery, activeTab]);
+  const totalPages = Math.ceil(filteredVisitors.length / itemsPerPage);
+  const paginatedVisitors = filteredVisitors.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const formatDuration = (v: Visitor) => v.current_duration || '-';
   const formatDate = (d: string | Date | undefined) => d ? new Date(d).toLocaleString() : '-';
@@ -75,7 +103,7 @@ const AdminCheckInCheckOut: React.FC = () => {
     doc.text(t, pw / 2, y, { align: 'center' }); doc.setDrawColor(34, 197, 94); doc.setLineWidth(0.8); doc.line((pw - doc.getTextWidth(t)) / 2 - 5, y + 2, (pw + doc.getTextWidth(t)) / 2 + 5, y + 2); y += 15;
     const insideVisitors = visitors.filter(v => (v.is_still_inhouse || v.status === 'Inside') && !v.marked_as_out);
     const pendingVisitors = visitors.filter(v => v.is_still_inhouse && v.marked_as_out);
-    const checkedOutVisitors = visitors.filter(v => !v.is_still_inhouse && v.status !== 'Inside' && !v.marked_as_out);
+    const checkedOutVisitors = visitors.filter(v => !v.is_still_inhouse && v.status !== 'Inside');
     const trunc = (t: string | undefined, m: number) => t ? (t.length > m ? t.substring(0, m) + '...' : t) : 'N/A';
     const fmt = (d: string | undefined) => d ? new Date(d).toLocaleString().substring(0, 16) : 'N/A';
     const addTable = (data: Visitor[], header: string[], color: [number, number, number]) => {
@@ -119,40 +147,100 @@ const AdminCheckInCheckOut: React.FC = () => {
           ))}
         </div>
 
-        <div className="bg-white border border-gray-200 max-h-[600px] flex flex-col">
-          <div className="border-b border-gray-100">
-            <nav className="flex -mb-px">
-              {[['inside', 'Currently Inside', realInsideCount, 'border-green-500 text-green-600'], ['pending', 'Pending Exit', realPendingExitCount, 'border-orange-500 text-orange-600'], ['left', 'Checked Out', realLeftCount, 'border-gray-500 text-gray-600']].map(([key, label, count, color]) => (
-                <button key={key} onClick={() => setActiveTab(key as any)} className={`py-3 px-4 text-xs font-medium border-b-2 ${activeTab === key ? color : 'border-transparent text-gray-500 hover:text-gray-700'}`}>{label} ({count})</button>
-              ))}
-            </nav>
+        <div className="bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
+          {/* View switch in the reservations style — CoK square uppercase buttons */}
+          <div className="px-6 pt-5 flex flex-wrap gap-3">
+            {([['inside', 'Currently Inside', realInsideCount], ['pending', 'Pending Exit', realPendingExitCount], ['left', 'Checked Out', realLeftCount]] as Array<[typeof activeTab, string, number]>).map(([key, label, count]) => (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className="px-4 py-2 text-xs font-semibold uppercase transition-colors"
+                style={{ fontFamily: fontHeading, letterSpacing: '1px', borderRadius: 0, border: `1px solid ${PRIMARY}`, backgroundColor: activeTab === key ? PRIMARY : 'transparent', color: activeTab === key ? '#fff' : PRIMARY }}
+              >
+                {label} ({count})
+              </button>
+            ))}
           </div>
-          <div className="p-3 border-b border-gray-100">
-            <div className="flex items-center justify-between gap-3">
-              <div className="relative max-w-md flex-1"><FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" /><input type="text" placeholder="Search by name, phone..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleSearch()} className="w-full pl-8 pr-3 py-1.5 border border-gray-300 text-sm" /></div>
-              <button onClick={handleSearch} className="px-3 py-1.5 bg-green-600 text-white text-sm font-medium hover:bg-green-700">Search</button>
+          {/* Search bar in the reservations-table style: full-width input with an attached solid Search button */}
+          <div className="px-6 pt-4 pb-3 flex items-center gap-3">
+            <div className="relative flex-1">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search by name, phone..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleSearch(); }}
+                className="w-full h-11 pl-10 pr-4 text-sm focus:outline-none"
+                style={{ fontFamily: fontHeading, backgroundColor: '#fff', border: `1px solid ${BORDER}`, borderRadius: 0 }}
+                onFocus={(e) => { e.currentTarget.style.border = `1px solid ${PRIMARY}`; }}
+                onBlur={(e) => { e.currentTarget.style.border = `1px solid ${BORDER}`; }}
+              />
             </div>
+            <button
+              onClick={handleSearch}
+              className="h-11 px-6 text-white text-[13px] font-semibold uppercase transition-colors flex-shrink-0"
+              style={{ fontFamily: fontHeading, backgroundColor: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+            >
+              Search
+            </button>
           </div>
-          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
-            <table className="w-full">
-              <thead className="bg-blue-600 sticky top-0 z-10 shadow-sm"><tr>{['Visitor Name', 'ID Number', 'Badge', 'Entry Time', 'Exit Time', 'Duration', 'Department', 'Status'].map(h => <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-white/95 uppercase">{h}</th>)}</tr></thead>
-              <tbody className="divide-y divide-gray-50">
-                {(loading && firstLoad) ? <tr><td colSpan={8} className="px-3 py-6 text-center"><div className="h-6 w-6 mx-auto"> <FiLoader className='animate-spin h-6 w-6 text-blue-600'/> </div></td></tr>
-                  : filteredVisitors.length > 0 ? filteredVisitors.map((v, i) => (
-                      <tr key={v._id || i} className="hover:bg-gray-50">
-                        <td className="px-3 py-2.5"><div className="flex items-center"><div className="w-7 h-7 bg-green-100 flex items-center justify-center mr-2"><span className="text-green-600 font-medium text-xs">{(v.full_name || v.name || v.visitorName || 'V').charAt(0).toUpperCase()}</span></div><span className="text-sm font-medium text-gray-900">{v.full_name || v.name || v.visitorName || 'N/A'}</span></div></td>
-                        <td className="px-3 py-2.5 text-xs text-gray-600">{v.identification?.number || '-'}</td>
-                        <td className="px-3 py-2.5 text-xs text-gray-600">{v.badge_number || '-'}</td>
-                        <td className="px-3 py-2.5 text-xs text-gray-600">{formatDate(v.entry_date)}</td>
-                        <td className="px-3 py-2.5 text-xs text-gray-600">{formatDate(v.exist_date)}</td>
-                        <td className="px-3 py-2.5 text-xs text-gray-600">{formatDuration(v)}</td>
-                        <td className="px-3 py-2.5 text-xs text-gray-600">{getDepartmentName(v)}</td>
-                        <td className="px-3 py-2.5"><span className={`text-xs px-2 py-0.5 font-medium ${v.is_still_inhouse ? (v.marked_as_out ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800') : 'bg-gray-100 text-gray-800'}`}>{v.is_still_inhouse ? (v.marked_as_out ? 'Pending Exit' : 'Inside') : 'Checked Out'}</span></td>
-                      </tr>
-                    )) : <tr><td colSpan={8} className="px-3 py-6 text-center text-xs text-gray-500">No visitors found</td></tr>}
+          <div className="overflow-x-auto px-6">
+            <table className="w-full min-w-[900px]">
+              {/* Solid CoK-blue header bar — same as the reservations tables */}
+              <thead className="cok-bg-primary sticky top-0 z-10 shadow-sm">
+                <tr>
+                  {['Visitor Name', 'ID Number', 'Badge', 'Entry Time', 'Exit Time', 'Duration', 'Department', 'Status'].map(h => (
+                    <th key={h} className="text-left py-3 px-3 text-xs uppercase tracking-wider font-semibold text-white" style={{ fontFamily: fontHeading, letterSpacing: '0.5px' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(loading && firstLoad) ? (
+                  <tr><td colSpan={8} className="py-10 text-center"><FiLoader className="animate-spin h-6 w-6 mx-auto" style={{ color: PRIMARY }} /></td></tr>
+                ) : paginatedVisitors.length > 0 ? paginatedVisitors.map((v, i) => {
+                  const chip = statusChipOf(v);
+                  const name = v.full_name || v.name || v.visitorName || 'N/A';
+                  return (
+                    <tr key={v._id || i} className="h-14" style={{ borderBottom: `1px solid ${BORDER}` }}>
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0" style={{ backgroundColor: PRIMARY, fontFamily: fontHeading }}>
+                            {initialsOf(name)}
+                          </div>
+                          <span className="text-[#333] text-[13px] font-medium">{name}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-3 text-[#555555] text-[13px] font-mono">{v.identification?.number || '—'}</td>
+                      <td className="py-3 px-3 text-[#333] text-[13px] font-mono font-semibold">{v.badge_number || '—'}</td>
+                      <td className="py-3 px-3 text-[#555555] text-[13px] whitespace-nowrap">{formatDate(v.entry_date)}</td>
+                      <td className="py-3 px-3 text-[#555555] text-[13px] whitespace-nowrap">{formatDate(v.exist_date)}</td>
+                      <td className="py-3 px-3 text-[#555555] text-[13px]">{formatDuration(v)}</td>
+                      <td className="py-3 px-3 text-[#555555] text-[13px]">{getDepartmentName(v)}</td>
+                      <td className="py-3 px-3">
+                        <span className="inline-flex items-center px-3 py-1 text-[12px] font-bold uppercase tracking-wide whitespace-nowrap" style={{ backgroundColor: chip.bg, color: chip.text }}>
+                          {chip.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                }) : <tr><td colSpan={8} className="py-10 text-center text-[13px] text-[#9E9E9E]">No visitors found</td></tr>}
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="px-6 py-3 flex items-center justify-between" style={{ borderTop: `1px solid ${BORDER}` }}>
+              <span className="text-[12px] text-[#555555]" style={{ fontFamily: fontHeading }}>
+                Page {currentPage} of {totalPages} · {filteredVisitors.length} visitors
+              </span>
+              <div className="flex gap-2">
+                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1} className="px-3 py-1.5 text-[12px] font-semibold uppercase disabled:opacity-40 hover:bg-[rgba(5,109,170,0.08)]" style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>Prev</button>
+                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} className="px-3 py-1.5 text-[12px] font-semibold uppercase disabled:opacity-40 hover:bg-[rgba(5,109,170,0.08)]" style={{ fontFamily: fontHeading, border: `1px solid ${PRIMARY}`, color: PRIMARY, letterSpacing: '1px', borderRadius: 0 }}>Next</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>

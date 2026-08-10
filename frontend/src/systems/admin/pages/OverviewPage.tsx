@@ -335,80 +335,7 @@ const ParkingOccupancyDonut: React.FC<{ occupied: number; totalSlots: number; on
   );
 };
 
-// 3D-style exploded pie (SVG) — separated slices with extruded depth, % labels on slices, callout lines to names
-const StatusPie3D: React.FC<{ slices: Array<{ label: string; value: number; color: string }> }> = ({ slices }) => {
-  const data = slices.filter(s => s.value > 0);
-  const total = data.reduce((sum, d) => sum + d.value, 0);
-  if (!total) return <div className="h-40 flex items-center justify-center text-xs text-gray-400">No employee accounts yet</div>;
-
-  // Geometry: squashed ellipse pie with per-slice explode offset and a darker extruded side wall
-  const cx = 280, cy = 112, rx = 104, squash = 0.55, ry = rx * squash, depth = 24, explode = 13;
-  const shade = (hex: string, f: number) => {
-    const n = parseInt(hex.replace('#', ''), 16);
-    return `rgb(${Math.round(((n >> 16) & 255) * f)},${Math.round(((n >> 8) & 255) * f)},${Math.round((n & 255) * f)})`;
-  };
-
-  let angle = -Math.PI / 2;
-  const parts = data.map(d => {
-    const sweep = (d.value / total) * Math.PI * 2;
-    const p = { ...d, a0: angle, a1: angle + sweep, mid: angle + sweep / 2 };
-    angle += sweep;
-    return p;
-  });
-
-  const off = (p: { mid: number }) => ({ ox: Math.cos(p.mid) * explode, oy: Math.sin(p.mid) * explode * squash });
-  const pt = (ang: number, ox: number, oy: number) => ({ x: cx + ox + rx * Math.cos(ang), y: cy + oy + ry * Math.sin(ang) });
-
-  const topPath = (p: typeof parts[0]) => {
-    const { ox, oy } = off(p);
-    const s = pt(p.a0, ox, oy), e = pt(p.a1, ox, oy);
-    const large = p.a1 - p.a0 > Math.PI ? 1 : 0;
-    return `M ${cx + ox} ${cy + oy} L ${s.x} ${s.y} A ${rx} ${ry} 0 ${large} 1 ${e.x} ${e.y} Z`;
-  };
-
-  // Side wall only for the front-facing rim (angles between 0 and PI in screen space)
-  const wallPath = (p: typeof parts[0]) => {
-    const lo = Math.max(p.a0, 0), hi = Math.min(p.a1, Math.PI);
-    if (lo >= hi) return null;
-    const { ox, oy } = off(p);
-    const s = pt(lo, ox, oy), e = pt(hi, ox, oy);
-    const large = hi - lo > Math.PI ? 1 : 0;
-    return `M ${s.x} ${s.y} A ${rx} ${ry} 0 ${large} 1 ${e.x} ${e.y} L ${e.x} ${e.y + depth} A ${rx} ${ry} 0 ${large} 0 ${s.x} ${s.y + depth} Z`;
-  };
-
-  return (
-    <svg viewBox="0 0 560 235" className="w-full" style={{ maxWidth: 640, margin: '0 auto', display: 'block' }}>
-      {parts.map(p => { const w = wallPath(p); return w ? <path key={`w${p.label}`} d={w} fill={shade(p.color, 0.72)} /> : null; })}
-      {parts.map(p => <path key={`t${p.label}`} d={topPath(p)} fill={p.color} />)}
-      {parts.map(p => {
-        const { ox, oy } = off(p);
-        const lx = cx + ox + rx * 0.58 * Math.cos(p.mid);
-        const ly = cy + oy + ry * 0.58 * Math.sin(p.mid);
-        const pct = Math.round((p.value / total) * 100);
-        return (
-          <text key={`p${p.label}`} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fontSize="19" fontWeight="800" fill="#fff" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}>
-            {pct}%
-          </text>
-        );
-      })}
-      {parts.map(p => {
-        const right = Math.cos(p.mid) >= 0;
-        const sx = cx + Math.cos(p.mid) * (rx + explode + 2);
-        const sy = cy + Math.sin(p.mid) * (ry + explode * squash + 2) + (Math.sin(p.mid) > 0 ? depth : 0);
-        const ex = cx + (right ? 1 : -1) * (rx + 46);
-        const ey = sy + (Math.sin(p.mid) > 0 ? 14 : -14);
-        return (
-          <g key={`c${p.label}`}>
-            <polyline points={`${sx},${sy} ${ex},${ey} ${ex + (right ? 22 : -22)},${ey}`} fill="none" stroke="#9ca3af" strokeWidth="1" />
-            <text x={ex + (right ? 26 : -26)} y={ey} textAnchor={right ? 'start' : 'end'} dominantBaseline="middle" fontSize="11" fontWeight="600" fill="#374151">
-              {p.label} ({p.value})
-            </text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-};
+// StatusPie3D moved to sub/EmployeeAccountStatusCard.tsx along with the employee account status card
 
 // Mirrored departments-vs-staff chart: amber bars (staff assigned) grow left
 // from the center divider, teal/red stacked bars (served vs not served) grow
@@ -604,7 +531,6 @@ const Overview: React.FC = () => {
   // Served aggregates come pre-computed from /statistics/served (same pattern as
   // the receptionist dashboard); the employee list loads only when its modal opens
   const [servedStats, setServedStats] = useState<ServedStats | null>(null);
-  const [employees, setEmployees] = useState<any[]>([]);
   const [period, setPeriod] = useState<'today' | 'week' | 'lastweek' | 'month' | 'lastmonth' | 'all' | 'range'>('month');
   const [rangeFrom, setRangeFrom] = useState('');
   const [rangeTo, setRangeTo] = useState('');
@@ -828,22 +754,6 @@ const Overview: React.FC = () => {
     setDraftRatingPeriod('all'); setDraftRatingRangeFrom(''); setDraftRatingRangeTo('');
   };
 
-  // Filter inside the employee account status modal; statuses use the same
-  // fields as the stats endpoint: is_active and access_control.is_locked
-  const [empStatusFilter, setEmpStatusFilter] = useState<'all' | 'active' | 'inactive' | 'locked' | 'online' | 'offline'>('all');
-  const empStatusFiltered = useMemo(
-    () =>
-      employees.filter((e: any) =>
-        empStatusFilter === 'all' ? true
-        : empStatusFilter === 'locked' ? !!e.access_control?.is_locked
-        : empStatusFilter === 'active' ? !!e.is_account_activated
-        : empStatusFilter === 'online' ? !!e.is_active
-        : empStatusFilter === 'offline' ? !e.is_active
-        : !e.is_account_activated
-      ),
-    [employees, empStatusFilter]
-  );
-
   // Average rating per department (out of 10) with feedback counts, best first —
   // mirrors the departmentData memo on the feedback-analysis page
   const deptRatings = useMemo(() => {
@@ -983,25 +893,6 @@ const Overview: React.FC = () => {
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
 
-  // The employee list is only needed by the status modal's table — fetched
-  // 50 per page (receptionist pattern) whenever that modal is open
-  const EMP_STATUS_PAGE_SIZE = 50;
-  const [empStatusPage, setEmpStatusPage] = useState(1);
-  const [empStatusTotal, setEmpStatusTotal] = useState(0);
-  useEffect(() => {
-    if (selectedCard !== 'employee-status') return;
-    let ignore = false;
-    (async () => {
-      try {
-        const res: any = await employeeService.getAll(empStatusPage, EMP_STATUS_PAGE_SIZE);
-        if (!ignore && (res?.status || res?.success)) {
-          setEmployees(Array.isArray(res.data) ? res.data : []);
-          setEmpStatusTotal(res.total || 0);
-        }
-      } catch { /* the modal shows its empty state */ }
-    })();
-    return () => { ignore = true; };
-  }, [selectedCard, empStatusPage]);
   const [showAllDepartments, setShowAllDepartments] = useState(false);
   const [departmentPage, setDepartmentPage] = useState(1);
   const departmentLimit = 5;
@@ -2122,39 +2013,8 @@ useEffect(() => {
               
             </div>
             
-            {/* CHART 9 · "Employee account status" — size: h-32 div + canvas classes; colors in createCharts (search: CHART 9 config) */}
-            <div className="grid grid-cols-1 gap-2.5">
-              <div
-                onClick={() => { setEmpStatusFilter('all'); setEmpStatusPage(1); setSelectedCard('employee-status'); }}
-                className="bg-white border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <div className="text-sm font-semibold text-gray-900">Employee account status</div>
-                    <div className="text-xs text-gray-500">Activation, lock and online state</div>
-                  </div>
-                  <span className="text-xs text-gray-400">Click to view employees</span>
-                </div>
-                <div className="flex flex-wrap gap-2 text-xs mb-3">
-                  <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-600"></div>Activated {data.employeeStats.active}</div>
-                  <div className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500"></div>Not activated {data.employeeStats.inactive}</div>
-                  <div className="flex items-center gap-1"><div className="w-2 h-2 bg-red-600"></div>Locked {data.employeeStats.locked}</div>
-                  <div className="flex items-center gap-1"><div className="w-2 h-2 bg-green-600"></div>Online {data.employeeStats.online}</div>
-                  <div className="flex items-center gap-1"><div className="w-2 h-2 bg-gray-400"></div>Offline {data.employeeStats.offline}</div>
-                </div>
-                {/* 3D exploded pie — size: maxWidth in StatusPie3D's svg style; colors: the CC values passed below */}
-                <StatusPie3D
-                  slices={[
-                    { label: 'Activated', value: data.employeeStats.active, color: CC.blue },
-                    { label: 'Not activated', value: data.employeeStats.inactive, color: CC.amber },
-                    { label: 'Locked', value: data.employeeStats.locked, color: CC.red },
-                    { label: 'Online', value: data.employeeStats.online, color: CC.teal },
-                    { label: 'Offline', value: data.employeeStats.offline, color: '#9E9E9E' },
-                  ]}
-                />
-              </div>
-            </div>
-        
+        {/* "Employee account status" moved to the admin Service Delivery dashboard;
+            "Feedback by Department" lives on the mayor feedback-analysis page */}
 
       </div>
       
@@ -2183,7 +2043,6 @@ useEffect(() => {
                 {selectedCard === 'rating-analysis' && 'Ratings & Sentiment Analysis'}
                 {selectedCard === 'dept-served' && 'Departments & People Served'}
                 {selectedCard === 'employee-served' && 'Employees & Who They Served'}
-                {selectedCard === 'employee-status' && 'Employee Account Status'}
               </h3>
               <button
                 onClick={handleModalClose}
@@ -2451,120 +2310,6 @@ useEffect(() => {
                         </div>
                       </div>
                     </>
-                  )}
-                </div>
-              )}
-
-              {selectedCard === 'employee-status' && (
-                <div className="space-y-4">
-                  {/* Status filter chips with live counts from the real employee list */}
-                  <div className="flex flex-wrap gap-2">
-                    {([
-                      // Counts come from the backend stats endpoint, same source as the pie
-                      { key: 'all', label: 'All', count: data?.employeeStats.total ?? employees.length, chip: 'bg-gray-100 text-gray-700 border-gray-300' },
-                      { key: 'active', label: 'Activated', count: data?.employeeStats.active ?? 0, chip: 'bg-green-100 text-green-800 border-green-300' },
-                      { key: 'inactive', label: 'Not activated', count: data?.employeeStats.inactive ?? 0, chip: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-                      { key: 'locked', label: 'Locked', count: data?.employeeStats.locked ?? 0, chip: 'bg-red-100 text-red-800 border-red-300' },
-                      { key: 'online', label: 'Online', count: data?.employeeStats.online ?? 0, chip: 'bg-teal-100 text-teal-800 border-teal-300' },
-                      { key: 'offline', label: 'Offline', count: data?.employeeStats.offline ?? 0, chip: 'bg-gray-200 text-gray-600 border-gray-400' },
-                    ] as const).map(f => (
-                      <button
-                        key={f.key}
-                        onClick={() => setEmpStatusFilter(f.key)}
-                        className={`px-3 py-1.5 text-xs font-semibold border transition-colors ${f.chip} ${empStatusFilter === f.key ? 'ring-2 ring-blue-400' : 'opacity-80 hover:opacity-100'}`}
-                      >
-                        {f.label} ({f.count})
-                      </button>
-                    ))}
-                  </div>
-                  {/* Same table design rules as the event-manager events table:
-                      bordered container, CoK-blue uppercase header, zebra rows, bordered cells */}
-                  {empStatusFiltered.length === 0 ? (
-                    <div className="border-2 border-gray-300 px-4 py-16 text-center bg-white">
-                      <span className="text-sm font-medium text-gray-400 uppercase tracking-wide">No employees in this status</span>
-                    </div>
-                  ) : (
-                    <div className="overflow-auto max-h-80 border-2 border-gray-300">
-                      <table className="w-full border-collapse table-auto min-w-[560px]">
-                        <thead className="sticky top-0 z-10">
-                          <tr>
-                            {['Name', 'Email', 'Department', 'Status'].map(label => (
-                              <th
-                                key={label}
-                                className="cok-primary-bg text-white px-4 py-3.5 text-left text-xs font-bold uppercase tracking-widest whitespace-nowrap"
-                              >
-                                {label}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {empStatusFiltered.map((e: any, idx: number) => {
-                            const locked = !!e.access_control?.is_locked;
-                            const isLast = idx === empStatusFiltered.length - 1;
-                            const cell = (colIdx: number) =>
-                              `px-4 py-3 ${colIdx === 0 ? '' : 'border-l border-gray-200'} ${isLast ? '' : 'border-b border-gray-200'}`;
-                            return (
-                              <tr
-                                key={idx}
-                                className={`transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50/50 hover:bg-blue-50'}`}
-                              >
-                                <td className={`${cell(0)} whitespace-nowrap`}>
-                                  <span className="font-bold text-gray-900 text-sm">{e.full_name || '—'}</span>
-                                </td>
-                                <td className={`${cell(1)} break-all`}>
-                                  <span className="text-sm text-gray-700">{e.email || '—'}</span>
-                                </td>
-                                <td className={cell(2)}>
-                                  <span className="text-sm text-gray-700 font-medium">{e.department?.department_name || e.department?.name || e.department_name || '—'}</span>
-                                </td>
-                                <td className={cell(3)}>
-                                  <div className="flex flex-wrap gap-1">
-                                    <span className={`inline-block border px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide ${e.is_account_activated ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-50 text-amber-800 border-amber-300'}`}>
-                                      {e.is_account_activated ? 'Activated' : 'Not activated'}
-                                    </span>
-                                    {locked && (
-                                      <span className="inline-block border px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide bg-red-100 text-red-800 border-red-300">
-                                        Locked
-                                      </span>
-                                    )}
-                                    <span className={`inline-block border px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide ${e.is_active ? 'bg-teal-100 text-teal-800 border-teal-300' : 'bg-gray-200 text-gray-600 border-gray-400'}`}>
-                                      {e.is_active ? 'Active' : 'Offline'}
-                                    </span>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                  {/* Server-side pagination, 50 employees per page */}
-                  {empStatusTotal > EMP_STATUS_PAGE_SIZE && (
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-600">
-                      <span>
-                        Page <span className="font-semibold">{empStatusPage}</span> of{' '}
-                        <span className="font-semibold">{Math.max(1, Math.ceil(empStatusTotal / EMP_STATUS_PAGE_SIZE))}</span>
-                        {' '}· {empStatusTotal} employees
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => setEmpStatusPage(p => Math.max(1, p - 1))}
-                          disabled={empStatusPage <= 1}
-                          className="px-3 py-1.5 border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          Previous
-                        </button>
-                        <button
-                          onClick={() => setEmpStatusPage(p => p + 1)}
-                          disabled={empStatusPage >= Math.ceil(empStatusTotal / EMP_STATUS_PAGE_SIZE)}
-                          className="px-3 py-1.5 border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          Next
-                        </button>
-                      </div>
-                    </div>
                   )}
                 </div>
               )}

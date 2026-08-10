@@ -584,6 +584,7 @@ export const reservationService = {
   getBatches: () => get('/smartparking/reservation-batches'),
   cancelBatch: (id: string, type: 'visitor' | 'staff') => put('/smartparking/reservation-batches/cancel', { id, type }),
   rescheduleBatch: (id: string, type: 'visitor' | 'staff', start_date: string, end_date: string) => put('/smartparking/reservation-batches/reschedule', { id, type, start_date, end_date }),
+  deleteBatch: (id: string, type: 'visitor' | 'staff') => post('/smartparking/reservation-batches/delete', { id, type }),
 };
 
 export const serviceDeliveryServiceWithVisitors = { ...serviceDeliveryService, getAllVisitors: serviceDeliveryService.getAll };
