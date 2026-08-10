@@ -1571,7 +1571,7 @@ useEffect(() => {
             Apply
           </button>
         </div>
-    <button
+    <button 
   onClick={() => fetchData()}
   className="ml-auto cursor-pointer text-xl h-[30px] max-h-[30px] px-3 py-1 text-white flex items-center gap-1"
   style={{ backgroundColor: '#056daa' }}
