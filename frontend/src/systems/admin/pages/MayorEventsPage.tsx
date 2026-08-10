@@ -132,7 +132,7 @@ function EventsFilterBar({
 }
 
 // ==================== Summary Donut ====================
-// Replaces the four summary cards — same donut style as the mayor feedback-analysis page
+// Replaces the four summary cards  same donut style as the mayor feedback-analysis page
 
 const SUMMARY_SLICES = [
   { key: 'totalEventsHeld', label: 'Total Events Held', color: COK.primary },
