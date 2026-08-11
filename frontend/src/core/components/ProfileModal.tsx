@@ -6,12 +6,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   FiUser, FiMail, FiPhone, FiCalendar, FiShield,   FiLock, FiEye, FiEyeOff,
-  FiX, FiBriefcase
+  FiX, FiBriefcase, FiBell
 } from "react-icons/fi";
 import { HiOutlineOfficeBuilding } from "react-icons/hi";
 import { useAuth } from "../../core/contexts/AuthContext";
 import { useToast } from "../../core/contexts/ToastContext";
 import { getUserProfile, changePassword } from "../../core/services/authService";
+import { getSubscriptionStatus, subscribeToPush, unsubscribeFromPush } from "../../core/services/webPushService";
 
 const PRIMARY = "#056daa";
 const NEUTRAL_LIGHT = "#F7F9FB";
@@ -59,7 +60,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const { showSuccess, showError } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'notifications'>('profile');
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordData, setPasswordData] = useState<PasswordFormData>({
@@ -75,6 +76,9 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [profileData, setProfileData] = useState<UserProfile | null>(null);
   const [fetching, setFetching] = useState(false);
+  const [notificationSubscribed, setNotificationSubscribed] = useState(false);
+  const [notificationLoading, setNotificationLoading] = useState(false);
+  const [notificationChecking, setNotificationChecking] = useState(false);
 
   // Role display name mapping
   const roleNames: { [key: string]: string } = {
@@ -148,8 +152,54 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (isOpen) {
       fetchProfile();
+      checkNotificationStatus();
     }
   }, [isOpen, fetchProfile]);
+
+  const checkNotificationStatus = useCallback(async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setNotificationSubscribed(false);
+      return;
+    }
+    setNotificationChecking(true);
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const sub = await registration.pushManager.getSubscription();
+      setNotificationSubscribed(!!sub);
+    } catch (err) {
+      console.error('Error checking notification status:', err);
+      setNotificationSubscribed(false);
+    } finally {
+      setNotificationChecking(false);
+    }
+  }, []);
+
+  const handleToggleNotifications = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      showError('Push notifications are not supported in this browser');
+      return;
+    }
+
+    setNotificationLoading(true);
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const sub = await registration.pushManager.getSubscription();
+
+      if (sub) {
+        await unsubscribeFromPush(sub);
+        setNotificationSubscribed(false);
+        showSuccess('Notifications disabled');
+      } else {
+        await subscribeToPush(registration);
+        setNotificationSubscribed(true);
+        showSuccess('Notifications enabled');
+      }
+    } catch (err: any) {
+      showError(err?.message || 'Failed to update notification settings');
+    } finally {
+      setNotificationLoading(false);
+    }
+  };
 
   const validatePassword = (password: string): string[] => {
     const errors: string[] = [];
@@ -252,18 +302,30 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
               <FiUser className="w-5 h-5" />
               Profile
             </button>
-            <button
-              onClick={() => { setActiveTab('security'); setShowPasswordForm(false); }}
-              className={`flex cursor-pointer items-center justify-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
-                activeTab === 'security'
-                  ? 'text-[#056daa] border-b-2 border-[#056daa] bg-blue-50'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-              style={{ fontFamily: fontHeading }}
-            >
-              <FiShield className="w-5 h-5" />
-              Security
-            </button>
+             <button
+               onClick={() => { setActiveTab('security'); setShowPasswordForm(false); }}
+               className={`flex cursor-pointer items-center justify-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
+                 activeTab === 'security'
+                   ? 'text-[#056daa] border-b-2 border-[#056daa] bg-blue-50'
+                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+               }`}
+               style={{ fontFamily: fontHeading }}
+             >
+               <FiShield className="w-5 h-5" />
+               Security
+             </button>
+             <button
+               onClick={() => { setActiveTab('notifications'); }}
+               className={`flex cursor-pointer items-center justify-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
+                 activeTab === 'notifications'
+                   ? 'text-[#056daa] border-b-2 border-[#056daa] bg-blue-50'
+                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+               }`}
+               style={{ fontFamily: fontHeading }}
+             >
+               <FiBell className="w-5 h-5" />
+               Notifications
+             </button>
           </nav>
         </div>
 
@@ -528,13 +590,75 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                           </button>
                         </div>
                       </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+                     )}
+                     </div>
+ 
+                   </div>
+                 )}
+ 
+                 {/* Notifications Tab */}
+                 {activeTab === 'notifications' && (
+                   <div className="space-y-4">
+                     <h3 className="text-lg font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Notification Settings</h3>
+ 
+                     <div className="border" style={{ borderColor: BORDER, backgroundColor: 'rgba(5,109,170,0.02)', borderRadius: 0 }}>
+                       <div className="px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center">
+                         <div className="flex items-center gap-3">
+                           <div className="p-2" style={{ backgroundColor: 'rgba(5,109,170,0.12)' }}>
+                             <FiBell className="w-5 h-5" style={{ color: PRIMARY }} />
+                           </div>
+                           <div>
+                             <p className="font-medium" style={{ color: NEUTRAL_DARK }}>Notifications</p>
+                             <p className="text-xs" style={{ color: GRAY_DISABLED }}>
+                               {notificationSubscribed ? 'Receive notifications from IKAZE' : 'Enable notifications to stay updated'}
+                             </p>
+                           </div>
+                         </div>
+                         <div className="flex items-center gap-3">
+                           <span className="text-xs font-semibold uppercase" style={{ color: PRIMARY, fontFamily: fontHeading, letterSpacing: '1px' }}>
+                             {notificationSubscribed ? 'Enabled' : 'Disabled'}
+                           </span>
+                            <button
+                              type="button"
+                              onClick={handleToggleNotifications}
+                              disabled={notificationLoading || notificationChecking}
+                              className="relative cursor-pointer inline-flex h-6 w-11 items-center transition-colors"
+                              style={{ borderRadius: 0 }}
+                              aria-pressed={notificationSubscribed}
+                            >
+                              {notificationLoading ? (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <div className="w-4 h-4 border-2 border-[#056daa] border-t-transparent rounded-full animate-spin" />
+                                </div>
+                              ) : (
+                                <>
+                                  <span
+                                    className="inline-block z-5 h-5 w-5 transition-transform duration-200"
+                                    style={{
+                                      transform: notificationSubscribed ? 'translateX(20px)' : 'translateX(2px)',
+                                      borderRadius: 990,
+                                      backgroundColor: notificationSubscribed ? PRIMARY : '#9E9E9E',
+                                    }}
+                                  />
+                                  <span
+                                    className="absolute inset-0 transition-colors duration-200"
+                                    style={{
+                                      borderRadius: 200,
+                                      backgroundColor: '#FFFFFF',
+                                      border: '1px solid #E0E0E0',
+                                    }}
+                                  />
+                                </>
+                              )}
+                            </button>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                 )}
+               </>
+             )}
+         </div>
       </div>
     </div>
   );

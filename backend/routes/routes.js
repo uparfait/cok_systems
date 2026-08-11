@@ -74,6 +74,7 @@ Router.use('/performance', authenticate, performance)
 Router.use('/requests', requests)
 Router.use('/v1/event-actions', event_management)
 Router.use('/data-management', authenticate, data_management)
+Router.use('/webpush', require('./webpush/routes.js'))
 
 // Serve uploaded files
 const path = require('path')
