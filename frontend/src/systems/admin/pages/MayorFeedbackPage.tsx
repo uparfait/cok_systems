@@ -57,38 +57,57 @@ type CategoryTab = 'all' | Category;
 type SentimentTab = 'all' | Sentiment;
 
 export default function MayorFeedbackPage() {
+  // Current tab's list, fetched straight from the database on every tab switch
   const [items, setItems] = useState<FeedbackItem[]>([]);
+  // Latest combined fetch, kept separately so charts stay stable across tab switches
+  const [chartItems, setChartItems] = useState<FeedbackItem[]>([]);
+  // Real database counts returned by the backend (not the length of the fetched slice)
+  const [totals, setTotals] = useState({ all: 0, service: 0, general: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [categoryTab, setCategoryTab] = useState<CategoryTab>('all');
   const [sentimentTab, setSentimentTab] = useState<SentimentTab>('all');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 6;
+  const FETCH_LIMIT = 20; // backend never returns more than this per request
 
   useEffect(() => {
     let cancelled = false;
+    const mapItem = (category: Category) => (f: any): FeedbackItem => ({
+      ...f,
+      category,
+      sentiment: classifySentiment(f.rate, f.rate_out_of),
+    });
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        const [serviceRes, generalRes] = await Promise.all([
-          axios.get(`${SERVICE_FEEDBACK_API}?limit=100&page=1`),
-          axios.get(`${GENERAL_FEEDBACK_API}?limit=100&page=1`),
-        ]);
-        const service: FeedbackItem[] = (serviceRes.data?.data || []).map((f: any) => ({
-          ...f,
-          category: 'service' as Category,
-          sentiment: classifySentiment(f.rate, f.rate_out_of),
-        }));
-        const general: FeedbackItem[] = (generalRes.data?.data || []).map((f: any) => ({
-          ...f,
-          category: 'general' as Category,
-          sentiment: classifySentiment(f.rate, f.rate_out_of),
-        }));
-        const merged = [...service, ...general].sort(
-          (a, b) => new Date(b.created_date || 0).getTime() - new Date(a.created_date || 0).getTime()
-        );
-        if (!cancelled) setItems(merged);
+        if (categoryTab === 'service') {
+          const res = await axios.get(`${SERVICE_FEEDBACK_API}?limit=${FETCH_LIMIT}&page=1`);
+          if (cancelled) return;
+          setItems((res.data?.data || []).map(mapItem('service')));
+          setTotals((t) => ({ ...t, service: res.data?.total ?? 0, all: (res.data?.total ?? 0) + t.general }));
+        } else if (categoryTab === 'general') {
+          const res = await axios.get(`${GENERAL_FEEDBACK_API}?limit=${FETCH_LIMIT}&page=1`);
+          if (cancelled) return;
+          setItems((res.data?.data || []).map(mapItem('general')));
+          setTotals((t) => ({ ...t, general: res.data?.total ?? 0, all: t.service + (res.data?.total ?? 0) }));
+        } else {
+          const [serviceRes, generalRes] = await Promise.all([
+            axios.get(`${SERVICE_FEEDBACK_API}?limit=${FETCH_LIMIT}&page=1`),
+            axios.get(`${GENERAL_FEEDBACK_API}?limit=${FETCH_LIMIT}&page=1`),
+          ]);
+          if (cancelled) return;
+          const merged = [
+            ...(serviceRes.data?.data || []).map(mapItem('service')),
+            ...(generalRes.data?.data || []).map(mapItem('general')),
+          ].sort((a, b) => new Date(b.created_date || 0).getTime() - new Date(a.created_date || 0).getTime());
+          const serviceTotal = serviceRes.data?.total ?? 0;
+          const generalTotal = generalRes.data?.total ?? 0;
+          setItems(merged);
+          setChartItems(merged);
+          setTotals({ service: serviceTotal, general: generalTotal, all: serviceTotal + generalTotal });
+        }
       } catch (err: any) {
         if (!cancelled) setError(err.message || 'Failed to load feedback');
       } finally {
@@ -98,34 +117,20 @@ export default function MayorFeedbackPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [categoryTab]);
 
-  const stats = useMemo(() => {
-    const total = items.length;
-    const rated = items.filter((i) => typeof i.rate === 'number');
-    const avg = rated.length
-      ? rated.reduce((s, i) => s + (i.rate || 0) / (i.rate_out_of || 10), 0) / rated.length
-      : 0;
-    const positive = items.filter((i) => i.sentiment === 'positive').length;
-    const neutral = items.filter((i) => i.sentiment === 'neutral').length;
-    const negative = items.filter((i) => i.sentiment === 'negative').length;
-    const general = items.filter((i) => i.category === 'general').length;
-    const service = items.filter((i) => i.category === 'service').length;
-    return {
-      total,
-      avgOutOf10: (avg * 10).toFixed(1),
-      positive,
-      neutral,
-      negative,
-      positivePct: total ? Math.round((positive / total) * 100) : 0,
-      general,
-      service,
-    };
-  }, [items]);
+  const sentimentCounts = useMemo(
+    () => ({
+      positive: chartItems.filter((i) => i.sentiment === 'positive').length,
+      neutral: chartItems.filter((i) => i.sentiment === 'neutral').length,
+      negative: chartItems.filter((i) => i.sentiment === 'negative').length,
+    }),
+    [chartItems]
+  );
 
   const departmentData = useMemo(() => {
     const map: Record<string, { sum: number; count: number }> = {};
-    for (const i of items) {
+    for (const i of chartItems) {
       if (i.category !== 'service' || !i.department_name) continue;
       const key = i.department_name;
       if (!map[key]) map[key] = { sum: 0, count: 0 };
@@ -140,19 +145,19 @@ export default function MayorFeedbackPage() {
       }))
       .sort((a, b) => b.rating - a.rating)
       .slice(0, 8);
-  }, [items]);
+  }, [chartItems]);
 
   const sentimentData = [
-    { name: 'Positive', value: stats.positive, color: COK.success },
-    { name: 'Neutral', value: stats.neutral, color: COK.warning },
-    { name: 'Negative', value: stats.negative, color: COK.danger },
+    { name: 'Positive', value: sentimentCounts.positive, color: COK.success },
+    { name: 'Neutral', value: sentimentCounts.neutral, color: COK.warning },
+    { name: 'Negative', value: sentimentCounts.negative, color: COK.danger },
   ];
 
   // Total ratings per department for the bar chart — every department, largest first
   // (service feedback carries the department name; axis labels truncate, tooltip keeps the full name)
   const feedbackPieData = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const i of items) {
+    for (const i of chartItems) {
       if (i.category !== 'service' || !i.department_name) continue;
       map[i.department_name] = (map[i.department_name] || 0) + 1;
     }
@@ -163,14 +168,14 @@ export default function MayorFeedbackPage() {
         value,
       }))
       .sort((a, b) => b.value - a.value);
-  }, [items]);
+  }, [chartItems]);
 
-  const filtered = useMemo(() => {
-    let list = items;
-    if (categoryTab !== 'all') list = list.filter((i) => i.category === categoryTab);
-    if (sentimentTab !== 'all') list = list.filter((i) => i.sentiment === sentimentTab);
-    return list;
-  }, [items, categoryTab, sentimentTab]);
+  // Category filtering now happens in the database query; only sentiment stays client-side
+  // (sentiment is derived from the rating, so the backend can't filter on it)
+  const filtered = useMemo(
+    () => (sentimentTab === 'all' ? items : items.filter((i) => i.sentiment === sentimentTab)),
+    [items, sentimentTab]
+  );
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -190,9 +195,9 @@ export default function MayorFeedbackPage() {
   };
 
   const CATEGORY_TABS: Array<{ key: CategoryTab; label: string; count: number }> = [
-    { key: 'all', label: 'All Feedback', count: stats.total },
-    { key: 'service', label: 'Service Feedback', count: stats.service },
-    { key: 'general', label: 'General Feedback', count: stats.general },
+    { key: 'all', label: 'All Feedback', count: totals.all },
+    { key: 'service', label: 'Service Feedback', count: totals.service },
+    { key: 'general', label: 'General Feedback', count: totals.general },
   ];
 
   return (
