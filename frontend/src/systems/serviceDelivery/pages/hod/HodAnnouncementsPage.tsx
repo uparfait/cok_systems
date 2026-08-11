@@ -3,6 +3,7 @@ import { FiPlus, FiTrash2 } from 'react-icons/fi';
 import { departmentManagerService, departmentService, normalizeDepartments } from '@/core/services/adminService';
 import { useAuth } from '@/core/contexts/AuthContext';
 import { useToast } from '@/core/contexts/ToastContext';
+import { useSocket } from '@/core/contexts/SocketContext';
 import {
   COK, FONT, formatDateTime,
   HodPageHeader, HodCard, HodTabBar, HodPagination, HodModal, HodLabel, HodEmpty, HodChip,
@@ -32,6 +33,7 @@ const TYPE_COLORS: Record<string, string> = {
 
 const HodAnnouncementsPage: React.FC = () => {
   const { user } = useAuth();
+  const { socket } = useSocket();
   const { showSuccess, showError } = useToast();
   const [items, setItems] = useState<Announcement[]>([]);
   const [total, setTotal] = useState(0);
@@ -65,6 +67,18 @@ const HodAnnouncementsPage: React.FC = () => {
   }, [page, tab, showError]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Real-time: when someone publishes an announcement addressed to this HOD,
+  // the backend pushes 'new_announcement' into their private room — refresh the list live
+  useEffect(() => {
+    if (!socket) return;
+    const onNewAnnouncement = (payload: any) => {
+      showSuccess(payload?.message || 'New announcement received');
+      load();
+    };
+    socket.on('new_announcement', onNewAnnouncement);
+    return () => { socket.off('new_announcement', onNewAnnouncement); };
+  }, [socket, load, showSuccess]);
 
   const openCreate = async () => {
     setShowCreate(true);

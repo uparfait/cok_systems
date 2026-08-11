@@ -189,6 +189,23 @@ const createAnnouncement = async (req, res, next) => {
             console.error('Announcement notification fan-out failed:', notifyError.message);
         }
 
+        // Real-time: push the announcement into each recipient head's private socket room
+        // so their announcements page updates without a refresh
+        try {
+            const io = global.WebsocketIO;
+            if (io) {
+                Array.from(leaderIds).forEach(userId => {
+                    io.to(`PRIVATE_ROOM_${userId}`).emit('new_announcement', {
+                        type: 'info',
+                        message: `${announcement.a_type}: ${announcement.title}`,
+                        data: announcement
+                    });
+                });
+            }
+        } catch (socketError) {
+            console.error('Announcement socket push failed:', socketError.message);
+        }
+
         let successMessage = notifiedCount === 0 && senderIsTargetLeader
             ? 'Published to your own department'
             : `Published — ${notifiedCount} department head${notifiedCount === 1 ? '' : 's'} notified`;
