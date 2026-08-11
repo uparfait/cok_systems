@@ -64,8 +64,9 @@ const HodTasksPage: React.FC = () => {
       } else {
         showError(res?.message || 'Failed to load team tasks');
       }
-    } catch {
-      showError('Failed to load team tasks');
+    } catch (err: any) {
+      // apiClient throws {status:false, message} carrying the backend's actual reason
+      showError(err?.message || 'Failed to load team tasks');
     } finally {
       setLoading(false);
     }
