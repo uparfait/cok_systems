@@ -46,6 +46,7 @@ const AVAILABLE_COLLECTIONS = [
   { value: 'staffcars', label: 'Staff Cars' },
   { value: 'tasks', label: 'Tasks' },
   { value: 'unservicedfeedbacks', label: 'Unserviced Feedbacks' },
+  { value: 'notificationsubscriptions', label: 'Notification Subscriptions' },
 ];
 
 export type DeleteStep = 'idle' | 'select' | 'confirm' | 'token' | 'processing' | 'done';
