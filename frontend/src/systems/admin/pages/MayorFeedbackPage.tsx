@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import {
-  FiUser,
   FiPhone,
 } from 'react-icons/fi';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
@@ -11,9 +10,7 @@ import {
   CokLabel,
   CokLoadingOverlay,
   CokPageHeader,
-  CokBadge,
   CokTab,
-  CokTh,
   CokTableEmpty,
   CokPagination,
 } from './mayorCok';
@@ -66,7 +63,7 @@ export default function MayorFeedbackPage() {
   const [categoryTab, setCategoryTab] = useState<CategoryTab>('all');
   const [sentimentTab, setSentimentTab] = useState<SentimentTab>('all');
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 5;
+  const PAGE_SIZE = 6;
 
   useEffect(() => {
     let cancelled = false;
@@ -332,92 +329,70 @@ export default function MayorFeedbackPage() {
           {!error && !loading && filtered.length === 0 && <CokTableEmpty message="No feedback found" />}
 
           {paged.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse table-auto">
-                <thead className="sticky top-0 z-10">
-                  <tr>
-                    <CokTh center>Rating</CokTh>
-                    <CokTh center>Sentiment</CokTh>
-                    <CokTh>Type</CokTh>
-                    <CokTh>Comment</CokTh>
-                    <CokTh>From</CokTh>
-                    <CokTh>Date</CokTh>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paged.map((f, rowIndex) => {
-                    const meta = SENTIMENT_META[f.sentiment];
-                    return (
-                      <tr
-                        key={`${f.category}-${f._id}`}
-                        className={`transition-colors duration-100 ${
-                          rowIndex % 2 === 0 ? 'bg-white hover:bg-blue-50/30' : 'bg-gray-50/50 hover:bg-blue-50/30'
-                        }`}
-                      >
-                        <td className="px-4 py-3 border-r border-gray-200 align-top text-center whitespace-nowrap">
-                          <span
-                            className="inline-flex flex-col items-center justify-center w-11 h-11"
-                            style={{ backgroundColor: `${meta.color}1A`, borderLeft: `2px solid ${meta.color}` }}
-                          >
-                            <span style={{ fontFamily: COK.headingFont, fontSize: 15, fontWeight: 700, color: meta.color }}>
-                              {f.rate ?? ''}
-                            </span>
-                            <span className="text-[9px] text-gray-400">/ {f.rate_out_of || 10}</span>
+            <div
+              className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4"
+              style={{ backgroundColor: COK.neutralLight }}
+            >
+              {paged.map((f) => {
+                const meta = SENTIMENT_META[f.sentiment];
+                return (
+                  <div
+                    key={`${f.category}-${f._id}`}
+                    className="bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+                    style={{
+                      border: `1px solid ${COK.border}`,
+                      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)',
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-4">
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <span style={{ fontFamily: COK.headingFont, fontSize: 16, fontWeight: 700, color: COK.neutralDark, lineHeight: 1.2 }}>
+                          {f.user_name?.trim() || 'Anonymous'}
+                        </span>
+                        <span
+                          className="w-fit px-2 py-0.5 text-[12px]"
+                          style={{ fontFamily: COK.headingFont, fontWeight: 600, color: COK.primaryDark, backgroundColor: '#EAF6FC' }}
+                        >
+                          {f.category === 'service' ? f.department_name || 'Department not specified' : 'General Feedback'}
+                        </span>
+                        {f.provider_name && (
+                          <span className="text-[11px] text-gray-400">Served by {f.provider_name}</span>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0 text-xs text-gray-500">
+                        <span style={{ fontFamily: COK.headingFont, fontSize: 14, fontWeight: 700, color: meta.color }}>
+                          {typeof f.rate === 'number' ? `${f.rate} / ${f.rate_out_of || 10}` : meta.label}
+                        </span>
+                        {f.telephone?.trim() && (
+                          <span className="flex items-center gap-1" style={{ color: '#374151', fontWeight: 500 }}>
+                            <FiPhone className="w-3 h-3" />
+                            {f.telephone}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 border-r border-gray-200 align-top text-center">
-                          <CokBadge label={meta.label} color={meta.color} />
-                        </td>
-                        <td className="px-4 py-3 border-r border-gray-200 align-top">
-                          {f.category === 'service' ? (
-                            <>
-                              <CokBadge label="Service" color={COK.tertiary} />
-                              <p className="text-xs text-gray-500" style={{ margin: '4px 0 0 0' }}>
-                                {f.department_name || 'Department not specified'}
-                              </p>
-                              {f.provider_name && (
-                                <p className="text-[11px] text-gray-400" style={{ margin: 0 }}>Served by {f.provider_name}</p>
-                              )}
-                            </>
-                          ) : (
-                            <CokBadge label="General" color={COK.primaryDark} />
-                          )}
-                        </td>
-                        <td className="px-4 py-3 border-r border-gray-200 align-top max-w-md">
-                          <p
-                            className="text-sm"
-                            style={{
-                              fontFamily: COK.bodyFont,
-                              color: f.textmessage ? '#555555' : '#9E9E9E',
-                              fontStyle: f.textmessage ? 'normal' : 'italic',
-                              margin: 0,
-                            }}
-                          >
-                            {f.textmessage || 'No written comment rating only.'}
-                          </p>
-                        </td>
-                        <td className="px-4 py-3 border-r border-gray-200 align-top whitespace-nowrap">
-                          <span className="flex items-center gap-1 text-sm" style={{ color: COK.neutralDark }}>
-                            <FiUser className="w-3 h-3 text-gray-400" />
-                            {f.user_name?.trim() || 'Anonymous'}
-                          </span>
-                          {f.telephone?.trim() && (
-                            <span className="flex items-center gap-1 text-xs text-gray-400">
-                              <FiPhone className="w-3 h-3" />
-                              {f.telephone}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 align-top whitespace-nowrap text-sm" style={{ color: COK.neutralDark }}>
+                        )}
+                        <span>
                           {f.created_date
                             ? new Date(f.created_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                            : '—'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                            : ''}
+                        </span>
+                      </div>
+                    </div>
+                    <div
+                      className="px-4 py-3.5 text-sm"
+                      style={{
+                        backgroundColor: '#f9fafb',
+                        border: '1px solid #f3f4f6',
+                        fontFamily: COK.bodyFont,
+                        lineHeight: 1.5,
+                        color: f.textmessage ? '#374151' : '#9E9E9E',
+                        fontStyle: f.textmessage ? 'normal' : 'italic',
+                        whiteSpace: 'pre-line',
+                      }}
+                    >
+                      {f.textmessage || 'No written comment rating only.'}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
