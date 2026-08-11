@@ -2,9 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import {
   FiPhone,
+  FiSearch,
 } from 'react-icons/fi';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import MainLayout from '../../../core/components/Layout/MainLayout';
+import { departmentService, normalizeDepartments } from '../../../core/services/adminService';
 import {
   COK,
   CokLabel,
@@ -17,6 +19,7 @@ import {
 
 const SERVICE_FEEDBACK_API = '/cok/api/feedback/search';
 const GENERAL_FEEDBACK_API = '/cok/api/feedback/search-unserviced';
+const DEPARTMENT_FEEDBACK_API = '/cok/api/feedback/search-by-department';
 
 type Sentiment = 'positive' | 'neutral' | 'negative';
 type Category = 'service' | 'general';
@@ -56,6 +59,12 @@ function classifySentiment(rate?: number, rateOutOf?: number): Sentiment {
 type CategoryTab = 'all' | Category;
 type SentimentTab = 'all' | Sentiment;
 
+const mapFeedbackItem = (category: Category) => (f: any): FeedbackItem => ({
+  ...f,
+  category,
+  sentiment: classifySentiment(f.rate, f.rate_out_of),
+});
+
 export default function MayorFeedbackPage() {
   // Current tab's list, fetched straight from the database on every tab switch
   const [items, setItems] = useState<FeedbackItem[]>([]);
@@ -71,13 +80,16 @@ export default function MayorFeedbackPage() {
   const PAGE_SIZE = 6;
   const FETCH_LIMIT = 20; // backend never returns more than this per request
 
+  // Department search: the mayor types a department name and sees only its feedback
+  const [departments, setDepartments] = useState<Array<{ department_id: string; name: string }>>([]);
+  const [searchInput, setSearchInput] = useState('');
+  const [searchResult, setSearchResult] = useState<{ deptName: string; items: FeedbackItem[]; total: number } | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
-    const mapItem = (category: Category) => (f: any): FeedbackItem => ({
-      ...f,
-      category,
-      sentiment: classifySentiment(f.rate, f.rate_out_of),
-    });
+    const mapItem = mapFeedbackItem;
     (async () => {
       setLoading(true);
       setError(null);
@@ -118,6 +130,66 @@ export default function MayorFeedbackPage() {
       cancelled = true;
     };
   }, [categoryTab]);
+
+  // Department list used to resolve the typed name into a department_id for the DB query
+  useEffect(() => {
+    let cancelled = false;
+    departmentService
+      .getAll()
+      .then((res: any) => {
+        if (cancelled || !res?.success) return;
+        const list = normalizeDepartments(Array.isArray(res.data) ? res.data : res.data?.data || []);
+        setDepartments(list.map((d: any) => ({ department_id: d.department_id, name: d.name })));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSearch = async () => {
+    const q = searchInput.trim().toLowerCase();
+    if (!q) {
+      setSearchResult(null);
+      setSearchError(null);
+      return;
+    }
+    const dept = departments.find((d) => (d.name || '').toLowerCase().includes(q));
+    if (!dept) {
+      setSearchError(`No department matching "${searchInput.trim()}"`);
+      setSearchResult(null);
+      return;
+    }
+    setSearchLoading(true);
+    setSearchError(null);
+    try {
+      const res = await axios.get(`${DEPARTMENT_FEEDBACK_API}?department_id=${encodeURIComponent(dept.department_id)}`);
+      const found: FeedbackItem[] = (res.data?.data || []).map(mapFeedbackItem('service'));
+      setSearchResult({ deptName: dept.name, items: found, total: res.data?.total ?? found.length });
+      setPage(1);
+    } catch (err: any) {
+      setSearchError(err.message || 'Search failed');
+      setSearchResult(null);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchInput('');
+    setSearchResult(null);
+    setSearchError(null);
+    setPage(1);
+  };
+
+  // Average rating of the searched department, out of 10
+  const searchAvgRating = useMemo(() => {
+    if (!searchResult) return null;
+    const rated = searchResult.items.filter((i) => typeof i.rate === 'number');
+    if (!rated.length) return null;
+    const avg = rated.reduce((s, i) => s + ((i.rate || 0) / (i.rate_out_of || 10)) * 10, 0) / rated.length;
+    return avg.toFixed(1);
+  }, [searchResult]);
 
   const sentimentCounts = useMemo(
     () => ({
@@ -171,11 +243,12 @@ export default function MayorFeedbackPage() {
   }, [chartItems]);
 
   // Category filtering now happens in the database query; only sentiment stays client-side
-  // (sentiment is derived from the rating, so the backend can't filter on it)
-  const filtered = useMemo(
-    () => (sentimentTab === 'all' ? items : items.filter((i) => i.sentiment === sentimentTab)),
-    [items, sentimentTab]
-  );
+  // (sentiment is derived from the rating, so the backend can't filter on it).
+  // An active department search replaces the tab data entirely.
+  const filtered = useMemo(() => {
+    const base = searchResult ? searchResult.items : items;
+    return sentimentTab === 'all' ? base : base.filter((i) => i.sentiment === sentimentTab);
+  }, [items, searchResult, sentimentTab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -186,6 +259,7 @@ export default function MayorFeedbackPage() {
 
   const selectCategory = (key: CategoryTab) => {
     setCategoryTab(key);
+    clearSearch();
     setPage(1);
   };
 
@@ -324,6 +398,65 @@ export default function MayorFeedbackPage() {
               ))}
             </div>
           </div>
+
+          {/* Department search — same design as the admin Departments page search bar */}
+          <div className="flex flex-col sm:flex-row gap-2 px-3 py-2" style={{ borderBottom: `1px solid ${COK.border}` }}>
+            <div className="flex-1 relative">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search department..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                className="w-full pl-9 pr-3 py-1.5 text-sm focus:outline-none"
+                style={{ border: `1px solid ${COK.border}`, fontFamily: COK.bodyFont }}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSearch}
+                disabled={searchLoading}
+                className="px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60"
+                style={{ backgroundColor: COK.primary, fontFamily: COK.headingFont }}
+              >
+                {searchLoading ? 'Searching...' : 'Search'}
+              </button>
+              {searchResult && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="px-3 py-1.5 text-sm hover:bg-gray-50"
+                  style={{ border: `1px solid ${COK.border}`, color: COK.neutralDark, fontFamily: COK.headingFont }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Search result summary: the searched department and its rating */}
+          {searchResult && !searchLoading && (
+            <div
+              className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2"
+              style={{ backgroundColor: '#EAF6FC', borderBottom: `1px solid ${COK.border}` }}
+            >
+              <span style={{ fontFamily: COK.headingFont, fontSize: 13, fontWeight: 700, color: COK.primaryDark }}>
+                {searchResult.deptName}
+              </span>
+              <span className="text-xs text-gray-600">{searchResult.total} feedback</span>
+              <span className="text-xs" style={{ fontFamily: COK.headingFont, fontWeight: 700, color: COK.primaryDark }}>
+                Average rating: {searchAvgRating ?? '—'}/10
+              </span>
+            </div>
+          )}
+
+          {searchError && (
+            <p className="px-4 py-2 text-sm" style={{ color: COK.danger, fontFamily: COK.bodyFont }}>
+              {searchError}
+            </p>
+          )}
 
           {error && (
             <p className="p-4 text-sm" style={{ color: COK.danger, fontFamily: COK.bodyFont }}>
