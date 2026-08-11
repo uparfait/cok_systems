@@ -147,8 +147,17 @@ export default function MayorFeedbackPage() {
     };
   }, []);
 
-  const handleSearch = async () => {
+  // Suggestions shown under the input while typing (e.g. "comm" -> "Communication")
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestions = useMemo(() => {
     const q = searchInput.trim().toLowerCase();
+    if (!q) return [];
+    return departments.filter((d) => (d.name || '').toLowerCase().includes(q)).slice(0, 8);
+  }, [departments, searchInput]);
+
+  const handleSearch = async (queryOverride?: string) => {
+    const q = (queryOverride ?? searchInput).trim().toLowerCase();
+    setShowSuggestions(false);
     if (!q) {
       setSearchResult(null);
       setSearchError(null);
@@ -156,7 +165,7 @@ export default function MayorFeedbackPage() {
     }
     const dept = departments.find((d) => (d.name || '').toLowerCase().includes(q));
     if (!dept) {
-      setSearchError(`No department matching "${searchInput.trim()}"`);
+      setSearchError(`No department matching "${(queryOverride ?? searchInput).trim()}"`);
       setSearchResult(null);
       return;
     }
@@ -179,6 +188,7 @@ export default function MayorFeedbackPage() {
     setSearchInput('');
     setSearchResult(null);
     setSearchError(null);
+    setShowSuggestions(false);
     setPage(1);
   };
 
@@ -355,7 +365,10 @@ export default function MayorFeedbackPage() {
                       contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
                       formatter={(value: any, _n: any, entry: any) => [`${value}/10 (${entry?.payload?.count} feedback)`, 'Avg rating']}
                     />
-                    <Bar dataKey="rating" fill={COK.primary} radius={[0, 0, 0, 0]} barSize={16} />
+                    <Bar dataKey="rating" fill={COK.primary} radius={[0, 0, 0, 0]} barSize={16}>
+                      {/* Rating value printed inside each bar */}
+                      <LabelList dataKey="rating" position="center" style={{ fill: '#fff', fontWeight: 700, fontSize: 11 }} />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -407,16 +420,46 @@ export default function MayorFeedbackPage() {
                 type="text"
                 placeholder="Search department..."
                 value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
+                onChange={(e) => {
+                  setSearchInput(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 className="w-full pl-9 pr-3 py-1.5 text-sm focus:outline-none"
                 style={{ border: `1px solid ${COK.border}`, fontFamily: COK.bodyFont }}
               />
+              {/* Department name suggestions while typing */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div
+                  className="absolute left-0 right-0 top-full z-20 bg-white shadow-lg max-h-56 overflow-y-auto"
+                  style={{ border: `1px solid ${COK.border}` }}
+                >
+                  {suggestions.map((d) => (
+                    <button
+                      key={d.department_id}
+                      type="button"
+                      // onMouseDown fires before the input's onBlur, so the click always lands
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setSearchInput(d.name);
+                        handleSearch(d.name);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-blue-50"
+                      style={{ fontFamily: COK.bodyFont, color: COK.neutralDark }}
+                    >
+                      <FiSearch className="w-3 h-3 text-gray-400 shrink-0" />
+                      {d.name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={handleSearch}
+                onClick={() => handleSearch()}
                 disabled={searchLoading}
                 className="px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60"
                 style={{ backgroundColor: COK.primary, fontFamily: COK.headingFont }}
@@ -476,11 +519,8 @@ export default function MayorFeedbackPage() {
                 return (
                   <div
                     key={`${f.category}-${f._id}`}
-                    className="bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
-                    style={{
-                      border: `1px solid ${COK.border}`,
-                      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)',
-                    }}
+                    className="bg-white p-5 transition-transform duration-200 hover:-translate-y-0.5"
+                    style={{ border: `1px solid ${COK.border}` }}
                   >
                     <div className="flex items-start justify-between gap-3 mb-4">
                       <div className="flex flex-col gap-1 min-w-0">

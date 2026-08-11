@@ -297,31 +297,50 @@ const ParkingOccupancyDonut: React.FC<{ occupied: number; totalSlots: number; on
   const STROKE = 22;
   return (
     <div className="flex flex-col items-center py-2">
-      <svg viewBox="0 0 200 200" className="w-full" style={{ maxWidth: 220 }}>
-        <defs>
-          <linearGradient id="occGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#E53935" />
-            <stop offset="100%" stopColor="#B71C1C" />
-          </linearGradient>
-        </defs>
-        {/* Track ring */}
-        <circle cx="100" cy="100" r={R} fill="none" stroke="#E8EBF3" strokeWidth={STROKE} />
-        {/* Progress arc starts at 12 o'clock */}
-        <circle
-          cx="100" cy="100" r={R} fill="none"
-          stroke="url(#occGrad)" strokeWidth={STROKE} strokeLinecap="round"
-          strokeDasharray={`${(pct / 100) * CIRC} ${CIRC}`}
-          transform="rotate(-90 100 100)"
-          style={{ transition: 'stroke-dasharray 0.6s ease' }}
-        />
-        <text x="100" y="100" textAnchor="middle" dominantBaseline="central" fontSize="34" fontWeight="800" fill="#C62828">
-          {pct}%
-        </text>
-      </svg>
-      <div className="text-sm font-semibold text-gray-800 mt-1">Parking occupancy</div>
-      <div className="text-xs text-gray-500 mt-0.5">
-        {occupied} of {totalSlots} slots occupied
+      <div className="flex flex-wrap items-center justify-center gap-3 w-full">
+        <svg viewBox="0 0 200 200" style={{ width: '100%', maxWidth: 190 }}>
+          <defs>
+            <linearGradient id="occGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#E53935" />
+              <stop offset="100%" stopColor="#B71C1C" />
+            </linearGradient>
+          </defs>
+          {/* Track ring */}
+          <circle cx="100" cy="100" r={R} fill="none" stroke="#E8EBF3" strokeWidth={STROKE} />
+          {/* Progress arc starts at 12 o'clock */}
+          <circle
+            cx="100" cy="100" r={R} fill="none"
+            stroke="url(#occGrad)" strokeWidth={STROKE} strokeLinecap="round"
+            strokeDasharray={`${(pct / 100) * CIRC} ${CIRC}`}
+            transform="rotate(-90 100 100)"
+            style={{ transition: 'stroke-dasharray 0.6s ease' }}
+          />
+          <text x="100" y="100" textAnchor="middle" dominantBaseline="central" fontSize="34" fontWeight="800" fill="#C62828">
+            {pct}%
+          </text>
+        </svg>
+        {/* Smaller companion ring: same occupancy, shown as raw numbers (occupied/total) */}
+        <svg viewBox="0 0 200 200" style={{ width: '100%', maxWidth: 120 }}>
+          <defs>
+            <linearGradient id="occGradCount" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#056daa" />
+              <stop offset="100%" stopColor="#045d94" />
+            </linearGradient>
+          </defs>
+          <circle cx="100" cy="100" r={R} fill="none" stroke="#E8EBF3" strokeWidth={STROKE} />
+          <circle
+            cx="100" cy="100" r={R} fill="none"
+            stroke="url(#occGradCount)" strokeWidth={STROKE} strokeLinecap="round"
+            strokeDasharray={`${(pct / 100) * CIRC} ${CIRC}`}
+            transform="rotate(-90 100 100)"
+            style={{ transition: 'stroke-dasharray 0.6s ease' }}
+          />
+          <text x="100" y="100" textAnchor="middle" dominantBaseline="central" fontSize="28" fontWeight="800" fill="#045d94">
+            {occupied}/{totalSlots}
+          </text>
+        </svg>
       </div>
+      <div className="text-lg font-bold text-gray-800 mt-1">Parking occupancy</div>
       {onViewMap && (
         <button
           type="button"
@@ -1799,12 +1818,6 @@ useEffect(() => {
                   </Bar>
                   <Bar dataKey="segPositive" name="Positive" stackId="rating" isAnimationActive={false} fill={SENTIMENT_META.positive.color}>
                     <LabelList dataKey="positive" position="center" fontSize={10} fill="#ffffff" fontWeight={700} formatter={(v: any) => (v ? v : '')} />
-                    {/* Average rating printed after the whole stack */}
-                    <LabelList dataKey="rating" position="right" fontSize={10} fill={COK.neutralDark} fontWeight={700} formatter={(value: any) => {
-                      const num = Number(value);
-                      if (Number.isNaN(num)) return value;
-                      return Number.isInteger(num) ? String(num) : num.toFixed(1);
-                    }} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

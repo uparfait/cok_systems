@@ -339,7 +339,6 @@ export default function MayorActionsPage() {
             className="px-4 py-3 text-xs text-gray-400"
             style={{ borderTop: `1px solid ${COK.border}`, fontFamily: COK.bodyFont }}
           >
-            View only actions are managed by the Event Manager's office.
           </div>
         </div>
 
