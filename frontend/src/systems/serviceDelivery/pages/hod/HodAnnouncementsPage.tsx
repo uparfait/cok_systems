@@ -57,8 +57,8 @@ const HodAnnouncementsPage: React.FC = () => {
       } else {
         showError(res?.message || 'Failed to load announcements');
       }
-    } catch {
-      showError('Failed to load announcements');
+    } catch (err: any) {
+      showError((err as any)?.message || 'Failed to load announcements');
     } finally {
       setLoading(false);
     }
@@ -108,8 +108,9 @@ const HodAnnouncementsPage: React.FC = () => {
       } else {
         showError(res?.message || 'Failed to publish');
       }
-    } catch {
-      showError('Failed to publish');
+    } catch (err: any) {
+      // apiClient throws {status:false, message} carrying the backend's actual reason
+      showError(err?.message || 'Failed to publish');
     } finally {
       setSaving(false);
     }
@@ -126,8 +127,8 @@ const HodAnnouncementsPage: React.FC = () => {
       } else {
         showError(res?.message || 'Failed to retract');
       }
-    } catch {
-      showError('Failed to retract');
+    } catch (err: any) {
+      showError(err?.message || 'Failed to retract');
     }
   };
 
