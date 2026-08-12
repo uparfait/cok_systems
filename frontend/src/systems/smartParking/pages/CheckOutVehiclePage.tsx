@@ -1,5 +1,3 @@
-// Page for checking out vehicles from the parking lot
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
@@ -70,17 +68,31 @@ const CheckOutVehiclePage: React.FC = () => {
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSearchQueryRef = useRef('');
   
+  // Refs for auto-refresh control
+  const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isUserInteractingRef = useRef(false);
+  const lastLoadParamsRef = useRef<{ query: string; page: number; filter: string }>({ 
+    query: '', 
+    page: 1, 
+    filter: 'all' 
+  });
+  
   // Modal state
   const [showActionModal, setShowActionModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<ParkingRecord | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   // Load data function with proper error handling
-  const loadData = useCallback(async (query: string = '', page: number = 1, filterType: string = typeFilter) => {
+  const loadData = useCallback(async (query: string = '', page: number = 1, filterType: string = typeFilter, silent: boolean = false) => {
+    // Don't load if user is searching (typing)
+    if (isUserInteractingRef.current && !silent) {
+      return;
+    }
+    
     const isLoadingNew = page === 1 && !query;
-    if (isLoadingNew) {
+    if (isLoadingNew && !silent) {
       setLoading(true);
-    } else {
+    } else if (!silent) {
       setPaginationLoading(true);
     }
     
@@ -147,6 +159,9 @@ const CheckOutVehiclePage: React.FC = () => {
         setTotalCount(response.total || filteredRecords.length);
         setTotalPages(Math.ceil((response.total || filteredRecords.length) / 50));
         setCurrentPage(page);
+        
+        // Store last load params for auto-refresh
+        lastLoadParamsRef.current = { query, page, filter: filterType };
       } else {
         setAllRecords([]);
         setFilteredRecords([]);
@@ -155,24 +170,71 @@ const CheckOutVehiclePage: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error loading data:', error);
-      showError(error.message || 'Failed to load parking records');
+      if (!silent) {
+        showError(error.message || 'Failed to load parking records');
+      }
       setAllRecords([]);
       setFilteredRecords([]);
     } finally {
-      setLoading(false);
-      setPaginationLoading(false);
-      setIsSearching(false);
-      setFirstLoad(false);
+      if (!silent) {
+        setLoading(false);
+        setPaginationLoading(false);
+        setIsSearching(false);
+        setFirstLoad(false);
+      }
     }
   }, [typeFilter, showError]);
 
+  // Auto-refresh function
+  const autoRefresh = useCallback(() => {
+    // Don't refresh if user is interacting (typing, searching, or modal open)
+    if (isUserInteractingRef.current || showActionModal) {
+      return;
+    }
+    
+    const { query, page, filter } = lastLoadParamsRef.current;
+    // Silent refresh - no loading indicators
+    loadData(query, page, filter, true);
+  }, [loadData, showActionModal]);
+
+  // Setup auto-refresh timer
+  useEffect(() => {
+    // Clear any existing timer
+    if (autoRefreshTimerRef.current) {
+      clearInterval(autoRefreshTimerRef.current);
+      autoRefreshTimerRef.current = null;
+    }
+    
+    // Start auto-refresh only if authenticated and not on first load
+    if (isAuthenticated && !firstLoad) {
+      autoRefreshTimerRef.current = setInterval(autoRefresh, 5000);
+    }
+    
+    return () => {
+      if (autoRefreshTimerRef.current) {
+        clearInterval(autoRefreshTimerRef.current);
+        autoRefreshTimerRef.current = null;
+      }
+    };
+  }, [isAuthenticated, firstLoad, autoRefresh]);
+
   // Handle filter change
   const handleFilterChange = useCallback((filter: 'all' | 'staff' | 'visitors' | 'regular') => {
+    // User is interacting
+    isUserInteractingRef.current = true;
+    
     setTypeFilter(filter);
     setCurrentPage(1);
     setSearchQuery(''); // Clear search when filtering
     lastSearchQueryRef.current = '';
-    loadData('', 1, filter);
+    
+    // Reset interaction flag after load completes
+    loadData('', 1, filter).finally(() => {
+      // Allow auto-refresh to resume after a short delay
+      setTimeout(() => {
+        isUserInteractingRef.current = false;
+      }, 1000);
+    });
   }, [loadData]);
 
   // Handle search
@@ -180,10 +242,19 @@ const CheckOutVehiclePage: React.FC = () => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
+    
+    // User is interacting
+    isUserInteractingRef.current = true;
     setIsSearching(true);
     setCurrentPage(1);
     setTypeFilter('all'); // Reset filter when searching
-    loadData(searchQuery, 1, 'all');
+    
+    loadData(searchQuery, 1, 'all').finally(() => {
+      // Allow auto-refresh to resume after a short delay
+      setTimeout(() => {
+        isUserInteractingRef.current = false;
+      }, 1000);
+    });
   }, [searchQuery, loadData]);
 
   // Debounced search as user types
@@ -203,17 +274,30 @@ const CheckOutVehiclePage: React.FC = () => {
     
     // If search query is empty, load all data
     if (!searchQuery.trim()) {
-      loadData('', 1, 'all');
+      isUserInteractingRef.current = true;
+      loadData('', 1, 'all').finally(() => {
+        setTimeout(() => {
+          isUserInteractingRef.current = false;
+        }, 1000);
+      });
       setTypeFilter('all');
       return;
     }
+    
+    // User is typing - prevent auto-refresh
+    isUserInteractingRef.current = true;
     
     // Set new timeout for debounced search (300ms delay)
     searchTimeoutRef.current = setTimeout(() => {
       setIsSearching(true);
       setCurrentPage(1);
       setTypeFilter('all');
-      loadData(searchQuery, 1, 'all');
+      loadData(searchQuery, 1, 'all').finally(() => {
+        // Allow auto-refresh to resume after a short delay
+        setTimeout(() => {
+          isUserInteractingRef.current = false;
+        }, 1000);
+      });
     }, 300);
     
     return () => {
@@ -241,29 +325,43 @@ const CheckOutVehiclePage: React.FC = () => {
   useParkingEvents({ 
     refetch: () => {
       setCurrentPage(1);
-      loadData('', 1, typeFilter);
+      const { query, filter } = lastLoadParamsRef.current;
+      loadData(query, 1, filter);
     }
   });
 
   // Handle page change
   const handlePageChange = useCallback((newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return;
+    
+    // User is interacting
+    isUserInteractingRef.current = true;
     setCurrentPage(newPage);
-    loadData(searchQuery, newPage, typeFilter);
+    
+    loadData(searchQuery, newPage, typeFilter).finally(() => {
+      // Allow auto-refresh to resume after a short delay
+      setTimeout(() => {
+        isUserInteractingRef.current = false;
+      }, 1000);
+    });
   }, [searchQuery, typeFilter, totalPages, loadData]);
 
   const handleCheckout = async () => {
     if (!selectedRecord) return;
     
+    // User is interacting - pause auto-refresh
+    isUserInteractingRef.current = true;
     setActionLoading(true);
+    
     try {
       const response = await smartParkingService.checkOutByPlate(selectedRecord.plate_number);
       
       if (response.success) {
-        showSuccess('Vehicle checked out successfully!');
+        showSuccess('Vehicle checked out.');
         setShowActionModal(false);
         setSelectedRecord(null);
-        loadData(searchQuery, currentPage, typeFilter);
+        const { query, page, filter } = lastLoadParamsRef.current;
+        await loadData(query, page, filter);
       } else {
         showError(response.message || 'Failed to checkout vehicle');
       }
@@ -272,12 +370,27 @@ const CheckOutVehiclePage: React.FC = () => {
       showError(error.message || 'Failed to checkout vehicle');
     } finally {
       setActionLoading(false);
+      // Resume auto-refresh after a short delay
+      setTimeout(() => {
+        isUserInteractingRef.current = false;
+      }, 2000);
     }
   };
 
   const openCheckoutModal = (record: ParkingRecord) => {
+    // Pause auto-refresh when modal opens
+    isUserInteractingRef.current = true;
     setSelectedRecord(record);
     setShowActionModal(true);
+  };
+
+  const closeModal = () => {
+    setShowActionModal(false);
+    setSelectedRecord(null);
+    // Resume auto-refresh after modal closes
+    setTimeout(() => {
+      isUserInteractingRef.current = false;
+    }, 500);
   };
 
   const formatDate = (dateString: string | null) => {
@@ -569,10 +682,7 @@ const CheckOutVehiclePage: React.FC = () => {
                   </div>
                 </div>
                 <button
-                  onClick={() => {
-                    setShowActionModal(false);
-                    setSelectedRecord(null);
-                  }}
+                  onClick={closeModal}
                   className="text-gray-400 hover:text-gray-600 p-1"
                 >
                   <FiX className="w-5 h-5" />
@@ -606,10 +716,7 @@ const CheckOutVehiclePage: React.FC = () => {
 
               <div className="flex gap-2 sm:gap-3 p-4 pt-0">
                 <button
-                  onClick={() => {
-                    setShowActionModal(false);
-                    setSelectedRecord(null);
-                  }}
+                  onClick={closeModal}
                   className="flex-1 px-3 sm:px-4 py-2 bg-transparent hover:bg-gray-100 transition-colors"
                   style={{
                     border: `1px solid ${PRIMARY}`,
@@ -642,7 +749,7 @@ const CheckOutVehiclePage: React.FC = () => {
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = DANGER; }}
                 >
                   {actionLoading ? (
-                    <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4  border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <FiCheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                   )}

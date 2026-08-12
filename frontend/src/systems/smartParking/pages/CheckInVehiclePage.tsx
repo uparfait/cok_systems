@@ -336,7 +336,7 @@ const CheckInVehiclePage: React.FC = () => {
         setShowFoundModal(false);
         setPlateNumber('');
         setVerifiedData(null);
-        showSuccess('Vehicle checked in successfully');
+        showSuccess('Vehicle checked in.');
       } else {
         showError(response.message || 'Failed to check in vehicle');
       }
@@ -403,7 +403,7 @@ const CheckInVehiclePage: React.FC = () => {
         });
         setVerifiedData(null);
         setIdError(null);
-        showSuccess('Vehicle registered and checked in successfully');
+        showSuccess('Vehicle checked in.');
       } else {
         showError(response.message || 'Failed to register vehicle');
       }
@@ -439,7 +439,7 @@ const CheckInVehiclePage: React.FC = () => {
     try {
       const response = await smartParkingService.flagVehicle?.(verifiedData.plate_number, 'Flagged by gate officer');
       if (response?.success) {
-        showSuccess('Vehicle flagged successfully: ' + verifiedData.plate_number);
+        showSuccess('Vehicle flagged: ' + verifiedData.plate_number);
       } else {
         showWarning('Vehicle flagged: ' + verifiedData.plate_number);
       }
@@ -783,7 +783,7 @@ const CheckInVehiclePage: React.FC = () => {
         <div className="flex flex-col  gap-2 pt-4 mt-2">
           
           <button type="button" onClick={handleRegisterUnknown} disabled={loading || !unknownForm.driver_name || !unknownForm.driver_telephone} className="w-full sm:flex-1 px-4 py-2 sm:py-2.5 cok-btn-primary disabled:opacity-50 text-sm">
-            {loading ? "Waiting...." : "Register & Check In"}
+            {loading ? "Waiting...." : "Check In"}
           </button>
           <button type="button" onClick={closeAllModals} className="w-full sm:flex-1 cok-btn-outlined text-sm py-2 sm:py-2.5">Cancel</button>
         </div>
