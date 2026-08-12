@@ -11,9 +11,10 @@ const fontHeading = "'Montserrat', sans-serif";
 const CARD_SHADOW = '0 8px 40px 0 rgba(0,0,0,0.08)';
 
 type Granularity = 'hour' | 'day' | 'week' | 'month';
-type PeriodKey = 'today' | 'thisweek' | 'lastweek' | 'thismonth' | 'lastmonth' | 'thisyear';
+type PeriodKey = 'all' | 'today' | 'thisweek' | 'lastweek' | 'thismonth' | 'lastmonth' | 'thisyear';
 
 const PERIODS: Array<{ key: PeriodKey; label: string }> = [
+  { key: 'all', label: 'All' },
   { key: 'today', label: 'Today' },
   { key: 'thisweek', label: 'This week' },
   { key: 'lastweek', label: 'Last week' },
@@ -51,6 +52,13 @@ interface BucketDef { key: string; label: string; tooltip: string }
 function rangeFor(period: PeriodKey): { from: Date; to: Date; granularity: Granularity; buckets: BucketDef[] } {
   const now = new Date();
   const buckets: BucketDef[] = [];
+
+  if (period === 'all') {
+    // All time: wide date range, monthly buckets built from the response (see chartData)
+    const from = new Date(2000, 0, 1);
+    const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    return { from, to, granularity: 'month', buckets };
+  }
 
   if (period === 'today') {
     const from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -162,18 +170,34 @@ const MayorVisitorsTimeline: React.FC = () => {
     return () => { ignore = true; };
   }, [range]);
 
-  // Every bucket of the period appears, zeros included, so the timeline stays connected
-  const chartData = useMemo(
-    () => range.buckets.map(b => ({ label: b.label, tooltip: b.tooltip, count: counts[b.key] || 0 })),
-    [range, counts]
-  );
+  // Every bucket of the period appears, zeros included, so the timeline stays connected.
+  // "All" has no fixed buckets: months run from the first recorded visit to the current month.
+  const chartData = useMemo(() => {
+    if (period === 'all') {
+      const keys = Object.keys(counts).sort();
+      if (keys.length === 0) return [];
+      const [startYear, startMonth] = keys[0].split('-').map(Number);
+      const now = new Date();
+      const end = new Date(now.getFullYear(), now.getMonth(), 1);
+      const out: Array<{ label: string; tooltip: string; count: number }> = [];
+      const cursor = new Date(startYear, (startMonth || 1) - 1, 1);
+      while (cursor <= end) {
+        const key = `${cursor.getFullYear()}-${pad(cursor.getMonth() + 1)}`;
+        const label = `${MONTH_NAMES[cursor.getMonth()]} ${cursor.getFullYear()}`;
+        out.push({ label, tooltip: label, count: counts[key] || 0 });
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+      return out;
+    }
+    return range.buckets.map(b => ({ label: b.label, tooltip: b.tooltip, count: counts[b.key] || 0 }));
+  }, [period, range, counts]);
 
   return (
     <div className="px-4 py-4">
       <div className="mb-5">
         <h1 className="text-lg font-bold flex items-center gap-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
           <FiBarChart2 className="w-4 h-4" style={{ color: PRIMARY }} />
-          Service Delivery — Visitors
+          Service Delivery Visitors
         </h1>
         <p className="text-xs mt-0.5 text-[#555555]">
           Visitor check-ins over time · {PERIODS.find(p => p.key === period)?.label} · {total} visitor(s)

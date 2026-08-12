@@ -2,16 +2,28 @@
 
 const ServiceDelivery = require('../../models/service_delivery.js');
 const Department = require('../../models/department.js');
+const User = require('../../models/user.js');
+
+const HOD_ROLE_KEYWORDS = ['department manager', 'department head', 'head of department', 'director'];
 
 /**
  * Helper function to get department IDs for head of department
  * Supports both the current schema (is_unit + parent_department) and the
  * legacy document format (sub_department_mng), and users leading multiple departments.
+ * Users with an HOD-type role also manage the department their own account belongs to,
+ * even when no department document points at them as leader (matches frontend gating).
  */
 const getDepartmentIdsForHead = async (userId) => {
     const ledDepartments = await Department.find({
         $or: [{ department_leader: userId }, { leader: userId }]
     });
+
+    const self = await User.findById(userId).select('department roles.role_name');
+    const roleName = (self?.roles?.role_name || '').toLowerCase();
+    if (self?.department && HOD_ROLE_KEYWORDS.some(keyword => roleName.includes(keyword))) {
+        const ownDepartment = await Department.findById(self.department);
+        if (ownDepartment) ledDepartments.push(ownDepartment);
+    }
 
     if (ledDepartments.length === 0) {
         return [];

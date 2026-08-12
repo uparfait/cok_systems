@@ -150,7 +150,7 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
           bodyStyles: { fontSize: 8, cellPadding: 3, halign: 'center' },
           margin: { left: (pw - 280) / 2, right: (pw - 280) / 2 },
           tableWidth: 280,
-          didDrawPage: (data) => { doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3); doc.line(10, ph - 15, pw - 10, ph - 15); doc.setFontSize(7); doc.setTextColor(128, 128, 128); doc.text('City of Kigali - Service Delivery Management System', pw / 2, ph - 12, { align: 'center' }); doc.text(`Page ${data.pageNumber}`, pw - 10, ph - 12, { align: 'right' }); },
+          didDrawPage: (data) => { doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3); doc.line(10, ph - 15, pw - 10, ph - 15); doc.setFontSize(7); doc.setTextColor(128, 128, 128); doc.text('City of Kigali  Service Delivery Management System', pw / 2, ph - 12, { align: 'center' }); doc.text(`Page ${data.pageNumber}`, pw - 10, ph - 12, { align: 'right' }); },
         });
       } else {
         doc.setFontSize(11); doc.setTextColor(100, 100, 100);
