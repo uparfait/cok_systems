@@ -2,9 +2,44 @@
 const Announcement = require('../../models/announcement.js');
 const Department = require('../../models/department.js');
 const Notification = require('../../models/notification.js');
+const User = require('../../models/user.js');
 const { getDepartmentIdsForHead } = require('./visitors_by_status');
 
 const ALL_DEPARTMENTS = 'all';
+
+const HOD_ROLE_KEYWORDS = ['department manager', 'department head', 'head of department', 'director'];
+
+// Departments this user manages: departments pointing at them as leader, PLUS their
+// own department when their role is an HOD-type role. Merged (not a fallback) so an
+// HOD who leads other departments by pointer still sees publications addressed to
+// the department their own account belongs to.
+const resolveManagedDepartmentIds = async (reqUser) => {
+    const ids = new Set(await getDepartmentIdsForHead(reqUser.userId));
+
+    const roleName = (reqUser.role || reqUser.role_name || '').toLowerCase();
+    const isHodRole = HOD_ROLE_KEYWORDS.some(keyword => roleName.includes(keyword));
+    const ownDepartmentId = reqUser.department?._id;
+    if (isHodRole && ownDepartmentId) ids.add(ownDepartmentId.toString());
+
+    return Array.from(ids);
+};
+
+// Fallback when a department document has no leader pointer: users whose role is
+// an HOD-type role and whose own department is that department count as its heads.
+// Returns a map of departmentId -> [userId, ...]
+const findRoleBasedHeads = async (departmentObjectIds) => {
+    const users = await User.find({ department: { $in: departmentObjectIds } })
+        .select('department roles.role_name');
+    const headsByDepartment = {};
+    users.forEach(u => {
+        const role = (u.roles?.role_name || '').toLowerCase();
+        if (!HOD_ROLE_KEYWORDS.some(keyword => role.includes(keyword))) return;
+        if (!u.department) return;
+        const key = u.department.toString();
+        (headsByDepartment[key] = headsByDepartment[key] || []).push(u._id.toString());
+    });
+    return headsByDepartment;
+};
 
 /**
  * POST /department-manager/announcements
@@ -32,12 +67,12 @@ const createAnnouncement = async (req, res, next) => {
         }
 
         // Only heads of department may publish
-        const managedIds = await getDepartmentIdsForHead(req.user.userId);
+        const managedIds = await resolveManagedDepartmentIds(req.user);
         if (managedIds.length === 0) {
             return res.status(403).json({
                 success: false,
                 type: 'error',
-                message: 'No departments found for this user'
+                message: 'Your account is not registered as head of any department — ask the administrator to assign you as your department\'s leader.'
             });
         }
 
@@ -50,19 +85,39 @@ const createAnnouncement = async (req, res, next) => {
         let targetDepartment = null;
         const departmentsWithoutLeader = [];
 
+        // When the sender is the target's own head, publishing proceeds — there is
+        // simply nobody else to notify.
+        let senderIsTargetLeader = false;
+
         if (isForAll) {
-            const departments = await Department.find({}).select('name department_leader leader');
+            const departments = await Department.find({}).select('department_name department_leader leader');
+            const departmentsNeedingFallback = [];
             departments.forEach(d => {
                 const deptLeaders = [d.department_leader, d.leader].filter(Boolean).map(id => id.toString());
                 if (deptLeaders.length === 0) {
-                    departmentsWithoutLeader.push(d.name);
+                    departmentsNeedingFallback.push(d);
                 } else {
+                    if (deptLeaders.includes(senderId)) senderIsTargetLeader = true;
                     deptLeaders.forEach(id => leaderIds.add(id));
                 }
             });
+
+            // Departments without a leader pointer may still have a role-based head
+            if (departmentsNeedingFallback.length > 0) {
+                const roleHeads = await findRoleBasedHeads(departmentsNeedingFallback.map(d => d._id));
+                departmentsNeedingFallback.forEach(d => {
+                    const heads = roleHeads[d._id.toString()] || [];
+                    if (heads.length === 0) {
+                        departmentsWithoutLeader.push(d.department_name);
+                    } else {
+                        if (heads.includes(senderId)) senderIsTargetLeader = true;
+                        heads.forEach(id => leaderIds.add(id));
+                    }
+                });
+            }
             leaderIds.delete(senderId);
 
-            if (leaderIds.size === 0) {
+            if (leaderIds.size === 0 && !senderIsTargetLeader) {
                 return res.status(400).json({
                     success: false,
                     type: 'warning',
@@ -70,7 +125,7 @@ const createAnnouncement = async (req, res, next) => {
                 });
             }
         } else {
-            targetDepartment = await Department.findById(department_id).select('name department_leader leader');
+            targetDepartment = await Department.findById(department_id).select('department_name department_leader leader');
             if (!targetDepartment) {
                 return res.status(404).json({
                     success: false,
@@ -79,16 +134,25 @@ const createAnnouncement = async (req, res, next) => {
                 });
             }
 
-            [targetDepartment.department_leader, targetDepartment.leader]
+            let targetLeaderIds = [targetDepartment.department_leader, targetDepartment.leader]
                 .filter(Boolean)
-                .forEach(id => leaderIds.add(id.toString()));
+                .map(id => id.toString());
+
+            // No leader pointer on the document — fall back to role-based heads
+            if (targetLeaderIds.length === 0) {
+                const roleHeads = await findRoleBasedHeads([targetDepartment._id]);
+                targetLeaderIds = roleHeads[targetDepartment._id.toString()] || [];
+            }
+
+            senderIsTargetLeader = targetLeaderIds.includes(senderId);
+            targetLeaderIds.forEach(id => leaderIds.add(id));
             leaderIds.delete(senderId);
 
-            if (leaderIds.size === 0) {
+            if (leaderIds.size === 0 && !senderIsTargetLeader) {
                 return res.status(400).json({
                     success: false,
                     type: 'warning',
-                    message: `"${targetDepartment.name}" has no head of department assigned — publication not sent. Ask the administrator to assign a leader first.`
+                    message: `"${targetDepartment.department_name}" has no head of department assigned — publication not sent. Ask the administrator to assign a leader first.`
                 });
             }
         }
@@ -100,7 +164,7 @@ const createAnnouncement = async (req, res, next) => {
             message: message.trim(),
             a_type: validTypes.includes(a_type) ? a_type : 'Announcement',
             department_id: isForAll ? ALL_DEPARTMENTS : department_id,
-            department_name: isForAll ? 'All Departments' : (targetDepartment?.name || ''),
+            department_name: isForAll ? 'All Departments' : (targetDepartment?.department_name || ''),
             created_by: {
                 _id: req.user.userId,
                 name: req.user.full_name || '',
@@ -125,7 +189,26 @@ const createAnnouncement = async (req, res, next) => {
             console.error('Announcement notification fan-out failed:', notifyError.message);
         }
 
-        let successMessage = `Published — ${notifiedCount} department head${notifiedCount === 1 ? '' : 's'} notified`;
+        // Real-time: push the announcement into each recipient head's private socket room
+        // so their announcements page updates without a refresh
+        try {
+            const io = global.WebsocketIO;
+            if (io) {
+                Array.from(leaderIds).forEach(userId => {
+                    io.to(`PRIVATE_ROOM_${userId}`).emit('new_announcement', {
+                        type: 'info',
+                        message: `${announcement.a_type}: ${announcement.title}`,
+                        data: announcement
+                    });
+                });
+            }
+        } catch (socketError) {
+            console.error('Announcement socket push failed:', socketError.message);
+        }
+
+        let successMessage = notifiedCount === 0 && senderIsTargetLeader
+            ? 'Published to your own department'
+            : `Published — ${notifiedCount} department head${notifiedCount === 1 ? '' : 's'} notified`;
         if (isForAll && departmentsWithoutLeader.length > 0) {
             successMessage += `. Note: ${departmentsWithoutLeader.length} department${departmentsWithoutLeader.length === 1 ? ' has' : 's have'} no head assigned and could not be notified.`;
         }
@@ -164,12 +247,12 @@ const listAnnouncements = async (req, res, next) => {
         const limit_val = Math.min(parseInt(limit) || 20, 100);
         const skip_val = ((parseInt(page) || 1) - 1) * limit_val;
 
-        const departmentIds = await getDepartmentIdsForHead(req.user.userId);
+        const departmentIds = await resolveManagedDepartmentIds(req.user);
         if (departmentIds.length === 0) {
             return res.status(403).json({
                 success: false,
                 type: 'error',
-                message: 'No departments found for this user'
+                message: 'Your account is not registered as head of any department — ask the administrator to assign you as your department\'s leader.'
             });
         }
 

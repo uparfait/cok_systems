@@ -90,8 +90,7 @@ const SentimentChartTooltip = ({ active, payload }: any) => {
       )}
     </div>
   );
-};
-// Bar value label like the reference design: the count with its share of the row total
+};// Bar value label like the reference design: the count with its share of the row total
 // ("650" over "(32%)"), drawn just under the top of the bar. Bars too short to fit the
 // text get the label above them in gray instead. Static — no animation, no blinking.
 const makeStatusBarLabel = (rows: Array<{ total?: number }>) => (props: any) => {
@@ -298,31 +297,50 @@ const ParkingOccupancyDonut: React.FC<{ occupied: number; totalSlots: number; on
   const STROKE = 22;
   return (
     <div className="flex flex-col items-center py-2">
-      <svg viewBox="0 0 200 200" className="w-full" style={{ maxWidth: 220 }}>
-        <defs>
-          <linearGradient id="occGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#E53935" />
-            <stop offset="100%" stopColor="#B71C1C" />
-          </linearGradient>
-        </defs>
-        {/* Track ring */}
-        <circle cx="100" cy="100" r={R} fill="none" stroke="#E8EBF3" strokeWidth={STROKE} />
-        {/* Progress arc starts at 12 o'clock */}
-        <circle
-          cx="100" cy="100" r={R} fill="none"
-          stroke="url(#occGrad)" strokeWidth={STROKE} strokeLinecap="round"
-          strokeDasharray={`${(pct / 100) * CIRC} ${CIRC}`}
-          transform="rotate(-90 100 100)"
-          style={{ transition: 'stroke-dasharray 0.6s ease' }}
-        />
-        <text x="100" y="100" textAnchor="middle" dominantBaseline="central" fontSize="34" fontWeight="800" fill="#C62828">
-          {pct}%
-        </text>
-      </svg>
-      <div className="text-sm font-semibold text-gray-800 mt-1">Parking occupancy</div>
-      <div className="text-xs text-gray-500 mt-0.5">
-        {occupied} of {totalSlots} slots occupied
+      <div className="flex flex-wrap items-center justify-center gap-3 w-full">
+        <svg viewBox="0 0 200 200" style={{ width: '100%', maxWidth: 190 }}>
+          <defs>
+            <linearGradient id="occGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#E53935" />
+              <stop offset="100%" stopColor="#B71C1C" />
+            </linearGradient>
+          </defs>
+          {/* Track ring */}
+          <circle cx="100" cy="100" r={R} fill="none" stroke="#E8EBF3" strokeWidth={STROKE} />
+          {/* Progress arc starts at 12 o'clock */}
+          <circle
+            cx="100" cy="100" r={R} fill="none"
+            stroke="url(#occGrad)" strokeWidth={STROKE} strokeLinecap="round"
+            strokeDasharray={`${(pct / 100) * CIRC} ${CIRC}`}
+            transform="rotate(-90 100 100)"
+            style={{ transition: 'stroke-dasharray 0.6s ease' }}
+          />
+          <text x="100" y="100" textAnchor="middle" dominantBaseline="central" fontSize="34" fontWeight="800" fill="#C62828">
+            {pct}%
+          </text>
+        </svg>
+        {/* Smaller companion ring: same occupancy, shown as raw numbers (occupied/total) */}
+        <svg viewBox="0 0 200 200" style={{ width: '100%', maxWidth: 120 }}>
+          <defs>
+            <linearGradient id="occGradCount" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#056daa" />
+              <stop offset="100%" stopColor="#045d94" />
+            </linearGradient>
+          </defs>
+          <circle cx="100" cy="100" r={R} fill="none" stroke="#E8EBF3" strokeWidth={STROKE} />
+          <circle
+            cx="100" cy="100" r={R} fill="none"
+            stroke="url(#occGradCount)" strokeWidth={STROKE} strokeLinecap="round"
+            strokeDasharray={`${(pct / 100) * CIRC} ${CIRC}`}
+            transform="rotate(-90 100 100)"
+            style={{ transition: 'stroke-dasharray 0.6s ease' }}
+          />
+          <text x="100" y="100" textAnchor="middle" dominantBaseline="central" fontSize="28" fontWeight="800" fill="#045d94">
+            {occupied}/{totalSlots}
+          </text>
+        </svg>
       </div>
+      <div className="text-lg font-bold text-gray-800 mt-1">Parking occupancy</div>
       {onViewMap && (
         <button
           type="button"
@@ -914,9 +932,6 @@ const Overview: React.FC = () => {
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
 
-  const [showAllDepartments, setShowAllDepartments] = useState(false);
-  const [departmentPage, setDepartmentPage] = useState(1);
-  const departmentLimit = 5;
 
   // Pagination states for modals
   const [modalData, setModalData] = useState<any[]>([]);
@@ -1507,12 +1522,6 @@ useEffect(() => {
 
   // Computed values (rounded, no decimals)
   const avgRating = data ? Math.round(data.feedbackAvg.overall_average.average_rating) : 0;
-  const maxStaff = data ? Math.max(...data.departments.map(d => d.staff), 1) : 1;
-  
-  // Visible data for expandable tables
-  const visibleDepartments = showAllDepartments
-    ? data?.departments
-    : data?.departments?.slice((departmentPage - 1) * departmentLimit, departmentPage * departmentLimit);
   
   if ((loading && firstTimeLoading) || !data) {
     return (
@@ -1809,12 +1818,6 @@ useEffect(() => {
                   </Bar>
                   <Bar dataKey="segPositive" name="Positive" stackId="rating" isAnimationActive={false} fill={SENTIMENT_META.positive.color}>
                     <LabelList dataKey="positive" position="center" fontSize={10} fill="#ffffff" fontWeight={700} formatter={(v: any) => (v ? v : '')} />
-                    {/* Average rating printed after the whole stack */}
-                    <LabelList dataKey="rating" position="right" fontSize={10} fill={COK.neutralDark} fontWeight={700} formatter={(value: any) => {
-                      const num = Number(value);
-                      if (Number.isNaN(num)) return value;
-                      return Number.isInteger(num) ? String(num) : num.toFixed(1);
-                    }} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -1894,134 +1897,8 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* Overview Tab Content */}
-        <div className="grid grid-cols-1 gap-2.5">
-
-              {/* Left Column */}
-              <div className="space-y-2.5">
-                {/* Department Overview Table */}
-                <div className="bg-white border border-gray-200 p-3">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <div className="text-sm font-semibold text-gray-900">Department overview</div>
-                      <div className="text-xs text-gray-500">Leaders, staff, and feedback ratings</div>
-                    </div>
-                    <button className="text-gray-400 text-lg">⋯</button>
-                  </div>
-                  {/* Same table design rules as the event-manager events table:
-                      bordered container, CoK-blue uppercase header, zebra rows, bordered cells */}
-                  <div className="overflow-auto border-2 border-gray-300">
-                    <table className="w-full border-collapse table-auto">
-                      <thead className="sticky top-0 z-10">
-                        <tr>
-                          {['Department', 'Leader', 'Staff', 'Rating', 'Feedback'].map(label => (
-                            <th
-                              key={label}
-                              className="cok-primary-bg text-white px-4 py-3.5 text-left text-xs font-bold uppercase tracking-widest"
-                            >
-                              {label}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(!visibleDepartments || visibleDepartments.length === 0) ? (
-                          <tr>
-                            <td colSpan={5} className="px-4 py-16 text-center bg-white">
-                              <span className="text-sm font-medium text-gray-400 uppercase tracking-wide">No departments found</span>
-                            </td>
-                          </tr>
-                        ) : (
-                          visibleDepartments.map((row, idx) => {
-                            const staffPercent = Math.round((row.staff / maxStaff) * 100);
-                            const ratingChip =
-                              row.rating >= 9 ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                              : row.rating >= 7 ? 'bg-blue-50 text-blue-800 border-blue-300'
-                              : row.rating >= 5 ? 'bg-amber-50 text-amber-800 border-amber-300'
-                              : 'bg-red-50 text-red-800 border-red-300';
-                            const isLast = idx === visibleDepartments.length - 1;
-                            const cell = (colIdx: number) =>
-                              `px-4 py-3 ${colIdx === 0 ? '' : 'border-l border-gray-200'} ${isLast ? '' : 'border-b border-gray-200'}`;
-                            return (
-                              <tr
-                                key={idx}
-                                className={`transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50/50 hover:bg-blue-50'}`}
-                              >
-                                <td className={cell(0)}>
-                                  <span className="font-bold text-gray-900 text-sm">{row.name}</span>
-                                </td>
-                                <td className={cell(1)}>
-                                  <span className="text-sm font-semibold text-gray-900">{row.leader}</span>
-                                </td>
-                                <td className={cell(2)}>
-                                  <div className="text-sm text-gray-700 font-medium">{row.staff}</div>
-                                  <div className="h-1 bg-gray-100 mt-1 w-16">
-                                    <div className="h-full bg-purple-600" style={{ width: `${staffPercent}%` }}></div>
-                                  </div>
-                                </td>
-                                <td className={cell(3)}>
-                                  <span className={`inline-block border px-2.5 py-0.5 text-xs font-semibold ${ratingChip}`}>
-                                    {row.rating}/10
-                                  </span>
-                                </td>
-                                <td className={cell(4)}>
-                                  <span className="text-sm text-gray-700 font-medium">{row.feedback}</span>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  {!showAllDepartments && data.departments.length > departmentLimit && (
-                    <div className="mt-3 flex flex-col sm:flex-row justify-between items-center gap-2">
-                      <div className="text-xs text-gray-600 text-center sm:text-left">
-                        Showing {visibleDepartments?.length || 0} of {data.departments.length} departments
-                      </div>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => setDepartmentPage(Math.max(1, departmentPage - 1))}
-                          disabled={departmentPage <= 1}
-                          className="px-2 py-1 text-xs border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Previous
-                        </button>
-                        <button
-                          onClick={() => setDepartmentPage(Math.min(Math.ceil(data.departments.length / departmentLimit), departmentPage + 1))}
-                          disabled={departmentPage >= Math.ceil(data.departments.length / departmentLimit)}
-                          className="px-2 py-1 text-xs border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Next
-                        </button>
-                      </div>
-                      <button
-                        onClick={() => setShowAllDepartments(true)}
-                        className="text-xs px-2 py-1 bg-blue-600 text-white hover:bg-blue-700"
-                      >
-                        Show All
-                      </button>
-                    </div>
-                  )}
-                  {showAllDepartments && (
-                    <div className="mt-3 text-center">
-                      <button
-                        onClick={() => {
-                          setShowAllDepartments(false);
-                          setDepartmentPage(1);
-                        }}
-                        className="text-xs px-3 py-1 bg-blue-600 text-white hover:bg-blue-700"
-                      >
-                        Show Less
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-            </div>
-            
-        {/* "Employee account status" moved to the admin Service Delivery dashboard;
+        {/* "Department overview" removed per design decision;
+            "Employee account status" moved to the admin Service Delivery dashboard;
             "Feedback by Department" lives on the mayor feedback-analysis page */}
 
       </div>
