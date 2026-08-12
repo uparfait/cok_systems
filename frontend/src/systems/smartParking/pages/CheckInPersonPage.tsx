@@ -335,7 +335,7 @@ const CheckInPersonPage: React.FC = () => {
       const response = await serviceDeliveryService.checkIn(visitorData);
       
       if (response.success) {
-        showSuccess('Visitor registered successfully!');
+        showSuccess('Visitor checked-in.');
         // Reset form
         setFormData({
           full_name: '',
@@ -522,12 +522,11 @@ const CheckInPersonPage: React.FC = () => {
             {loading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Registering...
+                Waitting...
               </>
             ) : (
               <>
-                <FiPlus className="w-4 h-4" />
-                Register Visitor
+                Check in
               </>
             )}
           </button>

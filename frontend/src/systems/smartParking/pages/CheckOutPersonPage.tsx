@@ -1,5 +1,4 @@
-// CheckOutPersonPage - Smart Parking Person Checkout (Without Vehicle)
-// Page for checking out visitors without vehicles
+
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -78,6 +77,10 @@ const CheckOutPersonPage: React.FC = () => {
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSearchQueryRef = useRef('');
   
+  // Auto-refresh refs
+  const autoRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isUserInteractingRef = useRef(false);
+  
   // Modal state
   const [showActionModal, setShowActionModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<VisitorRecord | null>(null);
@@ -85,11 +88,11 @@ const CheckOutPersonPage: React.FC = () => {
   const [actionLoading, setActionLoading] = useState(false);
 
   // Memoized loadData function
-  const loadData = useCallback(async (query: string = '', page: number = currentPage, filterType: string = typeFilter) => {
+  const loadData = useCallback(async (query: string = '', page: number = currentPage, filterType: string = typeFilter, silent: boolean = false) => {
     const isInitialLoad = page === 1 && !query;
     if (isInitialLoad) {
       setLoading(true);
-    } else {
+    } else if (!silent) {
       setPaginationLoading(true);
     }
     
@@ -159,7 +162,9 @@ const CheckOutPersonPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error loading data:', error);
-      showError(error.message || 'Failed to load visitor records');
+      if (!silent) {
+        showError(error.message || 'Failed to load visitor records');
+      }
       setAllRecords([]);
       setFilteredRecords([]);
     } finally {
@@ -170,13 +175,67 @@ const CheckOutPersonPage: React.FC = () => {
     }
   }, [currentPage, typeFilter, showError]);
 
+  // Auto-refresh function
+  const autoRefresh = useCallback(() => {
+    // Don't refresh if user is searching or interacting with modals
+    if (isSearching || searchQuery.trim() || showActionModal || isUserInteractingRef.current) {
+      return;
+    }
+    
+    // Silent refresh - no loading indicators
+    loadData(searchQuery, currentPage, typeFilter, true);
+  }, [isSearching, searchQuery, showActionModal, loadData, currentPage, typeFilter]);
+
+  // Set up auto-refresh interval (every 5 seconds)
+  useEffect(() => {
+    // Start interval only when authenticated and data is loaded
+    if (isAuthenticated && !firstLoad) {
+      // Clear any existing interval
+      if (autoRefreshIntervalRef.current) {
+        clearInterval(autoRefreshIntervalRef.current);
+        autoRefreshIntervalRef.current = null;
+      }
+      
+      // Start new interval
+      autoRefreshIntervalRef.current = setInterval(autoRefresh, 5000);
+    }
+    
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (autoRefreshIntervalRef.current) {
+        clearInterval(autoRefreshIntervalRef.current);
+        autoRefreshIntervalRef.current = null;
+      }
+    };
+  }, [isAuthenticated, firstLoad, autoRefresh]);
+
+  // Track user interaction with search
+  const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    // Mark user as interacting
+    isUserInteractingRef.current = true;
+    
+    // Clear interaction flag after a delay
+    clearTimeout(searchTimeoutRef.current as NodeJS.Timeout);
+    searchTimeoutRef.current = setTimeout(() => {
+      isUserInteractingRef.current = false;
+    }, 1000);
+  }, []);
+
   // Handle filter change
   const handleFilterChange = useCallback((filter: 'all' | 'staff' | 'visitors' | 'regular') => {
     setTypeFilter(filter);
     setCurrentPage(1);
     setSearchQuery(''); // Clear search when filtering
     lastSearchQueryRef.current = '';
+    // Mark user as interacting
+    isUserInteractingRef.current = true;
     loadData('', 1, filter);
+    
+    // Clear interaction flag after a delay
+    setTimeout(() => {
+      isUserInteractingRef.current = false;
+    }, 1000);
   }, [loadData]);
 
   // Handle search
@@ -187,7 +246,14 @@ const CheckOutPersonPage: React.FC = () => {
     setIsSearching(true);
     setCurrentPage(1);
     setTypeFilter('all'); // Reset filter when searching
+    // Mark user as interacting
+    isUserInteractingRef.current = true;
     loadData(searchQuery, 1, 'all');
+    
+    // Clear interaction flag after a delay
+    setTimeout(() => {
+      isUserInteractingRef.current = false;
+    }, 1000);
   }, [searchQuery, loadData]);
 
   // Debounced search as user types
@@ -205,10 +271,17 @@ const CheckOutPersonPage: React.FC = () => {
       clearTimeout(searchTimeoutRef.current);
     }
     
+    // Mark user as interacting
+    isUserInteractingRef.current = true;
+    
     // If search query is empty, load all data
     if (!searchQuery.trim()) {
       loadData('', 1, 'all');
       setTypeFilter('all');
+      // Clear interaction flag after a delay
+      setTimeout(() => {
+        isUserInteractingRef.current = false;
+      }, 1000);
       return;
     }
     
@@ -218,6 +291,10 @@ const CheckOutPersonPage: React.FC = () => {
       setCurrentPage(1);
       setTypeFilter('all');
       loadData(searchQuery, 1, 'all');
+      // Clear interaction flag after a delay
+      setTimeout(() => {
+        isUserInteractingRef.current = false;
+      }, 1000);
     }, 300);
     
     return () => {
@@ -231,7 +308,7 @@ const CheckOutPersonPage: React.FC = () => {
   const handleCarCheckedIn = useCallback((data: any) => {
     console.log('Car check-in detected, refreshing table silently...');
     // Load data silently without showing notification
-    loadData(searchQuery, currentPage, typeFilter);
+    loadData(searchQuery, currentPage, typeFilter, true);
     // Show toaster with type and message
     switch (data.type) {
       case 'success':
@@ -277,7 +354,7 @@ const CheckOutPersonPage: React.FC = () => {
         else showInfo(message);
       }
       
-      loadData(searchQuery, currentPage, typeFilter);
+      loadData(searchQuery, currentPage, typeFilter, true);
       console.log('✅ [CheckOutPerson] Table data refetched');
     };
 
@@ -297,7 +374,7 @@ const CheckOutPersonPage: React.FC = () => {
         else showInfo(message);
       }
       
-      loadData(searchQuery, currentPage, typeFilter);
+      loadData(searchQuery, currentPage, typeFilter, true);
       console.log('✅ [CheckOutPerson] Table data refetched after visitor checkout');
     };
 
@@ -317,7 +394,7 @@ const CheckOutPersonPage: React.FC = () => {
         else showInfo(message);
       }
       
-      loadData(searchQuery, currentPage, typeFilter);
+      loadData(searchQuery, currentPage, typeFilter, true);
       console.log('✅ [CheckOutPerson] Table data refetched after car checkout');
     };
 
@@ -355,18 +432,27 @@ const CheckOutPersonPage: React.FC = () => {
   const handlePageChange = useCallback((newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return;
     setCurrentPage(newPage);
+    // Mark user as interacting
+    isUserInteractingRef.current = true;
     loadData(searchQuery, newPage, typeFilter);
+    
+    // Clear interaction flag after a delay
+    setTimeout(() => {
+      isUserInteractingRef.current = false;
+    }, 1000);
   }, [searchQuery, typeFilter, totalPages, loadData]);
 
 const handleCheckout = async () => {
     if (!selectedRecord) return;
 
     setActionLoading(true);
+    // Mark user as interacting
+    isUserInteractingRef.current = true;
     try {
       const response = await serviceDeliveryService.checkOut(selectedRecord._id as string);
 
       if (response.success) {
-        showSuccess('Visitor checked out successfully!');
+        showSuccess('Visitor checked out.');
         setShowActionModal(false);
         setSelectedRecord(null);
         setActionType(null);
@@ -379,6 +465,10 @@ const handleCheckout = async () => {
       showError(error.message || 'Failed to checkout visitor');
     } finally {
       setActionLoading(false);
+      // Clear interaction flag after a delay
+      setTimeout(() => {
+        isUserInteractingRef.current = false;
+      }, 1000);
     }
   };
 
@@ -386,11 +476,13 @@ const handleCheckout = async () => {
     if (!selectedRecord) return;
 
     setActionLoading(true);
+    // Mark user as interacting
+    isUserInteractingRef.current = true;
     try {
       const response = await serviceDeliveryService.partialExit(selectedRecord._id as string);
 
       if (response.success) {
-        showSuccess(response.message || 'Visitor marked as outside successfully!');
+        showSuccess(response.message || 'Visitor marked as outside.');
         setShowActionModal(false);
         setSelectedRecord(null);
         setActionType(null);
@@ -403,6 +495,10 @@ const handleCheckout = async () => {
       showError(error.message || 'Failed to mark visitor as outside');
     } finally {
       setActionLoading(false);
+      // Clear interaction flag after a delay
+      setTimeout(() => {
+        isUserInteractingRef.current = false;
+      }, 1000);
     }
   };
 
@@ -412,6 +508,8 @@ const handleCheckout = async () => {
     if (!selectedRecord) return;
 
     setActionLoading(true);
+    // Mark user as interacting
+    isUserInteractingRef.current = true;
     try {
       const response = await serviceDeliveryService.returnWithBadge(
         selectedRecord._id as string,
@@ -419,7 +517,7 @@ const handleCheckout = async () => {
       );
 
       if (response.success) {
-        showSuccess(response.message || 'Visitor returned successfully!');
+        showSuccess(response.message || 'Visitor returned.');
         setShowActionModal(false);
         setSelectedRecord(null);
         setActionType(null);
@@ -433,6 +531,10 @@ const handleCheckout = async () => {
       showError(error.message || 'Failed to mark visitor as returned');
     } finally {
       setActionLoading(false);
+      // Clear interaction flag after a delay
+      setTimeout(() => {
+        isUserInteractingRef.current = false;
+      }, 1000);
     }
   };
 
@@ -440,12 +542,16 @@ const handleCheckout = async () => {
     setSelectedRecord(record);
     setActionType('checkout');
     setShowActionModal(true);
+    // Mark user as interacting
+    isUserInteractingRef.current = true;
   };
 
   const openMarkAsOutModal = (record: VisitorRecord) => {
     setSelectedRecord(record);
     setActionType('leave');
     setShowActionModal(true);
+    // Mark user as interacting
+    isUserInteractingRef.current = true;
   };
 
   const openMarkAsInModal = (record: VisitorRecord) => {
@@ -453,6 +559,8 @@ const handleCheckout = async () => {
     setActionType('return');
     setShowActionModal(true);
     setReturnBadgeInput('');
+    // Mark user as interacting
+    isUserInteractingRef.current = true;
   };
 
   const handleAction = () => {
@@ -543,6 +651,8 @@ const handleCheckout = async () => {
   return (
     <MainLayout>
       <div className="p-2" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+      
+        
         {/* Search and Filters */}
         <div className="p-3 mb-3" style={{ backgroundColor: WHITE, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
           <div className="flex flex-col md:flex-row gap-3 items-center">
@@ -553,7 +663,7 @@ const handleCheckout = async () => {
                 <input
                   type="text"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={handleSearchInputChange}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   placeholder="Search by name, badge, or phone..."
                   className="w-full pl-9 pr-3 py-2 cok-auth-input"
@@ -783,6 +893,10 @@ const handleCheckout = async () => {
                     setSelectedRecord(null);
                     setActionType(null);
                     setReturnBadgeInput('');
+                    // Clear interaction flag
+                    setTimeout(() => {
+                      isUserInteractingRef.current = false;
+                    }, 500);
                   }}
                   className="p-1 transition-colors"
                   style={{ color: GRAY_DISABLED }}
@@ -845,6 +959,10 @@ const handleCheckout = async () => {
                     setSelectedRecord(null);
                     setActionType(null);
                     setReturnBadgeInput('');
+                    // Clear interaction flag
+                    setTimeout(() => {
+                      isUserInteractingRef.current = false;
+                    }, 500);
                   }}
                   className="flex-1 px-3 sm:px-4 py-2 transition-colors"
                   style={{ backgroundColor: 'transparent', border: `1px solid ${PRIMARY}`, color: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontSize: '13px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
@@ -869,7 +987,7 @@ const handleCheckout = async () => {
                   }}
                 >
                   {actionLoading ? (
-                    <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
                     actionType === 'checkout' ? <FiLogOut className="w-4 h-4 sm:w-5 sm:h-5" /> :
                     actionType === 'leave' ? <FiLogOut className="w-4 h-4 sm:w-5 sm:h-5" /> : <FiCheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
