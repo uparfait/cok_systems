@@ -318,7 +318,7 @@ const CheckInVehiclePage: React.FC = () => {
       
       // Get identification from verified data
       const identification = verifiedData.driver_details?.identification || null;
-      alert(driverType.trim())
+   
       const checkInData = {
         plate_number: verifiedData.plate_number,
         driver_name: driverInfo.name || verifiedData.driver_details?.name || verifiedData.driver_name || '',
