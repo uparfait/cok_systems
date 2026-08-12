@@ -17,7 +17,8 @@ module.exports = async function get_visitor_by_identification(req, res, next) {
 
         const visitor = await ServiceDelivery.findOne({
             'identification.id_type': id_type,
-            'identification.number': trimmedIdNumber
+            'identification.number': trimmedIdNumber,
+            'is_still_inhouse': false
         })
 
         if (!visitor) {
