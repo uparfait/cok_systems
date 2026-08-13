@@ -1,0 +1,94 @@
+import { evaluate_rule } from "./engine.js";
+import { flatten_fields, build_dependency_graph } from "./dependencyGraph.js";
+import { get_field_text } from "../fields/fieldText.js";
+
+/**
+ * True when a value should be treated as empty for a mandatory-response
+ * check.
+ */
+function is_empty_value(value) {
+  if (value === null || value === undefined) return true;
+  if (Array.isArray(value)) return value.length === 0;
+  return value.toString().trim().length === 0;
+}
+
+/**
+ * Validates a form response entirely in the browser, using the exact same
+ * dependency-ordered evaluation as the server: computes derived values,
+ * applies visibility, then checks every mandatory response and every
+ * validation rule independently so a field can fail more than one
+ * condition at once and each shows its own message. Mirrors
+ * dc_backend/jsonlogic/validate_submission.js so client and server never
+ * disagree, and lets the UI catch problems before a round trip.
+ */
+export function validate_submission_client_side(schema, submitted_data, language, translate) {
+  const flat_fields = flatten_fields(schema.fields);
+  const fields_by_id = new Map(flat_fields.map((field) => [field.id, field]));
+  const dependency_result = build_dependency_graph(schema.fields);
+
+  const working_data = Object.assign({}, submitted_data);
+  const field_errors = {};
+  const field_valid_messages = {};
+
+  const evaluation_order = dependency_result.order.length > 0 ? dependency_result.order : [...fields_by_id.keys()];
+
+  evaluation_order.forEach((field_id) => {
+    const field = fields_by_id.get(field_id);
+    if (!field || !field.type) return;
+
+    if (field.computed && field.computed.enabled && field.computed.formula) {
+      const computed_result = evaluate_rule(field.computed.formula, working_data);
+      working_data[field_id] = computed_result.value;
+    }
+
+    const visibility_result = field.visibility_condition
+      ? evaluate_rule(field.visibility_condition, working_data)
+      : { value: true, error: null };
+    const is_visible = visibility_result.error ? true : visibility_result.value !== false;
+
+    if (!is_visible) return;
+
+    if (field.mandatory && is_empty_value(working_data[field_id])) {
+      field_errors[field_id] = (field_errors[field_id] || []).concat([
+        get_field_text(field.required_message, language) || translate("DCS_REQUIRED_FIELD_ERROR"),
+      ]);
+    }
+
+    (field.validation_rules || []).forEach((validation_rule) => {
+      if (!validation_rule.condition) return;
+      const rule_result = evaluate_rule(validation_rule.condition, working_data);
+      const satisfied = rule_result.error ? false : rule_result.value !== false;
+
+      if (!satisfied) {
+        const severity = validation_rule.severity === "warning" ? "warning" : "error";
+        field_errors[field_id] = (field_errors[field_id] || []).concat([
+          {
+            message: get_field_text(validation_rule.message, language) || translate("DCS_VALIDATION_FAILED_GENERIC"),
+            severity,
+          },
+        ]);
+        return;
+      }
+
+      const rule_valid_message = get_field_text(validation_rule.valid_message, language);
+      if (rule_valid_message && !field_valid_messages[field_id]) {
+        field_valid_messages[field_id] = rule_valid_message;
+      }
+    });
+  });
+
+  Object.keys(field_valid_messages).forEach((field_id) => {
+    if (field_errors[field_id]) delete field_valid_messages[field_id];
+  });
+
+  const has_blocking_errors = Object.keys(field_errors).some((field_id) =>
+    field_errors[field_id].some((entry) => typeof entry === "string" || entry.severity === "error"),
+  );
+
+  return {
+    valid: !has_blocking_errors,
+    field_errors,
+    field_valid_messages,
+    resolved_data: working_data,
+  };
+}

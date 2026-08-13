@@ -29,6 +29,7 @@ import {
   FiCalendar,
   FiDroplet,
   FiHardDrive,
+  FiDatabase,
 } from "react-icons/fi";
 import { HiOutlineOfficeBuilding } from "react-icons/hi";
 import { IoExitOutline } from "react-icons/io5";
@@ -247,6 +248,7 @@ const getIcon = (iconName: string): React.ComponentType<any> => {
     FiCalendar,
     FiDroplet,
     FiHardDrive,
+    FiDatabase,
   };
   return icons[iconName] || FiGrid;
 };

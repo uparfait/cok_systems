@@ -1,0 +1,71 @@
+import React from "react";
+import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
+import DcsButtonOutline from "./DcsButtonOutline.jsx";
+import DcsEmptyState from "./DcsEmptyState.jsx";
+
+/**
+ * Generic paginated table used for collected submissions. Columns and rows
+ * are supplied by the caller - this component never hardcodes any field
+ * knowledge of its own.
+ */
+export default function DcsDataTable({ columns, rows, page, totalPages, onPageChange, loading }) {
+  const { translate } = useDcsLanguage();
+
+  if (!loading && (!rows || rows.length === 0)) {
+    return <DcsEmptyState messageKey="DCS_TABLE_NO_DATA" />;
+  }
+
+  return (
+    <div className="w-full">
+      <div className="table-responsive-container">
+        <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              {columns.map((column) => (
+                <th
+                  key={column.key}
+                  className="text-left px-3 py-2"
+                  style={{
+                    fontFamily: "'Montserrat', sans-serif",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    color: "#FFFFFF",
+                    border: "1px solid #056daa",
+                    backgroundColor: "#056daa",
+                  }}
+                >
+                  {column.label !== undefined ? column.label : translate(column.labelKey)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {(rows || []).map((row) => (
+              <tr key={row.dcs_row_key}>
+                {columns.map((column) => (
+                  <td key={column.key} className="px-3 py-2" style={{ border: "1px solid #E0E0E0", color: "#333333" }}>
+                    {row[column.key]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex items-center justify-between mt-4">
+        <DcsButtonOutline disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
+          {translate("DCS_TABLE_PREVIOUS")}
+        </DcsButtonOutline>
+        <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 13, color: "#333333" }}>
+          {translate("DCS_TABLE_PAGE_INFO", { page })}
+        </span>
+        <DcsButtonOutline disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
+          {translate("DCS_TABLE_NEXT")}
+        </DcsButtonOutline>
+      </div>
+    </div>
+  );
+}
