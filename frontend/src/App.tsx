@@ -71,6 +71,22 @@ import RequestsPage from "./pages/dashboard/RequestsPage";
 // Task Management
 import TaskManager from "./systems/taskManagement/TaskManager";
 import FollowUpManager from "./systems/taskManagement/FollowUpManager";
+
+// Data Collection System (DCS)
+import DcsShell from "./systems/dcs/layout/DcsShell.jsx";
+import DcsProjectsLandingPage from "./systems/dcs/pages/DcsProjectsLandingPage.jsx";
+import NewProjectPage from "./systems/dcs/pages/NewProjectPage.jsx";
+import ProjectDetailPage from "./systems/dcs/pages/ProjectDetailPage.jsx";
+import ProjectSettingsPage from "./systems/dcs/pages/ProjectSettingsPage.jsx";
+import ProjectFormsListPage from "./systems/dcs/pages/ProjectFormsListPage.jsx";
+import ProjectAccessControlPage from "./systems/dcs/pages/ProjectAccessControlPage.jsx";
+import ProjectDashboardPage from "./systems/dcs/pages/ProjectDashboardPage.jsx";
+import NewFormPage from "./systems/dcs/pages/NewFormPage.jsx";
+import FormDetailPage from "./systems/dcs/pages/FormDetailPage.jsx";
+import FormSettingsPage from "./systems/dcs/pages/FormSettingsPage.jsx";
+import FormVersionsPage from "./systems/dcs/pages/FormVersionsPage.jsx";
+import FormDataPage from "./systems/dcs/pages/FormDataPage.jsx";
+import PublicFormPage from "./systems/dcs/pages/PublicFormPage.jsx";
 // Head of Department pages
 import HodEmployeesPage from "./systems/serviceDelivery/pages/hod/HodEmployeesPage";
 import HodTasksPage from "./systems/serviceDelivery/pages/hod/HodTasksPage";
@@ -821,6 +837,35 @@ const App: React.FC = () => {
                   path="/dashboard"
                   element={<Navigate to="/system-admin/dashboard" replace />}
                 />
+
+                {/* Data Collection System (DCS) */}
+                <Route
+                  path="/dcs-system"
+                  element={
+                    <ProtectedRoute>
+                      <DcsShell />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<DcsProjectsLandingPage />} />
+                  <Route path="new-project" element={<NewProjectPage />} />
+                  <Route path="project/:project_id" element={<ProjectDetailPage />}>
+                    <Route index element={<ProjectSettingsPage />} />
+                    <Route path="settings" element={<ProjectSettingsPage />} />
+                    <Route path="forms" element={<ProjectFormsListPage />} />
+                    <Route path="access-control" element={<ProjectAccessControlPage />} />
+                    <Route path="dashboard" element={<ProjectDashboardPage />} />
+                  </Route>
+                  <Route path="project/:project_id/forms/new" element={<NewFormPage />} />
+                  <Route path="project/:project_id/forms/:form_group_id" element={<FormDetailPage />}>
+                    <Route index element={<FormSettingsPage />} />
+                    <Route path="details" element={<FormSettingsPage />} />
+                    <Route path="versions" element={<FormVersionsPage />} />
+                  </Route>
+                  <Route path="project/:project_id/forms/:form_group_id/:version/data" element={<FormDataPage />} />
+                </Route>
+
+                <Route path="/dcs-form/:id" element={<PublicFormPage />} />
 
                 {/* route for unknown route move to under development */}
                 <Route

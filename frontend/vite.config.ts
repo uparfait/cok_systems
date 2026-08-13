@@ -31,6 +31,12 @@ export default defineConfig({
         changeOrigin: true,
         secure: !!process.env.VITE_API_URL,
       },
+
+      '/dcs/api': {
+        target: process.env.VITE_API_DCS_URL || 'http://localhost:8765',
+        changeOrigin: true,
+        secure: !!process.env.VITE_API_DCS_URL,
+      },
     },
   },
 })

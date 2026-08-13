@@ -495,6 +495,7 @@ body {
   line-height: 1.4;
   padding-left: 40px;
   width: 100%;
+  padding-right: 10px;
   min-height: 50px;
   color: var(--cok-neutral-dark);
   background-color: #FFFFFF;
