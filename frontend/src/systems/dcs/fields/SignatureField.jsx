@@ -11,6 +11,7 @@ export default function SignatureField({ field, language, mode, value, onChange,
   const is_builder = mode === "builder";
   const { translate } = useDcsLanguage();
   const label = get_field_text(field.label, language);
+  const help_text = get_field_text(field.help_text, language);
   const canvas_ref = useRef(null);
   const [is_drawing, setIsDrawing] = useState(false);
 
@@ -70,7 +71,7 @@ export default function SignatureField({ field, language, mode, value, onChange,
 
   return (
     <div className="w-full">
-      <label className="cok-auth-label">
+      <label className="cok-auth-label" title={help_text || undefined}>
         {label}
         {field.mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
       </label>
@@ -79,6 +80,7 @@ export default function SignatureField({ field, language, mode, value, onChange,
         width={400}
         height={160}
         className="w-full border"
+        title={help_text || undefined}
         style={{ borderColor: "#E0E0E0", touchAction: "none" }}
         onMouseDown={start_drawing}
         onMouseMove={draw}

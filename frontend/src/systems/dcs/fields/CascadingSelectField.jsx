@@ -11,6 +11,7 @@ export default function CascadingSelectField({ field, language, mode, value, onC
   const is_builder = mode === "builder";
   const { translate } = useDcsLanguage();
   const label = get_field_text(field.label, language);
+  const help_text = get_field_text(field.help_text, language);
   const parent_value = allValues ? allValues[field.parent_field_id] : undefined;
 
   const visible_options = is_builder
@@ -19,7 +20,7 @@ export default function CascadingSelectField({ field, language, mode, value, onC
 
   return (
     <div className="w-full">
-      <label className="cok-auth-label">
+      <label className="cok-auth-label" title={help_text || undefined}>
         {label}
         {field.mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
       </label>
@@ -28,6 +29,7 @@ export default function CascadingSelectField({ field, language, mode, value, onC
         value={value || ""}
         disabled={is_builder || (!is_builder && !parent_value && !!field.parent_field_id)}
         onChange={(event) => onChange && onChange(event.target.value)}
+        title={help_text || undefined}
       >
         <option value="" disabled>
           {translate("DCS_RENDERER_SELECT_PLACEHOLDER")}

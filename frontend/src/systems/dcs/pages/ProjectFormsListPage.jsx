@@ -39,21 +39,27 @@ export default function ProjectFormsListPage() {
       {loading && <DcsLoadingState />}
       {is_empty && <DcsEmptyState messageKey="DCS_FORMS_LIST_EMPTY" />}
 
-      <div className="space-y-2">
+      <ol className="space-y-2 pl-6 list-decimal">
         {(forms || []).map((form) => {
           const title = form.form_name || form.form_group_id;
+          const form_path = `/dcs-system/project/${project._id}/forms/${form.form_group_id}/details`;
           return (
-            <button
-              key={form.form_group_id}
-              onClick={() => navigate(`/dcs-system/project/${project._id}/forms/${form.form_group_id}/details`)}
-              className="w-full cursor-pointer text-left px-4 py-3 border bg-white hover:bg-gray-50"
-              style={{ borderColor: "#E0E0E0", color: "#056daa", fontFamily: "'Montserrat', sans-serif", fontWeight: 600 }}
-            >
-              {title}
-            </button>
+            <li key={form.form_group_id}  className="hover:underline">
+              <a
+                href={form_path}
+                onClick={(event) => {
+                  event.preventDefault();
+                  navigate(form_path);
+                }}
+                className="hover:underline"
+                style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif", fontWeight: 500 }}
+              >
+                {title}
+              </a>
+            </li>
           );
         })}
-      </div>
+      </ol>
     </div>
   );
 }

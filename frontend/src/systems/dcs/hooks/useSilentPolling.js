@@ -33,11 +33,20 @@ export function useSilentPolling(fetchFn, intervalMs, deps) {
 
   const dependency_list = deps || [];
 
-  useEffect(() => {
+  // useEffect(() => {
+  //   run(true);
+  //   const interval_id = window.setInterval(() => {
+  //     run(false);
+  //   }, intervalMs || DEFAULT_POLL_INTERVAL_MS);
+  //   return () => window.clearInterval(interval_id);
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [run, intervalMs, ...dependency_list]);
+
+    useEffect(() => {
     run(true);
     const interval_id = window.setInterval(() => {
       run(false);
-    }, intervalMs || DEFAULT_POLL_INTERVAL_MS);
+    }, 5000);
     return () => window.clearInterval(interval_id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [run, intervalMs, ...dependency_list]);

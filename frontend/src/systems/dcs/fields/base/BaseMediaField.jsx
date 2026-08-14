@@ -15,6 +15,7 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
   const is_builder = mode === "builder";
   const { translate } = useDcsLanguage();
   const label = get_field_text(field.label, language);
+  const help_text = get_field_text(field.help_text, language);
   const input_ref = useRef(null);
   const [is_drag_over, setIsDragOver] = useState(false);
 
@@ -49,7 +50,7 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
       onDrop={handle_drop}
       style={is_drag_over ? { backgroundColor: "rgba(5,109,170,0.05)", outline: "2px dashed #056daa" } : undefined}
     >
-      <label className="cok-auth-label">
+      <label className="cok-auth-label" title={help_text || undefined}>
         {label}
         {field.mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
       </label>

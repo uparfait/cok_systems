@@ -7,10 +7,11 @@ import { get_field_text } from "./fieldText.js";
 export default function SingleSelectField({ field, language, mode, value, onChange, error }) {
   const is_builder = mode === "builder";
   const label = get_field_text(field.label, language);
+  const help_text = get_field_text(field.help_text, language);
 
   return (
     <div className="w-full">
-      <label className="cok-auth-label">
+      <label className="cok-auth-label" title={help_text || undefined}>
         {label}
         {field.mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
       </label>
