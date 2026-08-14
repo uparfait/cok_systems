@@ -5,7 +5,7 @@ const DB_CONFIG = {
         port: parseInt(process.env.EMAIL_PORT, 10) || 25,
         user: process.env.EMAIL_USER || '',
         pass: process.env.EMAIL_PASS || '',
-        from: `"IKAZE" <${process.env.EMAIL_FROM || ''}>`
+        from: `"IKAZE" ${process.env.EMAIL_FROM || ''}`
     },
 
     // Redis Configuration
