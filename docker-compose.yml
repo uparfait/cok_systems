@@ -19,8 +19,8 @@ services:
   backend:
     build: ./backend
     restart: unless-stopped
-    environment:
-      NODE_ENV: production
+    env_file:
+      - ./backend/.env
     volumes:
       - backend_uploads:/app/uploads
     depends_on:
@@ -30,9 +30,8 @@ services:
   em-backend:
     build: ./em_backend
     restart: unless-stopped
-    environment:
-      NODE_ENV: production
-
+    env_file:
+      - ./em_backend/.env
     volumes:
       - em_uploads:/app/uploads
     depends_on:
@@ -42,13 +41,8 @@ services:
   # dc-backend:
   #   build: ./dc_backend
   #   restart: unless-stopped
-  #   environment:
-  #     NODE_ENV: production
-  #     DC_PORT: 8765
-  #     conne_string: mongodb://CoK-IkazeSys:IKaZE%21%402026sys@mongo:27017/data_collection_system?authSource=admin
-  #     COK_DB_NAME: cok
-  #     JWT_SECRET: abd32fe-1c3f-4b6a-9d2e-0f5b8c6e7a9f
-  #     CLIENT_URL_SET: uat-ikaze.kigalicity.gov.rw
+  #   env_file:
+  #     - ./dc_backend/.env
   #   volumes:
   #     - dc_uploads:/app/uploads
   #   depends_on:
@@ -58,11 +52,8 @@ services:
   frontend:
     build: ./frontend
     restart: unless-stopped
-    environment:
-      PORT: 5713
-      VITE_API_URL: https://uatps-ikaze.kigalicity.gov.rw
-      VITE_API_EVENT_URL: https://uate-ikaze.kigalicity.gov.rw
-      VITE_API_DCS_URL: https://uatdcs-ikaze.kigalicity.gov.rw
+    env_file:
+      - ./frontend/.env
     expose:
       - "5713"
     volumes:
@@ -72,7 +63,6 @@ services:
     depends_on:
       - backend
       - em-backend
-      # Removed dc-backend since it is commented out above
     command: sh -c "while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g 'daemon off;'"
 
   certbot:
