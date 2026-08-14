@@ -93,7 +93,7 @@ async function requestReset(req, res, next) {
         await email.sendOTPEmail(userEmail, otpCode, "password_reset");
 
         const updatedUser = await User.findOne({ email: userEmail });
-        console.log("Updated user:", updatedUser);
+        console.log("Otp sent")
 
         return res.status(200).json({
             status: true,
