@@ -7,6 +7,7 @@ import { get_field_text } from "./fieldText.js";
 export default function LikertScaleField({ field, language, mode, value, onChange, error }) {
   const is_builder = mode === "builder";
   const label = get_field_text(field.label, language);
+  const help_text = get_field_text(field.help_text, language);
   const scale_size = field.scale_size || 5;
   const scale_points = Array.from({ length: scale_size }, (_unused, index) => index + 1);
   const low_label = get_field_text(field.low_label, language);
@@ -14,7 +15,7 @@ export default function LikertScaleField({ field, language, mode, value, onChang
 
   return (
     <div className="w-full">
-      <label className="cok-auth-label">
+      <label className="cok-auth-label" title={help_text || undefined}>
         {label}
         {field.mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
       </label>

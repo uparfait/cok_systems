@@ -10,6 +10,7 @@ export default function RankingField({ field, language, mode, value, onChange, e
   const is_builder = mode === "builder";
   const { translate } = useDcsLanguage();
   const label = get_field_text(field.label, language);
+  const help_text = get_field_text(field.help_text, language);
   const options = field.options || [];
   const ordered_values = Array.isArray(value) && value.length > 0 ? value : options.map((option) => option.value);
 
@@ -26,7 +27,7 @@ export default function RankingField({ field, language, mode, value, onChange, e
 
   return (
     <div className="w-full">
-      <label className="cok-auth-label">
+      <label className="cok-auth-label" title={help_text || undefined}>
         {label}
         {field.mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
       </label>

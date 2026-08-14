@@ -57,8 +57,7 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose 
   const is_header = draft.type === "header";
   const is_likert = draft.type === "likert_scale";
   const is_media = ["image", "video", "audio", "file_upload"].includes(draft.type);
-  const is_number = draft.type === "number";
-  const is_text = draft.type === "text";
+  const is_placeholder_capable = ["text", "number", "email", "url", "phone"].includes(draft.type);
   const is_date_like = ["date", "date_time"].includes(draft.type);
   const other_fields = (allFields || []).filter((candidate_field) => candidate_field.id !== draft.id && has_field_label(candidate_field));
 
@@ -128,7 +127,7 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose 
             </div>
           )}
 
-          {(is_text || is_number) && (
+          {is_placeholder_capable && (
             <TranslatedTextRow labelKey="DCS_SETTINGS_PLACEHOLDER" value={draft.placeholder} onChange={(value) => update({ placeholder: value })} translate={translate} />
           )}
 

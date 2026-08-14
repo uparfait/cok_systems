@@ -7,6 +7,7 @@ import { get_field_text } from "./fieldText.js";
 export default function DurationField({ field, language, mode, value, onChange, error }) {
   const is_builder = mode === "builder";
   const label = get_field_text(field.label, language);
+  const help_text = get_field_text(field.help_text, language);
   const current_value = value || { hours: "", minutes: "" };
 
   const update_part = (part, part_value) => {
@@ -16,7 +17,7 @@ export default function DurationField({ field, language, mode, value, onChange, 
 
   return (
     <div className="w-full">
-      <label className="cok-auth-label">
+      <label className="cok-auth-label" title={help_text || undefined}>
         {label}
         {field.mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
       </label>
@@ -27,6 +28,7 @@ export default function DurationField({ field, language, mode, value, onChange, 
           disabled={is_builder}
           className="cok-auth-input w-full py-3"
           placeholder="0"
+          title={help_text || undefined}
           value={current_value.hours}
           onChange={(event) => update_part("hours", event.target.value)}
         />
@@ -37,6 +39,7 @@ export default function DurationField({ field, language, mode, value, onChange, 
           disabled={is_builder}
           className="cok-auth-input w-full py-3"
           placeholder="0"
+          title={help_text || undefined}
           value={current_value.minutes}
           onChange={(event) => update_part("minutes", event.target.value)}
         />
