@@ -15,7 +15,6 @@ services:
       timeout: 10s
       retries: 5
       start_period: 20s
-    # No ports exposed — database is reachable only inside the Docker network
 
   backend:
     build: ./backend
@@ -75,27 +74,21 @@ services:
   frontend:
     build: ./frontend
     restart: unless-stopped
-    
     environment:
-      # Tell the internal nginx/app to listen on port 5713
       PORT: 5713
       VITE_API_URL: https://uatps-ikaze.kigalicity.gov.rw
       VITE_API_EVENT_URL: https://uate-ikaze.kigalicity.gov.rw
       VITE_API_DCS_URL: https://uatdcs-ikaze.kigalicity.gov.rw
-    # Expose the port so it's accessible within the Docker network
     expose:
       - "5713"
     volumes:
-      # Live nginx config — edit/swap files here without rebuilding the image
       - ./frontend/nginx:/etc/nginx/conf.d:ro
-      # Shared with certbot: challenge files + issued certificates
       - certbot_www:/var/www/certbot
       - certbot_conf:/etc/letsencrypt:ro
     depends_on:
       - backend
       - em-backend
-      - dc-backend
-    # Reload nginx every 6h so renewed certificates are picked up
+      # Removed dc-backend since it is commented out above
     command: sh -c "while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g 'daemon off;'"
 
   certbot:
@@ -104,7 +97,6 @@ services:
     volumes:
       - certbot_www:/var/www/certbot
       - certbot_conf:/etc/letsencrypt
-    # Checks twice a day; renews automatically when <30 days remain
     entrypoint: sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
 
 volumes:
