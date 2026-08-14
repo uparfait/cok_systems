@@ -56,7 +56,21 @@ services:
       mongo:
         condition: service_healthy
 
-
+  # dc-backend:
+  #   build: ./dc_backend
+  #   restart: unless-stopped
+  #   environment:
+  #     NODE_ENV: production
+  #     DC_PORT: 8765
+  #     conne_string: mongodb://CoK-IkazeSys:IKaZE%21%402026sys@mongo:27017/data_collection_system?authSource=admin
+  #     COK_DB_NAME: cok
+  #     JWT_SECRET: abd32fe-1c3f-4b6a-9d2e-0f5b8c6e7a9f
+  #     CLIENT_URL_SET: uat-ikaze.kigalicity.gov.rw
+  #   volumes:
+  #     - dc_uploads:/app/uploads
+  #   depends_on:
+  #     mongo:
+  #       condition: service_healthy
 
   frontend:
     build: ./frontend

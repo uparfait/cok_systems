@@ -14,6 +14,8 @@ COPY . .
 ARG VITE_SOCKET_URL=/
 ENV VITE_SOCKET_URL=$VITE_SOCKET_URL
 
+RUN npm install
+
 RUN npm run build
 
 # ---------- Stage 2: serve with nginx ----------
