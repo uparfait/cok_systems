@@ -3,9 +3,9 @@ const DB_CONFIG = {
     email: {
         host: process.env.EMAIL_HOST || 'mail.kigalicity.gov.rw',
         port: parseInt(process.env.EMAIL_PORT, 10) || 25,
-        user: process.env.EMAIL_USER || 'coksystems@kigalicity.gov.rw',
-        pass: process.env.EMAIL_PASS || 'CTown@2025!&',
-        from: process.env.EMAIL_FROM || '"IKAZE" <coksystems@kigalicity.gov.rw>'
+        user: process.env.EMAIL_USER || '',
+        pass: process.env.EMAIL_PASS || '',
+        from: process.env.EMAIL_FROM || ''
     },
 
     // Redis Configuration
