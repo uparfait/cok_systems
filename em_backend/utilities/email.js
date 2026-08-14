@@ -37,7 +37,7 @@ transporter.verify((error) => {
 async function sendCalendarEmail(toEmail, subject, htmlContent, textContent, icsContent, filename, method = 'REQUEST') {
   try {
     await transporter.sendMail({
-      from: config.email.from,
+      from: "IKAZE <coksystems@kigalicity.gov.rw>",
       to: toEmail,
       subject,
       text: textContent,
@@ -59,7 +59,7 @@ async function sendCalendarEmail(toEmail, subject, htmlContent, textContent, ics
 async function sendNotificationEmail(toEmail, subject, htmlContent, textContent) {
   try {
     await transporter.sendMail({
-      from: config.email.from,
+      from: "IKAZE <coksystems@kigalicity.gov.rw>",
       to: toEmail,
       subject,
       text: textContent,
