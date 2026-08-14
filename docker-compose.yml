@@ -38,16 +38,16 @@ services:
       mongo:
         condition: service_healthy
 
-  # dc-backend:
-  #   build: ./dc_backend
-  #   restart: unless-stopped
-  #   env_file:
-  #     - ./dc_backend/.env
-  #   volumes:
-  #     - dc_uploads:/app/uploads
-  #   depends_on:
-  #     mongo:
-  #       condition: service_healthy
+  dc-backend:
+    build: ./dc_backend
+    restart: unless-stopped
+    env_file:
+      - ./dc_backend/.env
+    volumes:
+      - dc_uploads:/app/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
 
   frontend:
     build: ./frontend
