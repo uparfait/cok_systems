@@ -1,30 +1,36 @@
-import { FiArrowLeft } from 'react-icons/fi';
+import { FiCalendar } from 'react-icons/fi';
 
-export default function EventDetailHeader({ event, eventMode, navigate }) {
-  const badgeColors = {
-    live: 'bg-green-100 text-green-700',
-    upcoming: 'bg-blue-100 text-blue-700',
-    recurring: 'bg-purple-100 text-purple-700',
-    past: 'bg-gray-100 text-gray-600',
-  };
+const PRIMARY = '#056daa';
+const SUCCESS = '#4CAF50';
+const WARNING = '#F39C12';
+const DANGER = '#E74C3C';
+const GRAY_DISABLED = '#9E9E9E';
+const fontHeading = "'Montserrat', sans-serif";
 
+const badgeColors = {
+  live: SUCCESS,
+  upcoming: PRIMARY,
+  recurring: WARNING,
+  past: GRAY_DISABLED,
+};
+
+export default function EventDetailHeader({ event, eventMode }) {
   return (
-    <div className="bg-white border-b border-gray-200 px-6 py-4">
-      <div className="max-w-5xl mx-auto flex items-center gap-4">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 cok-btn-outlined"
-        >
-          <FiArrowLeft className="w-5 h-5 " />
-        </button>
+    <div className="px-4 sm:px-6 py-5 text-white" style={{ backgroundColor: PRIMARY }}>
+      <div className="max-w-5xl mx-auto flex items-center gap-3">
+        <div className="w-8 h-8 flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
+          <FiCalendar className="w-4 h-4 text-white" />
+        </div>
         <div className="min-w-0 flex-1">
-          <h1 className="text-lg font-bold text-gray-900 truncate">{event.eventName}</h1>
-          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            <span className={`px-2 py-0.5 ppp text-xs font-medium ${badgeColors[eventMode] || 'bg-gray-100 text-gray-600'}`}>
+          <h1 className="text-lg sm:text-xl font-extrabold leading-tight truncate" style={{ fontFamily: fontHeading, letterSpacing: '-0.5px' }}>
+            {event.eventName}
+          </h1>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white" style={{ backgroundColor: badgeColors[eventMode] || GRAY_DISABLED, fontFamily: fontHeading }}>
               {eventMode.charAt(0).toUpperCase() + eventMode.slice(1)}
             </span>
             {event.isCancelled && (
-              <span className="px-2 py-0.5 ppp text-xs font-medium bg-red-100 text-red-700">
+              <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white" style={{ backgroundColor: DANGER, fontFamily: fontHeading }}>
                 Cancelled
               </span>
             )}

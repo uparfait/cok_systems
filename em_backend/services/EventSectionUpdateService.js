@@ -5,6 +5,8 @@ const RecurringEvent = require('../models/RecurringEvent');
 const Room = require('../models/Room');
 const CheckRoomAvailability = require('../utilities/CheckRoomAvailability');
 const recurrenceHelper = require('../utilities/recurrenceHelper');
+const { fromUTCInstant } = require('../utilities/eventCalendar');
+const { notifyInviteesOfScheduleChange } = require('../utilities/notifyInviteesOfUpdate');
 
 const MODELS = { live: LiveEvent, upcoming: UpcomingEvent, recurring: RecurringEvent };
 
@@ -16,6 +18,8 @@ class EventSectionUpdateService {
     return withTransaction(async (session) => {
       const event = await Model.findById(eventId).session(session);
       if (!event) throw new Error(`${eventType} event not found`);
+
+      let scheduleChanged = false;
 
       switch (section) {
         case 'basic':
@@ -30,11 +34,34 @@ class EventSectionUpdateService {
         case 'room':
           await this._updateRoom(event, data, session, eventType);
           break;
+        case 'schedule':
+          scheduleChanged = await this._updateSchedule(event, data, eventType);
+          break;
         default:
-          throw new Error('Invalid section. Must be basic, organizer, agenda, or room.');
+          throw new Error('Invalid section. Must be basic, organizer, agenda, room, or schedule.');
       }
 
       await event.save({ session, validateModifiedOnly: true });
+
+      // The schedule changed: push updated calendar invitations (same UID,
+      // bumped SEQUENCE) to everyone invited so their calendars follow.
+      if (scheduleChanged) {
+        try {
+          const startField = eventType === 'live' ? 'startedAt' : 'willStartAt';
+          await notifyInviteesOfScheduleChange(event.eventSpecialId, {
+            eventName: event.eventName,
+            eventDescription: event.eventDescription || '',
+            eventRoom: event.eventRoom,
+            eventOrganizer: event.eventOrganizer,
+            start: fromUTCInstant(event[startField]),
+            end: fromUTCInstant(event.willEndAt),
+            isRecurring: false,
+            recurring: null,
+          });
+        } catch (emailError) {
+          console.error('Failed to send schedule-change calendar updates:', emailError.message);
+        }
+      }
 
       return { success: true, data: event };
     });
@@ -124,6 +151,42 @@ class EventSectionUpdateService {
         description: p.description?.trim() || '',
       }));
     event.activityAgenda = sanitized;
+  }
+
+  static async _updateSchedule(event, data, eventType) {
+    if (eventType === 'recurring') {
+      throw new Error('Recurring schedules must be changed via the postpone flow');
+    }
+
+    const startField = eventType === 'live' ? 'startedAt' : 'willStartAt';
+
+    const newStart = data[startField] !== undefined ? new Date(data[startField]) : new Date(event[startField]);
+    const newEnd = data.willEndAt !== undefined ? new Date(data.willEndAt) : new Date(event.willEndAt);
+
+    if (isNaN(newStart.getTime()) || isNaN(newEnd.getTime())) {
+      throw new Error('Invalid date or time provided');
+    }
+    if (newEnd <= newStart) {
+      throw new Error('End time must be after start time');
+    }
+
+    // Nothing to do if the window did not actually change
+    const currentStart = new Date(event[startField]).getTime();
+    const currentEnd = new Date(event.willEndAt).getTime();
+    if (newStart.getTime() === currentStart && newEnd.getTime() === currentEnd) {
+      return false;
+    }
+
+    // Check the event's room for conflicts on the new window before saving
+    const avail = await CheckRoomAvailability.execute(event.eventRoom, newStart, newEnd, event.eventSpecialId);
+    if (!avail.available) {
+      const conflictName = avail.details?.eventName ? ` (conflicts with "${avail.details.eventName}")` : '';
+      throw new Error(`Room "${event.eventRoom}" is already reserved during the new time${conflictName}`);
+    }
+
+    event[startField] = newStart;
+    event.willEndAt = newEnd;
+    return true;
   }
 
   static async _updateRoom(event, data, session, eventType) {

@@ -445,6 +445,31 @@ class EventService {
           $options: "i",
         };
       }
+    } else if (search && String(search).trim()) {
+      // No searchField: search across ALL event attributes
+      const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const rx = { $regex: escapeRegex(String(search).trim()), $options: "i" };
+      const orConditions = [
+        { eventName: rx },
+        { eventDescription: rx },
+        { eventType: rx },
+        { eventMeetingType: rx },
+        { eventRoom: rx },
+        { eventSpecialId: rx },
+        { "eventOrganizer.fullNames": rx },
+        { "eventOrganizer.email": rx },
+        { "eventOrganizer.phone": rx },
+        { "eventOrganizer.institution": rx },
+        { "eventRecurring.recurringType": rx },
+        { cancellationReason: rx },
+        { "activityAgenda.title": rx },
+        { "activityAgenda.description": rx },
+      ];
+      const numeric = Number(String(search).trim());
+      if (!isNaN(numeric)) {
+        orConditions.push({ expectedAudience: numeric });
+      }
+      queryObject.$or = orConditions;
     }
 
     if (filter) {

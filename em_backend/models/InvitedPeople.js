@@ -30,6 +30,12 @@ const invitedPeopleSchema = new mongoose.Schema({
   cancelledAt: {
     type: Date,
   },
+  // iCalendar SEQUENCE of the most recent METHOD:REQUEST sent for this invite.
+  // Bumped on every schedule change so calendar clients replace the old entry.
+  sequence: {
+    type: Number,
+    default: 0,
+  },
   email: {
     type: String,
     required: [true, 'Email is required'],

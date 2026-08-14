@@ -1,8 +1,17 @@
 import { FiType, FiFileText, FiUsers } from 'react-icons/fi';
 
-const inputClass = 'w-full px-4 py-2.5 border border-gray-300 ppp-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all duration-200';
-const labelClass = 'block text-xs font-semibold text-gray-700 mb-2';
-const selectClass = 'w-full px-4 py-2.5 border border-gray-300 ppp-lg text-sm text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all duration-200 bg-white';
+const DANGER = '#E74C3C';
+const NEUTRAL_DARK = '#333333';
+const fontHeading = "'Montserrat', sans-serif";
+
+const inputClass = 'w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base';
+const selectClass = 'w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base';
+
+const labelStyle = {
+  fontFamily: fontHeading, fontSize: '13px', fontWeight: 600,
+  letterSpacing: '0.5px', lineHeight: '1.4', display: 'block',
+  color: NEUTRAL_DARK, textTransform: 'uppercase', marginBottom: '8px',
+};
 
 export default function EventBasicFields({ eventMeetingType, eventMode, formData, onEventModeChange, onChange }) {
   const type = eventMeetingType === 'meet' ? 'Meet' : 'Event';
@@ -17,8 +26,8 @@ export default function EventBasicFields({ eventMeetingType, eventMode, formData
   return (
     <>
       <div className="space-y-2">
-        <label htmlFor="eventMode" className={labelClass}>
-          {type} Mode <span className="text-red-500">*</span>
+        <label htmlFor="eventMode" style={labelStyle}>
+          {type} Mode <span style={{ color: DANGER }}>*</span>
         </label>
         <select
           id="eventMode"
@@ -36,8 +45,8 @@ export default function EventBasicFields({ eventMeetingType, eventMode, formData
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label htmlFor="eventName" className={labelClass}>
-            {type} Name <span className="text-red-500">*</span>
+          <label htmlFor="eventName" style={labelStyle}>
+            {type} Name <span style={{ color: DANGER }}>*</span>
           </label>
           <div className="relative">
             <FiType className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -48,13 +57,13 @@ export default function EventBasicFields({ eventMeetingType, eventMode, formData
               onChange={(e) => onChange('eventName', e.target.value)}
               required
               placeholder={`Enter ${typeLower} title`}
-              className={`${inputClass} pl-10`}
+              className={inputClass}
             />
           </div>
         </div>
         <div className="space-y-2">
-          <label htmlFor="eventType" className={labelClass}>
-            {type} Type <span className="text-red-500">*</span>
+          <label htmlFor="eventType" style={labelStyle}>
+            {type} Type <span style={{ color: DANGER }}>*</span>
           </label>
           <select
             id="eventType"
@@ -72,8 +81,8 @@ export default function EventBasicFields({ eventMeetingType, eventMode, formData
       </div>
 
       <div className="space-y-2">
-        <label htmlFor="eventDescription" className={labelClass}>
-          Description <span className="text-red-500">*</span>
+        <label htmlFor="eventDescription" style={labelStyle}>
+          Description <span style={{ color: DANGER }}>*</span>
         </label>
         <div className="relative">
           <FiFileText className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
@@ -84,15 +93,16 @@ export default function EventBasicFields({ eventMeetingType, eventMode, formData
             required
             rows="3"
             placeholder="Outline core requirements or high-level strategic summaries..."
-            className={`${inputClass} pl-10 resize-y min-h-[80px]`}
+            className={inputClass}
+            style={{ resize: 'vertical', minHeight: '80px' }}
           />
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label htmlFor="expectedAudience" className={labelClass}>
-            Expected Audience <span className="text-red-500">*</span>
+          <label htmlFor="expectedAudience" style={labelStyle}>
+            Expected Audience <span style={{ color: DANGER }}>*</span>
           </label>
           <div className="relative">
             <FiUsers className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -104,7 +114,7 @@ export default function EventBasicFields({ eventMeetingType, eventMode, formData
               required
               min="1"
               placeholder="Total expected attendees"
-              className={`${inputClass} pl-10`}
+              className={inputClass}
             />
           </div>
         </div>

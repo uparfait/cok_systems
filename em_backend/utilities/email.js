@@ -92,6 +92,19 @@ function cancelHtml(event) {
     </div>`;
 }
 
+function updateHtml(event) {
+  const fmt = (d) => d ? new Date(d).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+  const start = fmt(event.start);
+  const end = fmt(event.end);
+  return `
+    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
+      <h2 style="color: #1a5276;">Updated: ${event.eventName}</h2>
+      <p>The schedule for this event has changed. Accepting this invitation updates the entry in your calendar automatically.</p>
+      <p><strong>New time:</strong> ${start}${end ? ` &ndash; ${end}` : ''}</p>
+      <p><strong>Room:</strong> ${event.eventRoom || 'Meeting Room'}</p>
+    </div>`;
+}
+
 function escapeHtml(str) {
   return String(str == null ? '' : str)
     .replace(/&/g, '&amp;')
@@ -194,6 +207,24 @@ async function sendBookingRejectedEmail(email, data) {
   );
 }
 
+/**
+ * Send an updated calendar invitation (same UID, bumped SEQUENCE) so the
+ * attendee's calendar client (Google Calendar, Outlook, ...) replaces the
+ * previously saved entry with the new schedule instead of creating a duplicate.
+ */
+async function sendEventUpdate(email, event, invitationUid, sequence = 1, recurrenceId = null) {
+  const ics = buildInviteICS(event, invitationUid, 'REQUEST', email, sequence, recurrenceId);
+  return sendCalendarEmail(
+    email,
+    `Updated: ${event.eventName}`,
+    updateHtml(event),
+    `Updated: ${event.eventName}`,
+    ics,
+    'update.ics',
+    'REQUEST'
+  );
+}
+
 /** Send a calendar invitation to a single attendee. */
 async function sendEventInvitation(email, event, invitationUid, recurrenceId = null) {
   const ics = buildInviteICS(event, invitationUid, 'REQUEST', email, 0, recurrenceId);
@@ -273,6 +304,7 @@ module.exports = {
   sendPlainEmail,
   sendNotificationEmail,
   sendEventInvitation,
+  sendEventUpdate,
   sendEventCancellation,
   sendTaskAssignmentEmail,
   sendBookingSubmittedEmail,

@@ -1,25 +1,55 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { FiSearch, FiEye, FiChevronLeft, FiChevronRight, FiDroplet } from "react-icons/fi";
+import { FiSearch, FiChevronLeft, FiChevronRight, FiDroplet, FiTrash2, FiAlertTriangle } from "react-icons/fi";
 import SpiralLoader from "./SpiralLoader";
+import { useToast } from "@/core/contexts/ToastContext";
 
 const BASE_URL = "/cok/api/v1";
 
+const PRIMARY = "#056daa";
+const SUCCESS = "#4CAF50";
+const DANGER = "#E74C3C";
+const WARNING = "#F39C12";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const BORDER = "#E0E0E0";
+const GRAY_DISABLED = "#9E9E9E";
+const fontHeading = "'Montserrat', sans-serif";
+
 const COLUMNS = [
   { key: "trackingCode", label: "Tracking Code" },
-  { key: "eventName", label: "Event / Meeting" },
-  { key: "organizer", label: "Organizer" },
-  { key: "eventRoom", label: "Room" },
-  { key: "schedule", label: "Schedule" },
+  { key: "type", label: "Type" },
+  { key: "name", label: "Name" },
+  { key: "room", label: "Room" },
+  { key: "organizerName", label: "Organizer Name" },
+  { key: "organizerEmail", label: "Organizer Email" },
+  { key: "organizerTel", label: "Organizer Tel" },
+  { key: "date", label: "Date" },
+  { key: "time", label: "Time (From — To)" },
   { key: "status", label: "Status" },
 ];
 
-const STATUS_STYLES = {
-  Pending: { bg: "bg-yellow-100", text: "text-yellow-800", dot: "bg-yellow-500" },
-  Accepted: { bg: "bg-green-100", text: "text-green-800", dot: "bg-green-500" },
-  Rejected: { bg: "bg-red-100", text: "text-red-800", dot: "bg-red-500" },
-  Cancelled: { bg: "bg-gray-100", text: "text-gray-500", dot: "bg-gray-400" },
+const STATUS_COLORS = {
+  Pending: WARNING,
+  Accepted: SUCCESS,
+  Rejected: DANGER,
+  Cancelled: GRAY_DISABLED,
+};
+
+const toDateStr = (iso) => {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
+const toTimeStr = (iso) => {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "--:--";
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
 // waterOnly narrows the list to requests where the organizer asked for water
@@ -35,6 +65,23 @@ export default function BookingRequestsList({ waterOnly = false }) {
   const [statusFilter, setStatusFilter] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const { showSuccess, showError } = useToast();
+
+  // Bulk delete (requests only — never the events created from them)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [delStatus, setDelStatus] = useState("");
+  const [delRange, setDelRange] = useState("today");
+  const [delStart, setDelStart] = useState("");
+  const [delEnd, setDelEnd] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  // Debounce the search box so we don't hit the API on every keystroke
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const fetchRequests = useCallback(async (page = 1) => {
     setLoading(true);
@@ -45,6 +92,7 @@ export default function BookingRequestsList({ waterOnly = false }) {
       if (statusFilter) params.status = statusFilter;
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
 
       const res = await axios.get(`${BASE_URL}/booking-requests`, { params });
       if (res.data.success) {
@@ -56,11 +104,11 @@ export default function BookingRequestsList({ waterOnly = false }) {
         setError("Failed to load booking requests");
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to load booking requests");
+      setError(err.response?.data?.message || err.message);
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, startDate, endDate, waterOnly]);
+  }, [statusFilter, startDate, endDate, waterOnly, debouncedSearch]);
 
   useEffect(() => {
     fetchRequests(currentPage);
@@ -75,33 +123,106 @@ export default function BookingRequestsList({ waterOnly = false }) {
     setStatusFilter("");
     setStartDate("");
     setEndDate("");
+    setSearch("");
     setCurrentPage(1);
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "—";
-    return new Date(dateStr).toLocaleDateString("en-US", {
-      month: "short", day: "numeric", year: "numeric",
-      hour: "2-digit", minute: "2-digit",
-    });
+  const handleBulkDelete = async () => {
+    if (!delStatus) { showError("Select a status — Pending requests cannot be deleted"); return; }
+    if (delRange === "custom" && (!delStart || !delEnd)) { showError("Select the custom date range"); return; }
+    setDeleting(true);
+    try {
+      const params = { status: delStatus, range: delRange };
+      if (delRange === "custom") { params.startDate = delStart; params.endDate = delEnd; }
+      const res = await axios.delete(`${BASE_URL}/booking-requests/bulk`, { params });
+      if (res.data.success) {
+        showSuccess(res.data.message || "Requests deleted");
+        setDeleteModalOpen(false);
+        setDelStatus(""); setDelRange("today"); setDelStart(""); setDelEnd("");
+        setCurrentPage(1);
+        fetchRequests(1);
+      } else {
+        showError(res.data.message || "Failed to delete requests");
+      }
+    } catch (err) {
+      showError(err.response?.data?.message || err.message);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const getStatusBadge = (status) => {
-    const style = STATUS_STYLES[status] || STATUS_STYLES.Pending;
+    const color = STATUS_COLORS[status] || GRAY_DISABLED;
     return (
-      <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium ${style.bg} ${style.text}`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
+      <span
+        className="inline-block px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white whitespace-nowrap"
+        style={{ backgroundColor: color, fontFamily: fontHeading }}
+      >
         {status}
       </span>
     );
   };
 
+  const renderCell = (req, columnKey) => {
+    const org = req.eventOrganizer || {};
+    switch (columnKey) {
+      case "trackingCode":
+        return (
+          <span className="text-xs font-mono font-semibold px-2 py-0.5 whitespace-nowrap" style={{ color: PRIMARY, backgroundColor: "#E3F2FD" }}>
+            {req.trackingCode}
+          </span>
+        );
+      case "type":
+        return req.eventMeetingType === "meet"
+          ? <span className="inline-block bg-emerald-50 text-emerald-700 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide whitespace-nowrap">Meeting</span>
+          : <span className="inline-block bg-blue-50 cok-primary-color border border-blue-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide whitespace-nowrap">Event</span>;
+      case "name":
+        return (
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+            <span className="font-bold text-sm" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{req.eventName || "—"}</span>
+            {req.waterRequest?.requested && (
+              <span
+                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-bold uppercase bg-sky-100 text-sky-800 border border-sky-300 whitespace-nowrap"
+                title={`Water requested${req.expectedAudience ? ` for ${req.expectedAudience} people` : ""}${req.waterRequest.requestedAt ? ` on ${new Date(req.waterRequest.requestedAt).toLocaleString()}` : ""}`}
+              >
+                <FiDroplet className="w-3 h-3" /> Water{req.expectedAudience ? ` · ${req.expectedAudience}` : ""}
+              </span>
+            )}
+          </span>
+        );
+      case "room":
+        return <span className="text-sm font-medium capitalize whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{req.eventRoom || "—"}</span>;
+      case "organizerName":
+        return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{org.fullNames || "—"}</span>;
+      case "organizerEmail":
+        return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{org.email || "—"}</span>;
+      case "organizerTel":
+        return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK }}>{org.phone || "—"}</span>;
+      case "date":
+        return <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{req.startTime ? toDateStr(req.startTime) : "—"}</span>;
+      case "time":
+        return (
+          <span className="text-sm whitespace-nowrap" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+            {req.startTime && req.endTime ? `${toTimeStr(req.startTime)} — ${toTimeStr(req.endTime)}` : "—"}
+          </span>
+        );
+      case "status":
+        return getStatusBadge(req.status);
+      default:
+        return "—";
+    }
+  };
+
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full p-6">
-        <div className="bg-red-50 border-2 border-red-200 p-6 text-center">
-          <p className="text-red-700 text-sm font-medium mb-3">{error}</p>
-          <button onClick={() => fetchRequests(currentPage)} className="px-4 py-2 bg-red-600 text-white text-sm font-bold hover:bg-red-700">
+      <div className="flex items-center justify-center h-full p-4 sm:p-6">
+        <div className="p-6 text-center w-full max-w-md" style={{ backgroundColor: "#FDECEA", border: "1px solid #F5B7B1" }}>
+          <p className="text-sm font-medium mb-3" style={{ color: DANGER, fontFamily: fontHeading }}>{error}</p>
+          <button
+            onClick={() => fetchRequests(currentPage)}
+            className="px-4 py-2 text-white text-xs font-semibold uppercase tracking-wide cursor-pointer"
+            style={{ backgroundColor: DANGER, fontFamily: fontHeading }}
+          >
             Try Again
           </button>
         </div>
@@ -110,56 +231,73 @@ export default function BookingRequestsList({ waterOnly = false }) {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Filters Bar */}
-      <div className="flex-shrink-0 bg-white border-b-2 border-gray-200 p-4">
-        <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-center">
+    <div className="flex flex-col h-full" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+      {/* Search + Filters Bar */}
+      <div className="flex-shrink-0 bg-white p-3 sm:p-4 space-y-3" style={{ borderBottom: `1px solid ${BORDER}` }}>
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Search */}
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5" style={{ color: GRAY_DISABLED }} />
+            <input
+              type="text"
+              placeholder="Search by tracking code, name, room, organizer, email, phone..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+              className="w-full cok-auth-input pr-3 py-2 text-sm"
+              style={{ minHeight: "42px" }}
+            />
+          </div>
+
+          {/* Date range */}
+          <div className="flex items-center gap-2">
+            <input type="date" value={startDate}
+              onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }}
+              className="cok-auth-input text-xs px-2"
+              style={{ minHeight: "42px", paddingLeft: "10px" }} />
+            <span className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>to</span>
+            <input type="date" value={endDate}
+              onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }}
+              className="cok-auth-input text-xs px-2"
+              style={{ minHeight: "42px", paddingLeft: "10px" }} />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
           {waterOnly && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wide bg-sky-100 text-sky-800 border border-sky-300">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wide bg-sky-100 text-sky-800 border border-sky-300" style={{ fontFamily: fontHeading }}>
               <FiDroplet className="w-3.5 h-3.5" /> Other Requests
             </span>
           )}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Status:</span>
-            <button
-              onClick={() => handleStatusFilter("")}
-              className={`px-3 py-1.5 text-xs font-medium border transition-colors ${
-                !statusFilter ? "bg-[#1255e5] text-white border-[#1255e5]" : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
-              }`}
-            >
-              All
-            </button>
-            {Object.keys(STATUS_STYLES).map((key) => (
-              <button
-                key={key}
-                onClick={() => handleStatusFilter(key)}
-                className={`px-3 py-1.5 text-xs font-medium border transition-colors ${
-                  statusFilter === key
-                    ? `${STATUS_STYLES[key].bg} ${STATUS_STYLES[key].text} border-transparent`
-                    : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
-                }`}
-              >
-                {key}
-              </button>
+          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Status:</span>
+          <select
+            value={statusFilter}
+            onChange={(e) => handleStatusFilter(e.target.value)}
+            className="cok-auth-input text-xs"
+            style={{ minHeight: "38px", paddingLeft: "10px", width: "auto", fontFamily: fontHeading }}
+          >
+            <option value="">All statuses</option>
+            {Object.keys(STATUS_COLORS).map((key) => (
+              <option key={key} value={key}>{key}</option>
             ))}
-          </div>
-
-          <div className="flex items-center gap-2 ml-auto">
-            <label className="text-xs text-gray-500">From:</label>
-            <input type="date" value={startDate}
-              onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }}
-              className="px-2 py-1.5 border-2 border-gray-300 text-xs outline-none focus:border-[#1255e5]" />
-            <label className="text-xs text-gray-500">To:</label>
-            <input type="date" value={endDate}
-              onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }}
-              className="px-2 py-1.5 border-2 border-gray-300 text-xs outline-none focus:border-[#1255e5]" />
-            {(statusFilter || startDate || endDate) && (
-              <button onClick={clearFilters}
-                className="px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 border border-red-200 transition-colors">
-                Clear
-              </button>
-            )}
-          </div>
+          </select>
+          {(statusFilter || startDate || endDate || search) && (
+            <button
+              onClick={clearFilters}
+              className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide cursor-pointer"
+              style={{ color: DANGER, border: "1px solid #F5B7B1", backgroundColor: "#FFFFFF", fontFamily: fontHeading }}
+            >
+              Clear
+            </button>
+          )}
+          <button
+            onClick={() => setDeleteModalOpen(true)}
+            className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white cursor-pointer transition-colors"
+            style={{ backgroundColor: DANGER, fontFamily: fontHeading }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#C0392B")}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = DANGER)}
+          >
+            <FiTrash2 className="w-3.5 h-3.5" /> Delete Requests
+          </button>
         </div>
       </div>
 
@@ -167,89 +305,54 @@ export default function BookingRequestsList({ waterOnly = false }) {
       <div className="flex-1 min-h-0">
         {loading ? (
           <div className="h-full flex items-center justify-center">
-            <div className="flex flex-col items-center gap-3">
-              <SpiralLoader />
-            </div>
+            <SpiralLoader />
           </div>
         ) : requests.length === 0 ? (
-          <div className="h-full w-full flex items-center justify-center">
+          <div className="h-full w-full flex items-center justify-center p-4">
             <div className="flex flex-col items-center gap-3">
-              <FiSearch className="w-12 h-12 text-gray-300" />
-              <span className="text-sm font-medium text-gray-400 uppercase tracking-wide">
+              <FiSearch className="w-12 h-12" style={{ color: BORDER }} />
+              <span className="text-sm font-medium uppercase tracking-wide" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
                 {waterOnly ? "No other requests yet" : "No booking requests found"}
               </span>
-              {(statusFilter || startDate || endDate) && (
-                <button onClick={clearFilters} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+              {(statusFilter || startDate || endDate || search) && (
+                <button onClick={clearFilters} className="text-sm font-medium cursor-pointer hover:underline" style={{ color: PRIMARY, fontFamily: fontHeading }}>
                   Clear filters to see all requests
                 </button>
               )}
             </div>
           </div>
         ) : (
-          <div className="h-full w-full overflow-auto">
-            <table className="w-full border-collapse table-auto">
+          <div className="h-full w-full overflow-auto" style={{ WebkitOverflowScrolling: "touch" }}>
+            <table className="w-full border-collapse">
               <thead className="sticky top-0 z-10">
                 <tr>
                   {COLUMNS.map((col) => (
-                    <th key={col.key} className="bg-[#1255e5] text-white px-4 py-3.5 text-left text-xs font-bold uppercase tracking-widest border-r border-blue-400 last:border-r-0">
+                    <th
+                      key={col.key}
+                      className="cok-primary-bg text-white px-3 py-3 sm:px-4 sm:py-3.5 text-left text-[11px] sm:text-xs font-bold uppercase tracking-widest whitespace-nowrap"
+                      style={{ fontFamily: fontHeading }}
+                    >
                       {col.label}
                     </th>
                   ))}
-                  <th className="bg-[#1255e5] text-white px-4 py-3.5 text-center text-xs font-bold uppercase tracking-widest">
-                    Actions
-                  </th>
                 </tr>
               </thead>
               <tbody>
                 {requests.map((req, rowIndex) => (
-                  <tr key={req._id}
-                    className={`transition-colors duration-100 cursor-pointer ${
-                      rowIndex % 2 === 0 ? "bg-white hover:bg-blue-50/30" : "bg-gray-50/50 hover:bg-blue-50/30"
-                    }`}
+                  <tr
+                    key={req._id}
                     onClick={() => navigate(`/event-manager/booking-requests/${req._id}`)}
+                    className={`cursor-pointer transition-colors duration-100 ${rowIndex % 2 === 0 ? "bg-white hover:bg-blue-50" : "bg-gray-50/50 hover:bg-blue-50"}`}
                   >
-                    <td className="px-4 py-3 border-r border-gray-200">
-                      <span className="text-xs font-mono font-medium text-[#1255e5] bg-blue-50 px-2 py-0.5">
-                        {req.trackingCode}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 border-r border-gray-200">
-                      <div className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
-                        {req.eventName}
-                        {req.waterRequest?.requested && (
-                          <span
-                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-bold uppercase bg-sky-100 text-sky-800 border border-sky-300"
-                            title={`Water requested${req.expectedAudience ? ` for ${req.expectedAudience} people` : ""}${req.waterRequest.requestedAt ? ` on ${new Date(req.waterRequest.requestedAt).toLocaleString()}` : ""}`}
-                          >
-                            <FiDroplet className="w-3 h-3" /> Water{req.expectedAudience ? ` · ${req.expectedAudience}` : ""}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-gray-400 capitalize">{req.eventMeetingType}</div>
-                    </td>
-                    <td className="px-4 py-3 border-r border-gray-200">
-                      <div className="text-sm text-gray-700">{req.eventOrganizer?.fullNames}</div>
-                      <div className="text-xs text-gray-400">{req.eventOrganizer?.email}</div>
-                    </td>
-                    <td className="px-4 py-3 border-r border-gray-200">
-                      <span className="text-sm text-gray-700 capitalize">{req.eventRoom}</span>
-                    </td>
-                    <td className="px-4 py-3 border-r border-gray-200">
-                      <div className="text-xs text-gray-600">{formatDate(req.startTime)}</div>
-                      <div className="text-xs text-gray-400">to {formatDate(req.endTime)}</div>
-                    </td>
-                    <td className="px-4 py-3 border-r border-gray-200">
-                      {getStatusBadge(req.status)}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); navigate(`/event-manager/booking-requests/${req._id}`); }}
-                        className="p-2 text-gray-400 hover:text-[#1255e5] hover:bg-blue-50 border border-transparent hover:border-blue-200 transition-all"
-                        title="View Details"
+                    {COLUMNS.map((col, colIndex) => (
+                      <td
+                        key={`${req._id}-${col.key}`}
+                        className={`px-3 py-2.5 sm:px-4 sm:py-3 whitespace-nowrap ${colIndex === 0 ? "" : "border-l"} ${rowIndex < requests.length - 1 ? "border-b" : ""}`}
+                        style={{ borderColor: BORDER }}
                       >
-                        <FiEye className="w-4 h-4" />
-                      </button>
-                    </td>
+                        {renderCell(req, col.key)}
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
@@ -258,22 +361,116 @@ export default function BookingRequestsList({ waterOnly = false }) {
         )}
       </div>
 
+      {/* Bulk delete modal */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="fixed inset-0 bg-black/50" onClick={() => { if (!deleting) setDeleteModalOpen(false); }} />
+          <div className="relative bg-white w-full max-w-md p-5 sm:p-6 space-y-4" style={{ border: `1px solid ${BORDER}` }}>
+            <div className="flex items-center gap-3">
+              <FiAlertTriangle className="w-5 h-5 shrink-0" style={{ color: DANGER }} />
+              <h3 className="text-base sm:text-lg font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Delete Booking Requests</h3>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                Status <span style={{ color: DANGER }}>*</span>
+              </label>
+              <select
+                value={delStatus}
+                onChange={(e) => setDelStatus(e.target.value)}
+                className="w-full cok-auth-input pr-3 py-2 text-sm"
+                style={{ paddingLeft: "10px" }}
+              >
+                <option value="">Select status</option>
+                <option value="Accepted">Accepted</option>
+                <option value="Rejected">Rejected</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                Requested Period <span style={{ color: DANGER }}>*</span>
+              </label>
+              <select
+                value={delRange}
+                onChange={(e) => setDelRange(e.target.value)}
+                className="w-full cok-auth-input pr-3 py-2 text-sm"
+                style={{ paddingLeft: "10px" }}
+              >
+                <option value="today">Today</option>
+                <option value="thisMonth">This Month</option>
+                <option value="thisYear">This Year</option>
+                <option value="custom">Custom Range</option>
+              </select>
+            </div>
+
+            {delRange === "custom" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                    From <span style={{ color: DANGER }}>*</span>
+                  </label>
+                  <input type="date" value={delStart} onChange={(e) => setDelStart(e.target.value)}
+                    className="w-full cok-auth-input pr-3 py-2 text-sm" style={{ paddingLeft: "10px" }} />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                    To <span style={{ color: DANGER }}>*</span>
+                  </label>
+                  <input type="date" value={delEnd} onChange={(e) => setDelEnd(e.target.value)}
+                    min={delStart || undefined}
+                    className="w-full cok-auth-input pr-3 py-2 text-sm" style={{ paddingLeft: "10px" }} />
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={deleting}
+                className="cok-btn-outlined flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={deleting || !delStatus}
+                className="flex-1 py-2.5 text-white text-xs font-semibold uppercase tracking-wide cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                style={{ backgroundColor: DANGER, fontFamily: fontHeading }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#C0392B")}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = DANGER)}
+              >
+                <FiTrash2 className="w-4 h-4" />
+                {deleting ? "Deleting..." : "Delete Requests"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-t-2 border-gray-200 bg-white">
-          <p className="text-xs text-gray-500">
+        <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-4 py-3 bg-white" style={{ borderTop: `1px solid ${BORDER}` }}>
+          <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
             Page {currentPage} of {totalPages} ({totalRecords} records)
           </p>
           <div className="flex items-center gap-2">
-            <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="p-2 border-2 border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+              className="p-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ border: `1px solid ${BORDER}`, color: NEUTRAL_DARK }}
+            >
               <FiChevronLeft className="w-4 h-4" />
             </button>
-            <span className="text-sm font-medium text-gray-700 px-2">{currentPage}</span>
-            <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            <span className="text-sm font-medium px-2" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{currentPage}</span>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="p-2 border-2 border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+              className="p-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ border: `1px solid ${BORDER}`, color: NEUTRAL_DARK }}
+            >
               <FiChevronRight className="w-4 h-4" />
             </button>
           </div>

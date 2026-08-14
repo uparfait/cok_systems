@@ -7,12 +7,12 @@ class EventSectionUpdateController {
 
       if (!eventId) return res.status(400).json({ success: false, message: 'eventId is required' });
       if (!eventType) return res.status(400).json({ success: false, message: 'eventType is required' });
-      if (!section) return res.status(400).json({ success: false, message: 'section is required (basic, organizer, agenda, room)' });
+      if (!section) return res.status(400).json({ success: false, message: 'section is required (basic, organizer, agenda, room, schedule)' });
       if (!data || Object.keys(data).length === 0) return res.status(400).json({ success: false, message: 'data is required' });
 
-      const validSections = ['basic', 'organizer', 'agenda', 'room'];
+      const validSections = ['basic', 'organizer', 'agenda', 'room', 'schedule'];
       if (!validSections.includes(section)) {
-        return res.status(400).json({ success: false, message: 'section must be basic, organizer, agenda, or room' });
+        return res.status(400).json({ success: false, message: 'section must be basic, organizer, agenda, room, or schedule' });
       }
 
       const result = await EventSectionUpdateService.execute(eventId, eventType, section, data);

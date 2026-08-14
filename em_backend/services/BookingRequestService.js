@@ -329,9 +329,35 @@ class BookingRequestService {
       endDate,
       sort = "new",
       water,
+      search,
     } = query;
 
     const queryObject = {};
+
+    // Free-text search across all booking request attributes
+    if (search && String(search).trim()) {
+      const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const rx = { $regex: escapeRegex(String(search).trim()), $options: "i" };
+      const orConditions = [
+        { trackingCode: rx },
+        { eventName: rx },
+        { eventDescription: rx },
+        { eventType: rx },
+        { eventMeetingType: rx },
+        { eventRoom: rx },
+        { status: rx },
+        { rejectionReason: rx },
+        { "eventOrganizer.fullNames": rx },
+        { "eventOrganizer.email": rx },
+        { "eventOrganizer.phone": rx },
+        { "eventOrganizer.institution": rx },
+      ];
+      const numeric = Number(String(search).trim());
+      if (!isNaN(numeric)) {
+        orConditions.push({ expectedAudience: numeric });
+      }
+      queryObject.$or = orConditions;
+    }
 
     // Filter by status
     if (status && ["Pending", "Accepted", "Rejected", "Cancelled"].includes(status)) {
@@ -524,6 +550,34 @@ class BookingRequestService {
       if (!room) {
         throw new Error("New room not found or is inactive");
       }
+
+      // Room-only change (no new times): the new room must still be free
+      // during this request's existing window.
+      if (!updateData.startTime && !updateData.endTime && request.startTime && request.endTime) {
+        const availability = await CheckRoomAvailability.execute(
+          newRoom,
+          request.startTime,
+          request.endTime,
+          null,
+          null,
+          requestId
+        );
+        if (!availability.available) {
+          throw new Error("The selected room is not available during this request's time. There is a conflict with an existing event.");
+        }
+
+        const requestConflict = await BookingRequest.findOne({
+          _id: { $ne: requestId },
+          eventRoom: newRoom,
+          status: { $in: ["Pending", "Accepted"] },
+          startTime: { $lt: request.endTime },
+          endTime: { $gt: request.startTime },
+        }).lean();
+        if (requestConflict) {
+          throw new Error("The selected room is already requested for this time period by another booking request.");
+        }
+      }
+
       request.eventRoom = newRoom;
     }
 
@@ -533,6 +587,68 @@ class BookingRequestService {
       success: true,
       message: "Booking request updated successfully",
       data: request,
+    };
+  }
+
+  /**
+   * Bulk-delete booking requests by status + created-date range.
+   * Deletes ONLY the booking request documents — the events created from
+   * accepted requests are never touched.
+   * Pending requests can never be bulk-deleted.
+   */
+  static async bulkDeleteRequests(query = {}) {
+    const { status, range, startDate, endDate } = query;
+
+    const DELETABLE_STATUSES = ["Accepted", "Rejected", "Cancelled"];
+    if (!status || !DELETABLE_STATUSES.includes(status)) {
+      throw new Error("A status of Accepted, Rejected or Cancelled is required. Pending requests cannot be bulk-deleted.");
+    }
+
+    const now = new Date();
+    let rangeStart;
+    let rangeEnd;
+
+    switch (range) {
+      case "today":
+        rangeStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        rangeEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+        break;
+      case "thisMonth":
+        rangeStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        rangeEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        break;
+      case "thisYear":
+        rangeStart = new Date(now.getFullYear(), 0, 1);
+        rangeEnd = new Date(now.getFullYear() + 1, 0, 1);
+        break;
+      case "custom": {
+        if (!startDate || !endDate) {
+          throw new Error("startDate and endDate are required for a custom range");
+        }
+        rangeStart = new Date(startDate);
+        rangeEnd = new Date(endDate);
+        if (isNaN(rangeStart.getTime()) || isNaN(rangeEnd.getTime())) {
+          throw new Error("Invalid custom date range");
+        }
+        if (rangeEnd < rangeStart) {
+          throw new Error("End date must be after start date");
+        }
+        rangeEnd.setDate(rangeEnd.getDate() + 1); // include the whole end day
+        break;
+      }
+      default:
+        throw new Error("range must be today, thisMonth, thisYear or custom");
+    }
+
+    const result = await BookingRequest.deleteMany({
+      status,
+      createdAt: { $gte: rangeStart, $lt: rangeEnd },
+    });
+
+    return {
+      success: true,
+      message: `${result.deletedCount} ${status.toLowerCase()} booking request(s) deleted`,
+      deletedCount: result.deletedCount,
     };
   }
 }

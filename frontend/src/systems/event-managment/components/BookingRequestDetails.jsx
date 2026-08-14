@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import axios from "axios";
 import {
-  FiArrowLeft,
   FiCheckCircle,
   FiXCircle,
   FiClock,
@@ -15,367 +14,629 @@ import {
   FiHome,
   FiAlertCircle,
   FiEdit2,
-  FiSave,
   FiCheck,
+  FiX,
+  FiBookmark,
+  FiUsers,
 } from "react-icons/fi";
 import ConfirmModal from "../ui-components/ConfirmModal";
-import CreateEventStepper from "./CreateEventStepper";
-import ActivityAgenda from "./sub-components/ActivityAgenda";
 import SpiralLoader from "./SpiralLoader";
+import { useToast } from "@/core/contexts/ToastContext";
 
 const BASE_URL = "/cok/api/v1";
 
-const inputClass = "w-full px-4 py-3 border border-gray-300 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all duration-200 bg-white";
-const labelClass = "block text-sm font-medium text-gray-700 mb-1.5";
+const PRIMARY = "#056daa";
+const SUCCESS = "#4CAF50";
+const DANGER = "#E74C3C";
+const WARNING = "#F39C12";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const BORDER = "#E0E0E0";
+const GRAY_DISABLED = "#9E9E9E";
+const fontHeading = "'Montserrat', sans-serif";
+
+const inputClassName = "w-full cok-auth-input pr-3 py-2 text-sm";
+
+const fieldLabelStyle = {
+  fontFamily: fontHeading, fontSize: "11px", fontWeight: 600,
+  letterSpacing: "0.5px", textTransform: "uppercase", color: GRAY_DISABLED,
+};
 
 const STATUS_DETAILS = {
-  Pending: { bg: "bg-yellow-100", text: "text-yellow-800", icon: FiClock, label: "Pending" },
-  Accepted: { bg: "bg-green-100", text: "text-green-800", icon: FiCheckCircle, label: "Accepted" },
-  Rejected: { bg: "bg-red-100", text: "text-red-800", icon: FiXCircle, label: "Rejected" },
-  Cancelled: { bg: "bg-gray-100", text: "text-gray-800", icon: FiSlash, label: "Cancelled" },
+  Pending: { color: WARNING, icon: FiClock, label: "Pending" },
+  Accepted: { color: SUCCESS, icon: FiCheckCircle, label: "Accepted" },
+  Rejected: { color: DANGER, icon: FiXCircle, label: "Rejected" },
+  Cancelled: { color: GRAY_DISABLED, icon: FiSlash, label: "Cancelled" },
+};
+
+// Convert a stored ISO instant to local "YYYY-MM-DDTHH:MM"
+const toLocalInput = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
 };
 
 function StatusBadge({ status }) {
   const config = STATUS_DETAILS[status] || STATUS_DETAILS.Pending;
   const Icon = config.icon;
-  return <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium ${config.bg} ${config.text}`}><Icon className="w-4 h-4" />{config.label}</span>;
-}
-
-function DetailRow({ icon: Icon, label, value }) {
   return (
-    <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-b-0">
-      <div className="w-8 h-8 bg-gray-100 flex items-center justify-center shrink-0">{Icon && <Icon className="w-4 h-4 text-gray-500" />}</div>
-      <div className="min-w-0 flex-1"><p className="text-xs font-medium text-gray-400 uppercase tracking-wider">{label}</p><p className="text-sm text-gray-900 mt-0.5 break-words">{value || "—"}</p></div>
-    </div>
+    <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white" style={{ backgroundColor: config.color, fontFamily: fontHeading }}>
+      <Icon className="w-4 h-4" />
+      {config.label}
+    </span>
   );
 }
 
-function AgendaSection({ agenda }) {
-  if (!agenda || agenda.length === 0) return null;
+// Inline editable card — same interaction pattern as the event details page
+function EditableDisplay({ label, value, field, icon, children, activeField, editValues, onEdit, onCancel, onSave, saving, fieldError, canEdit }) {
+  const isEditing = activeField === field;
+  const currentEditValue = editValues[field] ?? "";
+
   return (
-    <div className="mt-4">
-      <h3 className="text-sm font-semibold text-gray-700 mb-2">Activity Agenda</h3>
-      <div className="space-y-2">
-        {agenda.map((item, idx) => (
-          <div key={idx} className="bg-gray-50 border border-gray-200 p-3">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-bold text-gray-500">Phase {idx + 1}</span>
-              {(item.fromTime || item.toTime) && <span className="text-xs text-gray-400">{item.fromTime} - {item.toTime}</span>}
-            </div>
-            {item.title && <p className="text-sm font-medium text-gray-800">{item.title}</p>}
-            {item.description && <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>}
-          </div>
-        ))}
+    <div className="bg-white p-4" style={{ border: `1px solid ${BORDER}` }}>
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-2">
+          {icon}
+          <label style={fieldLabelStyle}>{label}</label>
+        </div>
+        {canEdit && !isEditing && (
+          <button onClick={() => onEdit(field, value)}
+            className="p-1 cursor-pointer transition-colors" title={`Edit ${label}`}
+            style={{ color: GRAY_DISABLED }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = PRIMARY)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = GRAY_DISABLED)}>
+            <FiEdit2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
+      {isEditing ? (
+        <div className="space-y-2">
+          {children}
+          {fieldError && <p className="text-xs" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldError}</p>}
+          <div className="flex gap-2">
+            <button onClick={() => onSave(field, currentEditValue)} disabled={saving}
+              className="cok-btn-primary inline-flex items-center gap-1 disabled:opacity-50"
+              style={{ width: "auto", padding: "0.5rem 0.9rem", fontSize: "11px" }}>
+              <FiCheck className="w-3 h-3" /> {saving ? "Saving..." : "Save"}
+            </button>
+            <button onClick={onCancel} disabled={saving}
+              className="cok-btn-outlined inline-flex items-center gap-1 disabled:opacity-50"
+              style={{ padding: "0.5rem 0.9rem", fontSize: "11px" }}>
+              <FiX className="w-3 h-3" /> Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="text-sm break-words" style={{ color: NEUTRAL_DARK }}>{value || <span className="italic" style={{ color: GRAY_DISABLED }}>Not set</span>}</div>
+      )}
     </div>
   );
 }
 
-function EditRoomSelector({ editForm, setEditForm, requestId }) {
+// Room picker panel — checks availability for this request's window, excluding itself
+function RoomChangePanel({ request, onSaved, onClose, saveRequestFields, saving }) {
   const [availableRooms, setAvailableRooms] = useState([]);
   const [unavailableRooms, setUnavailableRooms] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [searched, setSearched] = useState(false);
-
-  const hasDates = editForm.startTime && editForm.endTime;
+  const [loading, setLoading] = useState(true);
+  const [selectedRoom, setSelectedRoom] = useState("");
+  const { showError } = useToast();
 
   useEffect(() => {
-    if (!hasDates) return;
     const checkRooms = async () => {
       setLoading(true);
-      setError(null);
       try {
         const params = {
-          startTime: new Date(editForm.startTime).toISOString(),
-          endTime: new Date(editForm.endTime).toISOString(),
-          eventMode: 'upcoming',
-          ...(requestId ? { requestId } : {}),
+          startTime: new Date(request.startTime).toISOString(),
+          endTime: new Date(request.endTime).toISOString(),
+          eventMode: "upcoming",
+          requestId: request._id,
         };
         const res = await axios.get(`${BASE_URL}/rooms/available`, { params });
         const data = res.data?.data || res.data;
         setAvailableRooms(data.availableRooms || []);
         setUnavailableRooms(data.unavailableRooms || []);
-        setSearched(true);
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to check availability');
+        showError(err.response?.data?.message || err.message);
       } finally {
         setLoading(false);
       }
     };
     checkRooms();
-  }, [editForm.startTime, editForm.endTime, hasDates, requestId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request._id, request.startTime, request.endTime]);
 
-  const isSelected = (roomName) => editForm.eventRoom?.toLowerCase() === roomName.toLowerCase();
+  const isSelected = (roomName) => selectedRoom.toLowerCase() === roomName.toLowerCase();
+  const isCurrent = (roomName) => request.eventRoom?.toLowerCase() === roomName.toLowerCase();
+
+  const handleSave = async () => {
+    if (!selectedRoom) { showError("Please select a room"); return; }
+    const ok = await saveRequestFields({ eventRoom: selectedRoom });
+    if (ok) { onSaved?.(); onClose(); }
+  };
 
   return (
-    <div className="flex flex-col gap-4 pt-2">
-      <h2 className="text-xs font-bold text-blue-600 uppercase tracking-wider">Room Selection</h2>
-      <p className="text-xs text-gray-500">Rooms are checked for availability based on your selected schedule.</p>
-      {loading && <div className="flex items-center justify-center py-6"><div className="w-6 h-6"><SpiralLoader /></div><span className="ml-2 text-sm text-gray-500">Checking rooms...</span></div>}
-      {error && <div className="bg-yellow-50 border border-yellow-200 p-3 flex items-start gap-2"><FiAlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" /><p className="text-xs text-yellow-700">{error}</p></div>}
-      {!hasDates && !loading && <div className="bg-gray-50 border border-gray-200 p-4 text-center"><FiCalendar className="w-6 h-6 text-gray-300 mx-auto mb-2" /><p className="text-xs text-gray-500">Set your schedule first, then rooms will be checked automatically.</p></div>}
-      {hasDates && !loading && searched && (
-        <div className="space-y-3">
-          {editForm.eventRoom && availableRooms.length > 0 && !availableRooms.find((r) => r.room.roomName.toLowerCase() === editForm.eventRoom.toLowerCase()) && (
-            <div className="bg-yellow-50 border border-yellow-200 p-3"><p className="text-xs text-yellow-700 font-medium">Previously selected room "{editForm.eventRoom}" is no longer available.</p></div>
-          )}
-          {availableRooms.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-green-700 mb-2">Available Rooms ({availableRooms.length} of {availableRooms.length + unavailableRooms.length})</p>
-              <div className="space-y-2">
-                {availableRooms.map((item, idx) => {
-                  const selected = isSelected(item.room.roomName);
-                  return (
-                    <button key={idx} type="button" onClick={() => setEditForm((p) => ({ ...p, eventRoom: item.room.roomName }))}
-                      className={`w-full text-left p-3 border-2 transition-all duration-200 ${selected ? "border-green-500 bg-green-50 ring-2 ring-green-200" : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50/50"}`}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-2 min-w-0">
-                          <FiCheck className={`w-4 h-4 mt-0.5 shrink-0 ${selected ? "text-green-600" : "text-green-400"}`} />
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 capitalize truncate">{item.room.roomName}</p>
-                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-xs text-gray-500">
-                              <span className="flex items-center gap-1"><FiMapPin className="w-3 h-3 shrink-0" />{item.room.roomLocation}</span>
-                              <span>Capacity: {item.room.roomCapacity}</span>
-                            </div>
-                          </div>
-                        </div>
-                        {selected && <span className="text-xs font-bold text-green-700 bg-green-100 border border-green-300 px-2.5 py-0.5 shrink-0">Selected</span>}
+    <div className="p-3 sm:p-4 space-y-3" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+      <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
+        Rooms are checked for availability against this request's schedule.
+      </p>
+
+      {loading && (
+        <div className="flex items-center justify-center py-6">
+          <div className="w-6 h-6"><SpiralLoader /></div>
+          <span className="ml-2 text-sm" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Checking rooms...</span>
+        </div>
+      )}
+
+      {!loading && availableRooms.length === 0 && (
+        <div className="p-4 text-center" style={{ backgroundColor: "#FFF3E0", border: "1px solid #FFCC80" }}>
+          <FiAlertCircle className="w-8 h-8 mx-auto mb-2" style={{ color: WARNING }} />
+          <p className="text-xs font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>No other rooms are available for this schedule.</p>
+        </div>
+      )}
+
+      {!loading && availableRooms.length > 0 && (
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {availableRooms.map((item, idx) => {
+            const selected = isSelected(item.room.roomName);
+            return (
+              <button key={idx} type="button" onClick={() => setSelectedRoom(item.room.roomName)}
+                className={`w-full text-left p-3 border-2 transition-all duration-200 cursor-pointer ${selected ? "border-green-500 bg-green-50" : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50/50"}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <FiCheck className={`w-4 h-4 mt-0.5 shrink-0 ${selected ? "text-green-600" : "text-green-400"}`} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold capitalize truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                        {item.room.roomName}
+                        {isCurrent(item.room.roomName) && <span className="ml-2 text-[10px] font-normal" style={{ color: GRAY_DISABLED }}>(current)</span>}
+                      </p>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-xs" style={{ color: GRAY_DISABLED }}>
+                        <span className="flex items-center gap-1"><FiMapPin className="w-3 h-3 shrink-0" />{item.room.roomLocation}</span>
+                        <span>Capacity: {item.room.roomCapacity}</span>
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          {availableRooms.length === 0 && (
-            <div className="bg-orange-50 border border-orange-200 p-6 text-center">
-              <FiAlertCircle className="w-10 h-10 text-orange-400 mx-auto mb-3" />
-              <p className="text-sm font-bold text-orange-800 mb-1">All Rooms Are Occupied</p>
-              <p className="text-xs text-orange-600 mb-3">No rooms available: {new Date(editForm.startTime).toLocaleString()} - {new Date(editForm.endTime).toLocaleString()}</p>
-              <p className="text-xs text-orange-500">Please go back to Schedule step.</p>
-            </div>
+                    </div>
+                  </div>
+                  {selected && <span className="text-xs font-bold text-green-700 bg-green-100 border border-green-300 px-2.5 py-0.5 shrink-0">Selected</span>}
+                </div>
+              </button>
+            );
+          })}
+          {unavailableRooms.length > 0 && (
+            <p className="text-[11px]" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>{unavailableRooms.length} other room(s) are occupied during this schedule.</p>
           )}
         </div>
       )}
+
+      <div className="flex gap-2 pt-1">
+        <button onClick={handleSave} disabled={saving || !selectedRoom}
+          className="cok-btn-primary inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ width: "auto", padding: "0.5rem 1rem", fontSize: "11px" }}>
+          {saving ? "Saving..." : "Save Room"}
+        </button>
+        <button onClick={onClose} disabled={saving}
+          className="cok-btn-outlined disabled:opacity-50"
+          style={{ padding: "0.5rem 1rem", fontSize: "11px" }}>
+          Cancel
+        </button>
+      </div>
     </div>
   );
 }
 
 export default function BookingRequestDetails() {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const { showSuccess, showError } = useToast();
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
   const [rejectModal, setRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
-  const [isEditing, setIsEditing] = useState(false);
-  const [editStep, setEditStep] = useState(1);
-  const [completedSteps, setCompletedSteps] = useState([]);
-  const [editForm, setEditForm] = useState({});
-  const [editError, setEditError] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, variant: "primary", title: "", message: "", onConfirm: null });
+
+  // Inline field editing
+  const [activeField, setActiveField] = useState(null);
+  const [editValues, setEditValues] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [fieldError, setFieldError] = useState(null);
+  const [roomPanelOpen, setRoomPanelOpen] = useState(false);
 
   useEffect(() => {
     const fetchDetails = async () => {
       setLoading(true);
       try {
         const res = await axios.get(`${BASE_URL}/booking-requests/${id}`);
-        if (res.data.success) {
-          const r = res.data.data;
-          setRequest(r);
-          setEditForm({
-            eventMeetingType: r.eventMeetingType || "event",
-            eventName: r.eventName, eventDescription: r.eventDescription, eventType: r.eventType, eventRoom: r.eventRoom,
-            organizerNames: r.eventOrganizer?.fullNames || "", organizerEmail: r.eventOrganizer?.email || "", organizerPhone: r.eventOrganizer?.phone || "", organizerInstitution: r.eventOrganizer?.institution || "",
-            startTime: r.startTime ? new Date(r.startTime).toISOString().slice(0, 16) : "", endTime: r.endTime ? new Date(r.endTime).toISOString().slice(0, 16) : "",
-            audience: r.expectedAudience || "",
-            agenda: (r.activityAgenda && r.activityAgenda.length > 0) ? r.activityAgenda : [{ fromTime: "", toTime: "", title: "", description: "" }],
-          });
-        } else setError("Booking request not found");
-      } catch (err) { setError(err.response?.data?.message || "Failed to load booking request details"); }
-      finally { setLoading(false); }
+        if (res.data.success) setRequest(res.data.data);
+        else setError("Booking request not found");
+      } catch (err) {
+        setError(err.response?.data?.message || err.message);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchDetails();
   }, [id]);
 
+  const isPending = request?.status === "Pending";
+
+  const onEdit = (field, currentValue) => {
+    setActiveField(field);
+    setEditValues({ [field]: String(currentValue ?? "") });
+    setFieldError(null);
+  };
+
+  const onCancel = () => {
+    setActiveField(null);
+    setEditValues({});
+    setFieldError(null);
+  };
+
+  // Send a partial update; the backend re-checks room conflicts on any time change
+  const saveRequestFields = async (payload) => {
+    setSaving(true);
+    setFieldError(null);
+    try {
+      const res = await axios.put(`${BASE_URL}/booking-requests/${id}`, payload);
+      if (res.data.success) {
+        showSuccess(res.data.message || "Booking request updated successfully");
+        setRequest(res.data.data);
+        onCancel();
+        return true;
+      }
+      setFieldError(res.data.message);
+      showError(res.data.message || "Failed to update");
+      return false;
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message;
+      setFieldError(msg);
+      showError(msg);
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startLocal = toLocalInput(request?.startTime);
+  const endLocal = toLocalInput(request?.endTime);
+  const schedule = {
+    date: startLocal.slice(0, 10),
+    from: startLocal.slice(11, 16),
+    to: endLocal.slice(11, 16),
+  };
+
+  const onSave = async (field, value) => {
+    switch (field) {
+      case "eventName":
+        if (!value.trim()) { setFieldError("Name is required"); return; }
+        return saveRequestFields({ eventName: value.trim() });
+      case "eventType":
+        if (!value) { setFieldError("Type is required"); return; }
+        return saveRequestFields({ eventType: value });
+      case "expectedAudience": {
+        const val = Number(value);
+        if (!val || val < 1) { setFieldError("Audience must be at least 1"); return; }
+        return saveRequestFields({ expectedAudience: val });
+      }
+      case "eventDescription":
+        if (!value.trim()) { setFieldError("Description is required"); return; }
+        return saveRequestFields({ eventDescription: value.trim() });
+      case "organizerName":
+        if (!value.trim()) { setFieldError("Name is required"); return; }
+        return saveRequestFields({ eventOrganizer: { fullNames: value.trim() } });
+      case "organizerEmail":
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) { setFieldError("Enter a valid email"); return; }
+        return saveRequestFields({ eventOrganizer: { email: value.trim() } });
+      case "organizerPhone":
+        if (!value.trim()) { setFieldError("Phone is required"); return; }
+        return saveRequestFields({ eventOrganizer: { phone: value.trim() } });
+      case "organizerInstitution":
+        return saveRequestFields({ eventOrganizer: { institution: value.trim() } });
+      case "scheduleDate":
+      case "scheduleFrom":
+      case "scheduleTo": {
+        const date = field === "scheduleDate" ? value : schedule.date;
+        const from = field === "scheduleFrom" ? value : schedule.from;
+        const to = field === "scheduleTo" ? value : schedule.to;
+        if (!date || !from || !to) { setFieldError("Date, start and end times are all required"); return; }
+        const newStart = new Date(`${date}T${from}`);
+        const newEnd = new Date(`${date}T${to}`);
+        if (isNaN(newStart.getTime()) || isNaN(newEnd.getTime())) { setFieldError("Invalid date or time"); return; }
+        if (newEnd <= newStart) { setFieldError("End time must be after start time"); return; }
+        return saveRequestFields({ startTime: newStart.toISOString(), endTime: newEnd.toISOString() });
+      }
+      default:
+        return;
+    }
+  };
+
   const handleAccept = async () => {
-    setActionLoading(true); setError(null);
+    setActionLoading(true);
     try {
       const res = await axios.put(`${BASE_URL}/booking-requests/${id}/accept`);
-      if (res.data.success) setRequest((prev) => ({ ...prev, status: "Accepted", acceptedEventSpecialId: res.data.data.event.eventSpecialId, acceptedEventType: "upcoming" }));
-    } catch (err) { setError(err.response?.data?.message || "Failed to accept booking request"); }
-    finally { setActionLoading(false); }
+      if (res.data.success) {
+        showSuccess(res.data.message || "Booking request accepted");
+        setRequest((prev) => ({ ...prev, status: "Accepted", acceptedEventSpecialId: res.data.data.event.eventSpecialId, acceptedEventType: "upcoming" }));
+      } else {
+        showError(res.data.message || "Failed to accept booking request");
+      }
+    } catch (err) {
+      showError(err.response?.data?.message || err.message);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleReject = async () => {
     if (!rejectReason.trim()) return;
-    setActionLoading(true); setError(null);
+    setActionLoading(true);
     try {
       const res = await axios.put(`${BASE_URL}/booking-requests/${id}/reject`, { reason: rejectReason.trim() });
-      if (res.data.success) { setRequest((prev) => ({ ...prev, status: "Rejected", rejectionReason: rejectReason.trim() })); setRejectModal(false); setRejectReason(""); }
-    } catch (err) { setError(err.response?.data?.message || "Failed to reject"); }
-    finally { setActionLoading(false); }
+      if (res.data.success) {
+        showSuccess(res.data.message || "Booking request rejected");
+        setRequest((prev) => ({ ...prev, status: "Rejected", rejectionReason: rejectReason.trim() }));
+        setRejectModal(false);
+        setRejectReason("");
+      } else {
+        showError(res.data.message || "Failed to reject");
+      }
+    } catch (err) {
+      showError(err.response?.data?.message || err.message);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const showAgenda = editForm.eventMeetingType === "meet";
-  const maxSteps = showAgenda ? 5 : 4;
-
-  function validateEditStep() {
-    const errs = {};
-    if (editStep === 1) {
-      if (!editForm.eventName?.trim()) errs.eventName = "Name required";
-      if (!editForm.eventType) errs.eventType = "Type required";
-      if (!editForm.audience || Number(editForm.audience) < 1) errs.audience = "Audience required";
-      if (!editForm.eventDescription?.trim()) errs.eventDescription = "Description required";
-    } else if (editStep === 2) {
-      if (!editForm.organizerNames?.trim()) errs.organizerNames = "Name required";
-      if (!editForm.organizerEmail?.trim()) errs.organizerEmail = "Email required";
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editForm.organizerEmail.trim())) errs.organizerEmail = "Invalid email";
-      if (!editForm.organizerPhone?.trim()) errs.organizerPhone = "Phone required";
-    } else if (editStep === 3) {
-      if (!editForm.startTime) errs.startTime = "Start required";
-      if (!editForm.endTime) errs.endTime = "End required";
-      else if (new Date(editForm.endTime) <= new Date(editForm.startTime)) errs.endTime = "End after start";
-    } else if (editStep === 4) {
-      if (!editForm.eventRoom?.trim()) errs.eventRoom = "Room required";
-    }
-    return errs;
-  }
-
-  function handleEditNext() {
-    const errs = validateEditStep();
-    if (Object.keys(errs).length > 0) { setEditError(Object.values(errs).join(", ")); return; }
-    setEditError(null);
-    setCompletedSteps((prev) => (prev.includes(editStep) ? prev : [...prev, editStep]));
-    setEditStep((s) => Math.min(maxSteps, s + 1));
-  }
-
-  function handleEditBack() { setEditError(null); setEditStep((s) => Math.max(1, s - 1)); }
-  function handleStepClick(targetStep) { if (completedSteps.includes(targetStep) || targetStep < editStep) { setEditError(null); setEditStep(targetStep); } }
-
-  async function handleSaveEdit() {
-    setActionLoading(true); setEditError(null);
-    try {
-      const payload = {
-        eventName: editForm.eventName, eventDescription: editForm.eventDescription, eventType: editForm.eventType, eventRoom: editForm.eventRoom,
-        eventOrganizer: { fullNames: editForm.organizerNames, email: editForm.organizerEmail, phone: editForm.organizerPhone, institution: editForm.organizerInstitution || "" },
-        startTime: editForm.startTime ? new Date(editForm.startTime).toISOString() : undefined,
-        endTime: editForm.endTime ? new Date(editForm.endTime).toISOString() : undefined,
-        expectedAudience: Number(editForm.audience),
-        activityAgenda: showAgenda ? editForm.agenda.filter((a) => a.title?.trim()) : [],
-      };
-      const res = await axios.put(`${BASE_URL}/booking-requests/${id}`, payload);
-      if (res.data.success) {
-        setRequest((prev) => ({ ...prev, ...payload, eventOrganizer: payload.eventOrganizer, startTime: payload.startTime ? new Date(payload.startTime) : prev.startTime, endTime: payload.endTime ? new Date(payload.endTime) : prev.endTime }));
-        setIsEditing(false); setEditStep(1); setCompletedSteps([]);
-      }
-    } catch (err) { setEditError(err.response?.data?.message || "Failed to update"); }
-    finally { setActionLoading(false); }
-  }
-
-  const formatDate = (dateStr) => {
+  const formatDateTime = (dateStr) => {
     if (!dateStr) return "—";
     return new Date(dateStr).toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
-  if (loading) return <div className="p-6"><div className="max-w-3xl mx-auto"><div className="bg-white border border-gray-200 p-12 text-center"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" /><p className="text-sm text-gray-500 mt-3">Loading...</p></div></div></div>;
-  if (error && !request) return <div className="p-6"><div className="max-w-3xl mx-auto"><div className="bg-red-50 border border-red-200 p-6 text-center"><FiAlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" /><p className="text-sm text-red-600">{error}</p><button onClick={() => navigate("/event-manager/booking-requests/all")} className="mt-4 text-sm text-blue-600 hover:text-blue-700 font-medium"><FiArrowLeft className="w-4 h-4 inline" /> Back</button></div></div></div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+        <SpiralLoader />
+      </div>
+    );
+  }
+
+  if (error && !request) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+        <div className="w-full max-w-md text-center p-6 sm:p-8" style={{ backgroundColor: "#FFFFFF", border: `1px solid ${BORDER}` }}>
+          <FiAlertCircle className="w-12 h-12 mx-auto mb-3" style={{ color: DANGER }} />
+          <p className="text-sm" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>{error}</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!request) return null;
 
-  return (
-    <div className="p-6">
-      <div className="max-w-3xl mx-auto space-y-6">
-        <button onClick={() => navigate("/event-manager/booking-requests/all")} className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors"><FiArrowLeft className="w-4 h-4" /> Back to All Requests</button>
-        {error && <div className="bg-red-50 border border-red-200 p-3 flex items-start gap-2"><FiAlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" /><p className="text-sm text-red-600">{error}</p></div>}
+  const displayProps = { activeField, editValues, onEdit, onCancel, onSave, saving, fieldError, canEdit: isPending };
+  const currentValue = (field) => editValues[field] ?? "";
+  const setEditValue = (field, val) => setEditValues((p) => ({ ...p, [field]: val }));
 
-        {!isEditing && (
-          <div className="bg-white border border-gray-200 overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-start justify-between flex-wrap gap-4">
-                <div><h1 className="text-xl font-bold text-gray-900">{request.eventName}</h1><div className="flex items-center gap-2 mt-1"><span className="text-xs font-mono font-medium text-blue-600 bg-blue-50 px-2 py-0.5">{request.trackingCode}</span><span className="text-xs text-gray-400 capitalize">({request.eventMeetingType})</span></div></div>
-                <StatusBadge status={request.status} />
+  return (
+    <div className="min-h-screen" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+      {/* Header banner */}
+      <div className="px-4 sm:px-6 py-5 text-white" style={{ backgroundColor: PRIMARY }}>
+        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 flex items-center justify-center shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.2)" }}>
+              <FiCalendar className="w-4 h-4 text-white" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-extrabold leading-tight truncate" style={{ fontFamily: fontHeading, letterSpacing: "-0.5px" }}>
+                {request.eventName}
+              </h1>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <span className="text-xs font-mono font-semibold px-2 py-0.5" style={{ color: PRIMARY, backgroundColor: "#FFFFFF" }}>{request.trackingCode}</span>
+                <span className="text-xs capitalize" style={{ color: "rgba(255,255,255,0.85)", fontFamily: fontHeading }}>({request.eventMeetingType})</span>
               </div>
             </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
-                <div><DetailRow icon={FiCalendar} label="Event Type" value={request.eventType} /><DetailRow icon={FiMapPin} label="Room" value={request.eventRoom} /><DetailRow icon={FiCalendar} label="Start Time" value={formatDate(request.startTime)} /><DetailRow icon={FiCalendar} label="End Time" value={formatDate(request.endTime)} /><DetailRow icon={FiHome} label="Audience" value={request.expectedAudience ? `${request.expectedAudience} people` : "—"} /></div>
-                <div><DetailRow icon={FiUser} label="Organizer" value={request.eventOrganizer?.fullNames} /><DetailRow icon={FiMail} label="Email" value={request.eventOrganizer?.email} /><DetailRow icon={FiPhone} label="Phone" value={request.eventOrganizer?.phone} /><DetailRow icon={FiHome} label="Institution" value={request.eventOrganizer?.institution || "—"} /></div>
+          </div>
+          <div className="shrink-0 self-start sm:self-auto"><StatusBadge status={request.status} /></div>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
+        {/* Basic details — inline editable */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <EditableDisplay label="Name" value={request.eventName} field="eventName"
+            icon={<FiBookmark className="w-4 h-4" style={{ color: PRIMARY }} />} {...displayProps}>
+            <input type="text" value={currentValue("eventName")} onChange={(e) => setEditValue("eventName", e.target.value)} className={inputClassName} autoFocus />
+          </EditableDisplay>
+
+          <EditableDisplay label="Type" value={request.eventType} field="eventType"
+            icon={<FiBookmark className="w-4 h-4" style={{ color: PRIMARY }} />} {...displayProps}>
+            <select value={currentValue("eventType")} onChange={(e) => setEditValue("eventType", e.target.value)} className={inputClassName} autoFocus>
+              <option value="Internal">Internal</option>
+              <option value="Joint">Joint</option>
+              <option value="External">External</option>
+            </select>
+          </EditableDisplay>
+
+          <EditableDisplay label="Expected Audience" value={request.expectedAudience ? `${request.expectedAudience} people` : ""} field="expectedAudience"
+            icon={<FiUsers className="w-4 h-4" style={{ color: PRIMARY }} />} {...displayProps}>
+            <input type="number" min="1" value={currentValue("expectedAudience")} onChange={(e) => setEditValue("expectedAudience", e.target.value)} className={inputClassName} autoFocus />
+          </EditableDisplay>
+
+          {/* Room — change via availability panel */}
+          <div className="bg-white p-4" style={{ border: `1px solid ${BORDER}` }}>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <FiMapPin className="w-4 h-4" style={{ color: PRIMARY }} />
+                <label style={fieldLabelStyle}>Room</label>
               </div>
-              <div className="mt-4 pt-4 border-t border-gray-200"><DetailRow icon={FiCalendar} label="Description" value={request.eventDescription} /></div>
-              {request.activityAgenda?.length > 0 && <div className="mt-4 pt-4 border-t border-gray-200"><AgendaSection agenda={request.activityAgenda} /></div>}
-              {request.status === "Rejected" && request.rejectionReason && <div className="mt-4 pt-4 border-t border-gray-200"><div className="bg-red-50 border border-red-200 p-3"><p className="text-xs font-medium text-red-700 uppercase tracking-wider">Rejection Reason</p><p className="text-sm text-red-600 mt-1">{request.rejectionReason}</p></div></div>}
-              {request.status === "Accepted" && request.acceptedEventSpecialId && <div className="mt-4 pt-4 border-t border-gray-200"><div className="bg-green-50 border border-green-200 p-3"><div className="flex items-center gap-2"><FiCheckCircle className="w-4 h-4 text-green-600" /><p className="text-sm font-medium text-green-700">Event Created</p></div><p className="text-xs text-green-600 mt-1">Event Special ID: <span className="font-mono">{request.acceptedEventSpecialId}</span></p></div></div>}
-              <div className="mt-4 pt-4 border-t border-gray-200"><p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Timeline</p><p className="text-xs text-gray-500">Requested: {formatDate(request.createdAt)}</p>{request.updatedAt !== request.createdAt && <p className="text-xs text-gray-500">Updated: {formatDate(request.updatedAt)}</p>}</div>
+              {isPending && !roomPanelOpen && (
+                <button onClick={() => setRoomPanelOpen(true)}
+                  className="cok-btn-primary inline-flex items-center gap-1"
+                  style={{ width: "auto", padding: "0.35rem 0.7rem", fontSize: "10px" }}>
+                  <FiEdit2 className="w-3 h-3" /> Change Room
+                </button>
+              )}
             </div>
-            {request.status === "Pending" && (
-              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-end gap-3">
-                <button onClick={() => { setEditStep(1); setCompletedSteps([]); setIsEditing(true); }} className="inline-flex items-center gap-1.5 px-4 py-2 border border-blue-300 text-sm font-medium text-blue-700 hover:bg-blue-50 transition-colors"><FiEdit2 className="w-4 h-4" /> Edit</button>
-                <button onClick={() => setRejectModal(true)} className="inline-flex items-center gap-1.5 px-4 py-2 border border-red-300 text-sm font-medium text-red-700 hover:bg-red-50 transition-colors"><FiXCircle className="w-4 h-4" /> Reject</button>
-                <button onClick={() => setConfirmModal({ isOpen: true, variant: "success", title: "Accept Booking Request", message: "This will create the event.", confirmText: "Accept & Create Event", onConfirm: handleAccept })} className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors"><FiCheckCircle className="w-4 h-4" /> Accept & Create Event</button>
+            <div className="text-sm capitalize break-words" style={{ color: NEUTRAL_DARK }}>{request.eventRoom || <span className="italic" style={{ color: GRAY_DISABLED }}>Not set</span>}</div>
+            {roomPanelOpen && (
+              <div className="mt-3">
+                <RoomChangePanel request={request} onClose={() => setRoomPanelOpen(false)} saveRequestFields={saveRequestFields} saving={saving} />
               </div>
             )}
           </div>
-        )}
 
-        {isEditing && (
-          <div className="bg-white border border-gray-200 overflow-hidden">
-            <CreateEventStepper currentStep={editStep} eventMeetingType={editForm.eventMeetingType} onStepClick={handleStepClick} completedSteps={completedSteps} />
-            <div className="p-6">
-              {editError && <div className="bg-red-50 border border-red-200 p-3 flex items-start gap-2 mb-4"><FiAlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" /><p className="text-sm text-red-600">{editError}</p></div>}
-              {editStep === 1 && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div><label className={labelClass}>Name <span className="text-red-500">*</span></label><input className={inputClass} type="text" value={editForm.eventName} onChange={(e) => setEditForm((p) => ({ ...p, eventName: e.target.value }))} /></div>
-                    <div><label className={labelClass}>Type <span className="text-red-500">*</span></label><select className={inputClass} value={editForm.eventType} onChange={(e) => setEditForm((p) => ({ ...p, eventType: e.target.value }))}><option value="Internal">Internal</option><option value="Joint">Joint</option><option value="External">External</option></select></div>
+          <div className="md:col-span-2">
+            <EditableDisplay label="Description" value={request.eventDescription} field="eventDescription"
+              icon={<FiBookmark className="w-4 h-4" style={{ color: PRIMARY }} />} {...displayProps}>
+              <textarea rows={3} value={currentValue("eventDescription")} onChange={(e) => setEditValue("eventDescription", e.target.value)} className={inputClassName} style={{ resize: "vertical", minHeight: "80px" }} autoFocus />
+            </EditableDisplay>
+          </div>
+
+          {/* Schedule — date and times editable separately; backend re-checks conflicts */}
+          <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <EditableDisplay label="Date" value={schedule.date} field="scheduleDate"
+              icon={<FiCalendar className="w-4 h-4" style={{ color: PRIMARY }} />} {...displayProps}>
+              <input type="date" value={currentValue("scheduleDate")} onChange={(e) => setEditValue("scheduleDate", e.target.value)} className={inputClassName} autoFocus />
+            </EditableDisplay>
+            <EditableDisplay label="From" value={schedule.from} field="scheduleFrom"
+              icon={<FiCalendar className="w-4 h-4" style={{ color: PRIMARY }} />} {...displayProps}>
+              <input type="time" value={currentValue("scheduleFrom")} onChange={(e) => setEditValue("scheduleFrom", e.target.value)} className={inputClassName} autoFocus />
+            </EditableDisplay>
+            <EditableDisplay label="To" value={schedule.to} field="scheduleTo"
+              icon={<FiCalendar className="w-4 h-4" style={{ color: PRIMARY }} />} {...displayProps}>
+              <input type="time" value={currentValue("scheduleTo")} onChange={(e) => setEditValue("scheduleTo", e.target.value)} min={schedule.from || undefined} className={inputClassName} autoFocus />
+            </EditableDisplay>
+          </div>
+        </div>
+
+        {/* Organizer — inline editable */}
+        <div className="bg-white p-4 sm:p-5" style={{ border: `1px solid ${BORDER}` }}>
+          <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 mb-4" style={{ color: PRIMARY, fontFamily: fontHeading }}>
+            <FiUser className="w-4 h-4" />
+            Organizer Details
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <EditableDisplay label="Full Names" value={request.eventOrganizer?.fullNames} field="organizerName"
+              icon={<FiUser className="w-4 h-4" style={{ color: PRIMARY }} />} {...displayProps}>
+              <input type="text" value={currentValue("organizerName")} onChange={(e) => setEditValue("organizerName", e.target.value)} className={inputClassName} autoFocus />
+            </EditableDisplay>
+            <EditableDisplay label="Email" value={request.eventOrganizer?.email} field="organizerEmail"
+              icon={<FiMail className="w-4 h-4" style={{ color: PRIMARY }} />} {...displayProps}>
+              <input type="email" value={currentValue("organizerEmail")} onChange={(e) => setEditValue("organizerEmail", e.target.value)} className={inputClassName} autoFocus />
+            </EditableDisplay>
+            <EditableDisplay label="Phone" value={request.eventOrganizer?.phone} field="organizerPhone"
+              icon={<FiPhone className="w-4 h-4" style={{ color: PRIMARY }} />} {...displayProps}>
+              <input type="tel" value={currentValue("organizerPhone")} onChange={(e) => setEditValue("organizerPhone", e.target.value)} className={inputClassName} autoFocus />
+            </EditableDisplay>
+            <EditableDisplay label="Institution" value={request.eventOrganizer?.institution} field="organizerInstitution"
+              icon={<FiHome className="w-4 h-4" style={{ color: PRIMARY }} />} {...displayProps}>
+              <input type="text" value={currentValue("organizerInstitution")} onChange={(e) => setEditValue("organizerInstitution", e.target.value)} className={inputClassName} autoFocus />
+            </EditableDisplay>
+          </div>
+        </div>
+
+        {/* Agenda — read only, card style */}
+        {request.activityAgenda?.length > 0 && (
+          <div className="bg-white p-4 sm:p-5" style={{ border: `1px solid ${BORDER}` }}>
+            <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 mb-4" style={{ color: PRIMARY, fontFamily: fontHeading }}>
+              <FiClock className="w-4 h-4" />
+              Activity Agenda ({request.activityAgenda.length})
+            </h3>
+            <div className="space-y-3">
+              {request.activityAgenda.map((item, idx) => (
+                <div key={idx} style={{ border: `1px solid ${BORDER}` }}>
+                  <div className="flex items-center gap-2 px-3 sm:px-4 py-2" style={{ backgroundColor: NEUTRAL_LIGHT, borderBottom: `1px solid ${BORDER}` }}>
+                    <FiClock className="w-3.5 h-3.5" style={{ color: PRIMARY }} />
+                    <span className="text-xs font-bold tracking-wide" style={{ color: PRIMARY, fontFamily: fontHeading }}>
+                      {item.fromTime || "--:--"} — {item.toTime || "--:--"}
+                    </span>
                   </div>
-                  <div><label className={labelClass}>Audience <span className="text-red-500">*</span></label><input className={inputClass} type="number" value={editForm.audience} onChange={(e) => setEditForm((p) => ({ ...p, audience: e.target.value }))} min={1} /></div>
-                  <div><label className={labelClass}>Description <span className="text-red-500">*</span></label><textarea className={`${inputClass} resize-y min-h-[80px]`} value={editForm.eventDescription} onChange={(e) => setEditForm((p) => ({ ...p, eventDescription: e.target.value }))} rows={3} /></div>
-                </div>
-              )}
-              {editStep === 2 && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div><label className={labelClass}>Full Names <span className="text-red-500">*</span></label><input className={inputClass} type="text" value={editForm.organizerNames} onChange={(e) => setEditForm((p) => ({ ...p, organizerNames: e.target.value }))} /></div>
-                    <div><label className={labelClass}>Institution</label><input className={inputClass} type="text" value={editForm.organizerInstitution} onChange={(e) => setEditForm((p) => ({ ...p, organizerInstitution: e.target.value }))} /></div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div><label className={labelClass}>Email <span className="text-red-500">*</span></label><input className={inputClass} type="email" value={editForm.organizerEmail} onChange={(e) => setEditForm((p) => ({ ...p, organizerEmail: e.target.value }))} /></div>
-                    <div><label className={labelClass}>Phone <span className="text-red-500">*</span></label><input className={inputClass} type="tel" value={editForm.organizerPhone} onChange={(e) => setEditForm((p) => ({ ...p, organizerPhone: e.target.value }))} /></div>
+                  <div className="px-3 sm:px-4 py-3 bg-white">
+                    <p className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{item.title || `Agenda item ${idx + 1}`}</p>
+                    {item.description && <p className="text-xs mt-1.5 leading-relaxed" style={{ color: "#555555" }}>{item.description}</p>}
                   </div>
                 </div>
-              )}
-              {editStep === 3 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div><label className={labelClass}>Start <span className="text-red-500">*</span></label><input className={inputClass} type="datetime-local" value={editForm.startTime} onChange={(e) => setEditForm((p) => ({ ...p, startTime: e.target.value }))} /></div>
-                  <div><label className={labelClass}>End <span className="text-red-500">*</span></label><input className={inputClass} type="datetime-local" value={editForm.endTime} onChange={(e) => setEditForm((p) => ({ ...p, endTime: e.target.value }))} /></div>
-                </div>
-              )}
-              {editStep === 4 && <EditRoomSelector editForm={editForm} setEditForm={setEditForm} requestId={request?._id} />}
-              {editStep === 5 && showAgenda && <ActivityAgenda agenda={editForm.agenda} onChange={(agenda) => setEditForm((p) => ({ ...p, agenda }))} eventStartTime={editForm.startTime ? editForm.startTime.split("T")[1]?.substring(0, 5) : null} eventEndTime={editForm.endTime ? editForm.endTime.split("T")[1]?.substring(0, 5) : null} />}
-              {editStep === 5 && !showAgenda && <div className="bg-blue-50 border border-blue-200 p-4 text-center"><p className="text-sm text-blue-700 font-medium">No agenda required</p></div>}
-              <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
-                {editStep > 1 && <button type="button" onClick={handleEditBack} className="flex-1 py-2.5 border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Back</button>}
-                {editStep < maxSteps ? <button type="button" onClick={handleEditNext} className={`py-2.5 bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-all ${editStep === 1 ? "w-full" : "flex-1"}`}>Next</button>
-                  : <button type="button" onClick={handleSaveEdit} disabled={actionLoading} className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-all inline-flex items-center justify-center gap-2">{actionLoading ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving...</> : <><FiSave className="w-4 h-4" /> Save Changes</>}</button>}
-              </div>
+              ))}
             </div>
           </div>
         )}
+
+        {/* Status extras */}
+        {request.status === "Rejected" && request.rejectionReason && (
+          <div className="p-4" style={{ backgroundColor: "#FDECEA", border: "1px solid #F5B7B1" }}>
+            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: DANGER, fontFamily: fontHeading }}>Rejection Reason</p>
+            <p className="text-sm mt-1" style={{ color: DANGER }}>{request.rejectionReason}</p>
+          </div>
+        )}
+        {request.status === "Accepted" && request.acceptedEventSpecialId && (
+          <div className="p-4" style={{ backgroundColor: "#E8F5E9", border: "1px solid #A5D6A7" }}>
+            <div className="flex items-center gap-2">
+              <FiCheckCircle className="w-4 h-4" style={{ color: SUCCESS }} />
+              <p className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Event Created</p>
+            </div>
+            <p className="text-xs mt-1" style={{ color: GRAY_DISABLED }}>Event Special ID: <span className="font-mono" style={{ color: NEUTRAL_DARK }}>{request.acceptedEventSpecialId}</span></p>
+          </div>
+        )}
+
+        {/* Timeline */}
+        <div className="bg-white p-4" style={{ border: `1px solid ${BORDER}` }}>
+          <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: PRIMARY, fontFamily: fontHeading }}>Timeline</p>
+          <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Requested: {formatDateTime(request.createdAt)}</p>
+          {request.updatedAt !== request.createdAt && <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Updated: {formatDateTime(request.updatedAt)}</p>}
+        </div>
+
+        {/* Actions — Edit button removed; fields are edited inline above */}
+        {isPending && (
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-end">
+            <button onClick={() => setRejectModal(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-white text-xs font-semibold uppercase tracking-wide cursor-pointer transition-colors"
+              style={{ backgroundColor: DANGER, fontFamily: fontHeading }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#C0392B")}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = DANGER)}>
+              <FiXCircle className="w-4 h-4" /> Reject
+            </button>
+            <button
+              onClick={() => setConfirmModal({ isOpen: true, variant: "success", title: "Accept Booking Request", message: "This will create the event.", confirmText: "Accept & Create Event", onConfirm: handleAccept })}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-white text-xs font-semibold uppercase tracking-wide cursor-pointer transition-colors"
+              style={{ backgroundColor: SUCCESS, fontFamily: fontHeading }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#388D3C")}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = SUCCESS)}>
+              <FiCheckCircle className="w-4 h-4" /> Accept & Create Event
+            </button>
+          </div>
+        )}
       </div>
-      <ConfirmModal isOpen={confirmModal.isOpen} onClose={() => setConfirmModal({ isOpen: false })} onConfirm={async () => { await confirmModal.onConfirm(); setConfirmModal({ isOpen: false }); }} title={confirmModal.title} message={confirmModal.message} confirmText={confirmModal.confirmText || "Confirm"} confirmVariant={confirmModal.variant} loading={actionLoading} />
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false })}
+        onConfirm={async () => { await confirmModal.onConfirm(); setConfirmModal({ isOpen: false }); }}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText || "Confirm"}
+        confirmVariant={confirmModal.variant}
+        loading={actionLoading}
+      />
+
+      {/* Reject modal */}
       {rejectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/50" onClick={() => { setRejectModal(false); setRejectReason(""); }} />
-          <div className="relative bg-white border border-gray-200 p-6 max-w-md w-full shadow-xl">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Reject Booking Request</h3>
-            <p className="text-sm text-gray-500 mb-4">Please provide a reason.</p>
-            <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Enter rejection reason..." rows={4} className="w-full px-3 py-2 border border-gray-300 text-sm focus:outline-none focus:border-blue-500 resize-none" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="fixed inset-0 bg-black/50" onClick={() => { if (!actionLoading) { setRejectModal(false); setRejectReason(""); } }} />
+          <div className="relative bg-white p-5 sm:p-6 max-w-md w-full" style={{ border: `1px solid ${BORDER}` }}>
+            <h3 className="text-lg font-bold mb-2" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Reject Booking Request</h3>
+            <p className="text-sm mb-4" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Please provide a reason.</p>
+            <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Enter rejection reason..." rows={4}
+              className={inputClassName} style={{ resize: "vertical", minHeight: "90px" }} />
             <div className="flex items-center justify-end gap-3 mt-4">
-              <button onClick={() => { setRejectModal(false); setRejectReason(""); }} className="px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-              <button onClick={handleReject} disabled={!rejectReason.trim() || actionLoading} className="px-4 py-2 bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors">{actionLoading ? "Rejecting..." : "Reject"}</button>
+              <button onClick={() => { setRejectModal(false); setRejectReason(""); }} disabled={actionLoading}
+                className="cok-btn-outlined disabled:opacity-50">
+                Cancel
+              </button>
+              <button onClick={handleReject} disabled={!rejectReason.trim() || actionLoading}
+                className="px-4 py-2.5 text-white text-xs font-semibold uppercase tracking-wide cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: DANGER, fontFamily: fontHeading }}>
+                {actionLoading ? "Rejecting..." : "Reject"}
+              </button>
             </div>
           </div>
         </div>
