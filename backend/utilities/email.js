@@ -184,7 +184,7 @@ END:VCALENDAR`.trim();
 
 async function sendEmail(toEmail, subject, htmlContent, textContent) {
     try {
-        await transporter.sendMail({
+       const info =  await transporter.sendMail({
             from: config.email.from,
             subject,
             to: toEmail,
@@ -193,7 +193,9 @@ async function sendEmail(toEmail, subject, htmlContent, textContent) {
             // Inline header banner referenced by cid: in htmlWrapper
             attachments: HAS_LOGO_BANNER ? [logoBannerAttachment] : [],
         });
+        console.log('Email sent successfully:', info);
         return { success: true };
+
     } catch (error) {
         console.error('SMTP Error:', error);
         return { success: false, error: error.message };
