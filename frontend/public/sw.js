@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ikaze-v1';
+const CACHE_NAME = 'ikaze-v2';
 const urlsToCache = ['/'];
 
 self.addEventListener('install', (event) => {
@@ -17,8 +17,16 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+const DCS_FORM_ROUTE_PATTERN = /^\/dcs-form\/[^/]+$/;
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
+  const request_url = new URL(event.request.url);
+  if (request_url.origin !== self.location.origin || !DCS_FORM_ROUTE_PATTERN.test(request_url.pathname)) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
