@@ -2,21 +2,20 @@ import { FiSearch, FiX, FiCalendar, FiChevronDown, FiChevronLeft, FiChevronRight
 import SpiralLoader from './SpiralLoader';
 
 const PRIMARY = '#056daa';
-const NEUTRAL_LIGHT = '#F7F9FB';
-const DANGER = '#E53935';
+const DANGER = '#E74C3C';
 
 const STATUS_META = {
-  Pending:       { color: 'bg-amber-100 text-amber-700 border-amber-200', icon: <span className="text-[10px]">⏳</span> },
-  'In Progress': { color: 'bg-blue-100 text-blue-700 border-blue-200', icon: <span className="text-[10px]">🔄</span> },
-  Completed:     { color: 'bg-green-100 text-green-700 border-green-200', icon: <span className="text-[10px]">✅</span> },
-  Cancelled:     { color: 'bg-red-100 text-red-700 border-red-200', icon: <span className="text-[10px]">🚫</span> },
+  Pending:       { color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  'In Progress': { color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  Completed:     { color: 'bg-green-100 text-green-700 border-green-200' },
+  Cancelled:     { color: 'bg-red-100 text-red-700 border-red-200' },
 };
 
 function StatusBadge({ status }) {
-  const meta = STATUS_META[status] || { color: 'bg-gray-100 text-gray-600 border-gray-200', icon: null };
+  const meta = STATUS_META[status] || { color: 'bg-gray-100 text-gray-600 border-gray-200' };
   return (
-    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-none text-xs font-medium border ${meta.color}`}>
-      {meta.icon}{status}
+    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-none text-xs font-semibold uppercase tracking-wide border whitespace-nowrap ${meta.color}`} style={{ fontFamily: "'Montserrat', sans-serif" }}>
+      {status}
     </span>
   );
 }
@@ -30,53 +29,52 @@ function isOverdue(dueDate, status) {
   return status !== 'Completed' && status !== 'Cancelled' && new Date(dueDate) < new Date();
 }
 
-export default function EventActionsTable({ actions, loading, error, page, pageSize, pagination, search, setSearch, dateFilter, setDateFilter, statusFilter, setStatusFilter, selectedEvent, anyFilter, setDetailAction, openCancel, eventNameMap }) {
+export default function EventActionsTable({ actions, loading, error, page, setPage, pageSize, pagination, search, setSearch, dateFilter, setDateFilter, statusFilter, setStatusFilter, selectedEvent, anyFilter, setDetailAction, openCancel, eventNameMap }) {
   const totalPages = pagination.totalPages;
 
+  const getPageNumbers = () => {
+    let start = Math.max(1, page - 2);
+    let end = Math.min(totalPages, page + 2);
+    if (page <= 3) end = Math.min(5, totalPages);
+    if (page >= totalPages - 2) start = Math.max(1, totalPages - 4);
+    const pages = [];
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  };
+
   return (
-    <div className="flex-1 min-w-0">
+    <div className="flex-1 min-w-0 w-full">
 
       {/* filters bar */}
-      <div className="bg-white border px-4 py-3 mb-4" style={{ borderColor: '#E0E0E0' }}>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative w-44">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: '#888888' }} />
+      <div className="bg-white border px-3 sm:px-4 py-3 mb-4" style={{ borderColor: '#E0E0E0' }}>
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
+          <div className="relative flex-1 min-w-0 sm:min-w-[180px]">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#9E9E9E' }} />
             <input
               type="text"
               placeholder="Search title, person…"
               value={search}
               onChange={e => { setSearch(e.target.value); }}
-              className="w-full pl-8 pr-3 py-2 text-sm outline-none"
-              style={{
-                fontFamily: "'Montserrat', sans-serif", fontSize: '14px', fontWeight: 500, color: '#333333',
-                backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid transparent',
-                boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)', transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-              }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(52, 168, 219, 0.25)'; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0, 0, 0, 0.1)'; }}
+              className="w-full cok-auth-input pr-8 py-2 text-sm"
+              style={{ minHeight: '40px' }}
             />
             {search && (
-              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2" style={{ color: '#888888' }}>
+              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer" style={{ color: '#9E9E9E' }}>
                 <FiX className="w-3 h-3" />
               </button>
             )}
           </div>
 
           <div className="flex items-center gap-1.5">
-            <FiCalendar className="w-3.5 h-3.5 shrink-0" style={{ color: '#888888' }} />
             <input
               type="date"
               value={dateFilter}
               onChange={e => setDateFilter(e.target.value)}
-              className="py-1.5 px-2 text-sm outline-none"
-              style={{
-                fontFamily: "'Montserrat', sans-serif", fontSize: '14px', fontWeight: 500, color: '#333333',
-                backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid transparent',
-                boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
-              }}
+              className="cok-auth-input text-sm"
+              style={{ minHeight: '40px', paddingLeft: '10px', paddingRight: '8px', width: 'auto' }}
             />
             {dateFilter && (
-              <button onClick={() => setDateFilter('')} style={{ color: '#888888' }}>
+              <button onClick={() => setDateFilter('')} className="cursor-pointer" style={{ color: '#9E9E9E' }}>
                 <FiX className="w-3.5 h-3.5" />
               </button>
             )}
@@ -86,12 +84,8 @@ export default function EventActionsTable({ actions, loading, error, page, pageS
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className="appearance-none pl-3 pr-8 py-1.5 text-sm outline-none"
-              style={{
-                fontFamily: "'Montserrat', sans-serif", fontSize: '14px', fontWeight: 500, color: '#333333',
-                backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid transparent',
-                boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
-              }}
+              className="appearance-none cok-auth-input text-sm pr-8"
+              style={{ minHeight: '40px', paddingLeft: '10px', width: 'auto' }}
             >
               <option value="all">All Statuses</option>
               <option value="Pending">Pending</option>
@@ -99,14 +93,14 @@ export default function EventActionsTable({ actions, loading, error, page, pageS
               <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
             </select>
-            <FiChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: '#888888' }} />
+            <FiChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: '#9E9E9E' }} />
           </div>
 
           {anyFilter && (
             <button
               onClick={() => { setSearch(''); setDateFilter(''); setStatusFilter('all'); }}
-              className="ml-auto text-xs flex items-center gap-1"
-              style={{ color: DANGER }}
+              className="sm:ml-auto text-xs font-semibold uppercase tracking-wide flex items-center gap-1 cursor-pointer hover:underline"
+              style={{ color: DANGER, fontFamily: "'Montserrat', sans-serif" }}
             >
               <FiX className="w-3 h-3" /> Clear all
             </button>
@@ -135,12 +129,12 @@ export default function EventActionsTable({ actions, loading, error, page, pageS
           <p className="text-sm mt-1" style={{ color: '#AAAAAA' }}>Create one or adjust your filters</p>
         </div>
       ) : (
-        <div className="bg-white border overflow-x-auto" style={{ borderColor: '#E0E0E0' }}>
-          <table className="w-full text-sm">
-            <thead>
+        <div className="bg-white border overflow-x-auto" style={{ borderColor: '#E0E0E0', WebkitOverflowScrolling: 'touch' }}>
+          <table className="w-full text-sm border-collapse">
+            <thead className="sticky top-0 z-10">
               <tr style={{ backgroundColor: PRIMARY }}>
                 {['#', 'Title', 'Assigned To', 'Due Date', 'Status', 'Event', 'Actions'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: '#FFFFFF', fontFamily: "'Montserrat', sans-serif" }}>
+                  <th key={h} className="px-3 py-3 sm:px-4 sm:py-3.5 text-left text-[11px] sm:text-xs font-bold uppercase tracking-widest whitespace-nowrap" style={{ color: '#FFFFFF', fontFamily: "'Montserrat', sans-serif" }}>
                     {h}
                   </th>
                 ))}
@@ -148,19 +142,20 @@ export default function EventActionsTable({ actions, loading, error, page, pageS
             </thead>
             <tbody>
               {actions.map((action, idx) => (
-                <tr key={action._id} className="border-t transition-colors cursor-pointer" style={{ borderTopColor: '#E0E0E0' }}>
-                  <td className="px-4 py-3 text-xs font-mono" style={{ color: '#888888' }}>{(page - 1) * pageSize + idx + 1}</td>
-                  <td className="px-4 py-3 max-w-[200px]">
-                    <p className="font-semibold text-zinc-900 truncate" style={{ fontFamily: "'Montserrat', sans-serif" }}>{action.title}</p>
-                    <p className="text-xs truncate mt-0.5" style={{ color: '#888888' }}>{action.actionDescription}</p>
+                <tr key={action._id}
+                  onClick={() => setDetailAction(action)}
+                  className={`cursor-pointer transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50/50 hover:bg-blue-50'}`}>
+                  <td className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs font-mono whitespace-nowrap border-b" style={{ color: '#9E9E9E', borderColor: '#E0E0E0' }}>{(page - 1) * pageSize + idx + 1}</td>
+                  <td className="px-3 py-2.5 sm:px-4 sm:py-3 whitespace-nowrap border-b border-l" style={{ borderColor: '#E0E0E0' }}>
+                    <p className="font-semibold text-zinc-900" style={{ fontFamily: "'Montserrat', sans-serif" }}>{action.title}</p>
+                    <p className="text-xs mt-0.5 max-w-[280px] truncate" style={{ color: '#9E9E9E' }}>{action.actionDescription}</p>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-3 py-2.5 sm:px-4 sm:py-3 whitespace-nowrap border-b border-l" style={{ borderColor: '#E0E0E0' }}>
                     <p className="font-medium text-sm text-zinc-900" style={{ fontFamily: "'Montserrat', sans-serif" }}>{action.assignedPerson?.name}</p>
-                    <p className="text-xs" style={{ color: '#888888' }}>{action.assignedPerson?.role}</p>
-                    <p className="text-xs italic" style={{ color: '#AAAAAA' }}>{action.assignedPerson?.institution}</p>
+                    <p className="text-xs" style={{ color: '#9E9E9E' }}>{action.assignedPerson?.role}{action.assignedPerson?.institution ? ` · ${action.assignedPerson.institution}` : ''}</p>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className={`inline-flex items-center gap-1 text-xs font-medium ${isOverdue(action.dueDate, action.currentStatus?.status) ? 'text-red-600' : 'text-zinc-600'}`}>
+                  <td className="px-3 py-2.5 sm:px-4 sm:py-3 whitespace-nowrap border-b border-l" style={{ borderColor: '#E0E0E0' }}>
+                    <span className={`inline-flex items-center gap-1 text-xs font-medium ${isOverdue(action.dueDate, action.currentStatus?.status) ? 'text-red-600' : 'text-zinc-600'}`} style={{ fontFamily: "'Montserrat', sans-serif" }}>
                       <FiCalendar className="w-3 h-3" />
                       {formatDate(action.dueDate)}
                     </span>
@@ -168,42 +163,39 @@ export default function EventActionsTable({ actions, loading, error, page, pageS
                       <span className="mt-0.5 block bg-red-100 text-red-600 border border-red-200 rounded-none px-1.5 text-[10px] w-fit">Overdue</span>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2.5 sm:px-4 sm:py-3 whitespace-nowrap border-b border-l" style={{ borderColor: '#E0E0E0' }}>
                     <StatusBadge status={action.currentStatus?.status} />
-                    <p className="text-xs mt-0.5 max-w-[130px] truncate" style={{ color: '#888888' }}>{action.currentStatus?.description}</p>
                   </td>
-                  <td className="px-4 py-3 max-w-[160px]">
+                  <td className="px-3 py-2.5 sm:px-4 sm:py-3 whitespace-nowrap border-b border-l" style={{ borderColor: '#E0E0E0' }}>
                     {eventNameMap[action.eventSpecialId] ? (
-                      <p className="text-sm font-medium truncate" style={{ color: '#333333', fontFamily: "'Montserrat', sans-serif" }} title={eventNameMap[action.eventSpecialId]}>
+                      <p className="text-sm font-medium" style={{ color: '#333333', fontFamily: "'Montserrat', sans-serif" }}>
                         {eventNameMap[action.eventSpecialId]}
                       </p>
                     ) : (
-                      <span className="text-xs italic" style={{ color: '#AAAAAA' }}>Loading…</span>
+                      <span className="text-xs italic" style={{ color: '#9E9E9E' }}>Loading…</span>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2.5 sm:px-4 sm:py-3 whitespace-nowrap border-b border-l" style={{ borderColor: '#E0E0E0' }} onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setDetailAction(action)}
                         title="View details"
-                        className="p-1.5 transition-colors"
-                        style={{ color: '#888888' }}
+                        className="p-1.5 transition-colors cursor-pointer"
+                        style={{ color: '#9E9E9E' }}
                         onMouseEnter={(e) => { e.currentTarget.style.color = PRIMARY; e.currentTarget.style.backgroundColor = '#E3F2FD'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = '#888888'; e.currentTarget.style.backgroundColor = 'transparent'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = '#9E9E9E'; e.currentTarget.style.backgroundColor = 'transparent'; }}
                       >
                         <FiEye className="w-4 h-4" />
                       </button>
                       {action.currentStatus?.status !== 'Cancelled' && (
                         <button
                           onClick={() => openCancel(action)}
-                          className="px-3 py-1.5 text-white text-xs font-semibold uppercase tracking-wider rounded-none transition-colors disabled:opacity-60"
-                          style={{ backgroundColor: '#C62828', fontFamily: "'Montserrat', sans-serif", cursor: 'pointer' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#b71c1c'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#C62828'; }}
-                          onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(1px)'; }}
-                          onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
+                          className="px-3 py-1.5 text-white text-[10px] font-semibold uppercase tracking-wider rounded-none transition-colors cursor-pointer"
+                          style={{ backgroundColor: DANGER, fontFamily: "'Montserrat', sans-serif" }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#C0392B'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = DANGER; }}
                         >
-                          <FiSlash className="w-3.5 h-3.5 inline mr-1" />
+                          <FiSlash className="w-3 h-3 inline mr-1" />
                           Cancel
                         </button>
                       )}
@@ -229,18 +221,18 @@ export default function EventActionsTable({ actions, loading, error, page, pageS
           </span>
           <div className="flex items-center gap-1">
             <button
-              onClick={() => {}}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="p-1.5 border transition-colors disabled:opacity-40 disabled:cursor-not-allowed rounded-none"
+              className="p-1.5 border transition-colors disabled:opacity-40 disabled:cursor-not-allowed rounded-none cursor-pointer"
               style={{ borderColor: '#E0E0E0', color: '#666666' }}
             >
               <FiChevronLeft className="w-4 h-4" />
             </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+            {getPageNumbers().map(n => (
               <button
                 key={n}
-                onClick={() => {}}
-                className="min-w-[32px] h-8 px-2 rounded-none text-sm font-medium transition-colors border"
+                onClick={() => setPage(n)}
+                className="min-w-[32px] h-8 px-2 rounded-none text-sm font-medium transition-colors border cursor-pointer"
                 style={{
                   fontFamily: "'Montserrat', sans-serif",
                   backgroundColor: n === page ? PRIMARY : '#FFFFFF',
@@ -252,9 +244,9 @@ export default function EventActionsTable({ actions, loading, error, page, pageS
               </button>
             ))}
             <button
-              onClick={() => {}}
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="p-1.5 border transition-colors disabled:opacity-40 disabled:cursor-not-allowed rounded-none"
+              className="p-1.5 border transition-colors disabled:opacity-40 disabled:cursor-not-allowed rounded-none cursor-pointer"
               style={{ borderColor: '#E0E0E0', color: '#666666' }}
             >
               <FiChevronRight className="w-4 h-4" />

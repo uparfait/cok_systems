@@ -27,6 +27,7 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [createdEventSpecialId, setCreatedEventSpecialId] = useState(null);
   const [step, setStep] = useState(1);
+  const [completedSteps, setCompletedSteps] = useState([]);
   const [eventMode, setEventMode] = useState('');
   const [eventMeetingType, setEventMeetingType] = useState(initialType || 'event');
   const [recurringType, setRecurringType] = useState('');
@@ -37,6 +38,7 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
   const initialFormState = {
     eventName: '', eventDescription: '', eventType: '', expectedAudience: '',
     eventRoom: '', eventOrganizer: '', organizerEmail: '', organizerPhone: '', organizerInstitution: '',
+    eventDate: '', fromTime: '', toTime: '',
     startedAt: '', willEndAt: '', willStartAt: '',
     eventStartTime: '', eventEndTime: '', recurringEndDate: '', eventStartDate: '',
     weeklyDays: [], monthlyDates: '', agenda: [],
@@ -82,6 +84,11 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
 
           setEvent_ID(foundEvent._id || null);
 
+        const startedAtStr = foundEvent.startedAt ? new Date(foundEvent.startedAt).toISOString().slice(0, 16) : '';
+        const willStartAtStr = foundEvent.willStartAt ? new Date(foundEvent.willStartAt).toISOString().slice(0, 16) : '';
+        const willEndAtStr = foundEvent.willEndAt ? new Date(foundEvent.willEndAt).toISOString().slice(0, 16) : '';
+        const startStr = startedAtStr || willStartAtStr;
+
         setFormData({
           eventMeetingType: foundEvent.eventMeetingType || 'event',
           eventName: foundEvent.eventName || '',
@@ -93,9 +100,12 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
           organizerEmail: org.email || '',
           organizerPhone: org.phone || '',
           organizerInstitution: org.institution || '',
-          startedAt: foundEvent.startedAt ? new Date(foundEvent.startedAt).toISOString().slice(0, 16) : '',
-          willEndAt: foundEvent.willEndAt ? new Date(foundEvent.willEndAt).toISOString().slice(0, 16) : '',
-          willStartAt: foundEvent.willStartAt ? new Date(foundEvent.willStartAt).toISOString().slice(0, 16) : '',
+          eventDate: startStr ? startStr.slice(0, 10) : '',
+          fromTime: startStr ? startStr.slice(11, 16) : '',
+          toTime: willEndAtStr ? willEndAtStr.slice(11, 16) : '',
+          startedAt: startedAtStr,
+          willEndAt: willEndAtStr,
+          willStartAt: willStartAtStr,
           eventStartTime: foundEvent.eventRecurring?.eventStartTime || '',
           eventEndTime: foundEvent.eventRecurring?.eventEndTime || '',
           recurringEndDate: foundEvent.eventRecurring?.recurringEndDate
@@ -113,6 +123,8 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
         }
 
         setEventMeetingType(foundEvent.eventMeetingType || 'event');
+        // Editing an existing event: every step already has data, allow free navigation
+        setCompletedSteps([1, 2, 3, 4, 5]);
       } catch (err) {
         setError(err.response?.data?.message || 'Failed to load event for editing');
       } finally {
@@ -131,7 +143,19 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
   };
 
   const handleChange = (name, value) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [name]: value };
+      // Live/upcoming schedule is captured as date + from/to times;
+      // combine them into the datetime fields the rest of the flow reads.
+      if (name === 'eventDate' || name === 'fromTime' || name === 'toTime') {
+        const start = next.eventDate && next.fromTime ? `${next.eventDate}T${next.fromTime}` : '';
+        const end = next.eventDate && next.toTime ? `${next.eventDate}T${next.toTime}` : '';
+        next.startedAt = start;
+        next.willStartAt = start;
+        next.willEndAt = end;
+      }
+      return next;
+    });
     setError(null);
     setSuccess(false);
   };
@@ -142,6 +166,7 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
     setRecurringType('');
     setMonthlyPattern('specific');
     setStep(1);
+    setCompletedSteps([]);
   };
 
   const validateStep1 = () => {
@@ -162,10 +187,11 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
   };
 
   const validateStep3 = () => {
-    if (eventMode === 'live') {
-      if (!formData.startedAt || !formData.willEndAt) { setError('Start and end times are required for live events'); return false; }
-    } else if (eventMode === 'upcoming') {
-      if (!formData.willStartAt || !formData.willEndAt) { setError('Start and end times are required for upcoming events'); return false; }
+    if (eventMode === 'live' || eventMode === 'upcoming') {
+      if (!formData.eventDate) { setError('Date is required'); return false; }
+      if (!formData.fromTime) { setError('Start time is required'); return false; }
+      if (!formData.toTime) { setError('End time is required'); return false; }
+      if (formData.toTime <= formData.fromTime) { setError('End time must be after start time'); return false; }
     } else if (eventMode === 'recurring') {
       if (!formData.eventStartDate) { setError('Recurring start date is required'); return false; }
       if (!formData.recurringEndDate) { setError('Recurring end date is required'); return false; }
@@ -182,12 +208,17 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
     return true;
   };
 
+  const markCompleted = (s) => {
+    setCompletedSteps(prev => (prev.includes(s) ? prev : [...prev, s]));
+  };
+
   const handleNext = () => {
     setError(null);
-    if (step === 1 && validateStep1()) setStep(2);
-    else if (step === 2 && validateStep2()) setStep(3);
-    else if (step === 3 && validateStep3()) setStep(4);
+    if (step === 1 && validateStep1()) { markCompleted(1); setStep(2); }
+    else if (step === 2 && validateStep2()) { markCompleted(2); setStep(3); }
+    else if (step === 3 && validateStep3()) { markCompleted(3); setStep(4); }
     else if (step === 4 && validateStep4()) {
+      markCompleted(4);
       if (eventMeetingType === 'meet') setStep(5);
       else handleSubmit();
     }
@@ -196,6 +227,13 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
   const handleBack = () => {
     setError(null);
     setStep(s => s - 1);
+  };
+
+  const handleStepClick = (targetStep) => {
+    if (completedSteps.includes(targetStep) || targetStep < step) {
+      setError(null);
+      setStep(targetStep);
+    }
   };
 
   const buildEventData = () => {
@@ -307,8 +345,8 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
             <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center p-4">
               <div className="bg-white max-w-md w-full p-6 shadow-xl">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-zinc-900 flex items-center gap-2">
-                    <FiUsers className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-lg font-bold text-zinc-900 flex items-center gap-2" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                    <FiUsers className="w-5 h-5" style={{ color: '#056daa' }} />
                     Invite People
                   </h3>
                   <button
@@ -324,7 +362,7 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
                 <div className="flex gap-3">
                   <button
                     onClick={() => { setShowInviteModal(false); navigate(-1); }}
-                    className="flex-1 py-2.5 border border-zinc-300 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+                    className="cok-btn-outlined flex-1"
                   >
                     Later
                   </button>
@@ -334,7 +372,8 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
                       const roleSlug = window.location.pathname.split('/')[1];
                       navigate(`/${roleSlug || 'event-manager'}/events/${createdEventSpecialId}/invite`);
                     }}
-                    className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+                    className="cok-btn-primary flex-1"
+                    style={{ width: 'auto' }}
                   >
                     Invite Now
                   </button>
@@ -344,7 +383,7 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
           )}
 
         <div className="bg-white border border-gray-200 overflow-hidden">
-          <CreateEventStepper currentStep={step} eventMeetingType={eventMeetingType} eventMode={eventMode} />
+          <CreateEventStepper currentStep={step} eventMeetingType={eventMeetingType} eventMode={eventMode} onStepClick={handleStepClick} completedSteps={completedSteps} />
 
           <form onSubmit={(e) => { e.preventDefault(); if (step === maxSteps) handleSubmit(e); else handleNext(); }} className="p-6 space-y-6">
             {step === 1 && (
@@ -402,7 +441,7 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
             <div className="flex gap-3 pt-4 border-t border-gray-200">
               {step > 1 && (
                 <button type="button" onClick={handleBack}
-                  className="flex-1 py-2.5 border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors ppp-lg"
+                  className="cok-btn-outlined flex-1"
                 >
                   Back
                 </button>
@@ -410,14 +449,16 @@ export default function CreateEvent({ eventMeetingType: initialType }) {
 
               {step < maxSteps ? (
                 <button type="submit"
-                  className="flex-[2] py-2.5 bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-all ppp-lg"
+                  className="cok-btn-primary flex-[2]"
+                  style={{ width: 'auto' }}
                 >
                   Next
                 </button>
               ) : (
                 <button type="submit"
                   disabled={loading}
-                  className="flex-[2] py-2.5 bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all ppp-lg inline-flex items-center justify-center gap-2"
+                  className="cok-btn-primary flex-[2] disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                  style={{ width: 'auto' }}
                 >
                   {isEditMode ? <FiSave className="w-4 h-4" /> : <FiPlus className="w-4 h-4" />}
                   {isEditMode ? `Update ${type}` : `Create ${type}`}

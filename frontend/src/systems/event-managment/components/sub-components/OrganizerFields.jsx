@@ -1,18 +1,28 @@
 import { FiUsers } from 'react-icons/fi';
 
-const inputClass = 'w-full px-4 py-2.5 border border-gray-300 ppp-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all duration-200';
-const labelClass = 'block text-xs font-semibold text-gray-700 mb-2';
+const PRIMARY = '#056daa';
+const DANGER = '#E74C3C';
+const NEUTRAL_DARK = '#333333';
+const fontHeading = "'Montserrat', sans-serif";
+
+const inputClass = 'w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base';
+
+const labelStyle = {
+  fontFamily: fontHeading, fontSize: '13px', fontWeight: 600,
+  letterSpacing: '0.5px', lineHeight: '1.4', display: 'block',
+  color: NEUTRAL_DARK, textTransform: 'uppercase', marginBottom: '8px',
+};
 
 export default function OrganizerFields({ eventMeetingType, formData, onChange }) {
   const displayType = eventMeetingType === 'meet' ? 'Meet' : 'Event';
   return (
     <div className="flex flex-col gap-4 pt-2">
-      <h2 className="text-xs font-bold text-blue-600 uppercase tracking-wider">{displayType} Organizer</h2>
+      <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: PRIMARY, fontFamily: fontHeading }}>{displayType} Organizer</h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label htmlFor="eventOrganizer" className={labelClass}>
-            Full Names <span className="text-red-500">*</span>
+          <label htmlFor="eventOrganizer" style={labelStyle}>
+            Full Names <span style={{ color: DANGER }}>*</span>
           </label>
           <div className="relative">
             <FiUsers className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -23,12 +33,12 @@ export default function OrganizerFields({ eventMeetingType, formData, onChange }
               onChange={(e) => onChange('eventOrganizer', e.target.value)}
               required
               placeholder="First & Last Names"
-              className={`${inputClass} pl-10`}
+              className={inputClass}
             />
           </div>
         </div>
         <div className="space-y-2">
-          <label htmlFor="organizerInstitution" className={labelClass}>
+          <label htmlFor="organizerInstitution" style={labelStyle}>
             Institution / Organization
           </label>
           <input
@@ -44,8 +54,8 @@ export default function OrganizerFields({ eventMeetingType, formData, onChange }
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label htmlFor="organizerEmail" className={labelClass}>
-            Email <span className="text-red-500">*</span>
+          <label htmlFor="organizerEmail" style={labelStyle}>
+            Email <span style={{ color: DANGER }}>*</span>
           </label>
           <input
             type="email"
@@ -58,8 +68,8 @@ export default function OrganizerFields({ eventMeetingType, formData, onChange }
           />
         </div>
         <div className="space-y-2">
-          <label htmlFor="organizerPhone" className={labelClass}>
-            Contact Phone <span className="text-red-500">*</span>
+          <label htmlFor="organizerPhone" style={labelStyle}>
+            Contact Phone <span style={{ color: DANGER }}>*</span>
           </label>
           <input
             type="tel"

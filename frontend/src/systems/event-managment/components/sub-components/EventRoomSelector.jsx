@@ -121,9 +121,15 @@ export default function EventRoomSelector({ eventMode, formData, onChange, recur
 
   const isRoomSelected = (roomName) => formData.eventRoom?.toLowerCase() === roomName.toLowerCase();
 
+  // Hide rooms that cannot hold the expected audience
+  const audience = formData.expectedAudience;
+  const displayedAvailable = availableRooms.filter(
+    (item) => !audience || Number(item.room?.roomCapacity) >= Number(audience)
+  );
+
   return (
     <div className="flex flex-col gap-4 pt-2">
-      <h2 className="text-xs font-bold text-blue-600 uppercase tracking-wider">Room Selection</h2>
+      <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#056daa', fontFamily: "'Montserrat', sans-serif" }}>Room Selection</h2>
       <p className="text-xs text-gray-500">Rooms are checked for availability based on your selected schedule.</p>
 
       {(loading && !searched) && (
@@ -149,18 +155,18 @@ export default function EventRoomSelector({ eventMode, formData, onChange, recur
 
       {hasDates() && !loading && searched && (
         <div className="space-y-2">
-          {formData.eventRoom && !availableRooms.find(r => r.room.roomName.toLowerCase() === formData.eventRoom.toLowerCase()) && (
+          {formData.eventRoom && !displayedAvailable.find(r => r.room.roomName.toLowerCase() === formData.eventRoom.toLowerCase()) && (
             <div className="bg-yellow-50 border border-yellow-200 p-3 mb-3">
               <p className="text-xs text-yellow-700 font-medium">
                 Previously selected room "{formData.eventRoom}" is no longer available with current settings.
               </p>
             </div>
           )}
-          {availableRooms.length > 0 && (
+          {displayedAvailable.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-green-700 mb-2">Available Rooms ({availableRooms.length})</p>
+              <p className="text-xs font-semibold text-green-700 mb-2">Available Rooms ({displayedAvailable.length})</p>
               <div className="space-y-2">
-                {availableRooms.map((item, idx) => {
+                {displayedAvailable.map((item, idx) => {
                   const selected = isRoomSelected(item.room.roomName);
                   return (
                     <button
@@ -213,6 +219,15 @@ export default function EventRoomSelector({ eventMode, formData, onChange, recur
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {displayedAvailable.length === 0 && availableRooms.length > 0 && (
+            <div className="p-4 text-center" style={{ backgroundColor: '#FFF3E0', border: '1px solid #FFCC80' }}>
+              <p className="text-xs font-semibold" style={{ color: '#333333' }}>No Rooms Match Capacity</p>
+              <p className="text-xs mt-1" style={{ color: '#F39C12' }}>
+                No available room can accommodate the expected audience of {audience}.
+              </p>
             </div>
           )}
 

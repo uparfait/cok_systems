@@ -1,16 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FiPlus, FiSlash } from 'react-icons/fi';
+import { FiPlus } from 'react-icons/fi';
 import EventActionsEventPanel from './EventActionsEventPanel';
 import EventActionsTable from './EventActionsTable';
 import EventActionsCreateModal from './EventActionsCreateModal';
 import EventActionsCancelModal from './EventActionsCancelModal';
 import EventActionsDetailModal from './EventActionsDetailModal';
+import { useToast } from '@/core/contexts/ToastContext';
 
 const BASE_URL = '/cok/api/v1';
-const PRIMARY = '#056daa';
-const PRIMARY_HOVER = '#248fc2';
 
 const EMPTY_FORM = {
   title: '',
@@ -22,7 +20,7 @@ const EMPTY_FORM = {
 };
 
 export default function EventActions() {
-  const navigate = useNavigate();
+  const { showSuccess, showError } = useToast();
   const [actions, setActions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -120,9 +118,15 @@ export default function EventActions() {
 
   async function handleSubmit(e) {
     e.preventDefault(); setSubmitting(true); setFormError(null);
-    try { await axios.post(`${BASE_URL}/event-actions`, form); setShowModal(false); setForm(EMPTY_FORM); fetchActions(page); }
-    catch (e) { setFormError(e.response?.data?.message || 'Something went wrong.'); }
-    finally { setSubmitting(false); }
+    try {
+      const res = await axios.post(`${BASE_URL}/event-actions`, form);
+      showSuccess(res.data?.message || 'Action created successfully');
+      setShowModal(false); setForm(EMPTY_FORM); fetchActions(page);
+    } catch (e) {
+      const msg = e.response?.data?.message || e.message;
+      setFormError(msg);
+      showError(msg);
+    } finally { setSubmitting(false); }
   }
 
   function openCancel(action) { setCancelTarget(action); setCancelReason(''); setCancelError(null); }
@@ -130,9 +134,15 @@ export default function EventActions() {
   async function confirmCancel() {
     if (!cancelReason.trim()) { setCancelError('Please provide a reason.'); return; }
     setCancelSubmitting(true); setCancelError(null);
-    try { await axios.patch(`${BASE_URL}/event-actions/${cancelTarget._id}`, { currentStatus: { status: 'Cancelled', description: cancelReason.trim() } }); setCancelTarget(null); fetchActions(page); }
-    catch (e) { setCancelError(e.response?.data?.message || 'Failed to cancel action.'); }
-    finally { setCancelSubmitting(false); }
+    try {
+      const res = await axios.patch(`${BASE_URL}/event-actions/${cancelTarget._id}`, { currentStatus: { status: 'Cancelled', description: cancelReason.trim() } });
+      showSuccess(res.data?.message || 'Action cancelled successfully');
+      setCancelTarget(null); fetchActions(page);
+    } catch (e) {
+      const msg = e.response?.data?.message || e.message;
+      setCancelError(msg);
+      showError(msg);
+    } finally { setCancelSubmitting(false); }
   }
 
   const stats = {
@@ -143,27 +153,26 @@ export default function EventActions() {
   };
 
   return (
-    <div className="w-full min-h-screen flex justify-center" style={{ paddingTop: '80px', backgroundColor: '#F7F9FB' }}>
-      <div className="w-full max-w-7xl px-4 sm:px-6 md:px-8 py-6">
+    <div className="w-full min-h-screen flex justify-center" style={{ backgroundColor: '#F7F9FB' }}>
+      <div className="w-full max-w-7xl px-3 sm:px-6 md:px-8 py-4 sm:py-6">
 
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 mb-6">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="px-5 py-2.5 text-white text-xs font-semibold uppercase tracking-wider rounded-none transition-colors" style={{ backgroundColor: PRIMARY, fontFamily: "'Montserrat', sans-serif", cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }} onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(1px)'; }} onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}>
-              Go Back
-            </button>
-            <div>
-              <h1 className="text-base sm:text-lg font-bold text-zinc-900 uppercase tracking-wide" style={{ fontFamily: "'Montserrat', sans-serif" }}>Event Actions</h1>
-              <p className="text-xs sm:text-sm text-zinc-500 mt-0.5" style={{ fontFamily: "'Montserrat', sans-serif" }}>Manage and track event actions</p>
-            </div>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4 sm:mb-6">
+          <div>
+            <h1 className="text-base sm:text-lg font-bold text-zinc-900 uppercase tracking-wide" style={{ fontFamily: "'Montserrat', sans-serif" }}>Event Actions</h1>
+            <p className="text-xs sm:text-sm text-zinc-500 mt-0.5" style={{ fontFamily: "'Montserrat', sans-serif" }}>Manage and track event actions</p>
           </div>
-          <button onClick={() => { setForm(EMPTY_FORM); setFormError(null); setShowModal(true); }} className="px-5 py-2.5 text-white text-xs font-semibold uppercase tracking-wider rounded-none transition-colors shrink-0" style={{ backgroundColor: PRIMARY, fontFamily: "'Montserrat', sans-serif", cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }} onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(1px)'; }} onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}>
-            <FiPlus className="w-4 h-4 inline mr-2" /> New Action
+          <button
+            onClick={() => { setForm(EMPTY_FORM); setFormError(null); setShowModal(true); }}
+            className="cok-btn-primary inline-flex items-center justify-center gap-2 shrink-0"
+            style={{ width: 'auto', padding: '0.65rem 1.25rem' }}
+          >
+            <FiPlus className="w-4 h-4" /> New Action
           </button>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
           {[{ label: 'Total', value: stats.total, text: 'text-zinc-700' }, { label: 'Pending', value: stats.pending, text: 'text-amber-700' }, { label: 'In Progress', value: stats.inProgress, text: 'text-blue-700' }, { label: 'Completed', value: stats.completed, text: 'text-green-700' }].map(s => (
             <div key={s.label} className="bg-white border p-4" style={{ borderColor: '#E0E0E0' }}>
               <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide" style={{ fontFamily: "'Montserrat', sans-serif" }}>{s.label}</p>
@@ -191,6 +200,7 @@ export default function EventActions() {
             loading={loading}
             error={error}
             page={page}
+            setPage={setPage}
             pageSize={pageSize}
             pagination={pagination}
             search={search}

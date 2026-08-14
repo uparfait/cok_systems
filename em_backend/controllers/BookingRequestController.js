@@ -121,6 +121,20 @@ class BookingRequestController {
       });
     }
   }
+
+  // Bulk delete by status + date range. Only deletes the request documents,
+  // never the events that were created from accepted requests.
+  static async handleBulkDelete(req, res) {
+    try {
+      const result = await BookingRequestService.bulkDeleteRequests(req.query);
+      return res.status(200).json(result);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
 }
 
 module.exports = BookingRequestController;

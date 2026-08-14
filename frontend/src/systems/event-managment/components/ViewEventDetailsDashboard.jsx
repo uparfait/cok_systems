@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiEdit2, FiXCircle, FiClock, FiUsers, FiMail, FiX, FiRefreshCw } from 'react-icons/fi';
+import { FiXCircle, FiUsers, FiMail, FiX, FiRefreshCw } from 'react-icons/fi';
 import axios from 'axios';
 import SpiralLoader from './SpiralLoader';
 import EventDetailHeader from './sub-components/EventDetailHeader';
@@ -10,9 +10,21 @@ import EventDetailAgenda from './sub-components/EventDetailAgenda';
 import CancelPostponeModal from './sub-components/CancelPostponeModal';
 import AttendeesOverlay from './AttendeesOverlay';
 import EventMinutesView from '../pages/index/components/EventMinutesView';
+import { useToast } from '@/core/contexts/ToastContext';
 
 const BASE_URL = '/cok/api/v1';
 const EVENT_TYPES = ['live', 'recurring', 'upcoming', 'past'];
+
+const PRIMARY = '#056daa';
+const PRIMARY_TINT = '#E3F2FD';
+const DANGER = '#E74C3C';
+const NEUTRAL_LIGHT = '#F7F9FB';
+const NEUTRAL_DARK = '#333333';
+const BORDER = '#E0E0E0';
+const GRAY_DISABLED = '#9E9E9E';
+const fontHeading = "'Montserrat', sans-serif";
+
+const sectionTitleStyle = { color: PRIMARY, fontFamily: fontHeading };
 
 export default function ViewEventDetailsDashboard() {
   const { eventId } = useParams();
@@ -33,6 +45,9 @@ export default function ViewEventDetailsDashboard() {
   const [invitedPage, setInvitedPage] = useState(1);
   const [invitedTotalPages, setInvitedTotalPages] = useState(1);
   const [deleteConfirm, setDeleteConfirm] = useState(null); // { _id, email }
+  const [removingInvite, setRemovingInvite] = useState(false);
+  const [reactivatingId, setReactivatingId] = useState(null);
+  const { showSuccess, showError } = useToast();
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -102,7 +117,7 @@ export default function ViewEventDetailsDashboard() {
         setInvitedPage(page);
       }
     } catch (err) {
-      console.error("Failed to fetch invited people:", err);
+      showError(err.response?.data?.message || err.message);
     } finally {
       setInvitedLoading(false);
     }
@@ -110,11 +125,15 @@ export default function ViewEventDetailsDashboard() {
 
   // Re-activate a previously cancelled (specific-date) invite.
   const reactivateInvite = async (person) => {
+    setReactivatingId(person._id);
     try {
-      await axios.patch(`${BASE_URL}/events/invited/${person._id}/reactivate`);
+      const res = await axios.patch(`${BASE_URL}/events/invited/${person._id}/reactivate`);
+      showSuccess(res.data?.message || 'Invitation re-activated successfully');
       fetchInvitedPeople(invitedPage);
     } catch (err) {
-      console.error("Failed to re-activate invitation:", err);
+      showError(err.response?.data?.message || err.message);
+    } finally {
+      setReactivatingId(null);
     }
   };
 
@@ -135,7 +154,7 @@ export default function ViewEventDetailsDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: NEUTRAL_LIGHT }}>
         <SpiralLoader />
       </div>
     );
@@ -143,17 +162,11 @@ export default function ViewEventDetailsDashboard() {
 
   if (error || !event) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6">
-        <div className="max-w-md text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-6" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+        <div className="w-full max-w-md text-center p-6 sm:p-8" style={{ backgroundColor: '#FFFFFF', border: `1px solid ${BORDER}` }}>
           <div className="text-6xl mb-4">🔍</div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Event Not Found</h2>
-          <p className="text-gray-500 mb-6">{error || 'The event you are looking for does not exist.'}</p>
-          <button
-            onClick={() => navigate(-1)}
-            className="px-6 py-2.5 cok-btn-outlined"
-          >
-            Go Back
-          </button>
+          <h2 className="text-xl font-bold mb-2" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Event Not Found</h2>
+          <p className="text-sm" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>{error || 'The event you are looking for does not exist.'}</p>
         </div>
       </div>
     );
@@ -161,46 +174,32 @@ export default function ViewEventDetailsDashboard() {
 
   const isPastEvent = eventMode === 'past';
   const canManage = !isPastEvent && !event.isCancelled;
-  const canPostpone = canManage && eventMode !== 'recurring';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ backgroundColor: NEUTRAL_LIGHT }}>
       {/* Header */}
-      <EventDetailHeader event={event} eventMode={eventMode} navigate={navigate} />
+      <EventDetailHeader event={event} eventMode={eventMode} />
 
       {/* Action Buttons */}
       {canManage && (
-        <div className="max-w-5xl mx-auto px-6 pt-4">
-          <div className="flex items-center gap-3 flex-wrap">
+        <div className="max-w-5xl mx-auto px-3 sm:px-6 pt-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
             <button
               onClick={() => openModal('cancel')}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white ppp-lg text-sm font-medium hover:bg-red-700 transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-white text-xs font-semibold uppercase tracking-wide cursor-pointer transition-colors"
+              style={{ backgroundColor: DANGER, fontFamily: fontHeading }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#C0392B')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = DANGER)}
             >
               <FiXCircle className="w-4 h-4" />
               Cancel Event
-            </button>
-            {canPostpone && (
-              <button
-                onClick={() => openModal('postpone')}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white ppp-lg text-sm font-medium hover:bg-amber-700 transition-colors"
-              >
-                <FiClock className="w-4 h-4" />
-                Postpone Event
-              </button>
-            )}
-            <button
-              onClick={() => navigate(`/event-manager/events/${eventId}/edit`)}
-              className="inline-flex items-center gap-2 px-4 py-2  text-white ppp-lg text-sm font-medium cok-btn-primary"
-            >
-              <FiEdit2 className="w-4 h-4" />
-              Edit Event
             </button>
           </div>
         </div>
       )}
 
       {/* Main Content */}
-      <div className="max-w-5xl mx-auto p-6 space-y-6">
+      <div className="max-w-5xl mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
         {/* Basic Information - Inline editable */}
         <EventDetailBasicInfo event={event} eventMode={eventMode} onEventUpdated={(updatedEvent) => {
           setEvent(updatedEvent);
@@ -208,31 +207,34 @@ export default function ViewEventDetailsDashboard() {
         }} />
 
         {/* Invited People */}
-        <div className="bg-white border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Invited People</h3>
+        <div className="bg-white overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
+          <div className="px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${BORDER}` }}>
+            <h3 className="text-xs font-bold uppercase tracking-wider" style={sectionTitleStyle}>Invited People</h3>
           </div>
-          <div className="px-6 py-4">
+          <div className="px-4 sm:px-6 py-4">
             <button
               onClick={() => {
                 fetchInvitedPeople(1);
                 setShowInvitedModal(true);
               }}
-              className="inline-flex items-center gap-3 p-4 border-2 border-gray-200 hover:border-[#056daa] hover:bg-blue-50/30 transition-all duration-200 w-full text-left group"
+              className="inline-flex items-center gap-3 p-3 sm:p-4 border-2 hover:bg-blue-50/30 transition-all duration-200 w-full text-left group cursor-pointer"
+              style={{ borderColor: BORDER }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = PRIMARY)}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = BORDER)}
             >
-              <div className="w-10 h-10 bg-blue-100 group-hover:text-white flex items-center justify-center group-hover:bg-[#056daa] transition-colors duration-200">
-                <FiMail className="w-5 h-5 text-[#056daa]  group-hover:text-white transition-colors duration-200" />
+              <div className="w-10 h-10 flex items-center justify-center shrink-0 group-hover:bg-[#056daa] transition-colors duration-200" style={{ backgroundColor: PRIMARY_TINT }}>
+                <FiMail className="w-5 h-5 text-[#056daa] group-hover:text-white transition-colors duration-200" />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900 group-hover:cok-primary-color transition-colors">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
                   Invited People ({invitedCount})
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
                   Click to view all invited people
                 </p>
               </div>
-              <div className="ml-auto">
-                <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-[#056daa] text-sm font-bold group-hover:bg-[#056daa] group-hover:text-white transition-all">
+              <div className="ml-auto shrink-0">
+                <span className="inline-flex items-center justify-center w-8 h-8 text-[#056daa] text-sm font-bold group-hover:bg-[#056daa] group-hover:text-white transition-all" style={{ backgroundColor: PRIMARY_TINT, fontFamily: fontHeading }}>
                   {invitedCount}
                 </span>
               </div>
@@ -241,11 +243,11 @@ export default function ViewEventDetailsDashboard() {
         </div>
 
         {/* Total Attended */}
-        <div className="bg-white border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Attendance</h3>
+        <div className="bg-white overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
+          <div className="px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${BORDER}` }}>
+            <h3 className="text-xs font-bold uppercase tracking-wider" style={sectionTitleStyle}>Attendance</h3>
           </div>
-          <div className="px-6 py-4">
+          <div className="px-4 sm:px-6 py-4">
             <button
               onClick={async () => {
                 try {
@@ -256,21 +258,24 @@ export default function ViewEventDetailsDashboard() {
                 } catch { setAttendeeCount(0); }
                 setAttendeesOverlayOpen(true);
               }}
-              className="inline-flex items-center gap-3 p-4 border-2 border-gray-200 hover:border-[#056daa] hover:bg-blue-50/30 transition-all duration-200 w-full text-left group"
+              className="inline-flex items-center gap-3 p-3 sm:p-4 border-2 hover:bg-blue-50/30 transition-all duration-200 w-full text-left group cursor-pointer"
+              style={{ borderColor: BORDER }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = PRIMARY)}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = BORDER)}
             >
-              <div className="w-10 h-10 bg-blue-100 flex items-center justify-center group-hover:bg-[#056daa] transition-colors duration-200">
+              <div className="w-10 h-10 flex items-center justify-center shrink-0 group-hover:bg-[#056daa] transition-colors duration-200" style={{ backgroundColor: PRIMARY_TINT }}>
                 <FiUsers className="w-5 h-5 text-[#056daa] group-hover:text-white transition-colors duration-200" />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900 group-hover:white transition-colors">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
                   Total Attended
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
                   Click to view all attendees
                 </p>
               </div>
-              <div className="ml-auto">
-                <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-[#056daa] text-sm font-bold group-hover:bg-[#056daa] group-hover:text-white transition-all">
+              <div className="ml-auto shrink-0">
+                <span className="inline-flex items-center justify-center w-8 h-8 text-[#056daa] text-sm font-bold group-hover:bg-[#056daa] group-hover:text-white transition-all" style={{ backgroundColor: PRIMARY_TINT, fontFamily: fontHeading }}>
                   {attendeeCount !== null ? attendeeCount : "—"}
                 </span>
               </div>
@@ -299,11 +304,11 @@ export default function ViewEventDetailsDashboard() {
       {/* Invited People Modal */}
       {showInvitedModal && (
         <div className="fixed inset-0 z-[99999] bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-lg max-h-[80vh] flex flex-col shadow-xl">
+          <div className="bg-white w-full max-w-lg max-h-[80vh] flex flex-col" style={{ border: `1px solid ${BORDER}` }}>
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-gray-200">
-              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <FiUsers className="w-5 h-5 cok-primary-color" />
+            <div className="flex items-center justify-between p-4 sm:p-5" style={{ borderBottom: `1px solid ${BORDER}` }}>
+              <h3 className="text-base sm:text-lg font-bold flex items-center gap-2" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                <FiUsers className="w-5 h-5" style={{ color: PRIMARY }} />
                 Invited People
               </h3>
               <button
@@ -328,10 +333,10 @@ export default function ViewEventDetailsDashboard() {
               ) : (
                 <div className="space-y-2">
                   {invitedPeople.map((person, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-100">
+                    <div key={idx} className="flex items-center justify-between p-3" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
-                          <span className="text-xs font-bold cok-primary-color">
+                        <div className="w-8 h-8 flex items-center justify-center shrink-0" style={{ backgroundColor: PRIMARY_TINT }}>
+                          <span className="text-xs font-bold" style={{ color: PRIMARY, fontFamily: fontHeading }}>
                             {person.email.charAt(0).toUpperCase()}
                           </span>
                         </div>
@@ -355,10 +360,11 @@ export default function ViewEventDetailsDashboard() {
                       {person.cancelled ? (
                         <button
                           onClick={() => reactivateInvite(person)}
-                          className="p-1.5 text-orange-500 hover:text-orange-700 hover:bg-orange-50 transition-colors"
+                          disabled={reactivatingId === person._id}
+                          className="p-1.5 text-orange-500 hover:text-orange-700 hover:bg-orange-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Re-activate invitation"
                         >
-                          <FiRefreshCw className="w-4 h-4" />
+                          <FiRefreshCw className={`w-4 h-4 ${reactivatingId === person._id ? 'animate-spin' : ''}`} />
                         </button>
                       ) : (
                         <button
@@ -400,13 +406,13 @@ export default function ViewEventDetailsDashboard() {
 
             {/* Footer - only show invite button for non-past events */}
             {!isPastEvent && (
-            <div className="p-5 border-t border-gray-200">
+            <div className="p-4 sm:p-5" style={{ borderTop: `1px solid ${BORDER}` }}>
               <button
                 onClick={() => {
                   setShowInvitedModal(false);
                   navigate(`/event-manager/events/${event?.eventSpecialId}/invite`);
                 }}
-                className="w-full py-2.5 bg-[#056daa] text-white text-sm font-semibold hover:bg-[#056daa]0 transition-colors"
+                className="cok-btn-primary"
               >
                 Invite More People
               </button>
@@ -419,33 +425,42 @@ export default function ViewEventDetailsDashboard() {
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-[99999] bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white max-w-sm w-full p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Confirm Removal</h3>
-            <p className="text-sm text-gray-600 mb-6">
-              Are you sure you want to remove <strong>{deleteConfirm.email}</strong> from the invited list?
+          <div className="bg-white max-w-sm w-full p-5 sm:p-6" style={{ border: `1px solid ${BORDER}` }}>
+            <h3 className="text-lg font-bold mb-2" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Confirm Removal</h3>
+            <p className="text-sm mb-6" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
+              Are you sure you want to remove <strong style={{ color: NEUTRAL_DARK }}>{deleteConfirm.email}</strong> from the invited list?
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteConfirm(null)}
-                className="flex-1 py-2.5 border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                disabled={removingInvite}
+                className="cok-btn-outlined flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
               <button
                 onClick={async () => {
+                  setRemovingInvite(true);
                   try {
-                    await axios.delete(`/cok/api/v1/events/invited/${deleteConfirm._id}`);
+                    const res = await axios.delete(`/cok/api/v1/events/invited/${deleteConfirm._id}`);
+                    showSuccess(res.data?.message || 'Invitation removed successfully');
                     setDeleteConfirm(null);
                     fetchInvitedPeople(invitedPage);
                     setInvitedCount(prev => Math.max(0, prev - 1));
                   } catch (err) {
-                    console.error("Failed to remove invitation:", err);
+                    showError(err.response?.data?.message || err.message);
                     setDeleteConfirm(null);
+                  } finally {
+                    setRemovingInvite(false);
                   }
                 }}
-                className="flex-1 py-2.5 bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors"
+                disabled={removingInvite}
+                className="flex-1 py-2.5 text-white text-xs font-semibold uppercase tracking-wide cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: DANGER, fontFamily: fontHeading }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#C0392B')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = DANGER)}
               >
-                Remove
+                {removingInvite ? 'Removing...' : 'Remove'}
               </button>
             </div>
           </div>

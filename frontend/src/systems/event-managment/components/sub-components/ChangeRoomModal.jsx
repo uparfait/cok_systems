@@ -2,8 +2,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { FiX, FiMapPin, FiCheckCircle, FiAlertTriangle, FiSearch } from 'react-icons/fi';
 import axios from 'axios';
 import SpiralLoader from '../SpiralLoader';
+import { useToast } from '@/core/contexts/ToastContext';
 
 const BASE_URL = '/cok/api/v1';
+
+const PRIMARY = '#056daa';
+const PRIMARY_TINT = '#E3F2FD';
+const NEUTRAL_DARK = '#333333';
+const BORDER = '#E0E0E0';
+const GRAY_DISABLED = '#9E9E9E';
+const fontHeading = "'Montserrat', sans-serif";
 
 export default function ChangeRoomModal({ isOpen, onClose, event, eventMode, onSuccess }) {
   const [rooms, setRooms] = useState({ available: [], unavailable: [] });
@@ -11,6 +19,7 @@ export default function ChangeRoomModal({ isOpen, onClose, event, eventMode, onS
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [selectedRoom, setSelectedRoom] = useState('');
+  const { showSuccess, showError } = useToast();
 
   const fetchRoomAvailability = useCallback(async () => {
     setLoading(true);
@@ -67,10 +76,12 @@ export default function ChangeRoomModal({ isOpen, onClose, event, eventMode, onS
         unavailable: filteredUnavailable,
       });
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to check room availability');
+      setError(err.response?.data?.message || err.message);
+      showError(err.response?.data?.message || err.message);
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventMode, event.startedAt, event.willEndAt, event.willStartAt, event.eventRecurring, event.eventSpecialId, event.eventRoom]);
 
   useEffect(() => {
@@ -80,7 +91,7 @@ export default function ChangeRoomModal({ isOpen, onClose, event, eventMode, onS
 
   const handleSave = async () => {
     if (!selectedRoom) {
-      setError('Please select a room');
+      showError('Please select a room');
       return;
     }
     setSaving(true);
@@ -93,13 +104,14 @@ export default function ChangeRoomModal({ isOpen, onClose, event, eventMode, onS
         data: { eventRoom: selectedRoom },
       });
       if (res.data.success) {
+        showSuccess(res.data.message || 'Room changed successfully');
         onSuccess?.(res.data.data);
         onClose();
       } else {
-        setError(res.data.message);
+        showError(res.data.message || 'Failed to change room');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to change room');
+      showError(err.response?.data?.message || err.message);
     } finally {
       setSaving(false);
     }
@@ -108,42 +120,42 @@ export default function ChangeRoomModal({ isOpen, onClose, event, eventMode, onS
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white ppp-xl w-full max-w-lg shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4">
+      <div className="bg-white w-full max-w-lg" style={{ border: `1px solid ${BORDER}` }}>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${BORDER}` }}>
           <div className="flex items-center gap-3">
-            <FiMapPin className="w-5 h-5 text-blue-500" />
-            <h2 className="text-lg font-bold text-gray-900">Change Room</h2>
+            <FiMapPin className="w-5 h-5" style={{ color: PRIMARY }} />
+            <h2 className="text-base sm:text-lg font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Change Room</h2>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 ppp-lg transition-colors">
-            <FiX className="w-5 h-5 text-gray-500" />
+          <button onClick={onClose} disabled={saving} className="p-1 cursor-pointer transition-colors disabled:opacity-50" style={{ color: GRAY_DISABLED }}>
+            <FiX className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
-          <div className="bg-blue-50 border border-blue-200 ppp-lg p-3">
-            <p className="text-xs text-blue-700">
+        <div className="px-4 sm:px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
+          <div className="p-3" style={{ backgroundColor: PRIMARY_TINT, border: `1px solid ${BORDER}` }}>
+            <p className="text-xs" style={{ color: PRIMARY, fontFamily: fontHeading }}>
               Current room: <strong className="capitalize">{event.eventRoom}</strong>. Select a new available room below.
             </p>
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 ppp-lg p-3">
-              <p className="text-xs text-red-700">{error}</p>
+            <div className="p-3" style={{ backgroundColor: '#FDECEA', border: '1px solid #F5B7B1' }}>
+              <p className="text-xs" style={{ color: '#E74C3C', fontFamily: fontHeading }}>{error}</p>
             </div>
           )}
 
           {loading && (
             <div className="flex items-center justify-center py-8">
               <div className="w-6 h-6"><SpiralLoader /></div>
-              <span className="ml-2 text-sm text-gray-500">Checking room availability...</span>
+              <span className="ml-2 text-sm" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Checking room availability...</span>
             </div>
           )}
 
           {!loading && rooms.available.length === 0 && rooms.unavailable.length === 0 && (
-            <div className="bg-gray-50 border border-gray-200 ppp-lg p-4 text-center">
-              <FiSearch className="w-6 h-6 text-gray-300 mx-auto mb-2" />
-              <p className="text-xs text-gray-500">No room data available. Try refreshing.</p>
+            <div className="p-4 text-center" style={{ backgroundColor: '#F7F9FB', border: `1px solid ${BORDER}` }}>
+              <FiSearch className="w-6 h-6 mx-auto mb-2" style={{ color: GRAY_DISABLED }} />
+              <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>No room data available. Try refreshing.</p>
             </div>
           )}
 
@@ -210,13 +222,14 @@ export default function ChangeRoomModal({ isOpen, onClose, event, eventMode, onS
           )}
         </div>
 
-        <div className="flex gap-3 px-6 py-4 border-t border-gray-200">
-          <button onClick={onClose}
-            className="flex-1 py-2.5 border border-gray-300 ppp-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+        <div className="flex gap-3 px-4 sm:px-6 py-4" style={{ borderTop: `1px solid ${BORDER}` }}>
+          <button onClick={onClose} disabled={saving}
+            className="cok-btn-outlined flex-1 disabled:opacity-50 disabled:cursor-not-allowed">
             Cancel
           </button>
           <button onClick={handleSave} disabled={saving || !selectedRoom || loading}
-            className="flex-1 py-2.5 bg-blue-600 text-white ppp-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+            className="cok-btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ width: 'auto' }}>
             {saving ? 'Changing...' : 'Change Room'}
           </button>
         </div>

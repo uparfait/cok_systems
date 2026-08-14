@@ -1,9 +1,18 @@
 import { FiCheck } from "react-icons/fi";
 
+const PRIMARY = "#056daa";
+const SUCCESS = "#4CAF50";
+const BORDER = "#E0E0E0";
+const WHITE = "#FFFFFF";
+const GRAY_DISABLED = "#9E9E9E";
+const fontHeading = "'Montserrat', sans-serif";
+
 export default function CreateEventStepper({
   currentStep,
   eventMeetingType,
   eventMode,
+  onStepClick,
+  completedSteps = [],
 }) {
   const STEPS = [
     { step: 1, label: `${eventMeetingType} Info` },
@@ -20,26 +29,32 @@ export default function CreateEventStepper({
       {activeSteps.map((s, idx) => {
         const done = currentStep > s.step;
         const active = currentStep === s.step;
+        const canClick = !!onStepClick && (completedSteps.includes(s.step) || done);
         return (
           <div key={s.step} className="flex items-center">
-            <div className="flex flex-col items-center gap-1">
+            <button
+              type="button"
+              disabled={!canClick}
+              onClick={() => canClick && onStepClick(s.step)}
+              className={`flex flex-col items-center gap-1 transition-all ${canClick ? "cursor-pointer" : "cursor-default"}`}
+            >
               <div
-                className={`w-8 h-8 flex items-center justify-center text-xs font-bold transition-all duration-300
-                ${done ? "bg-green-500 text-white" : active ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-400"}`}
+                className="w-8 h-8 flex items-center justify-center text-xs font-bold transition-all duration-300"
+                style={{ backgroundColor: done ? SUCCESS : active ? PRIMARY : BORDER, color: done || active ? WHITE : GRAY_DISABLED, borderRadius: 0 }}
               >
                 {done ? <FiCheck className="w-4 h-4" /> : s.step}
               </div>
               <span
-                className={`text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap
-                ${done ? "text-green-600" : active ? "text-blue-600" : "text-gray-400"}`}
+                className="text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap"
+                style={{ color: done ? SUCCESS : active ? PRIMARY : GRAY_DISABLED, fontFamily: fontHeading }}
               >
                 {s.label}
               </span>
-            </div>
+            </button>
             {idx < activeSteps.length - 1 && (
               <div
-                className={`h-0.5 w-6 sm:w-12 mx-1 mb-4 transition-all duration-300
-                ${currentStep > s.step ? "bg-green-400" : "bg-gray-200"}`}
+                className="h-0.5 w-6 sm:w-12 mx-1 mb-4 transition-all duration-300"
+                style={{ backgroundColor: currentStep > s.step ? SUCCESS : BORDER }}
               />
             )}
           </div>

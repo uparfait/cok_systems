@@ -1,9 +1,8 @@
-import { FiFilter, FiSearch, FiX, FiSlash } from 'react-icons/fi';
+import { FiFilter, FiSearch, FiX } from 'react-icons/fi';
 import SpiralLoader from './SpiralLoader';
 
 const PRIMARY = '#056daa';
-const NEUTRAL_LIGHT = '#F7F9FB';
-const DANGER = '#E53935';
+const DANGER = '#E74C3C';
 
 const STATUS_META = {
   Pending:       { color: 'bg-amber-100 text-amber-700 border-amber-200' },
@@ -34,23 +33,17 @@ export default function EventActionsEventPanel({ allEvents, eventsLoading, event
 
       <div className="p-3 border-b" style={{ borderColor: '#E0E0E0' }}>
         <div className="relative">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: '#888888' }} />
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#9E9E9E' }} />
           <input
             type="text"
             placeholder="Search events…"
             value={eventSearch}
             onChange={e => setEventSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-2 text-sm outline-none"
-            style={{
-              fontFamily: "'Montserrat', sans-serif", fontSize: '14px', fontWeight: 500, color: '#333333',
-              backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid transparent',
-              boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)', transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-            }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(52, 168, 219, 0.25)'; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0, 0, 0, 0.1)'; }}
+            className="w-full cok-auth-input pr-8 py-2 text-sm"
+            style={{ minHeight: '40px' }}
           />
           {eventSearch && (
-            <button onClick={() => setEventSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2" style={{ color: '#888888' }}>
+            <button onClick={() => setEventSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer" style={{ color: '#9E9E9E' }}>
               <FiX className="w-3.5 h-3.5" />
             </button>
           )}

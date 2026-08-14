@@ -218,6 +218,10 @@ Router.get("/", BookingRequestController.handleList);
  *       404:
  *         description: Booking request not found
  */
+// Bulk delete by status + date range (requests only — never their events).
+// Registered before the /:id routes so "bulk" is not treated as an id.
+Router.delete("/bulk", BookingRequestController.handleBulkDelete);
+
 Router.get("/tracking/:trackingCode", BookingRequestController.handleGetByTrackingCode);
 
 /**

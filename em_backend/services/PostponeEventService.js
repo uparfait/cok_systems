@@ -3,6 +3,8 @@ const LiveEvent = require('../models/LiveEvent');
 const UpcomingEvent = require('../models/UpcomingEvent');
 const RecurringEvent = require('../models/RecurringEvent');
 const CheckRoomAvailability = require('../utilities/CheckRoomAvailability');
+const { fromUTCInstant, firstRecurringOccurrence } = require('../utilities/eventCalendar');
+const { notifyInviteesOfScheduleChange } = require('../utilities/notifyInviteesOfUpdate');
 
 const POSTPONE_TOLERANCE_MS = 5 * 60 * 1000; // 5 minutes tolerance for "now"
 
@@ -33,6 +35,28 @@ class PostponeEventService {
 
       return { success: true, data: result };
     });
+  }
+
+  /**
+   * Push updated calendar invitations (same UID, bumped SEQUENCE) to everyone
+   * invited, so their Google/Outlook calendars follow the postponed schedule.
+   * Never throws — email failures must not undo the postponement.
+   */
+  static async _notifyReschedule(originalEventSpecialId, eventDoc, start, end, recurring = null) {
+    try {
+      await notifyInviteesOfScheduleChange(originalEventSpecialId, {
+        eventName: eventDoc.eventName,
+        eventDescription: eventDoc.eventDescription || '',
+        eventRoom: eventDoc.eventRoom,
+        eventOrganizer: eventDoc.eventOrganizer,
+        start,
+        end,
+        isRecurring: !!recurring,
+        recurring,
+      });
+    } catch (err) {
+      console.error('Failed to send postponement calendar updates:', err.message);
+    }
   }
 
   /**
@@ -102,13 +126,20 @@ class PostponeEventService {
       await upcomingEvent.save({ session });
       await LiveEvent.findByIdAndDelete(eventId, { session });
 
+      // Invites are stored under the ORIGINAL eventSpecialId (the migrated copy got a new one)
+      await this._notifyReschedule(liveEvent.eventSpecialId, upcomingEvent, fromUTCInstant(effectiveStart), fromUTCInstant(effectiveEnd));
+
       return upcomingEvent;
     }
 
     // If start time is "now" or very close, keep as live event (just update times)
     liveEvent.startedAt = effectiveStart;
     liveEvent.willEndAt = effectiveEnd;
-    return await liveEvent.save({ session });
+    const savedLive = await liveEvent.save({ session });
+
+    await this._notifyReschedule(liveEvent.eventSpecialId, savedLive, fromUTCInstant(effectiveStart), fromUTCInstant(effectiveEnd));
+
+    return savedLive;
   }
 
   /**
@@ -179,13 +210,19 @@ class PostponeEventService {
       await liveEvent.save({ session });
       await UpcomingEvent.findByIdAndDelete(eventId, { session });
 
+      await this._notifyReschedule(upcomingEvent.eventSpecialId, liveEvent, fromUTCInstant(effectiveStart), fromUTCInstant(effectiveEnd));
+
       return liveEvent;
     }
 
     // Otherwise just update the dates (keep as upcoming)
     upcomingEvent.willStartAt = effectiveStart;
     upcomingEvent.willEndAt = effectiveEnd;
-    return await upcomingEvent.save({ session });
+    const savedUpcoming = await upcomingEvent.save({ session });
+
+    await this._notifyReschedule(upcomingEvent.eventSpecialId, savedUpcoming, fromUTCInstant(effectiveStart), fromUTCInstant(effectiveEnd));
+
+    return savedUpcoming;
   }
 
   static async _postponeRecurringEvent(eventId, newSchedule, session) {
@@ -289,7 +326,20 @@ class PostponeEventService {
       { session }
     );
 
-    return await recurringEvent.save({ session });
+    const savedRecurring = await recurringEvent.save({ session });
+
+    if (Object.keys(recurringUpdates).length > 0) {
+      const occ = firstRecurringOccurrence(savedRecurring.eventRecurring);
+      await this._notifyReschedule(
+        savedRecurring.eventSpecialId,
+        savedRecurring,
+        occ.start,
+        occ.end,
+        savedRecurring.eventRecurring
+      );
+    }
+
+    return savedRecurring;
   }
 }
 

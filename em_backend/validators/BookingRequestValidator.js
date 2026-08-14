@@ -157,8 +157,19 @@ class BookingRequestValidator {
 
   static validateUpdate(data) {
     const errors = [];
-    if (!data.startTime && !data.endTime && !data.eventName && !data.eventDescription && !data.eventType && !data.eventRoom) {
+    const hasAnyField =
+      data.startTime || data.endTime || data.eventName || data.eventDescription ||
+      data.eventType || data.eventRoom || data.eventMeetingType ||
+      data.expectedAudience !== undefined || data.activityAgenda !== undefined ||
+      (data.eventOrganizer && typeof data.eventOrganizer === "object");
+    if (!hasAnyField) {
       errors.push("At least one field must be provided for update");
+    }
+    if (data.expectedAudience !== undefined) {
+      const val = Number(data.expectedAudience);
+      if (isNaN(val) || val < 1) {
+        errors.push("Expected audience must be at least 1");
+      }
     }
     if (data.startTime && data.endTime) {
       const start = new Date(data.startTime);

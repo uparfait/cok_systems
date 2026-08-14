@@ -17,18 +17,23 @@ export default function Past() {
   });
   
   const [search, setSearch] = useState('');
-  const [searchField, setSearchField] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('new');
+
+  // Debounce the search box so we don't hit the API on every keystroke
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const fetchEvents = useCallback(async (page = 1) => {
     setLoading(true);
     setError(null);
     try {
       const params = { page, limit: 15, sort };
-      if (search && searchField) {
-        params.search = search;
-        params.searchField = searchField;
+      if (debouncedSearch.trim()) {
+        params.search = debouncedSearch.trim();
       }
       if (filter && filter !== 'all') params.filter = filter;
 
@@ -47,7 +52,7 @@ export default function Past() {
     } finally {
       setLoading(false);
     }
-  }, [search, searchField, filter, sort]);
+  }, [debouncedSearch, filter, sort]);
 
   useEffect(() => { fetchEvents(1); }, [fetchEvents]);
 
@@ -92,7 +97,7 @@ export default function Past() {
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder="Search past events..."
+                placeholder="Search by name, room, organizer, email, phone, type..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border  text-sm cok-auth-input"

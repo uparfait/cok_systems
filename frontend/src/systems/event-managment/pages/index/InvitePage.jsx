@@ -1,19 +1,39 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { useParams } from "react-router-dom";
 import axios from "axios";
-import { FiUpload, FiX, FiMail, FiCheck, FiAlertCircle, FiCalendar, FiUsers, FiArrowLeft, FiDownload, FiTrash2 } from "react-icons/fi";
+import { FiUpload, FiX, FiMail, FiCheck, FiAlertCircle, FiCalendar, FiUsers, FiFile, FiTrash2 } from "react-icons/fi";
 import SpiralLoader from "../../components/SpiralLoader";
+import { useToast } from "@/core/contexts/ToastContext";
 
 const BASE_URL = "/cok/api/v1";
 
+const PRIMARY = "#056daa";
+const DANGER = "#E74C3C";
+const SUCCESS = "#4CAF50";
+const WARNING = "#F39C12";
+const NEUTRAL_LIGHT = "#F7F9FB";
+const NEUTRAL_DARK = "#333333";
+const BORDER = "#E0E0E0";
+const WHITE = "#FFFFFF";
+const GRAY_DISABLED = "#9E9E9E";
+const fontHeading = "'Montserrat', sans-serif";
+
+const inputClassName = "w-full cok-auth-input pr-3 py-2 sm:py-3 text-sm sm:text-base";
+
+const sectionTitleStyle = { color: PRIMARY, fontFamily: fontHeading };
+
+const pad = (n) => n.toString().padStart(2, "0");
+
 const calculateCountdown = (targetTime) => {
-  const totalMs = new Date(targetTime).getTime() - new Date().getTime();
+  const totalMs = new Date(targetTime).getTime() - Date.now();
   if (totalMs <= 0) return "00:00:00";
-  const seconds = Math.floor((totalMs / 1000) % 60);
-  const minutes = Math.floor((totalMs / 1000 / 60) % 60);
-  const hours = Math.floor((totalMs / (1000 * 60 * 60)));
-  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  const totalSeconds = Math.floor(totalMs / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const hms = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  return days > 0 ? `${days}d ${hms}` : hms;
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -21,8 +41,8 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function InvitePage() {
   const { eventId: eventIdFromRoute, id } = useParams();
   const eventId = eventIdFromRoute || id;
-  const navigate = useNavigate();
   const fileInputRef = useRef(null);
+  const { showSuccess, showError } = useToast();
 
   const [event, setEvent] = useState(null);
   const [eventLoading, setEventLoading] = useState(true);
@@ -39,7 +59,6 @@ export default function InvitePage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
-  const [error, setError] = useState(null);
   const [invitedList, setInvitedList] = useState([]); // saved invited emails from response
   const [deleteConfirmIdx, setDeleteConfirmIdx] = useState(null);
 
@@ -81,17 +100,25 @@ export default function InvitePage() {
     fetchEvent();
   }, [eventId]);
 
-  useEffect(() => {
-    if (!event) return;
-    const targetTime = event.startedAt || event.willStartAt || event.willEndAt;
-    if (!targetTime) return;
+  // Remaining time: a live event counts down to its end; an upcoming event
+  // counts down to its start. Past events show no countdown.
+  const isLiveEvent = !!event?.startedAt && !isPastEvent;
+  const countdownTarget = isPastEvent
+    ? null
+    : isLiveEvent
+      ? event?.willEndAt
+      : event?.willStartAt;
+  const countdownLabel = isLiveEvent ? "Ends in" : "Starts in";
 
-    setCountdown(calculateCountdown(targetTime));
+  useEffect(() => {
+    if (!countdownTarget) return;
+
+    setCountdown(calculateCountdown(countdownTarget));
     const interval = setInterval(() => {
-      setCountdown(calculateCountdown(targetTime));
+      setCountdown(calculateCountdown(countdownTarget));
     }, 1000);
     return () => clearInterval(interval);
-  }, [event]);
+  }, [countdownTarget]);
 
   const handleManualInputKeyDown = (e) => {
     if (e.key === " " || e.key === "," || e.key === "Enter") {
@@ -182,12 +209,11 @@ export default function InvitePage() {
 
   const handleSubmit = async () => {
     if (manualEmails.length === 0 && !selectedFile) {
-      setError("Please add at least one email or upload a file");
+      showError("Please add at least one email or upload a file");
       return;
     }
 
     setSubmitting(true);
-    setError(null);
     setSubmitResult(null);
 
     try {
@@ -205,12 +231,13 @@ export default function InvitePage() {
         setSubmitResult(response.data.data);
         // Store invited emails so user can see and remove them
         setInvitedList(response.data.data.invited || []);
+        showSuccess(response.data?.message || "Invites sent successfully");
         // Do NOT clear inputs — user can send more or remove unwanted
       } else {
-        setError(response.data?.message || "Failed to send invites");
+        showError(response.data?.message || "Failed to send invites");
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to send invites");
+      showError(err.response?.data?.message || err.message);
     } finally {
       setSubmitting(false);
     }
@@ -239,14 +266,14 @@ export default function InvitePage() {
       }
       setDeleteConfirmIdx(null);
     } catch (err) {
-      console.error("Failed to remove invited email:", err);
+      showError(err.response?.data?.message || err.message);
       setDeleteConfirmIdx(null);
     }
   };
 
   if (eventLoading) {
     return (
-      <div className="w-full min-h-screen flex items-center justify-center bg-zinc-50">
+      <div className="w-full min-h-screen flex items-center justify-center" style={{ backgroundColor: NEUTRAL_LIGHT }}>
         <div className="text-center">
           <div className="mx-auto"><SpiralLoader /></div>
         </div>
@@ -256,110 +283,110 @@ export default function InvitePage() {
 
   if (eventError || !event) {
     return (
-      <div className="w-full min-h-screen flex items-center justify-center bg-zinc-50">
-        <div className="text-center max-w-md p-8">
-          <FiAlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <p className="text-lg font-semibold text-zinc-800 mb-2">Event Not Found</p>
-          <p className="text-sm text-zinc-500 mb-6">{eventError || "The event could not be loaded."}</p>
-          <button onClick={() => navigate(-1)} className="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors">
-            Go Back
-          </button>
+      <div className="w-full min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+        <div className="text-center w-full max-w-md p-6 sm:p-8" style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}` }}>
+          <FiAlertCircle className="w-14 h-14 mx-auto mb-4" style={{ color: DANGER }} />
+          <p className="text-lg font-bold mb-2" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Event Not Found</p>
+          <p className="text-sm" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>{eventError || "The event could not be loaded."}</p>
         </div>
       </div>
     );
   }
 
-  const eventTargetTime = event.startedAt || event.willStartAt || event.willEndAt;
   const eventStartDate = event.startedAt || event.willStartAt;
   const combinedForPreview = [...new Set([...manualEmails, ...parsedFileEmails])];
 
   return (
-    <div className="w-full min-h-screen bg-zinc-50">
-      <div className="max-w-2xl mx-auto p-4 md:p-6 space-y-6">
-        {/* Back */}
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-zinc-600 hover:text-zinc-900 transition-colors">
-          <FiArrowLeft className="w-4 h-4" />
-          Back
-        </button>
+    <div className="w-full min-h-screen py-4 sm:py-6" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+      <div className="w-full max-w-2xl mx-auto px-3 sm:px-4 space-y-4 sm:space-y-5">
 
         {/* Event header */}
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-white border border-zinc-200 p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-bold text-zinc-900 truncate">{event.eventName}</h1>
-              <div className="flex items-center gap-3 mt-2 text-sm text-zinc-500">
-                <span className="flex items-center gap-1">
-                  <FiCalendar className="w-3.5 h-3.5" />
-                  {eventStartDate ? new Date(eventStartDate).toLocaleDateString("en-US", {
-                    weekday: "short", year: "numeric", month: "short", day: "numeric",
-                  }) : "TBD"}
-                </span>
-                <span className="font-mono text-blue-600 font-semibold">{event.eventRoom}</span>
-              </div>
+        <div className="px-4 sm:px-6 py-5 text-white" style={{ backgroundColor: PRIMARY }}>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 flex items-center justify-center shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.2)" }}>
+              <FiMail className="w-4 h-4 text-white" />
             </div>
-            {eventTargetTime && (
-              <div className="bg-blue-600 text-white px-4 py-2 text-center shrink-0">
-                <div className="text-[10px] uppercase font-bold tracking-widest">Remaining</div>
-                <div className="text-xl font-black font-mono tracking-wider">{countdown || "00:00:00"}</div>
-              </div>
-            )}
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-extrabold leading-tight truncate" style={{ fontFamily: fontHeading, letterSpacing: "-0.5px" }}>
+                Invite People
+              </h1>
+              <p className="text-xs sm:text-sm truncate" style={{ color: "rgba(255,255,255,0.85)", fontFamily: fontHeading }}>{event.eventName}</p>
+            </div>
           </div>
-        </motion.div>
 
-        {/* Error */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 p-4 flex items-center gap-3">
-            <FiAlertCircle className="w-5 h-5 text-red-500 shrink-0" />
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mt-4">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm" style={{ color: "rgba(255,255,255,0.9)", fontFamily: fontHeading }}>
+              <span className="flex items-center gap-1.5">
+                <FiCalendar className="w-3.5 h-3.5 shrink-0" />
+                {eventStartDate ? new Date(eventStartDate).toLocaleDateString("en-US", {
+                  weekday: "short", year: "numeric", month: "short", day: "numeric",
+                }) : "TBD"}
+              </span>
+              <span className="font-semibold uppercase">{event.eventRoom}</span>
+            </div>
+
+            {isPastEvent ? (
+              <div className="px-4 py-2 text-center self-start sm:self-auto" style={{ backgroundColor: WHITE }}>
+                <div className="text-[10px] uppercase font-bold tracking-widest" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Status</div>
+                <div className="text-base font-black tracking-wider" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Ended</div>
+              </div>
+            ) : countdownTarget ? (
+              <div className="px-4 py-2 text-center self-start sm:self-auto" style={{ backgroundColor: WHITE }}>
+                <div className="text-[10px] uppercase font-bold tracking-widest" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>{countdownLabel}</div>
+                <div className="text-lg sm:text-xl font-black font-mono tracking-wider" style={{ color: PRIMARY }}>{countdown || "00:00:00"}</div>
+              </div>
+            ) : null}
           </div>
-        )}
+        </div>
 
         {/* Success result with invited emails */}
         {submitResult && (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-green-50 border border-green-200 p-5">
+          <div className="p-4 sm:p-5" style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}` }}>
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                <FiCheck className="w-5 h-5 text-green-600" />
+              <div className="w-10 h-10 flex items-center justify-center shrink-0" style={{ backgroundColor: "#E8F5E9" }}>
+                <FiCheck className="w-5 h-5" style={{ color: SUCCESS }} />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-green-800">Invites Sent Successfully</p>
-                <p className="text-xs text-green-600">{submitResult.newlyInvited} new, {submitResult.alreadyInvited} already invited</p>
+              <div className="min-w-0">
+                <p className="text-sm font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Invites Sent Successfully</p>
+                <p className="text-xs" style={{ color: SUCCESS, fontFamily: fontHeading }}>{submitResult.newlyInvited} new, {submitResult.alreadyInvited} already invited</p>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3 text-center text-xs mb-4">
-              <div className="bg-white p-2 border border-green-100">
-                <p className="text-lg font-bold text-green-700">{submitResult.totalProvided}</p>
-                <p className="text-green-600">Total</p>
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center text-xs mb-4">
+              <div className="p-2" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+                <p className="text-lg font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{submitResult.totalProvided}</p>
+                <p style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Total</p>
               </div>
-              <div className="bg-white p-2 border border-green-100">
-                <p className="text-lg font-bold text-green-700">{submitResult.validEmails}</p>
-                <p className="text-green-600">Valid</p>
+              <div className="p-2" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+                <p className="text-lg font-bold" style={{ color: SUCCESS, fontFamily: fontHeading }}>{submitResult.validEmails}</p>
+                <p style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Valid</p>
               </div>
-              <div className="bg-white p-2 border border-green-100">
-                <p className="text-lg font-bold text-red-500">{submitResult.invalidEmails}</p>
-                <p className="text-red-500">Invalid</p>
+              <div className="p-2" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+                <p className="text-lg font-bold" style={{ color: DANGER, fontFamily: fontHeading }}>{submitResult.invalidEmails}</p>
+                <p style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Invalid</p>
               </div>
             </div>
 
             {/* Invited emails list with remove */}
             {invitedList.length > 0 && (
               <div className="mt-2">
-                <p className="text-xs font-semibold text-green-700 mb-2">Invited Emails:</p>
+                <p className="text-xs font-bold uppercase tracking-wider mb-2" style={sectionTitleStyle}>Invited Emails</p>
                 <div className="space-y-1">
                   {invitedList.map((email, idx) => (
-                    <div key={idx} className="flex items-center justify-between bg-white px-3 py-2 border border-green-100">
-                      <span className="text-xs text-green-800 truncate">{email}</span>
+                    <div key={idx} className="flex items-center justify-between gap-2 px-3 py-2" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+                      <span className="text-xs truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{email}</span>
                       {deleteConfirmIdx === idx ? (
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={() => removeInvitedEmail(email)}
-                            className="text-[10px] px-2 py-1 bg-red-500 text-white hover:bg-red-600"
+                            className="text-[10px] font-semibold uppercase tracking-wide px-2 py-1 text-white cursor-pointer"
+                            style={{ backgroundColor: DANGER, fontFamily: fontHeading }}
                           >
                             Confirm
                           </button>
                           <button
                             onClick={() => setDeleteConfirmIdx(null)}
-                            className="text-[10px] px-2 py-1 bg-zinc-200 text-zinc-700 hover:bg-zinc-300"
+                            className="text-[10px] font-semibold uppercase tracking-wide px-2 py-1 cursor-pointer"
+                            style={{ backgroundColor: BORDER, color: NEUTRAL_DARK, fontFamily: fontHeading }}
                           >
                             Cancel
                           </button>
@@ -367,7 +394,10 @@ export default function InvitePage() {
                       ) : (
                         <button
                           onClick={() => setDeleteConfirmIdx(idx)}
-                          className="text-red-400 hover:text-red-600 p-1"
+                          className="p-1 shrink-0 cursor-pointer transition-colors"
+                          style={{ color: GRAY_DISABLED }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = DANGER)}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = GRAY_DISABLED)}
                           title="Remove this email"
                         >
                           <FiTrash2 className="w-3.5 h-3.5" />
@@ -378,31 +408,31 @@ export default function InvitePage() {
                 </div>
               </div>
             )}
-          </motion.div>
+          </div>
         )}
 
         {/* File upload section - hidden for past events */}
         {!isPastEvent && (<>
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white border border-zinc-200 p-5">
-          <h2 className="text-sm font-bold text-zinc-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+        <div className="p-4 sm:p-5" style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}` }}>
+          <h2 className="text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={sectionTitleStyle}>
             <FiUpload className="w-4 h-4" />
             Upload File (CSV, TXT, Excel)
           </h2>
 
           {selectedFile ? (
-            <div className="bg-blue-50 border border-blue-200 p-4">
-              <div className="flex items-center justify-between">
+            <div className="p-3 sm:p-4" style={{ backgroundColor: "#E3F2FD", border: `1px solid ${BORDER}` }}>
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-3 min-w-0">
-                  <FiDownload className="w-5 h-5 text-blue-500 shrink-0" />
+                  <FiFile className="w-5 h-5 shrink-0" style={{ color: PRIMARY }} />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-blue-800 truncate">{selectedFile.name}</p>
-                    <p className="text-xs text-blue-600">
+                    <p className="text-sm font-semibold truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{selectedFile.name}</p>
+                    <p className="text-xs" style={{ color: PRIMARY, fontFamily: fontHeading }}>
                       {(selectedFile.size / 1024).toFixed(1)} KB
                       {parsedFileEmails.length > 0 && ` · ${parsedFileEmails.length} emails found`}
                     </p>
                   </div>
                 </div>
-                <button onClick={removeFile} className="p-1 hover:bg-blue-100 text-blue-600 transition-colors">
+                <button onClick={removeFile} className="p-1 shrink-0 cursor-pointer" style={{ color: PRIMARY }}>
                   <FiX className="w-5 h-5" />
                 </button>
               </div>
@@ -410,57 +440,73 @@ export default function InvitePage() {
                 <div className="mt-3 max-h-20 overflow-y-auto">
                   <div className="flex flex-wrap gap-1">
                     {parsedFileEmails.slice(0, 10).map((email) => (
-                      <span key={email} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs">{email}</span>
+                      <span key={email} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs" style={{ backgroundColor: WHITE, color: PRIMARY, fontFamily: fontHeading }}>{email}</span>
                     ))}
-                    {parsedFileEmails.length > 10 && <span className="text-xs text-blue-500">+{parsedFileEmails.length - 10} more</span>}
+                    {parsedFileEmails.length > 10 && <span className="text-xs" style={{ color: PRIMARY, fontFamily: fontHeading }}>+{parsedFileEmails.length - 10} more</span>}
                   </div>
                 </div>
               )}
             </div>
           ) : (
-            <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-zinc-300 hover:border-blue-400 p-8 text-center cursor-pointer transition-colors">
-              <FiUpload className="w-8 h-8 text-zinc-400 mx-auto mb-2" />
-              <p className="text-sm text-zinc-600 font-medium">Click to upload or drag & drop</p>
-              <p className="text-xs text-zinc-400 mt-1">CSV, TXT, or Excel files (max 500 lines)</p>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="p-6 sm:p-8 text-center cursor-pointer transition-colors"
+              style={{ border: `2px dashed ${BORDER}` }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = PRIMARY)}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = BORDER)}
+            >
+              <FiUpload className="w-8 h-8 mx-auto mb-2" style={{ color: GRAY_DISABLED }} />
+              <p className="text-sm font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Tap to upload a file</p>
+              <p className="text-xs mt-1" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>CSV, TXT, or Excel files (max 500 lines)</p>
             </div>
           )}
-          {fileError && <p className="text-xs text-red-500 mt-2">{fileError}</p>}
+          {fileError && <p className="text-xs mt-2" style={{ color: DANGER, fontFamily: fontHeading }}>{fileError}</p>}
           <input ref={fileInputRef} type="file" accept=".csv,.txt,.xlsx,.xls" onChange={handleFileSelect} className="hidden" />
-        </motion.div>
+        </div>
 
         {/* Manual email input */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white border border-zinc-200 p-5">
-          <h2 className="text-sm font-bold text-zinc-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+        <div className="p-4 sm:p-5" style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}` }}>
+          <h2 className="text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={sectionTitleStyle}>
             <FiMail className="w-4 h-4" />
             Add Emails Manually
           </h2>
-          <div className="flex items-center gap-2">
-            <input
-              type="email"
-              value={manualInput}
-              onChange={(e) => setManualInput(e.target.value)}
-              onKeyDown={handleManualInputKeyDown}
-              onBlur={addManualEmail}
-              placeholder="Type email and press space, comma, or enter..."
-              className="flex-1 px-3 py-2 border border-zinc-300 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            />
-            <button type="button" onClick={addManualEmail} disabled={!manualInput.trim()}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5" style={{ color: GRAY_DISABLED }} />
+              <input
+                type="email"
+                value={manualInput}
+                onChange={(e) => setManualInput(e.target.value)}
+                onKeyDown={handleManualInputKeyDown}
+                onBlur={addManualEmail}
+                placeholder="name@domain.com"
+                className={inputClassName}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={addManualEmail}
+              disabled={!manualInput.trim()}
+              className="cok-btn-primary disabled:opacity-50 disabled:cursor-not-allowed sm:shrink-0"
+              style={{ width: "auto", paddingLeft: "1.5rem", paddingRight: "1.5rem" }}
             >
               Add
             </button>
           </div>
-          <p className="text-xs text-zinc-400 mt-1">Type an email then press space, comma, or enter to add it as a chip</p>
+          <p className="text-xs mt-2" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Type an email then press space, comma, or enter to add it</p>
 
           {manualEmails.length > 0 && (
             <div className="mt-4">
-              <p className="text-xs text-zinc-500 mb-2">{manualEmails.length} email(s) added manually</p>
+              <p className="text-xs mb-2" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>{manualEmails.length} email(s) added manually</p>
               <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
                 {manualEmails.map((email) => (
-                  <span key={email} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 text-sm">
-                    <FiMail className="w-3 h-3" />
-                    {email}
-                    <button onClick={() => removeManualEmail(email)} className="ml-1 text-blue-400 hover:text-red-500 transition-colors">
+                  <span key={email} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm" style={{ backgroundColor: "#E3F2FD", border: `1px solid ${BORDER}`, color: PRIMARY, fontFamily: fontHeading }}>
+                    <FiMail className="w-3 h-3 shrink-0" />
+                    <span className="truncate max-w-[180px] sm:max-w-none">{email}</span>
+                    <button onClick={() => removeManualEmail(email)} className="ml-1 cursor-pointer" style={{ color: GRAY_DISABLED }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = DANGER)}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = GRAY_DISABLED)}
+                    >
                       <FiX className="w-3.5 h-3.5" />
                     </button>
                   </span>
@@ -468,29 +514,29 @@ export default function InvitePage() {
               </div>
             </div>
           )}
-        </motion.div>
+        </div>
 
         {/* Summary & Submit — always visible when file or manual emails exist */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white border border-zinc-200 p-5">
+        <div className="p-4 sm:p-5" style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}` }}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-bold text-zinc-800 uppercase tracking-wider flex items-center gap-2">
+            <h2 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2" style={sectionTitleStyle}>
               <FiUsers className="w-4 h-4" />
               Summary
             </h2>
-            <span className="text-lg font-bold text-blue-600">{combinedForPreview.length}</span>
+            <span className="text-lg font-bold" style={{ color: PRIMARY, fontFamily: fontHeading }}>{combinedForPreview.length}</span>
           </div>
 
           {combinedForPreview.length === 0 && !selectedFile && !submitResult && (
-            <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm">
+            <div className="flex items-center gap-2 p-3 text-sm" style={{ backgroundColor: "#FFF3E0", border: "1px solid #FFCC80", color: WARNING, fontFamily: fontHeading }}>
               <FiAlertCircle className="w-4 h-4 shrink-0" />
               <span>No emails added yet. Upload a file or type emails manually above.</span>
             </div>
           )}
 
           {(selectedFile || manualEmails.length > 0) && (
-            <div className="text-xs text-zinc-500 space-y-1 mb-4">
-              <p>From file: <strong>{parsedFileEmails.length}</strong> emails (server will parse all valid emails)</p>
-              <p>Manual: <strong>{manualEmails.length}</strong> emails</p>
+            <div className="text-xs space-y-1 mb-4" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
+              <p>From file: <strong style={{ color: NEUTRAL_DARK }}>{parsedFileEmails.length}</strong> emails (server will parse all valid emails)</p>
+              <p>Manual: <strong style={{ color: NEUTRAL_DARK }}>{manualEmails.length}</strong> emails</p>
             </div>
           )}
 
@@ -499,11 +545,11 @@ export default function InvitePage() {
             <button
               onClick={handleSubmit}
               disabled={submitting}
-              className="w-full py-3 bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              className="cok-btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {submitting ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div style={{ width: 16, height: 16, border: `2px solid ${WHITE}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
                   Sending Invites...
                 </>
               ) : (
@@ -514,7 +560,7 @@ export default function InvitePage() {
               )}
             </button>
           )}
-        </motion.div>
+        </div>
         </>)}
       </div>
     </div>
