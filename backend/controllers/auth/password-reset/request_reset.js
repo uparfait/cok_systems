@@ -144,7 +144,7 @@ async function requestReset(req, res, next) {
     });
 
     const updatedUser = await User.findOne({ email: userEmail });
-    console.log("Updated user:", updatedUser);
+    console.log("Otp sent:");
 
     return res.status(200).json({
       status: true,
