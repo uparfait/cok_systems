@@ -12,7 +12,7 @@ RUN npm ci --omit=dev
 
 # Copy application source
 COPY . .
-
+COPY .env .env   
 ENV NODE_ENV=production
 EXPOSE 2026
 

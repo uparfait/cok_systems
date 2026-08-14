@@ -6,7 +6,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-COPY . .            
+COPY . .     
+COPY .env .env       
 
 # Socket.io must connect to the same origin in production (nginx proxies
 # /socket.io to the backend). Without this, SocketContext falls back to a
