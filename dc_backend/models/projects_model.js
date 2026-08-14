@@ -14,12 +14,36 @@ async function create_project(project_data) {
 }
 
 /**
- * Lists every project, most recently updated first. Projects are a shared
- * workspace across all authenticated users (no per-user ownership scoping),
- * matching how the sidebar is expected to show "all projects".
+ * Lists every project, most recently updated first, each annotated with its
+ * own forms_count (distinct form groups). Computed here in one aggregation
+ * so the sidebar can show every project's form count from this single
+ * query, instead of one extra request per project.
  */
 async function list_projects() {
-  return get_db().collection(COLLECTION_NAME).find({}).sort({ updated_at: -1 }).toArray();
+  return get_db()
+    .collection(COLLECTION_NAME)
+    .aggregate([
+      { $sort: { updated_at: -1 } },
+      {
+        $lookup: {
+          from: "dcs_forms",
+          let: { project_id_str: { $toString: "$_id" } },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$project_id", "$$project_id_str"] } } },
+            { $group: { _id: "$form_group_id" } },
+            { $count: "count" },
+          ],
+          as: "forms_count_lookup",
+        },
+      },
+      {
+        $addFields: {
+          forms_count: { $ifNull: [{ $arrayElemAt: ["$forms_count_lookup.count", 0] }, 0] },
+        },
+      },
+      { $project: { forms_count_lookup: 0 } },
+    ])
+    .toArray();
 }
 
 /**

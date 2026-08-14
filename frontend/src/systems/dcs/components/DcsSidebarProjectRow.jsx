@@ -1,7 +1,5 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useSilentPolling } from "../hooks/useSilentPolling.js";
-import { get_forms_by_project } from "../services/formsService.js";
 import DcsSidebarProjectForms from "./DcsSidebarProjectForms.jsx";
 
 const PRIMARY = "#056daa";
@@ -11,9 +9,10 @@ const PRIMARY = "#056daa";
  * page and automatically drops the forms list open, the chevron alone
  * toggles the dropdown without navigating. The row is highlighted active
  * whenever the current route is this project (or one of its forms),
- * matching the usual app sidebar's active-link pattern. The forms list is
- * fetched here (not inside the dropdown) so the total count can always be
- * shown next to the project name, even while collapsed.
+ * matching the usual app sidebar's active-link pattern. The forms count
+ * comes straight from the project object (computed once, for every project,
+ * by the single sidebar-level project poll) - this row never polls on its
+ * own, so the number of active pollers never grows with the project count.
  */
 export default function DcsSidebarProjectRow({ project }) {
   const navigate = useNavigate();
@@ -21,13 +20,6 @@ export default function DcsSidebarProjectRow({ project }) {
   const project_path = `/dcs-system/project/${project._id}`;
   const is_active = location.pathname === project_path || location.pathname.startsWith(`${project_path}/`);
   const [is_expanded, setIsExpanded] = useState(is_active && location.pathname.includes("/forms/"));
-
-  const { data: forms } = useSilentPolling(
-    () => get_forms_by_project(project._id).then((res) => res.data || []),
-    10000,
-    [project._id],
-  );
-  const forms_count = (forms || []).length;
 
   return (
     <div>
@@ -70,11 +62,11 @@ export default function DcsSidebarProjectRow({ project }) {
             className="flex-shrink-0 text-xs"
             style={{ color: is_active ? PRIMARY : "#9E9E9E", fontFamily: "'Montserrat', sans-serif" }}
           >
-            {forms_count}
+            {project.forms_count || 0}
           </span>
         </button>
       </div>
-      {is_expanded && <DcsSidebarProjectForms project={project} forms={forms} />}
+      {is_expanded && <DcsSidebarProjectForms project={project} />}
     </div>
   );
 }

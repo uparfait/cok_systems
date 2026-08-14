@@ -1,19 +1,27 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useSilentPolling } from "../hooks/useSilentPolling.js";
+import { get_forms_by_project } from "../services/formsService.js";
 
 const PRIMARY = "#056daa";
 
 /**
- * Renders the list of forms belonging to one project (fetched by the
- * parent row so the total count can be shown even while collapsed).
- * Clicking a form navigates straight to its details page; the currently
- * open form is highlighted active, matching the usual app sidebar's
- * active-link pattern. Indented further left than its parent project row
- * so the nesting is visually obvious.
+ * Fetches and renders the list of forms belonging to one project, silently
+ * refreshing every 10 seconds - only while this dropdown is actually
+ * expanded (it only mounts then), so the number of active pollers stays
+ * bounded by how many rows the user has actually opened, not by the total
+ * project count. Clicking a form navigates straight to its details page;
+ * the currently open form is highlighted active. Indented further left
+ * than its parent project row so the nesting is visually obvious.
  */
-export default function DcsSidebarProjectForms({ project, forms }) {
+export default function DcsSidebarProjectForms({ project }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { data: forms } = useSilentPolling(
+    () => get_forms_by_project(project._id).then((res) => res.data || []),
+    10000,
+    [project._id],
+  );
 
   return (
     <div className="pl-8 pr-2 pb-2 space-y-1">
