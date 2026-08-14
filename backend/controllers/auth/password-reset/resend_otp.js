@@ -12,6 +12,7 @@ const User = require("../../../models/user");
 const LOCK_MESSAGE = "Account is locked. Please contact administrator.";
 
 async function resendOTP(req, res, next) {
+  console.log("resent")
   try {
     const { userId, email: userEmail } = req.body;
 
