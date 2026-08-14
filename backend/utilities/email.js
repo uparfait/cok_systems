@@ -184,9 +184,9 @@ END:VCALENDAR`.trim();
 
 async function sendEmail(toEmail, subject, htmlContent, textContent) {
     try {
-        console.log(config.email.from)
+        console.log("IKAZE <coksystems@kigalicity.gov.rw>")
        const info =  await transporter.sendMail({
-            from: "coksystems@kigalicity.gov.rw",
+            from: "IKAZE <coksystems@kigalicity.gov.rw>",
             subject,
             to: toEmail,
             text: textContent,
@@ -206,7 +206,7 @@ async function sendEmail(toEmail, subject, htmlContent, textContent) {
 async function sendEmailWithFile(toEmail, subject, htmlContent, textContent, fileData) {
     try {
         const mailOptions = {
-            from: config.email.from,
+            from: "IKAZE <coksystems@kigalicity.gov.rw>",
             subject,
             to: toEmail,
             text: textContent,
