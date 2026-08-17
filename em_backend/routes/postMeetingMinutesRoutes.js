@@ -1,6 +1,7 @@
 // routes/PostMeetingMinutesRoutes.js
 const Router = require('express').Router();
 const PostMeetingMinutesController = require('../controllers/PostMeetingMinutesController');
+const MinutesFilesController = require('../controllers/MinutesFilesController');
 
 /**
  * @swagger
@@ -102,6 +103,8 @@ const PostMeetingMinutesController = require('../controllers/PostMeetingMinutesC
  *       500:
  *         description: Server error
  */
+Router.post('/:eventSpecialId/minutes/files', MinutesFilesController.uploadMiddleware, MinutesFilesController.uploadFiles);
+Router.delete('/:eventSpecialId/minutes/files/:fileId', MinutesFilesController.deleteFile);
 Router.post('/:eventSpecialId/minutes', PostMeetingMinutesController.saveMinutes);
 Router.get('/:eventSpecialId/minutes', PostMeetingMinutesController.getMinutes);
 Router.get('/:eventSpecialId/minutes/series', PostMeetingMinutesController.getSeriesMinutes);

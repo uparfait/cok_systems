@@ -127,7 +127,6 @@ import Recurring from "./systems/event-managment/components/Recurring.jsx";
 import Past from "./systems/event-managment/components/Past.jsx";
 import ViewEventDetailsDashboard from "./systems/event-managment/components/ViewEventDetailsDashboard.jsx";
 import EventActions from "./systems/event-managment/components/EventActions.jsx";
-import Editor from "./systems/event-managment/components/Editor.jsx";
 import BookingRequestsList from "./systems/event-managment/components/BookingRequestsList.jsx";
 import BookingRequestDetails from "./systems/event-managment/components/BookingRequestDetails.jsx";
 

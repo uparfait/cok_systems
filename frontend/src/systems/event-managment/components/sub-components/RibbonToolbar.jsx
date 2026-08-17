@@ -1,15 +1,27 @@
+import {
+  FiRotateCcw, FiRotateCw, FiList, FiCheckSquare, FiMinus,
+  FiAlignLeft, FiAlignCenter, FiAlignRight, FiAlignJustify,
+  FiLink, FiGrid, FiImage, FiPaperclip,
+  FiSave, FiUpload, FiDownload, FiPrinter, FiXCircle,
+} from 'react-icons/fi';
 import { RibbonBtn, RibbonSelect, Divider, GroupLabel } from './UIComponents';
 
+const PRIMARY = '#056daa';
+
 export default function RibbonToolbar({
-  editor, fontValue, headingValue, bulletStyle, orderedStyle,
-  inTable, setListStyle, onShowLinkDialog, onImport, onExport
+  editor, fontValue, fontSizeValue, headingValue, bulletStyle, orderedStyle,
+  inTable, setListStyle, onShowLinkDialog, onImport, onExport,
+  onInsertImage, onAttachFile, onPrint, onSave,
 }) {
   return (
-    <div className="bg-[#f3f2f1] border-b border-[#d4d4d4] px-2 py-1.5 flex-shrink-0">
+    <div className="bg-white border-b px-2 py-1.5 flex-shrink-0" style={{ borderColor: '#E0E0E0' }}>
       <div className="flex items-end gap-1 flex-wrap">
+        <HistoryGroup editor={editor} />
+        <Divider />
         <FontGroup
           editor={editor}
           fontValue={fontValue}
+          fontSizeValue={fontSizeValue}
           headingValue={headingValue}
         />
         <Divider />
@@ -23,11 +35,15 @@ export default function RibbonToolbar({
         <InsertGroup
           editor={editor}
           onShowLinkDialog={onShowLinkDialog}
+          onInsertImage={onInsertImage}
+          onAttachFile={onAttachFile}
         />
         <Divider />
         <FileGroup
           onImport={onImport}
           onExport={onExport}
+          onPrint={onPrint}
+          onSave={onSave}
         />
       </div>
       {inTable && <TableToolbar editor={editor} />}
@@ -35,7 +51,31 @@ export default function RibbonToolbar({
   );
 }
 
-function FontGroup({ editor, fontValue, headingValue }) {
+function HistoryGroup({ editor }) {
+  return (
+    <div className="flex flex-col">
+      <div className="flex items-center gap-0.5 px-1">
+        <RibbonBtn
+          title="Undo (Ctrl+Z)"
+          disabled={!editor.can().undo()}
+          onClick={() => editor.chain().focus().undo().run()}
+        >
+          <FiRotateCcw className="w-4 h-4" />
+        </RibbonBtn>
+        <RibbonBtn
+          title="Redo (Ctrl+Y)"
+          disabled={!editor.can().redo()}
+          onClick={() => editor.chain().focus().redo().run()}
+        >
+          <FiRotateCw className="w-4 h-4" />
+        </RibbonBtn>
+      </div>
+      <GroupLabel>History</GroupLabel>
+    </div>
+  );
+}
+
+function FontGroup({ editor, fontValue, fontSizeValue, headingValue }) {
   const fontOptions = [
     { value: '', label: 'Calibri (Default)' },
     { value: 'Arial', label: 'Arial' },
@@ -44,10 +84,13 @@ function FontGroup({ editor, fontValue, headingValue }) {
     { value: 'Courier New', label: 'Courier New' },
     { value: 'Georgia', label: 'Georgia' },
     { value: 'Helvetica', label: 'Helvetica' },
+    { value: 'Montserrat', label: 'Montserrat' },
     { value: 'Tahoma', label: 'Tahoma' },
     { value: 'Times New Roman', label: 'Times New Roman' },
     { value: 'Verdana', label: 'Verdana' },
   ];
+
+  const sizeOptions = ['8', '9', '10', '11', '12', '14', '16', '18', '20', '24', '28', '32', '36', '48', '72'];
 
   const headingOptions = [
     { value: 'paragraph', label: 'Normal' },
@@ -72,6 +115,22 @@ function FontGroup({ editor, fontValue, headingValue }) {
         >
           {fontOptions.map(opt => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </RibbonSelect>
+
+        <RibbonSelect
+          title="Font size"
+          width="w-16"
+          value={fontSizeValue}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (!v) editor.chain().focus().unsetFontSize().run();
+            else editor.chain().focus().setFontSize(`${v}pt`).run();
+          }}
+        >
+          <option value="">Size</option>
+          {sizeOptions.map(s => (
+            <option key={s} value={s}>{s}</option>
           ))}
         </RibbonSelect>
 
@@ -121,6 +180,9 @@ function FontGroup({ editor, fontValue, headingValue }) {
           label="ab"
           labelClass="bg-yellow-200 px-0.5"
         />
+        <RibbonBtn title="Clear formatting" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}>
+          <FiXCircle className="w-4 h-4" />
+        </RibbonBtn>
       </div>
       <GroupLabel>Font</GroupLabel>
     </div>
@@ -129,8 +191,11 @@ function FontGroup({ editor, fontValue, headingValue }) {
 
 function ColorPicker({ title, defaultValue, onChange, label, labelClass = '' }) {
   return (
-    <label title={title} className="inline-flex flex-col items-center justify-center h-7 px-1 hover:bg-[#e6f0fb] cursor-pointer border border-transparent hover:border-[#a8c5e8]">
-      <span className={`text-[13px] leading-none font-bold text-slate-800 ${labelClass}`}>{label}</span>
+    <label
+      title={title}
+      className="inline-flex flex-col items-center justify-center h-7 px-1 cursor-pointer border border-transparent hover:bg-[#E3F2FD] hover:border-[#9CC7E4]"
+    >
+      <span className={`text-[13px] leading-none font-bold ${labelClass}`} style={{ color: '#333333' }}>{label}</span>
       <input type="color" defaultValue={defaultValue}
         onChange={onChange}
         className="w-5 h-1 mt-0.5 border-0 p-0 bg-transparent cursor-pointer appearance-none" />
@@ -161,7 +226,7 @@ function ParagraphGroup({ editor, bulletStyle, orderedStyle, setListStyle }) {
     <div className="flex flex-col ml-0.5">
       <div className="flex items-center gap-1 px-1">
         <RibbonBtn title="Bulleted list" active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>
-          <span className="text-[16px] font-bold">List</span>
+          <FiList className="w-4 h-4" />
         </RibbonBtn>
         <RibbonSelect
           title="Bullet style"
@@ -175,8 +240,8 @@ function ParagraphGroup({ editor, bulletStyle, orderedStyle, setListStyle }) {
           ))}
         </RibbonSelect>
 
-        <RibbonBtn title="Numbered list" active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
-          <span className="text-[14px] ml-1 mr-1 font-bold">Type</span>
+        <RibbonBtn wide title="Numbered list" active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+          <span className="text-[13px] font-bold">1.</span>
         </RibbonBtn>
         <RibbonSelect
           title="Numbering style"
@@ -191,93 +256,63 @@ function ParagraphGroup({ editor, bulletStyle, orderedStyle, setListStyle }) {
         </RibbonSelect>
 
         <RibbonBtn title="Task list" active={editor.isActive('taskList')} onClick={() => editor.chain().focus().toggleTaskList().run()}>
-          <span className="text-[16px]">☑</span>
+          <FiCheckSquare className="w-4 h-4" />
         </RibbonBtn>
         <RibbonBtn title="Block quote" active={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
           <span className="text-[16px] font-bold">❝</span>
         </RibbonBtn>
         <RibbonBtn title="Horizontal rule" onClick={() => editor.chain().focus().setHorizontalRule().run()}>
-          <span className="text-[16px] font-bold">__</span>
+          <FiMinus className="w-4 h-4" />
         </RibbonBtn>
       </div>
       <div className="flex items-center gap-0.5 px-1 mt-1">
         <AlignmentButtons editor={editor} />
       </div>
-      <GroupLabel>Paragraph & Lists</GroupLabel>
+      <GroupLabel>Paragraph &amp; Lists</GroupLabel>
     </div>
   );
 }
 
 function AlignmentButtons({ editor }) {
   const alignments = [
-    {
-      align: 'left',
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="17" y1="7" x2="3" y2="7" />
-          <line x1="21" y1="11" x2="3" y2="11" />
-          <line x1="17" y1="15" x2="3" y2="15" />
-          <line x1="19" y1="19" x2="3" y2="19" />
-        </svg>
-      )
-    },
-    {
-      align: 'center',
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="17" y1="7" x2="7" y2="7" />
-          <line x1="21" y1="11" x2="3" y2="11" />
-          <line x1="17" y1="15" x2="7" y2="15" />
-          <line x1="19" y1="19" x2="5" y2="19" />
-        </svg>
-      )
-    },
-    {
-      align: 'right',
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="21" y1="7" x2="7" y2="7" />
-          <line x1="21" y1="11" x2="3" y2="11" />
-          <line x1="21" y1="15" x2="7" y2="15" />
-          <line x1="21" y1="19" x2="5" y2="19" />
-        </svg>
-      )
-    },
-    {
-      align: 'justify',
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="21" y1="7" x2="3" y2="7" />
-          <line x1="21" y1="11" x2="3" y2="11" />
-          <line x1="21" y1="15" x2="3" y2="15" />
-          <line x1="21" y1="19" x2="3" y2="19" />
-        </svg>
-      )
-    }
+    { align: 'left', Icon: FiAlignLeft },
+    { align: 'center', Icon: FiAlignCenter },
+    { align: 'right', Icon: FiAlignRight },
+    { align: 'justify', Icon: FiAlignJustify },
   ];
 
-  return alignments.map(({ align, icon }) => (
+  return alignments.map(({ align, Icon }) => (
     <RibbonBtn
       key={align}
       title={`Align ${align.charAt(0).toUpperCase() + align.slice(1)}`}
       active={editor.isActive({ textAlign: align })}
       onClick={() => editor.chain().focus().setTextAlign(align).run()}
     >
-      {icon}
+      <Icon className="w-4 h-4" />
     </RibbonBtn>
   ));
 }
 
-function InsertGroup({ editor, onShowLinkDialog }) {
+function InsertGroup({ editor, onShowLinkDialog, onInsertImage, onAttachFile }) {
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-0.5 px-1">
         <RibbonBtn wide title="Insert link" active={editor.isActive('link')} onClick={onShowLinkDialog}>
-          <span className="text-[12px]">🔗 Link</span>
+          <FiLink className="w-3.5 h-3.5" style={{ color: PRIMARY }} />
+          <span className="text-[12px]">Link</span>
         </RibbonBtn>
         <RibbonBtn wide title="Insert table"
           onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>
-          <span className="text-[12px]">▦ Table</span>
+          <FiGrid className="w-3.5 h-3.5" style={{ color: PRIMARY }} />
+          <span className="text-[12px]">Table</span>
+        </RibbonBtn>
+        <RibbonBtn wide title="Insert image" onClick={onInsertImage}>
+          <FiImage className="w-3.5 h-3.5" style={{ color: PRIMARY }} />
+          <span className="text-[12px]">Image</span>
+        </RibbonBtn>
+        <RibbonBtn wide title="Attach file" onClick={onAttachFile}>
+          <FiPaperclip className="w-3.5 h-3.5" style={{ color: PRIMARY }} />
+          <span className="text-[12px]">File</span>
         </RibbonBtn>
       </div>
       <GroupLabel>Insert</GroupLabel>
@@ -285,15 +320,25 @@ function InsertGroup({ editor, onShowLinkDialog }) {
   );
 }
 
-function FileGroup({ onImport, onExport }) {
+function FileGroup({ onImport, onExport, onPrint, onSave }) {
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-0.5 px-1">
-        <RibbonBtn wide title="Import document" onClick={onImport}>
-          <span className="text-[12px]">📁 Import</span>
+        <RibbonBtn wide title="Save (Ctrl+S)" onClick={onSave}>
+          <FiSave className="w-3.5 h-3.5" style={{ color: PRIMARY }} />
+          <span className="text-[12px]">Save</span>
         </RibbonBtn>
-        <RibbonBtn wide title="Export to DOCX" onClick={onExport}>
-          <span className="text-[12px]">💾 Export</span>
+        <RibbonBtn wide title="Import document (.docx, .xlsx, .txt, .md, .html)" onClick={onImport}>
+          <FiUpload className="w-3.5 h-3.5" style={{ color: PRIMARY }} />
+          <span className="text-[12px]">Import</span>
+        </RibbonBtn>
+        <RibbonBtn wide title="Export to Word (.docx)" onClick={onExport}>
+          <FiDownload className="w-3.5 h-3.5" style={{ color: PRIMARY }} />
+          <span className="text-[12px]">Export</span>
+        </RibbonBtn>
+        <RibbonBtn wide title="Print" onClick={onPrint}>
+          <FiPrinter className="w-3.5 h-3.5" style={{ color: PRIMARY }} />
+          <span className="text-[12px]">Print</span>
         </RibbonBtn>
       </div>
       <GroupLabel>File</GroupLabel>
@@ -303,8 +348,8 @@ function FileGroup({ onImport, onExport }) {
 
 function TableToolbar({ editor }) {
   return (
-    <div className="mt-2 pt-2 border-t border-[#d4d4d4] flex items-center gap-1 flex-wrap">
-      <span className="text-[11px] text-slate-600 px-1 font-semibold">Table Tools:</span>
+    <div className="mt-2 pt-2 border-t flex items-center gap-1 flex-wrap" style={{ borderColor: '#E0E0E0' }}>
+      <span className="text-[11px] px-1 font-semibold" style={{ color: PRIMARY, fontFamily: "'Montserrat', sans-serif" }}>Table Tools:</span>
       <RibbonBtn wide title="Add column before" onClick={() => editor.chain().focus().addColumnBefore().run()}>
         <span className="text-[12px]">Insert Left</span>
       </RibbonBtn>
@@ -312,7 +357,7 @@ function TableToolbar({ editor }) {
         <span className="text-[12px]">Insert Right</span>
       </RibbonBtn>
       <RibbonBtn wide title="Delete column" onClick={() => editor.chain().focus().deleteColumn().run()}>
-        <span className="text-[12px] text-red-600">Delete Column</span>
+        <span className="text-[12px]" style={{ color: '#E74C3C' }}>Delete Column</span>
       </RibbonBtn>
       <Divider />
       <RibbonBtn wide title="Add row above" onClick={() => editor.chain().focus().addRowBefore().run()}>
@@ -322,7 +367,7 @@ function TableToolbar({ editor }) {
         <span className="text-[12px]">Insert Below</span>
       </RibbonBtn>
       <RibbonBtn wide title="Delete row" onClick={() => editor.chain().focus().deleteRow().run()}>
-        <span className="text-[12px] text-red-600">Delete Row</span>
+        <span className="text-[12px]" style={{ color: '#E74C3C' }}>Delete Row</span>
       </RibbonBtn>
       <Divider />
       <RibbonBtn wide title="Toggle header row" active={editor.isActive('tableHeader')} onClick={() => editor.chain().focus().toggleHeaderRow().run()}>
@@ -336,8 +381,7 @@ function TableToolbar({ editor }) {
       </RibbonBtn>
       <Divider />
       <RibbonBtn wide title="Delete table" onClick={() => editor.chain().focus().deleteTable().run()}>
-        
-        <span className="text-[12px] text-red-700 font-semibold">Delete Table</span>
+        <span className="text-[12px] font-semibold" style={{ color: '#E74C3C' }}>Delete Table</span>
       </RibbonBtn>
     </div>
   );
