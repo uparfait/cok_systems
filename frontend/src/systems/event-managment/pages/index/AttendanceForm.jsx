@@ -1,13 +1,41 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import axios from 'axios';
+import { FiUploadCloud, FiFileText, FiX } from 'react-icons/fi';
+import { useToast } from '@/core/contexts/ToastContext';
 import SpiralLoader from '../../components/SpiralLoader';
 
 const BASE_URL = '/cok/api/v1';
 
-const inputClass =
-  'w-full px-4 py-3 border border-gray-300 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all duration-200 bg-white';
-const labelClass = 'block text-sm font-medium text-gray-700 mb-1.5';
+const PRIMARY = '#056daa';
+const DANGER = '#E74C3C';
+const SUCCESS = '#4CAF50';
+const BORDER = '#E0E0E0';
+const NEUTRAL_DARK = '#333333';
+const GRAY_DISABLED = '#9E9E9E';
+const fontHeading = "'Montserrat', sans-serif";
+
+const inputClassName = 'w-full cok-auth-input pr-3 py-2 text-sm';
+const inputStyle = { paddingLeft: '12px' };
+
+const labelStyle = {
+  fontFamily: fontHeading,
+  fontSize: '11px',
+  fontWeight: 600,
+  letterSpacing: '0.5px',
+  textTransform: 'uppercase',
+  color: NEUTRAL_DARK,
+  display: 'block',
+  marginBottom: '6px',
+};
+
+const responsiveStyles = `
+  .cok-attendance-wrap { width: 100%; max-width: 500px; margin: 0 auto; }
+  .cok-attendance-form { border: none; }
+  @media (min-width: 500px) {
+    .cok-attendance-form { border: 1px solid ${BORDER}; }
+  }
+`;
 
 function SignaturePad({ onChange }) {
   const canvasRef = useRef(null);
@@ -76,7 +104,7 @@ function SignaturePad({ onChange }) {
 
   return (
     <div className="space-y-1.5">
-      <div className="relative border border-gray-300 bg-white">
+      <div className="relative bg-white" style={{ border: `1px solid ${BORDER}` }}>
         <canvas
           ref={canvasRef}
           className="w-full h-36 block cursor-crosshair"
@@ -87,7 +115,7 @@ function SignaturePad({ onChange }) {
           onPointerCancel={handleUp}
         />
         {!hasInk && (
-          <span className="absolute inset-0 flex items-center justify-center text-sm text-gray-300 pointer-events-none select-none">
+          <span className="absolute inset-0 flex items-center justify-center text-sm pointer-events-none select-none" style={{ color: '#C9C9C9' }}>
             Sign here
           </span>
         )}
@@ -96,7 +124,8 @@ function SignaturePad({ onChange }) {
         <button
           type="button"
           onClick={clear}
-          className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+          className="text-xs font-medium cursor-pointer"
+          style={{ color: PRIMARY, fontFamily: fontHeading }}
         >
           Clear signature
         </button>
@@ -107,10 +136,10 @@ function SignaturePad({ onChange }) {
 
 export default function AttendanceForm() {
   const [searchParams] = useSearchParams();
+  const { showSuccess, showError } = useToast();
 
   // Check if this is a room-based QR scan (RoomOnly=true) or event-based QR scan (has eventSpecialId)
   const isRoomOnly = searchParams.get('RoomOnly') === 'true';
-
 
   const [fetchedData, setFetchedData] = useState(null);
   const [fetchError, setFetchError] = useState(null);
@@ -123,21 +152,13 @@ export default function AttendanceForm() {
   const eventType = searchParams.get('eventType') || fetchedData?.eventType || '';
   const roomNameOrEventId = useParams()?.id;
 
-  
-
   useEffect(() => {
-
-   
-    
     if (!isRoomOnly || !roomNameOrEventId) return;
-    
 
     const fetchRoomLiveEvent = async () => {
-      
       setFetchingData(true);
       setFetchError(null);
       try {
-    
         const res = await axios.get(`${BASE_URL}/events/live`, {
           params: {
             search: roomNameOrEventId.toLowerCase(),
@@ -145,7 +166,7 @@ export default function AttendanceForm() {
             limit: 1,
           },
         });
-   
+
         if (res.data?.success && res.data.data?.length > 0) {
           const ev = res.data.data[0];
           setFetchedData({
@@ -155,12 +176,11 @@ export default function AttendanceForm() {
             roomLocation: '',
             eventType: ev.eventType,
           });
-          
         } else {
           setFetchError('No live event currently happening in this room.');
         }
       } catch (err) {
-        console.log(err)
+        console.log(err);
         setFetchError(
           err.response?.data?.message ||
           'No live event currently happening in this room.'
@@ -175,14 +195,15 @@ export default function AttendanceForm() {
 
   const isInternal = eventType?.toLowerCase() === 'internal';
 
-  const [formData, setFormData] = useState({
+  const emptyForm = {
     attendeeFullName: '',
     attendeeEmail: '',
     attendeePhoneNumber: '',
     attendeeInstitution: isInternal ? 'City of Kigali' : '',
     attendeePosition: '',
-  });
+  };
 
+  const [formData, setFormData] = useState(emptyForm);
   const [signature, setSignature] = useState('');
   const [signatureMethod, setSignatureMethod] = useState('draw');
   const [certificateFile, setCertificateFile] = useState(null);
@@ -190,7 +211,14 @@ export default function AttendanceForm() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [padKey, setPadKey] = useState(0);
+  const successTimerRef = useRef(null);
+  const certInputRef = useRef(null);
+
+  useEffect(() => {
+    return () => { if (successTimerRef.current) clearTimeout(successTimerRef.current); };
+  }, []);
 
   const validate = () => {
     const newErrors = {};
@@ -212,6 +240,12 @@ export default function AttendanceForm() {
 
     if (!formData.attendeePosition.trim())
       newErrors.attendeePosition = 'Position is required';
+
+    // A signature is required: either drawn or an uploaded digital signature
+    if (signatureMethod === 'draw' && !signature)
+      newErrors.signature = 'Please draw your signature';
+    if (signatureMethod === 'certificate' && !certificateFile)
+      newErrors.signature = 'Please upload your digital signature';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -265,9 +299,23 @@ export default function AttendanceForm() {
           signatureMethod,
         });
       }
-      setSubmitted(true);
+
+      // Success: turn the submit button green, reset the form, revert after 5s
+      setSuccess(true);
+      showSuccess('Attendance recorded');
+      setFormData({ ...emptyForm });
+      setSignature('');
+      setCertificateFile(null);
+      setCertError('');
+      setSignatureMethod('draw');
+      setErrors({});
+      setPadKey((k) => k + 1);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      successTimerRef.current = setTimeout(() => setSuccess(false), 5000);
     } catch (err) {
-      setServerError(err.response?.data?.message || 'Failed to submit attendance. Please try again.');
+      const message = err.response?.data?.message || 'Failed to submit attendance. Please try again.';
+      setServerError(message);
+      showError(message);
     } finally {
       setLoading(false);
     }
@@ -276,10 +324,12 @@ export default function AttendanceForm() {
   // Show loading while fetching room data
   if (fetchingData) {
     return (
-      <div className="  w-full flex items-center justify-center px-4">
-        <div className="bg-white border flex flex-row gap-11 items-center border-gray-200 p-8 max-w-sm w-full text-center">
+      <div className="w-full flex items-center justify-center px-4" style={{ paddingTop: '90px' }}>
+        <div className="bg-white flex flex-row gap-6 items-center p-8 max-w-sm w-full" style={{ border: `1px solid ${BORDER}` }}>
           <SpiralLoader />
-          Searching Event Information...
+          <span className="text-sm" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
+            Searching Event Information...
+          </span>
         </div>
       </div>
     );
@@ -288,15 +338,15 @@ export default function AttendanceForm() {
   // Show fetch error if room-based lookup failed
   if (fetchError) {
     return (
-      <div className=" w-full  flex items-center justify-center px-4">
-        <div className="bg-white border  border-amber-200 p-8 max-w-sm w-full text-center">
-          <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-7 h-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="w-full flex items-center justify-center px-4" style={{ paddingTop: '90px' }}>
+        <div className="bg-white p-8 max-w-sm w-full text-center" style={{ border: `1px solid ${BORDER}` }}>
+          <div className="w-14 h-14 flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: '#FEF5E7' }}>
+            <svg className="w-7 h-7" style={{ color: '#F39C12' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M12 4a8 8 0 100 16A8 8 0 0012 4z" />
             </svg>
           </div>
-          <h2 className="text-base font-bold text-gray-900 mb-1">No Live Event Found</h2>
-          <p className="text-sm text-gray-500">{fetchError}</p>
+          <h2 className="text-base font-bold mb-1" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>No Live Event Found</h2>
+          <p className="text-sm" style={{ color: GRAY_DISABLED }}>{fetchError}</p>
         </div>
       </div>
     );
@@ -304,111 +354,48 @@ export default function AttendanceForm() {
 
   if ((!eventSpecialId && !isRoomOnly)) {
     return (
-      <div className=" w-full flex items-center justify-center px-4">
-        <div className="bg-white border border-red-200 p-8 max-w-sm w-full text-center">
-          <div className="w-14 h-14 bg-red-100 flex items-center  rounded-full justify-center mx-auto mb-4">
-            <svg className="w-7 h-7 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="w-full flex items-center justify-center px-4" style={{ paddingTop: '90px' }}>
+        <div className="bg-white p-8 max-w-sm w-full text-center" style={{ border: `1px solid ${BORDER}` }}>
+          <div className="w-14 h-14 flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: '#FDECEA' }}>
+            <svg className="w-7 h-7" style={{ color: DANGER }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M12 4a8 8 0 100 16A8 8 0 0012 4z" />
             </svg>
           </div>
-          <h2 className="text-base font-bold text-gray-900 mb-1">Invalid Link</h2>
-          <p className="text-sm text-gray-500">This attendance link is missing required event information. Please scan the QR code again.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (submitted) {
-    return (
-      <div className="w-full  flex items-center justify-center px-4">
-        <div className="bg-white border border-gray-200 p-8 max-w-sm w-full text-center space-y-4">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-            <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">Attendance Recorded!</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Your attendance for <span className="font-semibold text-gray-700">{eventName}</span> has been successfully submitted.
-            </p>
-          </div>
-          <div className="bg-gray-50 border border-gray-200 p-3 text-left text-xs text-gray-600 space-y-1">
-            <p><span className="font-medium">Name:</span> {formData.attendeeFullName}</p>
-            <p><span className="font-medium">Event:</span> {eventName}</p>
-            <p><span className="font-medium">Room:</span> {eventRoom}</p>
-            {signatureMethod === 'draw' && signature && (
-              <p><span className="font-medium">Signature:</span> Drawn (base64 image saved)</p>
-            )}
-            {signatureMethod === 'certificate' && certificateFile && (
-              <p><span className="font-medium">Signature:</span> Digital Certificate ({certificateFile.name}) saved</p>
-            )}
-          </div>
-          <p className="text-xs text-gray-400">You may now close this page.</p>
+          <h2 className="text-base font-bold mb-1" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Invalid Link</h2>
+          <p className="text-sm" style={{ color: GRAY_DISABLED }}>This attendance link is missing required event information. Please scan the QR code again.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 w-full max-w-[500px] min-w-[300px] flex flex-col items-center justify-start">
-      <div className="w-full">
+    <div className="w-full flex flex-col items-center" style={{ paddingTop: '90px', paddingBottom: '32px' }}>
+      <style>{responsiveStyles}</style>
+      <div className="cok-attendance-wrap">
 
-        {/* Header */}
-        <div className="bg-blue-600 px-6 py-5 text-white mb-0">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 bg-white/20 flex items-center justify-center shrink-0">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-xs text-blue-200 uppercase tracking-wide font-medium">Attendance Registration</p>
-              <h1 className="text-base font-bold leading-tight">{eventName}</h1>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3 text-xs text-blue-100">
-            {eventRoom && (
-              <span className="flex items-center gap-1">
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-                {eventRoom}
-              </span>
-            )}
-            {roomLocation && (
-              <span className="flex items-center gap-1">
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                {roomLocation}
-              </span>
-            )}
-            {eventType && (
-              <span className="flex items-center gap-1 bg-white/20 px-2 py-0.5">
-                {eventType} Meeting
-              </span>
-            )}
-          </div>
+        {/* Header: event title + room location only */}
+        <div className="px-5 py-4 text-white" style={{ backgroundColor: PRIMARY }}>
+          <h1 className="text-base font-bold truncate" style={{ fontFamily: fontHeading }} title={eventName}>
+            {eventName}
+          </h1>
+          {roomLocation && (
+            <p className="text-xs mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.85)' }}>
+              {roomLocation}
+            </p>
+          )}
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="bg-white border border-gray-200 border-t-0 p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="cok-attendance-form bg-white p-5 sm:p-6 space-y-5" style={{ borderTop: 'none' }}>
 
-          {serverError && (
-            <div className="bg-red-50 border border-red-200 p-3 flex items-start gap-2">
-              <svg className="w-4 h-4 text-red-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M12 4a8 8 0 100 16A8 8 0 0012 4z" />
-              </svg>
-              <p className="text-sm text-red-600">{serverError}</p>
-            </div>
-          )}
+          <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
+            Fields marked with <span style={{ color: DANGER }}>*</span> are required
+          </p>
 
           {/* Full Name */}
-          <div className="space-y-1.5">
-            <label htmlFor="attendeeFullName" className={labelClass}>
-              Full Name <span className="text-red-500">*</span>
+          <div>
+            <label htmlFor="attendeeFullName" style={labelStyle}>
+              Full Name <span style={{ color: DANGER }}>*</span>
             </label>
             <input
               type="text"
@@ -418,17 +405,18 @@ export default function AttendanceForm() {
               onChange={handleChange}
               placeholder="Enter your full name"
               autoComplete="name"
-              className={`${inputClass} ${errors.attendeeFullName ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : ''}`}
+              className={inputClassName}
+              style={inputStyle}
             />
             {errors.attendeeFullName && (
-              <p className="text-xs text-red-500">{errors.attendeeFullName}</p>
+              <p className="text-xs mt-1" style={{ color: DANGER }}>{errors.attendeeFullName}</p>
             )}
           </div>
 
           {/* Phone Number */}
-          <div className="space-y-1.5">
-            <label htmlFor="attendeePhoneNumber" className={labelClass}>
-              Phone Number <span className="text-red-500">*</span>
+          <div>
+            <label htmlFor="attendeePhoneNumber" style={labelStyle}>
+              Phone Number <span style={{ color: DANGER }}>*</span>
             </label>
             <input
               type="tel"
@@ -438,17 +426,18 @@ export default function AttendanceForm() {
               onChange={handleChange}
               placeholder="e.g. +250 7XX XXX XXX"
               autoComplete="tel"
-              className={`${inputClass} ${errors.attendeePhoneNumber ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : ''}`}
+              className={inputClassName}
+              style={inputStyle}
             />
             {errors.attendeePhoneNumber && (
-              <p className="text-xs text-red-500">{errors.attendeePhoneNumber}</p>
+              <p className="text-xs mt-1" style={{ color: DANGER }}>{errors.attendeePhoneNumber}</p>
             )}
           </div>
 
           {/* Position */}
-          <div className="space-y-1.5">
-            <label htmlFor="attendeePosition" className={labelClass}>
-              Position / Title <span className="text-red-500">*</span>
+          <div>
+            <label htmlFor="attendeePosition" style={labelStyle}>
+              Position / Title <span style={{ color: DANGER }}>*</span>
             </label>
             <input
               type="text"
@@ -458,18 +447,19 @@ export default function AttendanceForm() {
               onChange={handleChange}
               placeholder="e.g. Software Engineer, Director"
               autoComplete="organization-title"
-              className={`${inputClass} ${errors.attendeePosition ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : ''}`}
+              className={inputClassName}
+              style={inputStyle}
             />
             {errors.attendeePosition && (
-              <p className="text-xs text-red-500">{errors.attendeePosition}</p>
+              <p className="text-xs mt-1" style={{ color: DANGER }}>{errors.attendeePosition}</p>
             )}
           </div>
 
-          {/* Institution — hidden for internal meetings */}
+          {/* Institution: hidden for internal meetings */}
           {!isInternal && (
-            <div className="space-y-1.5">
-              <label htmlFor="attendeeInstitution" className={labelClass}>
-                Institution / Organization <span className="text-red-500">*</span>
+            <div>
+              <label htmlFor="attendeeInstitution" style={labelStyle}>
+                Institution / Organization <span style={{ color: DANGER }}>*</span>
               </label>
               <input
                 type="text"
@@ -479,19 +469,19 @@ export default function AttendanceForm() {
                 onChange={handleChange}
                 placeholder="e.g. Rwanda Development Board"
                 autoComplete="organization"
-                className={`${inputClass} ${errors.attendeeInstitution ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : ''}`}
+                className={inputClassName}
+                style={inputStyle}
               />
               {errors.attendeeInstitution && (
-                <p className="text-xs text-red-500">{errors.attendeeInstitution}</p>
+                <p className="text-xs mt-1" style={{ color: DANGER }}>{errors.attendeeInstitution}</p>
               )}
             </div>
           )}
 
-          {/* Email — optional */}
-          <div className="space-y-1.5">
-            <label htmlFor="attendeeEmail" className={labelClass}>
-              Email Address
-              <span className="ml-1.5 text-xs font-normal text-gray-400">(optional)</span>
+          {/* Email: optional */}
+          <div>
+            <label htmlFor="attendeeEmail" style={labelStyle}>
+              Email Address <span className="normal-case font-normal" style={{ color: GRAY_DISABLED }}>(optional)</span>
             </label>
             <input
               type="email"
@@ -501,123 +491,163 @@ export default function AttendanceForm() {
               onChange={handleChange}
               placeholder="your.email@example.com"
               autoComplete="email"
-              className={`${inputClass} ${errors.attendeeEmail ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : ''}`}
+              className={inputClassName}
+              style={inputStyle}
             />
             {errors.attendeeEmail && (
-              <p className="text-xs text-red-500">{errors.attendeeEmail}</p>
+              <p className="text-xs mt-1" style={{ color: DANGER }}>{errors.attendeeEmail}</p>
             )}
           </div>
 
-           {/* Signature Method Choice — optional, choose draw or upload certificate */}
-           <div className="space-y-1.5">
-             <label className={labelClass}>
-               Signature Method
-               <span className="ml-1.5 text-xs font-normal text-gray-400">(optional)</span>
-             </label>
-             <div className="flex gap-4">
-               <label className="flex items-center gap-2 cursor-pointer">
-                 <input
-                   type="radio"
-                   name="signatureMethod"
-                   value="draw"
-                   checked={signatureMethod === 'draw'}
-                   onChange={() => { setSignatureMethod('draw'); setCertificateFile(null); setCertError(''); }}
-                   className="text-blue-600 focus:ring-blue-500"
-                 />
-                 <span className="text-sm text-gray-700">Draw Signature</span>
-               </label>
-               <label className="flex items-center gap-2 cursor-pointer">
-                 <input
-                   type="radio"
-                   name="signatureMethod"
-                   value="certificate"
-                   checked={signatureMethod === 'certificate'}
-                   onChange={() => { setSignatureMethod('certificate'); setSignature(''); }}
-                   className="text-blue-600 focus:ring-blue-500"
-                 />
-                 <span className="text-sm text-gray-700">Upload Digital Certificate</span>
-               </label>
-             </div>
-           </div>
+          {/* Signature Method: required, sign or upload a digital signature */}
+          <div>
+            <label style={labelStyle}>
+              Signature Method <span style={{ color: DANGER }}>*</span>
+            </label>
+            <div className="flex flex-col gap-2.5">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="signatureMethod"
+                  value="draw"
+                  checked={signatureMethod === 'draw'}
+                  onChange={() => { setSignatureMethod('draw'); setCertificateFile(null); setCertError(''); setErrors((p) => ({ ...p, signature: null })); }}
+                  style={{ accentColor: PRIMARY }}
+                />
+                <span className="text-sm" style={{ color: NEUTRAL_DARK }}>Draw Signature</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="signatureMethod"
+                  value="certificate"
+                  checked={signatureMethod === 'certificate'}
+                  onChange={() => { setSignatureMethod('certificate'); setSignature(''); setErrors((p) => ({ ...p, signature: null })); }}
+                  style={{ accentColor: PRIMARY }}
+                />
+                <span className="text-sm" style={{ color: NEUTRAL_DARK }}>Upload Digital Signature</span>
+              </label>
+            </div>
+          </div>
 
-           {signatureMethod === 'draw' && (
-             <div className="space-y-1.5">
-               <label className={labelClass}>
-                 Draw your signature
-                 <span className="ml-1.5 text-xs font-normal text-gray-400">(draw with your finger or mouse)</span>
-               </label>
-               <SignaturePad onChange={setSignature} />
-             </div>
-           )}
+          {signatureMethod === 'draw' && (
+            <div>
+              <label style={labelStyle}>
+                Draw your signature <span style={{ color: DANGER }}>*</span>
+              </label>
+              <SignaturePad
+                key={padKey}
+                onChange={(v) => { setSignature(v); if (v) setErrors((p) => ({ ...p, signature: null })); }}
+              />
+            </div>
+          )}
 
-           {signatureMethod === 'certificate' && (
-             <div className="space-y-1.5">
-               <label htmlFor="digitalCertificate" className={labelClass}>
-                 Digital Certificate
-                 <span className="ml-1.5 text-xs font-normal text-gray-400">(image or PDF, max 5 MB)</span>
-               </label>
-               <input
-                 type="file"
-                 id="digitalCertificate"
-                 name="digitalCertificate"
-                 accept="image/jpeg,image/png,.pdf"
-                 onChange={(e) => {
-                   const file = e.target.files?.[0] || null;
-                   const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
-                   if (file && !allowedTypes.includes(file.type)) {
-                     setCertificateFile(null);
-                     setCertError('Invalid file type. Only JPEG, PNG, and PDF are supported.');
-                   } else {
-                     setCertificateFile(file);
-                     setCertError('');
-                   }
-                 }}
-                 className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-               />
-                {certificateFile && (
-                  <p className="text-xs text-gray-600">
-                    Selected: {certificateFile.name} ({(certificateFile.size / 1024).toFixed(1)} KB)
+          {signatureMethod === 'certificate' && (
+            <div>
+              <label style={labelStyle}>
+                Digital Signature <span style={{ color: DANGER }}>*</span>
+                <span className="normal-case font-normal ml-1" style={{ color: GRAY_DISABLED }}>(image or PDF, max 5 MB)</span>
+              </label>
+              <input
+                ref={certInputRef}
+                type="file"
+                id="digitalCertificate"
+                name="digitalCertificate"
+                accept="image/jpeg,image/png,.pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+                  if (file && !allowedTypes.includes(file.type)) {
+                    setCertificateFile(null);
+                    setCertError('Invalid file type. Only JPEG, PNG, and PDF are supported.');
+                  } else {
+                    setCertificateFile(file);
+                    setCertError('');
+                    if (file) setErrors((p) => ({ ...p, signature: null }));
+                  }
+                  e.target.value = '';
+                }}
+              />
+
+              {!certificateFile ? (
+                <div
+                  onClick={() => certInputRef.current?.click()}
+                  className="cursor-pointer flex flex-col items-center justify-center gap-1.5 py-6 px-4 text-center transition-colors"
+                  style={{ border: '2px dashed #9CC7E4', backgroundColor: '#F7F9FB' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#E3F2FD'; e.currentTarget.style.borderColor = PRIMARY; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#F7F9FB'; e.currentTarget.style.borderColor = '#9CC7E4'; }}
+                >
+                  <FiUploadCloud className="w-7 h-7" style={{ color: PRIMARY }} />
+                  <p className="text-sm font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                    Click to upload your signature
                   </p>
-                )}
-                {certError && (
-                  <p className="text-xs text-red-500">{certError}</p>
-                )}
-             </div>
-           )}
+                  <p className="text-xs" style={{ color: GRAY_DISABLED }}>
+                    JPEG, PNG or PDF, max 5 MB
+                  </p>
+                </div>
+              ) : (
+                <div
+                  className="flex items-center gap-3 px-3 py-2.5"
+                  style={{ border: `1px solid ${BORDER}`, backgroundColor: '#F7F9FB' }}
+                >
+                  <div className="p-2 shrink-0 bg-white" style={{ border: `1px solid ${BORDER}` }}>
+                    <FiFileText className="w-4 h-4" style={{ color: PRIMARY }} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                      {certificateFile.name}
+                    </p>
+                    <p className="text-xs" style={{ color: GRAY_DISABLED }}>
+                      {(certificateFile.size / 1024).toFixed(1)} KB
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    title="Remove file"
+                    onClick={() => { setCertificateFile(null); setCertError(''); }}
+                    className="p-1.5 shrink-0 cursor-pointer transition-colors hover:bg-[#FDECEA]"
+                    style={{ color: DANGER }}
+                  >
+                    <FiX className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
 
-           {/* Submit */}
+              {certError && (
+                <p className="text-xs mt-1" style={{ color: DANGER }}>{certError}</p>
+              )}
+            </div>
+          )}
+
+          {errors.signature && (
+            <p className="text-xs" style={{ color: DANGER }}>{errors.signature}</p>
+          )}
+
+          {serverError && (
+            <div className="p-3 text-sm" style={{ backgroundColor: '#FDECEA', border: '1px solid #F5B7B1', color: DANGER, fontFamily: fontHeading }}>
+              {serverError}
+            </div>
+          )}
+
+          {/* Submit: turns green on success, reverts after 5 seconds */}
           <button
             type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 mt-2"
+            disabled={loading || success}
+            className="cok-btn-primary disabled:cursor-not-allowed"
+            style={{
+              transition: 'background-color 0.6s ease, transform 0.3s ease',
+              ...(success ? { backgroundColor: SUCCESS, opacity: 1 } : {}),
+              ...(loading ? { opacity: 0.6 } : {}),
+            }}
           >
-            {loading ? (
-              <>
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                </svg>
-                Submitting...
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Submit Attendance
-              </>
-            )}
+            {loading
+              ? 'Submitting...'
+              : success
+                ? 'Attendance Recorded'
+                : 'Submit Attendance'}
           </button>
-
-          <p className="text-center text-xs text-gray-400">
-            Fields marked with <span className="text-red-500">*</span> are required
-          </p>
         </form>
-
-        {/* Footer */}
-        <p className="text-center text-xs text-gray-400 mt-4">
-          City of Kigali Event Management System
-        </p>
       </div>
     </div>
   );

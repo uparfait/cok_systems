@@ -12,11 +12,13 @@ async function authenticate(req, res, next) {
   try {
     const auth_header = req.headers.authorization;
 
+
     if (!auth_header) {
       return res.status(401).json(warning_response(req, "AUTH_HEADER_REQUIRED", null, { goto_login: true }));
     }
 
     const token = jwt.extract_token(auth_header);
+
     if (!token) {
       return res.status(401).json(warning_response(req, "AUTH_TOKEN_MALFORMED", null, { goto_login: true }));
     }

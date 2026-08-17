@@ -8,18 +8,19 @@ export default function ContextMenu({ x, y, onAction }) {
 
   return (
     <div
-      style={{ left: `${x}px`, top: `${y}px` }}
-      className="fixed z-50 bg-white border border-[#c7c7c7] rounded shadow-xl py-1 min-w-[160px]"
+      style={{ left: `${x}px`, top: `${y}px`, border: '1px solid #E0E0E0', borderRadius: 0 }}
+      className="fixed z-50 bg-white shadow-xl py-1 min-w-[160px]"
       onClick={(e) => e.stopPropagation()}
     >
       {menuItems.map((item, index) => (
         <div key={item.action}>
           {item.divider && index > 0 && (
-            <div className="border-t border-[#d4d4d4] my-1"></div>
+            <div className="border-t my-1" style={{ borderColor: '#E0E0E0' }}></div>
           )}
           <button
             onClick={() => onAction(item.action)}
-            className="w-full text-left px-4 py-1.5 text-[13px] hover:bg-[#e6f0fb] text-slate-800"
+            className="w-full text-left px-4 py-1.5 text-[13px] cursor-pointer hover:bg-[#E3F2FD]"
+            style={{ color: '#333333' }}
           >
             {item.label}
           </button>
