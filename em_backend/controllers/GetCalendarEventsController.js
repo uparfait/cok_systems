@@ -2,6 +2,7 @@ const LiveEvent = require('../models/LiveEvent');
 const UpcomingEvent = require('../models/UpcomingEvent');
 const RecurringEvent = require('../models/RecurringEvent');
 const PastEvent = require('../models/PastEvent');
+const InvitedPeople = require('../models/InvitedPeople');
 const recurrenceHelper = require('../utilities/recurrenceHelper');
 
 function transformEvent(event, status, startTime, endTime, isCancelled = false) {
@@ -208,6 +209,32 @@ class GetCalendarEventsController {
       }
 
       events.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+
+      // Optional: annotate whether the given email is invited to each event.
+      // Generated recurring instances (id = "<parent>_<ts>") also match invites
+      // stored under the parent series id.
+      const { email } = req.query;
+      if (email && String(email).trim()) {
+        const normalized = String(email).trim().toLowerCase();
+        const candidates = new Set();
+        for (const e of events) {
+          const id = String(e.eventSpecialId || '');
+          if (!id) continue;
+          candidates.add(id);
+          const parent = id.split('_')[0];
+          if (parent) candidates.add(parent);
+        }
+        const invites = await InvitedPeople.find({
+          email: normalized,
+          cancelled: { $ne: true },
+          eventSpecialId: { $in: [...candidates] },
+        }).lean();
+        const invitedIds = new Set(invites.map(i => i.eventSpecialId));
+        for (const e of events) {
+          const id = String(e.eventSpecialId || '');
+          e.isInvited = invitedIds.has(id) || invitedIds.has(id.split('_')[0]);
+        }
+      }
 
       return res.status(200).json({
         success: true,

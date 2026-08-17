@@ -139,12 +139,13 @@ const redirectToLogin = () => {
   clearAuthData();
   // Use custom event for smoother navigation (components can listen and use React Router)
   window.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: 'unauthorized' } }));
-  // Fallback to direct redirect after short delay (for when no component is listening)
+  // Fallback to a direct redirect ONLY when no listener already navigated home
+  // (a listener's client-side navigate lands on "/" before this timer fires).
   setTimeout(() => {
-   
+    if (window.location.pathname !== '/') {
       window.location.href = '/';
-    
-  }, 100);
+    }
+  }, 300);
 };
 
 // Request interceptor - Add auth token to every request

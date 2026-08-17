@@ -366,10 +366,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setPermissions([]);
       setToken(null);
       setIsLoading(false);
+      // No hard navigation here: MainLayout / ProtectedRoute react to the
+      // cleared auth state and client-side navigate to "/" without a refresh.
       window.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: 'manual_logout' } }));
-      setTimeout(() => {
-          window.location.href = '/';
-      }, 100);
     }
   };
 

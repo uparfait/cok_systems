@@ -75,17 +75,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, customNavItems }) => 
     const handleAuthLogout = (event: Event) => {
       const customEvent = event as CustomEvent;
       console.log('[MainLayout] Auth logout event:', customEvent.detail);
-      navigate('/login', { replace: true });
+      navigate('/', { replace: true });
     };
     
     window.addEventListener('auth:logout', handleAuthLogout);
     return () => window.removeEventListener('auth:logout', handleAuthLogout);
   }, [navigate]);
 
-  // Redirect to login if not authenticated
+  // Redirect to home if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      navigate('/login');
+      navigate('/', { replace: true });
     }
   }, [isAuthenticated, authLoading, navigate]);
 

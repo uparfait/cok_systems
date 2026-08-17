@@ -64,11 +64,11 @@ const Header: React.FC<HeaderProps> = ({
     setShowLogoutOverlay(true);
     try {
       await logout();
+      // No hard redirect: clearing the auth state makes MainLayout/ProtectedRoute
+      // client-side navigate to "/" without refreshing the page.
     } catch (error) {
       console.error("Logout error:", error);
       setShowLogoutOverlay(false);
-    } finally {
-      window.location.href = "/";
     }
   };
 

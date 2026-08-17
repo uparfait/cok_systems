@@ -112,6 +112,7 @@ import InvitePage from "./systems/event-managment/pages/index/InvitePage.jsx";
 import DesignateMinutes from "./systems/event-managment/pages/index/DesignateMinutes.jsx";
 
 import DashboardLayout from "./systems/event-managment/pages/dashboard/DashboardLayout.jsx";
+import CalendarPage from "./systems/event-managment/pages/CalendarPage.jsx";
 import DashboardPage from "./systems/event-managment/pages/dashboard/DashboardPage.jsx";
 import CreateRoomForm from "./systems/event-managment/components/CreateRoomForm.jsx";
 import RoomStatistics from "./systems/event-managment/components/RoomStatistics.jsx";
@@ -580,6 +581,18 @@ const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <FeedbackPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Shared events calendar — available to every authenticated role */}
+                <Route
+                  path="/calender"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <CalendarPage />
+                      </MainLayout>
                     </ProtectedRoute>
                   }
                 />
