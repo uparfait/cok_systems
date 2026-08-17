@@ -99,6 +99,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   // RECEPTIONIST INTERCEPTOR
   if (userRole.includes('receptionist')) {
     return [
+      { id: 'calender', label: 'Calender', path: `/calender`, icon: 'FiCalendar' },
       { id: 'dashboard', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiHome' },
       { id: 'visitors', label: 'Visitors', path: `/${slug}/visitors`, icon: 'FiUsers' },
       { id: 'assigned-visitors', label: 'Assigned Visitors', path: `/${slug}/assigned`, icon: 'FiUserCheck' },
@@ -120,6 +121,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   // EMPLOYEE INTERCEPTOR
   if (userRole.includes('employee') || userRole.includes('staff')) {
     return [
+      { id: 'calender', label: 'Calender', path: `/calender`, icon: 'FiCalendar' },
       { id: 'dashboard', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiGrid' },
       { id: 'visitors', label: 'Visitors', path: `/${slug}/all-visitors`, icon: 'FiUsers' },
       {
@@ -141,6 +143,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   // EVENT MANAGER INTERCEPTOR
   if (userRole.includes('event manager') || userRole.includes('event-manager')) {
     return [
+      { id: 'calender', label: 'Calender', path: `/calender`, icon: 'FiCalendar' },
       { id: 'dashboard', label: 'Dashboard', path: `/${slug}`, icon: 'FiBarChart2' },
       {
         id: 'task-manager',
@@ -197,6 +200,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   if (userRole.includes('department manager') || userRole.includes('department head') ||
       userRole.includes('head of department') || userRole.includes('director')) {
     return [
+      { id: 'calender', label: 'Calender', path: `/calender`, icon: 'FiCalendar' },
       { id: 'dashboard', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiGrid' },
       { id: 'requests', label: 'Requests', path: `/${slug}/requests`, icon: 'FiFile' },
       { id: 'employees', label: 'My Employees', path: `/${slug}/hod/employees`, icon: 'FiUsers' },
@@ -223,6 +227,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   // GATE AND VEHICLE REGISTRAR INTERCEPTOR
   if (userRole.includes('gate') && userRole.includes('vehicle')) {
     return [
+      { id: 'calender', label: 'Calender', path: `/calender`, icon: 'FiCalendar' },
       { id: 'overview', label: 'Overview', path: `/${slug}/dashboard`, icon: 'FiHome' },
       {
         id: 'checkin',
@@ -251,6 +256,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
   // Generic manager/head
   if ((userRole.includes('manager') || userRole.includes('head')) && !userRole.includes('receptionist')) {
     return [
+      { id: 'calender', label: 'Calender', path: `/calender`, icon: 'FiCalendar' },
       { id: 'dashboard', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiGrid' },
       { id: 'status', label: 'Service Status', path: `/${slug}/dashboard?tab=status`, icon: 'FiClock' },
       { id: 'employees', label: 'Employee Management', path: `/${slug}/dashboard?tab=employees`, icon: 'FiUsers' },
@@ -277,6 +283,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     // only show all dashboards from admin and overview page without any children links with analytics and feedback links
 
     return [
+      { id: 'calender', label: 'Calender', path: `/calender`, icon: 'FiCalendar' },
       { id: 'mayor-dashboadr', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiHome' },
       { id: 'mayor-events', label: 'Events', path: `/${slug}/events`, icon: 'FiCalendar' },
       { id: 'mayor-actions', label: 'Actions', path: `/${slug}/actions`, icon: 'FiCheck' },
@@ -381,6 +388,9 @@ const hasAdminAccess = hasPermission(user, 'admin') || hasPermission(user, 'depa
   }
 
   navigation.push({ id: 'dcs', label: 'DCS', path: `/dcs-system`, icon: 'FiDatabase' });
+
+  // Calender is always the first link, for every role
+  navigation.unshift({ id: 'calender', label: 'Calender', path: `/calender`, icon: 'FiCalendar' });
 
   console.log('[Layout] Generated dynamic navigation for role:', userRole, 'Items:', navigation.length);
   return navigation;
@@ -502,23 +512,9 @@ export const getCurrentSystemFromPath = (pathname: string): string => {
 // Get dashboard route based on user's role — returns role-slug based paths
 export const getDashboardRoute = (role: string | undefined, _departmentName?: string): string => {
   console.log('[getDashboardRoute] Determining route for role:', role);
-  if (!role) return '/under-development';
-
-  const normalizedRole = role.toLowerCase().trim();
-  const slug = getRoleSlug(role);
- 
-  if (normalizedRole.includes('receptionist')) return `/${slug}/dashboard`;
-  if(normalizedRole.includes("event-manager")) return `/event-manager`;
-  if (normalizedRole.includes('department manager') || normalizedRole.includes('department head') ||
-      normalizedRole.includes('head of department') || normalizedRole.includes('director')) return `/${slug}/dashboard`;
-  if ((normalizedRole.includes('manager') || normalizedRole.includes('head')) && !normalizedRole.includes('receptionist')) return `/${slug}/dashboard`;
-  if (normalizedRole.includes('gate') && normalizedRole.includes('vehicle')) return `/${slug}/dashboard`;
-  if (normalizedRole.includes('employee') || normalizedRole.includes('staff')) return `/${slug}/dashboard`;
-  if (normalizedRole.includes('officer') || normalizedRole.includes('clerk')) return `/${slug}/dashboard`;
-  if (normalizedRole.includes('admin') || normalizedRole.includes('system')) return `/${slug}/dashboard`;
-  if (normalizedRole.includes('parking') || normalizedRole.includes('service') || normalizedRole.includes('hr')) return `/${slug}/dashboard`;
-
-  return `/${slug}/dashboard`;
+  // Every authenticated user lands on the shared events calendar,
+  // regardless of role. Role dashboards remain reachable from the sidebar.
+  return '/calender';
 };
 
 export const getUserDepartment = (user: any): string => {
