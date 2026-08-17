@@ -37,7 +37,7 @@ export default function NewFormPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto pb-16">
+    <div className="w-full min-[760px]:w-[80vw] mx-auto pb-16">
       <h2 className="mb-4" style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: 18, color: "#333333" }}>
         {translate("DCS_SECTION_DC_FORM")}
       </h2>

@@ -20,7 +20,6 @@ export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettin
   const handle_add_component = (field_type) => {
     const new_field = create_blank_field(field_type);
     onFieldsChange(insert_field_at(fields, fields.length - 1, new_field));
-    onOpenSettings(new_field);
   };
 
   const handle_delete_field = (field_id) => {
@@ -45,7 +44,7 @@ export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettin
   );
 
   return (
-    <div className="space-y-3 w-full">
+    <div className="space-y-3 w-full" style={{ userSelect: "none" }}>
       {fields.length === 0 && <DcsEmptyState messageKey="DCS_EMPTY_FORM_CANVAS" />}
 
       <DndContext collisionDetection={closestCenter} onDragEnd={handle_drag_end}>
@@ -55,7 +54,8 @@ export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettin
               key={field.id}
               field={field}
               language={language}
-              onOpenSettings={() => onOpenSettings(field)}
+              onOpenSettings={(rect) => onOpenSettings(field, rect)}
+              onOpenChildSettings={onOpenSettings}
               onDelete={() => handle_delete_field(field.id)}
               onFieldChange={handle_field_inline_change}
               renderChildField={render_child_field}

@@ -17,11 +17,15 @@ import AudioField from "../fields/AudioField.jsx";
 import FileUploadField from "../fields/FileUploadField.jsx";
 import SignatureField from "../fields/SignatureField.jsx";
 import GroupField from "../fields/GroupField.jsx";
+import SectionField from "../fields/SectionField.jsx";
 import HiddenField from "../fields/HiddenField.jsx";
 import CascadingSelectField from "../fields/CascadingSelectField.jsx";
 import ParagraphBlock from "../fields/structural/ParagraphBlock.jsx";
 import HeaderBlock from "../fields/structural/HeaderBlock.jsx";
 import FileBlock from "../fields/structural/FileBlock.jsx";
+import ImageBlock from "../fields/structural/ImageBlock.jsx";
+import HorizontalLineBlock from "../fields/structural/HorizontalLineBlock.jsx";
+import ShapeBlock from "../fields/structural/ShapeBlock.jsx";
 
 /**
  * The single mapping from a field type id to the component that renders
@@ -47,9 +51,13 @@ export const DCS_FIELD_RENDERER_MAP = {
   file_upload: FileUploadField,
   signature: SignatureField,
   group: GroupField,
+  section: SectionField,
   hidden: HiddenField,
   cascading_select: CascadingSelectField,
   paragraph: ParagraphBlock,
   header: HeaderBlock,
   file: FileBlock,
+  image_block: ImageBlock,
+  horizontal_line: HorizontalLineBlock,
+  shape: ShapeBlock,
 };

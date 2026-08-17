@@ -11,7 +11,7 @@ export default function BaseTextLikeField({ field, language, mode, value, onChan
   const label = get_field_text(field.label, language);
   const placeholder = get_field_text(field.placeholder, language);
   const help_text = get_field_text(field.help_text, language);
-  const valid_message = ruleValidMessage || get_field_text(field.valid_message, language);
+  const valid_message = ruleValidMessage || (field.mandatory && get_field_text(field.valid_message, language));
 
   return (
     <div className="w-full">

@@ -11,18 +11,21 @@ import DcsFilePreview from "../../components/DcsFilePreview.jsx";
  * the accepted mime types, a size guard, and a lightweight preview of what
  * was chosen.
  */
-export default function BaseMediaField({ field, language, mode, value, onChange, error, accept, capture, previewKind }) {
+export default function BaseMediaField({ field, language, mode, value, onChange, error, accept, capture, previewKind, ruleValidMessage }) {
   const is_builder = mode === "builder";
   const { translate } = useDcsLanguage();
   const label = get_field_text(field.label, language);
   const help_text = get_field_text(field.help_text, language);
+  const valid_message = ruleValidMessage || (field.mandatory && get_field_text(field.valid_message, language));
   const input_ref = useRef(null);
   const [is_drag_over, setIsDragOver] = useState(false);
 
   const apply_selected_file = async (file) => {
     if (!file || !onChange) return;
-    const max_bytes = (field.max_size_mb || 25) * 1024 * 1024;
-    if (file.size > max_bytes) return;
+    if (field.max_size_mb) {
+      const max_bytes = field.max_size_mb * 1024 * 1024;
+      if (file.size > max_bytes) return;
+    }
     const read_result = await read_file_as_data_url(file);
     onChange(read_result);
   };
@@ -84,6 +87,11 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
       {error && (
         <p className="mt-1 text-xs" style={{ color: "#E74C3C", fontFamily: "'Montserrat', sans-serif", whiteSpace: "pre-line" }}>
           {error}
+        </p>
+      )}
+      {!error && value && valid_message && (
+        <p className="mt-1 text-xs" style={{ color: "#4CAF50", fontFamily: "'Montserrat', sans-serif" }}>
+          {valid_message}
         </p>
       )}
     </div>

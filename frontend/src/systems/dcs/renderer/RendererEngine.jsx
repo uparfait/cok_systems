@@ -3,6 +3,7 @@ import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { dcs_supported_languages, dcs_default_language } from "../i18n/index.js";
 import { DCS_FIELD_RENDERER_MAP } from "./fieldRendererMap.js";
 import { evaluate_field_visibility } from "./formEngine.js";
+import { build_design_styles } from "./designStyles.js";
 
 const LANGUAGE_LABEL_KEYS = { en: "DCS_LANGUAGE_EN", kn: "DCS_LANGUAGE_KN", fr: "DCS_LANGUAGE_FR" };
 
@@ -10,8 +11,8 @@ const LANGUAGE_LABEL_KEYS = { en: "DCS_LANGUAGE_EN", kn: "DCS_LANGUAGE_KN", fr: 
  * Universal, schema-driven form renderer. Reads the JSON schema field by
  * field, maps each type to its component, applies visibility conditions,
  * and recurses into groups - it never hardcodes knowledge of any specific
- * form. Width always fills its container up to 500px, height follows its
- * own content.
+ * form. Width always fills its container up to 650px and down to 100% on
+ * any smaller device; text wraps normally rather than being scaled.
  */
 export default function RendererEngine({ schema, mode, values, onValueChange, fieldErrors, fieldValidMessages, onFieldChange, wrapField }) {
   const render_mode = mode || "renderer";
@@ -48,11 +49,22 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
       />
     );
 
-    return wrapField ? wrapField(element, field) : element;
+    const { outer_style, inner_style } = build_design_styles(field);
+    const designed_element = outer_style ? (
+      <div key={field.id} style={outer_style}>
+        <div style={inner_style}>{element}</div>
+      </div>
+    ) : (
+      <div key={field.id} style={inner_style}>
+        {element}
+      </div>
+    );
+
+    return wrapField ? wrapField(designed_element, field) : designed_element;
   };
 
   return (
-    <div className="w-full mx-auto" style={{ maxWidth: 500 }}>
+    <div className="w-full mx-auto" style={{ maxWidth: 650 }}>
       <div className="flex items-center justify-end mb-3">
         <select
           aria-label={translate("DCS_RENDERER_LANGUAGE_LABEL")}

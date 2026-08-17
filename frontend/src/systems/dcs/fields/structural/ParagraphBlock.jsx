@@ -1,82 +1,54 @@
 import React from "react";
-import DOMPurify from "dompurify";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
 import { get_field_text } from "../fieldText.js";
-import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
+
+const ALLOWED_LIST_TYPES = ["disc", "circle", "square", "decimal", "lower-roman", "upper-roman", "none"];
+const ORDERED_LIST_TYPES = ["decimal", "lower-roman", "upper-roman"];
 
 /**
- * A block of descriptive text with word-processor style formatting: bold,
- * italics and lists while authoring, rendered as sanitized read-only HTML
- * everywhere else.
+ * A plain block of descriptive text - authored as an ordinary multi-line
+ * text area (so Enter always just breaks the line, no rich-text editor
+ * involved) and, when a list style is chosen in the Designs tab, rendered
+ * with each non-empty line as its own list item.
  */
 export default function ParagraphBlock({ field, language, mode, onFieldChange }) {
   const is_builder = mode === "builder";
-  const { translate } = useDcsLanguage();
-  const content_html = get_field_text(field.content, language);
-
-  const editor = useEditor(
-    {
-      extensions: [StarterKit],
-      content: content_html,
-      editable: is_builder,
-      onUpdate: ({ editor: editor_instance }) => {
-        if (!onFieldChange) return;
-        const next_content = Object.assign({}, field.content, { [language]: editor_instance.getHTML() });
-        onFieldChange(Object.assign({}, field, { content: next_content }));
-      },
-    },
-    [language],
-  );
+  const content_text = get_field_text(field.content, language);
+  const design = field.design || {};
+  const fills_container = !!field.section_layout;
 
   if (!is_builder) {
+    const text_style = { color: design.text_color || "#555555", fontFamily: design.font_family || undefined };
+
+    if (ALLOWED_LIST_TYPES.includes(design.list_type) && design.list_type !== "none") {
+      const lines = content_text.split("\n").filter((line) => line.trim().length > 0);
+      const ListTag = ORDERED_LIST_TYPES.includes(design.list_type) ? "ol" : "ul";
+      return (
+        <ListTag className="text-sm pl-6" style={Object.assign({ listStyleType: design.list_type }, text_style)}>
+          {lines.map((line, index) => (
+            <li key={index}>{line}</li>
+          ))}
+        </ListTag>
+      );
+    }
+
     return (
-      <div
-        className="text-sm"
-        style={{ color: "#555555" }}
-        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content_html) }}
-      />
+      <div className="text-sm" style={Object.assign({ whiteSpace: "pre-wrap" }, text_style)}>
+        {content_text}
+      </div>
     );
   }
 
-  const toolbar_button = (is_active, on_click, label, title_key) => (
-    <button
-      type="button"
-      onClick={on_click}
-      title={translate(title_key)}
-      className="px-3 py-1.5 text-sm"
-      style={{
-        color: is_active ? "#FFFFFF" : "#333333",
-        backgroundColor: is_active ? "#056daa" : "#F7F9FB",
-        border: "1px solid #E0E0E0",
-        fontWeight: 600,
-      }}
-    >
-      {label}
-    </button>
-  );
-
   return (
-    <div className="w-full border" style={{ borderColor: "#E0E0E0" }}>
-      {editor && (
-        <div className="flex flex-wrap gap-1 p-2 border-b" style={{ borderColor: "#E0E0E0", backgroundColor: "#F7F9FB" }}>
-          {toolbar_button(editor.isActive("bold"), () => editor.chain().focus().toggleBold().run(), "B", "DCS_PARAGRAPH_BOLD")}
-          {toolbar_button(editor.isActive("italic"), () => editor.chain().focus().toggleItalic().run(), "I", "DCS_PARAGRAPH_ITALIC")}
-          {toolbar_button(
-            editor.isActive("bulletList"),
-            () => editor.chain().focus().toggleBulletList().run(),
-            "• List",
-            "DCS_PARAGRAPH_BULLET_LIST",
-          )}
-          {toolbar_button(
-            editor.isActive("orderedList"),
-            () => editor.chain().focus().toggleOrderedList().run(),
-            "1. List",
-            "DCS_PARAGRAPH_ORDERED_LIST",
-          )}
-        </div>
-      )}
-      <EditorContent editor={editor} className="prose max-w-none text-sm p-3" />
-    </div>
+    <textarea
+      className="cok-auth-input w-full py-2"
+      style={fills_container ? { height: "100%", resize: "none" } : { resize: "none" }}
+      rows={fills_container ? undefined : 4}
+      value={content_text}
+      onChange={(event) => {
+        if (!onFieldChange) return;
+        const next_content = Object.assign({}, field.content, { [language]: event.target.value });
+        onFieldChange(Object.assign({}, field, { content: next_content }));
+      }}
+    />
   );
 }

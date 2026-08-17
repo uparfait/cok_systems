@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { DcsLanguageProvider } from "../i18n/LanguageContext.jsx";
 import DcsHeader from "./DcsHeader.jsx";
@@ -11,6 +11,16 @@ import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
  * its own outlet for every nested page.
  */
 export default function DcsShell() {
+  useEffect(() => {
+    const prevent_default = (event) => event.preventDefault();
+    window.addEventListener("dragover", prevent_default);
+    window.addEventListener("drop", prevent_default);
+    return () => {
+      window.removeEventListener("dragover", prevent_default);
+      window.removeEventListener("drop", prevent_default);
+    };
+  }, []);
+
   return (
     <DcsErrorBoundary>
       <DcsLanguageProvider>

@@ -32,6 +32,21 @@ const FIELD_ICON_PATHS = {
       <path d="M14 3v4h4" />
     </>
   ),
+  image_block: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="0" />
+      <circle cx="9" cy="10" r="2" />
+      <path d="M3 17l5-5 4 4 3-3 5 5" />
+    </>
+  ),
+  horizontal_line: <line x1="3" y1="12" x2="21" y2="12" strokeWidth="3" />,
+  shape: (
+    <>
+      <rect x="3" y="3" width="8" height="8" rx="0" />
+      <circle cx="17" cy="7" r="4" />
+      <path d="M12 21l4-8 4 8z" />
+    </>
+  ),
   text: (
     <>
       <line x1="4" y1="7" x2="20" y2="7" />
@@ -162,6 +177,13 @@ const FIELD_ICON_PATHS = {
       <rect x="13" y="3" width="8" height="8" rx="0" />
       <rect x="3" y="13" width="8" height="8" rx="0" />
       <rect x="13" y="13" width="8" height="8" rx="0" />
+    </>
+  ),
+  section: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="0" strokeDasharray="3 2" />
+      <rect x="6" y="8" width="5" height="8" rx="0" />
+      <rect x="13" y="8" width="5" height="4" rx="0" />
     </>
   ),
   hidden: (

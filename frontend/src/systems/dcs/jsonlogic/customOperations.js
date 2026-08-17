@@ -40,11 +40,17 @@ function date_diff_days(date_a, date_b) {
 }
 
 /**
- * True when value is present in the given array.
+ * True when value is present in the given array (loose equality), or -
+ * when the haystack is a plain string rather than an array, as it is for
+ * every text-like field - true when it appears as a substring. Without
+ * the string branch this always returned false for text fields, which
+ * made every "must not contain" rule built on its negation (not_in_array)
+ * vacuously true.
  */
 function in_array(value, array) {
-  if (!Array.isArray(array)) return false;
-  return array.some((item) => item == value);
+  if (Array.isArray(array)) return array.some((item) => item == value);
+  if (array === null || array === undefined) return false;
+  return String(array).indexOf(String(value)) !== -1;
 }
 
 /**
@@ -85,14 +91,74 @@ function max_length(value, maximum) {
   return actual <= Number(maximum);
 }
 
+/**
+ * True when value is absent from the given array - the negation of
+ * in_array, used for "must not contain one of these" rules.
+ */
+function not_in_array(value, array) {
+  return !in_array(value, array);
+}
+
+/**
+ * Lower-cased, trimmed comma-separated list, used by every domain-matching
+ * operation below.
+ */
+function parse_csv_list(csv) {
+  return String(csv ?? "")
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+/**
+ * The domain portion of an email address, or an empty string when it has
+ * no "@" at all.
+ */
+function get_email_domain(email) {
+  const parts = String(email ?? "").split("@");
+  return parts.length === 2 ? parts[1].toLowerCase() : "";
+}
+
+/**
+ * The hostname of a URL, or an empty string when it cannot be parsed.
+ */
+function get_url_domain(url) {
+  try {
+    return new URL(String(url ?? "")).hostname.toLowerCase();
+  } catch (error) {
+    return "";
+  }
+}
+
+function email_domain_in(email, domains_csv) {
+  return parse_csv_list(domains_csv).includes(get_email_domain(email));
+}
+
+function email_domain_not_in(email, domains_csv) {
+  return !email_domain_in(email, domains_csv);
+}
+
+function url_domain_in(url, domains_csv) {
+  return parse_csv_list(domains_csv).includes(get_url_domain(url));
+}
+
+function url_domain_not_in(url, domains_csv) {
+  return !url_domain_in(url, domains_csv);
+}
+
 export const dcs_custom_operations = {
   ends_with,
   starts_with,
   regex_match,
   date_diff_days,
   in_array,
+  not_in_array,
   gps_accuracy_ok,
   length_is,
   min_length,
   max_length,
+  email_domain_in,
+  email_domain_not_in,
+  url_domain_in,
+  url_domain_not_in,
 };

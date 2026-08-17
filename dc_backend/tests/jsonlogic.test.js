@@ -35,13 +35,21 @@ function test_custom_operations() {
  * Confirms oversized or malformed rules never reach evaluation.
  */
 function test_rule_structure_guard() {
+  // Rule size and nesting depth are generous (large real-world forms with
+  // hundreds of rules must never hit these), but still bounded - so a
+  // pathological payload still gets rejected rather than crashing the
+  // evaluator. These fixtures exceed the configured ceilings on purpose.
   const huge_rule = { and: [] };
-  for (let i = 0; i < 5000; i++) huge_rule.and.push({ "==": [1, 1] });
+  for (let i = 0; i < 20000; i++) huge_rule.and.push({ "==": [1, 1] });
   assert.strictEqual(is_valid_rule_structure(huge_rule).valid, false);
 
   let deeply_nested = { var: "x" };
-  for (let i = 0; i < 30; i++) deeply_nested = { "!": deeply_nested };
+  for (let i = 0; i < 80; i++) deeply_nested = { "!": deeply_nested };
   assert.strictEqual(is_valid_rule_structure(deeply_nested).valid, false);
+
+  let reasonable_rule = { var: "x" };
+  for (let i = 0; i < 10; i++) reasonable_rule = { "!": reasonable_rule };
+  assert.strictEqual(is_valid_rule_structure(reasonable_rule).valid, true);
 }
 
 /**
