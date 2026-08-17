@@ -51,9 +51,31 @@ async function delete_by_form_group_ids(form_group_ids) {
   return result.deletedCount;
 }
 
+/**
+ * Number of submissions collected against one specific form version - used
+ * to warn an author how much data a version delete would also remove.
+ */
+async function count_submissions_for_version(form_group_id, version) {
+  return get_db().collection(COLLECTION_NAME).countDocuments({ form_group_id, version: Number(version) });
+}
+
+/**
+ * Permanently removes every submission collected against one specific form
+ * version - only ever called as part of deleting that version itself, and
+ * only when the author explicitly opted to also delete its data.
+ */
+async function delete_by_form_group_and_version(form_group_id, version) {
+  const result = await get_db()
+    .collection(COLLECTION_NAME)
+    .deleteMany({ form_group_id, version: Number(version) });
+  return result.deletedCount;
+}
+
 module.exports = {
   create_submission,
   find_by_client_submission_id,
   list_submissions,
   delete_by_form_group_ids,
+  count_submissions_for_version,
+  delete_by_form_group_and_version,
 };

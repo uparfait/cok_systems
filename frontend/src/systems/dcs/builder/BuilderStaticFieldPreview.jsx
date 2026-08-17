@@ -1,6 +1,7 @@
 import React from "react";
 import { DCS_FIELD_RENDERER_MAP } from "../renderer/fieldRendererMap.js";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
+import { build_design_styles } from "../renderer/designStyles.js";
 
 /**
  * Renders a field that lives inside a group (not individually draggable at
@@ -12,18 +13,28 @@ export default function BuilderStaticFieldPreview({ field, language, onOpenSetti
   const FieldComponent = DCS_FIELD_RENDERER_MAP[field.type];
   if (!FieldComponent) return null;
 
+  const field_preview = (
+    <FieldComponent
+      field={field}
+      language={language}
+      mode="builder"
+      renderChildField={(child_field) => (
+        <BuilderStaticFieldPreview field={child_field} language={language} onOpenSettings={onOpenSettings} />
+      )}
+    />
+  );
+  const { outer_style, inner_style } = build_design_styles(field);
+  const designed_field_preview = outer_style ? (
+    <div style={outer_style}>
+      <div style={inner_style}>{field_preview}</div>
+    </div>
+  ) : (
+    <div style={inner_style}>{field_preview}</div>
+  );
+
   return (
     <div className="border p-2 flex gap-2" style={{ borderColor: "#E0E0E0" }}>
-      <div className="flex-1 min-w-0">
-        <FieldComponent
-          field={field}
-          language={language}
-          mode="builder"
-          renderChildField={(child_field) => (
-            <BuilderStaticFieldPreview field={child_field} language={language} onOpenSettings={onOpenSettings} />
-          )}
-        />
-      </div>
+      <div className="flex-1 min-w-0">{designed_field_preview}</div>
       <button
         type="button"
         onClick={(event) => onOpenSettings(field, event.currentTarget.getBoundingClientRect())}

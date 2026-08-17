@@ -156,6 +156,7 @@ const en = {
 
   DCS_BTN_UPLOAD_IMAGE: "Upload image",
   DCS_DESIGN_POSITION_HINT: "Hover this component in the canvas to drag or resize it",
+  DCS_DESIGN_SPACING_BELOW: "Space below (px)",
   DCS_DESIGN_FULL_DEVICE_WIDTH: "Stretch to full device width",
   DCS_DESIGN_HEADING_TYPE: "Heading type",
   DCS_DESIGN_HEADING_LEVEL: "Heading {{level}} (H{{level}})",
@@ -248,7 +249,6 @@ const en = {
   DCS_DROP_FILE_HINT: "or drag and drop it here",
   DCS_RENDERER_RANKING_INSTRUCTION: "Drag to reorder from most to least preferred",
 
-  DCS_REVIEW_TITLE: "Form preview",
   DCS_TOAST_FORM_PUBLISHED: "Form published successfully",
 
   DCS_SECTION_ACCESS_CONTROL: "Access control",
@@ -270,6 +270,11 @@ const en = {
   DCS_FORM_VERSIONS_TITLE: "Form versions",
   DCS_FORM_VERSION_LABEL: "Version {{version}}",
   DCS_FORM_ACTIVE_BADGE: "Active",
+  DCS_TOAST_VERSION_DELETED: "Form version deleted",
+  DCS_DELETE_VERSION_TITLE: "Delete version {{version}}?",
+  DCS_DELETE_VERSION_MESSAGE: "This permanently deletes this form version. This cannot be undone.",
+  DCS_DELETE_VERSION_DATA_CHECKING: "Checking collected data...",
+  DCS_DELETE_VERSION_DATA_CHECKBOX: "Also delete its {{count}} collected submission(s)",
   DCS_FORM_PUBLIC_LINK_LABEL: "Public collection link",
   DCS_FORM_COPY_LINK: "Copy link",
   DCS_TOAST_LINK_COPIED: "Link copied to clipboard",

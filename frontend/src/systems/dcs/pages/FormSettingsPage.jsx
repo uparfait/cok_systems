@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
@@ -8,8 +8,10 @@ import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsFormNameField from "../components/DcsFormNameField.jsx";
 
 /**
- * Editing a form never overwrites it - publishing here always creates the
- * next immutable version (v1, v2, v3, ...).
+ * Editing a form always starts from its currently active version - a
+ * change only mints a brand new, immutable version when a data-collection
+ * field was added or removed; any other edit (condition, design, content
+ * component, label) updates that same active version in place.
  */
 export default function FormSettingsPage() {
   const { form_group_id, form, refreshForm } = useOutletContext();
@@ -18,6 +20,21 @@ export default function FormSettingsPage() {
   const [fields, setFields] = useState(form.schema.fields);
   const [form_name, setFormName] = useState(form.form_name || "");
   const [publishing, setPublishing] = useState(false);
+  const loaded_form_id_ref = useRef(form._id);
+
+  // The shell's own `form` can change underneath this page - after
+  // clicking the Settings tab forces a fresh reload, or after a different
+  // version was activated elsewhere - and must actually be picked up, not
+  // just used once at first mount. Only resyncs when the loaded document
+  // itself changed (a different _id), never on every background poll of
+  // the same still-active version, so it never stomps on an edit in
+  // progress.
+  useEffect(() => {
+    if (form._id === loaded_form_id_ref.current) return;
+    loaded_form_id_ref.current = form._id;
+    setFields(form.schema.fields);
+    setFormName(form.form_name || "");
+  }, [form]);
 
   const public_link = `${window.location.origin}/dcs-form/${form_group_id}`;
 
@@ -29,8 +46,8 @@ export default function FormSettingsPage() {
   const handle_publish = async (schema) => {
     setPublishing(true);
     try {
-      await update_form(form_group_id, form_name, schema);
-      showSuccess(translate("DCS_TOAST_FORM_PUBLISHED"));
+      const response = await update_form(form_group_id, form_name, schema);
+      showSuccess(response.message || translate("DCS_TOAST_FORM_PUBLISHED"));
       refreshForm();
       return true;
     } catch (error) {

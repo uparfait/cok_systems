@@ -10,13 +10,17 @@ import DcsButtonOutlineReverse from "../components/DcsButtonOutlineReverse.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 /**
- * Full-width overlay that lets a form author test the exact same page a
- * respondent will see - same background, same card, same submit control,
- * same error/success messaging (DcsSubmitControl, shared verbatim with
- * PublicFormPage) - so every validation rule can be verified end to end
- * before publishing. Submitting here only ever runs the validation: it
- * never calls the backend and never saves anything, it is a rehearsal.
- * Publishing the schema itself is a separate action in the footer.
+ * Lets a form author test the exact page a respondent will see - same
+ * background, same card, same submit control, same error/success
+ * messaging (DcsSubmitControl, shared verbatim with PublicFormPage) - so
+ * every validation rule can be verified end to end before publishing.
+ * Deliberately carries no branded header bar or separate footer chrome:
+ * anything that made this screen look like a distinct "tool" instead of
+ * the public form itself defeats the point of a rehearsal. Close and
+ * Publish are the only additions, kept as minimal, unobtrusive controls
+ * layered on top of - never a different design around - the same page.
+ * Submitting here only ever runs the validation: it never calls the
+ * backend and never saves anything, it is a rehearsal.
  */
 export default function ReviewOverlay({ schema, onClose, onPublish, publishing }) {
   const { translate, language } = useDcsLanguage();
@@ -26,6 +30,7 @@ export default function ReviewOverlay({ schema, onClose, onPublish, publishing }
   const [field_valid_messages, setFieldValidMessages] = useState({});
   const [test_submitting, setTestSubmitting] = useState(false);
   const [submit_state, setSubmitState] = useState("idle");
+  const [reveal_all_errors, setRevealAllErrors] = useState(false);
 
   const handle_value_change = (field_id, value) => {
     setSubmitState("idle");
@@ -52,6 +57,7 @@ export default function ReviewOverlay({ schema, onClose, onPublish, publishing }
         setSubmitState("success");
         showSuccess(translate("DCS_PUBLIC_DATA_RECORDED"));
       } else {
+        setRevealAllErrors(true);
         setSubmitState("error");
       }
     } finally {
@@ -60,44 +66,40 @@ export default function ReviewOverlay({ schema, onClose, onPublish, publishing }
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] flex flex-col bg-white">
-      <div className="cok-bg-primary px-4 py-3 flex items-center justify-between flex-shrink-0">
-        <span className="text-white font-semibold uppercase tracking-wide" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-          {translate("DCS_REVIEW_TITLE")}
-        </span>
+    <div className="fixed inset-0 z-[10000] overflow-y-auto p-0 min-[650px]:p-6 flex flex-col items-center" style={{ backgroundColor: "#F7F9FB" }}>
+      <div className="fixed" style={{ top: 16, right: 16, zIndex: 10001 }}>
         <DcsButtonOutlineReverse onClick={onClose} disabled={publishing}>
           {translate("DCS_BTN_CLOSE")}
         </DcsButtonOutlineReverse>
       </div>
 
-      <div className="flex-1 overflow-y-auto min-h-0 p-0 min-[650px]:p-6 flex flex-col items-center" style={{ backgroundColor: "#F7F9FB" }}>
-        <div className="w-full min-[650px]:max-w-[650px] bg-white p-4 min-[650px]:p-6 border-0 min-[650px]:border-2 min-[650px]:border-[#056daa]">
-          <RendererEngine
-            schema={schema}
-            mode="renderer"
-            values={values}
-            onValueChange={handle_value_change}
-            fieldErrors={field_errors}
-            fieldValidMessages={field_valid_messages}
-          />
+      <div className="w-full min-[650px]:max-w-[650px] bg-white p-4 min-[650px]:p-6 border-0 min-[650px]:border-2 min-[650px]:border-[#056daa]">
+        <RendererEngine
+          schema={schema}
+          mode="renderer"
+          values={values}
+          onValueChange={handle_value_change}
+          fieldErrors={field_errors}
+          fieldValidMessages={field_valid_messages}
+          revealAllErrors={reveal_all_errors}
+        />
 
-          <DcsSubmitControl
-            submitting={test_submitting}
-            submitState={submit_state}
-            onSubmit={handle_test_submit}
-            onIdle={() => setSubmitState("idle")}
-          />
+        <DcsSubmitControl
+          submitting={test_submitting}
+          submitState={submit_state}
+          onSubmit={handle_test_submit}
+          onIdle={() => setSubmitState("idle")}
+        />
+
+        <div className="w-full mt-3">
+          {publishing ? (
+            <SpiralLoader />
+          ) : (
+            <DcsButtonPrimary className="w-full" onClick={onPublish} disabled={publishing}>
+              {translate("DCS_BTN_PUBLISH")}
+            </DcsButtonPrimary>
+          )}
         </div>
-      </div>
-
-      <div className="p-4 sm:p-6 pt-3 border-t flex-shrink-0" style={{ borderColor: "#E0E0E0" }}>
-        {publishing ? (
-          <SpiralLoader />
-        ) : (
-          <DcsButtonPrimary className="w-full" onClick={onPublish} disabled={publishing}>
-            {translate("DCS_BTN_PUBLISH")}
-          </DcsButtonPrimary>
-        )}
       </div>
     </div>
   );

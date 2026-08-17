@@ -160,6 +160,7 @@ const fr = {
 
   DCS_BTN_UPLOAD_IMAGE: "Téléverser une image",
   DCS_DESIGN_POSITION_HINT: "Survolez ce composant dans le canevas pour le glisser ou le redimensionner",
+  DCS_DESIGN_SPACING_BELOW: "Espace en dessous (px)",
   DCS_DESIGN_FULL_DEVICE_WIDTH: "Étendre sur toute la largeur de l'appareil",
   DCS_DESIGN_HEADING_TYPE: "Type de titre",
   DCS_DESIGN_HEADING_LEVEL: "Titre {{level}} (H{{level}})",
@@ -248,7 +249,6 @@ const fr = {
   DCS_DROP_FILE_HINT: "ou glissez-déposez le ici",
   DCS_RENDERER_RANKING_INSTRUCTION: "Glissez pour réordonner du plus préféré au moins préféré",
 
-  DCS_REVIEW_TITLE: "Aperçu du formulaire",
   DCS_TOAST_FORM_PUBLISHED: "Formulaire publié avec succès",
 
   DCS_SECTION_ACCESS_CONTROL: "Contrôle d'accès",
@@ -270,6 +270,11 @@ const fr = {
   DCS_FORM_VERSIONS_TITLE: "Versions du formulaire",
   DCS_FORM_VERSION_LABEL: "Version {{version}}",
   DCS_FORM_ACTIVE_BADGE: "Active",
+  DCS_TOAST_VERSION_DELETED: "Version du formulaire supprimée",
+  DCS_DELETE_VERSION_TITLE: "Supprimer la version {{version}} ?",
+  DCS_DELETE_VERSION_MESSAGE: "Ceci supprime définitivement cette version du formulaire. Cette action est irréversible.",
+  DCS_DELETE_VERSION_DATA_CHECKING: "Vérification des données collectées...",
+  DCS_DELETE_VERSION_DATA_CHECKBOX: "Supprimer aussi ses {{count}} réponse(s) collectée(s)",
   DCS_FORM_PUBLIC_LINK_LABEL: "Lien public de collecte",
   DCS_FORM_COPY_LINK: "Copier le lien",
   DCS_TOAST_LINK_COPIED: "Lien copié dans le presse-papiers",

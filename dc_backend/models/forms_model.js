@@ -47,6 +47,33 @@ async function create_next_form_version(form_group_id, form_data) {
 }
 
 /**
+ * Updates the current version's own name/schema without minting a new
+ * version - used when an edit only touches a field's condition, design,
+ * label/help text, or a content (form design) component, never the set of
+ * data-collection fields. version and created_by/created_at are never
+ * touched; who last edited it is tracked separately via updated_by.
+ */
+async function update_version_in_place(form_group_id, version, form_data) {
+  const now = new Date();
+  await get_db()
+    .collection(COLLECTION_NAME)
+    .updateOne(
+      { form_group_id, version: Number(version) },
+      {
+        $set: {
+          form_name: form_data.form_name,
+          form_name_normalized: form_data.form_name_normalized,
+          schema: form_data.schema,
+          updated_by: form_data.updated_by,
+          updated_by_name: form_data.updated_by_name,
+          updated_at: now,
+        },
+      },
+    );
+  return get_version_document(form_group_id, version);
+}
+
+/**
  * Returns every version of a form, newest first.
  */
 async function get_versions_by_group(form_group_id) {
@@ -144,6 +171,18 @@ async function delete_forms_by_project(project_id) {
 }
 
 /**
+ * Permanently removes one specific version of a form. Never the active
+ * version - callers must check is_active themselves before calling this,
+ * since a form must always have exactly one active version.
+ */
+async function delete_version(form_group_id, version) {
+  const result = await get_db()
+    .collection(COLLECTION_NAME)
+    .deleteOne({ form_group_id, version: Number(version) });
+  return result.deletedCount > 0;
+}
+
+/**
  * Marks a specific version as the active one and deactivates every sibling
  * version in the same group.
  */
@@ -160,6 +199,7 @@ async function set_active_version(form_group_id, version) {
 module.exports = {
   create_form_version_one,
   create_next_form_version,
+  update_version_in_place,
   is_form_name_taken,
   get_versions_by_group,
   get_latest_version,
@@ -169,5 +209,6 @@ module.exports = {
   get_latest_forms_by_project,
   get_form_group_ids_by_project,
   delete_forms_by_project,
+  delete_version,
   set_active_version,
 };

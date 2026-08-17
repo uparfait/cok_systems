@@ -50,16 +50,19 @@ function date_diff_days(date_a, date_b) {
 
 /**
  * True when value is present in the given array (loose equality, mirrors
- * how form option values are compared), or - when the haystack is a plain
- * string rather than an array, as it is for every text-like field - true
- * when it appears as a substring. Without the string branch this always
+ * how form option values are compared - option ids are fixed system
+ * values, so this stays exact/case-sensitive), or - when the haystack is
+ * a plain string rather than an array, as it is for every text-like field
+ * - true when it appears as a substring, matched case-insensitively so
+ * "must/must not contain claude" catches "Claude" and "CLAUDE" too, not
+ * just an exact-case match. Without the string branch this always
  * returned false for text fields, which made every "must not contain"
  * rule built on its negation (not_in_array) vacuously true.
  */
 function in_array(value, array) {
   if (Array.isArray(array)) return array.some((item) => item == value);
   if (array === null || array === undefined) return false;
-  return String(array).indexOf(String(value)) !== -1;
+  return String(array).toLowerCase().indexOf(String(value).toLowerCase()) !== -1;
 }
 
 /**

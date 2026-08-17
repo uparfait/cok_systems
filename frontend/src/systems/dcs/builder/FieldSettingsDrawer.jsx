@@ -445,6 +445,18 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
 
           {active_tab === "designs" && (
             <div className="space-y-4">
+              <div>
+                <label className="cok-auth-label">{translate("DCS_DESIGN_SPACING_BELOW")}</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="2000"
+                  className="cok-auth-input w-full py-2"
+                  value={design.spacing_below_px === undefined ? 16 : design.spacing_below_px}
+                  onChange={(event) => update_design({ spacing_below_px: Number(event.target.value) })}
+                />
+              </div>
+
               {is_content_field && (
                 <>
                   <label className="flex items-center gap-2 text-sm">

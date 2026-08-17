@@ -162,6 +162,59 @@ async function run_functional_test() {
   const public_form_after_reactivate = await fetch(`${BASE_URL}/public/forms/${form_group_id}`).then((res) => res.json());
   assert.strictEqual(public_form_after_reactivate.data.version, 1);
 
+  // The authenticated builder fetch must follow whichever version is
+  // actually active, not just the newest one that happens to exist.
+  const builder_form_after_reactivate = await fetch(`${BASE_URL}/forms/${form_group_id}`, { headers: auth_headers }).then((res) => res.json());
+  assert.strictEqual(builder_form_after_reactivate.data.version, 1);
+
+  // Editing only an existing field's validation rule - no data-collection
+  // field added or removed - must update the active version (1) in place,
+  // never mint a new version.
+  const in_place_schema = Object.assign({}, initial_schema, {
+    fields: initial_schema.fields.map((field) =>
+      field.id === "full_name"
+        ? Object.assign({}, field, {
+            validation_rules: [{ condition: { min_length: [{ var: "full_name" }, 2] }, message: { en: "Too short" }, severity: "error" }],
+          })
+        : field,
+    ),
+  });
+  const in_place_update_response = await fetch(`${BASE_URL}/forms/${form_group_id}`, {
+    method: "PUT",
+    headers: auth_headers,
+    body: JSON.stringify({ schema: in_place_schema }),
+  }).then((res) => res.json());
+  assert.strictEqual(in_place_update_response.success, true, JSON.stringify(in_place_update_response));
+  assert.strictEqual(in_place_update_response.data.version, 1);
+
+  const versions_after_in_place_update = await fetch(`${BASE_URL}/forms/${form_group_id}/versions`, { headers: auth_headers }).then((res) => res.json());
+  assert.strictEqual(versions_after_in_place_update.data.length, 2);
+
+  // The active version (1) can never be deleted.
+  const delete_active_response = await fetch(`${BASE_URL}/forms/${form_group_id}/versions/1`, {
+    method: "DELETE",
+    headers: auth_headers,
+    body: JSON.stringify({ delete_data: false }),
+  });
+  assert.strictEqual(delete_active_response.status, 400);
+
+  // A non-active version (2) can be deleted; it has no submissions of its
+  // own, so delete_data is irrelevant to the resulting version count.
+  const delete_inactive_response = await fetch(`${BASE_URL}/forms/${form_group_id}/versions/2`, {
+    method: "DELETE",
+    headers: auth_headers,
+    body: JSON.stringify({ delete_data: false }),
+  }).then((res) => res.json());
+  assert.strictEqual(delete_inactive_response.success, true, JSON.stringify(delete_inactive_response));
+
+  const versions_after_delete = await fetch(`${BASE_URL}/forms/${form_group_id}/versions`, { headers: auth_headers }).then((res) => res.json());
+  assert.strictEqual(versions_after_delete.data.length, 1);
+
+  // The submission collected earlier against version 1 must still be
+  // there - deleting version 2 must never touch another version's data.
+  const submissions_after_delete = await fetch(`${BASE_URL}/submissions/${form_group_id}`, { headers: auth_headers }).then((res) => res.json());
+  assert.strictEqual(submissions_after_delete.total, 1);
+
   process.stdout.write("ALL_FUNCTIONAL_TESTS_PASSED\n");
   process.exit(0);
 }
