@@ -160,6 +160,7 @@ const kn = {
 
   DCS_BTN_UPLOAD_IMAGE: "Ohereza ifoto",
   DCS_DESIGN_POSITION_HINT: "Shyira mus'agati k'iki gice mu ifishi kugira ubone uko ukurura cyangwa ugena ubugari",
+  DCS_DESIGN_SPACING_BELOW: "Umwanya usigaye hepfo (px)",
   DCS_DESIGN_FULL_DEVICE_WIDTH: "Kwaguka ku bugari bwose bw'igikoresho",
   DCS_DESIGN_HEADING_TYPE: "Ubwoko bw'umutwe",
   DCS_DESIGN_HEADING_LEVEL: "Umutwe {{level}} (H{{level}})",
@@ -248,7 +249,6 @@ const kn = {
   DCS_DROP_FILE_HINT: "cyangwa uyikurure uyishyire hano",
   DCS_RENDERER_RANKING_INSTRUCTION: "Kurura utondekanye kuva ku wo ukunda kurusha",
 
-  DCS_REVIEW_TITLE: "Kureba ifishi mbere",
   DCS_TOAST_FORM_PUBLISHED: "Ifishi yashyizwe ahagaragara neza",
 
   DCS_SECTION_ACCESS_CONTROL: "Ubuyobozi bw'uburenganzira",
@@ -270,6 +270,11 @@ const kn = {
   DCS_FORM_VERSIONS_TITLE: "Verisiyo z'ifishi",
   DCS_FORM_VERSION_LABEL: "Verisiyo {{version}}",
   DCS_FORM_ACTIVE_BADGE: "Ikoreshwa",
+  DCS_TOAST_VERSION_DELETED: "Verisiyo y'ifishi yasibwe",
+  DCS_DELETE_VERSION_TITLE: "Gusiba verisiyo {{version}}?",
+  DCS_DELETE_VERSION_MESSAGE: "Ibi bisiba burundu iyi verisiyo y'ifishi. Ntibishobora gusubizwa inyuma.",
+  DCS_DELETE_VERSION_DATA_CHECKING: "Kureba amakuru yakusanyijwe...",
+  DCS_DELETE_VERSION_DATA_CHECKBOX: "Siba kandi amakuru {{count}} yakusanyijwe",
   DCS_FORM_PUBLIC_LINK_LABEL: "Ihuza rusange ryo gukusanya",
   DCS_FORM_COPY_LINK: "Koporora ihuza",
   DCS_TOAST_LINK_COPIED: "Ihuza ryakoporowe",

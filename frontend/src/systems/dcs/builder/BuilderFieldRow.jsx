@@ -4,6 +4,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { DCS_FIELD_RENDERER_MAP } from "../renderer/fieldRendererMap.js";
 import { DCS_FIELD_TYPE_REGISTRY } from "../fields/fieldTypes.js";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
+import { build_design_styles } from "../renderer/designStyles.js";
 import DesignableFieldWrapper from "./DesignableFieldWrapper.jsx";
 
 /**
@@ -35,6 +36,24 @@ export default function BuilderFieldRow({ field, language, onOpenSettings, onOpe
     />
   );
 
+  // Data-collection fields have their own Designs tab (background, border,
+  // width, alignment) same as form-design components, but only the latter
+  // go through DesignableFieldWrapper (which applies build_design_styles
+  // itself, alongside its resize handles). Without this, a data field's
+  // design settings were invisible while building and only ever appeared
+  // once published - the canvas must show the field exactly as it will
+  // render, same as designStyles.js already does for the live renderer.
+  const designed_field_preview = is_content_field ? null : (() => {
+    const { outer_style, inner_style } = build_design_styles(field);
+    return outer_style ? (
+      <div style={outer_style}>
+        <div style={inner_style}>{field_preview}</div>
+      </div>
+    ) : (
+      <div style={inner_style}>{field_preview}</div>
+    );
+  })();
+
   return (
     <div ref={setNodeRef} style={style} className="border p-3 bg-white flex gap-3">
       <button
@@ -61,7 +80,7 @@ export default function BuilderFieldRow({ field, language, onOpenSettings, onOpe
             {field_preview}
           </DesignableFieldWrapper>
         ) : (
-          field_preview
+          designed_field_preview
         )}
       </div>
 

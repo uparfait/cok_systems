@@ -46,6 +46,14 @@ export function set_active_version(form_group_id, version) {
 }
 
 /**
+ * Permanently deletes one specific, non-active version of a form.
+ * deleteData also removes every submission collected against it.
+ */
+export function delete_form_version(form_group_id, version, delete_data) {
+  return dcs_request(`/forms/${form_group_id}/versions/${version}`, "DELETE", { delete_data });
+}
+
+/**
  * Public, no-auth fetch of a form's active version, used by /dcs-form/:id.
  */
 export function get_public_form(form_group_id) {

@@ -157,7 +157,7 @@ export function build_validation_condition(field_id, operator_id, value, parent_
     case "not_equals":
       return { "!=": [field_var, value] };
     case "includes":
-      return { in: [value, field_var] };
+      return { in_array: [value, field_var] };
     case "not_includes":
       return { not_in_array: [value, field_var] };
     case "starts_with":

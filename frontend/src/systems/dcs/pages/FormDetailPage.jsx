@@ -6,8 +6,12 @@ import { get_form } from "../services/formsService.js";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 
 /**
- * Form shell: fetches the latest version (refreshed silently every 10s)
- * and renders the Settings/Versions sub-navigation with an outlet beneath.
+ * Form shell: fetches the currently active version (refreshed silently
+ * every 10s) and renders the Settings/Versions sub-navigation with an
+ * outlet beneath. Clicking Settings always forces a fresh reload of the
+ * active version's fields, even when already on that tab - editing must
+ * never start from a stale copy after a different version was activated
+ * elsewhere.
  */
 export default function FormDetailPage() {
   const { project_id, form_group_id } = useParams();
@@ -41,7 +45,14 @@ export default function FormDetailPage() {
         {title}
       </h1>
       <div className="flex border-b mb-4" style={{ borderColor: "#E0E0E0" }}>
-        <button type="button" style={tab_style(!is_versions_tab)} onClick={() => navigate(`${base_path}/details`)}>
+        <button
+          type="button"
+          style={tab_style(!is_versions_tab)}
+          onClick={() => {
+            refresh();
+            navigate(`${base_path}/details`);
+          }}
+        >
           {translate("DCS_FORM_NAV_SETTINGS")}
         </button>
         <button type="button" style={tab_style(is_versions_tab)} onClick={() => navigate(`${base_path}/versions`)}>

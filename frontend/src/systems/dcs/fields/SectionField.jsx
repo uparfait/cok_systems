@@ -4,8 +4,8 @@ import { DCS_FIELD_TYPE_REGISTRY, create_blank_field } from "./fieldTypes.js";
 import { DCS_FIELD_RENDERER_MAP } from "../renderer/fieldRendererMap.js";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import DcsFieldIcon from "../components/DcsFieldIcon.jsx";
-import AutoFitContent from "../components/AutoFitContent.jsx";
 import SectionChildWrapper from "../builder/SectionChildWrapper.jsx";
+import { get_spacing_below_px } from "../renderer/designStyles.js";
 
 const DEFAULT_LAYOUT = { x_percent: 0, y_percent: 0, width_percent: 30, height_percent: 40 };
 const MIN_HEIGHT_PX = 80;
@@ -22,9 +22,10 @@ const ADDABLE_TYPES = DCS_FIELD_TYPE_REGISTRY.filter((entry) => entry.category =
  * size is a percentage of the section's own real, on-screen box - it is
  * never rescaled as a whole, so the section always keeps its full
  * declared height and the full width available to it (no side margins).
- * What keeps a child's own content from ever needing to scroll or getting
- * trimmed when its box is small is AutoFitContent, applied per child: it
- * shrinks that one child's content down to fit, never the whole canvas.
+ * A child's own content is never shrunk to fit its box either - text
+ * renders at its normal size and wraps/overflows naturally, exactly like
+ * every other render engine in the system; the box is exactly the size
+ * the author gave it, nothing auto-shrinks to force a fit.
  */
 export default function SectionField({ field, language, mode, onFieldChange, onOpenSettings, renderChildField }) {
   const is_builder = mode === "builder";
@@ -137,14 +138,14 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
                 className="absolute"
                 style={{ left: `${layout.x_percent}%`, top: `${layout.y_percent}%`, width: `${layout.width_percent}%`, height: `${layout.height_percent}%` }}
               >
-                <AutoFitContent>{renderChildField(child)}</AutoFitContent>
+                <div className="w-full h-full">{renderChildField(child)}</div>
               </div>
             );
           })}
         </div>
-        <div className="flex min-[650px]:hidden flex-col gap-3 w-full" style={{ backgroundColor: background_color }}>
+        <div className="flex min-[650px]:hidden flex-col w-full" style={{ backgroundColor: background_color }}>
           {stacked_children.map((child) => (
-            <div key={child.id} className="w-full">
+            <div key={child.id} className="w-full" style={{ marginBottom: get_spacing_below_px(child) }}>
               {renderChildField(child)}
             </div>
           ))}
@@ -152,6 +153,22 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
       </div>
     );
   }
+
+  // Same breakpoint, same fallback as the live renderer: a component's
+  // designed position is only meaningful once the section is wide enough
+  // for it to sit where it was placed. Showing the free-form canvas at any
+  // width - including ones where the live render already gave up on it and
+  // switched to a plain stack - was exactly why moving something looked
+  // fine while building yet came out different everywhere else, forcing a
+  // re-check after every move. Below 650px the builder now shows the exact
+  // same stacked, full-width fallback the renderer shows, so there is
+  // nothing left to look "wrong" here that isn't also true there.
+  const stacked_children = children.slice().sort((child_a, child_b) => {
+    const layout_a = child_a.section_layout || DEFAULT_LAYOUT;
+    const layout_b = child_b.section_layout || DEFAULT_LAYOUT;
+    if (layout_a.y_percent !== layout_b.y_percent) return layout_a.y_percent - layout_b.y_percent;
+    return layout_a.x_percent - layout_b.x_percent;
+  });
 
   return (
     <div className="w-full">
@@ -164,7 +181,7 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
         ref={outer_ref}
         onContextMenu={handle_context_menu}
         onClick={() => context_menu && setContextMenu(null)}
-        className="relative w-full border-2 border-dashed"
+        className="hidden min-[650px]:block relative w-full border-2 border-dashed"
         style={{ height: height_px, borderColor: "#9E9E9E", backgroundColor: background_color }}
       >
         {children.length === 0 && (
@@ -220,6 +237,52 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
           </div>
         )}
       </div>
+
+      <div className="flex min-[650px]:hidden flex-col w-full" style={{ backgroundColor: background_color }}>
+        {stacked_children.length === 0 && (
+          <p className="text-xs text-center px-4 py-6" style={{ color: "#9E9E9E" }}>
+            {translate("DCS_SECTION_EMPTY_HINT")}
+          </p>
+        )}
+        {stacked_children.map((child) => {
+          const ChildComponent = DCS_FIELD_RENDERER_MAP[child.type];
+          if (!ChildComponent) return null;
+          return (
+            <div key={child.id} className="border p-2 flex gap-2" style={{ borderColor: "#E0E0E0", marginBottom: get_spacing_below_px(child) }}>
+              <div className="flex-1 min-w-0">
+                <ChildComponent field={child} language={language} mode="builder" onFieldChange={(updated_child) => handle_child_field_change(child.id, updated_child)} />
+              </div>
+              <div className="flex flex-col gap-2 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={(event) => onOpenSettings(child, event.currentTarget.getBoundingClientRect())}
+                  className="cursor-pointer p-1.5 border"
+                  style={{ borderColor: "#E0E0E0" }}
+                  title={translate("DCS_SETTINGS_TITLE")}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handle_delete_child(child.id)}
+                  className="cursor-pointer p-1.5 border"
+                  style={{ borderColor: "#E0E0E0" }}
+                  title={translate("DCS_BTN_DELETE")}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#E74C3C" strokeWidth="2">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       <p className="text-xs mt-1" style={{ color: "#9E9E9E" }}>
         {translate("DCS_SECTION_HINT")}
       </p>

@@ -1,5 +1,6 @@
 import React from "react";
 import { get_field_text } from "./fieldText.js";
+import { get_spacing_below_px } from "../renderer/designStyles.js";
 
 /**
  * Organizes related fields visually together. Rendering of each child is
@@ -16,9 +17,11 @@ export default function GroupField({ field, language, renderChildField }) {
           {label}
         </p>
       )}
-      <div className="space-y-4">
+      <div>
         {(field.children || []).map((child_field) => (
-          <div key={child_field.id}>{renderChildField(child_field)}</div>
+          <div key={child_field.id} style={{ marginBottom: get_spacing_below_px(child_field) }}>
+            {renderChildField(child_field)}
+          </div>
         ))}
       </div>
     </div>

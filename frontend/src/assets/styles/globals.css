@@ -592,6 +592,26 @@ background-color: #056daa;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+.cok-btn-outlined-danger {
+  font-family: var(--cok-font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--cok-danger-color);
+  border: 1px solid var(--cok-danger-color);
+  background-color: transparent;
+  border-radius: 0;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.cok-btn-outlined-danger:hover {
+  color: var(--cok-text-white);
+  background-color: var(--cok-danger-color);
+}
+
 .cok-btn-outlined-reverse {
   font-family: var(--cok-font-heading);
   font-size: 12px;

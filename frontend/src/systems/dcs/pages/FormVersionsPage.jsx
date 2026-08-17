@@ -1,15 +1,18 @@
-import React from "react";
+import React, { useState } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { useSilentPolling } from "../hooks/useSilentPolling.js";
-import { get_form_versions, set_active_version } from "../services/formsService.js";
+import { get_form_versions, set_active_version, delete_form_version } from "../services/formsService.js";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
+import DcsButtonOutlineDanger from "../components/DcsButtonOutlineDanger.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
+import DcsDeleteVersionDialog from "../components/DcsDeleteVersionDialog.jsx";
 
 /**
  * Lists every immutable version of a form, its own shareable link, which
- * one is active, and lets an author switch the active version or open its
+ * one is active, and lets an author switch the active version, delete a
+ * non-active one (optionally along with its collected data), or open its
  * collected data.
  */
 export default function FormVersionsPage() {
@@ -17,6 +20,9 @@ export default function FormVersionsPage() {
   const { translate } = useDcsLanguage();
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
+  const [activating_version, setActivatingVersion] = useState(null);
+  const [version_pending_delete, setVersionPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const { data: versions, loading, refresh } = useSilentPolling(
     () => get_form_versions(form_group_id).then((res) => res.data || []),
@@ -25,12 +31,29 @@ export default function FormVersionsPage() {
   );
 
   const handle_activate = async (version) => {
+    setActivatingVersion(version);
     try {
       await set_active_version(form_group_id, version);
       showSuccess(translate("DCS_FORM_ACTIVE_BADGE"));
       refresh();
     } catch (error) {
       showError(error.message || translate("DCS_ERROR_GENERIC"));
+    } finally {
+      setActivatingVersion(null);
+    }
+  };
+
+  const handle_confirm_delete = async (delete_data) => {
+    setDeleting(true);
+    try {
+      const response = await delete_form_version(form_group_id, version_pending_delete, delete_data);
+      showSuccess(response.message || translate("DCS_TOAST_VERSION_DELETED"));
+      setVersionPendingDelete(null);
+      refresh();
+    } catch (error) {
+      showError(error.message || translate("DCS_ERROR_GENERIC"));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -64,13 +87,36 @@ export default function FormVersionsPage() {
                   {translate("DCS_FORM_ACTIVE_BADGE")}
                 </span>
               )}
+              {!version_doc.is_active && activating_version === version_doc.version && (
+                <div
+                  className="animate-spin rounded-full"
+                  style={{ width: 18, height: 18, border: "2px solid #056daa", borderTopColor: "transparent" }}
+                />
+              )}
+              {!version_doc.is_active && activating_version !== version_doc.version && (
+                <DcsButtonOutline onClick={() => handle_activate(version_doc.version)} disabled={activating_version !== null}>
+                  {translate("DCS_BTN_ACTIVATE")}
+                </DcsButtonOutline>
+              )}
               {!version_doc.is_active && (
-                <DcsButtonOutline onClick={() => handle_activate(version_doc.version)}>{translate("DCS_BTN_ACTIVATE")}</DcsButtonOutline>
+                <DcsButtonOutlineDanger onClick={() => setVersionPendingDelete(version_doc.version)} disabled={activating_version !== null}>
+                  {translate("DCS_BTN_DELETE")}
+                </DcsButtonOutlineDanger>
               )}
             </div>
           </div>
         );
       })}
+
+      {version_pending_delete !== null && (
+        <DcsDeleteVersionDialog
+          formGroupId={form_group_id}
+          version={version_pending_delete}
+          deleting={deleting}
+          onCancel={() => setVersionPendingDelete(null)}
+          onConfirm={handle_confirm_delete}
+        />
+      )}
     </div>
   );
 }

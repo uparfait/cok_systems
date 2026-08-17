@@ -38,6 +38,8 @@ function PublicFormPageContent() {
   const [field_valid_messages, setFieldValidMessages] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submit_state, setSubmitState] = useState("idle");
+  const [reveal_all_errors, setRevealAllErrors] = useState(false);
+  const [render_reset_key, setRenderResetKey] = useState(0);
   const [pending_count, setPendingCount] = useState(0);
   const [is_syncing, setIsSyncing] = useState(false);
   const [is_online, setIsOnline] = useState(window.navigator.onLine);
@@ -128,6 +130,7 @@ function PublicFormPageContent() {
       setFieldErrors(validation_result.field_errors);
       setFieldValidMessages(validation_result.field_valid_messages);
       if (!validation_result.valid) {
+        setRevealAllErrors(true);
         setSubmitState("error");
         return;
       }
@@ -144,6 +147,7 @@ function PublicFormPageContent() {
           setValues(result.blocked_item.data || {});
           setFieldErrors(result.blocked_item.field_errors || {});
           setFieldValidMessages({});
+          setRevealAllErrors(true);
           setSubmitState("error");
           return;
         }
@@ -152,6 +156,8 @@ function PublicFormPageContent() {
       setValues({});
       setFieldErrors({});
       setFieldValidMessages({});
+      setRevealAllErrors(false);
+      setRenderResetKey((previous_key) => previous_key + 1);
       setSubmitState("success");
       showSuccess(translate("DCS_PUBLIC_DATA_RECORDED"));
     } catch (submit_error) {
@@ -170,12 +176,14 @@ function PublicFormPageContent() {
     <div className="min-h-screen p-0 min-[650px]:p-6 flex flex-col items-center" style={{ backgroundColor: "#F7F9FB" }}>
       <div className="w-full min-[650px]:max-w-[650px] bg-white p-4 min-[650px]:p-6 border-0 min-[650px]:border-2 min-[650px]:border-[#056daa]">
         <RendererEngine
+          key={render_reset_key}
           schema={form.schema}
           mode="renderer"
           values={values}
           onValueChange={handle_value_change}
           fieldErrors={field_errors}
           fieldValidMessages={field_valid_messages}
+          revealAllErrors={reveal_all_errors}
         />
 
         <DcsSubmitControl

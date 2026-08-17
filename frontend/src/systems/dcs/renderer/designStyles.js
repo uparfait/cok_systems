@@ -1,4 +1,18 @@
 export const PIXEL_SIZED_TYPES = ["shape", "image_block"];
+export const DEFAULT_SPACING_BELOW_PX = 16;
+
+/**
+ * The gap left below one component before the next, in pixels. Authored
+ * per field (Designs tab) rather than a single hardcoded value shared by
+ * every component, so a component the author gave 500px of breathing room
+ * keeps exactly that - in the builder canvas and in the live render alike -
+ * while every other component keeps whatever it was individually given.
+ */
+export function get_spacing_below_px(field) {
+  const design = (field && field.design) || {};
+  const value = Number(design.spacing_below_px);
+  return Number.isFinite(value) && value >= 0 ? value : DEFAULT_SPACING_BELOW_PX;
+}
 
 /**
  * Turns a field's own size/position into the outer (alignment) and inner

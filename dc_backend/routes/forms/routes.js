@@ -6,6 +6,7 @@ const get_forms_by_project = require("../../controllers/forms/get_forms_by_proje
 const get_form_versions = require("../../controllers/forms/get_form_versions.js");
 const get_form_by_id = require("../../controllers/forms/get_form_by_id.js");
 const set_active_version = require("../../controllers/forms/set_active_version.js");
+const delete_form_version = require("../../controllers/forms/delete_form_version.js");
 
 /**
  * @swagger
@@ -39,7 +40,7 @@ Router.post("/project/:project_id", create_form);
  * @swagger
  * /dcs/api/forms/{form_group_id}:
  *   get:
- *     summary: Get the latest version of a form
+ *     summary: Get the currently active version of a form
  *     tags: [Forms]
  *     security:
  *       - BearerAuth: []
@@ -90,5 +91,19 @@ Router.get("/:form_group_id/versions", get_form_versions);
  *         description: Active version updated successfully
  */
 Router.put("/:form_group_id/active-version", set_active_version);
+
+/**
+ * @swagger
+ * /dcs/api/forms/{form_group_id}/versions/{version}:
+ *   delete:
+ *     summary: Permanently delete one specific, non-active version of a form
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Version deleted successfully
+ */
+Router.delete("/:form_group_id/versions/:version", delete_form_version);
 
 module.exports = Router;
