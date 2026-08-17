@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { generate_field_id } from "../fields/fieldTypes.js";
+import { generate_field_id, DCS_FIELD_TYPE_REGISTRY } from "../fields/fieldTypes.js";
+import { read_file_as_data_url } from "../fields/fileHelpers.js";
 import { build_validation_condition, DCS_VALIDATION_OPERATORS } from "./validationOperators.js";
 import { get_field_text, has_field_label } from "../fields/fieldText.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
@@ -10,9 +11,22 @@ import ValidationRuleEditor from "./ValidationRuleEditor.jsx";
 
 const LANGUAGES = ["en", "kn", "fr"];
 const NON_LABEL_TYPES = ["paragraph", "file"];
-const NON_INPUT_TYPES = ["paragraph", "header", "file", "group"];
+const NON_INPUT_TYPES = ["paragraph", "header", "file", "group", "section"];
 const OPTION_TYPES = ["single_select", "multi_select", "ranking"];
-const VISIBILITY_OPERATORS = DCS_VALIDATION_OPERATORS.filter((operator) => operator.id !== "depends_on_parent");
+const VISIBILITY_OPERATORS = DCS_VALIDATION_OPERATORS.filter((operator) => !operator.needsParent);
+const FONT_FAMILIES = ["'Montserrat', sans-serif", "Arial, sans-serif", "Georgia, serif", "'Times New Roman', serif", "'Courier New', monospace"];
+const LIST_TYPES = ["disc", "circle", "square", "decimal", "lower-roman", "upper-roman", "none"];
+const IDEAL_PANEL_WIDTH = 760;
+const DEFAULT_PANEL_HEIGHT = 500;
+const MIN_PANEL_HEIGHT = 260;
+
+/**
+ * Wide enough that no label, button or select ever wraps mid-word, but
+ * clamped so it never overflows a narrow viewport.
+ */
+function get_panel_width() {
+  return Math.min(IDEAL_PANEL_WIDTH, window.innerWidth - 16);
+}
 
 /**
  * Translated three-language input row shared by every text setting below.
@@ -37,28 +51,129 @@ function TranslatedTextRow({ labelKey, value, onChange, translate }) {
 }
 
 /**
- * Slide-over panel where every configuration for a single field lives:
- * translated text, mandatory/default response, type-specific bounds,
- * options, validation rules and conditional visibility.
+ * Read-only display of a parent field's own validation rules, shown inside
+ * the Conditional Visibility tab so an author always sees the full
+ * dependency chain instead of just the child's condition.
  */
-export default function FieldSettingsDrawer({ field, allFields, onSave, onClose }) {
+function ParentValidationSummary({ parentField, translate }) {
+  const rules = (parentField && parentField.validation_rules) || [];
+  if (!parentField || rules.length === 0) return null;
+
+  return (
+    <div className="mt-3 border p-3 space-y-2" style={{ borderColor: "#E0E0E0", backgroundColor: "#F7F9FB" }}>
+      <p className="text-xs font-semibold uppercase" style={{ color: "#9E9E9E", letterSpacing: "0.5px" }}>
+        {translate("DCS_SETTINGS_PARENT_VALIDATIONS_TITLE")}
+      </p>
+      {rules.map((rule) => (
+        <div key={rule.id} className="text-xs" style={{ color: "#555555" }}>
+          <span className="font-semibold">{translate(`OP_${rule.operator}`.toUpperCase())}</span>
+          {rule.value ? ` "${rule.value}"` : ""} - {get_field_text(rule.message, "en") || "-"}
+          <span className="ml-1" style={{ color: rule.severity === "warning" ? "#F39C12" : "#E74C3C" }}>
+            ({translate(rule.severity === "warning" ? "DCS_SETTINGS_SEVERITY_WARNING" : "DCS_SETTINGS_SEVERITY_ERROR")})
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Computes where the flying settings popover should sit relative to the
+ * button that opened it, clamped so the whole panel (at its default
+ * height) always lands fully on screen - never clipped below the
+ * viewport - while still starting as close to the opener as possible.
+ */
+function compute_initial_position(anchorRect) {
+  const panel_width = get_panel_width();
+  const max_left = Math.max(8, window.innerWidth - panel_width - 8);
+  const max_top = Math.max(8, window.innerHeight - DEFAULT_PANEL_HEIGHT - 8);
+
+  if (!anchorRect) {
+    return { top: Math.min(80, max_top), left: Math.min(Math.max(8, window.innerWidth / 2 - panel_width / 2), max_left) };
+  }
+
+  const left = Math.min(Math.max(8, anchorRect.left), max_left);
+  const top = Math.min(Math.max(8, anchorRect.bottom + 8), max_top);
+  return { top, left };
+}
+
+/**
+ * Flying, anchored settings popover for a single field - opens just below
+ * the gear button that triggered it (no dimmed backdrop), with a compact
+ * left-hand tab rail: Labels, Validation Criterion, Designs and Conditional
+ * Visibility. Form design components (header, paragraph, file, image,
+ * horizontal line, shape) only ever show Designs and Conditional
+ * Visibility, since their own content is authored inline in the canvas.
+ */
+export default function FieldSettingsDrawer({ field, allFields, onSave, onClose, anchorRect }) {
   const { translate } = useDcsLanguage();
   const [draft, setDraft] = useState(field);
+  const [position, setPosition] = useState(() => compute_initial_position(anchorRect));
+  const [panel_height, setPanelHeight] = useState(DEFAULT_PANEL_HEIGHT);
+  const panel_ref = useRef(null);
+  const drag_state_ref = useRef(null);
 
-  useEffect(() => setDraft(field), [field.id]);
+  const registry_entry = DCS_FIELD_TYPE_REGISTRY.find((entry) => entry.type === draft.type);
+  const is_content_field = registry_entry ? registry_entry.category === "content" : false;
+  const tabs = is_content_field ? ["designs", "visibility"] : ["labels", "validation", "designs", "visibility"];
+  const [active_tab, setActiveTab] = useState(tabs[0]);
+
+  useEffect(() => {
+    setDraft(field);
+    setActiveTab(tabs[0]);
+    setPosition(compute_initial_position(anchorRect));
+    setPanelHeight(DEFAULT_PANEL_HEIGHT);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [field.id]);
+
+  useEffect(() => {
+    const handle_drag_move = (event) => {
+      const drag_state = drag_state_ref.current;
+      if (!drag_state) return;
+      setPosition({
+        top: drag_state.start_top + (event.clientY - drag_state.start_mouse_y),
+        left: drag_state.start_left + (event.clientX - drag_state.start_mouse_x),
+      });
+    };
+    const handle_drag_end = () => {
+      drag_state_ref.current = null;
+    };
+    document.addEventListener("mousemove", handle_drag_move);
+    document.addEventListener("mouseup", handle_drag_end);
+    return () => {
+      document.removeEventListener("mousemove", handle_drag_move);
+      document.removeEventListener("mouseup", handle_drag_end);
+    };
+  }, []);
+
+  const handle_header_mouse_down = (event) => {
+    if (event.target.closest("button")) return;
+    drag_state_ref.current = {
+      start_mouse_x: event.clientX,
+      start_mouse_y: event.clientY,
+      start_top: position.top,
+      start_left: position.left,
+    };
+  };
 
   const update = (patch) => setDraft((previous) => Object.assign({}, previous, patch));
+  const update_design = (patch) => setDraft((previous) => Object.assign({}, previous, { design: Object.assign({}, previous.design || {}, patch) }));
 
   const has_label = !NON_LABEL_TYPES.includes(draft.type);
-  const is_input_field = !NON_INPUT_TYPES.includes(draft.type);
+  const is_input_field = !NON_INPUT_TYPES.includes(draft.type) && !is_content_field;
   const has_options = OPTION_TYPES.includes(draft.type);
   const is_cascading = draft.type === "cascading_select";
   const is_hidden = draft.type === "hidden";
   const is_header = draft.type === "header";
+  const is_paragraph = draft.type === "paragraph";
   const is_likert = draft.type === "likert_scale";
   const is_media = ["image", "video", "audio", "file_upload"].includes(draft.type);
   const is_placeholder_capable = ["text", "number", "email", "url", "phone"].includes(draft.type);
   const is_date_like = ["date", "date_time"].includes(draft.type);
+  const is_horizontal_line = draft.type === "horizontal_line";
+  const is_shape = draft.type === "shape";
+  const is_image_block = draft.type === "image_block";
+  const design = draft.design || {};
   const other_fields = (allFields || []).filter((candidate_field) => candidate_field.id !== draft.id && has_field_label(candidate_field));
 
   const add_option = () => {
@@ -77,6 +192,7 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose 
   };
 
   const visibility_ui = draft.visibility_condition_ui || { parent_field_id: "", operator: "equals", value: "" };
+  const visibility_parent_field = other_fields.find((candidate_field) => candidate_field.id === visibility_ui.parent_field_id);
 
   const update_visibility = (patch) => {
     const next_ui = Object.assign({}, visibility_ui, patch);
@@ -84,216 +200,423 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose 
     update({ visibility_condition_ui: next_ui, visibility_condition: next_condition });
   };
 
+  const handle_shape_image_selected = async (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const read_result = await read_file_as_data_url(file);
+    update({ image_url: read_result.data_url });
+  };
+
+  const tab_labels = {
+    labels: "DCS_SETTINGS_TAB_LABELS",
+    validation: "DCS_SETTINGS_TAB_VALIDATION",
+    designs: "DCS_SETTINGS_TAB_DESIGNS",
+    visibility: "DCS_SETTINGS_TAB_VISIBILITY",
+  };
+
   return (
-    <div className="fixed inset-0 z-[10000] flex justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-white h-full flex flex-col border-2" style={{ borderColor: "#E0E0E0" }}>
-        <div className="cok-bg-primary px-4 py-3 flex items-center justify-between flex-shrink-0">
-          <span className="text-white font-semibold uppercase tracking-wide" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-            {translate("DCS_SETTINGS_TITLE")}
-          </span>
-          <DcsButtonOutlineReverse onClick={onClose}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutlineReverse>
+    <div
+      ref={panel_ref}
+      className="fixed z-[10000] bg-white flex flex-col shadow-lg border"
+      style={{
+        top: position.top,
+        left: position.left,
+        width: get_panel_width(),
+        height: panel_height,
+        minHeight: MIN_PANEL_HEIGHT,
+        maxHeight: "95vh",
+        resize: "vertical",
+        overflow: "hidden",
+        borderColor: "#E0E0E0",
+      }}
+      onMouseUp={() => setPanelHeight(panel_ref.current ? panel_ref.current.getBoundingClientRect().height : panel_height)}
+    >
+      <div
+        className="cok-bg-primary px-4 py-3 flex items-center justify-between flex-shrink-0"
+        style={{ cursor: "move" }}
+        onMouseDown={handle_header_mouse_down}
+      >
+        <span className="text-white font-semibold uppercase tracking-wide text-sm" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+          {translate("DCS_SETTINGS_TITLE")}
+          {registry_entry && <span className="normal-case font-normal opacity-80"> - {translate(registry_entry.labelKey)}</span>}
+        </span>
+        <DcsButtonOutlineReverse onClick={onClose}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutlineReverse>
+      </div>
+
+      <div className="flex-1 flex min-h-0">
+        <div className="w-32 flex-shrink-0 border-r flex flex-col py-2 overflow-y-auto" style={{ borderColor: "#E0E0E0", backgroundColor: "#F7F9FB" }}>
+          {tabs.map((tab_id) => (
+            <button
+              key={tab_id}
+              type="button"
+              onClick={() => setActiveTab(tab_id)}
+              className="text-left px-3 py-2.5 text-xs font-semibold cursor-pointer"
+              style={{
+                color: active_tab === tab_id ? "#056daa" : "#555555",
+                backgroundColor: active_tab === tab_id ? "rgba(5,109,170,0.08)" : "transparent",
+                borderLeft: active_tab === tab_id ? "3px solid #056daa" : "3px solid transparent",
+                fontFamily: "'Montserrat', sans-serif",
+              }}
+            >
+              {translate(tab_labels[tab_id])}
+            </button>
+          ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          {has_label && (
-            <TranslatedTextRow labelKey="DCS_SETTINGS_LABEL" value={draft.label} onChange={(value) => update({ label: value })} translate={translate} />
-          )}
-
-          {is_header && (
-            <div>
-              <label className="cok-auth-label">{translate("FIELD_TYPE_HEADER")}</label>
-              <select className="cok-auth-input w-full py-2" value={draft.level || 2} onChange={(event) => update({ level: Number(event.target.value) })}>
-                {[1, 2, 3, 4, 5, 6].map((level_value) => (
-                  <option key={level_value} value={level_value}>
-                    H{level_value}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {is_input_field && !is_hidden && (
-            <div className="flex items-center gap-4">
-              <label className="cok-auth-label mb-0">{translate("DCS_SETTINGS_MANDATORY")}</label>
-              <label className="flex items-center gap-1 text-sm">
-                <input type="radio" checked={!!draft.mandatory} onChange={() => update({ mandatory: true })} style={{ accentColor: "#056daa" }} />
-                {translate("DCS_SETTINGS_YES")}
-              </label>
-              <label className="flex items-center gap-1 text-sm">
-                <input type="radio" checked={!draft.mandatory} onChange={() => update({ mandatory: false })} style={{ accentColor: "#056daa" }} />
-                {translate("DCS_SETTINGS_NO")}
-              </label>
-            </div>
-          )}
-
-          {is_placeholder_capable && (
-            <TranslatedTextRow labelKey="DCS_SETTINGS_PLACEHOLDER" value={draft.placeholder} onChange={(value) => update({ placeholder: value })} translate={translate} />
-          )}
-
-          {is_input_field && !is_hidden && (
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          {active_tab === "labels" && (
             <>
-              <TranslatedTextRow labelKey="DCS_SETTINGS_HELP_TEXT" value={draft.help_text} onChange={(value) => update({ help_text: value })} translate={translate} />
-              <TranslatedTextRow labelKey="DCS_SETTINGS_ERROR_MESSAGE" value={draft.error_message} onChange={(value) => update({ error_message: value })} translate={translate} />
-              <TranslatedTextRow labelKey="DCS_SETTINGS_VALID_MESSAGE" value={draft.valid_message} onChange={(value) => update({ valid_message: value })} translate={translate} />
-            </>
-          )}
+              {has_label && (
+                <TranslatedTextRow labelKey="DCS_SETTINGS_LABEL" value={draft.label} onChange={(value) => update({ label: value })} translate={translate} />
+              )}
 
-          {is_media && (
-            <div className="space-y-4">
-              <div>
-                <label className="cok-auth-label">{translate("DCS_SETTINGS_MAX_SIZE")}</label>
-                <input type="number" className="cok-auth-input w-full py-3" value={draft.max_size_mb ?? 25} onChange={(event) => update({ max_size_mb: event.target.value })} />
-              </div>
-              <div>
-                <label className="cok-auth-label">{translate("DCS_SETTINGS_ACCEPTED_TYPES")}</label>
-                <input
-                  className="cok-auth-input w-full py-3"
-                  placeholder="image/png, application/pdf"
-                  value={(draft.accepted_types || []).join(", ")}
-                  onChange={(event) => update({ accepted_types: event.target.value.split(",").map((entry) => entry.trim()).filter(Boolean) })}
-                />
-              </div>
-            </div>
-          )}
+              {is_input_field && !is_hidden && (
+                <div className="flex items-center gap-4">
+                  <label className="cok-auth-label mb-0">{translate("DCS_SETTINGS_MANDATORY")}</label>
+                  <label className="flex items-center gap-1 text-sm">
+                    <input type="radio" checked={!!draft.mandatory} onChange={() => update({ mandatory: true })} style={{ accentColor: "#056daa" }} />
+                    {translate("DCS_SETTINGS_YES")}
+                  </label>
+                  <label className="flex items-center gap-1 text-sm">
+                    <input type="radio" checked={!draft.mandatory} onChange={() => update({ mandatory: false })} style={{ accentColor: "#056daa" }} />
+                    {translate("DCS_SETTINGS_NO")}
+                  </label>
+                </div>
+              )}
 
-          {is_date_like && (
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={!!draft.exclude_weekends} onChange={(event) => update({ exclude_weekends: event.target.checked })} style={{ accentColor: "#056daa" }} />
-              {translate("DCS_SETTINGS_EXCLUDE_WEEKENDS")}
-            </label>
-          )}
+              {is_placeholder_capable && (
+                <TranslatedTextRow labelKey="DCS_SETTINGS_PLACEHOLDER" value={draft.placeholder} onChange={(value) => update({ placeholder: value })} translate={translate} />
+              )}
 
-          {is_likert && (
-            <>
-              <div>
-                <label className="cok-auth-label">{translate("DCS_SETTINGS_LIKERT_SCALE_SIZE")}</label>
-                <input type="number" min="2" max="10" className="cok-auth-input w-full py-2" value={draft.scale_size || 5} onChange={(event) => update({ scale_size: Number(event.target.value) })} />
-              </div>
-              <TranslatedTextRow labelKey="DCS_SETTINGS_LABEL" value={draft.low_label} onChange={(value) => update({ low_label: value })} translate={translate} />
-              <TranslatedTextRow labelKey="DCS_SETTINGS_LABEL" value={draft.high_label} onChange={(value) => update({ high_label: value })} translate={translate} />
-            </>
-          )}
+              {is_input_field && !is_hidden && (
+                <TranslatedTextRow labelKey="DCS_SETTINGS_HELP_TEXT" value={draft.help_text} onChange={(value) => update({ help_text: value })} translate={translate} />
+              )}
 
-          {is_cascading && (
-            <div>
-              <label className="cok-auth-label">{translate("DCS_SETTINGS_CASCADING_PARENT")}</label>
-              <select className="cok-auth-input w-full py-2" value={draft.parent_field_id || ""} onChange={(event) => update({ parent_field_id: event.target.value })}>
-                <option value="">{translate("DCS_RENDERER_SELECT_PLACEHOLDER")}</option>
-                {other_fields.map((candidate_field) => (
-                  <option key={candidate_field.id} value={candidate_field.id}>
-                    {get_field_text(candidate_field.label, "en") || candidate_field.id}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+              {is_input_field && !is_hidden && draft.mandatory && (
+                <>
+                  <TranslatedTextRow
+                    labelKey="DCS_SETTINGS_MANDATORY_INVALID_MESSAGE"
+                    value={draft.required_message}
+                    onChange={(value) => update({ required_message: value })}
+                    translate={translate}
+                  />
+                  <TranslatedTextRow
+                    labelKey="DCS_SETTINGS_MANDATORY_VALID_MESSAGE"
+                    value={draft.valid_message}
+                    onChange={(value) => update({ valid_message: value })}
+                    translate={translate}
+                  />
+                </>
+              )}
 
-          {(has_options || is_cascading) && (
-            <div>
-              <label className="cok-auth-label">{translate("DCS_SETTINGS_OPTIONS_TITLE")}</label>
-              <div className="space-y-2">
-                {(draft.options || []).map((option) => (
-                  <div key={option.id} className="border p-3 space-y-2" style={{ borderColor: "#E0E0E0" }}>
-                    {LANGUAGES.map((language_code) => (
-                      <input
-                        key={language_code}
-                        className="cok-auth-input w-full py-3"
-                        placeholder={language_code.toUpperCase()}
-                        value={(option.label && option.label[language_code]) || ""}
-                        onChange={(event) => update_option(option.id, { label: Object.assign({}, option.label, { [language_code]: event.target.value }) })}
-                      />
-                    ))}
+              {is_media && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="cok-auth-label">{translate("DCS_SETTINGS_MAX_SIZE")}</label>
+                    <input
+                      type="number"
+                      className="cok-auth-input w-full py-3"
+                      placeholder={translate("DCS_SETTINGS_UNLIMITED")}
+                      value={draft.max_size_mb ?? ""}
+                      onChange={(event) => update({ max_size_mb: event.target.value ? Number(event.target.value) : null })}
+                    />
+                  </div>
+                  <div>
+                    <label className="cok-auth-label">{translate("DCS_SETTINGS_ACCEPTED_TYPES")}</label>
                     <input
                       className="cok-auth-input w-full py-3"
-                      placeholder="value"
-                      value={option.value}
-                      onChange={(event) => update_option(option.id, { value: event.target.value })}
+                      placeholder="image/png, application/pdf"
+                      value={(draft.accepted_types || []).join(", ")}
+                      onChange={(event) => update({ accepted_types: event.target.value.split(",").map((entry) => entry.trim()).filter(Boolean) })}
                     />
-                    {is_cascading && (
-                      <input
-                        className="cok-auth-input w-full py-3"
-                        placeholder="parent value"
-                        value={option.parent_value || ""}
-                        onChange={(event) => update_option(option.id, { parent_value: event.target.value })}
-                      />
-                    )}
-                    <DcsButtonOutline onClick={() => remove_option(option.id)}>{translate("DCS_SETTINGS_REMOVE")}</DcsButtonOutline>
                   </div>
-                ))}
-                <DcsButtonOutline onClick={add_option}>{translate("DCS_SETTINGS_ADD_OPTION")}</DcsButtonOutline>
-              </div>
-            </div>
-          )}
-
-          {is_hidden && (
-            <>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={!!(draft.computed && draft.computed.enabled)}
-                  onChange={(event) => update({ computed: Object.assign({}, draft.computed, { enabled: event.target.checked }) })}
-                  style={{ accentColor: "#056daa" }}
-                />
-                {translate("DCS_SETTINGS_COMPUTED_ENABLED")}
-              </label>
-              {draft.computed && draft.computed.enabled && (
-                <div>
-                  <label className="cok-auth-label">{translate("DCS_SETTINGS_COMPUTED_FORMULA")}</label>
-                  <textarea
-                    className="cok-auth-input w-full py-2"
-                    rows={4}
-                    value={draft.computed.formula_text || ""}
-                    onChange={(event) => {
-                      const formula_text = event.target.value;
-                      let parsed_formula = draft.computed.formula;
-                      try {
-                        parsed_formula = JSON.parse(formula_text);
-                      } catch (parse_error) {
-                        parsed_formula = draft.computed.formula;
-                      }
-                      update({ computed: Object.assign({}, draft.computed, { formula_text, formula: parsed_formula }) });
-                    }}
-                  />
                 </div>
+              )}
+
+              {is_date_like && (
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={!!draft.exclude_weekends} onChange={(event) => update({ exclude_weekends: event.target.checked })} style={{ accentColor: "#056daa" }} />
+                  {translate("DCS_SETTINGS_EXCLUDE_WEEKENDS")}
+                </label>
+              )}
+
+              {is_likert && (
+                <>
+                  <div>
+                    <label className="cok-auth-label">{translate("DCS_SETTINGS_LIKERT_SCALE_SIZE")}</label>
+                    <input type="number" min="2" max="10" className="cok-auth-input w-full py-2" value={draft.scale_size || 5} onChange={(event) => update({ scale_size: Number(event.target.value) })} />
+                  </div>
+                  <TranslatedTextRow labelKey="DCS_SETTINGS_LABEL" value={draft.low_label} onChange={(value) => update({ low_label: value })} translate={translate} />
+                  <TranslatedTextRow labelKey="DCS_SETTINGS_LABEL" value={draft.high_label} onChange={(value) => update({ high_label: value })} translate={translate} />
+                </>
+              )}
+
+              {is_cascading && (
+                <div>
+                  <label className="cok-auth-label">{translate("DCS_SETTINGS_CASCADING_PARENT")}</label>
+                  <select className="cok-auth-input w-full py-2" value={draft.parent_field_id || ""} onChange={(event) => update({ parent_field_id: event.target.value })}>
+                    <option value="">{translate("DCS_RENDERER_SELECT_PLACEHOLDER")}</option>
+                    {other_fields.map((candidate_field) => (
+                      <option key={candidate_field.id} value={candidate_field.id}>
+                        {get_field_text(candidate_field.label, "en") || candidate_field.id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {(has_options || is_cascading) && (
+                <div>
+                  <label className="cok-auth-label">{translate("DCS_SETTINGS_OPTIONS_TITLE")}</label>
+                  <div className="space-y-2">
+                    {(draft.options || []).map((option) => (
+                      <div key={option.id} className="border p-3 space-y-2" style={{ borderColor: "#E0E0E0" }}>
+                        {LANGUAGES.map((language_code) => (
+                          <input
+                            key={language_code}
+                            className="cok-auth-input w-full py-3"
+                            placeholder={language_code.toUpperCase()}
+                            value={(option.label && option.label[language_code]) || ""}
+                            onChange={(event) => update_option(option.id, { label: Object.assign({}, option.label, { [language_code]: event.target.value }) })}
+                          />
+                        ))}
+                        <input
+                          className="cok-auth-input w-full py-3"
+                          placeholder="value"
+                          value={option.value}
+                          onChange={(event) => update_option(option.id, { value: event.target.value })}
+                        />
+                        {is_cascading && (
+                          <input
+                            className="cok-auth-input w-full py-3"
+                            placeholder="parent value"
+                            value={option.parent_value || ""}
+                            onChange={(event) => update_option(option.id, { parent_value: event.target.value })}
+                          />
+                        )}
+                        <DcsButtonOutline onClick={() => remove_option(option.id)}>{translate("DCS_SETTINGS_REMOVE")}</DcsButtonOutline>
+                      </div>
+                    ))}
+                    <DcsButtonOutline onClick={add_option}>{translate("DCS_SETTINGS_ADD_OPTION")}</DcsButtonOutline>
+                  </div>
+                </div>
+              )}
+
+              {is_hidden && (
+                <>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={!!(draft.computed && draft.computed.enabled)}
+                      onChange={(event) => update({ computed: Object.assign({}, draft.computed, { enabled: event.target.checked }) })}
+                      style={{ accentColor: "#056daa" }}
+                    />
+                    {translate("DCS_SETTINGS_COMPUTED_ENABLED")}
+                  </label>
+                  {draft.computed && draft.computed.enabled && (
+                    <div>
+                      <label className="cok-auth-label">{translate("DCS_SETTINGS_COMPUTED_FORMULA")}</label>
+                      <textarea
+                        className="cok-auth-input w-full py-2"
+                        rows={4}
+                        value={draft.computed.formula_text || ""}
+                        onChange={(event) => {
+                          const formula_text = event.target.value;
+                          let parsed_formula = draft.computed.formula;
+                          try {
+                            parsed_formula = JSON.parse(formula_text);
+                          } catch (parse_error) {
+                            parsed_formula = draft.computed.formula;
+                          }
+                          update({ computed: Object.assign({}, draft.computed, { formula_text, formula: parsed_formula }) });
+                        }}
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
 
-          {is_input_field && (
-            <div>
-              <label className="cok-auth-label">{translate("DCS_SETTINGS_VALIDATION_TITLE")}</label>
-              <ValidationRuleEditor field={draft} allFields={other_fields} onChange={(rules) => update({ validation_rules: rules })} />
+          {active_tab === "validation" && is_input_field && (
+            <ValidationRuleEditor field={draft} allFields={other_fields} onChange={(rules) => update({ validation_rules: rules })} />
+          )}
+
+          {active_tab === "designs" && (
+            <div className="space-y-4">
+              {is_content_field && (
+                <>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={!!design.full_device_width}
+                      onChange={(event) => update_design({ full_device_width: event.target.checked })}
+                      style={{ accentColor: "#056daa" }}
+                    />
+                    {translate("DCS_DESIGN_FULL_DEVICE_WIDTH")}
+                  </label>
+                  {!design.full_device_width && (
+                    <p className="text-xs" style={{ color: "#9E9E9E" }}>
+                      {translate("DCS_DESIGN_POSITION_HINT")}
+                    </p>
+                  )}
+                </>
+              )}
+
+              {is_header && (
+                <div>
+                  <label className="cok-auth-label">{translate("DCS_DESIGN_HEADING_TYPE")}</label>
+                  <select className="cok-auth-input w-full py-2" value={draft.level || 2} onChange={(event) => update({ level: Number(event.target.value) })}>
+                    {[1, 2, 3, 4, 5, 6].map((level_value) => (
+                      <option key={level_value} value={level_value}>
+                        {translate("DCS_DESIGN_HEADING_LEVEL", { level: level_value })}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {(is_header || is_paragraph || is_shape) && (
+                <>
+                  <div>
+                    <label className="cok-auth-label">{translate("DCS_DESIGN_TEXT_COLOR")}</label>
+                    <input type="color" className="w-full h-10" value={design.text_color || "#333333"} onChange={(event) => update_design({ text_color: event.target.value })} />
+                  </div>
+                  <div>
+                    <label className="cok-auth-label">{translate("DCS_DESIGN_FONT_FAMILY")}</label>
+                    <select className="cok-auth-input w-full py-2" value={design.font_family || FONT_FAMILIES[0]} onChange={(event) => update_design({ font_family: event.target.value })}>
+                      {FONT_FAMILIES.map((font_family) => (
+                        <option key={font_family} value={font_family} style={{ fontFamily: font_family }}>
+                          {font_family.split(",")[0].replace(/'/g, "")}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {is_paragraph && (
+                <div>
+                  <label className="cok-auth-label">{translate("DCS_DESIGN_LIST_TYPE")}</label>
+                  <select className="cok-auth-input w-full py-2" value={design.list_type || "disc"} onChange={(event) => update_design({ list_type: event.target.value })}>
+                    {LIST_TYPES.map((list_type) => (
+                      <option key={list_type} value={list_type}>
+                        {translate(`DCS_DESIGN_LIST_TYPE_${list_type.replace("-", "_").toUpperCase()}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="cok-auth-label">{translate("DCS_DESIGN_BACKGROUND_COLOR")}</label>
+                <input type="color" className="w-full h-10" value={design.background_color || "#FFFFFF"} onChange={(event) => update_design({ background_color: event.target.value })} />
+              </div>
+
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={!!design.border_enabled} onChange={(event) => update_design({ border_enabled: event.target.checked })} style={{ accentColor: "#056daa" }} />
+                {translate("DCS_DESIGN_BORDER_ENABLED")}
+              </label>
+              {design.border_enabled && (
+                <>
+                  <div>
+                    <label className="cok-auth-label">{translate("DCS_DESIGN_BORDER_COLOR")}</label>
+                    <input type="color" className="w-full h-10" value={design.border_color || "#E0E0E0"} onChange={(event) => update_design({ border_color: event.target.value })} />
+                  </div>
+                  <div>
+                    <label className="cok-auth-label">{translate("DCS_DESIGN_BORDER_WIDTH")}</label>
+                    <input type="number" min="1" max="10" className="cok-auth-input w-full py-2" value={design.border_width || 1} onChange={(event) => update_design({ border_width: Number(event.target.value) })} />
+                  </div>
+                </>
+              )}
+
+              {is_horizontal_line && (
+                <div>
+                  <label className="cok-auth-label">{translate("DCS_DESIGN_THICKNESS")}</label>
+                  <input type="number" min="1" max="20" className="cok-auth-input w-full py-2" value={draft.thickness_px || 2} onChange={(event) => update({ thickness_px: Number(event.target.value) })} />
+                </div>
+              )}
+
+              {is_image_block && (
+                <div>
+                  <label className="cok-auth-label">{translate("DCS_DESIGN_IMAGE_WIDTH")}</label>
+                  <input type="number" min="20" max="2000" className="cok-auth-input w-full py-2" value={draft.width_px || 200} onChange={(event) => update({ width_px: Number(event.target.value) })} />
+                </div>
+              )}
+
+              {is_shape && (
+                <>
+                  <div>
+                    <label className="cok-auth-label">{translate("DCS_DESIGN_SHAPE_KIND")}</label>
+                    <select className="cok-auth-input w-full py-2" value={draft.shape_kind} onChange={(event) => update({ shape_kind: event.target.value })}>
+                      <option value="rectangle">{translate("DCS_DESIGN_SHAPE_RECTANGLE")}</option>
+                      <option value="circle">{translate("DCS_DESIGN_SHAPE_CIRCLE")}</option>
+                      <option value="triangle">{translate("DCS_DESIGN_SHAPE_TRIANGLE")}</option>
+                    </select>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <label className="cok-auth-label">{translate("DCS_DESIGN_SHAPE_WIDTH")}</label>
+                      <input type="number" min="10" max="1000" className="cok-auth-input w-full py-2" value={draft.width_px || 120} onChange={(event) => update({ width_px: Number(event.target.value) })} />
+                    </div>
+                    <div className="flex-1">
+                      <label className="cok-auth-label">{translate("DCS_DESIGN_SHAPE_HEIGHT")}</label>
+                      <input type="number" min="10" max="1000" className="cok-auth-input w-full py-2" value={draft.height_px || 120} onChange={(event) => update({ height_px: Number(event.target.value) })} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="cok-auth-label">{translate("DCS_DESIGN_SHAPE_ROTATION")}</label>
+                    <input type="number" min="0" max="359" className="cok-auth-input w-full py-2" value={draft.rotation_deg || 0} onChange={(event) => update({ rotation_deg: Number(event.target.value) })} />
+                  </div>
+                  <div>
+                    <label className="cok-auth-label">{translate("DCS_DESIGN_SHAPE_FILL_COLOR")}</label>
+                    <input type="color" className="w-full h-10" value={draft.fill_color || "#056daa"} onChange={(event) => update({ fill_color: event.target.value })} />
+                  </div>
+                  <TranslatedTextRow labelKey="DCS_DESIGN_SHAPE_TEXT" value={draft.text} onChange={(value) => update({ text: value })} translate={translate} />
+                  <div>
+                    <label className="cok-auth-label">{translate("DCS_DESIGN_SHAPE_IMAGE")}</label>
+                    <input type="file" accept="image/*" onChange={handle_shape_image_selected} />
+                    {draft.image_url && (
+                      <DcsButtonOutline className="mt-2" onClick={() => update({ image_url: "" })}>
+                        {translate("DCS_SETTINGS_REMOVE")}
+                      </DcsButtonOutline>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
-          <div>
-            <label className="cok-auth-label">{translate("DCS_SETTINGS_VISIBILITY_TITLE")}</label>
-            <p className="text-xs mb-3 pt-1" style={{ color: "#9E9E9E" }}>
-              {translate("DCS_SETTINGS_VISIBILITY_DESCRIPTION")}
-            </p>
-            <div className="space-y-3">
-              <select className="cok-auth-input w-full py-3" value={visibility_ui.parent_field_id} onChange={(event) => update_visibility({ parent_field_id: event.target.value })}>
-                <option value="">{translate("DCS_RENDERER_SELECT_PLACEHOLDER")}</option>
-                {other_fields.map((candidate_field) => (
-                  <option key={candidate_field.id} value={candidate_field.id}>
-                    {get_field_text(candidate_field.label, "en") || candidate_field.id}
-                  </option>
-                ))}
-              </select>
-              <select className="cok-auth-input w-full py-3" value={visibility_ui.operator} onChange={(event) => update_visibility({ operator: event.target.value })}>
-                {VISIBILITY_OPERATORS.map((operator) => (
-                  <option key={operator.id} value={operator.id}>
-                    {translate(operator.labelKey)}
-                  </option>
-                ))}
-              </select>
-              <input className="cok-auth-input w-full py-3" value={visibility_ui.value} onChange={(event) => update_visibility({ value: event.target.value })} />
+          {active_tab === "visibility" && (
+            <div>
+              <p className="text-xs mb-3" style={{ color: "#9E9E9E" }}>
+                {translate("DCS_SETTINGS_VISIBILITY_DESCRIPTION")}
+              </p>
+              <div className="space-y-3">
+                <select className="cok-auth-input w-full py-3" value={visibility_ui.parent_field_id} onChange={(event) => update_visibility({ parent_field_id: event.target.value })}>
+                  <option value="">{translate("DCS_RENDERER_SELECT_PLACEHOLDER")}</option>
+                  {other_fields.map((candidate_field) => (
+                    <option key={candidate_field.id} value={candidate_field.id}>
+                      {get_field_text(candidate_field.label, "en") || candidate_field.id}
+                    </option>
+                  ))}
+                </select>
+                <select className="cok-auth-input w-full py-3" value={visibility_ui.operator} onChange={(event) => update_visibility({ operator: event.target.value })}>
+                  {VISIBILITY_OPERATORS.map((operator) => (
+                    <option key={operator.id} value={operator.id}>
+                      {translate(operator.labelKey)}
+                    </option>
+                  ))}
+                </select>
+                <input className="cok-auth-input w-full py-3" value={visibility_ui.value} onChange={(event) => update_visibility({ value: event.target.value })} />
+              </div>
+              <ParentValidationSummary parentField={visibility_parent_field} translate={translate} />
             </div>
-          </div>
+          )}
         </div>
 
-        <div className="p-4 border-t flex gap-3 flex-shrink-0" style={{ borderColor: "#E0E0E0" }}>
+        <div className="p-3 border-t flex gap-3 flex-shrink-0" style={{ borderColor: "#E0E0E0" }}>
           <DcsButtonOutlineReverse className="flex-1" onClick={onClose}>
             {translate("DCS_BTN_CANCEL")}
           </DcsButtonOutlineReverse>
@@ -301,6 +624,7 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose 
             {translate("DCS_BTN_SAVE")}
           </DcsButtonPrimary>
         </div>
+      </div>
       </div>
     </div>
   );

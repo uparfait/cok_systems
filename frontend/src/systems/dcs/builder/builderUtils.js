@@ -6,7 +6,7 @@
 export function update_field_by_id(fields, field_id, updater) {
   return fields.map((field) => {
     if (field.id === field_id) return updater(field);
-    if (field.type === "group" && Array.isArray(field.children)) {
+    if ((field.type === "group" || field.type === "section") && Array.isArray(field.children)) {
       return Object.assign({}, field, { children: update_field_by_id(field.children, field_id, updater) });
     }
     return field;
@@ -20,7 +20,7 @@ export function delete_field_by_id(fields, field_id) {
   return fields
     .filter((field) => field.id !== field_id)
     .map((field) => {
-      if (field.type === "group" && Array.isArray(field.children)) {
+      if ((field.type === "group" || field.type === "section") && Array.isArray(field.children)) {
         return Object.assign({}, field, { children: delete_field_by_id(field.children, field_id) });
       }
       return field;
@@ -56,7 +56,7 @@ export function collect_all_field_ids_with_labels(fields, language, accumulator)
   const list = accumulator || [];
   fields.forEach((field) => {
     list.push({ id: field.id, type: field.type, label: field.label });
-    if (field.type === "group" && Array.isArray(field.children)) {
+    if ((field.type === "group" || field.type === "section") && Array.isArray(field.children)) {
       collect_all_field_ids_with_labels(field.children, language, list);
     }
   });

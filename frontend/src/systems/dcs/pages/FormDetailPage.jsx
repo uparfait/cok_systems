@@ -36,7 +36,7 @@ export default function FormDetailPage() {
   });
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="w-full min-[760px]:w-[80vw] mx-auto">
       <h1 className="mb-2 truncate" style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: 20, color: "#333333" }} title={title}>
         {title}
       </h1>

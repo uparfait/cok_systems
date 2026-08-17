@@ -16,6 +16,7 @@ export default function ValidationRuleEditor({ field, allFields, onChange }) {
   const { translate } = useDcsLanguage();
   const rules = field.validation_rules || [];
   const applicable_operators = get_applicable_operators(field.type);
+  const get_operator_meta = (operator_id) => applicable_operators.find((operator) => operator.id === operator_id) || {};
 
   const update_rule = (rule_id, patch) => {
     const next_rules = rules.map((rule) => {
@@ -56,7 +57,9 @@ export default function ValidationRuleEditor({ field, allFields, onChange }) {
 
   return (
     <div className="space-y-4">
-      {rules.map((rule) => (
+      {rules.map((rule) => {
+        const operator_meta = get_operator_meta(rule.operator);
+        return (
         <div key={rule.id} className="border p-4 space-y-3" style={{ borderColor: "#E0E0E0" }}>
           <div>
             <label className="cok-auth-label">{translate("DCS_SETTINGS_VALIDATION_OPERATOR")}</label>
@@ -72,16 +75,18 @@ export default function ValidationRuleEditor({ field, allFields, onChange }) {
               ))}
             </select>
           </div>
-          <div>
-            <label className="cok-auth-label">{translate("DCS_SETTINGS_VALIDATION_VALUE")}</label>
-            <input
-              className="cok-auth-input w-full py-3"
-              value={rule.value}
-              onChange={(event) => update_rule(rule.id, { value: event.target.value })}
-            />
-          </div>
+          {operator_meta.needsValue && (
+            <div>
+              <label className="cok-auth-label">{translate("DCS_SETTINGS_VALIDATION_VALUE")}</label>
+              <input
+                className="cok-auth-input w-full py-3"
+                value={rule.value}
+                onChange={(event) => update_rule(rule.id, { value: event.target.value })}
+              />
+            </div>
+          )}
 
-          {rule.operator === "depends_on_parent" && (
+          {operator_meta.needsParent && (
             <>
               <div>
                 <label className="cok-auth-label">{translate("DCS_SETTINGS_PARENT_FIELD")}</label>
@@ -100,19 +105,25 @@ export default function ValidationRuleEditor({ field, allFields, onChange }) {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="cok-auth-label">{translate("DCS_SETTINGS_VALIDATION_VALUE")}</label>
-                <input
-                  className="cok-auth-input w-full py-3"
-                  value={rule.parent_value}
-                  onChange={(event) => update_rule(rule.id, { parent_value: event.target.value })}
-                />
-              </div>
+              {operator_meta.needsParentValue && (
+                <div>
+                  <label className="cok-auth-label">{translate("DCS_SETTINGS_VALIDATION_VALUE")}</label>
+                  <input
+                    className="cok-auth-input w-full py-3"
+                    value={rule.parent_value}
+                    onChange={(event) => update_rule(rule.id, { parent_value: event.target.value })}
+                  />
+                </div>
+              )}
             </>
           )}
 
           <div>
-            <label className="cok-auth-label">{translate("DCS_SETTINGS_VALIDATION_MESSAGE")}</label>
+            <label className="cok-auth-label">
+              {operator_meta.invalidMessageLabelKey
+                ? translate(operator_meta.invalidMessageLabelKey)
+                : translate("DCS_SETTINGS_VALIDATION_MESSAGE_FOR", { criterion: translate(operator_meta.labelKey) })}
+            </label>
             <div className="space-y-2">
               {LANGUAGES.map((language_code) => (
                 <input
@@ -129,7 +140,11 @@ export default function ValidationRuleEditor({ field, allFields, onChange }) {
           </div>
 
           <div>
-            <label className="cok-auth-label">{translate("DCS_SETTINGS_VALIDATION_VALID_MESSAGE")}</label>
+            <label className="cok-auth-label">
+              {operator_meta.validMessageLabelKey
+                ? translate(operator_meta.validMessageLabelKey)
+                : translate("DCS_SETTINGS_VALIDATION_VALID_MESSAGE_FOR", { criterion: translate(operator_meta.labelKey) })}
+            </label>
             <div className="space-y-2">
               {LANGUAGES.map((language_code) => (
                 <input
@@ -160,7 +175,8 @@ export default function ValidationRuleEditor({ field, allFields, onChange }) {
           </div>
           <DcsButtonOutline className="w-full" onClick={() => remove_rule(rule.id)}>{translate("DCS_SETTINGS_REMOVE")}</DcsButtonOutline>
         </div>
-      ))}
+        );
+      })}
 
       <DcsButtonOutline className="w-full" onClick={add_rule}>{translate("DCS_SETTINGS_VALIDATION_ADD_RULE")}</DcsButtonOutline>
     </div>

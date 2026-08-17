@@ -8,7 +8,7 @@ export function flatten_fields(fields, accumulator) {
   const flat = accumulator || [];
   (fields || []).forEach((field) => {
     flat.push(field);
-    if (field.type === "group" && Array.isArray(field.children)) {
+    if ((field.type === "group" || field.type === "section") && Array.isArray(field.children)) {
       flatten_fields(field.children, flat);
     }
   });

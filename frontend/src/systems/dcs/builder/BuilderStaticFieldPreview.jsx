@@ -26,7 +26,7 @@ export default function BuilderStaticFieldPreview({ field, language, onOpenSetti
       </div>
       <button
         type="button"
-        onClick={() => onOpenSettings(field)}
+        onClick={(event) => onOpenSettings(field, event.currentTarget.getBoundingClientRect())}
         className="cursor-pointer p-1.5 border flex-shrink-0 self-start"
         style={{ borderColor: "#E0E0E0" }}
         title={translate("DCS_SETTINGS_TITLE")}

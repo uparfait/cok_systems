@@ -1,4 +1,4 @@
-export const DCS_CONTENT_FIELD_TYPES = ["paragraph", "header", "file"];
+export const DCS_CONTENT_FIELD_TYPES = ["paragraph", "header", "file", "image_block", "horizontal_line", "shape", "section"];
 
 export const DCS_DATA_FIELD_TYPES = [
   "text",
@@ -35,6 +35,10 @@ export const DCS_FIELD_TYPE_REGISTRY = [
   { type: "paragraph", labelKey: "FIELD_TYPE_PARAGRAPH", descriptionKey: "FIELD_TYPE_PARAGRAPH_DESC", category: "content" },
   { type: "header", labelKey: "FIELD_TYPE_HEADER", descriptionKey: "FIELD_TYPE_HEADER_DESC", category: "content" },
   { type: "file", labelKey: "FIELD_TYPE_FILE", descriptionKey: "FIELD_TYPE_FILE_DESC", category: "content" },
+  { type: "image_block", labelKey: "FIELD_TYPE_IMAGE_BLOCK", descriptionKey: "FIELD_TYPE_IMAGE_BLOCK_DESC", category: "content" },
+  { type: "horizontal_line", labelKey: "FIELD_TYPE_HORIZONTAL_LINE", descriptionKey: "FIELD_TYPE_HORIZONTAL_LINE_DESC", category: "content" },
+  { type: "shape", labelKey: "FIELD_TYPE_SHAPE", descriptionKey: "FIELD_TYPE_SHAPE_DESC", category: "content" },
+  { type: "section", labelKey: "FIELD_TYPE_SECTION", descriptionKey: "FIELD_TYPE_SECTION_DESC", category: "content" },
 
   { type: "text", labelKey: "FIELD_TYPE_TEXT", descriptionKey: "FIELD_TYPE_TEXT_DESC", category: "data" },
   { type: "number", labelKey: "FIELD_TYPE_NUMBER", descriptionKey: "FIELD_TYPE_NUMBER_DESC", category: "data" },
@@ -79,13 +83,29 @@ export function create_blank_field(field_type) {
     label: { en: "", kn: "", fr: "" },
     placeholder: { en: "", kn: "", fr: "" },
     help_text: { en: "", kn: "", fr: "" },
-    error_message: { en: "", kn: "", fr: "" },
+    required_message: { en: "", kn: "", fr: "" },
     valid_message: { en: "", kn: "", fr: "" },
     mandatory: false,
     default_value: null,
     visibility_condition: null,
     validation_rules: [],
     computed: { enabled: false, formula: null },
+    design: {
+      // Form design components only: dragged horizontal position (0-100,
+      // 0 = flush left, 100 = flush right of its available slack), and
+      // whether it should ignore width_percent entirely and stretch to the
+      // full device width instead.
+      offset_percent: 0,
+      full_device_width: false,
+      width_percent: null,
+      text_color: null,
+      background_color: null,
+      border_enabled: false,
+      border_color: "#E0E0E0",
+      border_width: 1,
+      font_family: null,
+      list_type: null,
+    },
   };
 
   if (["single_select", "multi_select"].includes(field_type)) {
@@ -106,6 +126,10 @@ export function create_blank_field(field_type) {
   if (field_type === "group") {
     base_field.children = [];
   }
+  if (field_type === "section") {
+    base_field.children = [];
+    base_field.height_px = 200;
+  }
   if (field_type === "header") {
     base_field.level = 2;
   }
@@ -117,11 +141,31 @@ export function create_blank_field(field_type) {
     base_field.file_name = "";
   }
   if (["image", "video", "audio", "file_upload"].includes(field_type)) {
-    base_field.max_size_mb = 25;
+    base_field.max_size_mb = null;
     base_field.accepted_types = [];
   }
   if (field_type === "date" || field_type === "date_time") {
     base_field.exclude_weekends = false;
+  }
+  if (field_type === "image_block") {
+    base_field.image_url = "";
+    base_field.width_px = 200;
+    base_field.offset_px = 0;
+  }
+  if (field_type === "horizontal_line") {
+    base_field.thickness_px = 2;
+    base_field.design.width_percent = 100;
+    base_field.design.border_color = "#E0E0E0";
+  }
+  if (field_type === "shape") {
+    base_field.shape_kind = "rectangle";
+    base_field.width_px = 120;
+    base_field.height_px = 120;
+    base_field.offset_px = 0;
+    base_field.rotation_deg = 0;
+    base_field.fill_color = "#056daa";
+    base_field.text = { en: "", kn: "", fr: "" };
+    base_field.image_url = "";
   }
 
   return base_field;

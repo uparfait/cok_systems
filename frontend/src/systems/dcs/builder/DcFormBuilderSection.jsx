@@ -13,28 +13,40 @@ import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 export default function DcFormBuilderSection({ fields, onFieldsChange, onPublish, publishing }) {
   const { translate } = useDcsLanguage();
   const [selected_field, setSelectedField] = useState(null);
+  const [settings_anchor_rect, setSettingsAnchorRect] = useState(null);
   const [is_reviewing, setIsReviewing] = useState(false);
 
   const all_flat_fields = flatten_fields(fields);
+
+  const handle_open_settings = (field, rect) => {
+    setSelectedField(field);
+    setSettingsAnchorRect(rect || null);
+  };
 
   const handle_settings_save = (updated_field) => {
     const update_recursive = (field_list) =>
       field_list.map((field) => {
         if (field.id === updated_field.id) return updated_field;
-        if (field.type === "group" && Array.isArray(field.children)) {
+        if ((field.type === "group" || field.type === "section") && Array.isArray(field.children)) {
           return Object.assign({}, field, { children: update_recursive(field.children) });
         }
         return field;
       });
     onFieldsChange(update_recursive(fields));
     setSelectedField(null);
+    setSettingsAnchorRect(null);
+  };
+
+  const handle_close_settings = () => {
+    setSelectedField(null);
+    setSettingsAnchorRect(null);
   };
 
   const schema = { fields };
 
   return (
     <div className="space-y-4">
-      <FormBuilderCanvas fields={fields} onFieldsChange={onFieldsChange} onOpenSettings={setSelectedField} />
+      <FormBuilderCanvas fields={fields} onFieldsChange={onFieldsChange} onOpenSettings={handle_open_settings} />
 
       {fields.length > 0 && (
         <DcsButtonOutline className="w-full" onClick={() => setIsReviewing(true)}>
@@ -46,8 +58,9 @@ export default function DcFormBuilderSection({ fields, onFieldsChange, onPublish
         <FieldSettingsDrawer
           field={selected_field}
           allFields={all_flat_fields}
+          anchorRect={settings_anchor_rect}
           onSave={handle_settings_save}
-          onClose={() => setSelectedField(null)}
+          onClose={handle_close_settings}
         />
       )}
 

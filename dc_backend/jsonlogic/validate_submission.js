@@ -36,7 +36,17 @@ function validate_submission_data(schema, submitted_data, language) {
   const working_data = Object.assign({}, submitted_data);
   const field_errors = {};
 
-  const evaluation_order = dependency_result.order.length > 0 ? dependency_result.order : [...fields_by_id.keys()];
+  // A cycle only means computed/visibility values among the cyclic fields
+  // can't be resolved in a guaranteed-correct order - it must never mean
+  // those fields are skipped. Silently dropping them from evaluation was
+  // exactly what let a submission through while some fields' mandatory and
+  // validation rules were never actually checked. Every field always gets
+  // evaluated: the acyclic ones in dependency order, the cyclic ones
+  // afterwards on a best-effort basis.
+  const evaluation_order =
+    dependency_result.order.length > 0
+      ? dependency_result.order.concat(dependency_result.cyclic_fields)
+      : [...fields_by_id.keys()];
 
   evaluation_order.forEach((field_id) => {
     const field = fields_by_id.get(field_id);

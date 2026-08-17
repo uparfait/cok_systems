@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { DcsLanguageProvider, useDcsLanguage } from "../i18n/LanguageContext.jsx";
+import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { get_public_form } from "../services/formsService.js";
 import { cache_form, get_cached_form } from "../offline/formCache.js";
 import { enqueue_submission, process_queue_once, list_queue, start_auto_sync } from "../offline/submissionQueue.js";
 import { compute_derived_values } from "../renderer/formEngine.js";
 import { validate_submission_client_side } from "../jsonlogic/validateSubmission.js";
 import RendererEngine from "../renderer/RendererEngine.jsx";
-import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
+import DcsSubmitControl from "../components/DcsSubmitControl.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import DcsEmptyState from "../components/DcsEmptyState.jsx";
-import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
 
 /**
@@ -28,6 +28,7 @@ function extract_form_group_id(raw_id) {
 function PublicFormPageContent() {
   const { id } = useParams();
   const { translate, language } = useDcsLanguage();
+  const { showSuccess } = useToast();
   const form_group_id = extract_form_group_id(id);
 
   const [form, setForm] = useState(null);
@@ -36,9 +37,20 @@ function PublicFormPageContent() {
   const [field_errors, setFieldErrors] = useState({});
   const [field_valid_messages, setFieldValidMessages] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [submit_state, setSubmitState] = useState("idle");
   const [pending_count, setPendingCount] = useState(0);
   const [is_syncing, setIsSyncing] = useState(false);
   const [is_online, setIsOnline] = useState(window.navigator.onLine);
+
+  useEffect(() => {
+    const prevent_default = (event) => event.preventDefault();
+    window.addEventListener("dragover", prevent_default);
+    window.addEventListener("drop", prevent_default);
+    return () => {
+      window.removeEventListener("dragover", prevent_default);
+      window.removeEventListener("drop", prevent_default);
+    };
+  }, []);
 
   const refresh_pending_count = useCallback(async () => {
     try {
@@ -97,6 +109,7 @@ function PublicFormPageContent() {
   }, [form_group_id, refresh_pending_count]);
 
   const handle_value_change = (field_id, next_value) => {
+    setSubmitState("idle");
     setValues((previous_values) => {
       const merged_values = Object.assign({}, previous_values, { [field_id]: next_value });
       const resolved_values = compute_derived_values(form.schema, merged_values);
@@ -115,6 +128,7 @@ function PublicFormPageContent() {
       setFieldErrors(validation_result.field_errors);
       setFieldValidMessages(validation_result.field_valid_messages);
       if (!validation_result.valid) {
+        setSubmitState("error");
         return;
       }
       await enqueue_submission(form_group_id, form.version, resolved_values);
@@ -130,6 +144,7 @@ function PublicFormPageContent() {
           setValues(result.blocked_item.data || {});
           setFieldErrors(result.blocked_item.field_errors || {});
           setFieldValidMessages({});
+          setSubmitState("error");
           return;
         }
       }
@@ -137,6 +152,11 @@ function PublicFormPageContent() {
       setValues({});
       setFieldErrors({});
       setFieldValidMessages({});
+      setSubmitState("success");
+      showSuccess(translate("DCS_PUBLIC_DATA_RECORDED"));
+    } catch (submit_error) {
+      setSubmitState("error");
+      throw submit_error;
     } finally {
       setSubmitting(false);
     }
@@ -147,8 +167,8 @@ function PublicFormPageContent() {
   if (load_state === "no_active_version") return <DcsEmptyState messageKey="DCS_PUBLIC_NO_ACTIVE_VERSION" />;
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 flex flex-col items-center" style={{ backgroundColor: "#F7F9FB" }}>
-      <div className="w-full border-2 bg-white p-4 sm:p-6" style={{ maxWidth: 500, borderColor: "#056daa" }}>
+    <div className="min-h-screen p-0 min-[650px]:p-6 flex flex-col items-center" style={{ backgroundColor: "#F7F9FB" }}>
+      <div className="w-full min-[650px]:max-w-[650px] bg-white p-4 min-[650px]:p-6 border-0 min-[650px]:border-2 min-[650px]:border-[#056daa]">
         <RendererEngine
           schema={form.schema}
           mode="renderer"
@@ -158,15 +178,12 @@ function PublicFormPageContent() {
           fieldValidMessages={field_valid_messages}
         />
 
-        <div className="w-full mt-4">
-          {submitting ? (
-            <SpiralLoader />
-          ) : (
-            <DcsButtonPrimary className="w-full" onClick={handle_submit} disabled={submitting}>
-              {translate("DCS_RENDERER_SUBMIT")}
-            </DcsButtonPrimary>
-          )}
-        </div>
+        <DcsSubmitControl
+          submitting={submitting}
+          submitState={submit_state}
+          onSubmit={handle_submit}
+          onIdle={() => setSubmitState("idle")}
+        />
 
         {!is_online && (
           <div className="w-full mt-3">

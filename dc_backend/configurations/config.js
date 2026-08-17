@@ -11,8 +11,14 @@ const DC_CONFIG = {
   upload_dir: "uploads",
   max_upload_size_mb: 250000,
   max_request_body_size: "250000mb",
-  max_group_nesting_depth: 30000,
-  max_jsonlogic_rule_size: 2000000000000000,
+  // Generous ceilings for legitimate large forms - NOT meant to be truly
+  // unlimited. These guard recursive traversals (group nesting, JSONLogic
+  // rule-depth measurement) against a stack overflow from a pathological
+  // payload; raising them further only trades safety for no real benefit,
+  // since no real form design ever approaches these depths.
+  max_group_nesting_depth: 50,
+  max_jsonlogic_rule_size: 200000,
+  max_jsonlogic_rule_depth: 50,
 };
 
 module.exports = DC_CONFIG;

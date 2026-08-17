@@ -1,8 +1,9 @@
 const jsonLogic = require("json-logic-js");
 const CUSTOM_OPERATIONS = require("./custom_operations.js");
+const config = require("../configurations/config.js");
 
-const MAX_RULE_JSON_SIZE = 20000;
-const MAX_RULE_DEPTH = 12;
+const MAX_RULE_JSON_SIZE = config.max_jsonlogic_rule_size;
+const MAX_RULE_DEPTH = config.max_jsonlogic_rule_depth;
 
 Object.keys(CUSTOM_OPERATIONS).forEach((operation_name) => {
   jsonLogic.add_operation(operation_name, CUSTOM_OPERATIONS[operation_name]);

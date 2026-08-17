@@ -80,7 +80,7 @@ export default function NewProjectPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto pb-16">
+    <div className="w-full min-[760px]:w-[80vw] mx-auto pb-16">
       <DcsWizardSteps steps={STEPS} currentIndex={current_step} maxReachedIndex={max_reached_index} onSelect={setCurrentStep} />
 
       {current_step === 0 && (

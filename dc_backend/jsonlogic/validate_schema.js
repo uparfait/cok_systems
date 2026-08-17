@@ -1,10 +1,11 @@
 const { ALL_FIELD_TYPES, CONTENT_FIELD_TYPES, SUPPORTED_LANGUAGES } = require("../constants/field_types.js");
+const config = require("../configurations/config.js");
 
 const LABEL_NOT_REQUIRED_TYPES = CONTENT_FIELD_TYPES.concat(["hidden"]);
 const { is_valid_rule_structure } = require("./engine.js");
 const { build_dependency_graph } = require("./dependency_graph.js");
 
-const MAX_NESTING_DEPTH = 6;
+const MAX_NESTING_DEPTH = config.max_group_nesting_depth;
 
 /**
  * True when a translated-label object carries at least one non-empty value
@@ -66,7 +67,7 @@ function validate_field(field, path, depth, errors, seen_ids) {
     }
   });
 
-  if (field.type === "group" && Array.isArray(field.children)) {
+  if ((field.type === "group" || field.type === "section") && Array.isArray(field.children)) {
     field.children.forEach((child, index) => validate_field(child, `${path}.children[${index}]`, depth + 1, errors, seen_ids));
   }
 }

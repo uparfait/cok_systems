@@ -4,7 +4,7 @@
  * to contain; the frontend field registry mirrors these same ids.
  */
 
-const CONTENT_FIELD_TYPES = ["paragraph", "header", "file"];
+const CONTENT_FIELD_TYPES = ["paragraph", "header", "file", "image_block", "horizontal_line", "shape", "section"];
 
 const DATA_FIELD_TYPES = [
   "text",
