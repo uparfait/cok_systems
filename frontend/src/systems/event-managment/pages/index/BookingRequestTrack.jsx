@@ -7,6 +7,7 @@ import ConfirmModal from "../../ui-components/ConfirmModal";
 import SystemAlert from "@/core/components/SystemAlert";
 import TrackResult from "./components/TrackResult";
 import TrackEditForm from "./components/TrackEditForm";
+import CoOrganizersPanel from "./components/CoOrganizersPanel";
 import {
   PRIMARY, PRIMARY_HOVER, DANGER, NEUTRAL_LIGHT, BORDER, WHITE, GRAY_DISABLED, fontHeading,
   CARD_SHADOW, FOCUS_SHADOW, BLUR_SHADOW, inputStyle, getBtnStyle, btnHover, btnLeavePrimary,
@@ -199,6 +200,12 @@ export default function BookingRequestTrack() {
             invitedPeople={invitedPeople} invitedCount={invitedCount} invitedLoading={invitedLoading}
             onToggleInvited={toggleInvited} onRemoveInvited={removeInvited}
           />
+        )}
+
+        {request && !isEditing && request.status === "Accepted" && request.acceptedEventSpecialId && (
+          <div className="w-full max-w-lg">
+            <CoOrganizersPanel eventSpecialId={request.acceptedEventSpecialId} />
+          </div>
         )}
 
         {request && isEditing && (

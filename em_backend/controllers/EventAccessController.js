@@ -33,7 +33,10 @@ class EventAccessController {
       }
 
       const organizerEmail = event.eventOrganizer?.email?.toLowerCase().trim();
-      if (organizerEmail !== normalizedEmail) {
+      const isCoOrganizer = (event.coOrganizers || []).some(
+        (c) => (c.email || '').toLowerCase().trim() === normalizedEmail
+      );
+      if (organizerEmail !== normalizedEmail && !isCoOrganizer) {
         return res.status(403).json({ success: false, message: 'This email is not authorized for this event' });
       }
 

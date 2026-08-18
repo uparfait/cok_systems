@@ -7,7 +7,38 @@ import EventDetailsLeftColumn from "./components/EventDetailsLeftColumn";
 import EventDetailsRightColumn from "./components/EventDetailsRightColumn";
 import EventDetailsQrModal from "./components/EventDetailsQrModal";
 import EventMinutesView from "./components/EventMinutesView";
+import CoOrganizersPanel from "./components/CoOrganizersPanel";
+import AttendeesList from "./AttendeesList";
+import DesignateMinutes from "./DesignateMinutes";
+import EventActionsPage from "./EventActionsPage";
+import ShowEditor from "./components/ShowEditor";
+import { FiX } from "react-icons/fi";
 import { Helmet } from "react-helmet-async";
+
+const SECTION_TITLES = {
+  attendees: "Attendance",
+  designate: "Designate Minutes Taker",
+  actions: "Event Actions (Follow ups)",
+};
+
+function SectionOverlay({ title, onClose, children }) {
+  return (
+    <div className="fixed inset-0 bg-white overflow-y-auto" style={{ zIndex: 100000000 }}>
+      <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-3" style={{ backgroundColor: PRIMARY }}>
+        <p className="text-sm font-bold text-white truncate" style={{ fontFamily: "'Montserrat', sans-serif" }}>{title}</p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="cok-btn-outlined-reverse"
+          style={{ padding: "0.4rem 0.8rem" }}
+        >
+          <FiX className="w-4 h-4" />
+        </button>
+      </div>
+      {children}
+    </div>
+  );
+}
 
 const generateColorFromName = (name) => {
   let hash = 0;
@@ -28,12 +59,13 @@ const calculateCountdown = (targetTime) => {
 
 const PRIMARY = "#056daa";
 
-export default function EventDetails() {
+export default function EventDetails({ overlayEventId = null, onCloseOverlay = null, bypassAccess = false }) {
   const context = useOutletContext();
-  const contextActiveEvent = context?.activeEvent;
-  const setActiveEvent = context?.setActiveEvent;
-  const setLiveEventsData = context?.setLiveEventsData;
-  const { id: eventSpecialId } = useParams();
+  const contextActiveEvent = overlayEventId ? null : context?.activeEvent;
+  const setActiveEvent = overlayEventId ? null : context?.setActiveEvent;
+  const setLiveEventsData = overlayEventId ? null : context?.setLiveEventsData;
+  const { id: routeEventId } = useParams();
+  const eventSpecialId = overlayEventId || routeEventId;
   const navigate = useNavigate();
 
   const [localEvent, setLocalEvent] = useState(null);
@@ -53,12 +85,22 @@ export default function EventDetails() {
   const [showAccessOverlay, setShowAccessOverlay] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
+  const [activeSection, setActiveSection] = useState(null);
 
   const activeEvent = contextActiveEvent || localEvent;
   const now = new Date();
-  const isUpcoming = activeEvent && (!activeEvent.startedAt || new Date(activeEvent.willStartAt) > now);
+  const isEnded = !!activeEvent && (
+    !!activeEvent.endedAt ||
+    (activeEvent.willEndAt && new Date(activeEvent.willEndAt) < now)
+  );
+  const isUpcoming = !isEnded && activeEvent && (!activeEvent.startedAt || new Date(activeEvent.willStartAt) > now);
 
   useEffect(() => {
+    if (bypassAccess) {
+      setIsAccessVerified(true);
+      setIsCheckingAccess(false);
+      return;
+    }
     if (!eventSpecialId) {
       setIsCheckingAccess(false);
       return;
@@ -90,7 +132,7 @@ export default function EventDetails() {
       navigate('/', { replace: true });
       setIsCheckingAccess(false);
     }
-  }, [eventSpecialId, navigate]);
+  }, [eventSpecialId, navigate, bypassAccess]);
 
   useEffect(() => {
     async function fallbackFetchEvent() {
@@ -104,15 +146,25 @@ export default function EventDetails() {
         setIsEventLoading(true);
         setIsEventNotFound(false);
         const headers = accessToken ? { 'x-event-access-token': accessToken } : {};
-        const response = await axios.get("/cok/api/v1/events/live", {
-          params: { page: 1, limit: 20, search: eventSpecialId, searchField: "eventSpecialId" },
-          headers,
-        });
-        if (response.data && response.data.success && response.data.data.length > 0) {
-          const fetchedEvent = response.data.data[0];
+        const params = { page: 1, limit: 20, search: eventSpecialId, searchField: "eventSpecialId" };
+        let fetchedEvent = null;
+        let fetchedList = null;
+        for (const status of ["live", "upcoming", "past"]) {
+          try {
+            const response = await axios.get(`/cok/api/v1/events/${status}`, { params, headers });
+            if (response.data?.success && response.data.data.length > 0) {
+              fetchedEvent = response.data.data[0];
+              fetchedList = response.data.data;
+              break;
+            }
+          } catch (statusErr) {
+            if (statusErr.response?.status === 401) throw statusErr;
+          }
+        }
+        if (fetchedEvent) {
           setLocalEvent(fetchedEvent);
           if (setActiveEvent) setActiveEvent(fetchedEvent);
-          if (setLiveEventsData) setLiveEventsData(response.data.data);
+          if (setLiveEventsData && fetchedList) setLiveEventsData(fetchedList);
         } else {
           setIsEventNotFound(true);
         }
@@ -162,11 +214,11 @@ export default function EventDetails() {
   }, [accessToken, activeEvent?._id, eventSpecialId, navigate]);
 
   useEffect(() => {
-    if (!activeEvent || isUpcoming || !activeEvent._id || !isAccessVerified) return;
+    if (!activeEvent || isUpcoming || isEnded || !activeEvent._id || !isAccessVerified) return;
     const abortController = new AbortController();
     fetchQrCode(abortController.signal);
     return () => abortController.abort();
-  }, [activeEvent, isUpcoming, fetchQrCode, isAccessVerified]);
+  }, [activeEvent, isUpcoming, isEnded, fetchQrCode, isAccessVerified]);
 
   useEffect(() => {
     if (!activeEvent?.eventSpecialId || isUpcoming || !isAccessVerified) return;
@@ -188,13 +240,17 @@ export default function EventDetails() {
 
   useEffect(() => {
     if (!activeEvent) return;
+    if (isEnded) {
+      setCountdown("00:00:00");
+      return;
+    }
     const targetTime = isUpcoming ? activeEvent.willStartAt : activeEvent.willEndAt;
     setCountdown(calculateCountdown(targetTime));
     const clockInterval = setInterval(() => {
       setCountdown(calculateCountdown(targetTime));
     }, 1000);
     return () => clearInterval(clockInterval);
-  }, [activeEvent, isUpcoming]);
+  }, [activeEvent, isUpcoming, isEnded]);
 
   if (isEventLoading || isVerifying || isCheckingAccess) {
     return (
@@ -251,13 +307,13 @@ export default function EventDetails() {
             The event specified could not be loaded or is no longer live.
           </p>
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => (onCloseOverlay ? onCloseOverlay() : navigate(-1))}
             className="px-6 py-2.5 text-white font-medium text-sm rounded-none transition-colors"
             style={{ backgroundColor: PRIMARY, fontFamily: "'Montserrat', sans-serif" }}
             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#248fc2"; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
           >
-            Go Back
+            {onCloseOverlay ? "Close" : "Go Back"}
           </button>
         </div>
       </div>
@@ -292,9 +348,11 @@ export default function EventDetails() {
             activeEvent={activeEvent}
             eventSpecialId={eventSpecialId}
             navigate={navigate}
+            onOpenSection={overlayEventId ? setActiveSection : undefined}
           />
           <EventDetailsRightColumn
             isUpcoming={isUpcoming}
+            isEnded={isEnded}
             countdown={countdown}
             isQrLoading={isQrLoading}
             qrError={qrError}
@@ -314,6 +372,7 @@ export default function EventDetails() {
         </div>
 
         <div className="relative z-10 w-full">
+          <CoOrganizersPanel eventSpecialId={eventSpecialId} />
           <EventMinutesView
             eventSpecialId={eventSpecialId}
             activeEvent={activeEvent}
@@ -347,6 +406,20 @@ export default function EventDetails() {
         setIsQrMaximized={setIsQrMaximized}
         setShowCopiedPopup={setShowCopiedPopup}
       />
+
+      {overlayEventId && activeSection === "editor" && (
+        <div className="fixed inset-0" style={{ zIndex: 100000000 }}>
+          <ShowEditor overlayEventId={eventSpecialId} onCloseOverride={() => setActiveSection(null)} />
+        </div>
+      )}
+
+      {overlayEventId && activeSection && activeSection !== "editor" && (
+        <SectionOverlay title={SECTION_TITLES[activeSection] || ""} onClose={() => setActiveSection(null)}>
+          {activeSection === "attendees" && <AttendeesList overlayEventId={eventSpecialId} embedded />}
+          {activeSection === "designate" && <DesignateMinutes overlayEventId={eventSpecialId} />}
+          {activeSection === "actions" && <EventActionsPage overlayEventId={eventSpecialId} />}
+        </SectionOverlay>
+      )}
     </div>
     </>
   );

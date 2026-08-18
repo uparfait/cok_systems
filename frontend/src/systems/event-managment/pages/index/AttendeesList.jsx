@@ -85,8 +85,9 @@ async function toDataUrl(url) {
   }
 }
 
-export default function AttendeesList() {
-  const { id: eventSpecialId } = useParams();
+export default function AttendeesList({ overlayEventId = null, embedded = false }) {
+  const { id: routeEventId } = useParams();
+  const eventSpecialId = overlayEventId || routeEventId;
   const navigate = useNavigate();
 
   const [attendees, setAttendees] = useState([]);
@@ -531,16 +532,17 @@ export default function AttendeesList() {
         )}
       </div>
 
-      {/* Fixed back button, consistent with the rest of the system */}
-      <button
-        type="button"
-        title="Go back"
-        onClick={() => navigate(-1)}
-        className="cok-btn-outlined-reverse fixed z-50 flex items-center justify-center cursor-pointer"
-        style={{ width: '30px', height: '30px', padding: 0, right: '16px', bottom: '16px' }}
-      >
-        <FiArrowLeft className="w-4 h-4" />
-      </button>
+      {!embedded && (
+        <button
+          type="button"
+          title="Go back"
+          onClick={() => navigate(-1)}
+          className="cok-btn-outlined-reverse fixed z-50 flex items-center justify-center cursor-pointer"
+          style={{ width: '30px', height: '30px', padding: 0, right: '16px', bottom: '16px' }}
+        >
+          <FiArrowLeft className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 }

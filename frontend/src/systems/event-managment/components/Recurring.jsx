@@ -3,6 +3,7 @@ import axios from 'axios';
 import TableContainer from './sub-components/TableContainer';
 import { FiSearch } from 'react-icons/fi';
 import SpiralLoader from './SpiralLoader';
+import ConfirmDialog from './sub-components/ConfirmDialog';
 
 const BASE_URL = '/cok/api/v1';
 
@@ -56,13 +57,22 @@ export default function Recurring() {
 
   useEffect(() => { fetchEvents(1); }, [fetchEvents]);
 
-  const handleDelete = async (eventId) => {
-    if (!window.confirm('Are you sure you want to delete this recurring event?')) return;
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = (eventId) => setDeleteTarget({ id: eventId });
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await axios.delete(`${BASE_URL}/events/${eventId}`);
+      await axios.delete(`${BASE_URL}/events/${deleteTarget.id}`);
       fetchEvents(pagination.currentPage);
     } catch (err) {
       console.error('Delete failed:', err);
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -188,6 +198,15 @@ export default function Recurring() {
           </button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Event"
+        message="You are about to delete this event. This cannot be undone."
+        busy={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

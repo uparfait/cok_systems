@@ -5,6 +5,7 @@ const PRIMARY = "#056daa";
 
 export default function EventDetailsRightColumn({
   isUpcoming,
+  isEnded,
   countdown,
   isQrLoading,
   qrError,
@@ -25,7 +26,7 @@ export default function EventDetailsRightColumn({
     <div className="lg:col-span-5 flex flex-col gap-0 rounded-none">
       <div className="flex flex-col items-center justify-center py-4 px-6 rounded-none" style={{ backgroundColor: PRIMARY }}>
         <span className="text-[10px] uppercase font-bold tracking-widest text-white mb-1 rounded-none" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-          {isUpcoming ? "Time Remaining Until Event Starts" : "Time Remaining"}
+          {isEnded ? "Event Ended" : isUpcoming ? "Time Remaining Until Event Starts" : "Time Remaining"}
         </span>
         <div className="text-3xl font-black font-mono text-white tracking-widest rounded-none">
           {countdown || "00:00:00"}
@@ -34,7 +35,16 @@ export default function EventDetailsRightColumn({
 
       <div className="w-full bg-white border border-zinc-200 overflow-hidden flex flex-col items-center justify-center p-4 relative rounded-none" style={{ minHeight: "360px" }}>
         <AnimatePresence mode="wait">
-          {isUpcoming ? (
+          {isEnded ? (
+            <motion.div
+              key="ended"
+              className="text-center p-4 flex flex-col items-center rounded-none"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            >
+              <p className="text-sm font-semibold text-zinc-800 rounded-none" style={{ fontFamily: "'Montserrat', sans-serif" }}>No QR Code</p>
+              <p className="text-xs text-zinc-500 mt-1 rounded-none" style={{ fontFamily: "'Montserrat', sans-serif" }}>Event ended.</p>
+            </motion.div>
+          ) : isUpcoming ? (
             <motion.div
               key="upcoming"
               className="text-center p-4 flex flex-col items-center rounded-none"

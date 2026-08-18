@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import {
   FiX, FiUploadCloud, FiDownload, FiEye, FiTrash2, FiLayers,
@@ -106,9 +106,13 @@ function ConfirmRemoveDialog({ file, onConfirm, onCancel, busy }) {
   );
 }
 
-function ShowEditor() {
-  const { id: eventSpecialId } = useParams();
+function ShowEditor({ overlayEventId = null, onCloseOverride = null }) {
+  const { id: routeEventId } = useParams();
+  const eventSpecialId = overlayEventId || routeEventId;
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const readOnly = searchParams.get("readonly") === "1";
+  const goBack = () => (onCloseOverride ? onCloseOverride() : navigate(-1));
 
   const [files, setFiles] = useState([]);
   const [eventData, setEventData] = useState(null);
@@ -273,7 +277,7 @@ function ShowEditor() {
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
-              <button onClick={() => navigate(-1)} className="cok-btn-outlined flex-1">
+              <button onClick={goBack} className="cok-btn-outlined flex-1">
                 Go Back
               </button>
               <button
@@ -318,7 +322,7 @@ function ShowEditor() {
           <button
             type="button"
             title="Close"
-            onClick={() => navigate(-1)}
+            onClick={goBack}
             className="self-stretch px-4 cursor-pointer transition-colors flex items-center justify-center"
             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#E74C3C"; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
@@ -338,6 +342,7 @@ function ShowEditor() {
               onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
               className="hidden"
             />
+            {!readOnly && (
             <div
               onClick={() => { if (uploadPct == null) inputRef.current?.click(); }}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -373,6 +378,7 @@ function ShowEditor() {
                 </>
               )}
             </div>
+            )}
 
             {/* Notice */}
             {notice && (
@@ -456,15 +462,17 @@ function ShowEditor() {
                         >
                           <FiDownload className="w-4 h-4" />
                         </button>
-                        <button
-                          type="button"
-                          title="Remove"
-                          onClick={() => setRemoveTarget(f)}
-                          className="p-2 cursor-pointer transition-colors hover:bg-[#FDECEA]"
-                          style={{ color: DANGER }}
-                        >
-                          <FiTrash2 className="w-4 h-4" />
-                        </button>
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            title="Remove"
+                            onClick={() => setRemoveTarget(f)}
+                            className="p-2 cursor-pointer transition-colors hover:bg-[#FDECEA]"
+                            style={{ color: DANGER }}
+                          >
+                            <FiTrash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { FiSearch, FiMail, FiUsers } from "react-icons/fi";
 import { useToast } from "@/core/contexts/ToastContext";
+import { useAuth } from "@/core/contexts/AuthContext";
 import SpiralLoader from "../../components/SpiralLoader";
 
 const PRIMARY = "#056daa";
@@ -12,10 +13,12 @@ const NEUTRAL_DARK = "#333333";
 const GRAY_DISABLED = "#9E9E9E";
 const fontHeading = "'Montserrat', sans-serif";
 
-export default function DesignateMinutes() {
-  const { id: eventSpecialId } = useParams();
+export default function DesignateMinutes({ overlayEventId = null }) {
+  const { id: routeEventId } = useParams();
+  const eventSpecialId = overlayEventId || routeEventId;
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
+  const { user } = useAuth();
 
   const [eventName, setEventName] = useState("");
   const [loading, setLoading] = useState(true);
@@ -84,6 +87,31 @@ export default function DesignateMinutes() {
       if (response.data?.success) {
         showSuccess(response.data.message || "Minutes responsibility designated");
         setManualEmail("");
+
+        try {
+          const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+          await axios.post("/cok/api/v1/event-actions", {
+            title: `Edit meeting minutes${eventName ? ` for "${eventName}"` : ""}`,
+            actionDescription: `You have been designated to take and edit the meeting minutes${eventName ? ` for "${eventName}"` : ""}.`,
+            assignedPerson: {
+              name: name || email,
+              email,
+              role: "Minutes Taker",
+              institution: "City of Kigali",
+            },
+            createdBy: {
+              name: user?.fullName || "System",
+              email: user?.email || "system@kigalicity.gov.rw",
+              role: user?.role || "",
+              institution: "City of Kigali",
+            },
+            dueDate: tomorrow,
+            currentStatus: { status: "Pending", description: "Designated as minutes taker" },
+            eventSpecialId,
+          });
+        } catch (taskErr) {
+          showError(taskErr.response?.data?.message || "Designated, but failed to create the follow-up task");
+        }
       } else {
         showError(response.data?.message || "Failed to designate minutes responsibility");
       }

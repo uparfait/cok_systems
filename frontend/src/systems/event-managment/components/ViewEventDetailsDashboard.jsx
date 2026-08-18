@@ -10,6 +10,7 @@ import EventDetailAgenda from './sub-components/EventDetailAgenda';
 import CancelPostponeModal from './sub-components/CancelPostponeModal';
 import AttendeesOverlay from './AttendeesOverlay';
 import EventMinutesView from '../pages/index/components/EventMinutesView';
+import CoOrganizersPanel from '../pages/index/components/CoOrganizersPanel';
 import { useToast } from '@/core/contexts/ToastContext';
 
 const BASE_URL = '/cok/api/v1';
@@ -292,6 +293,8 @@ export default function ViewEventDetailsDashboard() {
          <EventDetailAgenda event={event} eventMode={eventMode} onEventUpdated={(updatedEvent) => {
            setEvent(updatedEvent);
          }} />
+
+         <CoOrganizersPanel eventSpecialId={event.eventSpecialId} />
 
          {/* Meeting Minutes */}
          <EventMinutesView

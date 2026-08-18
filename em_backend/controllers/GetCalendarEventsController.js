@@ -3,6 +3,7 @@ const UpcomingEvent = require('../models/UpcomingEvent');
 const RecurringEvent = require('../models/RecurringEvent');
 const PastEvent = require('../models/PastEvent');
 const InvitedPeople = require('../models/InvitedPeople');
+const PostMeeting = require('../models/PostMeeting');
 const recurrenceHelper = require('../utilities/recurrenceHelper');
 
 function transformEvent(event, status, startTime, endTime, isCancelled = false) {
@@ -14,6 +15,7 @@ function transformEvent(event, status, startTime, endTime, isCancelled = false) 
     eventType: event.eventType,
     eventRoom: event.eventRoom,
     eventOrganizer: event.eventOrganizer,
+    coOrganizers: event.coOrganizers || [],
     expectedAudience: event.expectedAudience,
     eventMeetingType: event.eventMeetingType || 'event',
     eventStatus: status,
@@ -224,15 +226,24 @@ class GetCalendarEventsController {
           const parent = id.split('_')[0];
           if (parent) candidates.add(parent);
         }
-        const invites = await InvitedPeople.find({
-          email: normalized,
-          cancelled: { $ne: true },
-          eventSpecialId: { $in: [...candidates] },
-        }).lean();
+        const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const [invites, minuteTakers] = await Promise.all([
+          InvitedPeople.find({
+            email: normalized,
+            cancelled: { $ne: true },
+            eventSpecialId: { $in: [...candidates] },
+          }).lean(),
+          PostMeeting.find({
+            'designatedMinutesTaker.email': new RegExp(`^${escaped}$`, 'i'),
+            eventSpecialId: { $in: [...candidates] },
+          }).lean(),
+        ]);
         const invitedIds = new Set(invites.map(i => i.eventSpecialId));
+        const takerIds = new Set(minuteTakers.map(t => t.eventSpecialId));
         for (const e of events) {
           const id = String(e.eventSpecialId || '');
           e.isInvited = invitedIds.has(id) || invitedIds.has(id.split('_')[0]);
+          e.isMinutesTaker = takerIds.has(id) || takerIds.has(id.split('_')[0]);
         }
       }
 

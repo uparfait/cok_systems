@@ -1,6 +1,7 @@
 // FollowUpCard - copies the TaskCard design exactly (same card structure and colors)
 
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { FiClock, FiMoreVertical, FiEdit, FiMove, FiTrash2 } from 'react-icons/fi'
 import { useToast } from '../../../core/contexts/ToastContext'
 import { updateEventActionStatus, deleteEventAction, type EventAction } from '../../../core/services/eventActionService'
@@ -37,8 +38,13 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
   draggedFollowUpId
 }) => {
   const { showSuccess, showError } = useToast()
+  const navigate = useNavigate()
   const [showDropdown, setShowDropdown] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  const isMinutesTask = !!followup.eventSpecialId
+    && followup.eventSpecialId !== 'FOLLOWUP'
+    && /minutes/i.test(followup.title || '')
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -217,6 +223,20 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
           <FiClock className="w-3 h-3 mr-1" />
           <span>Due: {formatDate(followup.dueDate)}</span>
         </div>
+      )}
+
+      {isMinutesTask && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            navigate(`/event/${followup.eventSpecialId}/editor`)
+          }}
+          className="mt-3 w-full px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white cursor-pointer transition-colors"
+          style={{ backgroundColor: DANGER, fontFamily: fontHeading, border: 0, borderRadius: 0 }}
+        >
+          Edit Minutes
+        </button>
       )}
     </div>
   )

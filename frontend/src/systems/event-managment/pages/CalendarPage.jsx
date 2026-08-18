@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { FiSearch, FiX, FiChevronLeft, FiChevronRight, FiClock, FiMapPin, FiCalendar, FiUser, FiMail, FiPhone, FiUsers } from "react-icons/fi";
 import SpiralLoader from "../components/SpiralLoader";
 import { useAuth } from "@/core/contexts/AuthContext";
+import EventDetails from "./index/EventDetails";
 
 const BASE_URL = "/cok/api/v1";
 
@@ -18,8 +20,10 @@ const fontHeading = "'Montserrat', sans-serif";
 // Monday-first weekdays — same as the event-manager dashboard calendar
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-// Same chip colors as the dashboard calendar (meetingType mode)
+// Same chip colors as the dashboard calendar (meetingType mode);
+// events where the viewer is the designated minutes taker get a special color
 function getEventColor(event) {
+  if (event.isMinutesTaker) return "bg-amber-50 border-amber-400 text-amber-800";
   if (event.eventMeetingType === "meet") return "bg-blue-50 border-blue-200 text-blue-700";
   return "bg-emerald-50 border-emerald-200 text-emerald-700";
 }
@@ -37,6 +41,7 @@ const monthParam = (y, m) => `${y}-${String(m + 1).padStart(2, "0")}-01`;
 
 export default function CalendarPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const userEmail = (user?.email || "").toLowerCase().trim();
 
   const now = new Date();
@@ -47,6 +52,9 @@ export default function CalendarPage() {
   const [expandedDay, setExpandedDay] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [highlight, setHighlight] = useState(null); // { id, dateKey }
+  const [eventMinutes, setEventMinutes] = useState([]);
+  const [minutesLoading, setMinutesLoading] = useState(false);
+  const [detailsEventId, setDetailsEventId] = useState(null);
 
   // Search
   const [search, setSearch] = useState("");
@@ -60,7 +68,50 @@ export default function CalendarPage() {
     (e) => !!userEmail && (e.eventOrganizer?.email || "").toLowerCase().trim() === userEmail,
     [userEmail]
   );
-  const canOpen = useCallback((e) => e.isInvited || isOrganizer(e), [isOrganizer]);
+  const isCoOrganizer = useCallback(
+    (e) => !!userEmail && (e.coOrganizers || []).some((c) => (c.email || "").toLowerCase().trim() === userEmail),
+    [userEmail]
+  );
+  const isOrganizerLike = useCallback(
+    (e) => isOrganizer(e) || isCoOrganizer(e),
+    [isOrganizer, isCoOrganizer]
+  );
+  const canOpen = useCallback((e) => e.isInvited || e.isMinutesTaker || isOrganizerLike(e), [isOrganizerLike]);
+
+  const openEvent = useCallback((e) => {
+    if (isOrganizerLike(e)) {
+      setDetailsEventId(e.eventSpecialId);
+    } else {
+      setSelectedEvent(e);
+    }
+  }, [isOrganizerLike]);
+
+  useEffect(() => {
+    if (!selectedEvent || !(isOrganizerLike(selectedEvent) || selectedEvent.isMinutesTaker)) {
+      setEventMinutes([]);
+      return;
+    }
+    let alive = true;
+    setMinutesLoading(true);
+    axios
+      .get(`${BASE_URL}/events/${selectedEvent.eventSpecialId}/minutes/series`)
+      .then((res) => {
+        if (alive && res.data?.success) setEventMinutes(res.data.data?.minutes || []);
+      })
+      .catch(() => { if (alive) setEventMinutes([]); })
+      .finally(() => { if (alive) setMinutesLoading(false); });
+    return () => { alive = false; };
+  }, [selectedEvent, isOrganizerLike]);
+
+  const isTakerOfMinutes = useCallback(
+    (m) => !!userEmail && (m.designatedMinutesTaker?.email || "").toLowerCase().trim() === userEmail,
+    [userEmail]
+  );
+
+  const openMinutes = useCallback((m) => {
+    const editable = isTakerOfMinutes(m) || selectedEvent?.isMinutesTaker;
+    navigate(`/event/${m.eventSpecialId || selectedEvent?.eventSpecialId}/editor${editable ? "" : "?readonly=1"}`);
+  }, [navigate, isTakerOfMinutes, selectedEvent]);
 
   const fetchMonth = useCallback(async (y, m, silent = false) => {
     if (!silent) setLoading(true);
@@ -127,7 +178,11 @@ export default function CalendarPage() {
     const matches = [];
     const seenIds = new Set();
     for (const e of pool) {
-      if (!(e.isInvited || (userEmail && (e.eventOrganizer?.email || "").toLowerCase() === userEmail))) continue;
+      const organizerLike = userEmail && (
+        (e.eventOrganizer?.email || "").toLowerCase() === userEmail ||
+        (e.coOrganizers || []).some((c) => (c.email || "").toLowerCase().trim() === userEmail)
+      );
+      if (!(e.isInvited || organizerLike)) continue;
       const haystack = [
         e.eventName, e.eventDescription, e.eventType, e.eventMeetingType, e.eventRoom, e.eventStatus,
         e.eventOrganizer?.fullNames, e.eventOrganizer?.email, e.eventOrganizer?.phone, e.eventOrganizer?.institution,
@@ -163,7 +218,7 @@ export default function CalendarPage() {
     const dateKey = dateKeyOf(e.startTime);
     setHighlight({ id: e.eventSpecialId, dateKey });
     setExpandedDay(new Date(e.startTime).getDate());
-    setSelectedEvent(e);
+    openEvent(e);
     setSuggestions([]);
   };
 
@@ -343,7 +398,7 @@ export default function CalendarPage() {
                         return (
                           <button
                             key={(ev._id || ev.eventSpecialId) + (ev.occurrenceDate || "") + i}
-                            onClick={() => clickable && setSelectedEvent(ev)}
+                            onClick={() => clickable && openEvent(ev)}
                             className={`w-full text-left leading-tight px-0.5 sm:px-1.5 py-0.5 sm:py-1 border ${getEventColor(ev)} ${clickable ? "cursor-pointer hover:opacity-80" : "cursor-default"} ${isHighlighted ? "ring-2 ring-amber-400" : ""}`}
                             style={{ fontSize: "clamp(7px, 1.4vw, 11px)" }}
                             title={clickable ? `${ev.eventName}\n${timeRange}\n${ev.eventRoom}` : `${timeRange}\n${ev.eventRoom}`}
@@ -363,7 +418,7 @@ export default function CalendarPage() {
                               <FiMapPin className="shrink-0" style={{ width: "1em", height: "1em", marginTop: "0.15em" }} />
                               <span className="break-words min-w-0 capitalize">{ev.eventRoom}</span>
                             </div>
-                            {(ev.isInvited || isOrganizer(ev)) && (
+                            {(ev.isInvited || ev.isMinutesTaker || isOrganizerLike(ev)) && (
                               <div className="flex flex-wrap gap-0.5 mt-0.5">
                                 {ev.isInvited && (
                                   <span className="px-1 py-px font-bold uppercase tracking-wide text-white" style={{ backgroundColor: SUCCESS, fontFamily: fontHeading, fontSize: "clamp(5.5px, 1vw, 8px)" }}>
@@ -373,6 +428,16 @@ export default function CalendarPage() {
                                 {isOrganizer(ev) && (
                                   <span className="px-1 py-px font-bold uppercase tracking-wide text-white" style={{ backgroundColor: PRIMARY, fontFamily: fontHeading, fontSize: "clamp(5.5px, 1vw, 8px)" }}>
                                     Organiser
+                                  </span>
+                                )}
+                                {!isOrganizer(ev) && isCoOrganizer(ev) && (
+                                  <span className="px-1 py-px font-bold uppercase tracking-wide text-white" style={{ backgroundColor: "#7C3AED", fontFamily: fontHeading, fontSize: "clamp(5.5px, 1vw, 8px)" }}>
+                                    Co-organiser
+                                  </span>
+                                )}
+                                {ev.isMinutesTaker && (
+                                  <span className="px-1 py-px font-bold uppercase tracking-wide text-white" style={{ backgroundColor: "#F39C12", fontFamily: fontHeading, fontSize: "clamp(5.5px, 1vw, 8px)" }}>
+                                    Minutes taker
                                   </span>
                                 )}
                               </div>
@@ -432,6 +497,16 @@ export default function CalendarPage() {
                       Organiser
                     </span>
                   )}
+                  {!isOrganizer(selectedEvent) && isCoOrganizer(selectedEvent) && (
+                    <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-bold uppercase tracking-wide text-white" style={{ backgroundColor: "#7C3AED", fontFamily: fontHeading }}>
+                      Co-organiser
+                    </span>
+                  )}
+                  {selectedEvent.isMinutesTaker && (
+                    <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-bold uppercase tracking-wide text-white" style={{ backgroundColor: "#F39C12", fontFamily: fontHeading }}>
+                      Minutes taker
+                    </span>
+                  )}
                 </div>
               </div>
               <button onClick={() => setSelectedEvent(null)} className="p-1 cursor-pointer shrink-0 text-white border border-white hover:bg-white hover:text-[#056daa] transition-colors">
@@ -483,6 +558,40 @@ export default function CalendarPage() {
                 </div>
               </div>
 
+              {(isOrganizerLike(selectedEvent) || selectedEvent.isMinutesTaker) && (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: PRIMARY, fontFamily: fontHeading }}>Meeting Minutes</p>
+                  {minutesLoading ? (
+                    <p className="text-sm py-3 text-center" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Loading minutes...</p>
+                  ) : eventMinutes.length === 0 ? (
+                    <p className="text-sm py-3 text-center border border-gray-100" style={{ color: GRAY_DISABLED, fontFamily: fontHeading, backgroundColor: NEUTRAL_LIGHT }}>
+                      No minutes recorded yet.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {eventMinutes.map((m, i) => (
+                        <div
+                          key={m.eventSpecialId || i}
+                          className="flex items-center justify-between gap-3 px-3 py-2.5 border border-gray-200 bg-white"
+                        >
+                          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#555555", fontFamily: fontHeading }}>
+                            {m.meetingDate ? new Date(m.meetingDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Minutes"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => openMinutes(m)}
+                            className="cok-btn-outlined shrink-0"
+                            style={{ padding: "0.35rem 0.9rem" }}
+                          >
+                            {(isTakerOfMinutes(m) || selectedEvent.isMinutesTaker) ? "Edit" : "View"}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-2 text-xs text-gray-500" style={{ fontFamily: fontHeading }}>
                 <span>Type: <strong className="capitalize text-gray-800">{selectedEvent.eventMeetingType}</strong></span>
                 <span>·</span>
@@ -496,6 +605,28 @@ export default function CalendarPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Full-screen event details for organizers — no email token needed */}
+      {detailsEventId && (
+        <div className="fixed inset-0 z-[9999999] bg-white overflow-y-auto">
+          <div className="sticky top-0 flex items-center justify-between px-4 sm:px-6 py-3" style={{ backgroundColor: PRIMARY, zIndex: 99999999 }}>
+            <p className="text-sm font-bold text-white truncate" style={{ fontFamily: fontHeading }}>Event Details</p>
+            <button
+              type="button"
+              onClick={() => setDetailsEventId(null)}
+              className="cok-btn-outlined-reverse"
+              style={{ padding: "0.4rem 0.8rem" }}
+            >
+              <FiX className="w-4 h-4" />
+            </button>
+          </div>
+          <EventDetails
+            overlayEventId={detailsEventId}
+            bypassAccess
+            onCloseOverlay={() => setDetailsEventId(null)}
+          />
         </div>
       )}
     </div>
