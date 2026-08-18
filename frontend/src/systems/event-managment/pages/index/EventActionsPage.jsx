@@ -1,19 +1,36 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import {
-  FiArrowLeft, FiPlus, FiEdit2, FiTrash2, FiClock, FiCheckCircle,
+  FiPlus, FiEdit2, FiTrash2, FiClock, FiCheckCircle,
   FiActivity, FiChevronDown, FiUser, FiCalendar, FiSearch,
-  FiAlertCircle, FiChevronLeft, FiChevronRight, FiX, FiSlash,
+  FiAlertCircle, FiX, FiSlash,
 } from 'react-icons/fi';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
-import SystemAlert from '@/core/components/SystemAlert';
+import { useToast } from '@/core/contexts/ToastContext';
 
 const BASE_URL = '/cok/api/v1';
 const PRIMARY = '#056daa';
-const PRIMARY_HOVER = '#248fc2';
+const DANGER = '#E74C3C';
+const BORDER = '#E0E0E0';
+const NEUTRAL_DARK = '#333333';
+const GRAY_DISABLED = '#9E9E9E';
 const NEUTRAL_LIGHT = '#F7F9FB';
-const DANGER = '#E53935';
+const fontHeading = "'Montserrat', sans-serif";
+
+const inputClassName = 'w-full cok-auth-input pr-3 py-2 text-sm';
+const inputStyle = { paddingLeft: '12px' };
+
+const labelStyle = {
+  fontFamily: fontHeading,
+  fontSize: '11px',
+  fontWeight: 600,
+  letterSpacing: '0.5px',
+  textTransform: 'uppercase',
+  color: NEUTRAL_DARK,
+  display: 'block',
+  marginBottom: '6px',
+};
 
 const STATUS_META = {
   Pending:       { color: 'bg-amber-100 text-amber-700 border-amber-200', icon: <FiClock className="w-3 h-3" /> },
@@ -32,7 +49,7 @@ function Badge({ status }) {
 }
 
 function fmt(d) {
-  if (!d) return '—';
+  if (!d) return '-';
   return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
@@ -52,7 +69,7 @@ const EMPTY = (eventSpecialId) => ({
 
 export default function EventActionsPage() {
   const { id: eventSpecialId } = useParams();
-  const navigate = useNavigate();
+  const { showSuccess, showError } = useToast();
 
   const [eventTitle, setEventTitle]  = useState('');
 
@@ -68,9 +85,9 @@ export default function EventActionsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError]   = useState(null);
   const [deleteTarget, setDeleteTarget]   = useState(null);
+  const [deleting, setDeleting]           = useState(false);
   const [historyTarget, setHistoryTarget] = useState(null);
   const [viewTarget, setViewTarget]       = useState(null);
-  const [systemAlert, setSystemAlert] = useState({ isOpen: false, type: 'success', message: '' });
 
   const [attendees, setAttendees]           = useState([]);
   const [attendeeSearch, setAttendeeSearch] = useState('');
@@ -162,277 +179,246 @@ export default function EventActionsPage() {
 
   const filteredAttendees = attendees.filter(a => {
     const q = attendeeSearch.toLowerCase();
-    const matchesSearch = !q || a.attendeeFullName?.toLowerCase().includes(q) || a.attendeeInstitution?.toLowerCase().includes(q);
-    return matchesSearch;
+    return !q || a.attendeeFullName?.toLowerCase().includes(q) || a.attendeeInstitution?.toLowerCase().includes(q);
   });
 
   async function handleSubmit(e) {
     e.preventDefault();
     setSubmitting(true); setFormError(null);
     try {
+      let res;
       if (editing) {
-        await axios.patch(`${BASE_URL}/event-actions/${editing._id}`, form);
+        res = await axios.patch(`${BASE_URL}/event-actions/${editing._id}`, form);
       } else {
-        await axios.post(`${BASE_URL}/event-actions`, form);
+        res = await axios.post(`${BASE_URL}/event-actions`, form);
       }
       setShowForm(false);
+      showSuccess(res.data?.message || (editing ? 'Action updated' : 'Action created'));
       fetchActions(page);
     } catch (e) {
-      setFormError(e.response?.data?.message || 'Something went wrong.');
+      const message = e.response?.data?.message || e.message || 'Something went wrong.';
+      setFormError(message);
+      showError(message);
     } finally { setSubmitting(false); }
   }
 
   async function confirmDelete() {
+    setDeleting(true);
     try {
-      await axios.delete(`${BASE_URL}/event-actions/${deleteTarget._id}`);
+      const res = await axios.delete(`${BASE_URL}/event-actions/${deleteTarget._id}`);
+      showSuccess(res.data?.message || 'Action deleted');
       setDeleteTarget(null);
       fetchActions(page);
-    } catch { setDeleteTarget(null); }
+    } catch (e) {
+      showError(e.response?.data?.message || e.message || 'Failed to delete action');
+      setDeleteTarget(null);
+    } finally { setDeleting(false); }
   }
 
   return (
-    <div className="w-full min-h-screen flex justify-center" style={{ paddingTop: '80px', backgroundColor: '#F7F9FB' }}>
-      <div className="w-full max-w-5xl px-4 sm:px-6 md:px-8 py-6">
+    <div className="w-full min-h-screen flex justify-center" style={{ paddingTop: '80px', backgroundColor: NEUTRAL_LIGHT }}>
+      <div className="w-full max-w-5xl px-3 sm:px-6 md:px-8 py-6">
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate(-1)}
-              className="px-4 py-2 text-white text-xs font-semibold uppercase tracking-wider rounded-none transition-colors"
-              style={{ backgroundColor: PRIMARY, fontFamily: "'Montserrat', sans-serif", cursor: 'pointer' }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
-              onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(1px)'; }}
-              onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
-            >
-              <span className="hidden sm:inline">Go Back</span>
-              <span className="sm:hidden">Back</span>
-            </button>
-            <div>
-              <h1 className="text-base sm:text-lg font-bold text-zinc-900 uppercase tracking-wide" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-                Event Actions
-              </h1>
-              {eventTitle && (
-                <p className="text-xs sm:text-sm text-zinc-500 mt-0.5 truncate max-w-[200px] sm:max-w-none" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-                  {eventTitle}
-                </p>
-              )}
-            </div>
-          </div>
+        {/* Header bar, same component pattern as the other public pages */}
+        <div className="px-4 sm:px-5 py-4 text-white mb-4" style={{ backgroundColor: PRIMARY }}>
+          <h1 className="text-base sm:text-lg font-bold truncate" style={{ fontFamily: fontHeading }} title={eventTitle}>
+            Event Actions (Follow ups)
+          </h1>
+          {eventTitle && (
+            <p className="text-xs mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.85)' }}>
+              {eventTitle}
+            </p>
+          )}
+        </div>
+
+        <div className="mb-5">
           <button
             onClick={openCreate}
-            className="px-4 py-2 text-white text-xs font-semibold uppercase tracking-wider rounded-none transition-colors w-full sm:w-auto"
-            style={{ backgroundColor: PRIMARY, fontFamily: "'Montserrat', sans-serif", cursor: 'pointer' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
-            onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(1px)'; }}
-            onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
+            className="cok-btn-primary inline-flex items-center justify-center gap-2 w-full sm:w-auto"
+            style={{ padding: '0.6rem 1.2rem' }}
           >
-            <FiPlus className="w-4 h-4 inline mr-2" />
-            New Action
+            <FiPlus className="w-4 h-4" />
+            New Action (FollowUps)
           </button>
         </div>
 
-      {/* ── Content ── */}
-      <div>
-        {loading ? (
-          <div className="flex justify-center py-24">
-            <div className="flex flex-col items-center gap-4">
-              <SpiralLoader color="#056daa" />
-              <p className="text-sm" style={{ color: '#888888', fontFamily: "'Montserrat', sans-serif" }}>Loading actions...</p>
+        {/* Content */}
+        <div>
+          {loading ? (
+            <div className="bg-white flex flex-col items-center gap-4 py-20" style={{ border: `1px solid ${BORDER}` }}>
+              <SpiralLoader color={PRIMARY} />
+              <p className="text-sm" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Loading actions...</p>
             </div>
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center gap-3 py-20">
-            <FiAlertCircle className="w-10 h-10" style={{ color: DANGER }} />
-            <p className="text-sm" style={{ color: '#C62828', fontFamily: "'Montserrat', sans-serif" }}>{error}</p>
-          </div>
-        ) : actions.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-24">
-            <FiCheckCircle className="w-12 h-12" style={{ color: '#CCCCCC' }} />
-            <p className="text-lg font-medium" style={{ color: '#888888', fontFamily: "'Montserrat', sans-serif" }}>No actions yet</p>
-            <p className="text-sm" style={{ color: '#AAAAAA' }}>Click "New Action" above to create the first one.</p>
-          </div>
-        ) : (
-          <>
-            <div className="space-y-4">
-              {actions.map(a => (
-                <div
-                  key={a._id}
-                  onClick={() => setViewTarget(a)}
-                  className="bg-white border p-5 cursor-pointer transition-all"
-                  style={{ borderColor: '#E0E0E0' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 12px rgba(5,109,170,0.15)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#E0E0E0'; e.currentTarget.style.boxShadow = 'none'; }}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-zinc-900 text-base" style={{ fontFamily: "'Montserrat', sans-serif" }}>{a.title}</p>
-                      <p className="text-sm text-zinc-500 mt-1 leading-relaxed">{a.actionDescription}</p>
+          ) : error ? (
+            <div className="bg-white flex flex-col items-center gap-3 py-16 px-4 text-center" style={{ border: `1px solid ${BORDER}` }}>
+              <FiAlertCircle className="w-10 h-10" style={{ color: DANGER }} />
+              <p className="text-sm" style={{ color: DANGER, fontFamily: fontHeading }}>{error}</p>
+            </div>
+          ) : actions.length === 0 ? (
+            <div className="bg-white flex flex-col items-center gap-2 py-20 px-4 text-center" style={{ border: `1px solid ${BORDER}` }}>
+              <FiCheckCircle className="w-12 h-12" style={{ color: '#CCCCCC' }} />
+              <p className="text-base font-semibold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>No actions yet</p>
+              <p className="text-sm" style={{ color: GRAY_DISABLED }}>Click "New Action (FollowUps)" above to create the first one.</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-3">
+                {actions.map(a => (
+                  <div
+                    key={a._id}
+                    onClick={() => setViewTarget(a)}
+                    className="bg-white p-4 sm:p-5 cursor-pointer transition-colors"
+                    style={{ border: `1px solid ${BORDER}` }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = PRIMARY; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = BORDER; }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-sm sm:text-base break-words" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{a.title}</p>
+                        <p className="text-sm mt-1 leading-relaxed break-words" style={{ color: GRAY_DISABLED }}>{a.actionDescription}</p>
+                      </div>
+                      <div className="flex items-center gap-0.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => setHistoryTarget(a)}
+                          className="p-2 cursor-pointer transition-colors hover:bg-[#E3F2FD]"
+                          style={{ color: PRIMARY }}
+                          title="Status History"
+                        ><FiActivity className="w-4 h-4" /></button>
+                        <button
+                          onClick={() => openEdit(a)}
+                          className="p-2 cursor-pointer transition-colors hover:bg-[#E3F2FD]"
+                          style={{ color: PRIMARY }}
+                          title="Edit"
+                        ><FiEdit2 className="w-4 h-4" /></button>
+                        <button
+                          onClick={() => setDeleteTarget(a)}
+                          className="p-2 cursor-pointer transition-colors hover:bg-[#FDECEA]"
+                          style={{ color: DANGER }}
+                          title="Delete"
+                        ><FiTrash2 className="w-4 h-4" /></button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                      <button
-                        onClick={() => setHistoryTarget(a)}
-                        className="p-2 transition-colors"
-                        style={{ color: '#888888' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = PRIMARY; e.currentTarget.style.backgroundColor = '#E3F2FD'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = '#888888'; e.currentTarget.style.backgroundColor = 'transparent'; }}
-                        title="Status History"
-                      ><FiActivity className="w-4 h-4" /></button>
-                      <button
-                        onClick={() => openEdit(a)}
-                        className="p-2 transition-colors"
-                        style={{ color: '#888888' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = '#F59E0B'; e.currentTarget.style.backgroundColor = '#FFFBEB'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = '#888888'; e.currentTarget.style.backgroundColor = 'transparent'; }}
-                        title="Edit"
-                      ><FiEdit2 className="w-4 h-4" /></button>
-                      <button
-                        onClick={() => setDeleteTarget(a)}
-                        className="p-2 transition-colors"
-                        style={{ color: '#888888' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = '#C62828'; e.currentTarget.style.backgroundColor = '#FFEBEE'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = '#888888'; e.currentTarget.style.backgroundColor = 'transparent'; }}
-                        title="Delete"
-                      ><FiTrash2 className="w-4 h-4" /></button>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm pt-3" style={{ borderTop: `1px solid ${BORDER}`, color: GRAY_DISABLED }}>
+                      <span className="inline-flex items-center gap-1.5 min-w-0">
+                        <FiUser className="w-3.5 h-3.5 shrink-0" style={{ color: PRIMARY }} />
+                        <span className="font-medium truncate" style={{ color: NEUTRAL_DARK }}>{a.assignedPerson?.name}</span>
+                        {a.assignedPerson?.role && <span className="truncate hidden sm:inline">({a.assignedPerson.role})</span>}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5" style={{ color: overdue(a.dueDate, a.currentStatus?.status) ? DANGER : undefined }}>
+                        <FiCalendar className="w-3.5 h-3.5 shrink-0" />
+                        {fmt(a.dueDate)}
+                        {overdue(a.dueDate, a.currentStatus?.status) && (
+                          <span className="px-2 text-xs" style={{ backgroundColor: '#FDECEA', border: '1px solid #F5B7B1', color: DANGER }}>Overdue</span>
+                        )}
+                      </span>
+                      <Badge status={a.currentStatus?.status} />
                     </div>
                   </div>
-
-                  <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-zinc-500 border-t pt-3" style={{ borderColor: '#E0E0E0' }}>
-                    <span className="inline-flex items-center gap-1.5">
-                      <FiUser className="w-3.5 h-3.5" />
-                      <span className="font-medium text-zinc-700">{a.assignedPerson?.name}</span>
-                      {a.assignedPerson?.role && <span className="text-zinc-400">· {a.assignedPerson.role}</span>}
-                      {a.assignedPerson?.institution && <span className="text-zinc-400">· {a.assignedPerson.institution}</span>}
-                    </span>
-                    <span className={`inline-flex items-center gap-1.5 ${overdue(a.dueDate, a.currentStatus?.status) ? 'text-red-500' : ''}`}>
-                      <FiCalendar className="w-3.5 h-3.5" />
-                      {fmt(a.dueDate)}
-                      {overdue(a.dueDate, a.currentStatus?.status) && (
-                        <span className="bg-red-100 text-red-600 border border-red-200 rounded-none px-2 text-xs">Overdue</span>
-                      )}
-                    </span>
-                    <Badge status={a.currentStatus?.status} />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between mt-4 gap-3 px-1">
-                <span className="text-xs text-zinc-500" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-                  Page {page} of {totalPages}
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="p-1.5 border transition-colors disabled:opacity-40 disabled:cursor-not-allowed rounded-none"
-                    style={{ borderColor: '#E0E0E0', color: '#666666' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F7F9FB'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                  >
-                    <FiChevronLeft className="w-4 h-4" />
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-                    <button
-                      key={n}
-                      onClick={() => setPage(n)}
-                      className="min-w-[32px] h-8 px-2 rounded-none text-sm font-medium transition-colors border"
-                      style={{
-                        fontFamily: "'Montserrat', sans-serif",
-                        backgroundColor: n === page ? PRIMARY : '#FFFFFF',
-                        color: n === page ? '#FFFFFF' : '#666666',
-                        borderColor: n === page ? PRIMARY : '#E0E0E0',
-                      }}
-                      onMouseEnter={(e) => { if (n !== page) e.currentTarget.style.backgroundColor = '#F7F9FB'; }}
-                      onMouseLeave={(e) => { if (n !== page) e.currentTarget.style.backgroundColor = '#FFFFFF'; }}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    className="p-1.5 border transition-colors disabled:opacity-40 disabled:cursor-not-allowed rounded-none"
-                    style={{ borderColor: '#E0E0E0', color: '#666666' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F7F9FB'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                  >
-                    <FiChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
+                ))}
               </div>
-            )}
-          </>
-        )}
-      </div>
+
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between mt-4 gap-3 px-1">
+                  <span className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
+                    Page {page} of {totalPages}
+                  </span>
+                  <div className="flex items-center gap-1 flex-wrap justify-center">
+                    <button
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="cok-btn-outlined disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={{ padding: '0.4rem 0.8rem' }}
+                    >
+                      Back
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+                      <button
+                        key={n}
+                        onClick={() => setPage(n)}
+                        className="px-3 py-1.5 text-xs cursor-pointer transition-colors"
+                        style={{
+                          fontFamily: fontHeading,
+                          borderRadius: 0,
+                          border: `1px solid ${n === page ? PRIMARY : BORDER}`,
+                          backgroundColor: n === page ? PRIMARY : '#FFFFFF',
+                          color: n === page ? '#FFFFFF' : NEUTRAL_DARK,
+                          fontWeight: n === page ? 600 : 400,
+                        }}
+                        onMouseEnter={(e) => { if (n !== page) e.currentTarget.style.backgroundColor = NEUTRAL_LIGHT; }}
+                        onMouseLeave={(e) => { if (n !== page) e.currentTarget.style.backgroundColor = '#FFFFFF'; }}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      className="cok-btn-outlined disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={{ padding: '0.4rem 0.8rem' }}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
 
         {/* CREATE / EDIT MODAL */}
         {showForm && (
-          <div className="fixed inset-0 z-[999] flex items-start justify-center p-0 sm:p-4 overflow-y-auto" style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', paddingTop: '80px' }}>
-            <div className="bg-white shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto my-4 sm:my-0" style={{ borderRadius: 0 }}>
-            <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10" style={{ borderColor: '#E0E0E0' }}>
-              <h3 className="text-lg font-bold text-zinc-900" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-                {editing ? 'Edit Action' : 'New Action'}
-              </h3>
-              <button onClick={() => setShowForm(false)} className="p-1.5 transition-colors" style={{ color: '#888888' }}>
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
+          <div className="fixed inset-0 z-[999] flex items-start justify-center px-2 sm:px-4 pb-6 overflow-y-auto" style={{ backgroundColor: 'rgba(0,0,0,0.5)', paddingTop: '96px' }}>
+            <div className="bg-white w-full max-w-lg max-h-[82vh] overflow-y-auto" style={{ border: `1px solid ${BORDER}` }}>
+              <div className="flex items-center justify-between px-4 sm:px-6 py-4 sticky top-0 z-10 text-white" style={{ backgroundColor: PRIMARY }}>
+                <h3 className="text-base sm:text-lg font-bold" style={{ fontFamily: fontHeading }}>
+                  {editing ? 'Edit Action (FollowUps)' : 'New Action (FollowUps)'}
+                </h3>
+                <button onClick={() => setShowForm(false)} disabled={submitting} className="p-1.5 cursor-pointer transition-colors text-white hover:opacity-80 disabled:opacity-50">
+                  <FiX className="w-5 h-5" />
+                </button>
+              </div>
 
-              <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+              <form onSubmit={handleSubmit} className="px-4 sm:px-6 py-5 space-y-4">
                 {formError && (
-                  <p className="p-3 text-sm" style={{ backgroundColor: '#FFEBEE', border: '1px solid #FFCDD2', color: '#C62828', fontFamily: "'Montserrat', sans-serif" }}>{formError}</p>
+                  <p className="p-3 text-sm" style={{ backgroundColor: '#FDECEA', border: '1px solid #F5B7B1', color: DANGER, fontFamily: fontHeading }}>{formError}</p>
                 )}
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000', fontFamily: "'Montserrat', sans-serif" }}>Title *</label>
+                  <label style={labelStyle}>Title <span style={{ color: DANGER }}>*</span></label>
                   <input
                     type="text" required maxLength={200}
                     value={form.title}
                     onChange={e => setField('title', e.target.value)}
                     placeholder="Action title"
-                    className="w-full px-4 py-3 text-sm outline-none"
-                    style={{
-                      fontFamily: "'Montserrat', sans-serif", fontSize: '14px', fontWeight: 500, color: '#333333',
-                      backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid transparent',
-                      boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)', transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-                    }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(52, 168, 219, 0.25)'; }}
-                    onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0, 0, 0, 0.1)'; }}
+                    className={inputClassName} style={inputStyle}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000', fontFamily: "'Montserrat', sans-serif" }}>Description *</label>
+                  <label style={labelStyle}>Description <span style={{ color: DANGER }}>*</span></label>
                   <textarea
                     required maxLength={2000} rows={3}
                     value={form.actionDescription}
                     onChange={e => setField('actionDescription', e.target.value)}
-                    placeholder="Describe the action…"
-                    className="w-full px-4 py-3 text-sm outline-none resize-none"
-                    style={{
-                      fontFamily: "'Montserrat', sans-serif", fontSize: '14px', fontWeight: 500, color: '#333333',
-                      backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid transparent',
-                      boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)', transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-                    }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(52, 168, 219, 0.25)'; }}
-                    onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0, 0, 0, 0.1)'; }}
+                    placeholder="Describe the action"
+                    className={inputClassName}
+                    style={{ ...inputStyle, resize: 'vertical', minHeight: '80px' }}
                   />
                 </div>
 
-                {/* Assigned Person Card */}
-                <div className="border" style={{ borderColor: '#E0E0E0', borderRadius: 0 }}>
-                  <div className="px-4 py-3 border-b" style={{ backgroundColor: '#F7F9FB', borderColor: '#E0E0E0' }}>
+                {/* Assigned Person */}
+                <div style={{ border: `1px solid ${BORDER}` }}>
+                  <div className="px-3 sm:px-4 py-3" style={{ backgroundColor: NEUTRAL_LIGHT, borderBottom: `1px solid ${BORDER}` }}>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <p className="text-xs font-bold uppercase tracking-wider pl-2" style={{ color: PRIMARY, fontFamily: "'Montserrat', sans-serif" }}>Assigned Person *</p>
+                      <p className="text-xs font-bold uppercase tracking-wider" style={{ color: PRIMARY, fontFamily: fontHeading }}>
+                        Assigned Person <span style={{ color: DANGER }}>*</span>
+                      </p>
                       <button
                         type="button"
                         onClick={() => setShowPicker(p => !p)}
-                        className="inline-flex items-center gap-1 text-xs font-medium transition-colors"
-                        style={{ color: PRIMARY }}
+                        className="inline-flex items-center gap-1 text-xs font-medium cursor-pointer"
+                        style={{ color: PRIMARY, fontFamily: fontHeading }}
                       >
                         <FiUser className="w-3 h-3" />
                         Pick from attendees
@@ -440,29 +426,24 @@ export default function EventActionsPage() {
                       </button>
                     </div>
                   </div>
-                  <div className="p-4 space-y-4">
+                  <div className="p-3 sm:p-4 space-y-4">
                     {showPicker && (
-                      <div className="mb-2 border overflow-hidden shadow-md" style={{ borderColor: '#E0E0E0' }}>
-                        <div className="p-2 border-b" style={{ borderColor: '#E0E0E0' }}>
+                      <div style={{ border: `1px solid ${BORDER}` }}>
+                        <div className="p-2" style={{ borderBottom: `1px solid ${BORDER}` }}>
                           <div className="relative">
-                            <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: '#888888' }} />
+                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: PRIMARY }} />
                             <input
                               type="text"
-                              placeholder="Search attendees…"
+                              placeholder="Search attendees"
                               value={attendeeSearch}
                               onChange={e => setAttendeeSearch(e.target.value)}
-                              className="w-full pl-8 pr-3 py-1.5 text-xs outline-none"
-                              style={{
-                                fontFamily: "'Montserrat', sans-serif", fontSize: '14px', fontWeight: 500, color: '#333333',
-                                backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid transparent',
-                                boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
-                              }}
+                              className="w-full cok-auth-input pr-3 py-1.5 text-xs"
                             />
                           </div>
                         </div>
-                        <ul className="max-h-44 overflow-y-auto" style={{ backgroundColor: '#FFFFFF' }}>
+                        <ul className="max-h-44 overflow-y-auto bg-white">
                           {filteredAttendees.length === 0 ? (
-                            <li className="px-4 py-3 text-xs text-center" style={{ color: '#888888' }}>
+                            <li className="px-4 py-3 text-xs text-center" style={{ color: GRAY_DISABLED }}>
                               {attendees.length === 0 ? 'No attendance records yet' : 'No matches'}
                             </li>
                           ) : filteredAttendees.map(a => (
@@ -470,20 +451,18 @@ export default function EventActionsPage() {
                               <button
                                 type="button"
                                 onClick={() => pickAttendee(a)}
-                                className="w-full text-left px-4 py-2.5 transition-colors"
-                                style={{ borderBottom: '1px solid #E0E0E0' }}
-                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F7F9FB'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                                className="w-full text-left px-3 sm:px-4 py-2.5 cursor-pointer transition-colors hover:bg-[#F7F9FB]"
+                                style={{ borderBottom: `1px solid ${BORDER}` }}
                               >
                                 <div className="flex items-center justify-between gap-2">
-                                  <p className="text-sm font-medium text-zinc-800">{a.attendeeFullName}</p>
+                                  <p className="text-sm font-medium break-words" style={{ color: NEUTRAL_DARK }}>{a.attendeeFullName}</p>
                                   {a.attendeeEmail
-                                    ? <span className="text-[10px] bg-green-100 text-green-700 border border-green-200 rounded-none px-1.5 py-0.5 shrink-0">has email</span>
-                                    : <span className="text-[10px] border border-gray-200 px-1.5 py-0.5 shrink-0" style={{ backgroundColor: '#F7F9FB', color: '#888888' }}>no email</span>
+                                    ? <span className="text-[10px] px-1.5 py-0.5 shrink-0" style={{ backgroundColor: '#E8F5E9', border: '1px solid #C8E6C9', color: '#2E7D32' }}>has email</span>
+                                    : <span className="text-[10px] px-1.5 py-0.5 shrink-0" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}`, color: GRAY_DISABLED }}>no email</span>
                                   }
                                 </div>
-                                <p className="text-xs text-zinc-500">{a.attendeePosition} · {a.attendeeInstitution}</p>
-                                {a.attendeeEmail && <p className="text-xs mt-0.5" style={{ color: PRIMARY }}>{a.attendeeEmail}</p>}
+                                <p className="text-xs" style={{ color: GRAY_DISABLED }}>{[a.attendeePosition, a.attendeeInstitution].filter(Boolean).join(', ')}</p>
+                                {a.attendeeEmail && <p className="text-xs mt-0.5 break-all" style={{ color: PRIMARY }}>{a.attendeeEmail}</p>}
                               </button>
                             </li>
                           ))}
@@ -491,389 +470,339 @@ export default function EventActionsPage() {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000', fontFamily: "'Montserrat', sans-serif" }}>Full Name *</label>
+                        <label style={labelStyle}>Full Name <span style={{ color: DANGER }}>*</span></label>
                         <input
                           type="text" required maxLength={200}
                           value={form.assignedPerson.name}
                           onChange={e => setField('assignedPerson.name', e.target.value)}
                           placeholder="Full name"
-                          className="w-full px-4 py-3 text-sm outline-none"
-                          style={{
-                            fontFamily: "'Montserrat', sans-serif", fontSize: '14px', fontWeight: 500, color: '#333333',
-                            backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid transparent',
-                            boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)', transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-                          }}
-                          onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(52, 168, 219, 0.25)'; }}
-                          onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0, 0, 0, 0.1)'; }}
+                          className={inputClassName} style={inputStyle}
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000', fontFamily: "'Montserrat', sans-serif" }}>Email Address</label>
+                        <label style={labelStyle}>Email Address</label>
                         <input
                           type="email" maxLength={300}
                           value={form.assignedPerson.email || ''}
                           onChange={e => setField('assignedPerson.email', e.target.value)}
                           placeholder="Email address"
-                          className="w-full px-4 py-3 text-sm outline-none"
-                          style={{
-                            fontFamily: "'Montserrat', sans-serif", fontSize: '14px', fontWeight: 500, color: '#333333',
-                            backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid transparent',
-                            boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)', transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-                          }}
-                          onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(52, 168, 219, 0.25)'; }}
-                          onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0, 0, 0, 0.1)'; }}
+                          className={inputClassName} style={inputStyle}
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000', fontFamily: "'Montserrat', sans-serif" }}>Role / Position *</label>
+                        <label style={labelStyle}>Role / Position <span style={{ color: DANGER }}>*</span></label>
                         <input
                           type="text" required maxLength={200}
                           value={form.assignedPerson.role}
                           onChange={e => setField('assignedPerson.role', e.target.value)}
                           placeholder="Role / Position"
-                          className="w-full px-4 py-3 text-sm outline-none"
-                          style={{
-                            fontFamily: "'Montserrat', sans-serif", fontSize: '14px', fontWeight: 500, color: '#333333',
-                            backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid transparent',
-                            boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)', transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-                          }}
-                          onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(52, 168, 219, 0.25)'; }}
-                          onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0, 0, 0, 0.1)'; }}
+                          className={inputClassName} style={inputStyle}
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000', fontFamily: "'Montserrat', sans-serif" }}>Institution *</label>
+                        <label style={labelStyle}>Institution <span style={{ color: DANGER }}>*</span></label>
                         <input
                           type="text" required maxLength={300}
                           value={form.assignedPerson.institution}
                           onChange={e => setField('assignedPerson.institution', e.target.value)}
                           placeholder="Institution"
-                          className="w-full px-4 py-3 text-sm outline-none"
-                          style={{
-                            fontFamily: "'Montserrat', sans-serif", fontSize: '14px', fontWeight: 500, color: '#333333',
-                            backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid transparent',
-                            boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)', transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-                          }}
-                          onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(52, 168, 219, 0.25)'; }}
-                          onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0, 0, 0, 0.1)'; }}
+                          className={inputClassName} style={inputStyle}
                         />
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Created By Card */}
-                <div className="border" style={{ borderColor: '#E0E0E0', borderRadius: 0 }}>
-                  <div className="px-4 py-3 border-b" style={{ backgroundColor: '#F7F9FB', borderColor: '#E0E0E0' }}>
-                    <p className="text-xs font-bold uppercase tracking-wider pl-2" style={{ color: PRIMARY, fontFamily: "'Montserrat', sans-serif" }}>Created By (your info) *</p>
+                {/* Created By */}
+                <div style={{ border: `1px solid ${BORDER}` }}>
+                  <div className="px-3 sm:px-4 py-3" style={{ backgroundColor: NEUTRAL_LIGHT, borderBottom: `1px solid ${BORDER}` }}>
+                    <p className="text-xs font-bold uppercase tracking-wider" style={{ color: PRIMARY, fontFamily: fontHeading }}>
+                      Created By (your info) <span style={{ color: DANGER }}>*</span>
+                    </p>
                   </div>
-                  <div className="p-4 space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-3 sm:p-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000', fontFamily: "'Montserrat', sans-serif" }}>Full Name *</label>
+                        <label style={labelStyle}>Full Name <span style={{ color: DANGER }}>*</span></label>
                         <input
                           type="text" required maxLength={200}
                           value={form.createdBy?.name || ''}
                           onChange={e => setField('createdBy.name', e.target.value)}
                           placeholder="Your full name"
-                          className="w-full px-4 py-3 text-sm outline-none"
-                          style={{
-                            fontFamily: "'Montserrat', sans-serif", fontSize: '14px', fontWeight: 500, color: '#333333',
-                            backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid transparent',
-                            boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)', transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-                          }}
-                          onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(52, 168, 219, 0.25)'; }}
-                          onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0, 0, 0, 0.1)'; }}
+                          className={inputClassName} style={inputStyle}
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000', fontFamily: "'Montserrat', sans-serif" }}>Email Address</label>
+                        <label style={labelStyle}>Email Address</label>
                         <input
                           type="email" maxLength={300}
                           value={form.createdBy?.email || ''}
                           onChange={e => setField('createdBy.email', e.target.value)}
                           placeholder="Your email address"
-                          className="w-full px-4 py-3 text-sm outline-none"
-                          style={{
-                            fontFamily: "'Montserrat', sans-serif", fontSize: '14px', fontWeight: 500, color: '#333333',
-                            backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid transparent',
-                            boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)', transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-                          }}
-                          onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(52, 168, 219, 0.25)'; }}
-                          onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0, 0, 0, 0.1)'; }}
+                          className={inputClassName} style={inputStyle}
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000', fontFamily: "'Montserrat', sans-serif" }}>Your Role</label>
+                        <label style={labelStyle}>Your Role</label>
                         <input
                           type="text" maxLength={200}
                           value={form.createdBy?.role || ''}
                           onChange={e => setField('createdBy.role', e.target.value)}
                           placeholder="Your role"
-                          className="w-full px-4 py-3 text-sm outline-none"
-                          style={{
-                            fontFamily: "'Montserrat', sans-serif", fontSize: '14px', fontWeight: 500, color: '#333333',
-                            backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid transparent',
-                            boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)', transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-                          }}
-                          onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(52, 168, 219, 0.25)'; }}
-                          onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0, 0, 0, 0.1)'; }}
+                          className={inputClassName} style={inputStyle}
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000', fontFamily: "'Montserrat', sans-serif" }}>Your Institution</label>
+                        <label style={labelStyle}>Your Institution</label>
                         <input
                           type="text" maxLength={300}
                           value={form.createdBy?.institution || ''}
                           onChange={e => setField('createdBy.institution', e.target.value)}
                           placeholder="Your institution"
-                          className="w-full px-4 py-3 text-sm outline-none"
-                          style={{
-                            fontFamily: "'Montserrat', sans-serif", fontSize: '14px', fontWeight: 500, color: '#333333',
-                            backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid transparent',
-                            boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)', transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-                          }}
-                          onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(52, 168, 219, 0.25)'; }}
-                          onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0, 0, 0, 0.1)'; }}
+                          className={inputClassName} style={inputStyle}
                         />
                       </div>
                     </div>
                   </div>
                 </div>
 
-              <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000', fontFamily: "'Montserrat', sans-serif" }}>Due Date *</label>
-                <input
-                  type="date" required
-                  value={form.dueDate}
-                  onChange={e => setField('dueDate', e.target.value)}
-                  className="w-full px-4 py-3 text-sm outline-none"
-                  style={{
-                    fontFamily: "'Montserrat', sans-serif", fontSize: '14px', fontWeight: 500, color: '#333333',
-                    backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid transparent',
-                    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)', transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-                  }}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(52, 168, 219, 0.25)'; }}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0, 0, 0, 0.1)'; }}
-                />
-              </div>
+                <div>
+                  <label style={labelStyle}>Due Date <span style={{ color: DANGER }}>*</span></label>
+                  <input
+                    type="date" required
+                    value={form.dueDate}
+                    onChange={e => setField('dueDate', e.target.value)}
+                    className={inputClassName} style={inputStyle}
+                  />
+                </div>
 
-              <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000', fontFamily: "'Montserrat', sans-serif" }}>Status *</label>
-                <div className="space-y-2">
+                <div>
+                  <label style={labelStyle}>Status <span style={{ color: DANGER }}>*</span></label>
                   <select
                     value={form.currentStatus.status}
                     onChange={e => setField('currentStatus.status', e.target.value)}
-                    className="w-full px-4 py-3 text-sm outline-none"
-                    style={{
-                      fontFamily: "'Montserrat', sans-serif", fontSize: '14px', fontWeight: 500, color: '#333333',
-                      backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid transparent',
-                      boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)', transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-                    }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(52, 168, 219, 0.25)'; }}
-                    onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0, 0, 0, 0.1)'; }}
+                    className={`${inputClassName} cursor-pointer`}
+                    style={inputStyle}
                   >
                     <option>Pending</option>
                     <option>In Progress</option>
                     <option>Completed</option>
                   </select>
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#000000', fontFamily: "'Montserrat', sans-serif" }}>Status Note</label>
+                </div>
+
+                <div>
+                  <label style={labelStyle}>Status Note <span style={{ color: DANGER }}>*</span></label>
                   <textarea
                     required maxLength={1000} rows={2}
                     value={form.currentStatus.description}
                     onChange={e => setField('currentStatus.description', e.target.value)}
-                    placeholder="Status note…"
-                    className="w-full px-4 py-3 text-sm outline-none resize-none"
-                    style={{
-                      fontFamily: "'Montserrat', sans-serif", fontSize: '14px', fontWeight: 500, color: '#333333',
-                      backgroundColor: NEUTRAL_LIGHT, borderRadius: 0, border: '1px solid transparent',
-                      boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)', transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-                    }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = '0px 4px 8px rgba(52, 168, 219, 0.25)'; }}
-                    onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0, 0, 0, 0.1)'; }}
+                    placeholder="Status note"
+                    className={inputClassName}
+                    style={{ ...inputStyle, resize: 'vertical', minHeight: '60px' }}
                   />
+                </div>
+
+                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-3" style={{ borderTop: `1px solid ${BORDER}` }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    disabled={submitting}
+                    className="cok-btn-outlined sm:flex-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ padding: '0.6rem 1.2rem' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="cok-btn-primary sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
+                    style={{ width: '100%', padding: '0.6rem 1.4rem' }}
+                  >
+                    {submitting ? 'Saving...' : editing ? 'Save Changes' : 'Create Action'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* DELETE CONFIRM */}
+        {deleteTarget && (
+          <div className="fixed inset-0 z-[999] flex items-center justify-center p-3 sm:p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="bg-white w-full max-w-sm p-5 sm:p-6" style={{ border: `1px solid ${BORDER}` }}>
+              <div className="flex items-start gap-3 mb-5">
+                <div className="p-2.5 shrink-0" style={{ backgroundColor: '#FDECEA' }}>
+                  <FiTrash2 className="w-6 h-6" style={{ color: DANGER }} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Delete Action</h3>
+                  <p className="text-sm mt-1 break-words" style={{ color: GRAY_DISABLED }}>
+                    Delete <span className="font-semibold" style={{ color: NEUTRAL_DARK }}>"{deleteTarget.title}"</span>? This cannot be undone.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  disabled={deleting}
+                  className="cok-btn-outlined flex-1 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-white cursor-pointer transition-colors disabled:opacity-60"
+                  style={{ backgroundColor: DANGER, fontFamily: fontHeading, borderRadius: 0, border: 0 }}
+                  onMouseEnter={(e) => { if (!deleting) e.currentTarget.style.backgroundColor = '#C0392B'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = DANGER; }}
+                >
+                  {deleting ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ACTION DETAIL MODAL */}
+        {viewTarget && (
+          <div className="fixed inset-0 z-[999] flex items-start justify-center p-2 sm:p-4 overflow-y-auto" style={{ backgroundColor: 'rgba(0,0,0,0.5)', paddingTop: '80px' }} onClick={() => setViewTarget(null)}>
+            <div
+              className="bg-white w-full max-w-xl max-h-[85vh] overflow-y-auto"
+              style={{ border: `1px solid ${BORDER}` }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-4 sticky top-0 bg-white z-10" style={{ borderBottom: `1px solid ${BORDER}` }}>
+                <h2 className="text-base font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Action Details</h2>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => { openEdit(viewTarget); setViewTarget(null); }}
+                    className="p-2 cursor-pointer transition-colors hover:bg-[#E3F2FD]"
+                    style={{ color: PRIMARY }}
+                    title="Edit"
+                  >
+                    <FiEdit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => { setDeleteTarget(viewTarget); setViewTarget(null); }}
+                    className="p-2 cursor-pointer transition-colors hover:bg-[#FDECEA]"
+                    style={{ color: DANGER }}
+                    title="Delete"
+                  >
+                    <FiTrash2 className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setViewTarget(null)} className="p-2 cursor-pointer transition-colors" style={{ color: GRAY_DISABLED }} title="Close">
+                    <FiX className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-2 border-t" style={{ borderColor: '#E0E0E0' }}>
-                <button type="button" onClick={() => setShowForm(false)}
-                  className="px-4 py-2 text-sm font-medium border transition-colors"
-                  style={{ borderColor: '#E0E0E0', color: '#666666', fontFamily: "'Montserrat', sans-serif" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F7F9FB'; e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.color = PRIMARY; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = '#E0E0E0'; e.currentTarget.style.color = '#666666'; }}>
-                  Cancel
-                </button>
-                <button type="submit" disabled={submitting}
-                  className="px-5 py-2 text-sm font-semibold text-white rounded-none transition-colors disabled:opacity-60"
-                  style={{ backgroundColor: PRIMARY, fontFamily: "'Montserrat', sans-serif" }}>
-                  {submitting ? 'Saving…' : editing ? 'Save Changes' : 'Create Action'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+              <div className="px-4 sm:px-6 py-5 space-y-5">
+                <div>
+                  <h3 className="text-lg sm:text-xl font-bold leading-snug break-words" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{viewTarget.title}</h3>
+                  <p className="text-sm mt-2 leading-relaxed break-words" style={{ color: GRAY_DISABLED }}>{viewTarget.actionDescription}</p>
+                </div>
 
-      {/* DELETE CONFIRM */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-[999] flex items-start justify-center p-0 sm:p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', paddingTop: '80px' }}>
-          <div className="bg-white shadow-2xl w-full max-w-sm p-6 my-4 sm:my-0" style={{ borderRadius: 0 }}>
-            <div className="flex items-start gap-3 mb-4">
-              <div className="p-2 border" style={{ backgroundColor: '#FFEBEE', borderColor: '#FFCDD2' }}><FiTrash2 className="w-5 h-5" style={{ color: DANGER }} /></div>
-              <div>
-                <h3 className="font-bold text-zinc-900" style={{ fontFamily: "'Montserrat', sans-serif" }}>Delete Action</h3>
-                <p className="text-sm text-zinc-500 mt-1">
-                  Delete <span className="font-semibold">"{deleteTarget.title}"</span>? This cannot be undone.
-                </p>
+                <div className="flex items-start justify-between gap-3 p-4" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Current Status</p>
+                    <Badge status={viewTarget.currentStatus?.status} />
+                    {viewTarget.currentStatus?.description && (
+                      <p className="text-sm mt-2 break-words" style={{ color: '#555555' }}>{viewTarget.currentStatus.description}</p>
+                    )}
+                  </div>
+                  {overdue(viewTarget.dueDate, viewTarget.currentStatus?.status) && (
+                    <span className="px-3 py-1 text-xs font-semibold shrink-0" style={{ backgroundColor: '#FDECEA', border: '1px solid #F5B7B1', color: DANGER }}>Overdue</span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-4" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Assigned To</p>
+                    <div className="flex items-start gap-2">
+                      <div className="w-8 h-8 flex items-center justify-center shrink-0" style={{ backgroundColor: '#E3F2FD' }}>
+                        <FiUser className="w-3.5 h-3.5" style={{ color: PRIMARY }} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm break-words" style={{ color: NEUTRAL_DARK }}>{viewTarget.assignedPerson?.name || '-'}</p>
+                        {viewTarget.assignedPerson?.role && <p className="text-xs break-words" style={{ color: GRAY_DISABLED }}>{viewTarget.assignedPerson.role}</p>}
+                        {viewTarget.assignedPerson?.institution && <p className="text-xs break-words" style={{ color: GRAY_DISABLED }}>{viewTarget.assignedPerson.institution}</p>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Due Date</p>
+                    <div className="flex items-center gap-2">
+                      <FiCalendar className="w-4 h-4 shrink-0" style={{ color: overdue(viewTarget.dueDate, viewTarget.currentStatus?.status) ? DANGER : GRAY_DISABLED }} />
+                      <span className="font-semibold text-sm" style={{ color: overdue(viewTarget.dueDate, viewTarget.currentStatus?.status) ? DANGER : NEUTRAL_DARK }}>
+                        {fmt(viewTarget.dueDate)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {viewTarget.statusHistory?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Status History</p>
+                    <ol className="relative ml-2 space-y-4" style={{ borderLeft: `2px solid ${BORDER}` }}>
+                      {[...viewTarget.statusHistory].reverse().map((h, i) => (
+                        <li key={i} className="ml-5">
+                          <span className="absolute -left-2 w-4 h-4 border-2 bg-white" style={{ borderColor: PRIMARY }} />
+                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                            <Badge status={h.status} />
+                            <span className="text-xs" style={{ color: GRAY_DISABLED }}>{fmt(h.changedAt)}</span>
+                          </div>
+                          <p className="text-sm break-words" style={{ color: '#555555' }}>{h.description}</p>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Event</p>
+                  <p className="text-sm px-3 py-2 break-words" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}`, color: '#555555' }}>{eventTitle || viewTarget.eventSpecialId}</p>
+                </div>
               </div>
             </div>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 text-sm font-medium border transition-colors" style={{ borderColor: '#E0E0E0', color: '#666666', fontFamily: "'Montserrat', sans-serif" }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F7F9FB'; e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.color = PRIMARY; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = '#E0E0E0'; e.currentTarget.style.color = '#666666'; }}>Cancel</button>
-              <button onClick={confirmDelete} className="px-4 py-2 text-sm font-semibold text-white rounded-none transition-colors" style={{ backgroundColor: DANGER, fontFamily: "'Montserrat', sans-serif" }}>Delete</button>
-            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ACTION DETAIL MODAL */}
-      {viewTarget && (
-        <div className="fixed inset-0 z-[999] flex items-start justify-center p-0 sm:p-4 overflow-y-auto" style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', paddingTop: '80px' }} onClick={() => setViewTarget(null)}>
-          <div
-            className="bg-white shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto my-4 sm:my-0"
-            style={{ borderRadius: 0 }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10" style={{ borderColor: '#E0E0E0' }}>
-              <h2 className="text-base font-bold text-zinc-900" style={{ fontFamily: "'Montserrat', sans-serif" }}>Action Details</h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => { openEdit(viewTarget); setViewTarget(null); }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border transition-colors"
-                  style={{ borderColor: '#F59E0B33', color: '#B45309', backgroundColor: '#FFFBEB' }}
-                >
-                  <FiEdit2 className="w-3.5 h-3.5" /> Edit
-                </button>
-                <button
-                  onClick={() => { setDeleteTarget(viewTarget); setViewTarget(null); }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border transition-colors"
-                  style={{ borderColor: '#FFCDD2', color: '#C62828', backgroundColor: '#FFEBEE' }}
-                >
-                  <FiTrash2 className="w-3.5 h-3.5" /> Delete
-                </button>
-                <button onClick={() => setViewTarget(null)} className="p-2 transition-colors" style={{ color: '#888888' }}>
+        {/* STATUS HISTORY */}
+        {historyTarget && (
+          <div className="fixed inset-0 z-[999] flex items-start justify-center p-2 sm:p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)', paddingTop: '80px' }} onClick={() => setHistoryTarget(null)}>
+            <div className="bg-white w-full max-w-md max-h-[80vh] overflow-y-auto" style={{ border: `1px solid ${BORDER}` }} onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${BORDER}` }}>
+                <h3 className="font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Status History</h3>
+                <button onClick={() => setHistoryTarget(null)} className="p-1.5 cursor-pointer transition-colors" style={{ color: GRAY_DISABLED }}>
                   <FiX className="w-5 h-5" />
                 </button>
               </div>
-            </div>
-
-            <div className="px-6 py-6 space-y-5">
-              <div>
-                <h3 className="text-xl font-bold text-zinc-900 leading-snug" style={{ fontFamily: "'Montserrat', sans-serif" }}>{viewTarget.title}</h3>
-                <p className="text-sm text-zinc-500 mt-2 leading-relaxed">{viewTarget.actionDescription}</p>
-              </div>
-
-              <div className="flex items-start justify-between gap-3 p-4 border" style={{ backgroundColor: NEUTRAL_LIGHT, borderColor: '#E0E0E0' }}>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Current Status</p>
-                  <Badge status={viewTarget.currentStatus?.status} />
-                  {viewTarget.currentStatus?.description && (
-                    <p className="text-sm text-zinc-600 mt-2">{viewTarget.currentStatus.description}</p>
-                  )}
-                </div>
-                {overdue(viewTarget.dueDate, viewTarget.currentStatus?.status) && (
-                  <span className="border px-3 py-1 text-xs font-semibold shrink-0" style={{ borderColor: '#FFCDD2', color: '#C62828', backgroundColor: '#FFEBEE' }}>Overdue</span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 border" style={{ backgroundColor: NEUTRAL_LIGHT, borderColor: '#E0E0E0' }}>
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Assigned To</p>
-                  <div className="flex items-start gap-2">
-                    <div className="w-8 h-8 flex items-center justify-center shrink-0 border" style={{ backgroundColor: '#E3F2FD', borderColor: '#B3E5FC' }}>
-                      <FiUser className="w-3.5 h-3.5" style={{ color: PRIMARY }} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-zinc-800 text-sm truncate">{viewTarget.assignedPerson?.name || '—'}</p>
-                      {viewTarget.assignedPerson?.role && <p className="text-xs text-zinc-500 truncate">{viewTarget.assignedPerson.role}</p>}
-                      {viewTarget.assignedPerson?.institution && <p className="text-xs text-zinc-400 truncate">{viewTarget.assignedPerson.institution}</p>}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4 border" style={{ backgroundColor: NEUTRAL_LIGHT, borderColor: '#E0E0E0' }}>
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Due Date</p>
-                  <div className="flex items-center gap-2">
-                    <FiCalendar className={`w-4 h-4 shrink-0 ${overdue(viewTarget.dueDate, viewTarget.currentStatus?.status) ? '' : ''}`} style={{ color: overdue(viewTarget.dueDate, viewTarget.currentStatus?.status) ? DANGER : '#888888' }} />
-                    <span className={`font-semibold text-sm ${overdue(viewTarget.dueDate, viewTarget.currentStatus?.status) ? '' : ''}`} style={{ color: overdue(viewTarget.dueDate, viewTarget.currentStatus?.status) ? '#C62828' : '#333333' }}>
-                      {fmt(viewTarget.dueDate)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {viewTarget.statusHistory?.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: '#000000' }}>Status History</p>
-                  <ol className="relative ml-2 space-y-4" style={{ borderLeft: '2px solid #E0E0E0' }}>
-                    {[...viewTarget.statusHistory].reverse().map((h, i) => (
+              <div className="px-4 sm:px-6 py-4">
+                <p className="text-sm font-semibold mb-4 break-words" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{historyTarget.title}</p>
+                {historyTarget.statusHistory?.length ? (
+                  <ol className="relative ml-2 space-y-5" style={{ borderLeft: `2px solid ${BORDER}` }}>
+                    {[...historyTarget.statusHistory].reverse().map((h, i) => (
                       <li key={i} className="ml-5">
                         <span className="absolute -left-2 w-4 h-4 border-2 bg-white" style={{ borderColor: PRIMARY }} />
-                        <div className="flex items-center gap-2 mb-0.5">
+                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                           <Badge status={h.status} />
-                          <span className="text-xs text-zinc-500">{fmt(h.changedAt)}</span>
+                          <span className="text-xs" style={{ color: GRAY_DISABLED }}>{fmt(h.changedAt)}</span>
                         </div>
-                        <p className="text-sm text-zinc-600">{h.description}</p>
+                        <p className="text-sm break-words" style={{ color: '#555555' }}>{h.description}</p>
                       </li>
                     ))}
                   </ol>
-                </div>
-              )}
-
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#000000' }}>Event</p>
-                <p className="text-sm text-zinc-700 px-3 py-2 border" style={{ backgroundColor: NEUTRAL_LIGHT, borderColor: '#E0E0E0' }}>{eventTitle || viewTarget.eventSpecialId}</p>
+                ) : (
+                  <p className="text-sm text-center py-8" style={{ color: GRAY_DISABLED }}>No history recorded yet.</p>
+                )}
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* STATUS HISTORY */}
-      {historyTarget && (
-        <div className="fixed inset-0 z-[999] flex items-start justify-center p-0 sm:p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', paddingTop: '80px' }}>
-          <div className="bg-white shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto my-4 sm:my-0" style={{ borderRadius: 0 }}>
-            <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: '#E0E0E0' }}>
-              <h3 className="font-bold text-zinc-900" style={{ fontFamily: "'Montserrat', sans-serif" }}>Status History</h3>
-              <button onClick={() => setHistoryTarget(null)} className="p-1.5 transition-colors" style={{ color: '#888888' }}>
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="px-6 py-4">
-              <p className="text-sm font-semibold text-zinc-700 mb-4" style={{ fontFamily: "'Montserrat', sans-serif" }}>{historyTarget.title}</p>
-              {historyTarget.statusHistory?.length ? (
-                <ol className="relative ml-2 space-y-5" style={{ borderLeft: '2px solid #E0E0E0' }}>
-                  {[...historyTarget.statusHistory].reverse().map((h, i) => (
-                    <li key={i} className="ml-5">
-                      <span className="absolute -left-2 w-4 h-4 border-2 bg-white" style={{ borderColor: PRIMARY }} />
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <Badge status={h.status} />
-                        <span className="text-xs text-zinc-500">{fmt(h.changedAt)}</span>
-                      </div>
-                      <p className="text-sm text-zinc-600">{h.description}</p>
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <p className="text-sm text-center py-8" style={{ color: '#888888' }}>No history recorded yet.</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+        )}
       </div>
     </div>
   );

@@ -154,8 +154,15 @@ export const getTasks = (params?: {
   skip?: number
   sortBy?: string
   sortOrder?: string
-}) =>
-  get('/tasks', params as any)
+}) => {
+  // Filters must travel as query params (the get() helper's 2nd arg is headers)
+  const qs = new URLSearchParams()
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== '') qs.append(k, String(v))
+  })
+  const query = qs.toString()
+  return get(`/tasks${query ? `?${query}` : ''}`)
+}
 
 export const getTaskById = (taskId: string) =>
   get(`/tasks/${taskId}`)

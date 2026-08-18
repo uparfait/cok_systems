@@ -5,6 +5,7 @@ yarn-error.log
 win_app_dir_exe/
 backend/uploads/tasks/attachments
 docker-compose.yml
+**/uploads/*
 
 # Environment variables
 .env
