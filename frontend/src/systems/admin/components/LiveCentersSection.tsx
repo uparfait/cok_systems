@@ -36,10 +36,10 @@ const WarningSvg: React.FC<{ className?: string }> = ({ className }) => (
 export const LiveCentersSection: React.FC<LiveCentersSectionProps> = ({ centers, alerts }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Critical': return 'text-red-600 bg-red-50';
-      case 'Busy': return 'text-orange-600 bg-orange-50';
-      case 'Normal': return 'text-yellow-600 bg-yellow-50';
-      case 'Good': return 'text-green-600 bg-green-50';
+      case 'Critical': return 'text-[#E74C3C] bg-[rgba(231,76,60,0.1)]';
+      case 'Busy': return 'text-[#F39C12] bg-[rgba(243,156,18,0.12)]';
+      case 'Normal': return 'text-[#F39C12] bg-[rgba(243,156,18,0.1)]';
+      case 'Good': return 'text-[#4CAF50] bg-[rgba(76,175,80,0.1)]';
       default: return 'text-gray-600 bg-gray-50';
     }
   };
@@ -47,8 +47,8 @@ export const LiveCentersSection: React.FC<LiveCentersSectionProps> = ({ centers,
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Live Service Centers */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="p-4 border-b">
+      <div className="bg-white shadow-sm border border-[#E0E0E0]">
+        <div className="p-4 border-b border-[#E0E0E0]">
           <h3 className="text-lg font-semibold text-gray-800">LIVE SERVICE CENTERS</h3>
         </div>
         <div className="p-4">
@@ -65,7 +65,7 @@ export const LiveCentersSection: React.FC<LiveCentersSectionProps> = ({ centers,
                   </div>
                 </div>
                 <span
-                  className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(center.status)}`}
+                  className={`px-2 py-1 text-xs font-medium ${getStatusColor(center.status)}`}
                 >
                   {center.status}
                 </span>
@@ -76,10 +76,10 @@ export const LiveCentersSection: React.FC<LiveCentersSectionProps> = ({ centers,
       </div>
 
       {/* Real-time Alerts */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="p-4 border-b">
+      <div className="bg-white shadow-sm border border-[#E0E0E0]">
+        <div className="p-4 border-b border-[#E0E0E0]">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <WarningSvg className="w-5 h-5 text-red-500" />
+            <WarningSvg className="w-5 h-5 text-[#E74C3C]" />
             REAL-TIME ALERTS
           </h3>
         </div>
@@ -88,10 +88,10 @@ export const LiveCentersSection: React.FC<LiveCentersSectionProps> = ({ centers,
             {alerts.map((alert, index) => (
               <div
                 key={index}
-                className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg"
+                className="flex items-start gap-3 p-3 bg-[rgba(231,76,60,0.08)] border border-[#E74C3C]"
               >
-                <WarningSvg className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-                <span className="text-sm text-red-800">{alert}</span>
+                <WarningSvg className="w-4 h-4 text-[#E74C3C] mt-0.5 flex-shrink-0" />
+                <span className="text-sm text-[#E74C3C]">{alert}</span>
               </div>
             ))}
           </div>

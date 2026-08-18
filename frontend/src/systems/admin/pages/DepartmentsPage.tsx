@@ -87,7 +87,7 @@ const DepartmentsPage: React.FC = () => {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
                         <div className="mt-3 inline-flex items-center gap-3 bg-gray-50 p-3 border border-gray-100">
-            <div className="w-8 h-8 bg-blue-100 flex items-center rounded-full justify-center"><HiOutlineOfficeBuilding className="w-4 h-4 cok-primary-color" /></div>
+            <div className="w-8 h-8 bg-[rgba(5,109,170,0.1)] flex items-center justify-center"><HiOutlineOfficeBuilding className="w-4 h-4 cok-primary-color" /></div>
             <div><p className="text-xs text-gray-500">Total Departments</p>{loading && firstLoad ? <div className="h-7 w-14 bg-gray-200 animate-pulse mt-1" /> : <p className="text-xl font-bold text-gray-900">{stats}</p>}</div>
           </div> </div>
             <button onClick={handleNewDepartment} className="inline-flex items-center gap-1.5 px-4 py-2 cok-btn-primary text-white max-w-max text-sm font-semibold"><FiPlus className="w-4 h-4" />Add Department</button>
@@ -102,21 +102,21 @@ const DepartmentsPage: React.FC = () => {
           </div>
         </div>
 
-        {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 text-sm flex items-center gap-2"><FiAlertCircle className="w-4 h-4 flex-shrink-0" />{error}</div>}
+        {error && <div className="bg-[rgba(231,76,60,0.08)] border border-[#E74C3C] text-[#E74C3C] px-3 py-2 text-sm flex items-center gap-2"><FiAlertCircle className="w-4 h-4 flex-shrink-0" />{error}</div>}
 
         <div className="bg-white border border-gray-200 overflow-hidden">
           {loading && firstLoad ? <div className="p-8 text-center flex justify-center flex-row items-center text-gray-500"> <SpiralLoader /> </div>
-            : filteredDepartments.length === 0 ? <div className="p-8 text-center rounded-full"><HiOutlineOfficeBuilding className="w-10 h-10 text-gray-400 mx-auto mb-3" /><h3 className="text-sm font-semibold text-gray-900 mb-1">No departments found</h3><p className="text-xs text-gray-500">{searchQuery ? 'Try adjusting your search' : 'Get started by adding your first department'}</p></div>
+            : filteredDepartments.length === 0 ? <div className="p-8 text-center"><HiOutlineOfficeBuilding className="w-10 h-10 text-gray-400 mx-auto mb-3" /><h3 className="text-sm font-semibold text-gray-900 mb-1">No departments found</h3><p className="text-xs text-gray-500">{searchQuery ? 'Try adjusting your search' : 'Get started by adding your first department'}</p></div>
               : <DepartmentManagementTable departments={filteredDepartments} employees={employees} loading={loading} onEdit={handleEdit} onDelete={handleDeleteClick} onAddUnit={handleAddUnit} onViewDetails={handleEdit} refreshDepartments={() => loadDepartments(false)} />}
         </div>
 
         {showModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white w-full max-w-lg shadow-2xl overflow-hidden">
-              <div className="p-4 border-b bg-gray-50"><div className="flex items-center gap-3"><div className="w-9 h-9 bg-blue-100 flex items-center rounded-full justify-center"><HiOutlineOfficeBuilding className="w-4 h-4 cok-primary-color" /></div><div><h2 className="text-sm font-bold text-gray-900">{editingDepartment ? 'Edit Department' : 'Add Department'}</h2><p className="text-xs text-gray-500">{editingDepartment ? 'Update details' : 'Create a new department'}</p></div></div></div>
+              <div className="p-4 border-b bg-gray-50"><div className="flex items-center gap-3"><div className="w-9 h-9 bg-[rgba(5,109,170,0.1)] flex items-center justify-center"><HiOutlineOfficeBuilding className="w-4 h-4 cok-primary-color" /></div><div><h2 className="text-sm font-bold text-gray-900">{editingDepartment ? 'Edit Department' : 'Add Department'}</h2><p className="text-xs text-gray-500">{editingDepartment ? 'Update details' : 'Create a new department'}</p></div></div></div>
               <form onSubmit={handleSubmit} className="p-4 space-y-4">
-                {formError && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 text-sm flex items-start gap-2"><FiAlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{formError}</span></div>}
-                {formSuccess && <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 text-sm flex items-start gap-2"><FiCheck className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{formSuccess}</span></div>}
+                {formError && <div className="bg-[rgba(231,76,60,0.08)] border border-[#E74C3C] text-[#E74C3C] px-3 py-2 text-sm flex items-start gap-2"><FiAlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{formError}</span></div>}
+                {formSuccess && <div className="bg-[rgba(76,175,80,0.08)] border border-[#388E3C] text-[#388E3C] px-3 py-2 text-sm flex items-start gap-2"><FiCheck className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{formSuccess}</span></div>}
                 <div><label className="text-xs font-semibold text-gray-700 mb-1 block">Name <span className="text-red-500">*</span></label><input type="text" required value={formData?.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm" placeholder="Department name" /></div>
                 <div><label className="text-xs font-semibold text-gray-700 mb-1 block">Department ID</label><input type="text" value={formData?.department_id || ''} onChange={e => setFormData({ ...formData, department_id: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm" placeholder="e.g., DEP-001" /></div>
                 <div><label className="text-xs font-semibold text-gray-700 mb-1 block">Room Number</label><input type="text" value={formData?.room_number || ''} onChange={e => setFormData({ ...formData, room_number: e.target.value })} className="w-full px-3 py-2 cok-auth-input  text-sm" placeholder="e.g., 101" /></div>

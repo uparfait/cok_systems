@@ -6,7 +6,7 @@ import {
   FiChevronRight,
   FiClock,
 } from 'react-icons/fi';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid, LabelList } from 'recharts';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { useDashboard } from '../../event-managment/pages/dashboard/hooks/useDashboard';
 import MayorEventDetailsOverlay from './sub/MayorEventDetailsOverlay';
@@ -17,7 +17,7 @@ const COK = {
   success: '#4CAF50',
   primaryDark: '#045d94',
   warning: '#F39C12',
-  danger: '#E53935',
+  danger: '#E74C3C',
   tertiary: '#CDB896',
   neutralDark: '#333333',
   neutralLight: '#F7F9FB',
@@ -102,8 +102,8 @@ function EventsFilterBar({
           type="date"
           value={dateRange.from}
           onChange={(e) => onChange({ ...dateRange, from: e.target.value })}
-          className="h-9 px-3 text-sm text-gray-700 focus:outline-none"
-          style={{ border: `1px solid ${COK.border}` }}
+          className="cok-auth-input text-sm"
+          style={{ paddingLeft: '10px', minHeight: '36px' }}
         />
       </div>
 
@@ -114,8 +114,8 @@ function EventsFilterBar({
           type="date"
           value={dateRange.to}
           onChange={(e) => onChange({ ...dateRange, to: e.target.value })}
-          className="h-9 px-3 text-sm text-gray-700 focus:outline-none"
-          style={{ border: `1px solid ${COK.border}` }}
+          className="cok-auth-input text-sm"
+          style={{ paddingLeft: '10px', minHeight: '36px' }}
         />
       </div>
 
@@ -123,7 +123,7 @@ function EventsFilterBar({
         onClick={onRefresh}
         disabled={loading}
         className="h-9 px-4 text-white text-sm transition-opacity disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
-        style={{ backgroundColor: COK.primary, fontFamily: COK.headingFont, fontWeight: 600 }}
+        style={{ backgroundColor: COK.primary, fontFamily: COK.headingFont, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px' }}
       >
         {loading ? 'Refreshing...' : 'Refresh'}
       </button>
@@ -161,27 +161,29 @@ function EventsTaskStatusChart({ data, loading }: { data: Record<string, number>
 
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+          <BarChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" vertical={false} />
             <XAxis
               dataKey="name"
-              tick={{ fontSize: 12, fill: '#6b7280' }}
+              tick={{ fontSize: 12, fill: '#555555' }}
               axisLine={{ stroke: COK.border }}
               tickLine={false}
             />
             <YAxis
               allowDecimals={false}
-              tick={{ fontSize: 12, fill: '#6b7280' }}
+              tick={{ fontSize: 12, fill: '#555555' }}
               axisLine={{ stroke: COK.border }}
               tickLine={false}
             />
             <Tooltip
               cursor={{ fill: COK.neutralLight }}
-              contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
+              contentStyle={{ backgroundColor: '#FFFFFF', border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
             />
             <Bar dataKey="value" radius={[0, 0, 0, 0]}>
               {chartData.map((entry) => (
                 <Cell key={entry.key} fill={TASK_COLORS[entry.key]} />
               ))}
+              <LabelList dataKey="value" position="top" style={{ fill: '#333333', fontWeight: 700, fontSize: 11, fontFamily: "'Montserrat', sans-serif" }} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -319,11 +321,11 @@ function EventsCalendar({
       {/* Legend */}
       <div className="flex items-center gap-4 mb-3">
         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: COK.success }} />
+          <span className="w-2 h-2 inline-block" style={{ backgroundColor: COK.success }} />
           <span className="text-xs text-gray-500">Events</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: COK.primary }} />
+          <span className="w-2 h-2 inline-block" style={{ backgroundColor: COK.primary }} />
           <span className="text-xs text-gray-500">Meetings</span>
         </div>
       </div>
@@ -369,7 +371,7 @@ function EventsCalendar({
                   fontWeight: isToday ? 700 : 500,
                   color: isToday ? '#FFFFFF' : COK.neutralDark,
                   backgroundColor: isToday ? COK.primary : undefined,
-                  borderRadius: '9999px',
+                  borderRadius: 0,
                 }}
               >
                 {day}

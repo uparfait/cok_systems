@@ -82,28 +82,28 @@ const DepartmentManagementTable: React.FC<DepartmentTableProps> = ({ departments
             <thead><tr className="cok-primary-bg border-b border-gray-200">
               {['Department Name', 'Department ID', 'Room Number', 'Department Leader', 'Employees', 'Services', 'Units', 'buttons'].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider whitespace-nowrap">{h.toLocaleUpperCase()}</th>)}
             </tr></thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading ? <tr><td colSpan={9} className="px-4 py-6 text-center"><div className="flex justify-center items-center gap-2"><FiLoader className="w-6 h-6 animate-spin text-blue-600" /><span className="text-sm text-gray-500">Loading...</span></div></td></tr>
-                : flattenedDepartments.length === 0 ? <tr><td colSpan={9} className="px-4 py-8 rounded-full text-center"><HiOutlineOfficeBuilding className="w-8 h-8 text-gray-300 mx-auto mb-2" /><p className="text-sm text-gray-500">No departments found</p></td></tr>
+            <tbody className="divide-y divide-[#E0E0E0]">
+              {loading ? <tr><td colSpan={9} className="px-4 py-6 text-center"><div className="flex justify-center items-center gap-2"><FiLoader className="w-6 h-6 animate-spin text-[#056daa]" /><span className="text-sm text-gray-500">Loading...</span></div></td></tr>
+                : flattenedDepartments.length === 0 ? <tr><td colSpan={9} className="px-4 py-8 text-center"><HiOutlineOfficeBuilding className="w-8 h-8 text-gray-300 mx-auto mb-2" /><p className="text-sm text-gray-500">No departments found</p></td></tr>
                   : flattenedDepartments.map((dept) => {
                     const deptEmployees = getDepartmentEmployees(dept);
                     const deptServices = dept.services || [];
                     const subDeptCount = getSubDepartmentCount(dept);
                     const isSubDept = dept.isSubDepartment;
                     return (
-                      <tr key={`${dept._id}-${isSubDept ? "sub" : "parent"}`} className={`hover:bg-blue-50 transition-colors ${isSubDept ? "bg-purple-50/30" : ""}`}>
+                      <tr key={`${dept._id}-${isSubDept ? "sub" : "parent"}`} className={`hover:bg-[#F7F9FB] transition-colors ${isSubDept ? "bg-[rgba(41,128,185,0.08)]" : ""}`}>
                         <td className="px-4 py-3"><div className={`flex items-center gap-2 ${isSubDept ? "ml-6" : ""}`}>
-                          <div className={`w-8 h-8 flex items-center justify-center rounded-full flex-shrink-0 ${isSubDept ? "bg-purple-100" : "bg-blue-100"}`}><HiOutlineOfficeBuilding className={`w-4 h-4 ${isSubDept ? "text-purple-600" : "text-blue-600"}`} /></div>
-                          <div className="min-w-0"><p className={`text-sm font-normal truncate max-w-48 ${isSubDept ? "text-purple-900" : "text-gray-900"}`} title={dept.name}>{dept.name}</p>{dept.description && <p className="text-xs text-gray-500 truncate max-w-48">{dept.description}</p>}</div></div></td>
-                        <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 font-medium ${isSubDept ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-700"}`}>{dept.department_id}</span></td>
-                        <td className="px-4 py-3">{dept.room_number ? <span className="text-xs px-2 py-0.5 bg-amber-50 text-amber-700">🚪 {dept.room_number}</span> : <span className="text-gray-400 text-sm">—</span>}</td>
+                          <div className={`w-8 h-8 flex items-center justify-center flex-shrink-0 ${isSubDept ? "bg-[rgba(41,128,185,0.08)]" : "bg-[rgba(5,109,170,0.1)]"}`}><HiOutlineOfficeBuilding className={`w-4 h-4 ${isSubDept ? "text-[#2980B9]" : "text-[#056daa]"}`} /></div>
+                          <div className="min-w-0"><p className={`text-sm font-normal truncate max-w-48 ${isSubDept ? "text-[#2980B9]" : "text-gray-900"}`} title={dept.name}>{dept.name}</p>{dept.description && <p className="text-xs text-gray-500 truncate max-w-48">{dept.description}</p>}</div></div></td>
+                        <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 font-medium ${isSubDept ? "bg-[rgba(41,128,185,0.08)] text-[#2980B9]" : "bg-gray-100 text-gray-700"}`}>{dept.department_id}</span></td>
+                        <td className="px-4 py-3">{dept.room_number ? <span className="text-xs px-2 py-0.5 bg-[rgba(243,156,18,0.12)] text-[#F39C12]">🚪 {dept.room_number}</span> : <span className="text-gray-400 text-sm">—</span>}</td>
                         <td className="px-4 py-3"><p className="text-sm">{typeof dept.department_leader === "object" && dept.department_leader ? dept.department_leader.full_name || dept.department_leader.email || "Not assigned" : typeof dept.department_leader === "string" ? dept.department_leader : "Not assigned"}</p></td>
-                        <td className="px-4 py-3 text-center"><button onClick={() => handleShowEmployees(dept)} className="inline-flex items-center gap-1 px-2.5 py-1.5 cok-btn-primary text-blue-700 text-sm font-semibold"><FiUsers className="w-3.5 h-3.5" />{deptEmployees.length}</button></td>
-                        <td className="px-4 py-3 text-center"><button onClick={() => handleShowServices(dept)} className="inline-flex items-center gap-1 px-2.5 py-1.5 cok-btn-primary text-blue-700 text-sm font-semibold"><FiPackage className="w-3.5 h-3.5" />{deptServices.length}</button></td>
-                        <td className="px-4 py-3 text-center">{!isSubDept ? <span className={`text-xs px-2 py-0.5 font-semibold ${subDeptCount > 0 ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"}`}>{subDeptCount}</span> : <span className="text-gray-400">—</span>}</td>
+                        <td className="px-4 py-3 text-center"><button onClick={() => handleShowEmployees(dept)} className="inline-flex items-center gap-1 px-2.5 py-1.5 cok-btn-primary text-sm font-semibold"><FiUsers className="w-3.5 h-3.5" />{deptEmployees.length}</button></td>
+                        <td className="px-4 py-3 text-center"><button onClick={() => handleShowServices(dept)} className="inline-flex items-center gap-1 px-2.5 py-1.5 cok-btn-primary text-sm font-semibold"><FiPackage className="w-3.5 h-3.5" />{deptServices.length}</button></td>
+                        <td className="px-4 py-3 text-center">{!isSubDept ? <span className={`text-xs px-2 py-0.5 font-semibold ${subDeptCount > 0 ? "bg-[rgba(5,109,170,0.1)] text-[#056daa]" : "bg-gray-100 text-gray-600"}`}>{subDeptCount}</span> : <span className="text-gray-400">—</span>}</td>
                         <td className="px-4 py-3"><div className="flex items-center gap-1">{!isSubDept && <button onClick={() => onAddUnit(dept)} className="p-1.5 text-white cursor-pointer cok-primary-bg " title="Add Unit"><FiPlus className="w-3.5 h-3.5" /></button>}
-                          <button onClick={() => onEdit(dept)} className="p-1.5 cok-primary-color cursor-pointer hover:bg-blue-50" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => onDelete(dept._id || dept.department_id || "", dept.name || "this department")} className="p-1.5 text-red-600 hover:bg-red-50" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button></div></td>
+                          <button onClick={() => onEdit(dept)} className="p-1.5 cok-primary-color cursor-pointer hover:bg-[#F7F9FB]" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => onDelete(dept._id || dept.department_id || "", dept.name || "this department")} className="p-1.5 text-[#E74C3C] hover:bg-[rgba(231,76,60,0.08)]" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button></div></td>
                       </tr>
                     );
                   })}

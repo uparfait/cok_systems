@@ -10,7 +10,7 @@ interface LoadingSpinnerProps {
 const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ message = 'Loading...', fullPage = false }) => {
   const content = (
     <div className="flex items-center justify-center gap-2">
-     <FiLoader className="w-6 h-6 animate-spin text-blue-600" />
+     <FiLoader className="w-6 h-6 animate-spin text-[#056daa]" />
       <span className="text-sm text-gray-500">{message}</span>
     </div>
   );

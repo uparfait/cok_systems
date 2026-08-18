@@ -4,7 +4,7 @@ import {
   FiPhone,
   FiSearch,
 } from 'react-icons/fi';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList, CartesianGrid } from 'recharts';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { departmentService, normalizeDepartments } from '../../../core/services/adminService';
 import {
@@ -40,7 +40,7 @@ interface FeedbackItem {
 }
 
 // Donut slice palette for the Feedback by Department card — same set as the admin analytics page
-const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const PIE_COLORS = ['#056daa', '#4CAF50', '#F39C12', '#E74C3C', '#2980B9', '#388E3C'];
 
 const SENTIMENT_META: Record<Sentiment, { label: string; color: string }> = {
   positive: { label: 'Positive', color: COK.success },
@@ -303,11 +303,12 @@ export default function MayorFeedbackPage() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={feedbackPieData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
-                  <YAxis type="category" dataKey="name" width={200} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" vertical={false} />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: '#555555' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={200} tick={{ fontSize: 11, fill: '#555555' }} axisLine={{ stroke: COK.border }} tickLine={false} />
                   <Tooltip
                     cursor={{ fill: COK.neutralLight }}
-                    contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
+                    contentStyle={{ backgroundColor: '#FFFFFF', border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
                     formatter={(value: any) => [`${value} rating(s)`, 'Total']}
                     labelFormatter={(_label: any, payload: any) => payload?.[0]?.payload?.fullName || _label}
                   />
@@ -333,14 +334,16 @@ export default function MayorFeedbackPage() {
             </h3>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={sentimentData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
-                  <Tooltip cursor={{ fill: COK.neutralLight }} contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }} />
+                <BarChart data={sentimentData} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#555555' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#555555' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                  <Tooltip cursor={{ fill: COK.neutralLight }} contentStyle={{ backgroundColor: '#FFFFFF', border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }} />
                   <Bar dataKey="value" radius={[0, 0, 0, 0]}>
                     {sentimentData.map((entry) => (
                       <Cell key={entry.name} fill={entry.color} />
                     ))}
+                    <LabelList dataKey="value" position="top" style={{ fill: '#333333', fontWeight: 700, fontSize: 11, fontFamily: "'Montserrat', sans-serif" }} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -358,11 +361,12 @@ export default function MayorFeedbackPage() {
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={departmentData} layout="vertical" margin={{ top: 5, right: 25, left: 10, bottom: 5 }}>
-                    <XAxis type="number" domain={[0, 10]} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
-                    <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" vertical={false} />
+                    <XAxis type="number" domain={[0, 10]} tick={{ fontSize: 11, fill: '#555555' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                    <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11, fill: '#555555' }} axisLine={{ stroke: COK.border }} tickLine={false} />
                     <Tooltip
                       cursor={{ fill: COK.neutralLight }}
-                      contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
+                      contentStyle={{ backgroundColor: '#FFFFFF', border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
                       formatter={(value: any, _n: any, entry: any) => [`${value}/10 (${entry?.payload?.count} feedback)`, 'Avg rating']}
                     />
                     <Bar dataKey="rating" fill={COK.primary} radius={[0, 0, 0, 0]} barSize={16}>
@@ -427,8 +431,8 @@ export default function MayorFeedbackPage() {
                 onFocus={() => setShowSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full pl-9 pr-3 py-1.5 text-sm focus:outline-none"
-                style={{ border: `1px solid ${COK.border}`, fontFamily: COK.bodyFont }}
+                className="cok-auth-input w-full text-sm"
+                style={{ minHeight: '36px', fontFamily: COK.bodyFont }}
               />
               {/* Department name suggestions while typing */}
               {showSuggestions && suggestions.length > 0 && (
@@ -446,7 +450,7 @@ export default function MayorFeedbackPage() {
                         setSearchInput(d.name);
                         handleSearch(d.name);
                       }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-blue-50"
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[#F7F9FB]"
                       style={{ fontFamily: COK.bodyFont, color: COK.neutralDark }}
                     >
                       <FiSearch className="w-3 h-3 text-gray-400 shrink-0" />
@@ -462,7 +466,7 @@ export default function MayorFeedbackPage() {
                 onClick={() => handleSearch()}
                 disabled={searchLoading}
                 className="px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60"
-                style={{ backgroundColor: COK.primary, fontFamily: COK.headingFont }}
+                style={{ backgroundColor: COK.primary, fontFamily: COK.headingFont, textTransform: 'uppercase', letterSpacing: '1px' }}
               >
                 {searchLoading ? 'Searching...' : 'Search'}
               </button>
@@ -471,7 +475,7 @@ export default function MayorFeedbackPage() {
                   type="button"
                   onClick={clearSearch}
                   className="px-3 py-1.5 text-sm hover:bg-gray-50"
-                  style={{ border: `1px solid ${COK.border}`, color: COK.neutralDark, fontFamily: COK.headingFont }}
+                  style={{ border: `1px solid ${COK.border}`, color: COK.neutralDark, fontFamily: COK.headingFont, textTransform: 'uppercase', letterSpacing: '1px' }}
                 >
                   Clear
                 </button>
@@ -542,7 +546,7 @@ export default function MayorFeedbackPage() {
                           {typeof f.rate === 'number' ? `${f.rate} / ${f.rate_out_of || 10}` : meta.label}
                         </span>
                         {f.telephone?.trim() && (
-                          <span className="flex items-center gap-1" style={{ color: '#374151', fontWeight: 500 }}>
+                          <span className="flex items-center gap-1" style={{ color: '#333333', fontWeight: 500 }}>
                             <FiPhone className="w-3 h-3" />
                             {f.telephone}
                           </span>
@@ -557,11 +561,11 @@ export default function MayorFeedbackPage() {
                     <div
                       className="px-4 py-3.5 text-sm"
                       style={{
-                        backgroundColor: '#f9fafb',
-                        border: '1px solid #f3f4f6',
+                        backgroundColor: '#F7F9FB',
+                        border: '1px solid #F0F2F5',
                         fontFamily: COK.bodyFont,
                         lineHeight: 1.5,
-                        color: f.textmessage ? '#374151' : '#9E9E9E',
+                        color: f.textmessage ? '#333333' : '#9E9E9E',
                         fontStyle: f.textmessage ? 'normal' : 'italic',
                         whiteSpace: 'pre-line',
                       }}

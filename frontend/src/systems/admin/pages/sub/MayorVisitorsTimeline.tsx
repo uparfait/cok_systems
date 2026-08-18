@@ -215,8 +215,8 @@ const MayorVisitorsTimeline: React.FC = () => {
             id="mayor-visitors-period"
             value={period}
             onChange={e => setPeriod(e.target.value as PeriodKey)}
-            className="text-xs px-2 py-1.5 border border-gray-300 bg-white focus:outline-none cursor-pointer"
-            style={{ fontFamily: fontHeading, borderRadius: 0, color: NEUTRAL_DARK }}
+            className="cok-auth-input text-xs focus:outline-none cursor-pointer"
+            style={{ fontFamily: fontHeading, borderRadius: 0, color: NEUTRAL_DARK, paddingLeft: '10px', minHeight: '32px' }}
           >
             {PERIODS.map(p => (
               <option key={p.key} value={p.key}>{p.label}</option>
@@ -229,7 +229,7 @@ const MayorVisitorsTimeline: React.FC = () => {
             <FiLoader className="w-6 h-6 animate-spin" style={{ color: PRIMARY }} />
           </div>
         ) : error ? (
-          <div className="h-[380px] flex items-center justify-center text-sm" style={{ color: '#E53935', fontFamily: fontHeading }}>
+          <div className="h-[380px] flex items-center justify-center text-sm" style={{ color: '#E74C3C', fontFamily: fontHeading }}>
             {error}
           </div>
         ) : (

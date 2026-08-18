@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { statisticsService, employeeService } from '../../../../core/services/adminService';
 
 // Chart colors — the admin variant of the overview page's CC palette
-const CC = { blue: '#2563EB', teal: '#0D9488', amber: '#EAB308', red: '#DC2626' };
+const CC = { blue: '#056daa', teal: '#2980B9', amber: '#F39C12', red: '#E74C3C' };
 
 interface EmployeeStats { total: number; active: number; inactive: number; locked: number; online: number; offline: number }
 
@@ -70,8 +70,8 @@ const StatusPie3D: React.FC<{ slices: Array<{ label: string; value: number; colo
         const ey = sy + (Math.sin(p.mid) > 0 ? 14 : -14);
         return (
           <g key={`c${p.label}`}>
-            <polyline points={`${sx},${sy} ${ex},${ey} ${ex + (right ? 22 : -22)},${ey}`} fill="none" stroke="#9ca3af" strokeWidth="1" />
-            <text x={ex + (right ? 26 : -26)} y={ey} textAnchor={right ? 'start' : 'end'} dominantBaseline="middle" fontSize="11" fontWeight="600" fill="#374151">
+            <polyline points={`${sx},${sy} ${ex},${ey} ${ex + (right ? 22 : -22)},${ey}`} fill="none" stroke="#9E9E9E" strokeWidth="1" />
+            <text x={ex + (right ? 26 : -26)} y={ey} textAnchor={right ? 'start' : 'end'} dominantBaseline="middle" fontSize="11" fontWeight="600" fill="#333333">
               {p.label} ({p.value})
             </text>
           </g>
@@ -158,11 +158,11 @@ const EmployeeAccountStatusCard: React.FC = () => {
           <span className="text-xs text-gray-400">Click to view employees</span>
         </div>
         <div className="flex flex-wrap gap-2 text-xs mb-3">
-          <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-600"></div>Activated {stats.active}</div>
-          <div className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500"></div>Not activated {stats.inactive}</div>
-          <div className="flex items-center gap-1"><div className="w-2 h-2 bg-red-600"></div>Locked {stats.locked}</div>
-          <div className="flex items-center gap-1"><div className="w-2 h-2 bg-green-600"></div>Online {stats.online}</div>
-          <div className="flex items-center gap-1"><div className="w-2 h-2 bg-gray-400"></div>Offline {stats.offline}</div>
+          <div className="flex items-center gap-1"><div className="w-2 h-2 bg-[#056daa]"></div>Activated {stats.active}</div>
+          <div className="flex items-center gap-1"><div className="w-2 h-2 bg-[#F39C12]"></div>Not activated {stats.inactive}</div>
+          <div className="flex items-center gap-1"><div className="w-2 h-2 bg-[#E74C3C]"></div>Locked {stats.locked}</div>
+          <div className="flex items-center gap-1"><div className="w-2 h-2 bg-[#4CAF50]"></div>Online {stats.online}</div>
+          <div className="flex items-center gap-1"><div className="w-2 h-2 bg-[#9E9E9E]"></div>Offline {stats.offline}</div>
         </div>
         <StatusPie3D
           slices={[
@@ -187,16 +187,16 @@ const EmployeeAccountStatusCard: React.FC = () => {
               <div className="flex flex-wrap gap-2">
                 {([
                   { key: 'all', label: 'All', count: stats.total, chip: 'bg-gray-100 text-gray-700 border-gray-300' },
-                  { key: 'active', label: 'Activated', count: stats.active, chip: 'bg-green-100 text-green-800 border-green-300' },
-                  { key: 'inactive', label: 'Not activated', count: stats.inactive, chip: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-                  { key: 'locked', label: 'Locked', count: stats.locked, chip: 'bg-red-100 text-red-800 border-red-300' },
-                  { key: 'online', label: 'Online', count: stats.online, chip: 'bg-teal-100 text-teal-800 border-teal-300' },
+                  { key: 'active', label: 'Activated', count: stats.active, chip: 'bg-[rgba(76,175,80,0.12)] text-[#388E3C] border-[#4CAF50]' },
+                  { key: 'inactive', label: 'Not activated', count: stats.inactive, chip: 'bg-[rgba(243,156,18,0.12)] text-[#F39C12] border-[#F39C12]' },
+                  { key: 'locked', label: 'Locked', count: stats.locked, chip: 'bg-[rgba(231,76,60,0.12)] text-[#E74C3C] border-[#E74C3C]' },
+                  { key: 'online', label: 'Online', count: stats.online, chip: 'bg-[rgba(41,128,185,0.12)] text-[#2980B9] border-[#2980B9]' },
                   { key: 'offline', label: 'Offline', count: stats.offline, chip: 'bg-gray-200 text-gray-600 border-gray-400' },
                 ] as const).map(f => (
                   <button
                     key={f.key}
                     onClick={() => setFilter(f.key)}
-                    className={`px-3 py-1.5 text-xs font-semibold border transition-colors ${f.chip} ${filter === f.key ? 'ring-2 ring-blue-400' : 'opacity-80 hover:opacity-100'}`}
+                    className={`px-3 py-1.5 text-xs font-semibold border transition-colors ${f.chip} ${filter === f.key ? 'ring-2 ring-[#056daa]' : 'opacity-80 hover:opacity-100'}`}
                   >
                     {f.label} ({f.count})
                   </button>
@@ -223,9 +223,9 @@ const EmployeeAccountStatusCard: React.FC = () => {
                         const locked = !!e.access_control?.is_locked;
                         const isLast = idx === filtered.length - 1;
                         const cell = (colIdx: number) =>
-                          `px-4 py-3 ${colIdx === 0 ? '' : 'border-l border-gray-200'} ${isLast ? '' : 'border-b border-gray-200'}`;
+                          `px-4 py-3 ${colIdx === 0 ? '' : 'border-l border-[#E0E0E0]'} ${isLast ? '' : 'border-b border-[#E0E0E0]'}`;
                         return (
-                          <tr key={idx} className={`transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50/50 hover:bg-blue-50'}`}>
+                          <tr key={idx} className={`transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-[#F7F9FB]' : 'bg-gray-50/50 hover:bg-[#F7F9FB]'}`}>
                             <td className={`${cell(0)} whitespace-nowrap`}>
                               <span className="font-bold text-gray-900 text-sm">{e.full_name || '—'}</span>
                             </td>
@@ -237,15 +237,15 @@ const EmployeeAccountStatusCard: React.FC = () => {
                             </td>
                             <td className={cell(3)}>
                               <div className="flex flex-wrap gap-1">
-                                <span className={`inline-block border px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide ${e.is_account_activated ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-50 text-amber-800 border-amber-300'}`}>
+                                <span className={`inline-block border px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide ${e.is_account_activated ? 'bg-[rgba(76,175,80,0.12)] text-[#388E3C] border-[#4CAF50]' : 'bg-[rgba(243,156,18,0.12)] text-[#F39C12] border-[#F39C12]'}`}>
                                   {e.is_account_activated ? 'Activated' : 'Not activated'}
                                 </span>
                                 {locked && (
-                                  <span className="inline-block border px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide bg-red-100 text-red-800 border-red-300">
+                                  <span className="inline-block border px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide bg-[rgba(231,76,60,0.12)] text-[#E74C3C] border-[#E74C3C]">
                                     Locked
                                   </span>
                                 )}
-                                <span className={`inline-block border px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide ${e.is_active ? 'bg-teal-100 text-teal-800 border-teal-300' : 'bg-gray-200 text-gray-600 border-gray-400'}`}>
+                                <span className={`inline-block border px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide ${e.is_active ? 'bg-[rgba(41,128,185,0.12)] text-[#2980B9] border-[#2980B9]' : 'bg-gray-200 text-gray-600 border-gray-400'}`}>
                                   {e.is_active ? 'Active' : 'Offline'}
                                 </span>
                               </div>
@@ -269,14 +269,16 @@ const EmployeeAccountStatusCard: React.FC = () => {
                     <button
                       onClick={() => setPage(p => Math.max(1, p - 1))}
                       disabled={page <= 1}
-                      className="px-3 py-1.5 border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="px-3 py-1.5 border border-[#056daa] bg-white text-[#056daa] font-semibold uppercase hover:bg-[#F7F9FB] disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={{ letterSpacing: '1px' }}
                     >
                       Previous
                     </button>
                     <button
                       onClick={() => setPage(p => p + 1)}
                       disabled={page >= Math.ceil(total / PAGE_SIZE)}
-                      className="px-3 py-1.5 border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="px-3 py-1.5 border border-[#056daa] bg-white text-[#056daa] font-semibold uppercase hover:bg-[#F7F9FB] disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={{ letterSpacing: '1px' }}
                     >
                       Next
                     </button>

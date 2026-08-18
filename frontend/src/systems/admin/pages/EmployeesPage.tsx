@@ -10,6 +10,13 @@ import Table from '../../../core/components/Table';
 import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiRefreshCw, FiUsers, FiMail, FiPhone, FiAlertCircle, FiCheck } from 'react-icons/fi';
 import EmployeeFormModal from './sub/EmployeeFormModal';
 
+const PRIMARY = "#056daa";
+const PRIMARY_HOVER = "#045d94";
+const SUCCESS = "#4CAF50";
+const SUCCESS_HOVER = "#388E3C";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+
 interface Employee { _id?: string; employee_id?: string; full_name?: string; telephone?: string; email: string; identification?: { id_type: string; number: string }; gender?: string; title?: string; department?: string | { _id?: string; department_id?: string; department_name?: string; department_unit?: string }; department_name?: string; department_id?: string; department_unit?: string; status?: string; roles?: { role_name: string; permissions: any[] }; createdAt?: string; }
 interface Department { _id?: string; department_id?: string; department_name?: string; department_leader?: string; sub_department_mng?: { is_sub_department: boolean | string; parent_department_id: string }; }
 interface RoleFromBackend { _id?: string; role_name: string; permissions?: Array<{ resource_name: string; actions: Array<{ action: string; description?: string; is_enabled?: boolean }> }>; }
@@ -170,34 +177,34 @@ const EmployeesPage: React.FC = () => {
     <MainLayout>
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div><h1 className="text-base font-bold text-gray-900 flex items-center gap-2"><FiUsers className="w-6 h-6 text-blue-600" />Employees</h1><p className="text-xs text-gray-500 mt-0.5">Manage employees in the organization</p></div>
+          <div><h1 className="text-base font-bold text-[#333333] flex items-center gap-2" style={{ fontFamily: fontHeading }}><FiUsers className="w-6 h-6 text-[#056daa]" />Employees</h1><p className="text-xs text-[#555555] mt-0.5">Manage employees in the organization</p></div>
           <div className="flex gap-2">
-            <button onClick={handleNewEmployee} className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold"><FiPlus className="w-4 h-4" />Add Employee</button>
-            <button onClick={handleOpenMultipleUpload} className="inline-flex items-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold"><FiPlus className="w-4 h-4" />Add Multiple</button>
+            <button onClick={handleNewEmployee} className="inline-flex items-center gap-1.5 px-3 py-2 text-white text-sm" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}><FiPlus className="w-4 h-4" />Add Employee</button>
+            <button onClick={handleOpenMultipleUpload} className="inline-flex items-center gap-1.5 px-3 py-2 text-white text-sm" style={{ backgroundColor: SUCCESS, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SUCCESS_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}><FiPlus className="w-4 h-4" />Add Multiple</button>
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 p-3">
+        <div className="bg-white p-3" style={{ boxShadow: CARD_SHADOW }}>
           <div className="flex gap-3">
             <div className="flex-1 relative">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input type="text" placeholder="Search employees..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); searchTimeoutRef.current = setTimeout(() => handleSearch(e.target.value), 500); }} className="w-full pl-9 pr-3 py-1.5 border border-gray-300 text-sm" />
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9E9E9E]" />
+              <input type="text" placeholder="Search employees..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); searchTimeoutRef.current = setTimeout(() => handleSearch(e.target.value), 500); }} className="w-full cok-auth-input pr-3 py-1.5 text-sm" />
             </div>
-            <button onClick={() => { setSearchQuery(''); if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); loadEmployees(1, pageLimit); }} className="p-1.5 hover:bg-gray-100 text-gray-600"><FiRefreshCw className="w-4 h-4" /></button>
+            <button onClick={() => { setSearchQuery(''); if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); loadEmployees(1, pageLimit); }} className="p-1.5 hover:bg-[#F7F9FB] text-[#555555]"><FiRefreshCw className="w-4 h-4" /></button>
           </div>
         </div>
 
-        {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 flex items-center gap-2 text-sm"><FiAlertCircle className="w-4 h-4 flex-shrink-0" />{error}</div>}
+        {error && <div className="bg-[rgba(231,76,60,0.08)] border border-[#E0E0E0] text-[#E74C3C] px-3 py-2 flex items-center gap-2 text-sm"><FiAlertCircle className="w-4 h-4 flex-shrink-0" />{error}</div>}
 
-        <Table headers={[{ key: 'employee', label: 'Employee' }, { key: 'contact', label: 'Contact' }, { key: 'department', label: 'Department' }, { key: 'unit', label: 'Unit' }, { key: 'position', label: 'Position' }, { key: 'actions', label: 'Actions' }]} data={employees} loading={loading && firstLoad} emptyMessage="No employees found" maxHeight="400px" minWidth="700px"
+        <Table headers={[{ key: 'employee', label: 'Employee' }, { key: 'contact', label: 'Contact' }, { key: 'department', label: 'Department' }, { key: 'unit', label: 'Unit' }, { key: 'position', label: 'Position' }, { key: 'actions', label: 'Actions' }]} data={employees} loading={loading && firstLoad} emptyMessage="No employees found" maxHeight="400px" minWidth="700px" headerStyle={{ backgroundColor: PRIMARY }}
           renderCell={(header, employee: any) => {
             switch (header.key) {
-              case 'employee': return <div className="flex items-center gap-2"><div className="w-8 h-8 bg-blue-100 flex items-center justify-center"><span className="text-blue-600 font-semibold text-xs">{(employee.full_name || 'E').charAt(0).toUpperCase()}</span></div><div><p className="text-sm font-medium text-gray-900">{employee.full_name || '-'}</p><p className="text-xs text-gray-500">{employee.email}</p></div></div>;
-              case 'contact': return <div className="text-xs text-gray-600">{employee.telephone && <p className="flex items-center gap-1"><FiPhone className="w-3 h-3" />{employee.telephone}</p>}<p className="flex items-center gap-1"><FiMail className="w-3 h-3" />{employee.email}</p></div>;
-              case 'department': return <span className="text-sm text-gray-900">{employee.department_name || (employee.department && typeof employee.department === 'object' && (employee.department as any)?.department_name) || '-'}</span>;
-              case 'unit': return <span className="text-sm text-gray-900 font-medium">{getUnitNameDisplay(employee)}</span>;
-              case 'position': return <span className="text-sm text-gray-900">{employee.roles?.role_name ? employee.roles.role_name.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : '-'}</span>;
-              case 'actions': return <div className="flex items-center justify-end gap-1"><button onClick={() => handleEdit(employee)} className="p-1.5 text-blue-600 hover:bg-blue-50"><FiEdit2 className="w-3.5 h-3.5" /></button><button onClick={() => handleDeleteClick(employee._id || employee.employee_id || '', employee.full_name || 'this employee')} className="p-1.5 text-red-600 hover:bg-red-50"><FiTrash2 className="w-3.5 h-3.5" /></button></div>;
+              case 'employee': return <div className="flex items-center gap-2"><div className="w-8 h-8 bg-[rgba(5,109,170,0.1)] flex items-center justify-center"><span className="text-[#056daa] font-semibold text-xs">{(employee.full_name || 'E').charAt(0).toUpperCase()}</span></div><div><p className="text-sm font-medium text-[#333333]">{employee.full_name || '-'}</p><p className="text-xs text-[#555555]">{employee.email}</p></div></div>;
+              case 'contact': return <div className="text-xs text-[#555555]">{employee.telephone && <p className="flex items-center gap-1"><FiPhone className="w-3 h-3" />{employee.telephone}</p>}<p className="flex items-center gap-1"><FiMail className="w-3 h-3" />{employee.email}</p></div>;
+              case 'department': return <span className="text-sm text-[#333333]">{employee.department_name || (employee.department && typeof employee.department === 'object' && (employee.department as any)?.department_name) || '-'}</span>;
+              case 'unit': return <span className="text-sm text-[#333333] font-medium">{getUnitNameDisplay(employee)}</span>;
+              case 'position': return <span className="text-sm text-[#333333]">{employee.roles?.role_name ? employee.roles.role_name.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : '-'}</span>;
+              case 'actions': return <div className="flex items-center justify-end gap-1"><button onClick={() => handleEdit(employee)} className="p-1.5 text-[#056daa] hover:bg-[rgba(5,109,170,0.1)]"><FiEdit2 className="w-3.5 h-3.5" /></button><button onClick={() => handleDeleteClick(employee._id || employee.employee_id || '', employee.full_name || 'this employee')} className="p-1.5 text-[#E74C3C] hover:bg-[rgba(231,76,60,0.12)]"><FiTrash2 className="w-3.5 h-3.5" /></button></div>;
               default: return <span>{employee[header.key] || '-'}</span>;
             }
           }}
@@ -210,24 +217,24 @@ const EmployeesPage: React.FC = () => {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl m-3 sm:m-6">
               <div className="p-4 border-b bg-gray-50 sticky top-0 flex items-center justify-between z-10">
-                <div className="flex items-center gap-3"><div className="w-9 h-9 bg-green-100 flex items-center justify-center"><FiPlus className="w-4 h-4 text-green-600" /></div><div><h2 className="text-sm font-bold text-gray-900">Add Multiple Employees</h2><p className="text-xs text-gray-500">Upload Excel or CSV file</p></div></div>
+                <div className="flex items-center gap-3"><div className="w-9 h-9 bg-[rgba(76,175,80,0.12)] flex items-center justify-center"><FiPlus className="w-4 h-4 text-[#388E3C]" /></div><div><h2 className="text-sm font-bold text-[#333333]">Add Multiple Employees</h2><p className="text-xs text-[#555555]">Upload Excel or CSV file</p></div></div>
                 <button onClick={() => setShowMultipleUploadModal(false)} className="p-1.5 hover:bg-gray-200">✕</button>
               </div>
               <form onSubmit={(e) => { e.preventDefault(); handleMultipleUpload(); }} className="p-4 space-y-4">
-                {uploadSuccess && <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 flex items-center gap-2 text-sm"><FiCheck className="w-4 h-4" />{uploadSuccess}</div>}
-                <div className="bg-blue-50 p-3"><div className="flex items-center justify-between mb-2"><h4 className="text-xs font-semibold text-blue-900">File Format:</h4><button type="button" onClick={handleDownloadTemplate} disabled={downloadingTemplate} className="text-xs px-2 py-1 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400">{downloadingTemplate ? 'Downloading...' : 'Download Template'}</button></div>
-                  <ul className="text-xs text-blue-800 space-y-0.5"><li>• Required: telephone, email, gender</li><li>• Optional: department, department_unit, role</li><li>• Max 5MB, .xlsx/.xls/.csv</li></ul>
+                {uploadSuccess && <div className="bg-[rgba(76,175,80,0.08)] border border-[#E0E0E0] text-[#388E3C] px-3 py-2 flex items-center gap-2 text-sm"><FiCheck className="w-4 h-4" />{uploadSuccess}</div>}
+                <div className="bg-[rgba(5,109,170,0.06)] p-3"><div className="flex items-center justify-between mb-2"><h4 className="text-xs font-semibold text-[#056daa]">File Format:</h4><button type="button" onClick={handleDownloadTemplate} disabled={downloadingTemplate} className="text-xs px-2 py-1 text-white disabled:opacity-50" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}>{downloadingTemplate ? 'Downloading...' : 'Download Template'}</button></div>
+                  <ul className="text-xs text-[#056daa] space-y-0.5"><li>• Required: telephone, email, gender</li><li>• Optional: department, department_unit, role</li><li>• Max 5MB, .xlsx/.xls/.csv</li></ul>
                 </div>
-                <div><label className="text-xs font-medium text-gray-700 mb-1 block">Upload File <span className="text-red-500">*</span></label>
-                  <div className="border-2 border-dashed border-gray-300 p-4 text-center hover:border-green-400">
+                <div><label className="text-xs font-medium text-[#333333] mb-1 block">Upload File <span className="text-[#E74C3C]">*</span></label>
+                  <div className="border-2 border-dashed border-[#E0E0E0] p-4 text-center hover:border-[#4CAF50]">
                     <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileChange} className="hidden" id="file-upload" />
-                    <label htmlFor="file-upload" className="cursor-pointer"><div className="flex flex-col items-center gap-1"><span className="text-xs text-gray-600">{uploadFile ? uploadFile.name : 'Click to select file'}</span><span className="text-xs text-gray-500">Excel (.xlsx, .xls) or CSV</span></div></label>
+                    <label htmlFor="file-upload" className="cursor-pointer"><div className="flex flex-col items-center gap-1"><span className="text-xs text-[#555555]">{uploadFile ? uploadFile.name : 'Click to select file'}</span><span className="text-xs text-[#555555]">Excel (.xlsx, .xls) or CSV</span></div></label>
                   </div>
-                  {uploadFile && <p className="text-xs text-green-600 mt-1 flex items-center gap-1"><FiCheck className="w-3 h-3" />{uploadFile.name}</p>}
+                  {uploadFile && <p className="text-xs text-[#388E3C] mt-1 flex items-center gap-1"><FiCheck className="w-3 h-3" />{uploadFile.name}</p>}
                 </div>
                 <div className="flex gap-3 pt-1">
-                  <button type="button" onClick={() => setShowMultipleUploadModal(false)} className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50">Cancel</button>
-                  <button type="submit" disabled={uploading || !uploadFile || !!uploadSuccess} className={`flex-1 px-3 py-2 text-sm font-medium bg-green-600 text-white hover:bg-green-700 ${uploading || !uploadFile ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  <button type="button" onClick={() => setShowMultipleUploadModal(false)} className="flex-1 px-3 py-2 bg-white border border-[#056daa] text-[#056daa] text-sm font-medium hover:bg-[rgba(5,109,170,0.06)]">Cancel</button>
+                  <button type="submit" disabled={uploading || !uploadFile || !!uploadSuccess} className={`flex-1 px-3 py-2 text-sm text-white ${uploading || !uploadFile ? 'opacity-50 cursor-not-allowed' : ''}`} style={{ backgroundColor: SUCCESS, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SUCCESS_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}>
                     {uploading ? 'Uploading...' : uploadSuccess ? 'Uploaded!' : 'Upload Employees'}
                   </button>
                 </div>

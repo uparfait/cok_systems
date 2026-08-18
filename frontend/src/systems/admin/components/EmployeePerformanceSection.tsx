@@ -60,10 +60,10 @@ const TrophySvg: React.FC<{ className?: string }> = ({ className }) => (
 export const EmployeePerformanceSection: React.FC<EmployeePerformanceSectionProps> = ({ employees, rankings }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Excellent': return 'text-green-600 bg-green-50';
-      case 'Good': return 'text-blue-600 bg-blue-50';
-      case 'Moderate': return 'text-yellow-600 bg-yellow-50';
-      case 'Slow': return 'text-red-600 bg-red-50';
+      case 'Excellent': return 'text-[#388E3C] bg-[rgba(76,175,80,0.1)]';
+      case 'Good': return 'text-[#056daa] bg-[rgba(5,109,170,0.1)]';
+      case 'Moderate': return 'text-[#F39C12] bg-[rgba(243,156,18,0.1)]';
+      case 'Slow': return 'text-[#E74C3C] bg-[rgba(231,76,60,0.1)]';
       default: return 'text-gray-600 bg-gray-50';
     }
   };
@@ -72,7 +72,7 @@ export const EmployeePerformanceSection: React.FC<EmployeePerformanceSectionProp
     return Array.from({ length: 5 }, (_, i) => (
       <StarSvg
         key={i}
-        className={`w-3 h-3 ${i < Math.floor(rating) ? 'text-yellow-400' : 'text-gray-300'}`}
+        className={`w-3 h-3 ${i < Math.floor(rating) ? 'text-[#F39C12]' : 'text-gray-300'}`}
         filled={i < Math.floor(rating)}
       />
     ));
@@ -81,8 +81,8 @@ export const EmployeePerformanceSection: React.FC<EmployeePerformanceSectionProp
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Employee Performance */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="p-4 border-b">
+      <div className="bg-white shadow-sm border border-[#E0E0E0]">
+        <div className="p-4 border-b border-[#E0E0E0]">
           <h3 className="text-lg font-semibold text-gray-800">EMPLOYEE PERFORMANCE</h3>
         </div>
         <div className="p-4">
@@ -99,7 +99,7 @@ export const EmployeePerformanceSection: React.FC<EmployeePerformanceSectionProp
                   </div>
                 </div>
                 <span
-                  className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(employee.status)}`}
+                  className={`px-2 py-1 text-xs font-medium ${getStatusColor(employee.status)}`}
                 >
                   {employee.status}
                 </span>
@@ -110,10 +110,10 @@ export const EmployeePerformanceSection: React.FC<EmployeePerformanceSectionProp
       </div>
 
       {/* Office Rankings */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="p-4 border-b">
+      <div className="bg-white shadow-sm border border-[#E0E0E0]">
+        <div className="p-4 border-b border-[#E0E0E0]">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <TrophySvg className="w-5 h-5 text-yellow-500" />
+            <TrophySvg className="w-5 h-5 text-[#F39C12]" />
             OFFICE RANKINGS
           </h3>
         </div>
@@ -125,7 +125,7 @@ export const EmployeePerformanceSection: React.FC<EmployeePerformanceSectionProp
                 className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0"
               >
                 <div className="flex items-center gap-3">
-                  <span className="w-6 h-6 bg-yellow-100 text-yellow-800 rounded-full flex items-center justify-center text-sm font-bold">
+                  <span className="w-6 h-6 bg-[rgba(243,156,18,0.12)] text-[#F39C12] flex items-center justify-center text-sm font-bold">
                     {ranking.rank}
                   </span>
                   <span className="font-medium text-gray-800">{ranking.name}</span>

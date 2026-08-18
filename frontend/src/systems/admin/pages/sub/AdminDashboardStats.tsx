@@ -12,8 +12,8 @@ const StatCard: React.FC<StatCardProps> = ({ stat, onClick, colorClasses, loadin
   const Icon = stat.icon;
   const colors = colorClasses[stat.color] || colorClasses.blue;
   return (
-    <div onClick={onClick} className="bg-white border border-gray-200 p-4 cursor-pointer hover:shadow-md transition-all group relative overflow-hidden" role="button" tabIndex={0} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onClick()} aria-label={`View ${stat.label}: ${stat.value}`}>
-      <div className={`absolute inset-0 bg-gradient-to-br ${colors.light} opacity-0 group-hover:opacity-100 transition-opacity`} />
+    <div onClick={onClick} className="bg-white border border-[#E0E0E0] p-4 cursor-pointer hover:shadow-md transition-all group relative overflow-hidden" role="button" tabIndex={0} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onClick()} aria-label={`View ${stat.label}: ${stat.value}`}>
+      <div className={`absolute inset-0 ${colors.light} opacity-0 group-hover:opacity-100 transition-opacity`} />
       <div className="relative flex items-start justify-between">
         <div className="flex-1">
           <p className="text-xs font-medium text-gray-500">{stat.label}</p>
@@ -24,7 +24,7 @@ const StatCard: React.FC<StatCardProps> = ({ stat, onClick, colorClasses, loadin
           <Icon className={`w-5 h-5 ${colors.text}`} aria-hidden="true" />
         </div>
       </div>
-      <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between relative">
+      <div className="mt-3 pt-3 border-t border-[#E0E0E0] flex items-center justify-between relative">
         <span className="text-xs font-medium flex items-center gap-1 text-gray-500"><FiTrendingUp className="w-3 h-3" />{stat.trend}</span>
         <span className="text-xs text-gray-400">Click to view</span>
       </div>

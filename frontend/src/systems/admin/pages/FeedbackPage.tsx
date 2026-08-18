@@ -11,7 +11,6 @@ import { FiStar, FiTrendingUp, FiRefreshCw, FiMessageSquare, FiBarChart2, FiUser
 const PRIMARY = "#056daa";
 const PRIMARY_HOVER = "#045d94";
 const NEUTRAL_DARK = "#333333";
-const TERTIARY = "#CDB896";
 const WHITE = "#FFFFFF";
 const fontHeading = "'Montserrat', sans-serif";
 
@@ -75,90 +74,90 @@ const FeedbackPage: React.FC = () => {
   return (
     <MainLayout>
       <div className="space-y-4">
-        <div className="bg-white border border-gray-200 p-4">
+        <div className="bg-white border border-[#E0E0E0] p-4">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div><h1 className="text-base font-bold flex items-center gap-3" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}><FiBarChart2 className="w-6 h-6" style={{ color: PRIMARY }} />Feedback Analytics Dashboard</h1><p className="text-xs text-gray-600 mt-0.5">Visitor satisfaction and departmental performance</p></div>
+            <div><h1 className="text-base font-bold flex items-center gap-3" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}><FiBarChart2 className="w-6 h-6" style={{ color: PRIMARY }} />Feedback Analytics Dashboard</h1><p className="text-xs text-[#555555] mt-0.5">Visitor satisfaction and departmental performance</p></div>
             <button onClick={fetchData} disabled={loading} className="flex items-center gap-2 px-4 py-2 disabled:opacity-50 transition-colors" style={{ ...buttonBaseStyle, backgroundColor: PRIMARY, color: WHITE, border: 'none' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}><FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh</button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
           {[
-            { label: 'Total Feedback', value: totalFeedback.toLocaleString(), sub: 'All time submissions', icon: FiMessageSquare, color: 'text-[#056daa]', bg: 'bg-[#e6f1f8]' },
-            { label: 'Average Rating', value: overallAvg.average_rating?.toFixed(1) || '0.0', sub: <div className="flex mt-1">{[1, 2, 3, 4, 5].map(s => <FiStar key={s} className={`w-3 h-3 ${s <= Number(overallAvg.average_rating || 0) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`} />)}</div>, icon: FiStar, color: 'text-yellow-600', bg: 'bg-yellow-50' },
-            { label: 'Departments', value: deptRatings.length, sub: 'Receiving feedback', icon: FiTarget, color: 'text-purple-600', bg: 'bg-purple-50' },
-            { label: 'Satisfaction Rate', value: `${((Number(overallAvg.average_rating?.toFixed(2)) || 0) * 10).toFixed(2)}%`, sub: 'Overall', icon: FiTrendingUp, color: 'text-green-600', bg: 'bg-green-50' },
+            { label: 'Total Feedback', value: totalFeedback.toLocaleString(), sub: 'All time submissions', icon: FiMessageSquare, color: 'text-[#056daa]', bg: 'bg-[rgba(5,109,170,0.1)]' },
+            { label: 'Average Rating', value: overallAvg.average_rating?.toFixed(1) || '0.0', sub: <div className="flex mt-1">{[1, 2, 3, 4, 5].map(s => <FiStar key={s} className={`w-3 h-3 ${s <= Number(overallAvg.average_rating || 0) ? 'text-[#F39C12] fill-[#F39C12]' : 'text-[#E0E0E0]'}`} />)}</div>, icon: FiStar, color: 'text-[#F39C12]', bg: 'bg-[rgba(243,156,18,0.12)]' },
+            { label: 'Departments', value: deptRatings.length, sub: 'Receiving feedback', icon: FiTarget, color: 'text-[#2980B9]', bg: 'bg-[rgba(41,128,185,0.1)]' },
+            { label: 'Satisfaction Rate', value: `${((Number(overallAvg.average_rating?.toFixed(2)) || 0) * 10).toFixed(2)}%`, sub: 'Overall', icon: FiTrendingUp, color: 'text-[#388E3C]', bg: 'bg-[rgba(76,175,80,0.12)]' },
           ].map((s, i) => (
-            <div key={i} className="bg-white border border-gray-200 p-4">
+            <div key={i} className="bg-white border border-[#E0E0E0] p-4">
               <div className="flex items-center justify-between">
-                <div><p className="text-xs font-semibold uppercase tracking-wide mb-0.5" style={{ fontFamily: fontHeading, color: TERTIARY }}>{s.label}</p><p className="text-xl font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{s.value}</p>{typeof s.sub === 'string' ? <p className="text-xs text-gray-400 mt-0.5">{s.sub}</p> : s.sub}</div>
+                <div><p className="text-xs font-semibold uppercase tracking-wide mb-0.5" style={{ fontFamily: fontHeading, color: PRIMARY }}>{s.label}</p><p className="text-xl font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{s.value}</p>{typeof s.sub === 'string' ? <p className="text-xs text-[#9E9E9E] mt-0.5">{s.sub}</p> : s.sub}</div>
                 <div className={`w-10 h-10 ${s.bg} flex items-center justify-center`}><s.icon className={`w-5 h-5 ${s.color}`} /></div>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="bg-white border border-gray-200 p-4">
-          <h2 className="text-sm font-bold mb-4 flex items-center gap-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}><FiAward className="w-5 h-5 text-yellow-600" />Department Performance Rankings</h2>
+        <div className="bg-white border border-[#E0E0E0] p-4">
+          <h2 className="text-sm font-bold mb-4 flex items-center gap-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}><FiAward className="w-5 h-5 text-[#F39C12]" />Department Performance Rankings</h2>
           {deptRatings.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {deptRatings.slice(0, 9).map((d, i) => (
-                <div key={d.department} className="bg-gradient-to-r from-white to-gray-50 p-3 border border-gray-100">
+                <div key={d.department} className="bg-white p-3 border border-[#E0E0E0]">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <div className={`w-7 h-7 flex items-center justify-center text-xs font-bold ${i === 0 ? 'bg-yellow-100 text-yellow-800' : i === 1 ? 'bg-gray-100 text-gray-800' : i === 2 ? 'bg-orange-100 text-orange-800' : 'bg-[#e6f1f8] text-[#056daa]'}`}>{i + 1}</div>
-                      <div><h3 className="text-xs font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{d.department}</h3><p className="text-xs text-gray-500">{d.total_feedback} reviews</p></div>
+                      <div className={`w-7 h-7 flex items-center justify-center text-xs font-bold ${i === 0 ? 'bg-[rgba(243,156,18,0.12)] text-[#F39C12]' : i === 1 ? 'bg-[rgba(51,51,51,0.08)] text-[#555555]' : i === 2 ? 'bg-[rgba(243,156,18,0.12)] text-[#F39C12]' : 'bg-[rgba(5,109,170,0.1)] text-[#056daa]'}`}>{i + 1}</div>
+                      <div><h3 className="text-xs font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{d.department}</h3><p className="text-xs text-[#9E9E9E]">{d.total_feedback} reviews</p></div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between"><div className="flex">{[1, 2, 3, 4, 5].map(s => <FiStar key={s} className={`w-3 h-3 ${s <= Number(d.average_rating || 0) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`} />)}</div><span className="text-sm font-bold text-gray-900">{d.average_rating?.toFixed(1)}</span></div>
-                  <div className="mt-2 flex items-center gap-2"><span className={`text-xs px-2 py-0.5 font-medium ${d.average_rating >= 4.5 ? 'bg-green-100 text-green-800' : d.average_rating >= 3.5 ? 'bg-[#d9eaf4] text-[#045d94]' : d.average_rating >= 2.5 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>{d.average_rating >= 4.5 ? 'Excellent' : d.average_rating >= 3.5 ? 'Good' : d.average_rating >= 2.5 ? 'Average' : 'Poor'}</span>
+                  <div className="flex items-center justify-between"><div className="flex">{[1, 2, 3, 4, 5].map(s => <FiStar key={s} className={`w-3 h-3 ${s <= Number(d.average_rating || 0) ? 'text-[#F39C12] fill-[#F39C12]' : 'text-[#E0E0E0]'}`} />)}</div><span className="text-sm font-bold text-[#333333]">{d.average_rating?.toFixed(1)}</span></div>
+                  <div className="mt-2 flex items-center gap-2"><span className={`text-xs px-2 py-0.5 font-medium ${d.average_rating >= 4.5 ? 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]' : d.average_rating >= 3.5 ? 'bg-[rgba(5,109,170,0.1)] text-[#045d94]' : d.average_rating >= 2.5 ? 'bg-[rgba(243,156,18,0.12)] text-[#F39C12]' : 'bg-[rgba(231,76,60,0.12)] text-[#E74C3C]'}`}>{d.average_rating >= 4.5 ? 'Excellent' : d.average_rating >= 3.5 ? 'Good' : d.average_rating >= 2.5 ? 'Average' : 'Poor'}</span>
                     <button onClick={() => fetchDeptFeedback(d.department, d.department_id)} disabled={!d.department_id} className="text-xs text-[#056daa] hover:text-[#045d94] font-medium flex items-center gap-1 disabled:opacity-50"><FiEye className="w-3 h-3" />View</button></div>
                 </div>
               ))}
             </div>
-          ) : <div className="text-center py-6"><FiAward className="w-8 h-8 text-gray-300 mx-auto mb-2" /><p className="text-sm text-gray-500">No ranking data</p></div>}
+          ) : <div className="text-center py-6"><FiAward className="w-8 h-8 text-[#E0E0E0] mx-auto mb-2" /><p className="text-sm text-[#9E9E9E]">No ranking data</p></div>}
         </div>
 
         {selectedDept && (
-          <div key={selectedDept.id} id="feedback-messages-section" className="bg-white border border-gray-200">
-            <div className="p-4 border-b border-gray-100"><div className="flex items-center justify-between"><h2 className="text-sm font-bold flex items-center gap-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}><FiMessageSquare className="w-4 h-4 text-[#056daa]" />Feedback - {selectedDept.name}</h2><button onClick={() => { setFeedbackList([]); setSelectedDept(null); }} className="p-1 hover:bg-gray-100"><FiX className="w-4 h-4" /></button></div></div>
+          <div key={selectedDept.id} id="feedback-messages-section" className="bg-white border border-[#E0E0E0]">
+            <div className="p-4 border-b border-[#E0E0E0]"><div className="flex items-center justify-between"><h2 className="text-sm font-bold flex items-center gap-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}><FiMessageSquare className="w-4 h-4 text-[#056daa]" />Feedback - {selectedDept.name}</h2><button onClick={() => { setFeedbackList([]); setSelectedDept(null); }} className="p-1 hover:bg-[#F7F9FB]"><FiX className="w-4 h-4" /></button></div></div>
             <div className="p-4">
-              {feedbackLoading ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-2 border-[#056daa] border-t-transparent" /><span className="ml-2 text-sm text-gray-500">Loading...</span></div>
-                : feedbackList.length > 0 ? <div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50"><tr>{['Visitor', 'Rating', 'Comment', 'Date'].map(h => <th key={h} className="px-3 py-2 text-left text-xs font-semibold uppercase" style={{ fontFamily: fontHeading, color: TERTIARY }}>{h}</th>)}</tr></thead>
-                    <tbody className="divide-y">{feedbackList.map((fb, i) => <tr key={fb._id || i} className="hover:bg-gray-50"><td className="px-3 py-2.5"><div className="flex items-center gap-2"><div className="w-7 h-7 bg-[#d9eaf4] flex items-center justify-center"><FiMessageSquare className="w-3.5 h-3.5 text-[#056daa]" /></div><span className="text-sm font-medium text-gray-900">{fb.user_name || 'Anonymous'}</span></div></td><td className="px-3 py-2.5"><span className="text-sm font-bold text-gray-900">{fb.rate || 0}/{fb.rate_out_of || 10}</span></td><td className="px-3 py-2.5 max-w-xs text-xs text-gray-700">{fb.textmessage ? (fb.textmessage.length > 100 ? fb.textmessage.substring(0, 100) + '...' : fb.textmessage) : <span className="text-gray-400 italic">No message</span>}</td><td className="px-3 py-2.5 text-xs text-gray-600">{fb.created_date ? new Date(fb.created_date).toLocaleDateString() : 'N/A'}</td></tr>)}</tbody></table></div>
-                  : <div className="text-center py-8"><FiMessageSquare className="w-10 h-10 text-gray-300 mx-auto mb-2" /><p className="text-sm text-gray-500">No feedback messages for {selectedDept.name}</p></div>}
+              {feedbackLoading ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-2 border-[#056daa] border-t-transparent" /><span className="ml-2 text-sm text-[#9E9E9E]">Loading...</span></div>
+                : feedbackList.length > 0 ? <div className="overflow-x-auto"><table className="w-full"><thead style={{ backgroundColor: 'rgba(5,109,170,0.06)' }}><tr>{['Visitor', 'Rating', 'Comment', 'Date'].map(h => <th key={h} className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide" style={{ fontFamily: fontHeading, color: PRIMARY }}>{h}</th>)}</tr></thead>
+                    <tbody className="divide-y divide-[#E0E0E0]">{feedbackList.map((fb, i) => <tr key={fb._id || i} className="hover:bg-[#F7F9FB]"><td className="px-3 py-2.5"><div className="flex items-center gap-2"><div className="w-7 h-7 bg-[rgba(5,109,170,0.1)] flex items-center justify-center"><FiMessageSquare className="w-3.5 h-3.5 text-[#056daa]" /></div><span className="text-sm font-medium text-[#333333]">{fb.user_name || 'Anonymous'}</span></div></td><td className="px-3 py-2.5"><span className="text-sm font-bold text-[#333333]">{fb.rate || 0}/{fb.rate_out_of || 10}</span></td><td className="px-3 py-2.5 max-w-xs text-xs text-[#555555]">{fb.textmessage ? (fb.textmessage.length > 100 ? fb.textmessage.substring(0, 100) + '...' : fb.textmessage) : <span className="text-[#9E9E9E] italic">No message</span>}</td><td className="px-3 py-2.5 text-xs text-[#555555]">{fb.created_date ? new Date(fb.created_date).toLocaleDateString() : 'N/A'}</td></tr>)}</tbody></table></div>
+                  : <div className="text-center py-8"><FiMessageSquare className="w-10 h-10 text-[#E0E0E0] mx-auto mb-2" /><p className="text-sm text-[#9E9E9E]">No feedback messages for {selectedDept.name}</p></div>}
             </div>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2">
-            <div className="bg-white border border-gray-200">
-              <div className="p-4 border-b"><h2 className="text-sm font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Department Rankings</h2><p className="text-xs text-gray-600 mt-0.5">Sorted by average rating</p></div>
+            <div className="bg-white border border-[#E0E0E0]">
+              <div className="p-4 border-b border-[#E0E0E0]"><h2 className="text-sm font-bold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>Department Rankings</h2><p className="text-xs text-[#555555] mt-0.5">Sorted by average rating</p></div>
               <div className="overflow-x-auto">
-                <table className="w-full"><thead className="bg-gray-50 sticky top-0 z-10"><tr>{['Rank', 'Department', 'Rating', 'Feedback', 'Performance'].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase" style={{ fontFamily: fontHeading, color: TERTIARY }}>{h}</th>)}</tr></thead>
-                  <tbody className="divide-y">
+                <table className="w-full"><thead className="sticky top-0 z-10" style={{ backgroundColor: 'rgba(5,109,170,0.06)' }}><tr>{['Rank', 'Department', 'Rating', 'Feedback', 'Performance'].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ fontFamily: fontHeading, color: PRIMARY }}>{h}</th>)}</tr></thead>
+                  <tbody className="divide-y divide-[#E0E0E0]">
                     {loading ? <tr><td colSpan={5} className="px-4 py-8 text-center"><div className="animate-spin rounded-full h-6 w-6 border-2 border-[#056daa] border-t-transparent mx-auto" /></td></tr>
                       : deptRatings.length > 0 ? deptRatings.map((d, i) => (
-                          <tr key={d.department} className="hover:bg-gray-50">
-                            <td className="px-4 py-3"><span className={`inline-flex items-center justify-center w-7 h-7 text-xs font-bold ${i === 0 ? 'bg-yellow-100 text-yellow-800' : i === 1 ? 'bg-gray-100 text-gray-800' : i === 2 ? 'bg-orange-100 text-orange-800' : 'bg-gray-50 text-gray-600'}`}>{i + 1}</span></td>
+                          <tr key={d.department} className="hover:bg-[#F7F9FB]">
+                            <td className="px-4 py-3"><span className={`inline-flex items-center justify-center w-7 h-7 text-xs font-bold ${i === 0 ? 'bg-[rgba(243,156,18,0.12)] text-[#F39C12]' : i === 1 ? 'bg-[rgba(51,51,51,0.08)] text-[#555555]' : i === 2 ? 'bg-[rgba(243,156,18,0.12)] text-[#F39C12]' : 'bg-[rgba(5,109,170,0.06)] text-[#555555]'}`}>{i + 1}</span></td>
                             <td className="px-4 py-3 text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{d.department}</td>
-                            <td className="px-4 py-3"><div className="flex items-center gap-2"><span className="text-sm font-bold text-gray-900">{d.average_rating?.toFixed(1) || '0.0'}</span><div className="flex">{[1, 2, 3, 4, 5].map(s => <FiStar key={s} className={`w-3 h-3 ${s <= Number(d.average_rating || 0) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`} />)}</div></div></td>
-                            <td className="px-4 py-3"><div className="flex items-center gap-2"><span className="text-xs text-gray-600">{d.total_feedback} reviews</span><button onClick={() => fetchDeptFeedback(d.department, d.department_id)} disabled={!d.department_id} className="text-xs text-[#056daa] hover:text-[#045d94] font-medium flex items-center gap-1 disabled:opacity-50"><FiEye className="w-3 h-3" />View</button></div></td>
-                            <td className="px-4 py-3"><span className={`text-xs px-2 py-1 font-medium ${d.average_rating >= 4.5 ? 'bg-green-100 text-green-800' : d.average_rating >= 3.5 ? 'bg-[#d9eaf4] text-[#045d94]' : d.average_rating >= 2.5 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>{d.average_rating >= 4.5 ? 'Excellent' : d.average_rating >= 3.5 ? 'Good' : d.average_rating >= 2.5 ? 'Average' : 'Poor'}</span></td>
+                            <td className="px-4 py-3"><div className="flex items-center gap-2"><span className="text-sm font-bold text-[#333333]">{d.average_rating?.toFixed(1) || '0.0'}</span><div className="flex">{[1, 2, 3, 4, 5].map(s => <FiStar key={s} className={`w-3 h-3 ${s <= Number(d.average_rating || 0) ? 'text-[#F39C12] fill-[#F39C12]' : 'text-[#E0E0E0]'}`} />)}</div></div></td>
+                            <td className="px-4 py-3"><div className="flex items-center gap-2"><span className="text-xs text-[#555555]">{d.total_feedback} reviews</span><button onClick={() => fetchDeptFeedback(d.department, d.department_id)} disabled={!d.department_id} className="text-xs text-[#056daa] hover:text-[#045d94] font-medium flex items-center gap-1 disabled:opacity-50"><FiEye className="w-3 h-3" />View</button></div></td>
+                            <td className="px-4 py-3"><span className={`text-xs px-2 py-1 font-medium ${d.average_rating >= 4.5 ? 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]' : d.average_rating >= 3.5 ? 'bg-[rgba(5,109,170,0.1)] text-[#045d94]' : d.average_rating >= 2.5 ? 'bg-[rgba(243,156,18,0.12)] text-[#F39C12]' : 'bg-[rgba(231,76,60,0.12)] text-[#E74C3C]'}`}>{d.average_rating >= 4.5 ? 'Excellent' : d.average_rating >= 3.5 ? 'Good' : d.average_rating >= 2.5 ? 'Average' : 'Poor'}</span></td>
                           </tr>
-                        )) : <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500"><FiEye className="w-8 h-8 text-gray-300 mx-auto mb-2" />No data</td></tr>}
+                        )) : <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-[#9E9E9E]"><FiEye className="w-8 h-8 text-[#E0E0E0] mx-auto mb-2" />No data</td></tr>}
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
           <div className="space-y-4">
-            <div className="bg-white border border-gray-200 p-4"><h3 className="text-sm font-bold mb-3 flex items-center gap-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}><FiBarChart2 className="w-4 h-4 text-[#056daa]" />Performance Summary</h3>
+            <div className="bg-white border border-[#E0E0E0] p-4"><h3 className="text-sm font-bold mb-3 flex items-center gap-2" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}><FiBarChart2 className="w-4 h-4 text-[#056daa]" />Performance Summary</h3>
               <div className="space-y-3">
-                <div className="flex justify-between items-center p-2.5 bg-green-50"><span className="text-xs font-medium text-green-800">Excellent (4.5+)</span><span className="text-sm font-bold text-green-600">{insights.excellent}</span></div>
-                <div className="flex justify-between items-center p-2.5 bg-[#e6f1f8]"><span className="text-xs font-medium text-[#045d94]">Good (3.5-4.4)</span><span className="text-sm font-bold text-[#056daa]">{insights.good}</span></div>
-                <div className="flex justify-between items-center p-2.5 bg-yellow-50"><span className="text-xs font-medium text-yellow-800">Needs Improvement</span><span className="text-sm font-bold text-yellow-600">{insights.poor}</span></div>
+                <div className="flex justify-between items-center p-2.5 bg-[rgba(76,175,80,0.12)]"><span className="text-xs font-medium text-[#388E3C]">Excellent (4.5+)</span><span className="text-sm font-bold text-[#388E3C]">{insights.excellent}</span></div>
+                <div className="flex justify-between items-center p-2.5 bg-[rgba(5,109,170,0.1)]"><span className="text-xs font-medium text-[#045d94]">Good (3.5-4.4)</span><span className="text-sm font-bold text-[#056daa]">{insights.good}</span></div>
+                <div className="flex justify-between items-center p-2.5 bg-[rgba(243,156,18,0.12)]"><span className="text-xs font-medium text-[#F39C12]">Needs Improvement</span><span className="text-sm font-bold text-[#F39C12]">{insights.poor}</span></div>
               </div>
             </div>
           </div>

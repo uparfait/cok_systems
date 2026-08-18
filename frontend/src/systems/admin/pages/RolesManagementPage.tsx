@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { roleService, type Role } from '../../../core/services/adminService';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { useToast } from '../../../core/contexts/ToastContext';
-import { FiSearch, FiRefreshCw, FiShield, FiLoader } from 'react-icons/fi';
-import { Spinner } from '@/components/ui/spinner';
-import LoadingSpinner from './sub/LoadingSpinner';
+import { FiSearch, FiRefreshCw, FiShield } from 'react-icons/fi';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 
 const RolesManagementPage: React.FC = () => {
@@ -87,7 +85,7 @@ const RolesManagementPage: React.FC = () => {
         </div>
 
         {error && !loading && (
-          <div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2 rounded-md">
+          <div className="mb-3 p-3 text-sm flex items-center gap-2" style={{ backgroundColor: 'rgba(231,76,60,0.08)', border: '1px solid #E74C3C', color: '#E74C3C' }}>
             <FiShield className="w-4 h-4" />
             {error}
           </div>
@@ -107,8 +105,8 @@ const RolesManagementPage: React.FC = () => {
               <div key={role._id} className="bg-white border-2 border-[#056daa] overflow-hidden">
                 <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <FiShield className="w-5 h-5 text-blue-600" />
+                    <div className="w-10 h-10 flex items-center justify-center" style={{ backgroundColor: 'rgba(5,109,170,0.1)' }}>
+                      <FiShield className="w-5 h-5" style={{ color: '#056daa' }} />
                     </div>
                     <div>
                       <h3 className="text-sm font-semibold text-gray-900">{role.role_name}</h3>
@@ -126,10 +124,10 @@ const RolesManagementPage: React.FC = () => {
                         if (enabledActions.length === 0) return null;
                         
                         return (
-                          <div key={p.resource_name} className="bg-white border border-gray-200 rounded-md p-3">
+                          <div key={p.resource_name} className="bg-white border border-[#E0E0E0] p-3">
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-xs font-medium text-gray-900">{p.resource_name}</span>
-                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                              <span className="text-xs px-2 py-0.5 bg-[rgba(5,109,170,0.1)] text-[#056daa]">
                                 {enabledActions.length}/{p.actions.length}
                               </span>
                             </div>
@@ -137,7 +135,7 @@ const RolesManagementPage: React.FC = () => {
                               {enabledActions.map((a: any) => (
                                 <span
                                   key={a.action}
-                                  className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200"
+                                  className="text-xs px-2 py-0.5 bg-[rgba(76,175,80,0.1)] text-[#388E3C] border border-[#4CAF50]"
                                 >
                                   {a.action}
                                 </span>

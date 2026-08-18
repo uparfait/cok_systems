@@ -2,7 +2,7 @@ import React from 'react';
 import { FiTrash2, FiAlertTriangle, FiMail, FiCheckCircle } from 'react-icons/fi';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 
-const DANGER = '#E53935';
+const DANGER = '#E74C3C';
 const NEUTRAL_LIGHT = '#F7F9FB';
 const NEUTRAL_DARK = '#333333';
 const WHITE = '#FFFFFF';
@@ -136,8 +136,8 @@ const DataManagementSection: React.FC<DataManagementSectionProps> = ({
           <div
             className="p-1.5"
             style={{
-              backgroundColor: 'rgba(229,57,53,0.08)',
-              borderRadius: 999,
+              backgroundColor: 'rgba(231,76,60,0.08)',
+              borderRadius: 0,
             }}
           >
             <FiTrash2 className="w-4 h-4" style={{ color: DANGER }} />
@@ -159,17 +159,17 @@ const DataManagementSection: React.FC<DataManagementSectionProps> = ({
             <label className="block text-xs font-medium text-gray-700 mb-2" style={{ fontFamily: fontHeading }}>
               Select Collections to Delete
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-60 overflow-y-auto p-2 border border-gray-200 rounded">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-60 overflow-y-auto p-2 border border-[#E0E0E0]">
               {AVAILABLE_COLLECTIONS.map((col) => (
                 <label
                   key={col.value}
-                  className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded"
+                  className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50"
                 >
                   <input
                     type="checkbox"
                     checked={selectedCollections.includes(col.value)}
                     onChange={() => onToggleCollection(col.value)}
-                    className="rounded border-gray-300"
+                    className="border-gray-300"
                   />
                   <span className="text-xs text-gray-700">{col.label}</span>
                 </label>
@@ -231,8 +231,8 @@ const DataManagementSection: React.FC<DataManagementSectionProps> = ({
             type="button"
             onClick={handleStartDelete}
             disabled={selectedCollections.length === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            style={{ fontFamily: fontHeading }}
+            className="flex items-center gap-2 px-4 py-2 bg-[#E74C3C] text-white text-sm font-semibold uppercase hover:bg-[#C0392B] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            style={{ fontFamily: fontHeading, letterSpacing: '1px' }}
           >
             <FiTrash2 className="w-4 h-4" />
             Request Data Deletion
@@ -242,7 +242,7 @@ const DataManagementSection: React.FC<DataManagementSectionProps> = ({
 
       {deleteStep === 'token' && (
         <div className="space-y-4">
-          <div className="bg-yellow-50 border border-yellow-200 p-4 rounded">
+          <div className="bg-yellow-50 border border-yellow-200 p-4">
             <div className="flex items-center gap-2 mb-2">
               <FiMail className="w-5 h-5 text-yellow-600" />
               <h4 className="text-sm font-semibold text-yellow-800" style={{ fontFamily: fontHeading }}>
@@ -298,7 +298,7 @@ const DataManagementSection: React.FC<DataManagementSectionProps> = ({
 
       {deleteStep === 'done' && (
         <div className="space-y-4">
-          <div className="bg-green-50 border border-green-200 p-4 rounded">
+          <div className="bg-green-50 border border-green-200 p-4">
             <div className="flex items-center gap-2 mb-2">
               <FiCheckCircle className="w-5 h-5 text-green-600" />
               <h4 className="text-sm font-semibold text-green-800" style={{ fontFamily: fontHeading }}>
@@ -314,13 +314,13 @@ const DataManagementSection: React.FC<DataManagementSectionProps> = ({
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Collection</th>
-                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Deleted Records</th>
-                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Freed Space</th>
+                  <tr className="border-b border-[#E0E0E0]" style={{ backgroundColor: 'rgba(5,109,170,0.06)' }}>
+                    <th className="px-3 py-2 text-left font-semibold text-[#056daa] text-xs uppercase tracking-wider">Collection</th>
+                    <th className="px-3 py-2 text-left font-semibold text-[#056daa] text-xs uppercase tracking-wider">Deleted Records</th>
+                    <th className="px-3 py-2 text-left font-semibold text-[#056daa] text-xs uppercase tracking-wider">Freed Space</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-[#E0E0E0]">
                   {deleteResults.map((result, idx) => (
                     <tr key={idx}>
                       <td className="px-3 py-2 text-gray-900">{result.collection}</td>
@@ -398,7 +398,7 @@ const DeleteWarningModal: React.FC<DeleteWarningModalProps> = ({
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          <div className="bg-red-50 border border-red-200 p-4 rounded">
+          <div className="bg-red-50 border border-red-200 p-4">
             <h4 className="text-sm font-semibold text-red-800 mb-2" style={{ fontFamily: fontHeading }}>
               Warning: This action cannot be undone
             </h4>
@@ -411,7 +411,7 @@ const DeleteWarningModal: React.FC<DeleteWarningModalProps> = ({
             </ul>
           </div>
 
-          <div className="bg-yellow-50 border border-yellow-200 p-4 rounded">
+          <div className="bg-yellow-50 border border-yellow-200 p-4">
             <h4 className="text-sm font-semibold text-yellow-800 mb-2" style={{ fontFamily: fontHeading }}>
               Protected Collections
             </h4>
@@ -428,7 +428,7 @@ const DeleteWarningModal: React.FC<DeleteWarningModalProps> = ({
               {selectedCollections.map((col) => (
                 <span
                   key={col}
-                  className="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded"
+                  className="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium"
                 >
                   {AVAILABLE_COLLECTIONS.find(c => c.value === col)?.label || col}
                 </span>
@@ -440,14 +440,16 @@ const DeleteWarningModal: React.FC<DeleteWarningModalProps> = ({
               <button
                 type="button"
                 onClick={onCancel}
-                className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
+                className="px-4 py-2 border border-[#056daa] bg-white text-[#056daa] text-sm font-semibold uppercase hover:bg-[#F7F9FB]"
+                style={{ letterSpacing: '1px' }}
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={onConfirm}
-                className="px-4 py-2 bg-red-600 text-white text-sm font-medium hover:bg-red-700"
+                className="px-4 py-2 bg-[#E74C3C] text-white text-sm font-semibold uppercase hover:bg-[#C0392B]"
+                style={{ letterSpacing: '1px' }}
               >
             I Understand, Proceed
           </button>
