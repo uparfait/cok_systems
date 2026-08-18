@@ -1,24 +1,164 @@
-import { useState } from "react";
-import { FiArrowLeft, FiAlertCircle, FiCheckCircle, FiEdit2, FiTrash2, FiMail, FiUsers, FiDroplet } from "react-icons/fi";
+import { useState, useEffect } from "react";
+import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import axios from "axios";
+import { useToast } from "@/core/contexts/ToastContext";
 
 import {
-  PRIMARY, PRIMARY_HOVER, DANGER, SUCCESS, SUCCESS_HOVER, NEUTRAL_LIGHT, NEUTRAL_DARK, BORDER, WHITE, GRAY_DISABLED, fontHeading,
-  CARD_SHADOW, getBtnStyle, btnHover, btnLeavePrimary, btnLeaveDanger, StatusBadge, DetailRow,
+  PRIMARY, DANGER, SUCCESS, SUCCESS_HOVER, NEUTRAL_LIGHT, NEUTRAL_DARK, BORDER, WHITE, GRAY_DISABLED, fontHeading,
+  StatusBadge,
 } from "./TrackShared";
 
 const BASE_URL = "/cok/api/v1";
 
+const inputClassName = "w-full cok-auth-input pr-3 py-2 text-sm";
+const inputStyle = { paddingLeft: "12px" };
+
+const toLocalInput = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+};
+
+function RoomChangePanel({ request, onClose, saveRequestFields, saving }) {
+  const [availableRooms, setAvailableRooms] = useState([]);
+  const [unavailableCount, setUnavailableCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [selectedRoom, setSelectedRoom] = useState("");
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    const checkRooms = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = {
+          startTime: new Date(request.startTime).toISOString(),
+          endTime: new Date(request.endTime).toISOString(),
+          eventMode: "upcoming",
+          requestId: request._id,
+        };
+        const res = await axios.get(`${BASE_URL}/rooms/available`, { params });
+        const data = res.data?.data || res.data;
+        if (!alive) return;
+        setAvailableRooms(data.availableRooms || []);
+        setUnavailableCount((data.unavailableRooms || []).length);
+      } catch (err) {
+        if (alive) setError(err.response?.data?.message || err.message);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    checkRooms();
+    return () => { alive = false; };
+  }, [request._id, request.startTime, request.endTime]);
+
+  const isCurrent = (roomName) => (request.eventRoom || "").toLowerCase() === roomName.toLowerCase();
+
+  const handleSave = async () => {
+    if (!selectedRoom) return;
+    const ok = await saveRequestFields({ eventRoom: selectedRoom });
+    if (ok) onClose();
+  };
+
+  return (
+    <div className="p-3 space-y-3 text-left" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
+      <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
+        Rooms are checked for availability against this request's schedule.
+      </p>
+
+      {loading && (
+        <p className="text-xs text-center py-4" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Checking rooms...</p>
+      )}
+
+      {!loading && error && (
+        <p className="p-2 text-xs" style={{ backgroundColor: "#FDECEA", border: "1px solid #F5B7B1", color: DANGER, fontFamily: fontHeading }}>{error}</p>
+      )}
+
+      {!loading && !error && availableRooms.length === 0 && (
+        <p className="p-3 text-xs text-center" style={{ backgroundColor: "#FFF3E0", border: "1px solid #FFCC80", color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+          No other rooms are available for this schedule.
+        </p>
+      )}
+
+      {!loading && availableRooms.length > 0 && (
+        <div className="space-y-2 max-h-56 overflow-y-auto">
+          {availableRooms.map((item, idx) => {
+            const selected = selectedRoom.toLowerCase() === item.room.roomName.toLowerCase();
+            return (
+              <button key={idx} type="button" onClick={() => setSelectedRoom(item.room.roomName)}
+                className={`w-full text-left p-3 border-2 transition-all duration-200 cursor-pointer ${selected ? "border-green-500 bg-green-50" : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50/50"}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold capitalize truncate" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>
+                      {item.room.roomName}
+                      {isCurrent(item.room.roomName) && <span className="ml-2 text-[10px] font-normal" style={{ color: GRAY_DISABLED }}>(current)</span>}
+                    </p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-xs" style={{ color: GRAY_DISABLED }}>
+                      <span className="capitalize">{item.room.roomLocation}</span>
+                      <span>Capacity: {item.room.roomCapacity}</span>
+                    </div>
+                  </div>
+                  {selected && <span className="text-xs font-bold text-green-700 bg-green-100 border border-green-300 px-2.5 py-0.5 shrink-0">Selected</span>}
+                </div>
+              </button>
+            );
+          })}
+          {unavailableCount > 0 && (
+            <p className="text-[11px]" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>{unavailableCount} other room(s) are occupied during this schedule.</p>
+          )}
+        </div>
+      )}
+
+      <div className="flex gap-2 pt-1">
+        <button type="button" onClick={handleSave} disabled={saving || !selectedRoom}
+          className="cok-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ width: "auto", padding: "0.5rem 1rem", fontSize: "11px" }}>
+          {saving ? "Saving..." : "Save Room"}
+        </button>
+        <button type="button" onClick={onClose} disabled={saving}
+          className="cok-btn-outlined disabled:opacity-50"
+          style={{ padding: "0.5rem 1rem", fontSize: "11px" }}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function TrackResult({
-  request, onEdit, onCancelClick, onInvite, loading,
-  showInvited, setShowInvited, invitedPeople, invitedCount, invitedLoading,
+  request, onUpdated, onCancelClick, onInvite, loading,
+  showInvited, invitedPeople, invitedCount, invitedLoading,
   onToggleInvited, onRemoveInvited,
 }) {
-  // Water request: only possible once the event manager accepted the request
-  // and only for Internal type — the button is not rendered otherwise
+  const { showSuccess, showError } = useToast();
+
   const [waterRequested, setWaterRequested] = useState(!!request?.waterRequest?.requested);
   const [waterBusy, setWaterBusy] = useState(false);
   const [waterError, setWaterError] = useState("");
+
+  const [activeField, setActiveField] = useState(null);
+  const [editValues, setEditValues] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [fieldError, setFieldError] = useState(null);
+  const [roomPanelOpen, setRoomPanelOpen] = useState(false);
+
+  const canEdit = request.status === "Pending";
+
+  const startLocal = toLocalInput(request.startTime);
+  const endLocal = toLocalInput(request.endTime);
+  const schedule = {
+    date: startLocal.slice(0, 10),
+    from: startLocal.slice(11, 16),
+    to: endLocal.slice(11, 16),
+  };
+
+  const formatDateOnly = (dateStr) => {
+    if (!dateStr) return "-";
+    return new Date(dateStr).toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "short", day: "numeric" });
+  };
 
   const handleRequestWater = async () => {
     setWaterBusy(true);
@@ -33,52 +173,209 @@ function TrackResult({
     }
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "—";
-    return new Date(dateStr).toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  const cancelEdit = () => {
+    setActiveField(null);
+    setEditValues({});
+    setFieldError(null);
   };
 
-  // Detail rows rendered as a design-rule table, like the event manager tables
+  const saveRequestFields = async (payload) => {
+    setSaving(true);
+    setFieldError(null);
+    try {
+      const res = await axios.put(`${BASE_URL}/booking-requests/${request._id}`, payload);
+      if (res.data.success) {
+        showSuccess(res.data.message || "Booking request updated successfully");
+        onUpdated?.(res.data.data);
+        cancelEdit();
+        return true;
+      }
+      setFieldError(res.data.message);
+      showError(res.data.message || "Failed to update");
+      return false;
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message;
+      setFieldError(msg);
+      showError(msg);
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startEdit = (row) => {
+    setFieldError(null);
+    setRoomPanelOpen(false);
+    setActiveField(row.field);
+    if (row.field === "scheduleTime") {
+      setEditValues({ timeFrom: schedule.from, timeTo: schedule.to });
+    } else if (row.field === "scheduleDate") {
+      setEditValues({ scheduleDate: schedule.date });
+    } else {
+      setEditValues({ [row.field]: String(row.raw ?? "") });
+    }
+  };
+
+  const setEditValue = (key, val) => setEditValues((p) => ({ ...p, [key]: val }));
+
+  const onSave = async (field) => {
+    const value = editValues[field] ?? "";
+    switch (field) {
+      case "eventName":
+        if (!value.trim()) { setFieldError("Name is required"); return; }
+        return saveRequestFields({ eventName: value.trim() });
+      case "expectedAudience": {
+        const val = Number(value);
+        if (!val || val < 1) { setFieldError("Audience must be at least 1"); return; }
+        return saveRequestFields({ expectedAudience: val });
+      }
+      case "eventDescription":
+        if (!value.trim()) { setFieldError("Description is required"); return; }
+        return saveRequestFields({ eventDescription: value.trim() });
+      case "organizerName":
+        if (!value.trim()) { setFieldError("Name is required"); return; }
+        return saveRequestFields({ eventOrganizer: { fullNames: value.trim() } });
+      case "organizerEmail":
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) { setFieldError("Enter a valid email"); return; }
+        return saveRequestFields({ eventOrganizer: { email: value.trim() } });
+      case "organizerPhone":
+        if (!value.trim()) { setFieldError("Phone is required"); return; }
+        return saveRequestFields({ eventOrganizer: { phone: value.trim() } });
+      case "organizerInstitution":
+        return saveRequestFields({ eventOrganizer: { institution: value.trim() } });
+      case "scheduleDate": {
+        const date = editValues.scheduleDate;
+        if (!date || !schedule.from || !schedule.to) { setFieldError("Date, start and end times are all required"); return; }
+        const newStart = new Date(`${date}T${schedule.from}`);
+        const newEnd = new Date(`${date}T${schedule.to}`);
+        if (isNaN(newStart.getTime()) || isNaN(newEnd.getTime())) { setFieldError("Invalid date"); return; }
+        if (newEnd <= newStart) { setFieldError("End time must be after start time"); return; }
+        return saveRequestFields({ startTime: newStart.toISOString(), endTime: newEnd.toISOString() });
+      }
+      case "scheduleTime": {
+        const from = editValues.timeFrom;
+        const to = editValues.timeTo;
+        if (!schedule.date || !from || !to) { setFieldError("Date, start and end times are all required"); return; }
+        const newStart = new Date(`${schedule.date}T${from}`);
+        const newEnd = new Date(`${schedule.date}T${to}`);
+        if (isNaN(newStart.getTime()) || isNaN(newEnd.getTime())) { setFieldError("Invalid time"); return; }
+        if (newEnd <= newStart) { setFieldError("End time must be after start time"); return; }
+        return saveRequestFields({ startTime: newStart.toISOString(), endTime: newEnd.toISOString() });
+      }
+      default:
+        return;
+    }
+  };
+
+  const renderEditor = (row) => {
+    if (row.field === "scheduleTime") {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>From</p>
+            <input type="time" value={editValues.timeFrom ?? ""} onChange={(e) => setEditValue("timeFrom", e.target.value)} className={inputClassName} style={inputStyle} autoFocus />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>To</p>
+            <input type="time" value={editValues.timeTo ?? ""} onChange={(e) => setEditValue("timeTo", e.target.value)} min={editValues.timeFrom || undefined} className={inputClassName} style={inputStyle} />
+          </div>
+        </div>
+      );
+    }
+    if (row.field === "scheduleDate") {
+      return <input type="date" value={editValues.scheduleDate ?? ""} onChange={(e) => setEditValue("scheduleDate", e.target.value)} className={inputClassName} style={inputStyle} autoFocus />;
+    }
+    if (row.input === "textarea") {
+      return <textarea rows={3} value={editValues[row.field] ?? ""} onChange={(e) => setEditValue(row.field, e.target.value)} className={inputClassName} style={{ ...inputStyle, resize: "vertical", minHeight: "70px" }} autoFocus />;
+    }
+    return (
+      <input type={row.input || "text"} min={row.input === "number" ? 1 : undefined}
+        value={editValues[row.field] ?? ""} onChange={(e) => setEditValue(row.field, e.target.value)}
+        className={inputClassName} style={inputStyle} autoFocus />
+    );
+  };
+
   const detailRows = [
-    ["Type", request.eventMeetingType],
-    ["Event Type", request.eventType],
-    ["Room", request.eventRoom],
-    ["Start", formatDate(request.startTime)],
-    ["End", formatDate(request.endTime)],
-    ["Organizer", request.eventOrganizer?.fullNames],
-    ["Email", request.eventOrganizer?.email],
-    ["Phone", request.eventOrganizer?.phone],
-    ["Institution", request.eventOrganizer?.institution || "—"],
-    ["Audience", request.expectedAudience ? `${request.expectedAudience} people` : "—"],
-    ...(request.eventDescription ? [["Description", request.eventDescription]] : []),
+    { label: "Name", value: request.eventName, raw: request.eventName, field: "eventName", input: "text" },
+    { label: "Type", value: request.eventMeetingType },
+    { label: "Event Type", value: request.eventType },
+    { label: "Room", value: request.eventRoom, roomEdit: true },
+    { label: "Date", value: formatDateOnly(request.startTime), field: "scheduleDate" },
+    { label: "Time", value: schedule.from && schedule.to ? `${schedule.from} to ${schedule.to}` : "-", field: "scheduleTime" },
+    { label: "Organizer", value: request.eventOrganizer?.fullNames, raw: request.eventOrganizer?.fullNames, field: "organizerName", input: "text" },
+    { label: "Email", value: request.eventOrganizer?.email, raw: request.eventOrganizer?.email, field: "organizerEmail", input: "email" },
+    { label: "Phone", value: request.eventOrganizer?.phone, raw: request.eventOrganizer?.phone, field: "organizerPhone", input: "tel" },
+    { label: "Institution", value: request.eventOrganizer?.institution || "-", raw: request.eventOrganizer?.institution, field: "organizerInstitution", input: "text" },
+    { label: "Audience", value: request.expectedAudience ? `${request.expectedAudience} people` : "-", raw: request.expectedAudience, field: "expectedAudience", input: "number" },
+    { label: "Description", value: request.eventDescription, raw: request.eventDescription, field: "eventDescription", input: "textarea" },
   ];
 
   return (
-    <div className="mt-4 w-full max-w-lg overflow-hidden bg-white border-2 border-gray-300">
-      {/* Header — CoK blue bar like the events table header */}
+    <div className="mt-4 w-full max-w-lg overflow-hidden bg-white" style={{ border: `1px solid ${BORDER}` }}>
       <div className="px-4 py-3.5 flex items-start justify-between flex-wrap gap-3" style={{ backgroundColor: PRIMARY }}>
-        <div>
-          <h3 className="text-sm font-bold uppercase tracking-widest text-white" style={{ fontFamily: fontHeading }}>{request.eventName}</h3>
+        <div className="min-w-0">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-white break-words" style={{ fontFamily: fontHeading }}>{request.eventName}</h3>
           <span className="text-xs font-mono font-medium px-2 py-0.5 inline-block mt-1 text-white" style={{ backgroundColor: 'rgba(255,255,255,0.18)' }}>{request.trackingCode}</span>
         </div>
         <StatusBadge status={request.status} />
       </div>
-      {/* Details — zebra rows with bordered cells, same rules as the events tables */}
       <table className="w-full border-collapse table-auto">
         <tbody>
-          {detailRows.map(([label, value], idx) => (
-            <tr
-              key={label}
-              className={`transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50/50 hover:bg-blue-50'}`}
-            >
-              <td className="px-4 py-2.5 w-32 border-b border-r border-gray-200 text-xs font-bold uppercase tracking-wider text-gray-600 align-top" style={{ fontFamily: fontHeading }}>
-                {label}
-              </td>
-              <td className={`px-4 py-2.5 border-b border-gray-200 text-sm font-medium text-gray-900 ${label === 'Email' ? '' : 'capitalize'}`} style={{ fontFamily: fontHeading }}>
-                {value || "—"}
-              </td>
-            </tr>
-          ))}
+          {detailRows.map((row, idx) => {
+            const isEditing = activeField === row.field && row.field;
+            return (
+              <tr
+                key={row.label}
+                className={`transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50/50 hover:bg-blue-50'}`}
+              >
+                <td className="px-3 sm:px-4 py-2.5 w-24 sm:w-32 border-b border-r border-gray-200 text-xs font-bold uppercase tracking-wider text-gray-600 align-top" style={{ fontFamily: fontHeading }}>
+                  {row.label}
+                </td>
+                <td className={`px-3 sm:px-4 py-2.5 border-b border-gray-200 text-sm font-medium text-gray-900 ${row.label === 'Email' ? '' : 'capitalize'}`} style={{ fontFamily: fontHeading }}>
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      {renderEditor(row)}
+                      {fieldError && <p className="text-xs normal-case" style={{ color: DANGER, fontFamily: fontHeading }}>{fieldError}</p>}
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" onClick={() => onSave(row.field)} disabled={saving}
+                          className="cok-btn-primary disabled:opacity-50"
+                          style={{ width: "auto", padding: "0.4rem 0.9rem", fontSize: "11px" }}>
+                          {saving ? "Saving..." : "Save"}
+                        </button>
+                        <button type="button" onClick={cancelEdit} disabled={saving}
+                          className="cok-btn-outlined disabled:opacity-50"
+                          style={{ padding: "0.4rem 0.9rem", fontSize: "11px" }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start justify-between gap-2">
+                      <span className={row.label === 'Email' ? 'break-all' : 'break-words'}>{row.value || "-"}</span>
+                      {canEdit && (row.field || row.roomEdit) && (
+                        <button
+                          type="button"
+                          onClick={() => (row.roomEdit ? (cancelEdit(), setRoomPanelOpen((o) => !o)) : startEdit(row))}
+                          title={`Edit ${row.label}`}
+                          className="p-1 shrink-0 cursor-pointer transition-colors"
+                          style={{ color: GRAY_DISABLED }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = PRIMARY)}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = GRAY_DISABLED)}
+                        >
+                          <FiEdit2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {row.roomEdit && roomPanelOpen && (
+                    <div className="mt-2 normal-case">
+                      <RoomChangePanel request={request} onClose={() => setRoomPanelOpen(false)} saveRequestFields={saveRequestFields} saving={saving} />
+                    </div>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
       <div className="p-4">
@@ -94,7 +391,7 @@ function TrackResult({
           <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${BORDER}` }}>
             <div className="p-3" style={{ backgroundColor: '#E8F5E9', border: `1px solid ${SUCCESS}` }}>
               <p className="text-sm font-medium" style={{ color: SUCCESS_HOVER, fontFamily: fontHeading }}>
-                <FiCheckCircle className="w-4 h-4 inline" />Your Request Has Been Accepted
+                Your Request Has Been Accepted
               </p>
             </div>
 
@@ -106,7 +403,6 @@ function TrackResult({
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; e.currentTarget.style.color = WHITE; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = WHITE; e.currentTarget.style.color = PRIMARY; }}
             >
-              <FiUsers className="w-4 h-4" />
               {showInvited ? "Hide Invited People" : `View Invited People${invitedCount ? ` (${invitedCount})` : ""}`}
             </button>
 
@@ -114,7 +410,7 @@ function TrackResult({
               <div className="mt-3 border" style={{ borderColor: BORDER }}>
                 {invitedLoading ? (
                   <div className="flex items-center justify-center py-6 text-sm" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
-                    <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin mr-2" /> Loading…
+                    <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin mr-2" /> Loading...
                   </div>
                 ) : invitedPeople.length === 0 ? (
                   <p className="p-4 text-sm text-center" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>No one has been invited yet.</p>
@@ -151,22 +447,18 @@ function TrackResult({
             <button
               type="button"
               onClick={onInvite}
-              className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-all"
-              style={getBtnStyle('primary')}
-              onMouseEnter={(e) => btnHover(e, PRIMARY_HOVER)}
-              onMouseLeave={(e) => btnLeavePrimary(e)}
+              className="cok-btn-primary mt-3 w-full"
+              style={{ padding: '0.7rem 1rem' }}
             >
-              <FiMail className="w-4 h-4" /> Invite People
+              Invite People
             </button>
 
-            {/* Water request — only for accepted Internal meetings */}
             {request.eventType === "Internal" && (
               waterRequested ? (
                 <div
                   className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium"
                   style={{ border: `1px solid ${SUCCESS}`, color: SUCCESS_HOVER, backgroundColor: '#E8F5E9', fontFamily: fontHeading }}
                 >
-                  <FiCheckCircle className="w-4 h-4" />
                   {request.expectedAudience
                     ? `Requested water for ${request.expectedAudience} people`
                     : "Water Requested"}
@@ -176,15 +468,13 @@ function TrackResult({
                   type="button"
                   onClick={handleRequestWater}
                   disabled={waterBusy}
-                  title={request.expectedAudience ? `Water will be requested for your ${request.expectedAudience} expected people` : undefined}
                   className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-all"
                   style={{ border: `1px solid ${PRIMARY}`, color: PRIMARY, backgroundColor: WHITE, fontFamily: fontHeading, opacity: waterBusy ? 0.7 : 1 }}
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; e.currentTarget.style.color = WHITE; }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = WHITE; e.currentTarget.style.color = PRIMARY; }}
                 >
-                  <FiDroplet className="w-4 h-4" />
                   {waterBusy
-                    ? "Requesting…"
+                    ? "Requesting..."
                     : request.expectedAudience
                       ? `Request Water (${request.expectedAudience} people)`
                       : "Request Water"}
@@ -198,11 +488,6 @@ function TrackResult({
         )}
         {request.status === "Pending" && (
           <div className="mt-4 pt-3 flex flex-wrap justify-end gap-2" style={{ borderTop: `1px solid ${BORDER}` }}>
-            <button onClick={onEdit} className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-all" style={{ border: `1px solid ${PRIMARY}`, color: PRIMARY, backgroundColor: WHITE, fontFamily: fontHeading }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; e.currentTarget.style.color = WHITE; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = WHITE; e.currentTarget.style.color = PRIMARY; }}>
-              <FiEdit2 className="w-4 h-4" /> Edit
-            </button>
             <button onClick={onCancelClick} disabled={loading}
               className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-all" style={{ border: `1px solid ${DANGER}`, color: DANGER, backgroundColor: WHITE, fontFamily: fontHeading }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = DANGER; e.currentTarget.style.color = WHITE; }}

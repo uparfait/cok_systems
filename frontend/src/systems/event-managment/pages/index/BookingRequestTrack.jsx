@@ -2,16 +2,11 @@ import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { FiArrowLeft, FiAlertCircle } from "react-icons/fi";
 import ConfirmModal from "../../ui-components/ConfirmModal";
 import SystemAlert from "@/core/components/SystemAlert";
 import TrackResult from "./components/TrackResult";
-import TrackEditForm from "./components/TrackEditForm";
 import CoOrganizersPanel from "./components/CoOrganizersPanel";
-import {
-  PRIMARY, PRIMARY_HOVER, DANGER, NEUTRAL_LIGHT, BORDER, WHITE, GRAY_DISABLED, fontHeading,
-  CARD_SHADOW, FOCUS_SHADOW, BLUR_SHADOW, inputStyle, getBtnStyle, btnHover, btnLeavePrimary,
-} from "./components/TrackShared";
+import { PRIMARY, DANGER, NEUTRAL_LIGHT, BORDER, fontHeading } from "./components/TrackShared";
 
 const BASE_URL = "/cok/api/v1";
 
@@ -31,12 +26,6 @@ export default function BookingRequestTrack() {
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [searched, setSearched] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editStep, setEditStep] = useState(1);
-  const [completedSteps, setCompletedSteps] = useState([]);
-  const [editForm, setEditForm] = useState({});
-  const [editFieldErrors, setEditFieldErrors] = useState({});
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, variant: "primary", title: "", message: "", onConfirm: null });
   const [systemAlert, setSystemAlert] = useState({ isOpen: false, type: "warning", message: "" });
 
@@ -45,9 +34,6 @@ export default function BookingRequestTrack() {
   const [invitedCount, setInvitedCount] = useState(0);
   const [invitedLoading, setInvitedLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
-
-  const showAgenda = editForm.eventMeetingType === "meet";
-  const maxSteps = showAgenda ? 5 : 4;
 
   const removeInvited = async (person) => {
     try {
@@ -87,19 +73,11 @@ export default function BookingRequestTrack() {
   useEffect(() => { if (initialCode) handleSearchWithCode(initialCode); /* eslint-disable-next-line */ }, []);
 
   const handleSearchWithCode = async (code) => {
-    setLoading(true); setError(null); setSearched(true);
+    setLoading(true); setError(null);
     try {
       const res = await axios.get(`${BASE_URL}/booking-requests/tracking/${code}`);
       if (res.data.success) {
-        const r = res.data.data;
-        setRequest(r);
-        setEditForm({
-          eventMeetingType: r.eventMeetingType || "event", eventName: r.eventName, eventDescription: r.eventDescription, eventType: r.eventType, eventRoom: r.eventRoom,
-          organizerNames: r.eventOrganizer?.fullNames || "", organizerEmail: r.eventOrganizer?.email || "", organizerPhone: r.eventOrganizer?.phone || "", organizerInstitution: r.eventOrganizer?.institution || "",
-          startTime: r.startTime ? new Date(r.startTime).toISOString().slice(0, 16) : "", endTime: r.endTime ? new Date(r.endTime).toISOString().slice(0, 16) : "",
-          audience: r.expectedAudience || "",
-          agenda: (r.activityAgenda && r.activityAgenda.length > 0) ? r.activityAgenda : [{ fromTime: "", toTime: "", title: "", description: "" }],
-        });
+        setRequest(res.data.data);
       }
     } catch (err) {
       setAlertFromError(err, setSystemAlert);
@@ -116,110 +94,59 @@ export default function BookingRequestTrack() {
     try {
       await axios.put(`${BASE_URL}/booking-requests/${request._id}/cancel`);
       setRequest((prev) => ({ ...prev, status: "Cancelled" }));
-      setIsEditing(false);
     } catch (err) {
       setAlertFromError(err, setSystemAlert);
     } finally {
       setLoading(false);
     }
   };
-
-  const handleSaveEdit = async () => {
-    setLoading(true); setEditFieldErrors({});
-    try {
-      const payload = {
-        eventName: editForm.eventName, eventDescription: editForm.eventDescription, eventType: editForm.eventType, eventRoom: editForm.eventRoom,
-        eventOrganizer: { fullNames: editForm.organizerNames, email: editForm.organizerEmail, phone: editForm.organizerPhone, institution: editForm.organizerInstitution || "" },
-        startTime: editForm.startTime ? new Date(editForm.startTime).toISOString() : undefined,
-        endTime: editForm.endTime ? new Date(editForm.endTime).toISOString() : undefined,
-        expectedAudience: Number(editForm.audience),
-        activityAgenda: showAgenda ? editForm.agenda.filter((a) => a.title?.trim()) : [],
-      };
-      const res = await axios.put(`${BASE_URL}/booking-requests/${request._id}`, payload);
-      if (res.data.success) {
-        setRequest((prev) => ({
-          ...prev, ...payload, eventOrganizer: payload.eventOrganizer,
-          startTime: payload.startTime ? new Date(payload.startTime) : prev.startTime,
-          endTime: payload.endTime ? new Date(payload.endTime) : prev.endTime,
-        }));
-        setIsEditing(false); setEditStep(1); setCompletedSteps([]);
-      }
-    } catch (err) {
-      setAlertFromError(err, setSystemAlert);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const startEditing = () => { setEditStep(1); setCompletedSteps([]); setEditFieldErrors({}); setIsEditing(true); };
 
   return (
     <>
       <Helmet><title>TRACK YOUR BOOK REQUEST</title></Helmet>
-      <div className="w-full items-center flex flex-col mx-auto mt-8 px-4">
-        {!isEditing && (
-          <div className="mt-4 w-full max-w-lg overflow-hidden bg-white border-2 border-gray-300">
-            {/* CoK blue header bar, same design rules as the events tables */}
-            <div className="px-6 py-4" style={{ backgroundColor: PRIMARY }}>
-              <h1 className="text-base font-bold uppercase tracking-widest text-white" style={{ fontFamily: fontHeading }}>Track Your Booking</h1>
-              <p className="text-xs font-medium mt-1" style={{ color: 'rgba(255,255,255,0.75)', fontFamily: fontHeading }}>Enter your Booking ID (e.g., BRK-A1B2C3D4).</p>
-            </div>
-            <div style={{ padding: '24px' }}>
-            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <input type="text" value={trackingCode} onChange={(e) => setTrackingCode(e.target.value)} placeholder="Enter your booking id"
-                className="flex-1 min-w-0 px-3 py-2 text-sm focus:outline-none transition-all duration-200"
-                style={{ ...inputStyle, borderColor: BORDER }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.boxShadow = FOCUS_SHADOW; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.boxShadow = BLUR_SHADOW; }} />
-              <button type="submit" disabled={loading || !trackingCode.trim()} style={getBtnStyle('primary', loading || !trackingCode.trim())} className="w-full sm:w-auto"
-                onMouseEnter={(e) => { if (!loading && trackingCode.trim()) btnHover(e, PRIMARY_HOVER); }}
-                onMouseLeave={(e) => btnLeavePrimary(e)}>
-                {loading ? "Searching..." : "Track"}
-              </button>
-            </form>
-            <button type="button" onClick={() => navigate("/book-a-room/options")} className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-all" style={{ border: `1px solid ${PRIMARY}`, color: PRIMARY, backgroundColor: WHITE, fontFamily: fontHeading }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; e.currentTarget.style.color = WHITE; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = WHITE; e.currentTarget.style.color = PRIMARY; }}>
-              <FiArrowLeft className="w-4 h-4" /> Back
-            </button>
-            </div>
+      <div className="w-full min-h-screen items-center flex flex-col mx-auto px-3 sm:px-4" style={{ backgroundColor: NEUTRAL_LIGHT, paddingTop: "110px", paddingBottom: "60px" }}>
+        <div className="w-full max-w-lg overflow-hidden bg-white" style={{ border: `1px solid ${BORDER}` }}>
+          <div className="px-4 sm:px-6 py-4" style={{ backgroundColor: PRIMARY }}>
+            <h1 className="text-base font-bold uppercase tracking-widest text-white" style={{ fontFamily: fontHeading }}>Track Your Booking</h1>
+            <p className="text-xs font-medium mt-1" style={{ color: 'rgba(255,255,255,0.75)', fontFamily: fontHeading }}>Enter your Booking ID (e.g., BRK-A1B2C3D4).</p>
           </div>
-        )}
+          <div className="p-4 sm:p-6">
+          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <input type="text" value={trackingCode} onChange={(e) => setTrackingCode(e.target.value)} placeholder="Enter your booking id"
+              className="w-full sm:flex-1 min-w-0 sm:min-w-[240px] cok-auth-input pr-3 py-3 sm:py-3.5 text-sm sm:text-base"
+              style={{ paddingLeft: '14px' }} />
+            <button type="submit" disabled={loading || !trackingCode.trim()}
+              className="cok-btn-primary sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{ width: '100%', padding: '0.85rem 1.6rem' }}>
+              {loading ? "Searching..." : "Track"}
+            </button>
+          </form>
+          <button type="button" onClick={() => navigate("/book-a-room/options")} className="cok-btn-outlined mt-3 w-full" style={{ padding: '0.85rem 1.2rem' }}>
+            Back
+          </button>
+          </div>
+        </div>
 
-        {error && <div className="mt-4 w-full max-w-lg p-3 flex items-start gap-2" style={{ backgroundColor: '#FFEBEE', border: `1px solid ${DANGER}` }}><FiAlertCircle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: DANGER }} /><p className="text-sm" style={{ color: '#C62828', fontFamily: fontHeading }}>{error}</p></div>}
+        {error && <div className="mt-4 w-full max-w-lg p-3" style={{ backgroundColor: '#FFEBEE', border: `1px solid ${DANGER}` }}><p className="text-sm" style={{ color: '#C62828', fontFamily: fontHeading }}>{error}</p></div>}
         <SystemAlert isOpen={systemAlert.isOpen} type={systemAlert.type} message={systemAlert.message} onClose={() => setSystemAlert((s) => ({ ...s, isOpen: false }))} />
 
-        {request && !isEditing && (
+        {request && (
           <TrackResult
             request={request}
-            onEdit={startEditing}
+            onUpdated={(updated) => setRequest(updated)}
             onCancelClick={() => setConfirmModal({ isOpen: true, variant: "danger", title: "Cancel Request", message: "This cannot be undone.", confirmText: "Yes, Cancel", onConfirm: handleCancel })}
             onInvite={() => navigate(`/event/${request.acceptedEventSpecialId}/invite`)}
             loading={loading}
-            showInvited={showInvited} setShowInvited={setShowInvited}
+            showInvited={showInvited}
             invitedPeople={invitedPeople} invitedCount={invitedCount} invitedLoading={invitedLoading}
-            onToggleInvited={toggleInvited} onRemoveInvited={removeInvited}
+            onToggleInvited={toggleInvited} onRemoveInvited={(person) => setDeleteTarget(person)}
           />
         )}
 
-        {request && !isEditing && request.status === "Accepted" && request.acceptedEventSpecialId && (
+        {request && request.status === "Accepted" && request.acceptedEventSpecialId && (
           <div className="w-full max-w-lg">
             <CoOrganizersPanel eventSpecialId={request.acceptedEventSpecialId} />
           </div>
-        )}
-
-        {request && isEditing && (
-          <TrackEditForm
-            editForm={editForm} setEditForm={setEditForm}
-            editFieldErrors={editFieldErrors} setEditFieldErrors={setEditFieldErrors}
-            editStep={editStep} setEditStep={setEditStep}
-            completedSteps={completedSteps} setCompletedSteps={setCompletedSteps}
-            maxSteps={maxSteps} showAgenda={showAgenda}
-            loading={loading} requestId={request._id}
-            systemAlert={systemAlert} setSystemAlert={setSystemAlert}
-            onCancel={() => { setIsEditing(false); setEditStep(1); setCompletedSteps([]); setEditFieldErrors({}); }}
-            onSave={handleSaveEdit}
-          />
         )}
 
         <ConfirmModal isOpen={confirmModal.isOpen} onClose={() => setConfirmModal({ isOpen: false })} onConfirm={async () => { await confirmModal.onConfirm(); setConfirmModal({ isOpen: false }); }} title={confirmModal.title} message={confirmModal.message} confirmText={confirmModal.confirmText || "Confirm"} confirmVariant={confirmModal.variant} loading={loading} />

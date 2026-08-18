@@ -176,7 +176,7 @@ export default function DashboardCalendar({ events, loading, onMonthChange, curr
                         key={ev._id + (ev.occurrenceDate || '')}
                         onClick={() => handleEventClick(ev)}
                         className={`w-full text-left text-[10px] sm:text-[11px] leading-tight px-1 sm:px-1.5 py-0.5 sm:py-1 border ${getEventColor(ev, colorMode)}`}
-                        title={`${ev.eventName}\n${timeRange}\n${ev.eventRoom}`}
+                        title={`${ev.eventName ? `${ev.eventName}\n` : ''}${timeRange}\n${ev.eventRoom}`}
                       >
                         {!compact && (
                           <div className="flex items-center gap-1">

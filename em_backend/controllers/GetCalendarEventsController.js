@@ -134,9 +134,7 @@ function getRecurringOccurrences(event, monthStart, monthEnd) {
 }
 
 class GetCalendarEventsController {
-  static async handle(req, res) {
-    try {
-      const { month } = req.query;
+  static async buildMonthEvents(month) {
       const targetDate = month ? new Date(month) : new Date();
 
       const year = targetDate.getFullYear();
@@ -212,6 +210,13 @@ class GetCalendarEventsController {
 
       events.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
 
+      return events;
+  }
+
+  static async handle(req, res) {
+    try {
+      const events = await GetCalendarEventsController.buildMonthEvents(req.query.month);
+
       // Optional: annotate whether the given email is invited to each event.
       // Generated recurring instances (id = "<parent>_<ts>") also match invites
       // stored under the parent series id.
@@ -256,6 +261,34 @@ class GetCalendarEventsController {
       return res.status(500).json({
         success: false,
         message: 'Error retrieving calendar events',
+        error: error.message
+      });
+    }
+  }
+
+  // Public availability feed for the booking pages: exposes ONLY the schedule
+  // and the room so event details can never be inspected from devtools.
+  static async availability(req, res) {
+    try {
+      const events = await GetCalendarEventsController.buildMonthEvents(req.query.month);
+      const data = events.map((e, i) => ({
+        _id: `slot_${i}`,
+        startTime: e.startTime,
+        endTime: e.endTime,
+        eventRoom: e.eventRoom,
+        eventStatus: e.eventStatus,
+        isCancelled: e.isCancelled,
+        occurrenceDate: e.occurrenceDate
+      }));
+      return res.status(200).json({
+        success: true,
+        totalRecords: data.length,
+        data
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: 'Error retrieving calendar availability',
         error: error.message
       });
     }

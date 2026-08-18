@@ -93,30 +93,8 @@ export default function BookingOptions() {
                     value={trackingId}
                     onChange={(e) => setTrackingId(e.target.value)}
                     placeholder="Enter your booking id"
-                    style={{
-                      fontFamily: "'Montserrat', sans-serif",
-                      fontSize: '14px',
-                      fontWeight: 500,
-                      letterSpacing: '0.2px',
-                      padding: '12px 1rem',
-                      color: NEUTRAL_DARK,
-                      backgroundColor: NEUTRAL_LIGHT,
-                      boxSizing: 'border-box',
-                      border: '1px solid transparent',
-                      borderRadius: 0,
-                      boxShadow: '0px 2px 4px rgba(0,0,0,0.1)',
-                      outline: 'none',
-                      flex: 1,
-                      transition: 'border-color 0.3s ease, box-shadow 0.3s ease'
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = PRIMARY;
-                      e.currentTarget.style.boxShadow = '0px 4px 8px rgba(7,142,206,0.25)';
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = 'transparent';
-                      e.currentTarget.style.boxShadow = '0px 2px 4px rgba(0,0,0,0.1)';
-                    }}
+                    className="w-full sm:flex-1 min-w-0 sm:min-w-[240px] cok-auth-input pr-3 py-3 sm:py-3.5 text-sm sm:text-base"
+                    style={{ paddingLeft: '14px' }}
                   />
                   <button
                     type="submit"
