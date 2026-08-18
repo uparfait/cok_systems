@@ -6,6 +6,8 @@ import ConfirmModal from '../../../core/components/Modals/ConfirmModal';
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import { FiSearch, FiLock, FiUnlock, FiLoader, FiRefreshCw, FiUsers, FiMail, FiPhone, FiCheck, FiX, FiAlertCircle, FiUser, FiAlertTriangle, FiShield } from 'react-icons/fi';
 
+const PRIMARY = '#056daa';
+
 interface UserWithLock extends Employee { 
   access_control?: { is_locked?: boolean; reason?: string; last_login_attempt?: number }; 
   is_account_activated?: boolean;
@@ -163,13 +165,14 @@ const UserManagementPage: React.FC = () => {
                 placeholder="Search..." 
                 value={searchQuery} 
                 onChange={e => setSearchQuery(e.target.value)} 
-                className="w-48 pl-8 pr-3 py-1.5 border border-gray-300 text-sm" 
+                className="cok-auth-input w-48 text-sm"
+                style={{ minHeight: '34px' }}
               />
             </div>
             <button 
               onClick={loadUsers} 
               disabled={loading} 
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#056daa] text-white text-xs font-medium hover:bg-[#045d94] disabled:opacity-50 uppercase tracking-[1px]"
             >
               <FiRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               Refresh
@@ -177,7 +180,7 @@ const UserManagementPage: React.FC = () => {
           </div>
         </div>
         {error && !loading && (
-          <div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2">
+          <div className="mb-3 p-3 text-sm flex items-center gap-2" style={{ backgroundColor: 'rgba(231,76,60,0.08)', border: '1px solid #E74C3C', color: '#E74C3C' }}>
             <FiAlertCircle className="w-4 h-4" />
             {error}
           </div>
@@ -185,21 +188,21 @@ const UserManagementPage: React.FC = () => {
 
         <div className="p-5 overflow-hidden">
           <div className="overflow-x-auto max-h-96 overflow-y-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-blue-600 sticky top-0 z-10 shadow-sm">
+            <table className="min-w-full divide-y divide-[#E0E0E0]">
+              <thead className="sticky top-0 z-10 shadow-sm" style={{ backgroundColor: PRIMARY }}>
                 <tr>
                   {['User', 'Department', 'Activation', 'Account Lock', '2FA Status', 'Actions'].map(h => (
                     <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-white uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-[#E0E0E0]">
                 {(loading && firstLoad) ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-8 text-center">
                       <div className="flex justify-center gap-2">
                         <div className="h-6 w-6 justify-center items-center flex">
-                          <FiLoader className="w-5 h-5 animate-spin text-blue-600" />
+                          <FiLoader className="w-5 h-5 animate-spin text-[#056daa]" />
                         </div>
                       </div>
                     </td>
@@ -212,11 +215,11 @@ const UserManagementPage: React.FC = () => {
                   </tr>
                 ) : (
                   paginatedUsers.map(u => (
-                    <tr key={u._id} className="hover:bg-gray-50">
+                    <tr key={u._id} className="hover:bg-[#F7F9FB]">
                       <td className="px-4 py-2.5">
                         <div className="flex items-center">
-                          <div className="w-8 h-8 bg-blue-100 flex items-center justify-center">
-                            <FiUser className="w-4 h-4 text-blue-600" />
+                          <div className="w-8 h-8 bg-[rgba(5,109,170,0.1)] flex items-center justify-center">
+                            <FiUser className="w-4 h-4 text-[#056daa]" />
                           </div>
                           <div className="ml-3">
                             <div className="text-sm font-medium text-gray-900">{u.full_name || 'N/A'}</div>
@@ -238,12 +241,12 @@ const UserManagementPage: React.FC = () => {
                       </td>
                       <td className="px-4 py-2.5">
                         {u.is_account_activated ? (
-                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-[rgba(76,175,80,0.12)] text-[#388E3C]">
                             <FiCheck className="w-3 h-3 mr-1" />
                             Activated
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800">
+                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-[rgba(243,156,18,0.12)] text-[#F39C12]">
                             <FiX className="w-3 h-3 mr-1" />
                             Not Activated
                           </span>
@@ -252,7 +255,7 @@ const UserManagementPage: React.FC = () => {
                       <td className="px-4 py-2.5">
                         {u.access_control?.is_locked ? (
                           <div>
-                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800">
+                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-[rgba(231,76,60,0.12)] text-[#E74C3C]">
                               <FiLock className="w-3 h-3 mr-1" />
                               Locked
                             </span>
@@ -263,7 +266,7 @@ const UserManagementPage: React.FC = () => {
                             )}
                           </div>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-[rgba(76,175,80,0.12)] text-[#388E3C]">
                             <FiUnlock className="w-3 h-3 mr-1" />
                             Unlocked
                           </span>
@@ -271,12 +274,12 @@ const UserManagementPage: React.FC = () => {
                       </td>
                       <td className="px-4 py-2.5">
                         {u.is_2FA_disabled ? (
-                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800">
+                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-[rgba(231,76,60,0.12)] text-[#E74C3C]">
                             <FiX className="w-3 h-3 mr-1" />
                             Disabled
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-[rgba(76,175,80,0.12)] text-[#388E3C]">
                             <FiShield className="w-3 h-3 mr-1" />
                             Enabled
                           </span>
@@ -287,7 +290,7 @@ const UserManagementPage: React.FC = () => {
                           {u.access_control?.is_locked ? (
                             <button 
                               onClick={() => { setSelectedUser(u); setShowUnlockModal(true); }}
-                              className="flex items-center gap-1 px-2.5 py-1.5 bg-green-600 text-white text-xs font-medium hover:bg-green-700"
+                              className="flex items-center gap-1 px-2.5 py-1.5 bg-[#4CAF50] text-white text-xs font-medium hover:bg-[#388E3C] uppercase tracking-[1px]"
                             >
                               <FiUnlock className="w-3 h-3" />
                               Unlock
@@ -295,7 +298,7 @@ const UserManagementPage: React.FC = () => {
                           ) : (
                             <button 
                               onClick={() => { setSelectedUser(u); setLockReason(''); setShowLockModal(true); }}
-                              className="flex items-center gap-1 px-2.5 py-1.5 bg-red-600 text-white text-xs font-medium hover:bg-red-700"
+                              className="flex items-center gap-1 px-2.5 py-1.5 bg-[#E74C3C] text-white text-xs font-medium hover:bg-[#C0392B] uppercase tracking-[1px]"
                             >
                               <FiLock className="w-3 h-3" />
                               Lock
@@ -303,14 +306,14 @@ const UserManagementPage: React.FC = () => {
                           )}
                           <button 
                             onClick={() => { setSelectedUser(u); setShow2FAModal(true); }}
-                            className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 text-white text-xs font-medium hover:bg-blue-700"
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-[#056daa] text-white text-xs font-medium hover:bg-[#045d94] uppercase tracking-[1px]"
                           >
                             <FiShield className="w-3 h-3" />
                             {u.is_2FA_disabled ? 'Enable 2FA' : 'Disable 2FA'}
                           </button>
                           <button 
                             onClick={() => { setSelectedUser(u); setShowReset2FAModal(true); }}
-                            className="flex items-center gap-1 px-2.5 py-1.5 bg-orange-600 text-white text-xs font-medium hover:bg-orange-700"
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-[#F39C12] text-white text-xs font-medium hover:bg-[#D68910] uppercase tracking-[1px]"
                           >
                             <FiRefreshCw className="w-3 h-3" />
                             Reset 2FA
@@ -366,7 +369,7 @@ const UserManagementPage: React.FC = () => {
             <div className="relative bg-white shadow-2xl w-full max-w-md mx-4">
               <div className="flex items-center justify-between p-3 border-b">
                 <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                  <FiLock className="w-4 h-4 text-red-600" />
+                  <FiLock className="w-4 h-4 text-[#E74C3C]" />
                   Lock User Account
                 </h3>
                 <button 
@@ -378,22 +381,23 @@ const UserManagementPage: React.FC = () => {
                 </button>
               </div>
               <div className="p-4">
-                <div className="mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-3">
-                  <FiAlertTriangle className="w-6 h-6 text-red-600" />
+                <div className="mx-auto w-12 h-12 bg-[rgba(231,76,60,0.12)] flex items-center justify-center mb-3">
+                  <FiAlertTriangle className="w-6 h-6 text-[#E74C3C]" />
                 </div>
                 <p className="text-sm text-gray-600 mb-3">
                   Lock account for <span className="font-semibold text-gray-900">{selectedUser?.full_name || selectedUser?.email}</span>?
                 </p>
                 <div className="mb-4">
                   <label className="text-xs font-medium text-gray-700 mb-1 block">
-                    Reason <span className="text-red-500">*</span>
+                    Reason <span className="text-[#E74C3C]">*</span>
                   </label>
                   <textarea 
                     value={lockReason} 
                     onChange={e => setLockReason(e.target.value)} 
                     placeholder="Enter reason..." 
                     rows={2} 
-                    className="w-full px-3 py-2 border border-gray-300 text-sm resize-none"
+                    className="cok-auth-input w-full text-sm resize-none"
+                    style={{ paddingLeft: '12px', minHeight: '90px' }}
                     disabled={actionLoading}
                   />
                   <p className="text-xs text-gray-500 mt-0.5">Visible to user on login</p>
@@ -410,7 +414,7 @@ const UserManagementPage: React.FC = () => {
                   <button 
                     onClick={handleLock} 
                     disabled={actionLoading || !lockReason.trim()}
-                    className="flex-1 px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-1"
+                    className="flex-1 px-3 py-2 bg-[#E74C3C] hover:bg-[#C0392B] text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-1 uppercase tracking-[1px]"
                   >
                     {actionLoading ? (
                       <>
@@ -451,7 +455,7 @@ const UserManagementPage: React.FC = () => {
             <div className="relative bg-white shadow-2xl w-full max-w-md mx-4">
               <div className="flex items-center justify-between p-3 border-b">
                 <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                  <FiShield className="w-4 h-4 text-blue-600" />
+                  <FiShield className="w-4 h-4 text-[#056daa]" />
                   {selectedUser?.is_2FA_disabled ? 'Enable' : 'Disable'} Two-Factor Authentication
                 </h3>
                 <button 
@@ -463,8 +467,8 @@ const UserManagementPage: React.FC = () => {
                 </button>
               </div>
               <div className="p-4">
-                <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3">
-                  <FiShield className="w-6 h-6 text-blue-600" />
+                <div className="mx-auto w-12 h-12 bg-[rgba(5,109,170,0.1)] flex items-center justify-center mb-3">
+                  <FiShield className="w-6 h-6 text-[#056daa]" />
                 </div>
                 <p className="text-sm text-gray-600 mb-3">
                   {selectedUser?.is_2FA_disabled 
@@ -484,10 +488,10 @@ const UserManagementPage: React.FC = () => {
                   <button 
                     onClick={handleToggle2FA}
                     disabled={is2FAToggling}
-                    className={`flex-1 px-3 py-2 text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-1 ${
-                      selectedUser?.is_2FA_disabled 
-                        ? 'bg-green-600 hover:bg-green-700' 
-                        : 'bg-red-600 hover:bg-red-700'
+                    className={`flex-1 px-3 py-2 text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-1 uppercase tracking-[1px] ${
+                      selectedUser?.is_2FA_disabled
+                        ? 'bg-[#4CAF50] hover:bg-[#388E3C]'
+                        : 'bg-[#E74C3C] hover:bg-[#C0392B]'
                     }`}
                   >
                     {is2FAToggling ? (
@@ -526,7 +530,7 @@ const UserManagementPage: React.FC = () => {
             <div className="relative bg-white shadow-2xl w-full max-w-md mx-4">
               <div className="flex items-center justify-between p-3 border-b">
                 <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                  <FiRefreshCw className="w-4 h-4 text-orange-600" />
+                  <FiRefreshCw className="w-4 h-4 text-[#F39C12]" />
                   Reset Two-Factor Authentication
                 </h3>
                 <button 
@@ -538,8 +542,8 @@ const UserManagementPage: React.FC = () => {
                 </button>
               </div>
               <div className="p-4">
-                <div className="mx-auto w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-3">
-                  <FiRefreshCw className="w-6 h-6 text-orange-600" />
+                <div className="mx-auto w-12 h-12 bg-[rgba(243,156,18,0.12)] flex items-center justify-center mb-3">
+                  <FiRefreshCw className="w-6 h-6 text-[#F39C12]" />
                 </div>
                 <p className="text-sm text-gray-600 mb-3">
                   Reset 2FA for <span className="font-semibold text-gray-900">{selectedUser?.full_name || selectedUser?.email}</span>? The user will need to set up 2FA again on next login.
@@ -556,7 +560,7 @@ const UserManagementPage: React.FC = () => {
                   <button 
                     onClick={handleReset2FA}
                     disabled={isReset2FALoading}
-                    className="flex-1 px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-1"
+                    className="flex-1 px-3 py-2 bg-[#F39C12] hover:bg-[#D68910] text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-1 uppercase tracking-[1px]"
                   >
                     {isReset2FALoading ? (
                       <>

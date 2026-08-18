@@ -22,9 +22,9 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Waiting Time Analytics */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="p-4 border-b">
-          <h3 className="text-lg font-semibold text-gray-800">WAITING TIME ANALYTICS</h3>
+      <div className="bg-white shadow-sm border border-[#E0E0E0]">
+        <div className="p-4 border-b border-[#E0E0E0]">
+          <h3 className="text-lg font-semibold text-gray-800" style={{ fontFamily: "'Montserrat', sans-serif" }}>WAITING TIME ANALYTICS</h3>
         </div>
         <div className="p-4">
           <WaitingTimeChart data={waitingAnalytics} />
@@ -32,9 +32,9 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({
       </div>
 
       {/* Service Duration Analytics */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="p-4 border-b">
-          <h3 className="text-lg font-semibold text-gray-800">SERVICE DURATION ANALYTICS</h3>
+      <div className="bg-white shadow-sm border border-[#E0E0E0]">
+        <div className="p-4 border-b border-[#E0E0E0]">
+          <h3 className="text-lg font-semibold text-gray-800" style={{ fontFamily: "'Montserrat', sans-serif" }}>SERVICE DURATION ANALYTICS</h3>
         </div>
         <div className="p-4">
           <ServiceDurationChart data={serviceDuration} />
@@ -42,9 +42,9 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({
       </div>
 
       {/* SLA Monitoring */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="p-4 border-b">
-          <h3 className="text-lg font-semibold text-gray-800">SLA MONITORING</h3>
+      <div className="bg-white shadow-sm border border-[#E0E0E0]">
+        <div className="p-4 border-b border-[#E0E0E0]">
+          <h3 className="text-lg font-semibold text-gray-800" style={{ fontFamily: "'Montserrat', sans-serif" }}>SLA MONITORING</h3>
         </div>
         <div className="p-4">
           <div className="grid grid-cols-2 gap-4">
@@ -64,9 +64,9 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({
       </div>
 
       {/* Citizen Feedback */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="p-4 border-b">
-          <h3 className="text-lg font-semibold text-gray-800">CITIZEN FEEDBACK</h3>
+      <div className="bg-white shadow-sm border border-[#E0E0E0]">
+        <div className="p-4 border-b border-[#E0E0E0]">
+          <h3 className="text-lg font-semibold text-gray-800" style={{ fontFamily: "'Montserrat', sans-serif" }}>CITIZEN FEEDBACK</h3>
         </div>
         <div className="p-4">
           <div className="grid grid-cols-2 gap-4">

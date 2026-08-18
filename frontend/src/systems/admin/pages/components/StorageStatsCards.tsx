@@ -51,7 +51,7 @@ const StorageStatsCards: React.FC<StorageStatsCardsProps> = ({
           className="p-1.5"
           style={{
             backgroundColor: 'rgba(5,109,170,0.08)',
-            borderRadius: 999,
+            borderRadius: 0,
           }}
         >
           <FiDatabase className="w-4 h-4" style={{ color: PRIMARY }} />
@@ -77,7 +77,8 @@ const StorageStatsCards: React.FC<StorageStatsCardsProps> = ({
           <button
             onClick={handleRefresh}
             disabled={loading}
-            className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 text-sm font-medium transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-3 py-2 bg-white border border-[#056daa] text-[#056daa] text-sm font-semibold uppercase hover:bg-[#056daa] hover:text-white transition-all disabled:opacity-50"
+            style={{ letterSpacing: '1px' }}
           >
             <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh

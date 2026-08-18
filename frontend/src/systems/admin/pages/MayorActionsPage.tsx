@@ -113,7 +113,7 @@ const ActionsDonut: React.FC<{
               </text>
             );
           })}
-          <text x={cx} y={cy - 10} textAnchor="middle" fontSize="11" fontWeight="700" fill="#6b7280" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+          <text x={cx} y={cy - 10} textAnchor="middle" fontSize="11" fontWeight="700" fill="#555555" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
             Total Actions
           </text>
           <text x={cx} y={cy + 14} textAnchor="middle" fontSize="26" fontWeight="800" fill={COK.neutralDark}>
@@ -241,8 +241,8 @@ export default function MayorActionsPage() {
                 value={search}
                 onChange={(e) => onSearchChange(e.target.value)}
                 placeholder="Search actions..."
-                className="h-8 px-2 text-sm text-gray-700 focus:outline-none w-44"
-                style={{ border: `1px solid ${COK.border}` }}
+                className="cok-auth-input text-sm w-44"
+                style={{ paddingLeft: '10px', minHeight: '34px' }}
               />
             </div>
           </div>
@@ -287,7 +287,7 @@ export default function MayorActionsPage() {
                         <td className="py-3 px-3">
                           {isAssigned(a) ? (
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0" style={{ backgroundColor: COK.primary, fontFamily: COK.headingFont }}>
+                              <div className="w-8 h-8 flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0" style={{ backgroundColor: COK.primary, fontFamily: COK.headingFont }}>
                                 {initialsOf(a.assignedPerson?.name)}
                               </div>
                               <div>

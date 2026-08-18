@@ -68,7 +68,7 @@ export const DateFilter: React.FC<DateFilterProps> = ({ onFilterChange, loading 
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
+    <div className="bg-white shadow-sm border border-[#E0E0E0] p-4 mb-6">
       <div className="flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-2">
           <FilterSvg className="w-5 h-5 text-gray-600" />
@@ -80,11 +80,12 @@ export const DateFilter: React.FC<DateFilterProps> = ({ onFilterChange, loading 
             <button
               key={filter}
               onClick={() => handlePresetFilter(filter as 'today' | 'week' | 'month' | 'year')}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+              className={`px-3 py-1 text-sm font-semibold uppercase transition-colors ${
                 activeFilter === filter
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-[#056daa] text-white hover:bg-[#045d94]'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              style={{ letterSpacing: '1px' }}
               disabled={loading}
             >
               {filter === 'today'
@@ -104,7 +105,8 @@ export const DateFilter: React.FC<DateFilterProps> = ({ onFilterChange, loading 
             type="date"
             value={customStartDate}
             onChange={(e) => setCustomStartDate(e.target.value)}
-            className="px-2 py-1 border rounded text-sm"
+            className="cok-auth-input text-sm"
+            style={{ paddingLeft: '10px', minHeight: '34px' }}
             disabled={loading}
           />
           <span className="text-gray-600">to</span>
@@ -112,16 +114,18 @@ export const DateFilter: React.FC<DateFilterProps> = ({ onFilterChange, loading 
             type="date"
             value={customEndDate}
             onChange={(e) => setCustomEndDate(e.target.value)}
-            className="px-2 py-1 border rounded text-sm"
+            className="cok-auth-input text-sm"
+            style={{ paddingLeft: '10px', minHeight: '34px' }}
             disabled={loading}
           />
           <button
             onClick={handleCustomFilter}
-            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+            className={`px-3 py-1 text-sm font-semibold uppercase transition-colors ${
               activeFilter === 'custom'
-                ? 'bg-blue-600 text-white'
-                : 'bg-blue-500 text-white hover:bg-blue-600'
+                ? 'bg-[#056daa] text-white hover:bg-[#045d94]'
+                : 'bg-[#056daa] text-white hover:bg-[#045d94]'
             } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            style={{ letterSpacing: '1px' }}
             disabled={loading || !customStartDate || !customEndDate}
           >
             Apply Range
@@ -129,8 +133,8 @@ export const DateFilter: React.FC<DateFilterProps> = ({ onFilterChange, loading 
         </div>
 
         {loading && (
-          <div className="flex items-center gap-2 text-blue-600">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          <div className="flex items-center gap-2 text-[#056daa]">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#056daa]"></div>
             <span className="text-sm">Loading...</span>
           </div>
         )}

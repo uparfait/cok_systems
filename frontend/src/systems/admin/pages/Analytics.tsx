@@ -14,11 +14,23 @@ import {
 } from 'react-icons/fi';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell
+  BarChart, Bar, PieChart, Pie, Cell, LabelList
 } from 'recharts';
 
-// Colors for charts
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const PRIMARY = "#056daa";
+const PRIMARY_HOVER = "#045d94";
+const SUCCESS = "#4CAF50";
+const WARNING = "#F39C12";
+const DANGER = "#E74C3C";
+const NEUTRAL_DARK = "#333333";
+const BORDER = "#E0E0E0";
+const WHITE = "#FFFFFF";
+const GRAY_DISABLED = "#9E9E9E";
+const ACCENT_DARK_BLUE = "#2980B9";
+const fontHeading = "'Montserrat', sans-serif";
+const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
+
+const COLORS = [PRIMARY, SUCCESS, WARNING, DANGER, ACCENT_DARK_BLUE];
 
 interface HourlyParkingData {
   hour: number;
@@ -140,8 +152,8 @@ const Analytics: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <h1 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <FiBarChart2 className="w-4 h-4 text-purple-600" />
+            <h1 className="text-base font-bold text-[#333333] flex items-center gap-2" style={{ fontFamily: fontHeading }}>
+              <FiBarChart2 className="w-4 h-4 text-[#056daa]" />
               Comprehensive analytics for parking and service delivery
             </h1>
           </div>
@@ -149,15 +161,19 @@ const Analytics: React.FC = () => {
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value as any)}
-              className="px-3 py-1.5 border border-gray-300 text-sm"
+              className="cok-auth-input pr-3 py-2 text-sm"
+              style={{ paddingLeft: '12px' }}
             >
               <option value="today">Today</option>
               <option value="week">This Week</option>
               <option value="month">This Month</option>
             </select>
-            <button 
+            <button
               onClick={fetchAnalyticsData}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-xs font-medium hover:bg-purple-700"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-medium"
+              style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
             >
               <FiRefreshCw className="w-4 h-4" />
               Refresh
@@ -167,80 +183,80 @@ const Analytics: React.FC = () => {
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white border border-gray-200 p-4">
+          <div className="bg-white p-4" style={{ boxShadow: CARD_SHADOW }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-500">Parking Check-Ins</p>
+                <p className="text-xs text-[#555555]">Parking Check-Ins</p>
                 {(loading && firstLoad) ? (
-                  <div className="h-8 w-16 bg-gray-200 animate-pulse mt-1"></div>
+                  <div className="h-8 w-16 bg-[#E0E0E0] animate-pulse mt-1"></div>
                 ) : (
-                  <p className="text-lg font-bold text-blue-600 mt-0.5">{totalParkingCheckIns}</p>
+                  <p className="text-lg font-bold text-[#056daa] mt-0.5">{totalParkingCheckIns}</p>
                 )}
-                <p className="text-xs text-green-600 mt-0.5 flex items-center">
+                <p className="text-xs text-[#388E3C] mt-0.5 flex items-center">
                   <FiTrendingUp className="w-3 h-3 mr-1" /> Today
                 </p>
               </div>
-              <div className="w-10 h-10 bg-blue-100 flex items-center justify-center">
-                <FiTruck className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-[rgba(5,109,170,0.1)] flex items-center justify-center">
+                <FiTruck className="w-5 h-5 text-[#056daa]" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 p-4">
+          <div className="bg-white p-4" style={{ boxShadow: CARD_SHADOW }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-500">Service Visitors</p>
+                <p className="text-xs text-[#555555]">Service Visitors</p>
                 {(loading && firstLoad) ? (
-                  <div className="h-8 w-16 bg-gray-200 animate-pulse mt-1"></div>
+                  <div className="h-8 w-16 bg-[#E0E0E0] animate-pulse mt-1"></div>
                 ) : (
-                  <p className="text-lg font-bold text-green-600 mt-0.5">{totalServiceVisitors}</p>
+                  <p className="text-lg font-bold text-[#388E3C] mt-0.5">{totalServiceVisitors}</p>
                 )}
-                <p className="text-xs text-green-600 mt-0.5 flex items-center">
+                <p className="text-xs text-[#388E3C] mt-0.5 flex items-center">
                   <FiTrendingUp className="w-3 h-3 mr-1" /> Today
                 </p>
               </div>
-              <div className="w-10 h-10 bg-green-100 flex items-center justify-center">
-                <FiUsers className="w-5 h-5 text-green-600" />
+              <div className="w-10 h-10 bg-[rgba(76,175,80,0.12)] flex items-center justify-center">
+                <FiUsers className="w-5 h-5 text-[#388E3C]" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 p-4">
+          <div className="bg-white p-4" style={{ boxShadow: CARD_SHADOW }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-500">Active Employees</p>
+                <p className="text-xs text-[#555555]">Active Employees</p>
                 {(loading && firstLoad) ? (
-                  <div className="h-8 w-16 bg-gray-200 animate-pulse mt-1"></div>
+                  <div className="h-8 w-16 bg-[#E0E0E0] animate-pulse mt-1"></div>
                 ) : (
-                  <p className="text-lg font-bold text-purple-600 mt-0.5">{employeeStats.active || 0}</p>
+                  <p className="text-lg font-bold text-[#2980B9] mt-0.5">{employeeStats.active || 0}</p>
                 )}
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-[#555555] mt-0.5">
                   of {employeeStats.total || 0} total
                 </p>
               </div>
-              <div className="w-10 h-10 bg-purple-100 flex items-center justify-center">
-                <FiCheckCircle className="w-5 h-5 text-purple-600" />
+              <div className="w-10 h-10 bg-[rgba(41,128,185,0.1)] flex items-center justify-center">
+                <FiCheckCircle className="w-5 h-5 text-[#2980B9]" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 p-4">
+          <div className="bg-white p-4" style={{ boxShadow: CARD_SHADOW }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-500">Avg Feedback</p>
+                <p className="text-xs text-[#555555]">Avg Feedback</p>
                 {(loading && firstLoad) ? (
-                  <div className="h-8 w-16 bg-gray-200 animate-pulse mt-1"></div>
+                  <div className="h-8 w-16 bg-[#E0E0E0] animate-pulse mt-1"></div>
                 ) : (
-                  <p className="text-lg font-bold text-orange-600 mt-0.5">
+                  <p className="text-lg font-bold text-[#F39C12] mt-0.5">
                     {feedbackData?.overall_average?.average_rating?.toFixed(1) || '0.0'}
                   </p>
                 )}
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-[#555555] mt-0.5">
                   {feedbackData?.overall_average?.total_feedback || 0} reviews
                 </p>
               </div>
-              <div className="w-10 h-10 bg-orange-100 flex items-center justify-center">
-                <FiPieChart className="w-5 h-5 text-orange-600" />
+              <div className="w-10 h-10 bg-[rgba(243,156,18,0.12)] flex items-center justify-center">
+                <FiPieChart className="w-5 h-5 text-[#F39C12]" />
               </div>
             </div>
           </div>
@@ -249,38 +265,39 @@ const Analytics: React.FC = () => {
         {/* Charts Row 1 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Parking Activity Chart */}
-          <div className="bg-white border border-gray-200 p-4">
-            <h2 className="text-sm font-bold text-gray-800 mb-3">Parking Activity</h2>
+          <div className="bg-white p-4" style={{ boxShadow: CARD_SHADOW }}>
+            <h2 className="text-sm font-bold text-[#333333] mb-3">Parking Activity</h2>
             {loading ? (
               <div className="h-64 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#056daa] border-t-transparent"></div>
               </div>
             ) : (
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={parkingHourly} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <AreaChart data={parkingHourly} margin={{ top: 15, right: 30, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorCheckIn" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        <stop offset="5%" stopColor={PRIMARY} stopOpacity={0.25}/>
+                        <stop offset="95%" stopColor={PRIMARY} stopOpacity={0.02}/>
                       </linearGradient>
                       <linearGradient id="colorCheckOut" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                        <stop offset="5%" stopColor={DANGER} stopOpacity={0.25}/>
+                        <stop offset="95%" stopColor={DANGER} stopOpacity={0.02}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
                     <XAxis
                       dataKey="hour"
                       tickFormatter={(v: number) => `${v}:00`}
-                      stroke="#9ca3af"
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: 12, fill: GRAY_DISABLED }}
+                      axisLine={false}
+                      tickLine={false}
                     />
-                    <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
-                    <Tooltip formatter={(v: any) => [v || 0]} labelFormatter={(l) => `${l}:00`} />
+                    <YAxis tick={{ fontSize: 12, fill: GRAY_DISABLED }} axisLine={false} tickLine={false} />
+                    <Tooltip formatter={(v: any) => [v || 0]} labelFormatter={(l) => `${l}:00`} contentStyle={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, borderRadius: 0, boxShadow: CARD_SHADOW }} />
                     <Legend />
-                    <Area type="monotone" dataKey="check_in" stroke="#3b82f6" strokeWidth={2} fill="url(#colorCheckIn)" name="Check-Ins" dot={false} activeDot={{ r: 6, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }} />
-                    <Area type="monotone" dataKey="check_out" stroke="#ef4444" strokeWidth={2} fill="url(#colorCheckOut)" name="Check-Outs" dot={false} activeDot={{ r: 6, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }} />
+                    <Area type="monotone" dataKey="check_in" stroke={PRIMARY} strokeWidth={2} fill="url(#colorCheckIn)" name="Check-Ins" dot={{ r: 3 }} activeDot={{ r: 6, fill: PRIMARY, stroke: '#fff', strokeWidth: 2 }} label={{ position: 'top', fill: NEUTRAL_DARK, fontSize: 10, fontWeight: 600 }} />
+                    <Area type="monotone" dataKey="check_out" stroke={DANGER} strokeWidth={2} fill="url(#colorCheckOut)" name="Check-Outs" dot={{ r: 3 }} activeDot={{ r: 6, fill: DANGER, stroke: '#fff', strokeWidth: 2 }} label={{ position: 'top', fill: NEUTRAL_DARK, fontSize: 10, fontWeight: 600 }} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -288,32 +305,33 @@ const Analytics: React.FC = () => {
           </div>
 
           {/* Service Delivery Activity Chart */}
-          <div className="bg-white border border-gray-200 p-4">
-            <h2 className="text-sm font-bold text-gray-800 mb-3">Service Delivery Activity</h2>
+          <div className="bg-white p-4" style={{ boxShadow: CARD_SHADOW }}>
+            <h2 className="text-sm font-bold text-[#333333] mb-3">Service Delivery Activity</h2>
             {loading ? (
               <div className="h-64 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-green-500 border-t-transparent"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#056daa] border-t-transparent"></div>
               </div>
             ) : (
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={serviceHourly} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <AreaChart data={serviceHourly} margin={{ top: 15, right: 30, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorService" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                        <stop offset="5%" stopColor={SUCCESS} stopOpacity={0.25}/>
+                        <stop offset="95%" stopColor={SUCCESS} stopOpacity={0.02}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
                     <XAxis
                       dataKey="hour"
                       tickFormatter={(v: number) => `${v}:00`}
-                      stroke="#9ca3af"
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: 12, fill: GRAY_DISABLED }}
+                      axisLine={false}
+                      tickLine={false}
                     />
-                    <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
-                    <Tooltip formatter={(v: any) => [v || 0, 'Visitors']} labelFormatter={(l) => `${l}:00`} />
-                    <Area type="monotone" dataKey="visitors_checked_in" stroke="#10b981" strokeWidth={2} fill="url(#colorService)" name="Visitors" dot={false} activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }} />
+                    <YAxis tick={{ fontSize: 12, fill: GRAY_DISABLED }} axisLine={false} tickLine={false} />
+                    <Tooltip formatter={(v: any) => [v || 0, 'Visitors']} labelFormatter={(l) => `${l}:00`} contentStyle={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, borderRadius: 0, boxShadow: CARD_SHADOW }} />
+                    <Area type="monotone" dataKey="visitors_checked_in" stroke={SUCCESS} strokeWidth={2} fill="url(#colorService)" name="Visitors" dot={{ r: 3 }} activeDot={{ r: 6, fill: SUCCESS, stroke: '#fff', strokeWidth: 2 }} label={{ position: 'top', fill: NEUTRAL_DARK, fontSize: 10, fontWeight: 600 }} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -324,28 +342,33 @@ const Analytics: React.FC = () => {
         {/* Charts Row 2 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Comparison Chart */}
-          <div className="bg-white border border-gray-200 p-4">
-            <h2 className="text-sm font-bold text-gray-800 mb-3">Parking vs Service Delivery</h2>
+          <div className="bg-white p-4" style={{ boxShadow: CARD_SHADOW }}>
+            <h2 className="text-sm font-bold text-[#333333] mb-3">Parking vs Service Delivery</h2>
             {loading ? (
               <div className="h-64 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-purple-500 border-t-transparent"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#056daa] border-t-transparent"></div>
               </div>
             ) : (
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={comparisonData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                  <BarChart data={comparisonData} margin={{ top: 15, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
                     <XAxis
                       dataKey="hour"
                       tickFormatter={(v: number) => `${v}:00`}
-                      stroke="#9ca3af"
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: 12, fill: GRAY_DISABLED }}
+                      axisLine={false}
+                      tickLine={false}
                     />
-                    <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
-                    <Tooltip />
+                    <YAxis tick={{ fontSize: 12, fill: GRAY_DISABLED }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, borderRadius: 0, boxShadow: CARD_SHADOW }} />
                     <Legend />
-                    <Bar dataKey="parking" fill="#3b82f6" name="Parking" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="service" fill="#10b981" name="Service" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="parking" fill={PRIMARY} name="Parking">
+                      <LabelList dataKey="parking" position="top" style={{ fill: NEUTRAL_DARK, fontWeight: 700, fontSize: 11, fontFamily: fontHeading }} />
+                    </Bar>
+                    <Bar dataKey="service" fill={SUCCESS} name="Service">
+                      <LabelList dataKey="service" position="top" style={{ fill: NEUTRAL_DARK, fontWeight: 700, fontSize: 11, fontFamily: fontHeading }} />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -353,11 +376,11 @@ const Analytics: React.FC = () => {
           </div>
 
           {/* Feedback by Department */}
-          <div className="bg-white border border-gray-200 p-4">
-            <h2 className="text-sm font-bold text-gray-800 mb-3">Feedback by Department</h2>
+          <div className="bg-white p-4" style={{ boxShadow: CARD_SHADOW }}>
+            <h2 className="text-sm font-bold text-[#333333] mb-3">Feedback by Department</h2>
             {loading ? (
               <div className="h-64 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-orange-500 border-t-transparent"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#056daa] border-t-transparent"></div>
               </div>
             ) : feedbackPieData.length > 0 ? (
               <div className="h-64 w-full">
@@ -371,18 +394,20 @@ const Analytics: React.FC = () => {
                       outerRadius={80}
                       paddingAngle={5}
                       dataKey="value"
+                      label={({ name, value }) => `${name}: ${value}`}
+                      labelLine={{ stroke: GRAY_DISABLED }}
                     >
                       {feedbackPieData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip contentStyle={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, borderRadius: 0, boxShadow: CARD_SHADOW }} />
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="h-64 flex items-center justify-center text-gray-500">
+              <div className="h-64 flex items-center justify-center text-[#555555]">
                 No feedback data available
               </div>
             )}

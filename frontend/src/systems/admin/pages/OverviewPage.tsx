@@ -8,7 +8,7 @@ import { statisticsService, employeeService, parkingService, serviceDeliveryServ
 import MainLayout from '../../../core/components/Layout/MainLayout';
 import LoadingSpinner from '../../../core/components/LoadingSpinner';
 import Chart from 'chart.js/auto';
-import { BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, Cell, LabelList, AreaChart, Area, CartesianGrid, Legend, ComposedChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, LabelList, AreaChart, Area, CartesianGrid, Legend } from 'recharts';
 import { COK, CokBadge } from './mayorCok';
 import { FiFilter } from 'react-icons/fi';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
@@ -101,7 +101,7 @@ const makeStatusBarLabel = (rows: Array<{ total?: number }>) => (props: any) => 
   const pct = total > 0 ? Math.round((num / total) * 100) : null;
   const cx = x + width / 2;
   const inside = height >= (pct !== null ? 26 : 14);
-  const fill = inside ? '#ffffff' : '#6b7280';
+  const fill = inside ? '#ffffff' : '#555555';
   const baseY = inside ? y + 11 : y - (pct !== null ? 15 : 4);
   return (
     <text x={cx} y={baseY} textAnchor="middle" fontSize={9} fontWeight={600} fill={fill}>
@@ -165,7 +165,7 @@ const getChartConfig = (maxValue: number, minValue: number = 0) => {
         beginAtZero: true,
         min: niceMin,
         max: niceMax,
-        grid: { color: '#e5e7eb' },
+        grid: { color: '#E0E0E0' },
         ticks: {
           stepSize: stepSize,
           callback: (value: any) => Math.round(Number(value)).toString(),
@@ -174,7 +174,7 @@ const getChartConfig = (maxValue: number, minValue: number = 0) => {
         title: {
           display: true,
           text: 'count',
-          color: '#9ca3af',
+          color: '#9E9E9E',
           font: { size: 10 }
         }
       }, 
@@ -196,12 +196,12 @@ const barValueLabels = {
       const mode = ds.valueLabels;
       if (!mode) return;
       const meta = chart.getDatasetMeta(di);
-      if (meta.hidden || meta.type !== 'bar') return;
+      if (meta.hidden || (meta.type !== 'bar' && meta.type !== 'line')) return;
       const values = (ds.data || []).map((v: any) => Number(v) || 0);
       const maxIdx = values.indexOf(Math.max(...values));
       const horizontal = chart.options.indexAxis === 'y';
       ctx.save();
-      ctx.fillStyle = '#6b7280';
+      ctx.fillStyle = '#555555';
       ctx.font = '600 10px sans-serif';
       if (horizontal) {
         ctx.textAlign = 'left';
@@ -239,7 +239,7 @@ const HourGauge: React.FC<{ hours: Array<{ hour: number; count: number }>; lastH
   const rad = (deg: number) => (Math.PI * deg) / 180;
   // deg 0 = far left of the dial, deg 180 = far right
   const pt = (r: number, deg: number) => ({ x: cx - r * Math.cos(rad(deg)), y: cy - r * Math.sin(rad(deg)) });
-  const segColor = (i: number) => (i < n * 0.3 ? '#F5C542' : i < n * 0.7 ? '#4CAF50' : '#E53935');
+  const segColor = (i: number) => (i < n * 0.3 ? '#F39C12' : i < n * 0.7 ? '#4CAF50' : '#E74C3C');
   const needleDeg = lastIdx * seg + seg / 2;
   const tip = pt(rInner - 4, needleDeg);
   const baseHalf = 4;
@@ -265,20 +265,20 @@ const HourGauge: React.FC<{ hours: Array<{ hour: number; count: number }>; lastH
                 d={`M ${p1.x} ${p1.y} A ${rOuter} ${rOuter} 0 0 1 ${p2.x} ${p2.y} L ${p3.x} ${p3.y} A ${rInner} ${rInner} 0 0 0 ${p4.x} ${p4.y} Z`}
                 fill={segColor(i)}
               />
-              <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="middle" fontSize="5.5" fontWeight="700" fill="#1f2937">
+              <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="middle" fontSize="5.5" fontWeight="700" fill="#333333">
                 {formatHourLabel(h.hour).replace(' ', '')}
               </text>
             </g>
           );
         })}
         {/* Check-in count of the last-check-in hour, centered in the dial */}
-        <text x={cx} y={cy - 28} textAnchor="middle" fontSize="24" fontWeight="800" fill="#111827">
+        <text x={cx} y={cy - 28} textAnchor="middle" fontSize="24" fontWeight="800" fill="#333333">
           {last.count}
         </text>
         {/* Needle pointing at the hour of the last check-in */}
-        <polygon points={`${tip.x},${tip.y} ${b1.x},${b1.y} ${b2.x},${b2.y}`} fill="#1f2937" />
-        <circle cx={cx} cy={cy} r="8" fill="#1f2937" stroke="#fff" strokeWidth="2" />
-        <circle cx={cx} cy={cy} r="2.6" fill="#E53935" />
+        <polygon points={`${tip.x},${tip.y} ${b1.x},${b1.y} ${b2.x},${b2.y}`} fill="#333333" />
+        <circle cx={cx} cy={cy} r="8" fill="#333333" stroke="#fff" strokeWidth="2" />
+        <circle cx={cx} cy={cy} r="2.6" fill="#E74C3C" />
       </svg>
       <div className="text-xs text-gray-500 mt-1">
         Last check-in: <span className="font-semibold text-gray-800">{formatHourLabel(last.hour)}</span> ·{' '}
@@ -299,18 +299,12 @@ const ParkingOccupancyDonut: React.FC<{ occupied: number; totalSlots: number; on
     <div className="flex flex-col items-center py-2">
       <div className="flex flex-wrap items-center justify-center gap-3 w-full">
         <svg viewBox="0 0 200 200" style={{ width: '100%', maxWidth: 190 }}>
-          <defs>
-            <linearGradient id="occGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#E53935" />
-              <stop offset="100%" stopColor="#B71C1C" />
-            </linearGradient>
-          </defs>
           {/* Track ring */}
-          <circle cx="100" cy="100" r={R} fill="none" stroke="#E8EBF3" strokeWidth={STROKE} />
+          <circle cx="100" cy="100" r={R} fill="none" stroke="#E0E0E0" strokeWidth={STROKE} />
           {/* Progress arc starts at 12 o'clock */}
           <circle
             cx="100" cy="100" r={R} fill="none"
-            stroke="url(#occGrad)" strokeWidth={STROKE} strokeLinecap="round"
+            stroke="#E74C3C" strokeWidth={STROKE} strokeLinecap="butt"
             strokeDasharray={`${(pct / 100) * CIRC} ${CIRC}`}
             transform="rotate(-90 100 100)"
             style={{ transition: 'stroke-dasharray 0.6s ease' }}
@@ -321,16 +315,10 @@ const ParkingOccupancyDonut: React.FC<{ occupied: number; totalSlots: number; on
         </svg>
         {/* Smaller companion ring: same occupancy, shown as raw numbers (occupied/total) */}
         <svg viewBox="0 0 200 200" style={{ width: '100%', maxWidth: 120 }}>
-          <defs>
-            <linearGradient id="occGradCount" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#056daa" />
-              <stop offset="100%" stopColor="#045d94" />
-            </linearGradient>
-          </defs>
-          <circle cx="100" cy="100" r={R} fill="none" stroke="#E8EBF3" strokeWidth={STROKE} />
+          <circle cx="100" cy="100" r={R} fill="none" stroke="#E0E0E0" strokeWidth={STROKE} />
           <circle
             cx="100" cy="100" r={R} fill="none"
-            stroke="url(#occGradCount)" strokeWidth={STROKE} strokeLinecap="round"
+            stroke="#056daa" strokeWidth={STROKE} strokeLinecap="butt"
             strokeDasharray={`${(pct / 100) * CIRC} ${CIRC}`}
             transform="rotate(-90 100 100)"
             style={{ transition: 'stroke-dasharray 0.6s ease' }}
@@ -345,7 +333,8 @@ const ParkingOccupancyDonut: React.FC<{ occupied: number; totalSlots: number; on
         <button
           type="button"
           onClick={onViewMap}
-          className="mt-3 px-4 py-1.5 border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+          className="mt-3 px-4 py-1.5 bg-[#056daa] hover:bg-[#045d94] text-xs font-semibold text-white uppercase tracking-[1px] transition-colors"
+          style={{ borderRadius: 0 }}
         >
           View map
         </button>
@@ -417,7 +406,6 @@ const DeptServicesMirror: React.FC<{
                       width: `${(row.assigned / maxLeft) * 100}%`,
                       minWidth: row.assigned > 0 ? 4 : 0,
                       backgroundColor: cc.amber,
-                      backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.08), rgba(255,255,255,0.28))',
                     }}
                   >
                     {(row.assigned / maxLeft) * 100 >= 12 && (
@@ -429,7 +417,7 @@ const DeptServicesMirror: React.FC<{
 
               <div
                 className="w-[3px] self-stretch mx-1 flex-shrink-0"
-                style={{ background: `linear-gradient(to bottom, ${cc.amber}, ${cc.teal})` }}
+                style={{ background: '#056daa' }}
               ></div>
 
               <div className="flex-1 flex items-center gap-2.5 min-w-0">
@@ -441,7 +429,6 @@ const DeptServicesMirror: React.FC<{
                         width: `${(notServed / maxLeft) * 100}%`,
                         minWidth: 2,
                         backgroundColor: cc.red,
-                        backgroundImage: 'linear-gradient(to left, rgba(0,0,0,0.08), rgba(255,255,255,0.25))',
                       }}
                     >
                       {(notServed / maxLeft) * 100 >= 12 && (
@@ -456,7 +443,6 @@ const DeptServicesMirror: React.FC<{
                         width: `${(row.served / maxLeft) * 100}%`,
                         minWidth: 2,
                         backgroundColor: cc.teal,
-                        backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.08), rgba(255,255,255,0.25))',
                       }}
                     >
                       {(row.served / maxLeft) * 100 >= 12 && (
@@ -531,20 +517,20 @@ const Overview: React.FC = () => {
             teal: '#4CAF50',
             amber: '#F39C12',
             purple: '#2980B9',
-            red: '#E53935',
+            red: '#E74C3C',
             blueSoft: 'rgba(52,168,219,0.05)',
             tealSoft: 'rgba(76,175,80,0.05)',
             amberSoft: 'rgba(243,156,18,0.05)',
           }
         : {
-            blue: '#2563EB',
-            teal: '#0D9488',
-            amber: '#EAB308',
-            purple: '#9333EA',
-            red: '#DC2626',
-            blueSoft: 'rgba(37,99,235,0.05)',
-            tealSoft: 'rgba(13,148,136,0.05)',
-            amberSoft: 'rgba(234,179,8,0.05)',
+            blue: '#056daa',
+            teal: '#4CAF50',
+            amber: '#F39C12',
+            purple: '#2980B9',
+            red: '#E74C3C',
+            blueSoft: 'rgba(5,109,170,0.05)',
+            tealSoft: 'rgba(76,175,80,0.05)',
+            amberSoft: 'rgba(243,156,18,0.05)',
           },
     [isMayor]
   );
@@ -1380,7 +1366,7 @@ useEffect(() => {
                   beginAtZero: true,
                   min: 0,
                   max: maxCount + 1,
-                  grid: { color: '#e5e7eb' },
+                  grid: { color: '#E0E0E0' },
                   ticks: {
                     stepSize: Math.max(1, Math.ceil(maxCount / 5)),
                     callback: (value: any) => Math.round(Number(value)).toString(),
@@ -1389,7 +1375,7 @@ useEffect(() => {
                   title: {
                     display: true,
                     text: 'count',
-                    color: '#9ca3af',
+                    color: '#9E9E9E',
                     font: { size: 10 }
                   }
                 },
@@ -1444,8 +1430,9 @@ useEffect(() => {
                 pointBackgroundColor: CC.teal,
                 pointBorderColor: '#fff',
                 pointBorderWidth: 2,
-                label: 'Visitors'
-              }]
+                label: 'Visitors',
+                valueLabels: 'all',
+              } as any]
             },
             options: {
               responsive: true,
@@ -1466,7 +1453,7 @@ useEffect(() => {
                   beginAtZero: true,
                   min: 0,
                   max: Math.max(maxVisitor * 2, 10),
-                  grid: { color: '#e5e7eb' },
+                  grid: { color: '#E0E0E0' },
                   ticks: {
                     stepSize: Math.max(1, Math.ceil((maxVisitor * 2) / 5)),
                     callback: (value: any) => Math.round(Number(value)).toString(),
@@ -1475,7 +1462,7 @@ useEffect(() => {
                   title: {
                     display: true,
                     text: 'count',
-                    color: '#9ca3af',
+                    color: '#9E9E9E',
                     font: { size: 10 }
                   }
                 },
@@ -1487,7 +1474,8 @@ useEffect(() => {
                   }
                 }
               }
-            }
+            },
+            plugins: [barValueLabels]
           });
 
           chartsRef.current.set('modal-service-hourly', newChart);
@@ -1563,7 +1551,8 @@ useEffect(() => {
           <select
             value={draftPeriod}
             onChange={e => setDraftPeriod(e.target.value as typeof period)}
-            className="text-xs px-2 py-1 border border-gray-300 bg-white"
+            className="cok-auth-input text-xs px-2 py-1"
+            style={{ paddingLeft: '8px', minHeight: '34px', width: 'auto', fontSize: '12px' }}
           >
             <option value="today">Today</option>
             <option value="week">This week</option>
@@ -1579,14 +1568,16 @@ useEffect(() => {
                 type="date"
                 value={draftRangeFrom}
                 onChange={e => setDraftRangeFrom(e.target.value)}
-                className="text-xs px-1.5 py-1 border border-gray-300 bg-white"
+                className="cok-auth-input text-xs px-1.5 py-1"
+                style={{ paddingLeft: '8px', minHeight: '34px', width: 'auto', fontSize: '12px' }}
               />
               <span className="text-gray-400">to</span>
               <input
                 type="date"
                 value={draftRangeTo}
                 onChange={e => setDraftRangeTo(e.target.value)}
-                className="text-xs px-1.5 py-1 border border-gray-300 bg-white"
+                className="cok-auth-input text-xs px-1.5 py-1"
+                style={{ paddingLeft: '8px', minHeight: '34px', width: 'auto', fontSize: '12px' }}
               />
             </>
           )}
@@ -1601,11 +1592,11 @@ useEffect(() => {
             Apply
           </button>
         </div>
-    <button 
+    <button
   onClick={() => fetchData()}
-  className="ml-auto cursor-pointer text-xl h-[30px] max-h-[30px] px-3 py-1 text-white flex items-center gap-1"
-  style={{ backgroundColor: '#056daa' }}
-  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#04578a'; }}
+  className="ml-auto cursor-pointer text-xs font-semibold uppercase tracking-[1px] h-[30px] max-h-[30px] px-3 py-1 text-white flex items-center gap-1"
+  style={{ backgroundColor: '#056daa', borderRadius: 0, fontFamily: COK.headingFont }}
+  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#045d94'; }}
   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#056daa'; }}
 >
  
@@ -1675,8 +1666,8 @@ useEffect(() => {
                   <div className="h-full" style={{ minWidth: `${requestStatuses.departments.length * 110}px` }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={requestStatuses.departments} barGap={2} barCategoryGap="18%" margin={{ top: 10, right: 5, left: -25, bottom: 25 }}>
-                      <XAxis dataKey="name" interval={0} angle={-30} textAnchor="end" tick={{ fontSize: 9, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                      <XAxis dataKey="name" interval={0} angle={-30} textAnchor="end" tick={{ fontSize: 9, fill: '#555555' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#555555' }} axisLine={{ stroke: COK.border }} tickLine={false} />
                       <RTooltip
                         cursor={{ fill: COK.neutralLight }}
                         contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
@@ -1714,8 +1705,8 @@ useEffect(() => {
                   <div className="h-full" style={{ minWidth: `${requestStatuses.employees.length * 110}px` }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={requestStatuses.employees} barGap={2} barCategoryGap="18%" margin={{ top: 10, right: 5, left: -25, bottom: 25 }}>
-                      <XAxis dataKey="name" interval={0} angle={-30} textAnchor="end" tick={{ fontSize: 9, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                      <XAxis dataKey="name" interval={0} angle={-30} textAnchor="end" tick={{ fontSize: 9, fill: '#555555' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#555555' }} axisLine={{ stroke: COK.border }} tickLine={false} />
                       <RTooltip
                         cursor={{ fill: COK.neutralLight }}
                         contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
@@ -1767,8 +1758,8 @@ useEffect(() => {
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={deptRatings} layout="vertical" margin={{ top: 5, right: 25, left: 10, bottom: 5 }}>
-                    <XAxis type="number" domain={[0, 10]} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
-                    <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                    <XAxis type="number" domain={[0, 10]} tick={{ fontSize: 11, fill: '#555555' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                    <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11, fill: '#555555' }} axisLine={{ stroke: COK.border }} tickLine={false} />
                     <RTooltip
                       cursor={{ fill: COK.neutralLight }}
                       contentStyle={{ border: `1px solid ${COK.border}`, borderRadius: 0, fontSize: 12 }}
@@ -1797,7 +1788,7 @@ useEffect(() => {
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.negative.color }}></div>Negative (&lt;4)</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.neutral.color }}></div>Neutral (4–6.9)</div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ backgroundColor: SENTIMENT_META.positive.color }}></div>Positive (7+)</div>
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ background: `linear-gradient(to top, ${SENTIMENT_META.negative.color} 33%, ${SENTIMENT_META.neutral.color} 33% 66%, ${SENTIMENT_META.positive.color} 66%)` }}></div>General feedback </div>
+            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5" style={{ background: '#2980B9' }}></div>General feedback </div>
           </div>
           {sentimentTrend.length === 0 ? (
             <p className="text-sm text-gray-500" style={{ fontFamily: COK.bodyFont }}>No feedback in this period yet.</p>
@@ -1806,8 +1797,8 @@ useEffect(() => {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={sentimentTrend} layout="vertical" margin={{ top: 5, right: 32, left: 10, bottom: 5 }}>
-                  <XAxis type="number" domain={[0, 10]} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
-                  <YAxis type="category" dataKey="name" width={130} interval={0} tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                  <XAxis type="number" domain={[0, 10]} tick={{ fontSize: 11, fill: '#555555' }} axisLine={{ stroke: COK.border }} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={130} interval={0} tick={{ fontSize: 10, fill: '#555555' }} axisLine={{ stroke: COK.border }} tickLine={false} />
                   <RTooltip cursor={{ fill: COK.neutralLight }} content={<SentimentChartTooltip />} />
                   {/* Stacked segments: bar length = avg rating, split by sentiment share; counts printed inside */}
                   <Bar dataKey="segNegative" name="Negative" stackId="rating" barSize={16} isAnimationActive={false} fill={SENTIMENT_META.negative.color}>
@@ -1862,9 +1853,9 @@ useEffect(() => {
                   : 'Check-ins vs check-outs · today'}
                 </div>
               </div>
-              <div className="flex border border-gray-300 text-xs flex-shrink-0">
-                <button onClick={() => setParkingView('chart')} className={`px-2 py-1 ${parkingView === 'chart' ? 'cok-primary-bg text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Occupancy</button>
-                <button onClick={() => setParkingView('trends')} className={`px-2 py-1 ${parkingView === 'trends' ? 'cok-primary-bg text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Trends</button>
+              <div className="flex border border-[#E0E0E0] text-xs flex-shrink-0">
+                <button onClick={() => setParkingView('chart')} className={`px-2 py-1 font-semibold uppercase tracking-[1px] ${parkingView === 'chart' ? 'cok-primary-bg text-white' : 'text-[#555555] hover:bg-[#F7F9FB]'}`} style={{ borderRadius: 0 }}>Occupancy</button>
+                <button onClick={() => setParkingView('trends')} className={`px-2 py-1 font-semibold uppercase tracking-[1px] ${parkingView === 'trends' ? 'cok-primary-bg text-white' : 'text-[#555555] hover:bg-[#F7F9FB]'}`} style={{ borderRadius: 0 }}>Trends</button>
               </div>
             </div>
             {parkingView === 'chart' ? (
@@ -1879,13 +1870,13 @@ useEffect(() => {
               <div className="h-48 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={data.hourlyParking}>
-                    <CartesianGrid strokeDasharray="3 3" />
+                    <CartesianGrid stroke="#E0E0E0" vertical={false} />
                     <XAxis dataKey="hour" tickFormatter={(v: number) => `${v}:00`} tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
-                    <RTooltip />
+                    <RTooltip contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E0E0E0', borderRadius: 0 }} />
                     <Legend />
-                    <Area type="monotone" dataKey="check_in" stroke="#3b82f6" fill="rgba(59,130,246,0.1)" name="Check-ins" isAnimationActive={false} />
-                    <Area type="monotone" dataKey="check_out" stroke="#ef4444" fill="rgba(239,68,68,0.1)" name="Check-outs" isAnimationActive={false} />
+                    <Area type="monotone" dataKey="check_in" stroke="#056daa" fill="rgba(5,109,170,0.1)" name="Check-ins" isAnimationActive={false} dot={{ r: 3 }} label={{ position: 'top', fill: '#333333', fontSize: 10, fontWeight: 600 }} />
+                    <Area type="monotone" dataKey="check_out" stroke="#E74C3C" fill="rgba(231,76,60,0.1)" name="Check-outs" isAnimationActive={false} dot={{ r: 3 }} label={{ position: 'top', fill: '#333333', fontSize: 10, fontWeight: 600 }} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -1946,19 +1937,19 @@ useEffect(() => {
                   ) : (
                     <>
                       <div className="overflow-x-auto max-h-64 overflow-y-auto">
-                        <table className="w-full text-xs sm:text-sm border border-gray-200 min-w-[600px]">
-                          <thead className="bg-gray-50 sticky top-0 z-10">
+                        <table className="w-full text-xs sm:text-sm border border-[#E0E0E0] min-w-[600px]">
+                          <thead className="sticky top-0 z-10" style={{ backgroundColor: '#F0F6FA' }}>
                             <tr>
-                              <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Name</th>
-                              <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Email</th>
-                              <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Telephone</th>
-                              <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Department</th>
-                              <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Status</th>
+                              <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Name</th>
+                              <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Email</th>
+                              <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Telephone</th>
+                              <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Department</th>
+                              <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Status</th>
                             </tr>
                           </thead>
                           <tbody>
                             {modalData.map((employee: any, idx: number) => (
-                              <tr key={idx} className="border-b hover:bg-gray-50">
+                              <tr key={idx} className="border-b border-[#E0E0E0] hover:bg-[#F7F9FB]">
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{employee.full_name || '____'}</td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm break-all">{employee.email || '____'}</td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">{employee.telephone || '____'}</td>
@@ -1983,14 +1974,14 @@ useEffect(() => {
                           <button
                             onClick={() => handlePageChange(modalPagination.currentPage - 1)}
                             disabled={modalPagination.currentPage <= 1}
-                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold uppercase tracking-[1px] border border-[#056daa] text-[#056daa] hover:bg-[#F7F9FB] disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderRadius: 0 }}
                           >
                             Previous
                           </button>
                           <button
                             onClick={() => handlePageChange(modalPagination.currentPage + 1)}
                             disabled={modalPagination.currentPage >= modalPagination.totalPages}
-                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold uppercase tracking-[1px] border border-[#056daa] text-[#056daa] hover:bg-[#F7F9FB] disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderRadius: 0 }}
                           >
                             Next
                           </button>
@@ -2010,20 +2001,20 @@ useEffect(() => {
                   ) : (
                      <>
                        <div className="overflow-x-auto max-h-64 overflow-y-auto">
-                         <table className="w-full text-xs sm:text-sm border border-gray-200 min-w-[700px]">
-                           <thead className="bg-gray-50 sticky top-0 z-10">
+                         <table className="w-full text-xs sm:text-sm border border-[#E0E0E0] min-w-[700px]">
+                           <thead className="sticky top-0 z-10" style={{ backgroundColor: '#F0F6FA' }}>
                              <tr>
-                               <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Plate Number</th>
-                               <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Driver Name</th>
-                               <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Driver Type</th>
-                               <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Entry Time</th>
-                              <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Duration</th>
-                              <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Status</th>
+                               <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Plate Number</th>
+                               <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Driver Name</th>
+                               <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Driver Type</th>
+                               <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Entry Time</th>
+                              <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Duration</th>
+                              <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Status</th>
                             </tr>
                           </thead>
                           <tbody>
                             {modalData.map((record: any, idx: number) => (
-                              <tr key={idx} className="border-b hover:bg-gray-50">
+                              <tr key={idx} className="border-b border-[#E0E0E0] hover:bg-[#F7F9FB]">
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">{record.plate_number || record.plate_no || '____'}</td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{record.driver_name || 'Unknown'}</td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">{record.driver_type || 'Unknown'}</td>
@@ -2049,14 +2040,14 @@ useEffect(() => {
                           <button
                             onClick={() => handlePageChange(modalPagination.currentPage - 1)}
                             disabled={modalPagination.currentPage <= 1}
-                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold uppercase tracking-[1px] border border-[#056daa] text-[#056daa] hover:bg-[#F7F9FB] disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderRadius: 0 }}
                           >
                             Previous
                           </button>
                           <button
                             onClick={() => handlePageChange(modalPagination.currentPage + 1)}
                             disabled={modalPagination.currentPage >= modalPagination.totalPages}
-                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold uppercase tracking-[1px] border border-[#056daa] text-[#056daa] hover:bg-[#F7F9FB] disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderRadius: 0 }}
                           >
                             Next
                           </button>
@@ -2075,20 +2066,20 @@ useEffect(() => {
                   ) : (
                      <>
                        <div className="overflow-x-auto max-h-64 overflow-y-auto">
-                         <table className="w-full text-xs sm:text-sm border border-gray-200 min-w-[700px]">
-                           <thead className="bg-gray-50 sticky top-0 z-10">
+                         <table className="w-full text-xs sm:text-sm border border-[#E0E0E0] min-w-[700px]">
+                           <thead className="sticky top-0 z-10" style={{ backgroundColor: '#F0F6FA' }}>
                              <tr>
-                               <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Name</th>
-                              <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Telephone</th>
-                              <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Entry Date</th>
-                              <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Duration</th>
-                              <th className="px-2 sm:px-4 py-2 text-left border-b whitespace-nowrap">Status</th>
-                              <th className="px-2 sm:px-4 py-2 text-left border-b">Current Department</th>
+                               <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Name</th>
+                              <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Telephone</th>
+                              <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Entry Date</th>
+                              <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Duration</th>
+                              <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-[#056daa]">Status</th>
+                              <th className="px-2 sm:px-4 py-2 text-left border-b border-[#E0E0E0] text-xs font-semibold uppercase tracking-wider text-[#056daa]">Current Department</th>
                             </tr>
                           </thead>
                           <tbody>
                             {modalData.map((visitor: any, idx: number) => (
-                              <tr key={idx} className="border-b hover:bg-gray-50">
+                              <tr key={idx} className="border-b border-[#E0E0E0] hover:bg-[#F7F9FB]">
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm">{visitor.full_name || '____'}</td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">{visitor.telephone || '____'}</td>
                                 <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">{visitor.entry_date ? new Date(visitor.entry_date).toLocaleDateString() : '____'}</td>
@@ -2118,14 +2109,14 @@ useEffect(() => {
                           <button
                             onClick={() => handlePageChange(modalPagination.currentPage - 1)}
                             disabled={modalPagination.currentPage <= 1}
-                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold uppercase tracking-[1px] border border-[#056daa] text-[#056daa] hover:bg-[#F7F9FB] disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderRadius: 0 }}
                           >
                             Previous
                           </button>
                           <button
                             onClick={() => handlePageChange(modalPagination.currentPage + 1)}
                             disabled={modalPagination.currentPage >= modalPagination.totalPages}
-                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold uppercase tracking-[1px] border border-[#056daa] text-[#056daa] hover:bg-[#F7F9FB] disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderRadius: 0 }}
                           >
                             Next
                           </button>
@@ -2144,19 +2135,19 @@ useEffect(() => {
                   ) : (
                      <>
                        <div className="overflow-x-auto max-h-64 overflow-y-auto">
-                         <table className="w-full text-sm border border-gray-200">
-                           <thead className="bg-gray-50 sticky top-0 z-10">
+                         <table className="w-full text-sm border border-[#E0E0E0]">
+                           <thead className="sticky top-0 z-10" style={{ backgroundColor: '#F0F6FA' }}>
                              <tr>
-                               <th className="px-4 py-2 text-left border-b">Plate Number</th>
-                              <th className="px-4 py-2 text-left border-b">Driver Name</th>
-                              <th className="px-4 py-2 text-left border-b">Entry Time</th>
-                              <th className="px-4 py-2 text-left border-b">Duration</th>
-                              <th className="px-4 py-2 text-left border-b">Status</th>
+                               <th className="px-4 py-2 text-left border-b border-[#E0E0E0] text-xs font-semibold uppercase tracking-wider text-[#056daa]">Plate Number</th>
+                              <th className="px-4 py-2 text-left border-b border-[#E0E0E0] text-xs font-semibold uppercase tracking-wider text-[#056daa]">Driver Name</th>
+                              <th className="px-4 py-2 text-left border-b border-[#E0E0E0] text-xs font-semibold uppercase tracking-wider text-[#056daa]">Entry Time</th>
+                              <th className="px-4 py-2 text-left border-b border-[#E0E0E0] text-xs font-semibold uppercase tracking-wider text-[#056daa]">Duration</th>
+                              <th className="px-4 py-2 text-left border-b border-[#E0E0E0] text-xs font-semibold uppercase tracking-wider text-[#056daa]">Status</th>
                             </tr>
                           </thead>
                           <tbody>
                             {modalData.map((vehicle: any, idx: number) => (
-                              <tr key={idx} className="border-b hover:bg-gray-50">
+                              <tr key={idx} className="border-b border-[#E0E0E0] hover:bg-[#F7F9FB]">
                                 <td className="px-4 py-2">{vehicle.plate_number || vehicle.plate_no || '____'}</td>
                                 <td className="px-4 py-2">{vehicle.driver_name || 'Unknown'}</td>
                                 <td className="px-4 py-2">{vehicle.check_in ? new Date(vehicle.check_in).toLocaleString() : '____'}</td>
@@ -2181,14 +2172,14 @@ useEffect(() => {
                           <button
                             onClick={() => handlePageChange(modalPagination.currentPage - 1)}
                             disabled={modalPagination.currentPage <= 1}
-                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold uppercase tracking-[1px] border border-[#056daa] text-[#056daa] hover:bg-[#F7F9FB] disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderRadius: 0 }}
                           >
                             Previous
                           </button>
                           <button
                             onClick={() => handlePageChange(modalPagination.currentPage + 1)}
                             disabled={modalPagination.currentPage >= modalPagination.totalPages}
-                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold uppercase tracking-[1px] border border-[#056daa] text-[#056daa] hover:bg-[#F7F9FB] disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderRadius: 0 }}
                           >
                             Next
                           </button>
@@ -2301,12 +2292,11 @@ useEffect(() => {
                                     style={{
                                       width: `${Math.max((e.served / maxEmployeeServed) * 100, 3)}%`,
                                       backgroundColor: overloaded ? CC.red : CC.blue,
-                                      backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.06), rgba(255,255,255,0.25))',
                                     }}
                                   ></div>
                                 )}
                               </div>
-                              <span className="w-8 text-right font-semibold" style={{ color: e.served > 0 ? (overloaded ? CC.red : CC.blue) : '#9ca3af' }}>
+                              <span className="w-8 text-right font-semibold" style={{ color: e.served > 0 ? (overloaded ? CC.red : CC.blue) : '#9E9E9E' }}>
                                 {e.served}
                               </span>
                             </div>
@@ -2354,7 +2344,7 @@ useEffect(() => {
                           <div className="flex flex-wrap gap-2">
                             <button
                               onClick={() => setSentimentFilter('all')}
-                              className={`px-3 py-1.5 text-xs font-semibold border bg-gray-100 text-gray-700 border-gray-300 transition-colors ${sentimentFilter === 'all' ? 'ring-2 ring-blue-400' : 'opacity-80 hover:opacity-100'}`}
+                              className={`px-3 py-1.5 text-xs font-semibold border bg-gray-100 text-gray-700 border-gray-300 transition-colors ${sentimentFilter === 'all' ? 'ring-2 ring-[#056daa]' : 'opacity-80 hover:opacity-100'}`}
                             >
                               All ({periodRatings.length})
                             </button>
@@ -2364,7 +2354,7 @@ useEffect(() => {
                                 <button
                                   key={s}
                                   onClick={() => setSentimentFilter(s)}
-                                  className={`px-3 py-1.5 text-xs font-semibold border transition-colors ${sentimentFilter === s ? 'ring-2 ring-blue-400' : 'opacity-80 hover:opacity-100'}`}
+                                  className={`px-3 py-1.5 text-xs font-semibold border transition-colors ${sentimentFilter === s ? 'ring-2 ring-[#056daa]' : 'opacity-80 hover:opacity-100'}`}
                                   style={{
                                     backgroundColor: `${SENTIMENT_META[s].color}1A`,
                                     color: SENTIMENT_META[s].color,
@@ -2381,7 +2371,8 @@ useEffect(() => {
                             <select
                               value={draftRatingPeriod}
                               onChange={e => setDraftRatingPeriod(e.target.value as PeriodChoice)}
-                              className="text-xs px-2 py-1 border border-gray-300 bg-white"
+                              className="cok-auth-input text-xs px-2 py-1"
+                              style={{ paddingLeft: '8px', minHeight: '34px', width: 'auto', fontSize: '12px' }}
                             >
                               <option value="today">Today</option>
                               <option value="week">This week</option>
@@ -2397,14 +2388,16 @@ useEffect(() => {
                                   type="date"
                                   value={draftRatingRangeFrom}
                                   onChange={e => setDraftRatingRangeFrom(e.target.value)}
-                                  className="text-xs px-1.5 py-1 border border-gray-300 bg-white"
+                                  className="cok-auth-input text-xs px-1.5 py-1"
+                                  style={{ paddingLeft: '8px', minHeight: '34px', width: 'auto', fontSize: '12px' }}
                                 />
                                 <span className="text-gray-400">to</span>
                                 <input
                                   type="date"
                                   value={draftRatingRangeTo}
                                   onChange={e => setDraftRatingRangeTo(e.target.value)}
-                                  className="text-xs px-1.5 py-1 border border-gray-300 bg-white"
+                                  className="cok-auth-input text-xs px-1.5 py-1"
+                                  style={{ paddingLeft: '8px', minHeight: '34px', width: 'auto', fontSize: '12px' }}
                                 />
                               </>
                             )}
@@ -2459,7 +2452,7 @@ useEffect(() => {
                                 return (
                                   <tr
                                     key={idx}
-                                    className={`transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50/50 hover:bg-blue-50'}`}
+                                    className={`transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-[#F7F9FB]' : 'bg-gray-50/50 hover:bg-[#F7F9FB]'}`}
                                   >
                                     <td className={`${cell(0)} whitespace-nowrap`}>
                                       {(() => {
@@ -2526,7 +2519,7 @@ useEffect(() => {
                   </div>
 
                   <div className="flex gap-3 text-xs mb-3">
-                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-600"></div>Total services</div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-[#056daa]"></div>Total services</div>
                   </div>
                   <div className="h-[500px] w-full">
                     <canvas id="modal-services-detail-chart"></canvas>
@@ -2567,7 +2560,7 @@ useEffect(() => {
                             return (
                               <tr
                                 key={idx}
-                                className={`transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50/50 hover:bg-blue-50'}`}
+                                className={`transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-[#F7F9FB]' : 'bg-gray-50/50 hover:bg-[#F7F9FB]'}`}
                               >
                                 <td className={cell(0)}>
                                   <span className="font-bold text-gray-900 text-sm">{dept.department_name}</span>
@@ -2607,7 +2600,8 @@ useEffect(() => {
                       <select
                         value={draftModalHourPeriod ?? modalHourPeriodEff}
                         onChange={e => setDraftModalHourPeriod(e.target.value as PeriodChoice)}
-                        className="text-xs px-2 py-1 border border-gray-300 bg-white"
+                        className="cok-auth-input text-xs px-2 py-1"
+                        style={{ paddingLeft: '8px', minHeight: '34px', width: 'auto', fontSize: '12px' }}
                       >
                         <option value="today">Today</option>
                         <option value="week">This week</option>
@@ -2631,7 +2625,7 @@ useEffect(() => {
                   </div>
 
                   <div className="flex gap-3 text-xs mb-3">
-                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-teal-600"></div>Visitors checked in</div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-[#4CAF50]"></div>Visitors checked in</div>
                   </div>
                   <div className="h-48 sm:h-56 md:h-64 w-full">
                     <canvas id="modal-service-hourly-chart"></canvas>
@@ -2644,17 +2638,17 @@ useEffect(() => {
                 <div className="space-y-4">
                   <div className="text-sm text-gray-600">Vehicle check-ins per hour · today</div>
                   <div className="flex gap-3 text-xs mb-3">
-                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-600"></div>Vehicles checked in</div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-[#056daa]"></div>Vehicles checked in</div>
                   </div>
                   <div className="h-48 sm:h-56 md:h-64 w-full">
                     {(data?.hourlyParking || []).some(h => (h.check_in || 0) > 0) ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={data?.hourlyParking || []}>
-                          <CartesianGrid strokeDasharray="3 3" />
+                          <CartesianGrid stroke="#E0E0E0" vertical={false} />
                           <XAxis dataKey="hour" tickFormatter={(v: number) => formatHourLabel(Number(v))} tick={{ fontSize: 11 }} />
                           <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                          <RTooltip labelFormatter={(v: any) => formatHourLabel(Number(v))} />
-                          <Area type="monotone" dataKey="check_in" stroke="#3b82f6" fill="rgba(59,130,246,0.15)" name="Check-ins" isAnimationActive={false} />
+                          <RTooltip labelFormatter={(v: any) => formatHourLabel(Number(v))} contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E0E0E0', borderRadius: 0 }} />
+                          <Area type="monotone" dataKey="check_in" stroke="#056daa" fill="rgba(5,109,170,0.15)" name="Check-ins" isAnimationActive={false} dot={{ r: 3 }} label={{ position: 'top', fill: '#333333', fontSize: 10, fontWeight: 600 }} />
                         </AreaChart>
                       </ResponsiveContainer>
                     ) : (

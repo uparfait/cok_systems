@@ -17,7 +17,7 @@ interface ServiceMetricsCardProps {
 
 export const ServiceMetricsCard: React.FC<ServiceMetricsCardProps> = ({ data }) => {
   return (
-    <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg p-6 shadow-lg">
+    <div className="text-white p-6 shadow-lg" style={{ backgroundColor: '#056daa', fontFamily: "'Montserrat', sans-serif" }}>
       <h3 className="text-lg font-semibold mb-4 text-center">SERVICE METRICS OVERVIEW</h3>
       <div className="grid grid-cols-5 gap-4 text-center">
         <div>

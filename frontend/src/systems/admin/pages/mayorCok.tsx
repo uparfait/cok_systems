@@ -6,7 +6,7 @@ export const COK = {
   primaryDark: '#045d94',
   success: '#4CAF50',
   warning: '#F39C12',
-  danger: '#E53935',
+  danger: '#E74C3C',
   tertiary: '#CDB896',
   neutralDark: '#333333',
   neutralLight: '#F7F9FB',
@@ -173,7 +173,7 @@ export const CokPagination = ({
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage <= 1}
             className="px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            style={{ border: `2px solid ${COK.border}`, fontFamily: COK.headingFont, color: COK.neutralDark }}
+            style={{ border: `2px solid ${COK.border}`, fontFamily: COK.headingFont, color: COK.neutralDark, textTransform: 'uppercase', letterSpacing: '1px' }}
           >
             Back
           </button>
@@ -199,9 +199,9 @@ export const CokPagination = ({
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage >= totalPages}
             className="px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            style={{ border: `2px solid ${COK.border}`, fontFamily: COK.headingFont, color: COK.neutralDark }}
+            style={{ border: `2px solid ${COK.border}`, fontFamily: COK.headingFont, color: COK.neutralDark, textTransform: 'uppercase', letterSpacing: '1px' }}
           >
-            Forward 
+            Forward
           </button>
         </div>
       </div>
@@ -236,7 +236,7 @@ export const CokTab = ({
     {label}
     {typeof count === 'number' && (
       <span
-        className="ml-1.5 inline-flex items-center justify-center px-1.5 rounded-full text-[10px]"
+        className="ml-1.5 inline-flex items-center justify-center px-1.5 text-[10px]"
         style={{ backgroundColor: active ? COK.primary : '#EEEEEE', color: active ? '#FFF' : '#666' }}
       >
         {count}

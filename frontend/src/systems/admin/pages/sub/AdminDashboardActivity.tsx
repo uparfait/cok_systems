@@ -6,11 +6,11 @@ interface ActivityItem {
   id: string; type: 'parking' | 'visitor' | 'employee' | 'system'; message: string; time: string; icon: React.ComponentType<any>; color: string;
 }
 
-const colorMap: Record<string, string> = { blue: 'bg-blue-100 text-blue-600', green: 'bg-green-100 text-green-600', purple: 'bg-purple-100 text-purple-600', gray: 'bg-gray-100 text-gray-600' };
-const typeColorMap: Record<string, string> = { parking: 'bg-blue-100 text-blue-700', visitor: 'bg-green-100 text-green-700', system: 'bg-purple-100 text-purple-700' };
+const colorMap: Record<string, string> = { blue: 'bg-[rgba(5,109,170,0.1)] text-[#056daa]', green: 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]', purple: 'bg-[rgba(41,128,185,0.1)] text-[#2980B9]', gray: 'bg-gray-100 text-[#555555]' };
+const typeColorMap: Record<string, string> = { parking: 'bg-[rgba(5,109,170,0.1)] text-[#056daa]', visitor: 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]', system: 'bg-[rgba(41,128,185,0.1)] text-[#2980B9]' };
 
 const ActivityItemComponent: React.FC<{ activity: ActivityItem }> = ({ activity }) => (
-  <div className="px-4 py-2.5 hover:bg-blue-50/50 transition-colors cursor-pointer">
+  <div className="px-4 py-2.5 hover:bg-[#F7F9FB] transition-colors cursor-pointer">
     <div className="flex items-start gap-3">
       <div className={`w-9 h-9 flex items-center justify-center flex-shrink-0 ${colorMap[activity.color] || colorMap.gray}`}>
         <activity.icon className="w-4 h-4" />
@@ -73,11 +73,11 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ recentParking, recentVisito
   });
 
   return (
-    <div className="bg-white border border-gray-200 overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+    <div className="bg-white border border-[#E0E0E0] overflow-hidden">
+      <div className="px-4 py-3 border-b border-[#E0E0E0] bg-[#F7F9FB]">
         <h2 className="text-sm font-semibold text-gray-900">Recent Activity</h2>
       </div>
-      <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
+      <div className="divide-y divide-[#E0E0E0] max-h-80 overflow-y-auto">
         {activities.slice(0, 8).map(a => <ActivityItemComponent key={a.id} activity={a} />)}
         {activities.length === 0 && <div className="px-4 py-6 text-center text-sm text-gray-500">No recent activity</div>}
       </div>

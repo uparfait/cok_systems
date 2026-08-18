@@ -358,10 +358,8 @@ const ReservationsPage: React.FC = () => {
                 value={draftSearch}
                 onChange={e => { setDraftSearch(e.target.value); if (e.target.value === '') { setSearchTerm(''); setCurrentPage(1); } }}
                 onKeyDown={e => { if (e.key === 'Enter') { setSearchTerm(draftSearch); setCurrentPage(1); } }}
-                className="w-full h-11 pl-10 pr-4 text-sm focus:outline-none"
-                style={{ fontFamily: fontHeading, backgroundColor: '#fff', border: `1px solid ${BORDER}`, borderRadius: 0 }}
-                onFocus={(e) => { e.currentTarget.style.border = `1px solid ${PRIMARY}`; }}
-                onBlur={(e) => { e.currentTarget.style.border = `1px solid ${BORDER}`; }}
+                className="cok-auth-input w-full text-sm"
+                style={{ fontFamily: fontHeading }}
               />
             </div>
             <button
@@ -437,7 +435,7 @@ const ReservationsPage: React.FC = () => {
                     </td>
                     <td className="py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0" style={{ backgroundColor: r.type === 'staff' ? ACCENT_DARK_BLUE : PRIMARY, fontFamily: fontHeading }}>
+                        <div className="w-8 h-8 flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0" style={{ backgroundColor: r.type === 'staff' ? ACCENT_DARK_BLUE : PRIMARY, fontFamily: fontHeading }}>
                           {initialsOf(r.visitor_name)}
                         </div>
                         <span className="text-[#333] text-[13px] font-medium">{r.visitor_name}</span>
@@ -502,10 +500,8 @@ const ReservationsPage: React.FC = () => {
                 value={draftBatchSearch}
                 onChange={e => { setDraftBatchSearch(e.target.value); if (e.target.value === '') { setBatchSearch(''); setBatchPage(1); } }}
                 onKeyDown={e => { if (e.key === 'Enter') { setBatchSearch(draftBatchSearch); setBatchPage(1); } }}
-                className="w-full h-11 pl-10 pr-4 text-sm focus:outline-none"
-                style={{ fontFamily: fontHeading, backgroundColor: '#fff', border: `1px solid ${BORDER}`, borderRadius: 0 }}
-                onFocus={(e) => { e.currentTarget.style.border = `1px solid ${PRIMARY}`; }}
-                onBlur={(e) => { e.currentTarget.style.border = `1px solid ${BORDER}`; }}
+                className="cok-auth-input w-full text-sm"
+                style={{ fontFamily: fontHeading }}
               />
             </div>
             <button
@@ -625,11 +621,11 @@ const ReservationsPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-3 mb-5">
                 <div>
                   <label className="cok-auth-label">Start Date</label>
-                  <input type="date" value={resStart} onChange={e => setResStart(e.target.value)} className="w-full px-3 py-2.5 text-sm focus:outline-none" style={{ fontFamily: fontHeading, border: `2px solid ${BORDER}`, borderRadius: 0 }} />
+                  <input type="date" value={resStart} onChange={e => setResStart(e.target.value)} className="cok-auth-input w-full text-sm" style={{ fontFamily: fontHeading, paddingLeft: '12px' }} />
                 </div>
                 <div>
                   <label className="cok-auth-label">End Date</label>
-                  <input type="date" value={resEnd} onChange={e => setResEnd(e.target.value)} className="w-full px-3 py-2.5 text-sm focus:outline-none" style={{ fontFamily: fontHeading, border: `2px solid ${BORDER}`, borderRadius: 0 }} />
+                  <input type="date" value={resEnd} onChange={e => setResEnd(e.target.value)} className="cok-auth-input w-full text-sm" style={{ fontFamily: fontHeading, paddingLeft: '12px' }} />
                 </div>
               </div>
               <div className="flex gap-3">

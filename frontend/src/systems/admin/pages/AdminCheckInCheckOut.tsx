@@ -15,6 +15,8 @@ interface Visitor { _id: string; full_name?: string; name?: string; visitorName?
 // City of Kigali (CoK) institutional design constants — same set as the reservations tables
 const PRIMARY = '#056daa';
 const PRIMARY_HOVER = '#045d94';
+const SUCCESS = '#4CAF50';
+const SUCCESS_HOVER = '#388E3C';
 const NEUTRAL_DARK = '#333333';
 const BORDER = '#E0E0E0';
 const WARNING = '#F39C12';
@@ -98,9 +100,9 @@ const AdminCheckInCheckOut: React.FC = () => {
     const now = new Date();
     doc.setFontSize(9); doc.text(now.toLocaleDateString(), pw / 2, y, { align: 'center' }); y += 5;
     doc.text(now.toLocaleTimeString(), pw / 2, y, { align: 'center' }); y += 12;
-    doc.setFontSize(16); doc.setTextColor(34, 197, 94);
+    doc.setFontSize(16); doc.setTextColor(76, 175, 80);
     const t = 'VISITOR CHECK-IN / CHECK-OUT REPORT';
-    doc.text(t, pw / 2, y, { align: 'center' }); doc.setDrawColor(34, 197, 94); doc.setLineWidth(0.8); doc.line((pw - doc.getTextWidth(t)) / 2 - 5, y + 2, (pw + doc.getTextWidth(t)) / 2 + 5, y + 2); y += 15;
+    doc.text(t, pw / 2, y, { align: 'center' }); doc.setDrawColor(76, 175, 80); doc.setLineWidth(0.8); doc.line((pw - doc.getTextWidth(t)) / 2 - 5, y + 2, (pw + doc.getTextWidth(t)) / 2 + 5, y + 2); y += 15;
     const insideVisitors = visitors.filter(v => (v.is_still_inhouse || v.status === 'Inside') && !v.marked_as_out);
     const pendingVisitors = visitors.filter(v => v.is_still_inhouse && v.marked_as_out);
     const checkedOutVisitors = visitors.filter(v => !v.is_still_inhouse && v.status !== 'Inside');
@@ -113,9 +115,9 @@ const AdminCheckInCheckOut: React.FC = () => {
       autoTable(doc, { startY: y, head: [header], body: rows, theme: 'grid', headStyles: { fillColor: color, textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' }, bodyStyles: { fontSize: 8 }, margin: { left: 10, right: 10 }, tableWidth: 'auto' });
       y = (doc as any).lastAutoTable.finalY + 10;
     };
-    addTable(insideVisitors, ['Visitor Name', 'ID Number', 'Badge', 'Entry Time', 'Duration', 'Department'], [34, 197, 94]);
-    addTable(pendingVisitors, ['Visitor Name', 'ID Number', 'Badge', 'Entry Time', 'Duration', 'Department'], [249, 115, 22]);
-    addTable(checkedOutVisitors, ['Visitor Name', 'ID Number', 'Badge', 'Entry Time', 'Exit Time', 'Duration', 'Department'], [107, 114, 128]);
+    addTable(insideVisitors, ['Visitor Name', 'ID Number', 'Badge', 'Entry Time', 'Duration', 'Department'], [76, 175, 80]);
+    addTable(pendingVisitors, ['Visitor Name', 'ID Number', 'Badge', 'Entry Time', 'Duration', 'Department'], [243, 156, 18]);
+    addTable(checkedOutVisitors, ['Visitor Name', 'ID Number', 'Badge', 'Entry Time', 'Exit Time', 'Duration', 'Department'], [85, 85, 85]);
     doc.save(`visitor-report-${now.toISOString().split('T')[0]}.pdf`);
     showSuccess('Report downloaded');
   }, [visitors, showSuccess]);
@@ -129,18 +131,18 @@ const AdminCheckInCheckOut: React.FC = () => {
     <MainLayout>
       <div className="space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div><h1 className="text-sm font-bold text-gray-900 flex items-center gap-2"><HiOutlineClipboardList className="w-5 h-5 text-green-600" />Manage visitor check-ins and check-outs</h1></div>
+          <div><h1 className="text-sm font-bold text-[#333333] flex items-center gap-2"><HiOutlineClipboardList className="w-5 h-5 text-[#4CAF50]" />Manage visitor check-ins and check-outs</h1></div>
           <div className="flex gap-2">
-            <button onClick={downloadPDF} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"><FiDownload className="w-3.5 h-3.5" />Download Report</button>
-            <button onClick={() => fetchVisitors()} className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-sm font-medium hover:bg-green-700"><FiRefreshCw className="w-3.5 h-3.5" />Refresh</button>
+            <button onClick={downloadPDF} className="flex items-center gap-1.5 px-3 py-1.5 text-white text-sm transition-colors" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}><FiDownload className="w-3.5 h-3.5" />Download Report</button>
+            <button onClick={() => fetchVisitors()} className="flex items-center gap-1.5 px-3 py-1.5 text-white text-sm transition-colors" style={{ backgroundColor: SUCCESS, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SUCCESS_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SUCCESS; }}><FiRefreshCw className="w-3.5 h-3.5" />Refresh</button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          {[{ label: 'Currently Inside', value: realInsideCount, color: 'text-green-600', bg: 'bg-green-100', icon: FiUserPlus }, { label: 'Pending Exit', value: realPendingExitCount, color: 'text-orange-600', bg: 'bg-orange-100', icon: FiClock }, { label: 'Checked Out', value: realLeftCount, color: 'text-gray-900', bg: 'bg-gray-100', icon: FiUserMinus }, { label: 'Total Records', value: visitors.length, color: 'text-gray-900', bg: 'bg-blue-100', icon: HiOutlineClipboardList }].map((s, i) => (
-            <div key={i} className="bg-white border border-gray-200 p-4">
+          {[{ label: 'Currently Inside', value: realInsideCount, color: 'text-[#388E3C]', bg: 'bg-[rgba(76,175,80,0.12)]', icon: FiUserPlus }, { label: 'Pending Exit', value: realPendingExitCount, color: 'text-[#F39C12]', bg: 'bg-[rgba(243,156,18,0.12)]', icon: FiClock }, { label: 'Checked Out', value: realLeftCount, color: 'text-[#555555]', bg: 'bg-[rgba(51,51,51,0.08)]', icon: FiUserMinus }, { label: 'Total Records', value: visitors.length, color: 'text-[#056daa]', bg: 'bg-[rgba(5,109,170,0.1)]', icon: HiOutlineClipboardList }].map((s, i) => (
+            <div key={i} className="bg-white border border-[#E0E0E0] p-4">
               <div className="flex items-center justify-between">
-                <div><p className="text-xs text-gray-500">{s.label}</p>{loading && firstLoad ? <div className="h-7 w-14 bg-gray-200 animate-pulse mt-1" /> : <p className={`text-xl font-bold ${s.color} mt-0.5`}>{s.value}</p>}</div>
+                <div><p className="text-xs text-[#9E9E9E]">{s.label}</p>{loading && firstLoad ? <div className="h-7 w-14 bg-[#E0E0E0] animate-pulse mt-1" /> : <p className={`text-xl font-bold ${s.color} mt-0.5`}>{s.value}</p>}</div>
                 <div className={`w-10 h-10 ${s.bg} flex items-center justify-center`}><s.icon className={`w-5 h-5 ${s.color}`} /></div>
               </div>
             </div>
@@ -171,10 +173,8 @@ const AdminCheckInCheckOut: React.FC = () => {
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleSearch(); }}
-                className="w-full h-11 pl-10 pr-4 text-sm focus:outline-none"
-                style={{ fontFamily: fontHeading, backgroundColor: '#fff', border: `1px solid ${BORDER}`, borderRadius: 0 }}
-                onFocus={(e) => { e.currentTarget.style.border = `1px solid ${PRIMARY}`; }}
-                onBlur={(e) => { e.currentTarget.style.border = `1px solid ${BORDER}`; }}
+                className="w-full h-11 cok-auth-input pr-4 text-sm"
+                style={{ fontFamily: fontHeading }}
               />
             </div>
             <button
@@ -204,10 +204,10 @@ const AdminCheckInCheckOut: React.FC = () => {
                   const chip = statusChipOf(v);
                   const name = v.full_name || v.name || v.visitorName || 'N/A';
                   return (
-                    <tr key={v._id || i} className="h-14" style={{ borderBottom: `1px solid ${BORDER}` }}>
+                    <tr key={v._id || i} className="h-14 hover:bg-[#F7F9FB]" style={{ borderBottom: `1px solid ${BORDER}` }}>
                       <td className="py-3 px-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0" style={{ backgroundColor: PRIMARY, fontFamily: fontHeading }}>
+                          <div className="w-8 h-8 flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0" style={{ backgroundColor: PRIMARY, fontFamily: fontHeading }}>
                             {initialsOf(name)}
                           </div>
                           <span className="text-[#333] text-[13px] font-medium">{name}</span>

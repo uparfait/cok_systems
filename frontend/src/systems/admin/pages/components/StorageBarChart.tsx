@@ -30,10 +30,7 @@ interface StorageBarChartProps {
 }
 
 const chartColors = [
-  '#056daa', '#4CAF50', '#F39C12', '#E53935', '#9C27B0',
-  '#00BCD4', '#FF5722', '#795548', '#607D8B', '#8BC34A',
-  '#3F51B5', '#009688', '#FF9800', '#CDDC39', '#FFC107',
-  '#03A9F4', '#E91E63', '#673AB7', '#4DB6AC', '#FF7043',
+  '#056daa', '#4CAF50', '#F39C12', '#E74C3C', '#2980B9', '#388E3C', '#D68910', '#045d94',
 ];
 
 const formatNumber = (num: number) => {
@@ -107,14 +104,14 @@ const StorageBarChart: React.FC<StorageBarChartProps> = ({ collections }) => {
                 }}
                 labelFormatter={(label) => label}
               />
-              <Bar dataKey="size" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="size">
                 {barChartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.fill} />
                 ))}
                 <LabelList
                   dataKey="formattedSize"
                   position="right"
-                  style={{ fontSize: 9, fill: '#6b7280', fontWeight: 600 }}
+                  style={{ fontSize: 9, fill: '#333333', fontWeight: 600 }}
                 />
               </Bar>
             </BarChart>

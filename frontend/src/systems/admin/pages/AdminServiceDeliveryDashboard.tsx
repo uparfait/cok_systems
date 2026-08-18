@@ -121,9 +121,9 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
       const now = new Date();
       doc.setFontSize(9); doc.setTextColor(0, 0, 0); doc.text(now.toLocaleDateString(), pw / 2, y, { align: 'center' }); y += 5;
       doc.text(now.toLocaleTimeString(), pw / 2, y, { align: 'center' }); y += 10;
-      doc.setFontSize(16); doc.setTextColor(41, 95, 115);
+      doc.setFontSize(16); doc.setTextColor(5, 109, 170);
       const t = 'CURRENT VISITORS REPORT'; doc.text(t, pw / 2, y, { align: 'center' });
-      doc.setDrawColor(41, 95, 115); doc.setLineWidth(0.8); doc.line((pw - doc.getTextWidth(t)) / 2 - 5, y + 2, (pw + doc.getTextWidth(t)) / 2 + 5, y + 2); y += 8;
+      doc.setDrawColor(5, 109, 170); doc.setLineWidth(0.8); doc.line((pw - doc.getTextWidth(t)) / 2 - 5, y + 2, (pw + doc.getTextWidth(t)) / 2 + 5, y + 2); y += 8;
       // ASCII only — jsPDF's built-in fonts garble unsupported unicode chars
       doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 100, 100);
       const scope = opts?.from || opts?.to
@@ -146,7 +146,7 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
           head: [['Visitor Name', 'Department', 'Staff', 'Badge', 'Check-in', 'Check-out', 'Status']],
           body: rows,
           theme: 'grid',
-          headStyles: { fillColor: [41, 95, 115], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold', halign: 'center', cellPadding: 4 },
+          headStyles: { fillColor: [5, 109, 170], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold', halign: 'center', cellPadding: 4 },
           bodyStyles: { fontSize: 8, cellPadding: 3, halign: 'center' },
           margin: { left: (pw - 280) / 2, right: (pw - 280) / 2 },
           tableWidth: 280,
@@ -180,33 +180,33 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
     <MainLayout>
       <div className="space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div><h1 className="text-sm font-bold text-gray-900 flex items-center gap-2"><HiOutlineClipboardList className="w-5 h-5 text-blue-600" />Manage and monitor visitor services</h1></div>
+          <div><h1 className="text-sm font-bold text-[#333333] flex items-center gap-2"><HiOutlineClipboardList className="w-5 h-5 text-[#056daa]" />Manage and monitor visitor services</h1></div>
           <div className="flex gap-2">
-            <button onClick={fetchData} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"><FiRefreshCw className="w-3.5 h-3.5" />Refresh</button>
-            <button onClick={() => { setExportMode('all'); setShowExportDialog(true); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200"><FiDownload className="w-3.5 h-3.5" />Export PDF</button>
+            <button onClick={fetchData} className="flex items-center gap-1.5 px-3 py-1.5 text-white text-sm transition-colors" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}><FiRefreshCw className="w-3.5 h-3.5" />Refresh</button>
+            <button onClick={() => { setExportMode('all'); setShowExportDialog(true); }} className="flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors hover:bg-[rgba(5,109,170,0.08)]" style={{ backgroundColor: '#FFFFFF', border: `1px solid ${PRIMARY}`, color: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}><FiDownload className="w-3.5 h-3.5" />Export PDF</button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: 'Total Visitors', value: stats.total, icon: FiUsers, color: 'text-blue-600', bg: 'bg-blue-100' },
-            { label: 'Currently Inside', value: stats.inhouse, icon: FiUserPlus, color: 'text-green-600', bg: 'bg-green-100' },
-            { label: 'Completed', value: stats.completed, icon: FiCheckCircle, color: 'text-purple-600', bg: 'bg-purple-100' },
-            { label: 'Departments', value: departmentCount, icon: FiClock, color: 'text-orange-600', bg: 'bg-orange-100' },
+            { label: 'Total Visitors', value: stats.total, icon: FiUsers, color: 'text-[#056daa]', bg: 'bg-[rgba(5,109,170,0.1)]' },
+            { label: 'Currently Inside', value: stats.inhouse, icon: FiUserPlus, color: 'text-[#388E3C]', bg: 'bg-[rgba(76,175,80,0.12)]' },
+            { label: 'Completed', value: stats.completed, icon: FiCheckCircle, color: 'text-[#2980B9]', bg: 'bg-[rgba(41,128,185,0.1)]' },
+            { label: 'Departments', value: departmentCount, icon: FiClock, color: 'text-[#F39C12]', bg: 'bg-[rgba(243,156,18,0.12)]' },
           ].map((s, i) => (
-            <div key={i} className="bg-white border border-gray-200 p-4">
+            <div key={i} className="bg-white border border-[#E0E0E0] p-4">
               <div className="flex items-center justify-between">
-                <div><p className="text-xs text-gray-500">{s.label}</p>{loading && firstLoad ? <div className="h-7 w-14 bg-gray-200 animate-pulse mt-1" /> : <p className="text-xl font-bold text-gray-900 mt-0.5">{s.value}</p>}</div>
+                <div><p className="text-xs text-[#9E9E9E]">{s.label}</p>{loading && firstLoad ? <div className="h-7 w-14 bg-[#E0E0E0] animate-pulse mt-1" /> : <p className="text-xl font-bold text-[#333333] mt-0.5">{s.value}</p>}</div>
                 <div className={`w-10 h-10 ${s.bg} flex items-center justify-center`}><s.icon className={`w-5 h-5 ${s.color}`} /></div>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="bg-white border border-gray-200 p-4">
-          <h2 className="text-sm font-semibold text-gray-900 mb-3">Today's Visitor Activity</h2>
-          {loading && firstLoad ? <div className="h-48 flex items-center justify-center"><div className="h-6 w-6 " /> <FiLoader className='animate-spin h-6 w-6 text-blue-600' /> </div>
-            : <div className="h-48"><ResponsiveContainer width="100%" height="100%"><AreaChart data={hourlyData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="hour" tickFormatter={(v: number) => `${v}:00`} tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Area type="monotone" dataKey="visitors_checked_in" stroke="#10b981" fill="rgba(16,185,129,0.1)" name="Visitors" /></AreaChart></ResponsiveContainer></div>}
+        <div className="bg-white border border-[#E0E0E0] p-4">
+          <h2 className="text-sm font-semibold text-[#333333] mb-3">Today's Visitor Activity</h2>
+          {loading && firstLoad ? <div className="h-48 flex items-center justify-center"><div className="h-6 w-6 " /> <FiLoader className='animate-spin h-6 w-6 text-[#056daa]' /> </div>
+            : <div className="h-48"><ResponsiveContainer width="100%" height="100%"><AreaChart data={hourlyData}><CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" vertical={false} /><XAxis dataKey="hour" tickFormatter={(v: number) => `${v}:00`} tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E0E0E0', borderRadius: 0 }} /><Area type="monotone" dataKey="visitors_checked_in" stroke="#056daa" fill="rgba(5,109,170,0.1)" name="Visitors" dot={{ r: 3 }} label={{ position: 'top', fill: '#333333', fontSize: 10, fontWeight: 600 }} /></AreaChart></ResponsiveContainer></div>}
         </div>
 
         <div className="bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
@@ -230,10 +230,8 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
                 value={draftSearch}
                 onChange={e => { setDraftSearch(e.target.value); if (e.target.value === '') setSearchQuery(''); }}
                 onKeyDown={e => { if (e.key === 'Enter') setSearchQuery(draftSearch); }}
-                className="w-full h-11 pl-10 pr-4 text-sm focus:outline-none"
-                style={{ fontFamily: fontHeading, backgroundColor: '#fff', border: `1px solid ${BORDER}`, borderRadius: 0 }}
-                onFocus={(e) => { e.currentTarget.style.border = `1px solid ${PRIMARY}`; }}
-                onBlur={(e) => { e.currentTarget.style.border = `1px solid ${BORDER}`; }}
+                className="w-full h-11 cok-auth-input pr-4 text-sm"
+                style={{ fontFamily: fontHeading }}
               />
             </div>
             <button
@@ -248,8 +246,8 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className="h-11 px-3 text-sm focus:outline-none flex-shrink-0 cursor-pointer"
-              style={{ fontFamily: fontHeading, border: `1px solid ${BORDER}`, borderRadius: 0, color: NEUTRAL_DARK, backgroundColor: '#fff' }}
+              className="h-11 cok-auth-input pr-3 py-2 text-sm flex-shrink-0 cursor-pointer"
+              style={{ paddingLeft: '12px', fontFamily: fontHeading, color: NEUTRAL_DARK }}
             >
               <option value="all">All</option>
               <option value="inside">Inside</option>
@@ -266,7 +264,7 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-[#E0E0E0]">
                 {loading ? (
                   <tr><td colSpan={7} className="py-10 text-center"><FiLoader className="animate-spin h-6 w-6 mx-auto" style={{ color: PRIMARY }} /></td></tr>
                 ) : paginatedVisitors.length > 0 ? paginatedVisitors.map((v, i) => {
@@ -274,10 +272,10 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
                   const name = v.full_name || v.name || v.visitorName || '___';
                   const staff = getStaff(v);
                   return (
-                    <tr key={v._id || i} className="h-14" style={{ borderBottom: `1px solid ${BORDER}` }}>
+                    <tr key={v._id || i} className="h-14 hover:bg-[#F7F9FB]">
                       <td className="py-3 px-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0" style={{ backgroundColor: PRIMARY, fontFamily: fontHeading }}>
+                          <div className="w-8 h-8 flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0" style={{ backgroundColor: PRIMARY, fontFamily: fontHeading }}>
                             {initialsOf(name)}
                           </div>
                           <span className="text-[#333] text-[13px] font-medium">{name}</span>
@@ -318,39 +316,42 @@ const AdminServiceDeliveryDashboard: React.FC = () => {
         {/* Export dialog: all visitors or a custom check-in date range */}
         {showExportDialog && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(51,51,51,0.5)' }} onClick={() => !exporting && setShowExportDialog(false)}>
-            <div className="bg-white w-full max-w-md border border-gray-200 shadow-lg" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Export visitors report">
-              <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                <h3 className="text-sm font-bold text-gray-900">Export Visitors Report</h3>
-                <button onClick={() => setShowExportDialog(false)} disabled={exporting} className="px-2 py-1 text-gray-500 hover:bg-gray-50 border border-gray-200 text-xs">✕</button>
+            <div className="bg-white w-full max-w-md border border-[#E0E0E0] shadow-lg" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Export visitors report">
+              <div className="flex items-center justify-between p-4 border-b border-[#E0E0E0]">
+                <h3 className="text-sm font-bold text-[#333333]" style={{ fontFamily: fontHeading }}>Export Visitors Report</h3>
+                <button onClick={() => setShowExportDialog(false)} disabled={exporting} className="px-2 py-1 text-[#555555] hover:bg-[#F7F9FB] border border-[#E0E0E0] text-xs">✕</button>
               </div>
               <div className="p-4 space-y-3">
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-[#555555]">
                   <input type="radio" name="sd-export-mode" checked={exportMode === 'all'} onChange={() => setExportMode('all')} />
                   All visitors
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-[#555555]">
                   <input type="radio" name="sd-export-mode" checked={exportMode === 'range'} onChange={() => setExportMode('range')} />
                   Custom date range (check-in date)
                 </label>
                 {exportMode === 'range' && (
                   <div className="flex flex-wrap items-center gap-3 pl-6">
                     <div className="flex items-center gap-2">
-                      <label className="text-xs text-gray-500" htmlFor="sd-export-from">From</label>
-                      <input id="sd-export-from" type="date" value={exportFrom} onChange={e => setExportFrom(e.target.value)} className="h-8 px-2 text-sm border border-gray-300" />
+                      <label className="text-xs text-[#9E9E9E]" htmlFor="sd-export-from">From</label>
+                      <input id="sd-export-from" type="date" value={exportFrom} onChange={e => setExportFrom(e.target.value)} className="cok-auth-input pr-2 py-1 text-sm" style={{ paddingLeft: '10px' }} />
                     </div>
                     <div className="flex items-center gap-2">
-                      <label className="text-xs text-gray-500" htmlFor="sd-export-to">To</label>
-                      <input id="sd-export-to" type="date" value={exportTo} onChange={e => setExportTo(e.target.value)} className="h-8 px-2 text-sm border border-gray-300" />
+                      <label className="text-xs text-[#9E9E9E]" htmlFor="sd-export-to">To</label>
+                      <input id="sd-export-to" type="date" value={exportTo} onChange={e => setExportTo(e.target.value)} className="cok-auth-input pr-2 py-1 text-sm" style={{ paddingLeft: '10px' }} />
                     </div>
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-200">
-                <button onClick={() => setShowExportDialog(false)} disabled={exporting} className="px-4 py-2 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancel</button>
+              <div className="flex items-center justify-end gap-2 p-4 border-t border-[#E0E0E0]">
+                <button onClick={() => setShowExportDialog(false)} disabled={exporting} className="px-4 py-2 text-xs disabled:opacity-50 hover:bg-[rgba(5,109,170,0.08)]" style={{ backgroundColor: '#FFFFFF', border: `1px solid ${PRIMARY}`, color: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>Cancel</button>
                 <button
                   onClick={() => handleExportPDF(exportMode === 'range' ? { from: exportFrom || undefined, to: exportTo || undefined } : undefined)}
                   disabled={exporting || (exportMode === 'range' && !exportFrom && !exportTo)}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1.5 px-4 py-2 text-white text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
                 >
                   {exporting ? <FiLoader className="w-3.5 h-3.5 animate-spin" /> : <FiDownload className="w-3.5 h-3.5" />}
                   {exporting ? 'Exporting…' : 'Export PDF'}
