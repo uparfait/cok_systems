@@ -142,6 +142,11 @@ export default function TrackEditForm({
             </div>
           </div>
 
+          <div className="px-6 py-3 text-center" style={{ backgroundColor: WHITE, borderLeft: `1px solid ${BORDER}`, borderRight: `1px solid ${BORDER}` }}>
+            <p className="text-xs font-medium" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
+              Fields marked with <span style={{ color: DANGER }}>*</span> are required</p>
+          </div>
+
           <EditEventStepper currentStep={editStep} eventMeetingType={eventMeetingType} onStepClick={handleEditStepClick} completedSteps={completedSteps} />
 
           <form onSubmit={handleSubmit}
@@ -292,8 +297,6 @@ export default function TrackEditForm({
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = PRIMARY; }}>Back</button>
               )}
             </div>
-            <p className="text-center text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
-              Fields marked with <span style={{ color: DANGER }}>*</span> are required</p>
           </form>
         </div>
       </div>

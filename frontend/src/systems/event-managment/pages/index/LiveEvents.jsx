@@ -83,7 +83,7 @@ export default function LiveEvents() {
         <div className="w-full flex flex-col items-center gap-3">
 
           {
-            isEmpty ? < ShowEventNotFound /> : LiveEventsData.length >= 1 ? LiveEventsData.map((Event)=> <ShowEvent event={Event} />) : <ShowEventSkeleton />
+            isEmpty ? < ShowEventNotFound /> : LiveEventsData.length >= 1 ? LiveEventsData.map((Event)=> <ShowEvent event={Event} />) : Array.from({ length: 5 }).map((_, i) => <ShowEventSkeleton key={i} />)
           }
           
         </div>

@@ -4,5 +4,6 @@ const GetCalendarEventsController = require('../controllers/GetCalendarEventsCon
 
 Router.get('/stats', GetDashboardStatsController.handle);
 Router.get('/calendar', GetCalendarEventsController.handle);
+Router.get('/calendar/availability', GetCalendarEventsController.availability);
 
 module.exports = Router;

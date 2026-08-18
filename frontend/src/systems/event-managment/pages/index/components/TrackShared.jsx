@@ -1,5 +1,3 @@
-import { FiClock, FiCheckCircle, FiXCircle, FiSlash } from "react-icons/fi";
-
 const PRIMARY = "#056daa";
 const PRIMARY_HOVER = "#045d94";
 const DANGER = "#E74C3C";
@@ -74,20 +72,19 @@ const btnLeaveOutline = (e) => { e.currentTarget.style.backgroundColor = 'transp
 const btnLeaveDanger = (e) => { e.currentTarget.style.backgroundColor = DANGER; };
 
 const STATUS_DETAILS = {
-  Pending: { bg: "bg-yellow-100", text: "text-yellow-800", icon: FiClock, label: "Pending" },
-  Accepted: { bg: "bg-green-100", text: "text-green-800", icon: FiCheckCircle, label: "Accepted" },
-  Rejected: { bg: "bg-red-100", text: "text-red-800", icon: FiXCircle, label: "Rejected" },
-  Cancelled: { bg: "bg-gray-100", text: "text-gray-800", icon: FiSlash, label: "Cancelled" },
+  Pending: { bg: "bg-yellow-100", text: "text-yellow-800", label: "Pending" },
+  Accepted: { bg: "bg-green-100", text: "text-green-800", label: "Accepted" },
+  Rejected: { bg: "bg-red-100", text: "text-red-800", label: "Rejected" },
+  Cancelled: { bg: "bg-gray-100", text: "text-gray-800", label: "Cancelled" },
 };
 
 function StatusBadge({ status }) {
   const cfg = STATUS_DETAILS[status] || STATUS_DETAILS.Pending;
-  const Icon = cfg.icon;
-  return <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium ${cfg.bg} ${cfg.text}`}><Icon className="w-4 h-4" />{cfg.label}</span>;
+  return <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>;
 }
 
 function DetailRow({ label, value }) {
-  return <div className="py-2 border-b" style={{ borderColor: BORDER }}><p className="text-xs font-medium uppercase tracking-wider" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{label}</p><p className="text-sm mt-0.5" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{value || "—"}</p></div>;
+  return <div className="py-2 border-b" style={{ borderColor: BORDER }}><p className="text-xs font-medium uppercase tracking-wider" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{label}</p><p className="text-sm mt-0.5" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{value || "-"}</p></div>;
 }
 
 export {

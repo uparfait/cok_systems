@@ -252,7 +252,7 @@ export default function BookNow() {
     setCalendarLoading(true);
     try {
       const monthStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-      const response = await axios.get(`${BASE_URL}/events/calendar?month=${encodeURIComponent(monthStr)}`);
+      const response = await axios.get(`${BASE_URL}/events/calendar/availability?month=${encodeURIComponent(monthStr)}`);
       if (response.data?.success) setCalendarEvents(response.data.data);
       else setCalendarEvents([]);
     } catch (err) {
@@ -344,6 +344,11 @@ export default function BookNow() {
                   {eventMeetingType === "meet" ? "Request Meeting Room" : "Request Event Room"}</h1>
               </div>
             </div>
+          </div>
+
+          <div className="px-6 py-3 text-center" style={{ backgroundColor: WHITE, borderLeft: `1px solid ${BORDER}`, borderRight: `1px solid ${BORDER}` }}>
+            <p className="text-xs font-medium" style={{ color: '#9E9E9E', fontFamily: fontHeading }}>
+              Fields marked with <span style={{ color: DANGER }}>*</span> are required</p>
           </div>
 
           <CreateEventStepper currentStep={step} eventMeetingType={eventMeetingType} onStepClick={handleStepClick} completedSteps={completedSteps} />
@@ -556,8 +561,6 @@ export default function BookNow() {
                 </button>
               )}
             </div>
-            <p className="text-center text-xs" style={{ color: '#9E9E9E', fontFamily: fontHeading }}>
-              Fields marked with <span style={{ color: DANGER }}>*</span> are required</p>
           </form>
         </div>
       </div>

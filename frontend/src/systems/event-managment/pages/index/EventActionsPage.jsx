@@ -360,6 +360,8 @@ export default function EventActionsPage({ overlayEventId = null }) {
               </div>
 
               <form onSubmit={handleSubmit} className="px-4 sm:px-6 py-5 space-y-4">
+                <p className="text-center text-xs" style={{ color: '#9E9E9E', fontFamily: fontHeading }}>
+                  Fields marked with <span style={{ color: DANGER }}>*</span> are required</p>
                 {formError && (
                   <p className="p-3 text-sm" style={{ backgroundColor: '#FDECEA', border: '1px solid #F5B7B1', color: DANGER, fontFamily: fontHeading }}>{formError}</p>
                 )}
