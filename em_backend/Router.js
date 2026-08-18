@@ -19,6 +19,11 @@ const GenerateRoomQrCodeController = require('./controllers/GenerateRoomQrCodeCo
 const SectionUpdate = require('./controllers/EventSectionUpdateController');
 const eventAccessAuth = require('./middlewares/eventAccessAuth');
 
+// Co-organizer routes (before the /events routers so the specific path wins)
+const CoOrganizerController = require('./controllers/CoOrganizerController');
+Router.get('/events/:eventSpecialId/co-organizers', CoOrganizerController.list);
+Router.post('/events/:eventSpecialId/co-organizers', CoOrganizerController.add);
+
 // Mount all routes
 Router.use('/rooms/available', availableRoomRoutes);
 

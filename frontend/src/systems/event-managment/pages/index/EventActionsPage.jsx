@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 import { useToast } from '@/core/contexts/ToastContext';
+import FollowUpDetailModal from '../../../taskManagement/components/FollowUpDetailModal';
 
 const BASE_URL = '/cok/api/v1';
 const PRIMARY = '#056daa';
@@ -67,8 +68,9 @@ const EMPTY = (eventSpecialId) => ({
   eventSpecialId,
 });
 
-export default function EventActionsPage() {
-  const { id: eventSpecialId } = useParams();
+export default function EventActionsPage({ overlayEventId = null }) {
+  const { id: routeEventId } = useParams();
+  const eventSpecialId = overlayEventId || routeEventId;
   const { showSuccess, showError } = useToast();
 
   const [eventTitle, setEventTitle]  = useState('');
@@ -216,28 +218,15 @@ export default function EventActionsPage() {
   }
 
   return (
-    <div className="w-full min-h-screen flex justify-center" style={{ paddingTop: '80px', backgroundColor: NEUTRAL_LIGHT }}>
+    <div className="w-full min-h-screen flex justify-center" style={{ paddingTop: '96px', backgroundColor: NEUTRAL_LIGHT }}>
       <div className="w-full max-w-5xl px-3 sm:px-6 md:px-8 py-6">
-
-        {/* Header bar, same component pattern as the other public pages */}
-        <div className="px-4 sm:px-5 py-4 text-white mb-4" style={{ backgroundColor: PRIMARY }}>
-          <h1 className="text-base sm:text-lg font-bold truncate" style={{ fontFamily: fontHeading }} title={eventTitle}>
-            Event Actions (Follow ups)
-          </h1>
-          {eventTitle && (
-            <p className="text-xs mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.85)' }}>
-              {eventTitle}
-            </p>
-          )}
-        </div>
 
         <div className="mb-5">
           <button
             onClick={openCreate}
-            className="cok-btn-primary inline-flex items-center justify-center gap-2 w-full sm:w-auto"
-            style={{ padding: '0.6rem 1.2rem' }}
+            className="cok-btn-primary"
+            style={{ width: 'auto', padding: '0.4rem 0.8rem', fontSize: '11px' }}
           >
-            <FiPlus className="w-4 h-4" />
             New Action (FollowUps)
           </button>
         </div>
@@ -262,60 +251,51 @@ export default function EventActionsPage() {
             </div>
           ) : (
             <>
-              <div className="space-y-3">
-                {actions.map(a => (
-                  <div
-                    key={a._id}
-                    onClick={() => setViewTarget(a)}
-                    className="bg-white p-4 sm:p-5 cursor-pointer transition-colors"
-                    style={{ border: `1px solid ${BORDER}` }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = PRIMARY; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = BORDER; }}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-sm sm:text-base break-words" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{a.title}</p>
-                        <p className="text-sm mt-1 leading-relaxed break-words" style={{ color: GRAY_DISABLED }}>{a.actionDescription}</p>
-                      </div>
-                      <div className="flex items-center gap-0.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                        <button
-                          onClick={() => setHistoryTarget(a)}
-                          className="p-2 cursor-pointer transition-colors hover:bg-[#E3F2FD]"
-                          style={{ color: PRIMARY }}
-                          title="Status History"
-                        ><FiActivity className="w-4 h-4" /></button>
-                        <button
-                          onClick={() => openEdit(a)}
-                          className="p-2 cursor-pointer transition-colors hover:bg-[#E3F2FD]"
-                          style={{ color: PRIMARY }}
-                          title="Edit"
-                        ><FiEdit2 className="w-4 h-4" /></button>
-                        <button
-                          onClick={() => setDeleteTarget(a)}
-                          className="p-2 cursor-pointer transition-colors hover:bg-[#FDECEA]"
-                          style={{ color: DANGER }}
-                          title="Delete"
-                        ><FiTrash2 className="w-4 h-4" /></button>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm pt-3" style={{ borderTop: `1px solid ${BORDER}`, color: GRAY_DISABLED }}>
-                      <span className="inline-flex items-center gap-1.5 min-w-0">
-                        <FiUser className="w-3.5 h-3.5 shrink-0" style={{ color: PRIMARY }} />
-                        <span className="font-medium truncate" style={{ color: NEUTRAL_DARK }}>{a.assignedPerson?.name}</span>
-                        {a.assignedPerson?.role && <span className="truncate hidden sm:inline">({a.assignedPerson.role})</span>}
-                      </span>
-                      <span className="inline-flex items-center gap-1.5" style={{ color: overdue(a.dueDate, a.currentStatus?.status) ? DANGER : undefined }}>
-                        <FiCalendar className="w-3.5 h-3.5 shrink-0" />
-                        {fmt(a.dueDate)}
-                        {overdue(a.dueDate, a.currentStatus?.status) && (
-                          <span className="px-2 text-xs" style={{ backgroundColor: '#FDECEA', border: '1px solid #F5B7B1', color: DANGER }}>Overdue</span>
-                        )}
-                      </span>
-                      <Badge status={a.currentStatus?.status} />
-                    </div>
-                  </div>
-                ))}
+              <div className="bg-white border overflow-x-auto" style={{ borderColor: BORDER, WebkitOverflowScrolling: 'touch' }}>
+                <table className="w-full text-sm border-collapse">
+                  <thead className="sticky top-0 z-10">
+                    <tr style={{ backgroundColor: PRIMARY }}>
+                      {['Title', 'Assigned Name', 'Assigned Title', 'Assigned Email', 'Due Date', 'Status'].map(h => (
+                        <th key={h} className="px-3 py-3 sm:px-4 sm:py-3.5 text-left text-[11px] sm:text-xs font-bold uppercase tracking-widest whitespace-nowrap" style={{ color: '#FFFFFF', fontFamily: fontHeading }}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {actions.map((a, idx) => (
+                      <tr
+                        key={a._id}
+                        onClick={() => setViewTarget(a)}
+                        className={`cursor-pointer transition-colors duration-100 ${idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50/50 hover:bg-blue-50'}`}
+                      >
+                        <td className="px-3 py-2.5 sm:px-4 sm:py-3 whitespace-nowrap border-b" style={{ borderColor: BORDER }}>
+                          <p className="font-semibold text-zinc-900" style={{ fontFamily: fontHeading }}>{a.title}</p>
+                        </td>
+                        <td className="px-3 py-2.5 sm:px-4 sm:py-3 whitespace-nowrap border-b border-l" style={{ borderColor: BORDER }}>
+                          <p className="font-medium text-sm text-zinc-900" style={{ fontFamily: fontHeading }}>{a.assignedPerson?.name || '-'}</p>
+                        </td>
+                        <td className="px-3 py-2.5 sm:px-4 sm:py-3 whitespace-nowrap border-b border-l text-xs" style={{ borderColor: BORDER, color: '#555555' }}>
+                          {a.assignedPerson?.role || '-'}
+                        </td>
+                        <td className="px-3 py-2.5 sm:px-4 sm:py-3 whitespace-nowrap border-b border-l text-xs" style={{ borderColor: BORDER, color: '#555555' }}>
+                          {a.assignedPerson?.email || '-'}
+                        </td>
+                        <td className="px-3 py-2.5 sm:px-4 sm:py-3 whitespace-nowrap border-b border-l" style={{ borderColor: BORDER }}>
+                          <span className="text-xs font-medium" style={{ fontFamily: fontHeading, color: overdue(a.dueDate, a.currentStatus?.status) ? DANGER : '#555555' }}>
+                            {fmt(a.dueDate)}
+                          </span>
+                          {overdue(a.dueDate, a.currentStatus?.status) && (
+                            <span className="mt-0.5 block px-1.5 text-[10px] w-fit" style={{ backgroundColor: '#FDECEA', border: '1px solid #F5B7B1', color: DANGER }}>Overdue</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 sm:px-4 sm:py-3 whitespace-nowrap border-b border-l" style={{ borderColor: BORDER }}>
+                          <Badge status={a.currentStatus?.status} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
 
               {totalPages > 1 && (
@@ -666,142 +646,14 @@ export default function EventActionsPage() {
           </div>
         )}
 
-        {/* ACTION DETAIL MODAL */}
         {viewTarget && (
-          <div className="fixed inset-0 z-[999] flex items-start justify-center p-2 sm:p-4 overflow-y-auto" style={{ backgroundColor: 'rgba(0,0,0,0.5)', paddingTop: '80px' }} onClick={() => setViewTarget(null)}>
-            <div
-              className="bg-white w-full max-w-xl max-h-[85vh] overflow-y-auto"
-              style={{ border: `1px solid ${BORDER}` }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-4 sticky top-0 bg-white z-10" style={{ borderBottom: `1px solid ${BORDER}` }}>
-                <h2 className="text-base font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Action Details</h2>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => { openEdit(viewTarget); setViewTarget(null); }}
-                    className="p-2 cursor-pointer transition-colors hover:bg-[#E3F2FD]"
-                    style={{ color: PRIMARY }}
-                    title="Edit"
-                  >
-                    <FiEdit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => { setDeleteTarget(viewTarget); setViewTarget(null); }}
-                    className="p-2 cursor-pointer transition-colors hover:bg-[#FDECEA]"
-                    style={{ color: DANGER }}
-                    title="Delete"
-                  >
-                    <FiTrash2 className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => setViewTarget(null)} className="p-2 cursor-pointer transition-colors" style={{ color: GRAY_DISABLED }} title="Close">
-                    <FiX className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="px-4 sm:px-6 py-5 space-y-5">
-                <div>
-                  <h3 className="text-lg sm:text-xl font-bold leading-snug break-words" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{viewTarget.title}</h3>
-                  <p className="text-sm mt-2 leading-relaxed break-words" style={{ color: GRAY_DISABLED }}>{viewTarget.actionDescription}</p>
-                </div>
-
-                <div className="flex items-start justify-between gap-3 p-4" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Current Status</p>
-                    <Badge status={viewTarget.currentStatus?.status} />
-                    {viewTarget.currentStatus?.description && (
-                      <p className="text-sm mt-2 break-words" style={{ color: '#555555' }}>{viewTarget.currentStatus.description}</p>
-                    )}
-                  </div>
-                  {overdue(viewTarget.dueDate, viewTarget.currentStatus?.status) && (
-                    <span className="px-3 py-1 text-xs font-semibold shrink-0" style={{ backgroundColor: '#FDECEA', border: '1px solid #F5B7B1', color: DANGER }}>Overdue</span>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-4" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
-                    <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Assigned To</p>
-                    <div className="flex items-start gap-2">
-                      <div className="w-8 h-8 flex items-center justify-center shrink-0" style={{ backgroundColor: '#E3F2FD' }}>
-                        <FiUser className="w-3.5 h-3.5" style={{ color: PRIMARY }} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-sm break-words" style={{ color: NEUTRAL_DARK }}>{viewTarget.assignedPerson?.name || '-'}</p>
-                        {viewTarget.assignedPerson?.role && <p className="text-xs break-words" style={{ color: GRAY_DISABLED }}>{viewTarget.assignedPerson.role}</p>}
-                        {viewTarget.assignedPerson?.institution && <p className="text-xs break-words" style={{ color: GRAY_DISABLED }}>{viewTarget.assignedPerson.institution}</p>}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-4" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}` }}>
-                    <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Due Date</p>
-                    <div className="flex items-center gap-2">
-                      <FiCalendar className="w-4 h-4 shrink-0" style={{ color: overdue(viewTarget.dueDate, viewTarget.currentStatus?.status) ? DANGER : GRAY_DISABLED }} />
-                      <span className="font-semibold text-sm" style={{ color: overdue(viewTarget.dueDate, viewTarget.currentStatus?.status) ? DANGER : NEUTRAL_DARK }}>
-                        {fmt(viewTarget.dueDate)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {viewTarget.statusHistory?.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Status History</p>
-                    <ol className="relative ml-2 space-y-4" style={{ borderLeft: `2px solid ${BORDER}` }}>
-                      {[...viewTarget.statusHistory].reverse().map((h, i) => (
-                        <li key={i} className="ml-5">
-                          <span className="absolute -left-2 w-4 h-4 border-2 bg-white" style={{ borderColor: PRIMARY }} />
-                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                            <Badge status={h.status} />
-                            <span className="text-xs" style={{ color: GRAY_DISABLED }}>{fmt(h.changedAt)}</span>
-                          </div>
-                          <p className="text-sm break-words" style={{ color: '#555555' }}>{h.description}</p>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
-
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Event</p>
-                  <p className="text-sm px-3 py-2 break-words" style={{ backgroundColor: NEUTRAL_LIGHT, border: `1px solid ${BORDER}`, color: '#555555' }}>{eventTitle || viewTarget.eventSpecialId}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* STATUS HISTORY */}
-        {historyTarget && (
-          <div className="fixed inset-0 z-[999] flex items-start justify-center p-2 sm:p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)', paddingTop: '80px' }} onClick={() => setHistoryTarget(null)}>
-            <div className="bg-white w-full max-w-md max-h-[80vh] overflow-y-auto" style={{ border: `1px solid ${BORDER}` }} onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${BORDER}` }}>
-                <h3 className="font-bold" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>Status History</h3>
-                <button onClick={() => setHistoryTarget(null)} className="p-1.5 cursor-pointer transition-colors" style={{ color: GRAY_DISABLED }}>
-                  <FiX className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="px-4 sm:px-6 py-4">
-                <p className="text-sm font-semibold mb-4 break-words" style={{ color: NEUTRAL_DARK, fontFamily: fontHeading }}>{historyTarget.title}</p>
-                {historyTarget.statusHistory?.length ? (
-                  <ol className="relative ml-2 space-y-5" style={{ borderLeft: `2px solid ${BORDER}` }}>
-                    {[...historyTarget.statusHistory].reverse().map((h, i) => (
-                      <li key={i} className="ml-5">
-                        <span className="absolute -left-2 w-4 h-4 border-2 bg-white" style={{ borderColor: PRIMARY }} />
-                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                          <Badge status={h.status} />
-                          <span className="text-xs" style={{ color: GRAY_DISABLED }}>{fmt(h.changedAt)}</span>
-                        </div>
-                        <p className="text-sm break-words" style={{ color: '#555555' }}>{h.description}</p>
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p className="text-sm text-center py-8" style={{ color: GRAY_DISABLED }}>No history recorded yet.</p>
-                )}
-              </div>
-            </div>
-          </div>
+          <FollowUpDetailModal
+            followup={viewTarget}
+            allowFullEdit
+            onClose={() => { setViewTarget(null); fetchActions(page); }}
+            onUpdate={() => fetchActions(page)}
+            onDelete={() => { setViewTarget(null); fetchActions(page); }}
+          />
         )}
       </div>
     </div>

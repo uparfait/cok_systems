@@ -65,6 +65,14 @@ const recurringEventSchema = new mongoose.Schema(
         default: "",
       },
     },
+    coOrganizers: [
+      {
+        fullNames: { type: String, trim: true, maxlength: 200 },
+        email: { type: String, trim: true, lowercase: true },
+        phone: { type: String, trim: true },
+        institution: { type: String, trim: true, default: "" },
+      },
+    ],
     eventSpecialId: {
       type: String,
       required: [true, "Event special ID is required"],

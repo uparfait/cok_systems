@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { FiTrash2, FiX } from 'react-icons/fi'
 import AttachmentViewer from './AttachmentViewer'
+import ConfirmDialog from '../../event-managment/components/sub-components/ConfirmDialog'
 import { useAuth } from '../../../core/contexts/AuthContext'
 import { useToast } from '../../../core/contexts/ToastContext'
 import { employeeService, type Employee } from '../../../core/services/employeeService'
@@ -70,8 +72,13 @@ interface FollowUpDetailModalProps {
 const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: initialFollowUp, onClose, onUpdate, onDelete, allowFullEdit = false }) => {
   const { user } = useAuth()
   const { showSuccess, showError } = useToast()
+  const navigate = useNavigate()
   const [followup, setFollowUp] = useState<EventAction>(initialFollowUp)
   const [activeTab, setActiveTab] = useState<'details' | 'history'>('details')
+
+  const isMinutesTask = !!followup.eventSpecialId
+    && followup.eventSpecialId !== 'FOLLOWUP'
+    && /minutes/i.test(followup.title || '')
 
   const [editingAll, setEditingAll] = useState(false)
   const [editForm, setEditForm] = useState({
@@ -229,8 +236,10 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
     }
   }
 
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+
   const handleDelete = async () => {
-    if (!window.confirm(`Delete follow-up "${followup.title}"?`)) return
+    setConfirmDeleteOpen(false)
     setLoading(true)
     try {
       await deleteEventAction(followup._id)
@@ -247,8 +256,8 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
   const history = [...(followup.statusHistory || [])].reverse()
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4">
-      <div className="w-full max-w-3xl max-h-[95vh] md:max-h-[90vh] flex flex-col overflow-hidden" style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, borderRadius: 0 }}>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center z-50 px-3 md:px-4 pb-6 overflow-y-auto" style={{ paddingTop: '96px' }}>
+      <div className="w-full max-w-3xl max-h-[80vh] flex flex-col overflow-hidden" style={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, borderRadius: 0 }}>
         <div className="px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0" style={{ backgroundColor: PRIMARY }}>
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-white truncate" style={{ fontFamily: fontHeading }}>
@@ -259,7 +268,7 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
           <div className="flex items-center gap-2 shrink-0 ml-3">
             <button
               type="button"
-              onClick={handleDelete}
+              onClick={() => setConfirmDeleteOpen(true)}
               disabled={loading}
               title="Delete follow-up"
               className="cok-btn-outlined-reverse disabled:opacity-50"
@@ -304,7 +313,18 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
           {activeTab === 'details' ? (
             <div className="space-y-5">
-              {allowFullEdit && !editingAll && (
+              {isMinutesTask && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/event/${followup.eventSpecialId}/editor`)}
+                  className="w-full sm:w-auto px-5 py-2.5 text-xs font-semibold uppercase tracking-wide text-white cursor-pointer transition-colors"
+                  style={{ backgroundColor: DANGER, fontFamily: fontHeading, border: 0, borderRadius: 0 }}
+                >
+                  Edit Minutes
+                </button>
+              )}
+
+              {allowFullEdit && !isMinutesTask && !editingAll && (
                 <button
                   type="button"
                   onClick={() => setEditingAll(true)}
@@ -315,7 +335,7 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
                 </button>
               )}
 
-              {allowFullEdit && editingAll && (
+              {allowFullEdit && !isMinutesTask && editingAll && (
                 <div style={{ border: `1px solid ${BORDER}` }}>
                   <div className="px-4 py-3" style={{ backgroundColor: NEUTRAL_LIGHT, borderBottom: `1px solid ${BORDER}` }}>
                     <p className="text-xs font-bold uppercase tracking-wider" style={{ color: PRIMARY, fontFamily: fontHeading }}>Edit Details</p>
@@ -477,9 +497,11 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
                     <p className="text-sm break-words" style={{ color: '#555555', fontFamily: fontHeading }}>
                       {followup.actionDescription || 'No description provided.'}
                     </p>
-                    <button onClick={() => setEditingDescription(true)} className="mt-2 text-xs cursor-pointer" style={{ color: PRIMARY, fontFamily: fontHeading, background: 'transparent', border: 0 }}>
-                      Edit
-                    </button>
+                    {!isMinutesTask && (
+                      <button onClick={() => setEditingDescription(true)} className="mt-2 text-xs cursor-pointer" style={{ color: PRIMARY, fontFamily: fontHeading, background: 'transparent', border: 0 }}>
+                        Edit
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -698,6 +720,15 @@ const FollowUpDetailModal: React.FC<FollowUpDetailModalProps> = ({ followup: ini
             }}
           />
         )}
+
+        <ConfirmDialog
+          open={confirmDeleteOpen}
+          title="Delete Follow-up"
+          message={`You are about to delete "${followup.title}". This cannot be undone.`}
+          busy={loading}
+          onConfirm={handleDelete}
+          onCancel={() => setConfirmDeleteOpen(false)}
+        />
       </div>
     </div>
   )
