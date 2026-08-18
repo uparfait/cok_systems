@@ -3,7 +3,7 @@ const EventAction = require('../models/EventActions');
 class GetEventActionsController {
   static async handle(req, res) {
     try {
-      const { eventSpecialId, status, date, search, assignedEmail, page = 1, limit = 10 } = req.query;
+      const { eventSpecialId, status, date, from, to, search, assignedEmail, createdByEmail, page = 1, limit = 10 } = req.query;
 
       const query = {};
       if (eventSpecialId) query.eventSpecialId = eventSpecialId;
@@ -13,7 +13,21 @@ class GetEventActionsController {
         const escaped = assignedEmail.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         query['assignedPerson.email'] = new RegExp(`^${escaped}$`, 'i');
       }
-      if (date) {
+      // Only actions this person created (assigned to someone else)
+      if (createdByEmail) {
+        const escaped = createdByEmail.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        query['createdBy.email'] = new RegExp(`^${escaped}$`, 'i');
+      }
+      if (from || to) {
+        // Due-date range filter (inclusive of the whole "to" day)
+        query.dueDate = {};
+        if (from) query.dueDate.$gte = new Date(from);
+        if (to) {
+          const end = new Date(to);
+          end.setHours(23, 59, 59, 999);
+          query.dueDate.$lte = end;
+        }
+      } else if (date) {
         const day = new Date(date);
         const next = new Date(date);
         next.setDate(next.getDate() + 1);

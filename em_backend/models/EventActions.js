@@ -82,6 +82,17 @@ const eventActionSchema = new mongoose.Schema({
       size:         { type: Number },
       url:          { type: String },
     },
+    documents: [{
+      filename:     { type: String },
+      originalName: { type: String },
+      mimetype:     { type: String },
+      size:         { type: Number },
+      url:          { type: String },
+    }],
+    changedBy: {
+      name:  { type: String, trim: true },
+      email: { type: String, trim: true, lowercase: true },
+    },
     changedAt: {
       type: Date,
       default: Date.now

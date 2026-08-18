@@ -14,7 +14,7 @@ Router.post('/my-tasks/verify-token', GetMyTasksController.verifyToken);
 Router.get('/', GetEventActionsController.handle);
 Router.get('/:id', GetEventActionByIdController.handle);
 Router.post('/', CreateEventActionController.handle);
-Router.patch('/:id', upload.single('document'), UpdateEventActionController.handle);
+Router.patch('/:id', upload.fields([{ name: 'document', maxCount: 1 }, { name: 'documents', maxCount: 10 }]), UpdateEventActionController.handle);
 Router.delete('/:id', DeleteEventActionController.handle);
 
 module.exports = Router;

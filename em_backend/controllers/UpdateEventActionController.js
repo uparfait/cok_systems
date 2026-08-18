@@ -4,7 +4,7 @@ class UpdateEventActionController {
   static async handle(req, res) {
     try {
       const { id } = req.params;
-      const { title, actionDescription, assignedPerson, dueDate, currentStatus } = req.body;
+      const { title, actionDescription, assignedPerson, dueDate, currentStatus, changedBy, createdBy } = req.body;
 
       const action = await EventAction.findById(id);
       if (!action) return res.status(404).json({ success: false, message: 'Action not found' });
@@ -15,6 +15,7 @@ class UpdateEventActionController {
       action.actionDescription = actionDescription ?? action.actionDescription;
       action.assignedPerson    = assignedPerson    ?? action.assignedPerson;
       action.dueDate           = dueDate           ?? action.dueDate;
+      action.createdBy         = createdBy         ?? action.createdBy;
 
       if (currentStatus) {
         action.currentStatus = currentStatus;
@@ -24,15 +25,28 @@ class UpdateEventActionController {
             description: currentStatus.description,
           };
 
-          // Attach uploaded file info if present
-          if (req.file) {
-            entry.document = {
-              filename:     req.file.filename,
-              originalName: req.file.originalname,
-              mimetype:     req.file.mimetype,
-              size:         req.file.size,
-              url:          `/uploads/${req.file.filename}`,
-            };
+          // Record who made this change on the history entry
+          if (changedBy && (changedBy.name || changedBy.email)) {
+            entry.changedBy = { name: changedBy.name, email: changedBy.email };
+          }
+
+          // Attach uploaded file info if present (single 'document' field or
+          // multiple 'documents' field, both supported)
+          const uploaded = [
+            ...(req.file ? [req.file] : []),
+            ...(req.files?.document || []),
+            ...(req.files?.documents || []),
+          ];
+          if (uploaded.length > 0) {
+            const toDoc = (f) => ({
+              filename:     f.filename,
+              originalName: f.originalname,
+              mimetype:     f.mimetype,
+              size:         f.size,
+              url:          `/uploads/${f.filename}`,
+            });
+            entry.document  = toDoc(uploaded[0]); // backward compatibility
+            entry.documents = uploaded.map(toDoc);
           }
 
           action.statusHistory.push(entry);

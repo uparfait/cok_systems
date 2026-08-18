@@ -9,149 +9,186 @@ import { useToast } from '../../core/contexts/ToastContext'
 import FollowUpCard from './components/FollowUpCard'
 import FollowUpDetailModal from './components/FollowUpDetailModal'
 import CreateFollowUpModal from './components/CreateFollowUpModal'
-import { FiLoader } from 'react-icons/fi'
+import AssignedFollowUps from './components/AssignedFollowUps'
 
 const PRIMARY = '#056daa'
-const BORDER = '#E0E0E0'
 const WHITE = '#FFFFFF'
+const NEUTRAL_LIGHT = '#F7F9FB'
 const GRAY_DISABLED = '#9E9E9E'
+const BORDER = '#E0E0E0'
 const fontHeading = "'Montserrat', sans-serif"
+
+const PAGE_SIZE = 20
 
 const FOLLOWUP_STATUSES = ['Pending', 'In Progress', 'Completed', 'Cancelled'] as const
 type FollowUpStatus = typeof FOLLOWUP_STATUSES[number]
 
-interface FollowUpColumn {
-  id: string
-  title: string
-  status: FollowUpStatus
-  followups: EventAction[]
-  headerColor: string
-  borderColor: string
+interface ColumnState {
+  items: EventAction[]
+  page: number
+  totalPages: number
+  totalRecords: number
+  initialLoading: boolean
+  loadingMore: boolean
 }
+
+interface ColumnDef {
+  id: FollowUpStatus
+  title: string
+  headerColor: string
+}
+
+const COLUMN_DEFS: ColumnDef[] = [
+  { id: 'Pending',     title: 'Pending',     headerColor: '#6B7280' },
+  { id: 'In Progress', title: 'In Progress', headerColor: PRIMARY },
+  { id: 'Completed',   title: 'Completed',   headerColor: '#0D9488' },
+  { id: 'Cancelled',   title: 'Cancelled',   headerColor: '#E74C3C' },
+]
+
+const emptyColumn = (): ColumnState => ({
+  items: [],
+  page: 0,
+  totalPages: 1,
+  totalRecords: 0,
+  initialLoading: true,
+  loadingMore: false,
+})
 
 const FollowUpManager: React.FC = () => {
   const { user } = useAuth()
   const { showSuccess, showError } = useToast()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const [isDraggingScroll, setIsDraggingScroll] = useState(false)
-  const [startX, setStartX] = useState(0)
-  const [scrollLeft, setScrollLeft] = useState(0)
   const [selectedColumnStatus, setSelectedColumnStatus] = useState<FollowUpStatus>('Pending')
+  const [viewMode, setViewMode] = useState<'mine' | 'assigned'>('mine')
 
-  const [columns, setColumns] = useState<FollowUpColumn[]>([
-    {
-      id: 'pending',
-      title: 'Pending',
-      status: 'Pending',
-      followups: [],
-      headerColor: 'from-amber-600 to-amber-600',
-      borderColor: 'border-amber-200'
-    },
-    {
-      id: 'in-progress',
-      title: 'In Progress',
-      status: 'In Progress',
-      followups: [],
-      headerColor: 'from-blue-600 to-blue-600',
-      borderColor: 'border-blue-200'
-    },
-    {
-      id: 'completed',
-      title: 'Completed',
-      status: 'Completed',
-      followups: [],
-      headerColor: 'from-emerald-600 to-emerald-600',
-      borderColor: 'border-emerald-200'
-    },
-    {
-      id: 'cancelled',
-      title: 'Cancelled',
-      status: 'Cancelled',
-      followups: [],
-      headerColor: 'from-red-600 to-red-600',
-      borderColor: 'border-red-200'
-    }
-  ])
+  const [columns, setColumns] = useState<Record<FollowUpStatus, ColumnState>>({
+    'Pending': emptyColumn(),
+    'In Progress': emptyColumn(),
+    'Completed': emptyColumn(),
+    'Cancelled': emptyColumn(),
+  })
+  const columnsRef = useRef(columns)
+  columnsRef.current = columns
 
   const [selectedFollowUp, setSelectedFollowUp] = useState<EventAction | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [firstLoad, setFirstLoad] = useState(true)
+  const [draggedFollowUp, setDraggedFollowUp] = useState<EventAction | null>(null)
+  const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null)
 
-  const loadFollowups = useCallback(async () => {
+  const userEmail = user?.email || ''
+
+  const loadColumnPage = useCallback(async (status: FollowUpStatus, page: number, append: boolean, silent = false) => {
+    if (!userEmail) return
+    if (!silent) {
+      setColumns(prev => ({
+        ...prev,
+        [status]: {
+          ...prev[status],
+          initialLoading: !append && page === 1 ? true : prev[status].initialLoading,
+          loadingMore: append,
+        },
+      }))
+    }
     try {
-      setLoading(true)
-      const response = await getEventActions({
-        limit: 100,
-        page: 1
+      const response: any = await getEventActions({
+        status,
+        assignedEmail: userEmail,
+        page,
+        limit: PAGE_SIZE,
       })
+      const items: EventAction[] = response?.data || []
+      const totalPages = response?.totalPages || 1
+      const totalRecords = response?.totalRecords || items.length
 
-      if (response.status) {
-        const followups = (response as any).data?.data || []
-
-        const grouped = {
-          'Pending': followups.filter((f: EventAction) => f.currentStatus?.status === 'Pending'),
-          'In Progress': followups.filter((f: EventAction) => f.currentStatus?.status === 'In Progress'),
-          'Completed': followups.filter((f: EventAction) => f.currentStatus?.status === 'Completed'),
-          'Cancelled': followups.filter((f: EventAction) => f.currentStatus?.status === 'Cancelled')
+      setColumns(prev => {
+        const existing = append ? prev[status].items : []
+        const seen = new Set(existing.map(i => i._id))
+        const merged = [...existing, ...items.filter(i => !seen.has(i._id))]
+        return {
+          ...prev,
+          [status]: {
+            items: merged,
+            page,
+            totalPages,
+            totalRecords,
+            initialLoading: false,
+            loadingMore: false,
+          },
         }
-
-        setColumns(prev =>
-          prev.map(column => ({
-            ...column,
-            followups: grouped[column.status] || []
-          }))
-        )
-      }
+      })
     } catch (error: any) {
       showError(error?.message || 'Failed to load follow-ups')
-    } finally {
-      setFirstLoad(false)
-      setLoading(false)
+      setColumns(prev => ({
+        ...prev,
+        [status]: { ...prev[status], initialLoading: false, loadingMore: false },
+      }))
     }
-  }, [showError])
+  }, [userEmail, showError])
 
-  useEffect(() => {
-    loadFollowups()
-  }, [loadFollowups])
+  const reloadAll = useCallback((silent = false) => {
+    FOLLOWUP_STATUSES.forEach(status => loadColumnPage(status, 1, false, silent))
+  }, [loadColumnPage])
 
-  const handleDragStart = (followup: EventAction) => {
-    ;(window as any).__draggedFollowUp = followup
+  useEffect(() => { reloadAll() }, [reloadAll])
+
+  const handleColumnScroll = (e: React.UIEvent<HTMLDivElement>, status: FollowUpStatus) => {
+    const el = e.currentTarget
+    const col = columnsRef.current[status]
+    if (col.loadingMore || col.initialLoading) return
+    if (col.page >= col.totalPages) return
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 60) {
+      loadColumnPage(status, col.page + 1, true)
+    }
   }
+
+  const handleDragStart = (followup: EventAction) => setDraggedFollowUp(followup)
 
   const handleDragOver = (e: React.DragEvent, columnId: string) => {
     e.preventDefault()
-    ;(window as any).__draggedOverColumn = columnId
+    setDraggedOverColumn(columnId)
   }
 
-  const handleDragLeave = () => {
-    ;(window as any).__draggedOverColumn = null
-  }
+  const handleDragLeave = () => setDraggedOverColumn(null)
 
-  const handleDrop = async (e: React.DragEvent, columnId: string) => {
+  const handleDrop = async (e: React.DragEvent, columnId: FollowUpStatus) => {
     e.preventDefault()
-    const draggedFollowUp = (window as any).__draggedFollowUp as EventAction | undefined
-    ;(window as any).__draggedFollowUp = null
-    ;(window as any).__draggedOverColumn = null
+    setDraggedOverColumn(null)
+    const followup = draggedFollowUp
+    setDraggedFollowUp(null)
+    if (!followup) return
 
-    if (!draggedFollowUp) return
+    const fromStatus = followup.currentStatus?.status as FollowUpStatus
+    if (!fromStatus || fromStatus === columnId) return
 
-    const currentStatus = draggedFollowUp.currentStatus?.status
-    if (currentStatus === columnId) return
+    const movedItem: EventAction = {
+      ...followup,
+      currentStatus: { ...followup.currentStatus, status: columnId },
+    }
+    setColumns(prev => ({
+      ...prev,
+      [fromStatus]: {
+        ...prev[fromStatus],
+        items: prev[fromStatus].items.filter(i => i._id !== followup._id),
+        totalRecords: Math.max(0, prev[fromStatus].totalRecords - 1),
+      },
+      [columnId]: {
+        ...prev[columnId],
+        items: [movedItem, ...prev[columnId].items],
+        totalRecords: prev[columnId].totalRecords + 1,
+      },
+    }))
 
-    setLoading(true)
     try {
-      await updateEventActionStatus(draggedFollowUp._id, {
-        status: columnId as FollowUpStatus,
-        description: draggedFollowUp.currentStatus?.description || ''
-      })
+      await updateEventActionStatus(followup._id, {
+        status: columnId,
+        description: followup.currentStatus?.description || '',
+      } as any)
       showSuccess(`Follow-up moved to ${columnId}`)
-      loadFollowups()
     } catch (error: any) {
       showError(error?.message || 'Failed to move follow-up')
-    } finally {
-      setLoading(false)
+      loadColumnPage(fromStatus, 1, false)
+      loadColumnPage(columnId, 1, false)
     }
   }
 
@@ -162,177 +199,163 @@ const FollowUpManager: React.FC = () => {
 
   const handleFollowUpCreated = () => {
     setShowCreateModal(false)
-    loadFollowups()
-    showSuccess('Follow-up created successfully')
+    reloadAll()
   }
 
   const handleFollowUpUpdated = (updatedFollowUp?: EventAction) => {
     if (updatedFollowUp && selectedFollowUp) {
       setSelectedFollowUp(updatedFollowUp)
-
-      setColumns(prev =>
-        prev.map(column => ({
-          ...column,
-          followups: column.followups.map(f =>
-            f._id === selectedFollowUp._id ? updatedFollowUp : f
-          )
-        }))
-      )
-
-      showSuccess('Follow-up updated successfully')
+      setColumns(prev => {
+        const next = { ...prev }
+        FOLLOWUP_STATUSES.forEach(status => {
+          next[status] = {
+            ...next[status],
+            items: next[status].items.map(f => f._id === updatedFollowUp._id ? updatedFollowUp : f),
+          }
+        })
+        return next
+      })
+      reloadAll(true)
     }
   }
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!scrollContainerRef.current) return
-    setIsDraggingScroll(true)
-    setStartX(e.pageX - scrollContainerRef.current.offsetLeft)
-    setScrollLeft(scrollContainerRef.current.scrollLeft)
-    scrollContainerRef.current.style.cursor = 'grabbing'
-    scrollContainerRef.current.style.userSelect = 'none'
-  }
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDraggingScroll || !scrollContainerRef.current) return
-    e.preventDefault()
-    const x = e.pageX - scrollContainerRef.current.offsetLeft
-    const walk = (x - startX) * 1.5
-    scrollContainerRef.current.scrollLeft = scrollLeft - walk
-  }
-
-  const handleMouseUp = () => {
-    if (!scrollContainerRef.current) return
-    setIsDraggingScroll(false)
-    scrollContainerRef.current.style.cursor = 'grab'
-    scrollContainerRef.current.style.userSelect = 'auto'
-  }
-
-  const handleMouseLeave = () => {
-    if (!scrollContainerRef.current) return
-    setIsDraggingScroll(false)
-    scrollContainerRef.current.style.cursor = 'grab'
-    scrollContainerRef.current.style.userSelect = 'auto'
-  }
-
   return (
-    <div className="task-manager-container min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+    <div className="min-h-screen" style={{ backgroundColor: NEUTRAL_LIGHT }}>
+      <div className="px-4 pt-3 pb-1">
+        <select
+          value={viewMode}
+          onChange={(e) => setViewMode(e.target.value as 'mine' | 'assigned')}
+          className="cok-auth-input text-sm cursor-pointer"
+          style={{ paddingLeft: '12px', width: 'auto', minWidth: '180px' }}
+        >
+          <option value="mine">My tasks</option>
+          <option value="assigned">Assigned to</option>
+        </select>
+      </div>
+
+      {viewMode === 'assigned' ? (
+        <div className="px-4 pb-8 pt-2">
+          <AssignedFollowUps />
+        </div>
+      ) : (
       <div
         ref={scrollContainerRef}
-        className="columns-scroll-container overflow-x-auto overflow-y-hidden cursor-grab px-4 pb-8 pt-2"
+        className="overflow-x-auto overflow-y-hidden px-4 pb-8 pt-2"
         style={{ scrollbarWidth: 'thin', WebkitOverflowScrolling: 'touch' }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
       >
         <div className="flex gap-5 min-w-max" style={{ paddingBottom: '8px' }}>
-          {columns.map((column) => (
-            <div
-              key={column.id}
-              className={`column-card w-[340px] md:w-[380px] flex-shrink-0 rounded-sm bg-gradient-to-br border shadow-xl hover:shadow-2xl transition-all duration-300 
-                ${(window as any).__draggedOverColumn === column.id ? 'ring-4 ring-blue-400/50 ring-offset-2 scale-[1.02]' : ''} 
-                ${loading ? 'opacity-75' : ''} 
-                bg-white/40`}
-              style={{
-                transform: 'perspective(1200px) rotateX(2deg)',
-                transformStyle: 'preserve-3d',
-                transition: 'all 0.2s ease',
-                borderColor: '#E0E0E0'
-              }}
-              onDragOver={(e) => handleDragOver(e, column.id)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, column.id)}
-            >
+          {COLUMN_DEFS.map((def) => {
+            const col = columns[def.id]
+            return (
               <div
-                className={`relative px-5 py-4 rounded-t-sm bg-gradient-to-r ${column.headerColor}`}
+                key={def.id}
+                className="w-[300px] sm:w-[340px] md:w-[380px] flex-shrink-0 flex flex-col"
                 style={{
-                  transform: 'translateZ(8px)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  backgroundColor: WHITE,
+                  border: `3px solid ${draggedOverColumn === def.id ? PRIMARY : BORDER}`,
+                  borderRadius: 0,
+                  transition: 'border-color 0.2s ease',
                 }}
+                onDragOver={(e) => handleDragOver(e, def.id)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, def.id)}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold text-white tracking-tight" style={{ fontFamily: fontHeading }}>
-                      {column.title}
+                <div className="px-5 py-4 flex-shrink-0" style={{ backgroundColor: def.headerColor }}>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base sm:text-lg font-semibold" style={{ color: WHITE, fontFamily: fontHeading }}>
+                      {def.title.toLocaleUpperCase()}
                     </h2>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-white/90 bg-white/20 px-2.5 py-0.5 rounded-full backdrop-blur-sm" style={{ fontFamily: fontHeading }}>
-                      {column.followups.length}
-                    </span>
-                    <button
-                      onClick={() => {
-                        setSelectedColumnStatus(column.status)
-                        setShowCreateModal(true)
-                      }}
-                      className="text-white/80 hover:text-white p-1 rounded-full hover:bg-white/20 transition-colors"
-                      title={`Add follow-up to ${column.title}`}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-                      </svg>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="text-sm font-semibold px-2.5 py-0.5"
+                        style={{ color: WHITE, backgroundColor: 'rgba(255,255,255,0.2)', fontFamily: fontHeading, borderRadius: 0 }}
+                      >
+                        {col.totalRecords}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedColumnStatus(def.id)
+                          setShowCreateModal(true)
+                        }}
+                        className="px-1.5 cursor-pointer text-lg font-bold leading-none"
+                        style={{ color: 'rgba(255,255,255,0.85)', background: 'transparent', border: 0 }}
+                        title={`Add follow-up to ${def.title}`}
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="p-4 space-y-3 min-h-[500px] max-h-[calc(80vh-100px)] overflow-y-auto custom-scrollbar">
-                {loading && firstLoad ? (
-                  <div className="flex justify-center items-center py-12">
-                    <div className="relative">
-                      <div className="rounded-full h-8 w-8">
-                        <FiLoader className="animate-spin text-blue-500" size={32} />
-                      </div>
+                <div
+                  className="flex-1 p-4 space-y-3 min-h-[500px] max-h-[calc(80vh-100px)] overflow-y-auto custom-scrollbar"
+                  onScroll={(e) => handleColumnScroll(e, def.id)}
+                >
+                  {col.initialLoading ? (
+                    <div className="flex justify-center items-center py-12">
+                      <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: PRIMARY, borderTopColor: 'transparent' }} />
                     </div>
-                  </div>
-                ) : column.followups.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="w-12 h-12 rounded-full bg-white/50 flex items-center justify-center mb-3">
-                      <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
+                  ) : col.items.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <p className="text-sm" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>No follow-ups</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedColumnStatus(def.id)
+                          setShowCreateModal(true)
+                        }}
+                        className="mt-3 text-xs cursor-pointer font-medium"
+                        style={{ color: PRIMARY, fontFamily: fontHeading }}
+                      >
+                        + Add a follow-up
+                      </button>
                     </div>
-                    <p className="text-sm text-slate-500" style={{ fontFamily: fontHeading }}>No follow-ups</p>
-                    <button
-                      onClick={() => {
-                        setSelectedColumnStatus(column.status)
-                        setShowCreateModal(true)
-                      }}
-                      className="mt-3 text-xs hover:cursor-pointer text-blue-500 hover:text-blue-600 font-medium"
-                      style={{ fontFamily: fontHeading }}
-                    >
-                      + Add a follow-up
-                    </button>
-                  </div>
-                ) : (
-                  column.followups.map((followup) => (
-                    <div
-                      key={followup._id}
-                      draggable
-                      onDragStart={() => handleDragStart(followup)}
-                      className={`cursor-grab active:cursor-grabbing transition-all duration-150 ${(window as any).__draggedFollowUp?._id === followup._id ? 'opacity-40 rotate-1 scale-95' : 'hover:scale-[1.02]'}`}
-                      style={{
-                        transform: 'translateZ(4px)',
-                        transition: 'transform 0.15s ease, opacity 0.15s ease'
-                      }}
-                    >
-                      <FollowUpCard
-                        followup={followup}
-                        onClick={() => handleFollowUpClick(followup)}
-                        onUpdate={() => loadFollowups()}
-                      />
-                    </div>
-                  ))
-                )}
-              </div>
+                  ) : (
+                    <>
+                      {col.items.map((followup) => (
+                        <div
+                          key={followup._id}
+                          draggable
+                          onDragStart={() => handleDragStart(followup)}
+                          className="cursor-grab active:cursor-grabbing"
+                          style={{
+                            transition: 'opacity 0.3s ease, transform 0.3s ease',
+                            opacity: draggedFollowUp?._id === followup._id ? 0.4 : 1,
+                            transform: draggedFollowUp?._id === followup._id ? 'scale(0.95)' : 'scale(1)',
+                          }}
+                        >
+                          <FollowUpCard
+                            followup={followup}
+                            onClick={() => handleFollowUpClick(followup)}
+                            onUpdate={() => reloadAll()}
+                            onDelete={() => reloadAll()}
+                            draggedFollowUpId={draggedFollowUp?._id || null}
+                          />
+                        </div>
+                      ))}
 
-              <div className="px-4 pb-3 pt-1">
-                <div className="h-1 w-full bg-gradient-to-r from-transparent via-white/40 to-transparent rounded-full" />
+                      {col.loadingMore && (
+                        <div className="flex items-center justify-center gap-2 py-4">
+                          <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: PRIMARY, borderTopColor: 'transparent' }} />
+                          <span className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>Loading more...</span>
+                        </div>
+                      )}
+
+                      {!col.loadingMore && col.page >= col.totalPages && col.items.length >= PAGE_SIZE && (
+                        <p className="text-center text-xs py-3" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
+                          All follow-ups loaded
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
+      )}
 
       {showCreateModal && (
         <CreateFollowUpModal
@@ -353,7 +376,7 @@ const FollowUpManager: React.FC = () => {
           onDelete={() => {
             setShowDetailModal(false)
             setSelectedFollowUp(null)
-            loadFollowups()
+            reloadAll()
           }}
         />
       )}
@@ -364,46 +387,12 @@ const FollowUpManager: React.FC = () => {
         }
         .custom-scrollbar::-webkit-scrollbar-track {
           background: rgba(0,0,0,0.05);
-          border-radius: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
           background: rgba(0,0,0,0.2);
-          border-radius: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: rgba(0,0,0,0.3);
-        }
-        
-        .columns-scroll-container {
-          scrollbar-width: thin;
-          scrollbar-color: rgba(0,0,0,0.2) transparent;
-        }
-        
-        .columns-scroll-container::-webkit-scrollbar {
-          height: 6px;
-        }
-        
-        .columns-scroll-container::-webkit-scrollbar-track {
-          background: transparent;
-          border-radius: 10px;
-        }
-        
-        .columns-scroll-container::-webkit-scrollbar-thumb {
-          background: rgba(0,0,0,0.15);
-          border-radius: 10px;
-        }
-        
-        .columns-scroll-container::-webkit-scrollbar-thumb:hover {
-          background: rgba(0,0,0,0.25);
-        }
-        
-        .column-card {
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        
-        .column-card:hover {
-          transform: perspective(1200px) rotateX(1deg) translateY(-4px);
-          box-shadow: 0 25px 40px -12px rgba(0, 0, 0, 0.25);
         }
       `}</style>
     </div>

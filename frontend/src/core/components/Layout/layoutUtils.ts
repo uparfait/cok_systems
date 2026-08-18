@@ -178,8 +178,7 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
           { id: 'upcoming-events', label: 'Upcoming', path: `/${slug}/events/upcoming`, icon: 'FiArrowRight' },
           { id: 'recurring-events', label: 'Recurring', path: `/${slug}/events/recurring`, icon: 'FiGrid' },
           { id: 'past-events', label: 'Completed', path: `/${slug}/events/past`, icon: 'FiFile' },
-          { id: 'new-event', label: 'New', path: `/${slug}/events/new`, icon: 'FiClipboard' },
-          { id: 'event-actions', label: 'Actions', path: `/${slug}/events/actions`, icon: 'FiCheck' }
+          { id: 'new-event', label: 'New', path: `/${slug}/events/new`, icon: 'FiClipboard' }
         ]
       },
       {
