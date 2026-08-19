@@ -206,9 +206,9 @@ const ServedVisitorsGenderChart: React.FC<ChartProps> = ({
                 labelStyle={{ fontFamily: fontHeading }}
               />
               <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
-              <Line type="monotone" dataKey="Male" stroke={BLUE} strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 4 }} label={{ position: 'top', fill: '#333333', fontSize: 10, fontWeight: 600 }} />
-              <Line type="monotone" dataKey="Female" stroke={ORANGE} strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 4 }} label={{ position: 'top', fill: '#333333', fontSize: 10, fontWeight: 600 }} />
-              <Line type="monotone" dataKey="Other" stroke={GREEN} strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 4 }} label={{ position: 'top', fill: '#333333', fontSize: 10, fontWeight: 600 }} />
+              <Line type="monotone" dataKey="Male" stroke={BLUE} strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 4 }} label={{ position: 'top', fill: '#333333', fontSize: 10, fontWeight: 600 }} isAnimationActive={false} />
+              <Line type="monotone" dataKey="Female" stroke={ORANGE} strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 4 }} label={{ position: 'top', fill: '#333333', fontSize: 10, fontWeight: 600 }} isAnimationActive={false} />
+              <Line type="monotone" dataKey="Other" stroke={GREEN} strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 4 }} label={{ position: 'top', fill: '#333333', fontSize: 10, fontWeight: 600 }} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
