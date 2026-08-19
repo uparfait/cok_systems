@@ -10,6 +10,7 @@ const ServiceDelivery = require('../../models/service_delivery.js');
 const Feedback = require('../../models/feedback_db.js');
 const UnservicedFeedback = require('../../models/unservicedfeedback_db.js');
 const Task = require('../../models/task.js');
+const ParkingSlot = require('../../models/parking_slots.js');
 
 /**
  * Get all available roles along with their permissions
@@ -379,11 +380,19 @@ const getServiceDeliveryStats = async (req, res) => {
  */
 const getFeedbackTotals = async (req, res) => {
     try {
-        // Total feedback
-        const totalFeedback = await Feedback.countDocuments({});
+        // Optional period filter (today/week/month/last_month/year/range) — no params keeps all-time behavior
+        const { period, from, to } = req.query || {};
+        const bounds = getActivityPeriodBounds(period, from, to);
+        const dateMatch = bounds ? { created_date: { $gte: bounds.start, $lte: bounds.end } } : {};
+
+        // Total feedback = department feedback + general (unserviced) feedback
+        const totalDepartmentFeedback = await Feedback.countDocuments(dateMatch);
+        const totalGeneralFeedback = await UnservicedFeedback.countDocuments(dateMatch);
+        const totalFeedback = totalDepartmentFeedback + totalGeneralFeedback;
 
         // Breakdown by department
         const feedbackByDepartment = await Feedback.aggregate([
+            ...(bounds ? [{ $match: dateMatch }] : []),
             { $group: { _id: '$department_name', count: { $sum: 1 } } }
         ]);
 
@@ -401,6 +410,8 @@ const getFeedbackTotals = async (req, res) => {
             message: 'Feedback totals retrieved successfully',
             data: {
                 total: totalFeedback,
+                department_total: totalDepartmentFeedback,
+                general_total: totalGeneralFeedback,
                 by_department: departmentCounts
             }
         });
@@ -421,8 +432,14 @@ const getFeedbackTotals = async (req, res) => {
  */
 const getFeedbackAverageByDepartment = async (req, res) => {
     try {
+        // Optional period filter (today/week/month/last_month/year/range) — no params keeps all-time behavior
+        const { period, from, to } = req.query || {};
+        const bounds = getActivityPeriodBounds(period, from, to);
+        const dateMatch = bounds ? [{ $match: { created_date: { $gte: bounds.start, $lte: bounds.end } } }] : [];
+
         // Calculate average by department
         const averageByDepartment = await Feedback.aggregate([
+            ...dateMatch,
             {
                 $group: {
                     _id: '$department_name',
@@ -447,6 +464,7 @@ const getFeedbackAverageByDepartment = async (req, res) => {
 
         // Overall average
         const overallAverage = await Feedback.aggregate([
+            ...dateMatch,
             {
                 $group: {
                     _id: null,
@@ -1440,6 +1458,326 @@ const getVisitorsTimeline = async (req, res) => {
     }
 };
 
+// Period bucketing helpers — same logic as serivice_delivery/assigned_visitors_gender_stats.js
+const getActivityPeriodBounds = (period, from, to) => {
+    const now = new Date();
+    const startOfDay = (d) => { const r = new Date(d); r.setHours(0, 0, 0, 0); return r; };
+    const endOfDay = (d) => { const r = new Date(d); r.setHours(23, 59, 59, 999); return r; };
+
+    if (period === 'today') {
+        return { start: startOfDay(now), end: endOfDay(now) };
+    }
+    if (period === 'week') {
+        const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+        monday.setHours(0, 0, 0, 0);
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        sunday.setHours(23, 59, 59, 999);
+        return { start: monday, end: sunday };
+    }
+    if (period === 'month') {
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        end.setHours(23, 59, 59, 999);
+        return { start, end };
+    }
+    if (period === 'last_month') {
+        const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const end = new Date(now.getFullYear(), now.getMonth(), 0);
+        end.setHours(23, 59, 59, 999);
+        return { start, end };
+    }
+    if (period === 'year') {
+        const start = new Date(now.getFullYear(), 0, 1);
+        const end = new Date(now.getFullYear(), 11, 31);
+        end.setHours(23, 59, 59, 999);
+        return { start, end };
+    }
+    if (period === 'range' && from) {
+        const start = startOfDay(from);
+        const end = to ? endOfDay(to) : endOfDay(now);
+        return { start, end };
+    }
+    return null;
+};
+
+const activityDayName = (date) => date.toLocaleDateString('en-US', { weekday: 'long' });
+const activityMonthName = (date) => date.toLocaleDateString('en-US', { month: 'long' });
+const activityHourLabel = (hour) => {
+    const suffix = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:00 ${suffix}`;
+};
+
+const generateActivityTimeSlots = (period, bounds) => {
+    const slots = [];
+    if (!bounds) return slots;
+
+    if (period === 'today') {
+        for (let hour = 8; hour <= 18; hour++) slots.push(activityHourLabel(hour));
+    } else if (period === 'week') {
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const current = new Date(bounds.start);
+        while (current <= bounds.end) {
+            slots.push(days[current.getDay() === 0 ? 6 : current.getDay() - 1]);
+            current.setDate(current.getDate() + 1);
+        }
+    } else if (period === 'month' || period === 'last_month') {
+        const current = new Date(bounds.start);
+        while (current <= bounds.end) {
+            slots.push(activityMonthName(current) + ' ' + current.getDate());
+            current.setDate(current.getDate() + 1);
+        }
+    } else if (period === 'year') {
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        for (let m = 0; m < 12; m++) slots.push(months[m]);
+    } else if (period === 'range') {
+        const diffDays = Math.ceil((bounds.end - bounds.start) / (1000 * 60 * 60 * 24));
+        if (diffDays <= 1) {
+            for (let hour = 8; hour <= 18; hour++) slots.push(activityHourLabel(hour));
+        } else if (diffDays <= 31) {
+            const current = new Date(bounds.start);
+            while (current <= bounds.end) {
+                slots.push(activityMonthName(current) + ' ' + current.getDate());
+                current.setDate(current.getDate() + 1);
+            }
+        } else if (diffDays <= 365) {
+            const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            for (let m = 0; m < 12; m++) slots.push(months[m]);
+        } else {
+            const currentYear = bounds.start.getFullYear();
+            const endYear = bounds.end.getFullYear();
+            for (let y = currentYear; y <= endYear; y++) slots.push(String(y));
+        }
+    }
+    return slots;
+};
+
+const activityLabelForDate = (date, period, bounds) => {
+    if (period === 'today') {
+        const hour = date.getHours();
+        if (hour < 8 || hour > 18) return null;
+        return activityHourLabel(hour);
+    }
+    if (period === 'week') return activityDayName(date);
+    if (period === 'month' || period === 'last_month') return activityMonthName(date) + ' ' + date.getDate();
+    if (period === 'year') return activityMonthName(date);
+    if (period === 'range') {
+        const diffDays = bounds ? Math.ceil((bounds.end - bounds.start) / (1000 * 60 * 60 * 24)) : 0;
+        if (diffDays <= 1) {
+            const hour = date.getHours();
+            if (hour < 8 || hour > 18) return null;
+            return activityHourLabel(hour);
+        }
+        if (diffDays <= 31) return activityMonthName(date) + ' ' + date.getDate();
+        if (diffDays <= 365) return activityMonthName(date);
+        return String(date.getFullYear());
+    }
+    return date.toLocaleDateString();
+};
+
+/**
+ * Get parking + service delivery activity bucketed over a period
+ * (today = per hour, week = per day name, month = per date, year = per month, range = auto)
+ * Parking counts all cars checked in/out; service delivery counts all visitors checked in.
+ */
+const getActivityTimeline = async (req, res) => {
+    try {
+        const { period = 'today', from, to } = req.query || {};
+        const bounds = getActivityPeriodBounds(period, from, to);
+
+        const dateFilter = bounds ? { $gte: bounds.start, $lte: bounds.end } : undefined;
+
+        const [parkingIn, parkingOut, serviceIn] = await Promise.all([
+            ParkingRecord.find(dateFilter ? { check_in: dateFilter } : {}).select('check_in').lean(),
+            ParkingRecord.find(dateFilter ? { check_out: dateFilter } : { check_out: { $ne: null } }).select('check_out').lean(),
+            ServiceDelivery.find(dateFilter ? { entry_date: dateFilter } : {}).select('entry_date').lean(),
+        ]);
+
+        const stats = {};
+        const bump = (rawDate, key) => {
+            const d = rawDate ? new Date(rawDate) : null;
+            if (!d || isNaN(d.getTime())) return;
+            const label = activityLabelForDate(d, period, bounds);
+            if (!label) return;
+            if (!stats[label]) stats[label] = { parking_check_in: 0, parking_check_out: 0, service_checked_in: 0 };
+            stats[label][key] += 1;
+        };
+
+        parkingIn.forEach((r) => bump(r.check_in, 'parking_check_in'));
+        parkingOut.forEach((r) => bump(r.check_out, 'parking_check_out'));
+        serviceIn.forEach((r) => bump(r.entry_date, 'service_checked_in'));
+
+        const timeSlots = generateActivityTimeSlots(period, bounds);
+        const data = timeSlots.map((label) => ({
+            label,
+            parking_check_in: stats[label] ? stats[label].parking_check_in : 0,
+            parking_check_out: stats[label] ? stats[label].parking_check_out : 0,
+            service_checked_in: stats[label] ? stats[label].service_checked_in : 0,
+        }));
+
+        return res.status(200).json({
+            success: true,
+            type: 'success',
+            message: 'Activity timeline retrieved successfully',
+            data,
+            period,
+            bounds: bounds ? { start: bounds.start.toISOString(), end: bounds.end.toISOString() } : null,
+            totals: {
+                parking_check_in: data.reduce((s, d) => s + d.parking_check_in, 0),
+                parking_check_out: data.reduce((s, d) => s + d.parking_check_out, 0),
+                service_checked_in: data.reduce((s, d) => s + d.service_checked_in, 0),
+            },
+        });
+    } catch (error) {
+        console.error('Error in getActivityTimeline:', error);
+        return res.status(500).json({
+            success: false,
+            type: 'error',
+            message: 'Something went wrong while fetching the activity timeline',
+            error: error.message,
+        });
+    }
+};
+
+// Generate slot windows (label + start/end bounds) matching the activity timeline bucketing
+const generateOccupancySlotWindows = (period, bounds) => {
+    const windows = [];
+    if (!bounds) return windows;
+    const pushDay = (day) => {
+        const start = new Date(day); start.setHours(0, 0, 0, 0);
+        const end = new Date(day); end.setHours(23, 59, 59, 999);
+        windows.push({ label: activityMonthName(day) + ' ' + day.getDate(), start, end });
+    };
+    const diffDays = Math.ceil((bounds.end - bounds.start) / (1000 * 60 * 60 * 24));
+    const useHours = period === 'today' || (period === 'range' && diffDays <= 1);
+    const useMonths = period === 'year' || (period === 'range' && diffDays > 31 && diffDays <= 365);
+    const useYears = period === 'range' && diffDays > 365;
+
+    if (useHours) {
+        const base = new Date(bounds.start);
+        for (let hour = 8; hour <= 18; hour++) {
+            const start = new Date(base); start.setHours(hour, 0, 0, 0);
+            const end = new Date(base); end.setHours(hour, 59, 59, 999);
+            windows.push({ label: activityHourLabel(hour), start, end });
+        }
+    } else if (useMonths) {
+        const year = bounds.start.getFullYear();
+        for (let m = 0; m < 12; m++) {
+            const start = new Date(year, m, 1, 0, 0, 0, 0);
+            const end = new Date(year, m + 1, 0, 23, 59, 59, 999);
+            windows.push({ label: activityMonthName(start), start, end });
+        }
+    } else if (useYears) {
+        for (let y = bounds.start.getFullYear(); y <= bounds.end.getFullYear(); y++) {
+            windows.push({ label: String(y), start: new Date(y, 0, 1), end: new Date(y, 11, 31, 23, 59, 59, 999) });
+        }
+    } else if (period === 'week') {
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const current = new Date(bounds.start);
+        while (current <= bounds.end) {
+            const start = new Date(current); start.setHours(0, 0, 0, 0);
+            const end = new Date(current); end.setHours(23, 59, 59, 999);
+            windows.push({ label: days[current.getDay() === 0 ? 6 : current.getDay() - 1], start, end });
+            current.setDate(current.getDate() + 1);
+        }
+    } else {
+        const current = new Date(bounds.start);
+        while (current <= bounds.end) {
+            pushDay(new Date(current));
+            current.setDate(current.getDate() + 1);
+        }
+    }
+    return windows;
+};
+
+/**
+ * Parking occupancy over a period: percentage of slots occupied per time bucket.
+ * For 'today' also returns the live snapshot so the client can render the donut unchanged.
+ * All numbers are computed here; the client only renders labels and values.
+ */
+const getOccupancyTimeline = async (req, res) => {
+    try {
+        const { period = 'month', from, to } = req.query || {};
+        const bounds = getActivityPeriodBounds(period, from, to);
+
+        const slotConfig = await ParkingSlot.findOne({ UnChangedId: 'parking_slots' }).lean();
+        const totalSlots = Number(slotConfig?.totalSlots) || 0;
+
+        const records = bounds ? await ParkingRecord.find({
+            check_in: { $lte: bounds.end },
+            $or: [{ check_out: null }, { check_out: { $gte: bounds.start } }],
+        }).select('check_in check_out').lean() : [];
+
+        const windows = generateOccupancySlotWindows(period, bounds);
+        const HOUR_MS = 60 * 60 * 1000;
+        const nowMs = Date.now();
+
+        // Peak hourly occupancy per bucket: within each bucket, count the cars present
+        // during each hour and keep the hour with the most cars. A car still parked
+        // (no check_out) counts as present up to now.
+        const data = windows.map((w) => {
+            const winStart = w.start.getTime();
+            const winEnd = Math.min(w.end.getTime(), nowMs);
+            if (winEnd < winStart) return { label: w.label, occupied: 0, percentage: 0 };
+
+            const hourCount = Math.max(1, Math.ceil((winEnd - winStart + 1) / HOUR_MS));
+            const diff = new Array(hourCount + 1).fill(0);
+            let hasAny = false;
+
+            for (const r of records) {
+                const checkIn = r.check_in ? new Date(r.check_in).getTime() : NaN;
+                if (isNaN(checkIn) || checkIn > winEnd) continue;
+                let checkOut = r.check_out ? new Date(r.check_out).getTime() : nowMs;
+                if (isNaN(checkOut)) checkOut = nowMs;
+                if (checkOut < winStart) continue;
+
+                const startIdx = Math.max(0, Math.floor((Math.max(checkIn, winStart) - winStart) / HOUR_MS));
+                const endIdx = Math.min(hourCount - 1, Math.floor((Math.min(checkOut, winEnd) - winStart) / HOUR_MS));
+                if (endIdx < startIdx) continue;
+                diff[startIdx] += 1;
+                diff[endIdx + 1] -= 1;
+                hasAny = true;
+            }
+
+            let peak = 0;
+            if (hasAny) {
+                let running = 0;
+                for (let i = 0; i < hourCount; i++) {
+                    running += diff[i];
+                    if (running > peak) peak = running;
+                }
+            }
+
+            const percentage = totalSlots > 0 ? Math.min(100, Math.round((peak / totalSlots) * 1000) / 10) : 0;
+            return { label: w.label, occupied: peak, percentage };
+        });
+
+        const currentlyOccupied = await ParkingRecord.countDocuments({ status: 'active' });
+        const currentPercentage = totalSlots > 0 ? Math.min(100, Math.round((currentlyOccupied / totalSlots) * 1000) / 10) : 0;
+
+        return res.status(200).json({
+            success: true,
+            type: 'success',
+            message: 'Occupancy timeline retrieved successfully',
+            data,
+            period,
+            totalSlots,
+            current: { occupied: currentlyOccupied, totalSlots, percentage: currentPercentage },
+            bounds: bounds ? { start: bounds.start.toISOString(), end: bounds.end.toISOString() } : null,
+        });
+    } catch (error) {
+        console.error('Error in getOccupancyTimeline:', error);
+        return res.status(500).json({
+            success: false,
+            type: 'error',
+            message: 'Something went wrong while fetching the occupancy timeline',
+            error: error.message,
+        });
+    }
+};
+
 module.exports = {
     getRolesWithPermissions,
     getDepartmentsWithLeaders,
@@ -1458,5 +1796,7 @@ module.exports = {
     getEmployeePerformanceByService,
     getEmployeePerformanceByTasksDone,
     getServedStatistics,
-    getVisitorsTimeline
+    getVisitorsTimeline,
+    getActivityTimeline,
+    getOccupancyTimeline
 };

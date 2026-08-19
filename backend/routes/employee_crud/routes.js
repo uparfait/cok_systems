@@ -421,7 +421,7 @@ Router.post('/bulk-upload-cars', auditSuccess('CREATE', 'vehicles', (req, res, d
  *       500:
  *         description: Internal server error
  */
-Router.put('/:id', auditSuccess('UPDATE', 'employees', (req, res, data) => `Updated employee: ${req.params.id}`), update_employee)
+Router.put('/:id', auditSuccess('UPDATE', 'employees', (req, res, data) => `Updated employee: ${data?.data?.full_name || req.body.full_name || req.params.id}`), update_employee)
 
 /**
  * @swagger
@@ -450,7 +450,7 @@ Router.put('/:id', auditSuccess('UPDATE', 'employees', (req, res, data) => `Upda
  *       500:
  *         description: Internal server error
  */
-Router.delete('/:id', auditSuccess('DELETE', 'employees', (req, res, data) => `Deleted employee: ${req.params.id}`), delete_employee)
+Router.delete('/:id', auditSuccess('DELETE', 'employees', (req, res, data) => `Deleted employee: ${data?.data?.full_name || req.params.id}`), delete_employee)
 
 // Add error logging middleware
 Router.use(auditError('employees'))

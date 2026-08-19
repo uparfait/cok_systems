@@ -284,9 +284,6 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
     return [
       { id: 'calender', label: 'Calender', path: `/calender`, icon: 'FiCalendar' },
       { id: 'mayor-dashboadr', label: 'Dashboard', path: `/${slug}/dashboard`, icon: 'FiHome' },
-      { id: 'mayor-events', label: 'Events', path: `/${slug}/events`, icon: 'FiCalendar' },
-      { id: 'mayor-actions', label: 'Actions', path: `/${slug}/actions`, icon: 'FiCheck' },
-      { id: 'service-dashboard', label: 'Service Delivery Dashboard', path: `/${slug}/service-delivery/dashboard`, icon: 'FiClipboard' },
       { id: 'mayor-feedback', label: 'Feedback Analysis', path: `/${slug}/feedback-analysis`, icon: 'FiMessageSquare' },
       {
         id: 'task-manager',
@@ -374,15 +371,11 @@ const hasAdminAccess = hasPermission(user, 'admin') || hasPermission(user, 'depa
   if (hasServiceAccess || isAdmin) {
     const serviceChildren: NavItem[] = [];
     if (hasPermission(user, 'service delivery', 'read') || isAdmin)
-      serviceChildren.push({ id: 'service-dashboard', label: 'Dashboard', path: `/${slug}/service-delivery/dashboard`, icon: 'FiHome' });
-    if (hasPermission(user, 'service delivery', 'create') || isAdmin)
-      serviceChildren.push({ id: 'service-checkin-checkout', label: 'Check-In/Check-Out', path: `/${slug}/service-delivery/checkin-checkout`, icon: 'FiLogIn' });
-    if (hasPermission(user, 'service delivery', 'read') || isAdmin)
       serviceChildren.push({ id: 'service-analytics', label: 'Analytics', path: `/${slug}/service-delivery/analytics`, icon: 'FiBarChart2' });
     if (hasPermission(user, 'service delivery', 'read') || isAdmin)
       serviceChildren.push({ id: 'service-feedback', label: 'Feedback', path: `/${slug}/service-delivery/feedback`, icon: 'FiMessageSquare' });
     if (serviceChildren.length > 0) {
-      navigation.push({ id: 'serviceDelivery', label: 'Service Delivery', path: `/${slug}/service-delivery/dashboard`, icon: 'FiClipboard', children: serviceChildren });
+      navigation.push({ id: 'serviceDelivery', label: 'Service Delivery', path: `/${slug}/service-delivery/analytics`, icon: 'FiClipboard', children: serviceChildren });
     }
   }
 
@@ -453,10 +446,8 @@ const getRoleSelectionNavigation = (_role: string): NavItem[] => {
       ]
     },
     {
-      id: 'service-delivery', label: 'Service Delivery', path: '/system-admin/service-delivery/dashboard', icon: 'FiClipboard',
+      id: 'service-delivery', label: 'Service Delivery', path: '/system-admin/service-delivery/analytics', icon: 'FiClipboard',
       children: [
-        { id: 'service-dashboard', label: 'Dashboard', path: '/system-admin/service-delivery/dashboard', icon: 'FiHome' },
-        { id: 'service-checkin-checkout', label: 'Check-In/Check-Out', path: '/system-admin/service-delivery/checkin-checkout', icon: 'FiLogIn' },
         { id: 'service-analytics', label: 'Analytics', path: '/system-admin/service-delivery/analytics', icon: 'FiBarChart2' },
         { id: 'service-feedback', label: 'Feedback', path: '/system-admin/service-delivery/feedback', icon: 'FiMessageSquare' },
       ]

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiLoader, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 
 
 interface LoadingSpinnerProps {
@@ -10,7 +10,7 @@ interface LoadingSpinnerProps {
 const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ message = 'Loading...', fullPage = false }) => {
   const content = (
     <div className="flex items-center justify-center gap-2">
-     <FiLoader className="w-6 h-6 animate-spin text-[#056daa]" />
+      <SpiralLoader />
       <span className="text-sm text-gray-500">{message}</span>
     </div>
   );

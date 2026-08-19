@@ -241,6 +241,72 @@ Router.get('/hourly-service-delivery', statisticsController.getHourlyServiceDeli
 
 /**
  * @swagger
+ * /statistics/activity-timeline:
+ *   get:
+ *     summary: "Get parking and service delivery activity over a period"
+ *     description: "Parking check-ins/check-outs and service delivery check-ins bucketed by period (today, week, month, last_month, year, or a custom range)."
+ *     tags: [Statistics]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: period
+ *         schema:
+ *           type: string
+ *           enum: [today, week, month, last_month, year, range]
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date
+ *     responses:
+ *       200:
+ *         description: Activity timeline retrieved
+ *       500:
+ *         description: Internal server error
+ */
+Router.get('/activity-timeline', statisticsController.getActivityTimeline);
+
+/**
+ * @swagger
+ * /statistics/occupancy-timeline:
+ *   get:
+ *     summary: "Get parking occupancy percentage over a period"
+ *     description: "Occupancy percentage per time bucket for the selected period, plus the live occupancy snapshot. All values are computed server-side."
+ *     tags: [Statistics]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: period
+ *         schema:
+ *           type: string
+ *           enum: [today, week, month, last_month, year, range]
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date
+ *     responses:
+ *       200:
+ *         description: Occupancy timeline retrieved
+ *       500:
+ *         description: Internal server error
+ */
+Router.get('/occupancy-timeline', statisticsController.getOccupancyTimeline);
+
+/**
+ * @swagger
  * /statistics/employee-performance/tasks:
  *   get:
  *     summary: "Get employee performance by tasks"

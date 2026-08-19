@@ -1,4 +1,4 @@
-import { FiLoader } from 'react-icons/fi';
+import SpiralLoader from '@/systems/event-managment/components/SpiralLoader';
 
 // City of Kigali design rule palette (see desegin_rule.html)
 export const COK = {
@@ -33,7 +33,7 @@ export const CokLabel = ({ children }: { children: React.ReactNode }) => (
 
 export const CokLoadingOverlay = () => (
   <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] z-10 flex items-center justify-center">
-    <FiLoader className="w-5 h-5 animate-spin" style={{ color: COK.primary }} />
+    <SpiralLoader />
   </div>
 );
 

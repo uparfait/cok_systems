@@ -213,6 +213,17 @@ export const feedbackService = {
   getById: (id: string) => get(`/feedback/${id}`),
   submit: (data: any) => post('/feedback/submit', data),
   delete: (id: string) => del(`/feedback/${id}`),
+  listFeedbacks: (params?: { target?: string; period?: string; from?: string; to?: string; page?: number; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.target) query.append('target', params.target);
+    if (params?.period) query.append('period', params.period);
+    if (params?.from) query.append('from', params.from);
+    if (params?.to) query.append('to', params.to);
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.limit) query.append('limit', String(params.limit));
+    const qs = query.toString();
+    return get(`/feedback/list${qs ? `?${qs}` : ''}`);
+  },
 };
 
 // ==================== SERVICE DELIVERY APIs ====================
@@ -611,12 +622,42 @@ export const statisticsService = {
   getServiceDeliveryStats: () => get('/statistics/service-delivery'),
   getHourlyServiceDeliveryStats: () => get('/statistics/hourly-service-delivery'),
   getHourlyParkingStats: () => get('/statistics/hourly-parking'),
+  getActivityTimeline: (params?: { period?: string; from?: string; to?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.period) query.append('period', params.period);
+    if (params?.from) query.append('from', params.from);
+    if (params?.to) query.append('to', params.to);
+    const qs = query.toString();
+    return get(`/statistics/activity-timeline${qs ? `?${qs}` : ''}`);
+  },
+  getOccupancyTimeline: (params?: { period?: string; from?: string; to?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.period) query.append('period', params.period);
+    if (params?.from) query.append('from', params.from);
+    if (params?.to) query.append('to', params.to);
+    const qs = query.toString();
+    return get(`/statistics/occupancy-timeline${qs ? `?${qs}` : ''}`);
+  },
   getDepartmentsWithLeaders: () => get('/statistics/departments-leaders'),
   getEmployeeStats: () => get('/statistics/employees'),
   getVisitorsTimeline: (from: string, to: string, granularity: 'hour' | 'day' | 'week' | 'month') =>
     get(`/statistics/visitors-timeline?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&granularity=${granularity}`),
-  getFeedbackTotals: () => get('/statistics/feedback-totals'),
-  getFeedbackAverageByDepartment: () => get('/statistics/feedback-average'),
+  getFeedbackTotals: (params?: { period?: string; from?: string; to?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.period) query.append('period', params.period);
+    if (params?.from) query.append('from', params.from);
+    if (params?.to) query.append('to', params.to);
+    const qs = query.toString();
+    return get(`/statistics/feedback-totals${qs ? `?${qs}` : ''}`);
+  },
+  getFeedbackAverageByDepartment: (params?: { period?: string; from?: string; to?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.period) query.append('period', params.period);
+    if (params?.from) query.append('from', params.from);
+    if (params?.to) query.append('to', params.to);
+    const qs = query.toString();
+    return get(`/statistics/feedback-average${qs ? `?${qs}` : ''}`);
+  },
   getCurrentlyParkedStats: () => get('/statistics/currently-parked'),
   getFlaggedVehiclesStats: () => get('/statistics/flagged-vehicles'),
   getEmergencyCarsStats: () => get('/statistics/emergency-cars'),
