@@ -1,4 +1,5 @@
 const submissions_model = require("../../models/submissions_model.js");
+const project_access = require("../../utilities/project_access.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -14,6 +15,11 @@ async function get_submissions(req, res) {
 
     if (!form_group_id) {
       return res.status(400).json(warning_response(req, "FORM_ID_REQUIRED"));
+    }
+
+    const access = await project_access.can_view_form_group(req.user, form_group_id);
+    if (access.found && !access.allowed) {
+      return res.status(403).json(warning_response(req, "ACCESS_DENIED"));
     }
 
     const page_number = Math.max(1, parseInt(page, 10) || 1);

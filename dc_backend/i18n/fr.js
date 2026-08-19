@@ -5,6 +5,7 @@ module.exports = {
   AUTH_USER_NOT_FOUND: "Nous ne trouvons plus votre compte",
   AUTH_ACCOUNT_LOCKED: "Votre compte a été verrouillé",
   AUTH_ACCOUNT_NOT_ACTIVATED: "Veuillez d'abord activer votre compte",
+  ACCESS_DENIED: "Vous n'avez pas la permission d'accéder à cette ressource",
   SERVER_ERROR: "Une erreur est survenue, veuillez réessayer plus tard",
   NOT_FOUND: "La ressource demandée est introuvable",
   ROUTE_NOT_FOUND: "Le service demandé est introuvable",
@@ -46,4 +47,10 @@ module.exports = {
   PROJECT_DEPARTMENT_OPTIONAL: "Le département et l'unité sont optionnels",
   FORM_VERSION_IMMUTABLE: "Les versions existantes du formulaire ne peuvent être ni modifiées ni supprimées",
   VALIDATION_FIELD_REQUIRED: "Ce champ est obligatoire",
+  ACCESS_RULES_FETCHED: "Règles d'accès récupérées avec succès",
+  ACCESS_RULES_SAVED: "Règles d'accès enregistrées avec succès",
+  ACCESS_RULES_INVALID: "Les règles d'accès soumises ne sont pas valides",
+  USER_EMAIL_REQUIRED: "Une adresse e-mail est requise",
+  USER_EMAIL_NOT_FOUND: "Aucun compte avec cet e-mail n'existe dans le système",
+  USER_EMAIL_FOUND: "Un compte correspondant a été trouvé",
 };
