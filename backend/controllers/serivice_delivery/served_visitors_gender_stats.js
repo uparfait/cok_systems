@@ -122,7 +122,9 @@ module.exports = async function served_visitors_gender_stats(req, res, next) {
     const roleName = req.user?.role_name || req.user?.role || '';
 
     let match;
-    if (roleName === 'Head of department') {
+    const roleLower = String(roleName).toLowerCase();
+    const isHodRole = ['head of department', 'department manager', 'department head', 'director'].some((k) => roleLower.includes(k));
+    if (isHodRole) {
       // HODs see everyone served in the department(s) they lead, not just themselves
       const departmentIds = await getDepartmentIdsForHead(req.user?.userId || userId);
       if (!departmentIds.length) {
