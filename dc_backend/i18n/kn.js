@@ -5,6 +5,7 @@ module.exports = {
   AUTH_USER_NOT_FOUND: "Ntibashije kubona konti yawe",
   AUTH_ACCOUNT_LOCKED: "Konti yawe yarafunzwe",
   AUTH_ACCOUNT_NOT_ACTIVATED: "Nyamuneka fungura konti yawe mbere",
+  ACCESS_DENIED: "Ntabwo wemerewe gukoresha iyi serivisi",
   SERVER_ERROR: "Habaye ikibazo, ongera ugerageze nyuma",
   NOT_FOUND: "Ibyo usaba ntibyabonetse",
   ROUTE_NOT_FOUND: "Iyi serivisi ntibashije kuboneka",
@@ -46,4 +47,10 @@ module.exports = {
   PROJECT_DEPARTMENT_OPTIONAL: "Ishami n'igice byo ntibisabwa",
   FORM_VERSION_IMMUTABLE: "Verisiyo z'ifishi zisanzwe ntizishobora guhindurwa cyangwa gusibwa",
   VALIDATION_FIELD_REQUIRED: "Iki kibazo gisabwa gusubizwa",
+  ACCESS_RULES_FETCHED: "Amategeko y'uburenganzira yabonetse neza",
+  ACCESS_RULES_SAVED: "Amategeko y'uburenganzira yabitswe neza",
+  ACCESS_RULES_INVALID: "Amategeko y'uburenganzira yoherejwe ntabwo ari meza",
+  USER_EMAIL_REQUIRED: "Aderesi ya imeyili irasabwa",
+  USER_EMAIL_NOT_FOUND: "Nta konti ifite iyi imeyili ibaho muri sisitemu",
+  USER_EMAIL_FOUND: "Konti ihuye yabonetse",
 };
