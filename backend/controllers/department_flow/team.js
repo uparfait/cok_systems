@@ -1,5 +1,6 @@
 
 const User = require('../../models/user.js');
+const Department = require('../../models/department.js');
 const { getDepartmentIdsForHead } = require('./visitors_by_status');
 
 /**
@@ -40,21 +41,46 @@ const getTeamMembers = async (req, res, next) => {
 
         const members = await User.find(filter)
             .select('full_name email telephone gender title department department_unit roles.role_name is_active is_account_activated created_date picture')
-            .populate('department', 'name department_id')
+            .populate('department', 'department_name department_id is_unit')
             .limit(limit_val)
             .skip(skip_val)
             .sort({ full_name: 1 });
 
         const total_count = await User.countDocuments(filter);
+        const total_active = await User.countDocuments({ ...filter, is_active: true });
+
+        // department_unit is a plain string id — resolve unit names manually
+        const unitIds = [...new Set(members.map((m) => m.department_unit).filter(Boolean).map(String))];
+        const unitMap = {};
+        if (unitIds.length > 0) {
+            const objectIds = unitIds.filter((id) => /^[0-9a-fA-F]{24}$/.test(id));
+            const units = await Department.find({
+                $or: [
+                    ...(objectIds.length ? [{ _id: { $in: objectIds } }] : []),
+                    { department_id: { $in: unitIds } },
+                ],
+            }).select('department_name department_id').lean();
+            units.forEach((u) => {
+                unitMap[String(u._id)] = u.department_name;
+                if (u.department_id) unitMap[String(u.department_id)] = u.department_name;
+            });
+        }
+
+        const data = members.map((m) => {
+            const obj = m.toObject();
+            obj.department_unit_name = obj.department_unit ? (unitMap[String(obj.department_unit)] || null) : null;
+            return obj;
+        });
 
         return res.status(200).json({
             success: true,
             type: 'success',
             message: 'Team members retrieved successfully',
             total: total_count,
+            total_active,
             page: parseInt(page) || 1,
             limit: limit_val,
-            data: members
+            data
         });
 
     } catch (error) {

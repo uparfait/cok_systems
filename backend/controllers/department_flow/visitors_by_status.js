@@ -117,12 +117,12 @@ const getVisitorsByStatus = async (req, res, next) => {
         const skip_val = (parseInt(page) - 1) * limit_val;
 
         // Validate status
-        const validStatuses = ['pending', 'active', 'transferred', 'completed'];
+        const validStatuses = ['pending', 'active', 'transferred', 'completed', 'not_served'];
         if (!validStatuses.includes(status)) {
             return res.status(400).json({
                 success: false,
                 type: 'error',
-                message: 'Invalid status. Must be: pending, active, transferred, completed'
+                message: 'Invalid status. Must be: pending, active, transferred, completed, not_served'
             });
         }
 
@@ -168,6 +168,13 @@ const getVisitorsByStatus = async (req, res, next) => {
                 if (req.query.inhouse !== undefined) {
                     additionalFilter.is_still_inhouse = req.query.inhouse === 'true';
                 }
+                break;
+            case 'not_served':
+                // Sent to the department but left without any service being completed
+                statusFilter = {
+                    'services_status.s_type': { $nin: ['Completed'] },
+                    is_still_inhouse: false
+                };
                 break;
         }
 

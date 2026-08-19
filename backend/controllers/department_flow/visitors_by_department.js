@@ -7,7 +7,7 @@ const { getDepartmentIdsForHead, buildDateFilter } = require('./visitors_by_stat
 const getVisitorsByDepartment = async (req, res, next) => {
     try {
         const { departmentId } = req.params;
-        let { limit = 20, page = 1, dateFilter, status } = req.query;
+        let { limit = 20, page = 1, dateFilter, status, from, to } = req.query;
 
         const limit_val = Math.min(parseInt(limit), 50);
         const skip_val = (parseInt(page) - 1) * limit_val;
@@ -60,10 +60,17 @@ const getVisitorsByDepartment = async (req, res, next) => {
             }
         }
 
-        // Add date filter if provided
-        const dateFilterObj = buildDateFilter(dateFilter);
-        if (Object.keys(dateFilterObj).length > 0) {
-            Object.assign(filter, dateFilterObj);
+        // Explicit from/to range takes precedence over the legacy dateFilter presets
+        if (from || to) {
+            const range = {};
+            if (from) { const start = new Date(from); if (!isNaN(start.getTime())) { start.setHours(0, 0, 0, 0); range.$gte = start; } }
+            if (to) { const end = new Date(to); if (!isNaN(end.getTime())) { end.setHours(23, 59, 59, 999); range.$lte = end; } }
+            if (Object.keys(range).length > 0) filter.entry_date = range;
+        } else {
+            const dateFilterObj = buildDateFilter(dateFilter);
+            if (Object.keys(dateFilterObj).length > 0) {
+                Object.assign(filter, dateFilterObj);
+            }
         }
 
         const visitors = await ServiceDelivery.find(filter)

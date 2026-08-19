@@ -84,10 +84,18 @@ const getDepartmentFeedback = async (req, res, next) => {
         const data = items.slice(skip_val, skip_val + limit_val);
 
         const rated = deptRows.filter((r) => typeof r.rate === 'number');
+        const sentiment = { positive: 0, neutral: 0, negative: 0 };
+        for (const item of items) {
+            const ratio = (item.rate || 0) / (item.rate_out_of || 10);
+            if (ratio >= 0.7) sentiment.positive += 1;
+            else if (ratio >= 0.4) sentiment.neutral += 1;
+            else sentiment.negative += 1;
+        }
         const analytics = {
             average_rating: rated.length ? rated.reduce((s, r) => s + r.rate, 0) / rated.length : 0,
             total_feedback: deptRows.length,
             general_feedback: generalRows.length,
+            sentiment,
         };
 
         return res.status(200).json({

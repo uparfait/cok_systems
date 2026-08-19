@@ -74,14 +74,33 @@ const EmployeesPage: React.FC = () => {
 
   const loadDepartments = async () => {
     try { const r = await departmentService.getAll();
-      if (r.success) { const d = Array.isArray(r.data) ? r.data : (r.data?.data || []); setAllDepartments(d); setDepartments(d.filter((x: any) => !x.sub_department_mng?.is_sub_department)); }
+      if (r.success) {
+        const d = Array.isArray(r.data) ? r.data : (r.data?.data || []);
+        const flat: Department[] = [];
+        d.forEach((x: any) => { flat.push(x); (x.sub_departments || []).forEach((u: any) => flat.push(u)); });
+        setAllDepartments(flat);
+        setDepartments(d.filter((x: any) => !x.sub_department_mng?.is_sub_department));
+      }
     } catch (err) { console.error(err); }
   };
 
   const loadDepartmentUnits = async (departmentId: string) => {
     if (!departmentId) { setDepartmentUnits([]); setLoadingUnits(false); return; }
     try { setLoadingUnits(true); const r = await departmentService.getAll();
-      if (r.success) { const d = Array.isArray(r.data) ? r.data : (r.data?.data || []); setDepartmentUnits(d.filter((x: any) => (x.sub_department_mng?.is_sub_department === true || x.sub_department_mng?.is_sub_department === 'true') && String(x.sub_department_mng?.parent_department_id) === String(departmentId))); }
+      if (r.success) {
+        const d = Array.isArray(r.data) ? r.data : (r.data?.data || []);
+        const parent = d.find((x: any) => String(x._id) === String(departmentId) || String(x.department_id) === String(departmentId));
+        const modernUnits = Array.isArray(parent?.sub_departments) ? parent.sub_departments : [];
+        const legacyUnits = d.filter((x: any) => (x.sub_department_mng?.is_sub_department === true || x.sub_department_mng?.is_sub_department === 'true') && String(x.sub_department_mng?.parent_department_id) === String(departmentId));
+        const seen = new Set<string>();
+        const units = [...modernUnits, ...legacyUnits].filter((u: any) => {
+          const key = String(u._id || u.department_id);
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        setDepartmentUnits(units);
+      }
     } catch (err) { console.error(err); } finally { setLoadingUnits(false); }
   };
 
@@ -188,8 +207,9 @@ const EmployeesPage: React.FC = () => {
           <div className="flex gap-3">
             <div className="flex-1 relative">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9E9E9E]" />
-              <input type="text" placeholder="Search employees..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); searchTimeoutRef.current = setTimeout(() => handleSearch(e.target.value), 500); }} className="w-full cok-auth-input pr-3 py-1.5 text-sm" />
+              <input type="text" placeholder="Search employees..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); searchTimeoutRef.current = setTimeout(() => handleSearch(e.target.value), 500); }} onKeyDown={e => { if (e.key === 'Enter') { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); handleSearch(); } }} className="w-full cok-auth-input pr-3 py-1.5 text-sm" />
             </div>
+            <button onClick={() => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); handleSearch(); }} className="px-4 py-1.5 text-white text-xs" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}><FiSearch className="w-3.5 h-3.5 inline mr-1" />Search</button>
             <button onClick={() => { setSearchQuery(''); if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); loadEmployees(1, pageLimit); }} className="p-1.5 hover:bg-[#F7F9FB] text-[#555555]"><FiRefreshCw className="w-4 h-4" /></button>
           </div>
         </div>

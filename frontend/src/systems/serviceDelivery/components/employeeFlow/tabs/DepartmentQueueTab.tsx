@@ -1,6 +1,7 @@
 // DepartmentQueueTab.tsx - In-house visitors assigned to the user's department
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { FiSearch, FiUsers, FiCheckCircle, FiGrid } from "react-icons/fi";
+import { FiSearch } from "react-icons/fi";
+import SpiralLoader from "@/systems/event-managment/components/SpiralLoader";
 import { useAuth } from "../../../../../core/contexts/AuthContext";
 import { useToast } from "../../../../../core/contexts/ToastContext";
 import { serviceDeliveryService } from "../../../../../core/services/adminService";
@@ -15,8 +16,8 @@ const NEUTRAL_DARK = "#333333";
 const BORDER = "#E0E0E0";
 const WHITE = "#FFFFFF";
 const GRAY_DISABLED = "#9E9E9E";
+const GRAY_MID = "#555555";
 const fontHeading = "'Montserrat', sans-serif";
-const CARD_SHADOW = "0 8px 40px 0 rgba(0,0,0,0.08)";
 const btnTypography: React.CSSProperties = { fontFamily: fontHeading, fontSize: 13, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' };
 
 interface FormattedVisitor {
@@ -273,8 +274,7 @@ const DepartmentQueueTab: React.FC<{ departmentScope?: boolean }> = ({ departmen
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Visitors Table */}
-        <div className="sm:col-span-2 bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW, borderRadius: 0 }}>
+        <div className="sm:col-span-2 bg-white overflow-hidden" style={{ border: `1px solid ${BORDER}`, borderRadius: 0 }}>
           <Table
             headers={[
               { key: "badge", label: "BADGE" },
@@ -397,63 +397,54 @@ const DepartmentQueueTab: React.FC<{ departmentScope?: boolean }> = ({ departmen
           />
         </div>
 
-        {/* Queue Summary Sidebar */}
-        <div className="p-5 text-white" style={{ backgroundColor: PRIMARY, boxShadow: CARD_SHADOW, borderRadius: 0 }}>
-          <h3 className="text-white text-[16px] font-bold mb-4" style={{ fontFamily: fontHeading }}>Queue Summary</h3>
-          <div className="space-y-4">
-            <div className="bg-[rgba(255,255,255,0.1)] p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <FiGrid className="w-4 h-4 opacity-70" />
-                <span className="text-white/70 text-[12px]">Total Units</span>
-              </div>
-              <div className="text-white text-[28px] font-bold" style={{ fontFamily: fontHeading }}>
-                {summaryLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : (queueSummary?.total_units ?? 0)}
-              </div>
+        <div className="bg-white p-4" style={{ border: `1px solid ${BORDER}`, borderRadius: 0 }}>
+          <h3 className="text-sm font-bold uppercase mb-4" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK, letterSpacing: "1px" }}>Queue Summary</h3>
+          {summaryLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <SpiralLoader />
             </div>
-            <div className="bg-[rgba(255,255,255,0.1)] p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <FiUsers className="w-4 h-4 opacity-70" />
-                <span className="text-white/70 text-[12px]">Visitors in Department</span>
-              </div>
-              <div className="text-white text-[28px] font-bold" style={{ fontFamily: fontHeading }}>
-                {summaryLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : (queueSummary?.visitors_in_department ?? 0)}
-              </div>
-            </div>
-            <div className="bg-[rgba(255,255,255,0.1)] p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <FiCheckCircle className="w-4 h-4 opacity-70" />
-                <span className="text-white/70 text-[12px]">Currently Serving</span>
-              </div>
-              <div className="text-white text-[28px] font-bold" style={{ fontFamily: fontHeading }}>
-                {summaryLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : (queueSummary?.currently_serving ?? 0)}
-              </div>
-            </div>
-          </div>
-
-          {/* Department Units breakdown (only for parent departments) */}
-          {!summaryLoading && queueSummary && queueSummary.is_parent_department && queueSummary.units && queueSummary.units.length > 0 && (
-            <div className="mt-4">
-              <span className="text-white/70 text-[12px] font-semibold uppercase" style={{ fontFamily: fontHeading }}>
-                Department Units
-              </span>
-              <div className="mt-2 space-y-2">
-                {queueSummary.units.map((unit) => (
-                  <div key={unit.unit_id} className="bg-[rgba(255,255,255,0.1)] p-3">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-white text-[13px] font-medium">
-                        {unit.unit_name || `Unit ${unit.unit_id.slice(-4)}`}
-                      </span>
-                      <span className="text-white/70 text-[11px]">{unit.total_assigned} assigned</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#388E3C] text-[12px] font-semibold">
-                        {unit.currently_serving} serving
-                      </span>
-                    </div>
+          ) : (
+            <>
+              <div className="space-y-3">
+                {(queueSummary?.is_parent_department || (queueSummary?.total_units ?? 0) > 0) && (
+                  <div className="p-4" style={{ border: `1px solid ${BORDER}`, borderRadius: 0 }}>
+                    <p className="text-xs font-semibold uppercase tracking-wide" style={{ fontFamily: fontHeading, color: GRAY_MID }}>Total Units</p>
+                    <p className="text-2xl font-bold mt-1" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{queueSummary?.total_units ?? 0}</p>
+                    <p className="text-xs mt-0.5" style={{ color: GRAY_DISABLED }}>Units under your department</p>
                   </div>
-                ))}
+                )}
+                <div className="p-4" style={{ border: `1px solid ${BORDER}`, borderRadius: 0 }}>
+                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ fontFamily: fontHeading, color: GRAY_MID }}>Visitors in Department</p>
+                  <p className="text-2xl font-bold mt-1" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{queueSummary?.visitors_in_department ?? 0}</p>
+                  <p className="text-xs mt-0.5" style={{ color: GRAY_DISABLED }}>In-house visitors assigned to you</p>
+                </div>
+                <div className="p-4" style={{ border: `1px solid ${BORDER}`, borderRadius: 0 }}>
+                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ fontFamily: fontHeading, color: GRAY_MID }}>Currently Serving</p>
+                  <p className="text-2xl font-bold mt-1" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>{queueSummary?.currently_serving ?? 0}</p>
+                  <p className="text-xs mt-0.5" style={{ color: GRAY_DISABLED }}>Visitors being served right now</p>
+                </div>
               </div>
-            </div>
+              {queueSummary && Array.isArray(queueSummary.units) && queueSummary.units.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ fontFamily: fontHeading, color: GRAY_MID, letterSpacing: "1px" }}>
+                    Department Units
+                  </p>
+                  <div className="mt-2 space-y-2">
+                    {queueSummary.units.map((unit) => (
+                      <div key={unit.unit_id} className="p-3" style={{ border: `1px solid ${BORDER}`, borderRadius: 0, backgroundColor: NEUTRAL_LIGHT }}>
+                        <p className="text-sm font-semibold" style={{ fontFamily: fontHeading, color: NEUTRAL_DARK }}>
+                          {unit.unit_name || `Unit ${unit.unit_id.slice(-4)}`}
+                        </p>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-xs" style={{ color: GRAY_MID }}>{unit.total_assigned} assigned</span>
+                          <span className="text-xs font-semibold" style={{ color: "#388E3C" }}>{unit.currently_serving} serving</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
