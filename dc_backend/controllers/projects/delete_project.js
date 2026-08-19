@@ -1,6 +1,7 @@
 const projects_model = require("../../models/projects_model.js");
 const forms_model = require("../../models/forms_model.js");
 const submissions_model = require("../../models/submissions_model.js");
+const project_access_model = require("../../models/project_access_model.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { is_valid_object_id } = require("../../utilities/object_id.js");
 
@@ -25,6 +26,7 @@ async function delete_project(req, res) {
     const form_group_ids = await forms_model.get_form_group_ids_by_project(project_id);
     await submissions_model.delete_by_form_group_ids(form_group_ids);
     await forms_model.delete_forms_by_project(project_id);
+    await project_access_model.delete_access_by_project(project_id);
     await projects_model.delete_project(project_id);
 
     return res.status(200).json(success_response(req, "PROJECT_DELETED"));
