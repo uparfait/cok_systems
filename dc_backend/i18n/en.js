@@ -5,6 +5,7 @@ module.exports = {
   AUTH_USER_NOT_FOUND: "We can not find your account anymore",
   AUTH_ACCOUNT_LOCKED: "Your account has been locked",
   AUTH_ACCOUNT_NOT_ACTIVATED: "Please activate your account first",
+  ACCESS_DENIED: "You do not have permission to access this resource",
   SERVER_ERROR: "Something went wrong, please try again later",
   NOT_FOUND: "Requested resource was not found",
   ROUTE_NOT_FOUND: "Requested service was not found",
@@ -46,4 +47,10 @@ module.exports = {
   PROJECT_DEPARTMENT_OPTIONAL: "Department and department unit are optional",
   FORM_VERSION_IMMUTABLE: "Existing form versions can not be modified or deleted",
   VALIDATION_FIELD_REQUIRED: "This field is required",
+  ACCESS_RULES_FETCHED: "Access rules fetched successfully",
+  ACCESS_RULES_SAVED: "Access rules saved successfully",
+  ACCESS_RULES_INVALID: "The access rules submitted are not valid",
+  USER_EMAIL_REQUIRED: "An email address is required",
+  USER_EMAIL_NOT_FOUND: "No account with this email exists in the system",
+  USER_EMAIL_FOUND: "A matching account was found",
 };

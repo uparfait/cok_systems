@@ -55,7 +55,33 @@ async function list_department_units(department_id) {
   }));
 }
 
+/**
+ * Resolves where a user sits in the org: the id may point at a top-level
+ * department or at a unit, so this returns both the top-level department id
+ * and the unit id (null when the user sits directly in the department).
+ */
+async function get_department_context(department_id) {
+  const object_id = to_object_id(department_id);
+  if (!object_id) return null;
+
+  const document = await get_cok_db()
+    .collection("departments")
+    .findOne({ _id: object_id }, { projection: { is_unit: 1, parent_department: 1, sub_department_mng: 1 } });
+  if (!document) return null;
+
+  const is_unit = document.is_unit === true || document.sub_department_mng?.is_sub_department === true;
+  if (!is_unit) {
+    return { department_id: department_id.toString(), unit_id: null };
+  }
+
+  const parent_id = document.parent_department
+    ? document.parent_department.toString()
+    : document.sub_department_mng?.parent_department_id || null;
+  return { department_id: parent_id, unit_id: department_id.toString() };
+}
+
 module.exports = {
   list_departments,
   list_department_units,
+  get_department_context,
 };
