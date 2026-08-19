@@ -34,6 +34,9 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
   show, editing, formData, formError, formSuccess, submitting, departments, departmentUnits, loadingUnits, roles, onClose, onSubmit, onChange, onDepartmentChange
 }) => {
   if (!show) return null;
+  const rawUnit = String(formData.department_unit || '');
+  const matchedUnit = departmentUnits.find(u => String(u._id) === rawUnit || String(u.department_id) === rawUnit);
+  const selectedUnitValue = matchedUnit ? String(matchedUnit._id) : '';
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
       <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl mx-2 sm:mx-4 my-2 sm:my-6">
@@ -82,8 +85,8 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                 </select>
               </div>
               <div><label className="text-xs font-medium text-gray-700 mb-1 block">Unit</label>
-                <select value={formData.department_unit || ''} onChange={e => onChange({ ...formData, department_unit: e.target.value })} disabled={!formData.department_id || loadingUnits} className="cok-auth-input w-full text-sm disabled:opacity-60" style={{ paddingLeft: '10px', minHeight: '38px' }}>
-                  {loadingUnits ? <option>Loading...</option> : departmentUnits.length === 0 ? <option>No units</option> : <><option value="">Select unit</option>{departmentUnits.map(u => <option key={u._id} value={u._id}>{u.department_name}</option>)}</>}
+                <select value={selectedUnitValue} onChange={e => onChange({ ...formData, department_unit: e.target.value })} disabled={!formData.department_id || loadingUnits} className="cok-auth-input w-full text-sm disabled:opacity-60" style={{ paddingLeft: '10px', minHeight: '38px' }}>
+                  {loadingUnits ? <option>Loading...</option> : departmentUnits.length === 0 ? <option>No units</option> : <><option value="">Select unit</option>{departmentUnits.map(u => <option key={u._id} value={String(u._id)}>{u.department_name}</option>)}</>}
                 </select>
               </div>
             </div>

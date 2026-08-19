@@ -213,12 +213,9 @@ export const getNavigationByPermissions = (user: User | null): NavItem[] => {
           { id: 'follow-ups', label: 'Follow-ups', path: `/${slug}/followups`, icon: 'FiCheck' }
         ]
       },
-      { id: 'team-tasks', label: 'Team Tasks', path: `/${slug}/hod/tasks`, icon: 'FiList' },
-      { id: 'announcements', label: 'Announcements', path: `/${slug}/hod/announcements`, icon: 'FiMessageSquare' },
       { id: 'feedback', label: 'Feedback', path: `/${slug}/hod/feedback`, icon: 'FiStar' },
       { id: 'history', label: 'Service History', path: `/${slug}/dashboard?tab=history`, icon: 'FiFileText' },
       { id: 'queue', label: 'Department Queue', path: `/${slug}/dashboard?tab=queue`, icon: 'FiUsers' },
-      { id: 'departments', label: 'Department Management', path: `/${slug}/dashboard?tab=departments`, icon: 'FiLayers' },
       { id: 'dcs', label: 'DCS', path: `/dcs-system`, icon: 'FiDatabase' },
     ];
   }

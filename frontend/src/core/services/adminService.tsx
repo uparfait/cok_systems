@@ -397,9 +397,11 @@ export const serviceDeliveryService = {
 // ==================== DEPARTMENT MANAGER APIs ====================
 
 export const departmentManagerService = {
-  getVisitorsByStatus: (status: string, page: number = 1, limit: number = 20, dateFilter?: string) => {
+  getVisitorsByStatus: (status: string, page: number = 1, limit: number = 20, dateFilter?: string, from?: string, to?: string) => {
     let url = `/department-manager/visitors/status/${status}?page=${page}&limit=${limit}`;
     if (dateFilter) url += `&dateFilter=${encodeURIComponent(dateFilter)}`;
+    if (from) url += `&from=${encodeURIComponent(from)}`;
+    if (to) url += `&to=${encodeURIComponent(to)}`;
     return get(url);
   },
   getVisitorsByProvider: (providerId: string, page: number = 1, limit: number = 20, dateFilter?: string) => {
@@ -407,20 +409,26 @@ export const departmentManagerService = {
     if (dateFilter) url += `&dateFilter=${encodeURIComponent(dateFilter)}`;
     return get(url);
   },
-  getVisitorsByDepartment: (departmentId: string, page: number = 1, limit: number = 20, dateFilter?: string, status?: string) => {
+  getVisitorsByDepartment: (departmentId: string, page: number = 1, limit: number = 20, dateFilter?: string, status?: string, from?: string, to?: string) => {
     let url = `/department-manager/visitors/department/${departmentId}?page=${page}&limit=${limit}`;
     if (dateFilter) url += `&dateFilter=${encodeURIComponent(dateFilter)}`;
     if (status) url += `&status=${encodeURIComponent(status)}`;
+    if (from) url += `&from=${encodeURIComponent(from)}`;
+    if (to) url += `&to=${encodeURIComponent(to)}`;
     return get(url);
   },
   getManagedDepartments: () => get('/department-manager/departments'),
   updateDepartment: (departmentId: string, data: { department_name?: string; department_response_time_in_minutes?: number }) => put(`/department-manager/departments/${departmentId}`, data),
   getResponseTimeAnalytics: () => get('/department-manager/analytics/response-time'),
-  getDepartmentFeedback: (page: number = 1, limit: number = 20, dateFilter?: string, rating?: number) => {
-    let url = `/department-manager/feedback?page=${page}&limit=${limit}`;
-    if (dateFilter) url += `&dateFilter=${encodeURIComponent(dateFilter)}`;
-    if (rating) url += `&rating=${rating}`;
-    return get(url);
+  getDepartmentFeedback: (params: { page?: number; limit?: number; target?: string; from?: string; to?: string; rating?: number } = {}) => {
+    const q = new URLSearchParams();
+    q.set('page', String(params.page || 1));
+    q.set('limit', String(params.limit || 20));
+    if (params.target) q.set('target', params.target);
+    if (params.from) q.set('from', params.from);
+    if (params.to) q.set('to', params.to);
+    if (params.rating) q.set('rating', String(params.rating));
+    return get(`/department-manager/feedback?${q.toString()}`);
   },
 
   // ---- Head of Department features ----
