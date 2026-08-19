@@ -39,7 +39,6 @@ const AdminSmartParkingDashboard: React.FC = () => {
   const [firstLoad, setfirstLoad] = useState(true);
   const [stats, setStats] = useState<ParkingStats>({ todayVehicles: 0, currentlyParked: 0, availableSlots: 0, flaggedInside: 0, totalCapacity: 0 });
   const [hourlyData, setHourlyData] = useState<HourlyData[]>([]);
-  const [recentRecords, setRecentRecords] = useState<ParkingRecord[]>([]);
   const [showRecordsModal, setShowRecordsModal] = useState(false);
   const [allRecords, setAllRecords] = useState<ParkingRecord[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
@@ -80,9 +79,6 @@ const AdminSmartParkingDashboard: React.FC = () => {
       const totalCap = slotsData?.totalSlots || 0;
       setSlotConfig({ totalSlots: slotsData?.totalSlots || 0, staffReservedSlots: slotsData?.staffReservedSlots || 0, visitorReservedSlots: slotsData?.visitorsReservedSlots || 0 });
       setStats({ todayVehicles: todayCheckIns, currentlyParked, availableSlots: Math.max(0, totalCap - currentlyParked), flaggedInside, totalCapacity: totalCap });
-      const recordsRes = await smartParkingService.getAll();
-      const records = recordsRes?.data || recordsRes || [];
-      setRecentRecords(Array.isArray(records) ? records.slice(0, 10) : []);
     } catch (error) { console.error(error); }
     finally { setLoading(false); setfirstLoad(false); }
   }, []);
@@ -298,7 +294,11 @@ const AdminSmartParkingDashboard: React.FC = () => {
         {realtimeUpdate && <div className="bg-[rgba(5,109,170,0.08)] border border-[#E0E0E0] p-3 flex items-center gap-2"><div className="w-2 h-2 bg-[#056daa] animate-ping"></div><p className="text-sm text-[#056daa] font-medium">{realtimeUpdate}</p></div>}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div><h1 className="text-sm font-bold text-[#333333]">Manage and monitor parking operations in real-time</h1></div>
-          <button onClick={fetchData} disabled={loading} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#056daa] text-[#056daa] text-sm font-medium hover:bg-[rgba(5,109,170,0.06)] disabled:opacity-50"><FiRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />Refresh</button>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => { setExportMode('all'); setShowExportDialog(true); }} className="flex items-center gap-1 px-3 py-1.5 text-white text-xs font-medium" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}><FiDownload className="w-3 h-3" />Export</button>
+            <button onClick={() => { setShowRecordsModal(true); fetchAllRecords(1); }} className="px-3 py-1.5 bg-white border border-[#056daa] text-[#056daa] text-xs font-medium hover:bg-[rgba(5,109,170,0.06)]">View All Records</button>
+            <button onClick={fetchData} disabled={loading} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#056daa] text-[#056daa] text-sm font-medium hover:bg-[rgba(5,109,170,0.06)] disabled:opacity-50"><FiRefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />Refresh</button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -325,21 +325,6 @@ const AdminSmartParkingDashboard: React.FC = () => {
           <h2 className="text-sm font-semibold text-[#333333] mb-3">Parking Usage Trends</h2>
           {loading && firstLoad ? <div className="h-48 flex items-center justify-center"><LoadingSpinner /></div>
             : <div className="h-48"><ResponsiveContainer width="100%" height="100%"><AreaChart data={hourlyData} margin={{ top: 15, right: 10, left: 0, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} /><XAxis dataKey="hour" tickFormatter={(v: number) => `${v}:00`} tick={{ fontSize: 11, fill: GRAY_DISABLED }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 11, fill: GRAY_DISABLED }} axisLine={false} tickLine={false} /><Tooltip contentStyle={{ backgroundColor: WHITE, border: `1px solid ${BORDER}`, borderRadius: 0, boxShadow: CARD_SHADOW }} /><Legend /><Area type="monotone" dataKey="check_in" stroke={PRIMARY} fill="rgba(5,109,170,0.1)" name="Check-ins" dot={{ r: 3 }} label={{ position: 'top', fill: NEUTRAL_DARK, fontSize: 10, fontWeight: 600 }} /><Area type="monotone" dataKey="check_out" stroke={DANGER} fill="rgba(231,76,60,0.1)" name="Check-outs" dot={{ r: 3 }} label={{ position: 'top', fill: NEUTRAL_DARK, fontSize: 10, fontWeight: 600 }} /></AreaChart></ResponsiveContainer></div>}
-        </div>
-
-        <div className="bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
-          <div className="px-4 py-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-[#333333]">Recent Parking Records</h2>
-            <div className="flex gap-2">
-              <button onClick={() => { setExportMode('all'); setShowExportDialog(true); }} className="flex items-center gap-1 px-3 py-1.5 text-white text-xs font-medium" style={{ backgroundColor: PRIMARY, borderRadius: 0, fontFamily: fontHeading, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}><FiDownload className="w-3 h-3" />Export</button>
-              <button onClick={() => { setShowRecordsModal(true); fetchAllRecords(1); }} className="px-3 py-1.5 bg-white border border-[#056daa] text-[#056daa] text-xs font-medium hover:bg-[rgba(5,109,170,0.06)]">View All</button>
-            </div>
-          </div>
-          <table className="w-full">
-            <thead style={{ backgroundColor: PRIMARY }}><tr><th className="px-3 py-2 text-left text-xs font-semibold text-white uppercase">Plate</th><th className="px-3 py-2 text-left text-xs font-semibold text-white uppercase">Driver</th><th className="px-3 py-2 text-left text-xs font-semibold text-white uppercase">Type</th><th className="px-3 py-2 text-left text-xs font-semibold text-white uppercase">Status</th><th className="px-3 py-2 text-left text-xs font-semibold text-white uppercase">Time</th></tr></thead>
-            <tbody className="divide-y">{(recentRecords || []).slice(0, 5).map((r: any) => <tr key={r._id} className="hover:bg-[#F7F9FB]"><td className="px-3 py-2.5 text-sm font-medium text-[#333333]">{r.plate_number || '___'}</td><td className="px-3 py-2.5 text-sm text-[#555555]">{r.driver_name || '___'}</td><td className="px-3 py-2.5 text-sm text-[#555555]">{r.driver_type || '___'}</td><td className="px-3 py-2.5"><span className={`text-xs px-2 py-0.5 font-medium ${r.status === 'active' ? 'bg-[rgba(76,175,80,0.12)] text-[#388E3C]' : 'bg-[rgba(51,51,51,0.08)] text-[#555555]'}`}>{r.status}</span></td><td className="px-3 py-2.5 text-xs text-[#555555]">{r.check_in ? new Date(r.check_in).toLocaleString() : '___'}</td></tr>)}
-            </tbody>
-          </table>
         </div>
 
         <ParkingSlotConfigModal show={showSlotConfig} slotConfig={slotConfig} saving={savingSlot} onClose={() => setShowSlotConfig(false)} onChange={(e) => { const { name, value } = e.target; setSlotConfig(p => ({ ...p, [name]: value === '' ? 0 : parseInt(value) || 0 })); }} onSave={async () => { setSavingSlot(true); try { const r = await smartParkingService.updateSlotConfig(slotConfig); if (r.success) { showSuccess('Slot config updated'); setShowSlotConfig(false); fetchData(); } else showError(r.message || 'Failed'); } catch (err: any) { showError(err?.message || 'Failed'); } finally { setSavingSlot(false); } }} />

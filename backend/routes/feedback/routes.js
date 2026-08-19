@@ -13,6 +13,7 @@ const deleteFeedbackController = require('../../controllers/feedback/delete_feed
 const getByPhoneController = require('../../controllers/feedback/get_by_phone');
 const submitUnservicedFeedbackController = require('../../controllers/feedback/submit_unserviced_feedback');
 const searchUnservicedController = require('../../controllers/feedback/search_unserviced');
+const listFeedbacksController = require('../../controllers/feedback/list_feedbacks');
 
 /**
  * @swagger
@@ -298,6 +299,53 @@ Router.get('/search', searchAllController);
  *         description: Internal server error
  */
 Router.get('/search-unserviced', searchUnservicedController);
+
+/**
+ * @swagger
+ * /feedback/list:
+ *   get:
+ *     summary: "List feedbacks with target and period filters (paginated)"
+ *     description: "Paginated feedback list. target=all merges department and general feedback, target=general returns unserviced feedback only, or pass a department/unit id. Supports the standard period filter (today, week, month, last_month, year, range with from/to)."
+ *     tags: [Feedback]
+ *     security: []
+ *     parameters:
+ *       - in: query
+ *         name: target
+ *         schema:
+ *           type: string
+ *         description: "all | general | department/unit id"
+ *       - in: query
+ *         name: period
+ *         schema:
+ *           type: string
+ *           enum: [today, week, month, last_month, year, range]
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Feedback list retrieved successfully
+ *       500:
+ *         description: Internal server error
+ */
+Router.get('/list', listFeedbacksController);
 
 /**
  * @swagger

@@ -329,7 +329,7 @@ Router.get('/:departmentId/sub-departments', auditSuccess('READ', 'departments')
  *       500:
  *         description: Internal server error
  */
-Router.put('/:id', auditSuccess('UPDATE', 'departments', (req, res, data) => `Updated department: ${req.params.id}`), update_department)
+Router.put('/:id', auditSuccess('UPDATE', 'departments', (req, res, data) => `Updated department: ${data?.data?.department_name || req.body.department_name || req.params.id}`), update_department)
 
 /**
  * @swagger
@@ -358,7 +358,7 @@ Router.put('/:id', auditSuccess('UPDATE', 'departments', (req, res, data) => `Up
  *       500:
  *         description: Internal server error
  */
-Router.delete('/:id', auditSuccess('DELETE', 'departments', (req, res, data) => `Deleted department: ${req.params.id}`), delete_department)
+Router.delete('/:id', auditSuccess('DELETE', 'departments', (req, res, data) => `Deleted department: ${data?.data?.department_name || req.params.id}`), delete_department)
 
 /**
  * @swagger
@@ -402,7 +402,7 @@ Router.delete('/:id', auditSuccess('DELETE', 'departments', (req, res, data) => 
  *       500:
  *         description: Internal server error
  */
-Router.post('/:departmentId/services', auditSuccess('CREATE', 'department_services', (req, res, data) => `Added service to department: ${req.params.departmentId}`), addService)
+Router.post('/:departmentId/services', auditSuccess('CREATE', 'department_services', (req, res, data) => `Added service ${req.body.name ? `"${req.body.name}" ` : ''}to department: ${data?.data?.department_name || req.params.departmentId}`), addService)
 
 /**
  * @swagger
@@ -444,7 +444,7 @@ Router.post('/:departmentId/services', auditSuccess('CREATE', 'department_servic
  *       500:
  *         description: Internal server error
  */
-Router.put('/:departmentId/services/:serviceId', auditSuccess('UPDATE', 'department_services', (req, res, data) => `Updated service: ${req.params.serviceId}`), updateService)
+Router.put('/:departmentId/services/:serviceId', auditSuccess('UPDATE', 'department_services', (req, res, data) => `Updated service: ${req.body.name || req.params.serviceId}`), updateService)
 
 /**
  * @swagger
@@ -474,7 +474,7 @@ Router.put('/:departmentId/services/:serviceId', auditSuccess('UPDATE', 'departm
  *       500:
  *         description: Internal server error
  */
-Router.delete('/:departmentId/services/:serviceId', auditSuccess('DELETE', 'department_services', (req, res, data) => `Deleted service: ${req.params.serviceId}`), deleteService)
+Router.delete('/:departmentId/services/:serviceId', auditSuccess('DELETE', 'department_services', (req, res, data) => `Deleted service: ${data?.data?.name || req.params.serviceId}`), deleteService)
 
 // Add error logging middleware
 Router.use(auditError('departments'))

@@ -441,7 +441,7 @@ Router.get('/:id', auditSuccess('READ', 'tasks'), getTaskById)
  *       500:
  *         description: Internal server error
  */
-Router.put('/:id', auditSuccess('UPDATE', 'tasks', (req, res, data) => `Updated task: ${req.params.id}`), updateTask)
+Router.put('/:id', auditSuccess('UPDATE', 'tasks', (req, res, data) => `Updated task: ${data?.data?.title || req.body.title || req.params.id}`), updateTask)
 
 /**
  * @swagger
@@ -484,7 +484,7 @@ Router.put('/:id', auditSuccess('UPDATE', 'tasks', (req, res, data) => `Updated 
  *       500:
  *         description: Internal server error
  */
-Router.put('/:id/status', auditSuccess('UPDATE', 'tasks', (req, res, data) => `Updated task status: ${req.params.id}`), updateTaskStatus)
+Router.put('/:id/status', auditSuccess('UPDATE', 'tasks', (req, res, data) => `Updated task status${req.body.status ? ` to ${req.body.status}` : ''}: ${data?.data?.title || req.body.title || req.params.id}`), updateTaskStatus)
 
 /**
  * @swagger
@@ -511,7 +511,7 @@ Router.put('/:id/status', auditSuccess('UPDATE', 'tasks', (req, res, data) => `U
  *       500:
  *         description: Internal server error
  */
-Router.delete('/:id', auditSuccess('DELETE', 'tasks', (req, res, data) => `Deleted task: ${req.params.id}`), deleteTask)
+Router.delete('/:id', auditSuccess('DELETE', 'tasks', (req, res, data) => `Deleted task: ${data?.data?.title || req.params.id}`), deleteTask)
 
 /**
  * @swagger
@@ -602,7 +602,7 @@ Router.put('/:taskId/move', auditSuccess('UPDATE', 'tasks', (req, res, data) => 
  *       500:
  *         description: Internal server error
  */
-Router.post('/:id/comments', auditSuccess('CREATE', 'task_comments', (req, res, data) => `Added comment to task: ${req.params.id}`), addComment)
+Router.post('/:id/comments', auditSuccess('CREATE', 'task_comments', (req, res, data) => `Added comment to task: ${data?.data?.title || req.params.id}`), addComment)
 
 /**
  * @swagger
@@ -642,7 +642,7 @@ Router.post('/:id/comments', auditSuccess('CREATE', 'task_comments', (req, res, 
  *       500:
  *         description: Internal server error
  */
-Router.post('/:id/attachments', auditSuccess('CREATE', 'task_attachments', (req, res, data) => `Added attachment to task: ${req.params.id}`), addAttachment)
+Router.post('/:id/attachments', auditSuccess('CREATE', 'task_attachments', (req, res, data) => `Added attachment to task: ${data?.data?.title || req.params.id}`), addAttachment)
 
 /**
  * @swagger
@@ -674,7 +674,7 @@ Router.post('/:id/attachments', auditSuccess('CREATE', 'task_attachments', (req,
  *       500:
  *         description: Internal server error
  */
-Router.delete('/:id/attachments/:attachmentId', auditSuccess('DELETE', 'task_attachments', (req, res, data) => `Deleted attachment from task: ${req.params.id}`), deleteAttachment)
+Router.delete('/:id/attachments/:attachmentId', auditSuccess('DELETE', 'task_attachments', (req, res, data) => `Deleted attachment from task: ${data?.data?.title || req.params.id}`), deleteAttachment)
 
 /**
  * @swagger
@@ -717,7 +717,7 @@ Router.delete('/:id/attachments/:attachmentId', auditSuccess('DELETE', 'task_att
  *       500:
  *         description: Internal server error
  */
-Router.post('/:id/checklists', auditSuccess('CREATE', 'task_checklists', (req, res, data) => `Added checklist to task: ${req.params.id}`), addChecklist)
+Router.post('/:id/checklists', auditSuccess('CREATE', 'task_checklists', (req, res, data) => `Added checklist to task: ${data?.data?.title || req.params.id}`), addChecklist)
 
 /**
  * @swagger
@@ -762,7 +762,7 @@ Router.post('/:id/checklists', auditSuccess('CREATE', 'task_checklists', (req, r
  *       500:
  *         description: Internal server error
  */
-Router.put('/:id/checklists/:checklistId', auditSuccess('UPDATE', 'task_checklists', (req, res, data) => `Updated checklist: ${req.params.id}/${req.params.checklistId}`), updateChecklist)
+Router.put('/:id/checklists/:checklistId', auditSuccess('UPDATE', 'task_checklists', (req, res, data) => `Updated checklist ${req.body.title ? `"${req.body.title}" ` : ''}on task: ${data?.data?.title || req.params.id}`), updateChecklist)
 
 /**
  * @swagger
@@ -794,7 +794,7 @@ Router.put('/:id/checklists/:checklistId', auditSuccess('UPDATE', 'task_checklis
  *       500:
  *         description: Internal server error
  */
-Router.delete('/:id/checklists/:checklistId', auditSuccess('DELETE', 'task_checklists', (req, res, data) => `Deleted checklist: ${req.params.id}/${req.params.checklistId}`), deleteChecklist)
+Router.delete('/:id/checklists/:checklistId', auditSuccess('DELETE', 'task_checklists', (req, res, data) => `Deleted checklist from task: ${data?.data?.title || req.params.id}`), deleteChecklist)
 
 // Add error logging middleware
 Router.use(auditError('tasks'))

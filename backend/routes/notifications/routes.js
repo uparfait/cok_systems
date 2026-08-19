@@ -170,7 +170,7 @@ Router.post('/', auditSuccess('CREATE', 'notifications'), createNotification)
  *       500:
  *         description: Internal server error
  */
-Router.put('/:id/read', auditSuccess('UPDATE', 'notifications', (req, res, data) => `Marked notification as read: ${req.params.id}`), markAsRead)
+Router.put('/:id/read', auditSuccess('UPDATE', 'notifications', (req, res, data) => `Marked notification as read: ${data?.data?.title || data?.data?.message || req.params.id}`), markAsRead)
 
 /**
  * @swagger
@@ -214,7 +214,7 @@ Router.put('/mark-all-read', auditSuccess('UPDATE', 'notifications', (req, res, 
  *       500:
  *         description: Internal server error
  */
-Router.delete('/:id', auditSuccess('DELETE', 'notifications', (req, res, data) => `Deleted notification: ${req.params.id}`), deleteNotification)
+Router.delete('/:id', auditSuccess('DELETE', 'notifications', (req, res, data) => `Deleted notification: ${data?.data?.title || data?.data?.message || req.params.id}`), deleteNotification)
 
 // Add error logging middleware
 Router.use(auditError('notifications'))

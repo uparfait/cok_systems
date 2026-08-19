@@ -23,20 +23,38 @@ interface AssignedDepartment {
 
 type Step = 'phone' | 'department' | 'rate' | 'preview' | 'success' | 'error';
 
-const getStarFill = (star: number, rating: number) => {
-  if (star <= Math.ceil(rating / 2)) {
-    if (rating <= 4) return 'text-red-400 fill-red-400';
-    if (rating <= 6) return 'text-orange-400 fill-orange-400';
-    return 'text-yellow-400 fill-yellow-400';
-  }
-  return 'text-gray-300';
-};
+const STAR_YELLOW = '#F39C12';
+const STAR_EMPTY = '#C9CED6';
 
-const getRatingColorClass = (rating: number) => {
-  if (rating <= 3) return 'text-red-500';
-  if (rating <= 5) return 'text-orange-500';
-  if (rating <= 7) return 'text-yellow-600';
-  return 'text-green-500';
+const StarRating = ({ rating, onChange }: { rating: number; onChange: (value: number) => void }) => {
+  const [pop, setPop] = useState(0);
+  return (
+    <div className="flex items-center justify-center gap-0.5 sm:gap-1">
+      {Array.from({ length: 10 }, (_, i) => i + 1).map((value) => {
+        const filled = value <= rating;
+        return (
+          <button
+            key={value}
+            type="button"
+            onClick={() => { onChange(value); setPop(value); }}
+            aria-label={`Rate ${value} out of 10`}
+            className="cursor-pointer p-0.5 transition-transform duration-200 ease-out hover:scale-125 active:scale-90"
+          >
+            <FiStar
+              className="w-6 h-6 sm:w-7 sm:h-7 transition-colors duration-300"
+              style={{
+                color: filled ? STAR_YELLOW : STAR_EMPTY,
+                fill: filled ? STAR_YELLOW : 'transparent',
+                transitionDelay: filled ? `${(value - 1) * 25}ms` : '0ms',
+                animation: pop === value ? 'cok-star-pop 0.35s ease' : undefined,
+              }}
+            />
+          </button>
+        );
+      })}
+      <style>{`@keyframes cok-star-pop { 0% { transform: scale(1); } 50% { transform: scale(1.4) rotate(-8deg); } 100% { transform: scale(1); } }`}</style>
+    </div>
+  );
 };
 
 const FeedbackServicePage: React.FC = () => {
@@ -47,7 +65,7 @@ const FeedbackServicePage: React.FC = () => {
   const [visitorName, setVisitorName] = useState('');
   const [departments, setDepartments] = useState<AssignedDepartment[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState<AssignedDepartment | null>(null);
-  const [rating, setRating] = useState(1);
+  const [rating, setRating] = useState(0);
   const [message, setMessage] = useState('');
   const [existingFeedback, setExistingFeedback] = useState<Record<string, { rate: number; department_name: string; department_id: string }>>({});
 
@@ -96,7 +114,7 @@ const FeedbackServicePage: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    if (!selectedDepartment) return;
+    if (!selectedDepartment || rating < 1) return;
     setIsSubmitting(true);
     try {
       await submitFeedback({
@@ -131,6 +149,7 @@ const FeedbackServicePage: React.FC = () => {
       return;
     }
     setSelectedDepartment(dept);
+    setRating(0);
     setStep('rate');
   };
 
@@ -264,28 +283,8 @@ const FeedbackServicePage: React.FC = () => {
                 <p className="text-xs text-gray-500">Rate your experience</p>
               </div>
               <div>
-                <label className="cok-auth-label">Rating: {rating}/10</label>
-                <div className="flex items-center justify-center gap-1">
-                  {[ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
-                    <button
-                      key={value}
-                      onClick={() => setRating(value)}
-                      className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium cursor-pointer transition-all hover:scale-105 active:scale-95 ${
-                        value <= rating
-                          ? value <= 3
-                            ? 'bg-red-500 text-white'
-                            : value <= 5
-                            ? 'bg-orange-500 text-white'
-                            : value <= 7
-                            ? 'bg-yellow-500 text-white'
-                            : 'bg-green-500 text-white'
-                          : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                      }`}
-                    >
-                      {value}
-                    </button>
-                  ))}
-                </div>
+                <label className="cok-auth-label">Rating{rating > 0 ? `: ${rating}/10` : ''}</label>
+                <StarRating rating={rating} onChange={setRating} />
                 <div className="flex justify-between text-xs text-gray-400 mt-1 px-1">
                   <span>Poor</span><span>Excellent</span>
                 </div>
@@ -309,8 +308,8 @@ const FeedbackServicePage: React.FC = () => {
               <div className="flex flex-col  gap-2 pt-4">
                                 <button
                   onClick={handlePreview}
-                  className="cok-btn-primary  flex-1 py-3 flex items-center justify-center gap-2"
-                 
+                  disabled={rating < 1}
+                  className="cok-btn-primary  flex-1 py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PRIMARY_HOVER; }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
                 >
@@ -356,10 +355,10 @@ const FeedbackServicePage: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-gray-500 uppercase tracking-wide">Rating</span>
                   <div className="flex items-center gap-1">
-                    <span className={`text-sm font-bold ${getRatingColorClass(rating)}`}>{rating}/10</span>
+                    <span className="text-sm font-bold" style={{ color: STAR_YELLOW }}>{rating}/10</span>
                     <div className="flex ml-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <FiStar key={star} className={`w-3 h-3 ${getStarFill(star, rating)}`} />
+                      {Array.from({ length: 10 }, (_, i) => i + 1).map((star) => (
+                        <FiStar key={star} className="w-3 h-3" style={{ color: star <= rating ? STAR_YELLOW : STAR_EMPTY, fill: star <= rating ? STAR_YELLOW : 'transparent' }} />
                       ))}
                     </div>
                   </div>
