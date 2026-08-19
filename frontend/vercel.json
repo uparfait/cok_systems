@@ -13,6 +13,10 @@
       "destination": "https://cok-bc.onrender.com/cok/api/:path*"
     },
     {
+      "source": "/dcs/api/:path*",
+      "destination": "https://dc-backend-l7vf.onrender.com/dcs/api/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
@@ -30,7 +34,8 @@
   ],
   "env": {
     "VITE_API_URL": "https://cok-bc.onrender.com/",
-    "VITE_API_EVENT_URL": "https://cok-em-backend.onrender.com/"
+    "VITE_API_EVENT_URL": "https://cok-em-backend.onrender.com/",
+    "VITE_API_DCS_URL": "https://dc-backend-l7vf.onrender.com"
   },
   "github": {
     "enabled": true,
