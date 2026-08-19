@@ -124,7 +124,7 @@ module.exports = async function export_visitors(req, res) {
 
     if (userRole.includes('receptionist')) {
       match['departments_assigned.assigned_by.user_id'] = userId;
-    } else if (userRole.includes('head of department')) {
+    } else if (['head of department', 'department manager', 'department head', 'director'].some((k) => userRole.includes(k))) {
       // HODs export only visitors handled in the department(s) they lead
       const departmentIds = await getDepartmentIdsForHead(req.user?.userId || userId);
       if (!departmentIds.length) {

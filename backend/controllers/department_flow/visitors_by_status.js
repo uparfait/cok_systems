@@ -111,7 +111,7 @@ const buildDateFilter = (dateFilter, dateField = 'entry_date') => {
 const getVisitorsByStatus = async (req, res, next) => {
     try {
         const { status } = req.params;
-        let { limit = 20, page = 1, dateFilter } = req.query;
+        let { limit = 20, page = 1, dateFilter, from, to } = req.query;
 
         const limit_val = Math.min(parseInt(limit), 50);
         const skip_val = (parseInt(page) - 1) * limit_val;
@@ -176,10 +176,17 @@ const getVisitorsByStatus = async (req, res, next) => {
             $elemMatch: { department_id: { $in: departmentIds } }
         };
 
-        // Add date filter if provided
-        const dateFilterObj = buildDateFilter(dateFilter);
-        if (Object.keys(dateFilterObj).length > 0) {
-            Object.assign(additionalFilter, dateFilterObj);
+        // Explicit from/to range takes precedence over the legacy dateFilter presets
+        if (from || to) {
+            const range = {};
+            if (from) { const start = new Date(from); if (!isNaN(start.getTime())) { start.setHours(0, 0, 0, 0); range.$gte = start; } }
+            if (to) { const end = new Date(to); if (!isNaN(end.getTime())) { end.setHours(23, 59, 59, 999); range.$lte = end; } }
+            if (Object.keys(range).length > 0) additionalFilter.entry_date = range;
+        } else {
+            const dateFilterObj = buildDateFilter(dateFilter);
+            if (Object.keys(dateFilterObj).length > 0) {
+                Object.assign(additionalFilter, dateFilterObj);
+            }
         }
 
         const filter = { ...statusFilter, ...additionalFilter };
