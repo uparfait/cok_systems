@@ -2,31 +2,7 @@ const { get_db } = require("../db_connection/db.js");
 
 const COLLECTION_NAME = "dcs_project_access";
 
-/**
- * One document per project describing who may view it and which of its
- * forms each grant exposes:
- * {
- *   project_id: string,
- *   enabled: boolean,
- *   departments: [{
- *     department_id, department_name,
- *     all_units: boolean,
- *     units: [{ unit_id, unit_name }],
- *     all_forms: boolean,
- *     form_group_ids: [string],
- *   }],
- *   individuals: [{
- *     user_id, email, full_name,
- *     all_forms: boolean,
- *     form_group_ids: [string],
- *   }],
- * }
- */
 
-/**
- * Returns the access document of one project, or null when the project has
- * never had access rules saved.
- */
 async function get_access_by_project(project_id) {
   return get_db().collection(COLLECTION_NAME).findOne({ project_id: project_id.toString() });
 }
