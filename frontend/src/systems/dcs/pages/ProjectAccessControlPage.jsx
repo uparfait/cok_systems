@@ -17,6 +17,19 @@ const DANGER = "#E74C3C";
 const heading_style = { fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: 18, color: "#333333" };
 const hint_style = { color: "#9E9E9E", fontSize: 13 };
 
+// Same look as the project shell's tab bar, used for the two section links.
+const section_tab_style = (is_active) => ({
+  fontFamily: "'Montserrat', sans-serif",
+  fontSize: 13,
+  fontWeight: 600,
+  textTransform: "uppercase",
+  letterSpacing: "0.5px",
+  padding: "0.6rem 1rem",
+  color: is_active ? PRIMARY : "#9E9E9E",
+  borderBottom: is_active ? `2px solid ${PRIMARY}` : "2px solid transparent",
+  cursor: "pointer",
+});
+
 /**
  * Project access-control tab: restrict who may view this project - whole
  * departments (optionally narrowed to units), or individuals added by their
@@ -44,6 +57,7 @@ export default function ProjectAccessControlPage() {
 
   const [saving, setSaving] = useState(false);
   const [is_confirming_empty, setIsConfirmingEmpty] = useState(false);
+  const [active_section, setActiveSection] = useState("departments");
 
   useEffect(() => {
     let is_mounted = true;
@@ -189,9 +203,20 @@ export default function ProjectAccessControlPage() {
 
       {enabled && (
         <>
+          <div className="flex border-b flex-wrap" style={{ borderColor: "#E0E0E0" }}>
+            <button type="button" style={section_tab_style(active_section === "departments")} onClick={() => setActiveSection("departments")}>
+              {translate("DCS_ACCESS_DEPARTMENTS_TITLE")}
+              {department_grants.length > 0 && ` (${department_grants.length})`}
+            </button>
+            <button type="button" style={section_tab_style(active_section === "individuals")} onClick={() => setActiveSection("individuals")}>
+              {translate("DCS_ACCESS_INDIVIDUALS_TITLE")}
+              {individuals.length > 0 && ` (${individuals.length})`}
+            </button>
+          </div>
+
+          {active_section === "departments" && (
           <div className="bg-white border-2 p-4 sm:p-6" style={{ borderColor: "#E0E0E0" }}>
-            <h2 style={heading_style}>{translate("DCS_ACCESS_DEPARTMENTS_TITLE")}</h2>
-            <p className="mt-1 mb-3" style={hint_style}>
+            <p className="mb-3" style={hint_style}>
               {translate("DCS_ACCESS_DEPARTMENTS_HINT")}
             </p>
 
@@ -289,10 +314,11 @@ export default function ProjectAccessControlPage() {
               })}
             </div>
           </div>
+          )}
 
+          {active_section === "individuals" && (
           <div className="bg-white border-2 p-4 sm:p-6" style={{ borderColor: "#E0E0E0" }}>
-            <h2 style={heading_style}>{translate("DCS_ACCESS_INDIVIDUALS_TITLE")}</h2>
-            <p className="mt-1 mb-3" style={hint_style}>
+            <p className="mb-3" style={hint_style}>
               {translate("DCS_ACCESS_INDIVIDUALS_HINT")}
             </p>
 
@@ -362,6 +388,7 @@ export default function ProjectAccessControlPage() {
               ))}
             </div>
           </div>
+          )}
         </>
       )}
 
