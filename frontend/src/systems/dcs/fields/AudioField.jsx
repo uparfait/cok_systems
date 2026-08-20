@@ -5,5 +5,5 @@ import BaseMediaField from "./base/BaseMediaField.jsx";
  * Voice recording or audio upload field.
  */
 export default function AudioField(props) {
-  return <BaseMediaField {...props} accept="audio/*" capture="environment" previewKind="audio" />;
+  return <BaseMediaField {...props} accept="audio/*" capture="environment" />;
 }

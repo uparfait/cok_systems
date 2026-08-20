@@ -3,17 +3,18 @@ import { get_field_text } from "../fieldText.js";
 import { read_file_as_data_url } from "../fileHelpers.js";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import DcsButtonOutline from "../../components/DcsButtonOutline.jsx";
-import DcsFilePreview from "../../components/DcsFilePreview.jsx";
-import DcsAudioPlayer from "../../components/DcsAudioPlayer.jsx";
-import DcsVideoPlayer from "../../components/DcsVideoPlayer.jsx";
+import DcsFileViewerModal from "../../components/DcsFileViewerModal.jsx";
 
 /**
  * Shared rendering for every media capture/upload field (image, video,
  * audio, generic file upload) - a translated trigger button, drag-and-drop,
- * the accepted mime types, a size guard, and a lightweight preview of what
- * was chosen.
+ * the accepted mime types, a size guard, and - once something is selected -
+ * a filename with a View and a Remove control. What was picked is never
+ * rendered full-size in place (an embedded player/image at every stage of
+ * a long form pushes everything else out of reach); View opens it in the
+ * same popup viewer used everywhere else in the system, on demand.
  */
-export default function BaseMediaField({ field, language, mode, value, onChange, error, accept, capture, previewKind, ruleValidMessage }) {
+export default function BaseMediaField({ field, language, mode, value, onChange, error, accept, capture, ruleValidMessage }) {
   const is_builder = mode === "builder";
   const { translate } = useDcsLanguage();
   const label = get_field_text(field.label, language);
@@ -23,6 +24,7 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
   const [is_drag_over, setIsDragOver] = useState(false);
   const [read_failed, setReadFailed] = useState(false);
   const [size_exceeded, setSizeExceeded] = useState(false);
+  const [is_viewer_open, setIsViewerOpen] = useState(false);
 
   const apply_selected_file = async (file) => {
     if (!file || !onChange) return;
@@ -52,6 +54,13 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
     setIsDragOver(false);
     if (is_builder) return;
     apply_selected_file(event.dataTransfer.files && event.dataTransfer.files[0]);
+  };
+
+  const handle_remove = () => {
+    setReadFailed(false);
+    setSizeExceeded(false);
+    if (input_ref.current) input_ref.current.value = "";
+    if (onChange) onChange(null);
   };
 
   return (
@@ -99,12 +108,41 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
       )}
 
       {value && (
-        <div className="mt-2">
-          {previewKind === "image" && <img src={value.data_url} alt={value.name} className="max-w-full max-h-48" />}
-          {previewKind === "video" && <DcsVideoPlayer src={value.data_url} className="max-w-full" />}
-          {previewKind === "audio" && <DcsAudioPlayer src={value.data_url} />}
-          {previewKind === "file" && <DcsFilePreview fileUrl={value.data_url} fileName={value.name} fileType={value.type} />}
+        <div className="mt-2 flex items-center gap-2">
+          <span className="text-sm truncate" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }} title={value.name}>
+            {value.name}
+          </span>
+          <button
+            type="button"
+            onClick={() => setIsViewerOpen(true)}
+            title={translate("DCS_BTN_VIEW")}
+            className="cursor-pointer p-1.5 border flex-shrink-0"
+            style={{ borderColor: "#E0E0E0" }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2">
+              <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
+          {!is_builder && (
+            <button
+              type="button"
+              onClick={handle_remove}
+              title={translate("DCS_BTN_DELETE")}
+              className="cursor-pointer p-1.5 border flex-shrink-0"
+              style={{ borderColor: "#E0E0E0" }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E74C3C" strokeWidth="2">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+              </svg>
+            </button>
+          )}
         </div>
+      )}
+
+      {is_viewer_open && value && (
+        <DcsFileViewerModal fileUrl={value.data_url} fileName={value.name} fileType={value.type} onClose={() => setIsViewerOpen(false)} />
       )}
 
       {error && (

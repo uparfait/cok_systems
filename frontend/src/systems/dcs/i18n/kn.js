@@ -49,6 +49,7 @@ const kn = {
   DCS_BTN_CANCEL: "Hagarika",
   DCS_BTN_SAVE: "Bika",
   DCS_BTN_DELETE: "Siba",
+  DCS_BTN_VIEW: "Reba",
   DCS_BTN_EDIT: "Hindura",
   DCS_BTN_CHANGE: "Hindura",
   DCS_BTN_ACTIVATE: "Koresha iyi",

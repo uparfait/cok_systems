@@ -4,6 +4,8 @@ import * as XLSX from "xlsx";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { get_file_kind } from "./fileKind.js";
 import DcsButtonOutlineReverse from "./DcsButtonOutlineReverse.jsx";
+import DcsVideoPlayer from "./DcsVideoPlayer.jsx";
+import DcsAudioPlayer from "./DcsAudioPlayer.jsx";
 
 const DOC_PREVIEW_STYLE = `
   .cok-doc-preview { font-family: Calibri, 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #333333; line-height: 1.5; }
@@ -181,6 +183,17 @@ export default function DcsFileViewerModal({ fileUrl, fileName, fileType, onClos
           </div>
         </div>
         <div className="flex-1 overflow-auto p-4" style={{ backgroundColor: "#F7F9FB" }}>
+          {kind === "image" && (
+            <div className="flex items-center justify-center">
+              <img src={fileUrl} alt={fileName} style={{ maxWidth: "100%", maxHeight: "75vh" }} />
+            </div>
+          )}
+          {kind === "video" && <DcsVideoPlayer src={fileUrl} />}
+          {kind === "audio" && (
+            <div className="flex items-center justify-center py-10">
+              <DcsAudioPlayer src={fileUrl} />
+            </div>
+          )}
           {kind === "pdf" && <iframe title={fileName} src={fileUrl} style={{ width: "100%", height: "75vh", border: "none" }} />}
           {kind === "word" && <WordPreview fileUrl={fileUrl} />}
           {kind === "spreadsheet" && <SpreadsheetPreview fileUrl={fileUrl} />}
