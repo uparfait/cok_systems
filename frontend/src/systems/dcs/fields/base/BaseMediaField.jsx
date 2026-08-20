@@ -21,15 +21,26 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
   const valid_message = ruleValidMessage || (field.mandatory && get_field_text(field.valid_message, language));
   const input_ref = useRef(null);
   const [is_drag_over, setIsDragOver] = useState(false);
+  const [read_failed, setReadFailed] = useState(false);
+  const [size_exceeded, setSizeExceeded] = useState(false);
 
   const apply_selected_file = async (file) => {
     if (!file || !onChange) return;
+    setReadFailed(false);
+    setSizeExceeded(false);
     if (field.max_size_mb) {
       const max_bytes = field.max_size_mb * 1024 * 1024;
-      if (file.size > max_bytes) return;
+      if (file.size > max_bytes) {
+        setSizeExceeded(true);
+        return;
+      }
     }
-    const read_result = await read_file_as_data_url(file);
-    onChange(read_result);
+    try {
+      const read_result = await read_file_as_data_url(file);
+      onChange(read_result);
+    } catch (error) {
+      setReadFailed(true);
+    }
   };
 
   const handle_file_selected = (event) => {
@@ -74,6 +85,16 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
       {!is_builder && (
         <p className="text-xs mt-1" style={{ color: "#9E9E9E" }}>
           {translate("DCS_DROP_FILE_HINT")}
+        </p>
+      )}
+      {read_failed && (
+        <p className="text-xs mt-1" style={{ color: "#E74C3C" }}>
+          {translate("DCS_FILE_READ_FAILED")}
+        </p>
+      )}
+      {size_exceeded && (
+        <p className="text-xs mt-1" style={{ color: "#E74C3C" }}>
+          {translate("DCS_FILE_TOO_LARGE")}
         </p>
       )}
 

@@ -10,6 +10,7 @@ import { get_spacing_below_px } from "../renderer/designStyles.js";
 const DEFAULT_LAYOUT = { x_percent: 0, y_percent: 0, width_percent: 30, height_percent: 40 };
 const MIN_HEIGHT_PX = 80;
 const MAX_HEIGHT_PX = 3000;
+const MIN_CHILD_PERCENT = 4;
 // Only form design components may live inside a section - no data
 // collection components, and never another section.
 const ADDABLE_TYPES = DCS_FIELD_TYPE_REGISTRY.filter((entry) => entry.category === "content" && entry.type !== "section");
@@ -76,7 +77,7 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
 
   const start_height_resize = (event) => {
     event.preventDefault();
-    resize_state_ref.current = { start_mouse_y: event.clientY, start_height_px: height_px };
+    resize_state_ref.current = { start_mouse_y: event.clientY, start_height_px: height_px, start_children: children };
     let raf_id = null;
     let latest_move_event = null;
 
@@ -90,7 +91,26 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
       if (!resize_state || !latest_move_event) return;
       const raw_delta = latest_move_event.clientY - resize_state.start_mouse_y;
       const next_height_px = Math.min(MAX_HEIGHT_PX, Math.max(MIN_HEIGHT_PX, Math.round(resize_state.start_height_px + raw_delta)));
-      onFieldChange(Object.assign({}, field, { height_px: next_height_px }));
+
+      // Children are positioned/sized by percentage of the section's own
+      // height, so simply changing height_px would let every child's real
+      // pixel size and position silently stretch or shift with it - not a
+      // deliberate edit the author made to them. Rescaling each child's
+      // y_percent/height_percent by the inverse of how much the container
+      // just changed keeps their actual pixel size and position exactly
+      // static; only the section's own box grows or shrinks.
+      const scale_ratio = resize_state.start_height_px / next_height_px;
+      const next_children = resize_state.start_children.map((child) => {
+        const layout = child.section_layout || DEFAULT_LAYOUT;
+        return Object.assign({}, child, {
+          section_layout: Object.assign({}, layout, {
+            y_percent: Math.max(0, Math.min(100, layout.y_percent * scale_ratio)),
+            height_percent: Math.max(MIN_CHILD_PERCENT, Math.min(100, layout.height_percent * scale_ratio)),
+          }),
+        });
+      });
+
+      onFieldChange(Object.assign({}, field, { height_px: next_height_px, children: next_children }));
     };
 
     const handle_move = (move_event) => {
@@ -110,7 +130,7 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
   const background_color = (field.design && field.design.background_color) || "transparent";
 
   if (!is_builder) {
-    // Below 650px the free-form canvas is abandoned entirely: trying to
+    // Below 700px the free-form canvas is abandoned entirely: trying to
     // keep every child's exact percentage box on a narrow screen is what
     // was shrinking their content down to near-invisible slivers. Instead
     // each child just stacks full width, in top-to-bottom/left-to-right
@@ -129,7 +149,7 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
             {label}
           </p>
         )}
-        <div ref={outer_ref} className="hidden min-[650px]:block relative w-full" style={{ height: height_px, backgroundColor: background_color }}>
+        <div ref={outer_ref} className="hidden min-[700px]:block relative w-full" style={{ height: height_px, backgroundColor: background_color }}>
           {children.map((child) => {
             const layout = child.section_layout || DEFAULT_LAYOUT;
             return (
@@ -143,7 +163,7 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
             );
           })}
         </div>
-        <div className="flex min-[650px]:hidden flex-col w-full" style={{ backgroundColor: background_color }}>
+        <div className="flex min-[700px]:hidden flex-col w-full" style={{ backgroundColor: background_color }}>
           {stacked_children.map((child) => (
             <div key={child.id} className="w-full" style={{ marginBottom: get_spacing_below_px(child) }}>
               {renderChildField(child)}
@@ -160,7 +180,7 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
   // width - including ones where the live render already gave up on it and
   // switched to a plain stack - was exactly why moving something looked
   // fine while building yet came out different everywhere else, forcing a
-  // re-check after every move. Below 650px the builder now shows the exact
+  // re-check after every move. Below 700px the builder now shows the exact
   // same stacked, full-width fallback the renderer shows, so there is
   // nothing left to look "wrong" here that isn't also true there.
   const stacked_children = children.slice().sort((child_a, child_b) => {
@@ -181,7 +201,7 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
         ref={outer_ref}
         onContextMenu={handle_context_menu}
         onClick={() => context_menu && setContextMenu(null)}
-        className="hidden min-[650px]:block relative w-full border-2 border-dashed"
+        className="hidden min-[700px]:block relative w-full border-2 border-dashed"
         style={{ height: height_px, borderColor: "#9E9E9E", backgroundColor: background_color }}
       >
         {children.length === 0 && (
@@ -238,7 +258,7 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
         )}
       </div>
 
-      <div className="flex min-[650px]:hidden flex-col w-full" style={{ backgroundColor: background_color }}>
+      <div className="flex min-[700px]:hidden flex-col w-full" style={{ backgroundColor: background_color }}>
         {stacked_children.length === 0 && (
           <p className="text-xs text-center px-4 py-6" style={{ color: "#9E9E9E" }}>
             {translate("DCS_SECTION_EMPTY_HINT")}

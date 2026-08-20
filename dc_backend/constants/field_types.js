@@ -4,7 +4,7 @@
  * to contain; the frontend field registry mirrors these same ids.
  */
 
-const CONTENT_FIELD_TYPES = ["paragraph", "header", "file", "image_block", "horizontal_line", "shape", "section"];
+const CONTENT_FIELD_TYPES = ["paragraph", "header", "file", "image_block", "horizontal_line", "section"];
 
 const DATA_FIELD_TYPES = [
   "text",
@@ -28,6 +28,7 @@ const DATA_FIELD_TYPES = [
   "group",
   "hidden",
   "cascading_select",
+  "select_group",
 ];
 
 const ALL_FIELD_TYPES = CONTENT_FIELD_TYPES.concat(DATA_FIELD_TYPES);

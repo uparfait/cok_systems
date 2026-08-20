@@ -56,3 +56,7 @@ export function add_link_to_range(existing_links, start, end, href) {
   const cleaned = remove_links_overlapping_range(existing_links, start, end);
   return cleaned.concat([{ start, end, href }]).sort((a, b) => a.start - b.start);
 }
+
+export function find_link_overlapping_range(existing_links, start, end) {
+  return (existing_links || []).find((link) => link.start < end && link.end > start) || null;
+}

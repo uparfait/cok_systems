@@ -1,13 +1,13 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { get_field_text } from "../fieldText.js";
-import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import DcsLinkedText from "../../components/DcsLinkedText.jsx";
-import DcsButtonOutline from "../../components/DcsButtonOutline.jsx";
+import DcsTextLinkMenu from "../../components/DcsTextLinkMenu.jsx";
 import {
   split_lines_with_offsets,
   shift_links_to_range,
   add_link_to_range,
   remove_links_overlapping_range,
+  find_link_overlapping_range,
 } from "../textLinkSegments.js";
 
 const ALLOWED_LIST_TYPES = ["disc", "circle", "square", "decimal", "lower-roman", "upper-roman", "none"];
@@ -15,12 +15,12 @@ const ORDERED_LIST_TYPES = ["decimal", "lower-roman", "upper-roman"];
 
 export default function ParagraphBlock({ field, language, mode, onFieldChange }) {
   const is_builder = mode === "builder";
-  const { translate } = useDcsLanguage();
   const content_text = get_field_text(field.content, language);
   const design = field.design || {};
   const fills_container = !!field.section_layout;
   const text_links = (field.text_links && field.text_links[language]) || [];
   const textarea_ref = useRef(null);
+  const [link_menu, setLinkMenu] = useState(null);
 
   if (!is_builder) {
     const text_style = { color: design.text_color || "#555555", fontFamily: design.font_family || undefined };
@@ -50,24 +50,15 @@ export default function ParagraphBlock({ field, language, mode, onFieldChange })
     onFieldChange(Object.assign({}, field, { text_links: Object.assign({}, field.text_links, { [language]: next_links }) }));
   };
 
-  const handle_link_selection = () => {
+  const handle_context_menu = (event) => {
     const textarea = textarea_ref.current;
     if (!textarea) return;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     if (end <= start) return;
-    const href = window.prompt(translate("DCS_LINK_PROMPT"), "https://");
-    if (!href) return;
-    set_text_links(add_link_to_range(text_links, start, end, href));
-  };
-
-  const handle_unlink_selection = () => {
-    const textarea = textarea_ref.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    if (end <= start) return;
-    set_text_links(remove_links_overlapping_range(text_links, start, end));
+    event.preventDefault();
+    const existing_link = find_link_overlapping_range(text_links, start, end);
+    setLinkMenu({ x: event.clientX, y: event.clientY, start, end, initial_url: existing_link ? existing_link.href : "https://" });
   };
 
   return (
@@ -78,19 +69,29 @@ export default function ParagraphBlock({ field, language, mode, onFieldChange })
         style={fills_container ? { flex: 1, minHeight: 0, resize: "none" } : { resize: "none" }}
         rows={fills_container ? undefined : 4}
         value={content_text}
+        onContextMenu={handle_context_menu}
         onChange={(event) => {
           if (!onFieldChange) return;
           const next_content = Object.assign({}, field.content, { [language]: event.target.value });
           onFieldChange(Object.assign({}, field, { content: next_content }));
         }}
       />
-      <div className="flex items-center gap-2 mt-1 flex-shrink-0">
-        <DcsButtonOutline onClick={handle_link_selection}>{translate("DCS_BTN_LINK")}</DcsButtonOutline>
-        <DcsButtonOutline onClick={handle_unlink_selection}>{translate("DCS_BTN_UNLINK")}</DcsButtonOutline>
-        <span className="text-xs" style={{ color: "#9E9E9E" }}>
-          {translate("DCS_LINK_SELECTION_HINT")}
-        </span>
-      </div>
+      {link_menu && (
+        <DcsTextLinkMenu
+          x={link_menu.x}
+          y={link_menu.y}
+          initialUrl={link_menu.initial_url}
+          onApply={(href) => {
+            set_text_links(add_link_to_range(text_links, link_menu.start, link_menu.end, href));
+            setLinkMenu(null);
+          }}
+          onRemove={() => {
+            set_text_links(remove_links_overlapping_range(text_links, link_menu.start, link_menu.end));
+            setLinkMenu(null);
+          }}
+          onClose={() => setLinkMenu(null)}
+        />
+      )}
     </div>
   );
 }

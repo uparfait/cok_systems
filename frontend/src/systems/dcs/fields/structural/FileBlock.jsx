@@ -9,12 +9,22 @@ export default function FileBlock({ field, mode, onFieldChange }) {
   const { translate } = useDcsLanguage();
   const input_ref = useRef(null);
   const [is_drag_over, setIsDragOver] = useState(false);
+  const [is_reading, setIsReading] = useState(false);
+  const [read_failed, setReadFailed] = useState(false);
   const fills_container = !!field.section_layout;
 
   const apply_selected_file = async (file) => {
     if (!file || !onFieldChange) return;
-    const read_result = await read_file_as_data_url(file);
-    onFieldChange(Object.assign({}, field, { file_url: read_result.data_url, file_name: read_result.name, file_type: read_result.type }));
+    setIsReading(true);
+    setReadFailed(false);
+    try {
+      const read_result = await read_file_as_data_url(file);
+      onFieldChange(Object.assign({}, field, { file_url: read_result.data_url, file_name: read_result.name, file_type: read_result.type }));
+    } catch (error) {
+      setReadFailed(true);
+    } finally {
+      setIsReading(false);
+    }
   };
 
   const handle_file_selected = (event) => {
@@ -44,12 +54,17 @@ export default function FileBlock({ field, mode, onFieldChange }) {
         onDrop={handle_drop}
       >
         <input ref={input_ref} type="file" className="hidden" onChange={handle_file_selected} />
-        <DcsButtonOutline onClick={() => input_ref.current && input_ref.current.click()}>
+        <DcsButtonOutline disabled={is_reading} onClick={() => input_ref.current && input_ref.current.click()}>
           {translate("DCS_RENDERER_UPLOAD_PROMPT")}
         </DcsButtonOutline>
         <p className="text-xs mt-2" style={{ color: "#9E9E9E" }}>
           {translate("DCS_DROP_FILE_HINT")}
         </p>
+        {read_failed && (
+          <p className="text-xs mt-2" style={{ color: "#E74C3C" }}>
+            {translate("DCS_FILE_READ_FAILED")}
+          </p>
+        )}
       </div>
     );
   }
@@ -57,22 +72,41 @@ export default function FileBlock({ field, mode, onFieldChange }) {
   if (!field.file_url) return null;
 
   if (fills_container) {
+    if (!is_builder) {
+      return (
+        <div className="w-full h-full relative overflow-hidden">
+          <DcsFilePreview
+            fileUrl={field.file_url}
+            fileName={field.file_name}
+            fileType={field.file_type}
+            className="w-full h-full flex flex-col items-center justify-center gap-2 p-2"
+            fill
+          />
+        </div>
+      );
+    }
     return (
-      <div className="w-full h-full relative overflow-hidden">
-        <DcsFilePreview
-          fileUrl={field.file_url}
-          fileName={field.file_name}
-          fileType={field.file_type}
-          className="w-full h-full flex flex-col items-center justify-center gap-2 p-2"
-        />
-        {is_builder && (
-          <div className="absolute bottom-1 left-1">
-            <input ref={input_ref} type="file" className="hidden" onChange={handle_file_selected} />
-            <DcsButtonOutline onClick={() => input_ref.current && input_ref.current.click()}>
-              {translate("DCS_BTN_CHANGE")}
-            </DcsButtonOutline>
-          </div>
-        )}
+      <div className="w-full h-full flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0">
+          <DcsFilePreview
+            fileUrl={field.file_url}
+            fileName={field.file_name}
+            fileType={field.file_type}
+            className="w-full h-full flex flex-col items-center justify-center gap-2 p-2"
+            fill
+          />
+        </div>
+        <div className="flex-shrink-0 mt-1">
+          <input ref={input_ref} type="file" className="hidden" onChange={handle_file_selected} />
+          <DcsButtonOutline disabled={is_reading} onClick={() => input_ref.current && input_ref.current.click()}>
+            {translate("DCS_BTN_CHANGE")}
+          </DcsButtonOutline>
+          {read_failed && (
+            <p className="text-xs mt-1" style={{ color: "#E74C3C" }}>
+              {translate("DCS_FILE_READ_FAILED")}
+            </p>
+          )}
+        </div>
       </div>
     );
   }
@@ -83,10 +117,15 @@ export default function FileBlock({ field, mode, onFieldChange }) {
       {is_builder && (
         <div className="flex items-center gap-3 mt-2">
           <input ref={input_ref} type="file" className="hidden" onChange={handle_file_selected} />
-          <DcsButtonOutline onClick={() => input_ref.current && input_ref.current.click()}>
+          <DcsButtonOutline disabled={is_reading} onClick={() => input_ref.current && input_ref.current.click()}>
             {translate("DCS_BTN_CHANGE")}
           </DcsButtonOutline>
         </div>
+      )}
+      {read_failed && (
+        <p className="text-xs mt-1" style={{ color: "#E74C3C" }}>
+          {translate("DCS_FILE_READ_FAILED")}
+        </p>
       )}
     </div>
   );

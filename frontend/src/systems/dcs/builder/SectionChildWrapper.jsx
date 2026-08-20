@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 
 const MIN_PERCENT = 4;
+const DRAG_THRESHOLD_PX = 4;
 
 const RESIZE_CURSOR_BY_DIRECTION = {
   top: "ns-resize",
@@ -14,6 +15,7 @@ const RESIZE_CURSOR_BY_DIRECTION = {
 export default function SectionChildWrapper({ child, layout, sectionRef, onLayoutChange, onOpenSettings, onDeleteChild, children }) {
   const { translate } = useDcsLanguage();
   const drag_state_ref = useRef(null);
+  const pending_move_ref = useRef(null);
   const layout_ref = useRef(layout);
   const on_layout_change_ref = useRef(onLayoutChange);
   const raf_ref = useRef(null);
@@ -74,6 +76,15 @@ export default function SectionChildWrapper({ child, layout, sectionRef, onLayou
     };
 
     const handle_move = (event) => {
+      if (pending_move_ref.current && !drag_state_ref.current) {
+        const pending = pending_move_ref.current;
+        const moved_x = Math.abs(event.clientX - pending.start_mouse_x);
+        const moved_y = Math.abs(event.clientY - pending.start_mouse_y);
+        if (moved_x < DRAG_THRESHOLD_PX && moved_y < DRAG_THRESHOLD_PX) return;
+        drag_state_ref.current = { mode: "move", direction: null, start_mouse_x: pending.start_mouse_x, start_mouse_y: pending.start_mouse_y, start_x_percent: pending.start_x_percent, start_y_percent: pending.start_y_percent, start_width_percent: pending.start_width_percent, start_height_percent: pending.start_height_percent };
+        document.body.style.cursor = "move";
+        setIsDragging(true);
+      }
       if (!drag_state_ref.current) return;
       latest_event_ref.current = event;
       if (raf_ref.current === null) raf_ref.current = requestAnimationFrame(apply_move);
@@ -81,6 +92,7 @@ export default function SectionChildWrapper({ child, layout, sectionRef, onLayou
 
     const handle_up = () => {
       drag_state_ref.current = null;
+      pending_move_ref.current = null;
       if (raf_ref.current !== null) {
         cancelAnimationFrame(raf_ref.current);
         raf_ref.current = null;
@@ -116,6 +128,18 @@ export default function SectionChildWrapper({ child, layout, sectionRef, onLayou
     setIsDragging(true);
   };
 
+  const handle_content_mouse_down = (event) => {
+    if (event.button !== 0) return;
+    pending_move_ref.current = {
+      start_mouse_x: event.clientX,
+      start_mouse_y: event.clientY,
+      start_x_percent: layout.x_percent,
+      start_y_percent: layout.y_percent,
+      start_width_percent: layout.width_percent,
+      start_height_percent: layout.height_percent,
+    };
+  };
+
   const show_controls = is_hovering || is_dragging;
 
   return (
@@ -131,7 +155,7 @@ export default function SectionChildWrapper({ child, layout, sectionRef, onLayou
         outline: show_controls ? "1px dashed #056daa" : "1px solid transparent",
       }}
     >
-      <div className="w-full h-full" style={{ overflow: "hidden" }}>
+      <div className="w-full h-full" style={{ overflow: "hidden", cursor: "move" }} onMouseDown={handle_content_mouse_down}>
         {children}
       </div>
 

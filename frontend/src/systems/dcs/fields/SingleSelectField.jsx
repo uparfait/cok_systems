@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { get_field_text } from "./fieldText.js";
 
 /**
@@ -9,6 +9,22 @@ export default function SingleSelectField({ field, language, mode, value, onChan
   const label = get_field_text(field.label, language);
   const help_text = get_field_text(field.help_text, language);
   const valid_message = ruleValidMessage || (field.mandatory && get_field_text(field.valid_message, language));
+  const options = field.options || [];
+  const [last_clicked, setLastClicked] = useState(null);
+
+  // Two options can end up sharing the same stored value (most commonly
+  // both blank, if an author added options without giving each its own
+  // Value yet, or typed the same placeholder into more than one). Looking
+  // up "the option whose value matches" then always resolves to the same
+  // one of them (whichever comes first), no matter which one was actually
+  // clicked. Remembering the option actually clicked - and trusting it
+  // until an external change moves the field away from that value - keeps
+  // the UI following the real click instead of silently snapping back to
+  // the first match.
+  const last_clicked_is_current = last_clicked && last_clicked.value === value;
+  const checked_option_id = last_clicked_is_current
+    ? last_clicked.option_id
+    : (value ? (options.find((option) => option.value === value) || {}).id : null);
 
   return (
     <div className="w-full">
@@ -17,7 +33,7 @@ export default function SingleSelectField({ field, language, mode, value, onChan
         {field.mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
       </label>
       <div className="space-y-2">
-        {(field.options || []).map((option) => (
+        {options.map((option) => (
           <label
             key={option.id}
             className="flex items-center gap-2 px-3 py-2 border cursor-pointer"
@@ -26,9 +42,13 @@ export default function SingleSelectField({ field, language, mode, value, onChan
             <input
               type="radio"
               name={field.id}
+              value={option.id}
               disabled={is_builder}
-              checked={value === option.value}
-              onChange={() => onChange && onChange(option.value)}
+              checked={checked_option_id === option.id}
+              onChange={() => {
+                setLastClicked({ option_id: option.id, value: option.value });
+                onChange && onChange(option.value);
+              }}
               style={{ accentColor: "#056daa" }}
             />
             <span style={{ color: "#333333", fontSize: 14 }}>{get_field_text(option.label, language)}</span>

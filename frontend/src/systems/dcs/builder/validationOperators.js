@@ -73,7 +73,7 @@ const RANKING_TYPES = ["ranking"];
 const DATE_LIKE_TYPES = ["date", "date_time"];
 const TIME_TYPES = ["time"];
 const MEDIA_TYPES = ["image", "video", "audio", "file_upload", "signature"];
-const SINGLE_CHOICE_TYPES = ["single_select", "cascading_select"];
+const SINGLE_CHOICE_TYPES = ["single_select", "cascading_select", "select_group"];
 const MULTI_CHOICE_TYPES = ["multi_select"];
 
 const TEXT_OPERATOR_IDS = [

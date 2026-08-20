@@ -40,13 +40,6 @@ const FIELD_ICON_PATHS = {
     </>
   ),
   horizontal_line: <line x1="3" y1="12" x2="21" y2="12" strokeWidth="3" />,
-  shape: (
-    <>
-      <rect x="3" y="3" width="8" height="8" rx="0" />
-      <circle cx="17" cy="7" r="4" />
-      <path d="M12 21l4-8 4 8z" />
-    </>
-  ),
   text: (
     <>
       <line x1="4" y1="7" x2="20" y2="7" />
@@ -200,6 +193,14 @@ const FIELD_ICON_PATHS = {
       <circle cx="12" cy="18" r="2.5" />
       <path d="M6 8.5V12h12V8.5" />
       <line x1="12" y1="12" x2="12" y2="15.5" />
+    </>
+  ),
+  select_group: (
+    <>
+      <rect x="3" y="6" width="18" height="5" rx="0" />
+      <rect x="3" y="13" width="18" height="5" rx="0" />
+      <path d="M17 8l1.5 1.5L20 8" />
+      <path d="M17 15l1.5 1.5L20 15" />
     </>
   ),
 };

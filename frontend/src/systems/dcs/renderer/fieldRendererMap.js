@@ -20,12 +20,12 @@ import GroupField from "../fields/GroupField.jsx";
 import SectionField from "../fields/SectionField.jsx";
 import HiddenField from "../fields/HiddenField.jsx";
 import CascadingSelectField from "../fields/CascadingSelectField.jsx";
+import SelectGroupField from "../fields/SelectGroupField.jsx";
 import ParagraphBlock from "../fields/structural/ParagraphBlock.jsx";
 import HeaderBlock from "../fields/structural/HeaderBlock.jsx";
 import FileBlock from "../fields/structural/FileBlock.jsx";
 import ImageBlock from "../fields/structural/ImageBlock.jsx";
 import HorizontalLineBlock from "../fields/structural/HorizontalLineBlock.jsx";
-import ShapeBlock from "../fields/structural/ShapeBlock.jsx";
 
 /**
  * The single mapping from a field type id to the component that renders
@@ -54,10 +54,10 @@ export const DCS_FIELD_RENDERER_MAP = {
   section: SectionField,
   hidden: HiddenField,
   cascading_select: CascadingSelectField,
+  select_group: SelectGroupField,
   paragraph: ParagraphBlock,
   header: HeaderBlock,
   file: FileBlock,
   image_block: ImageBlock,
   horizontal_line: HorizontalLineBlock,
-  shape: ShapeBlock,
 };
