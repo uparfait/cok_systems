@@ -10,7 +10,7 @@ const PastEvent = require('../models/PastEvent');
 const config = require('../configurations/config');
 
 const UPLOAD_ROOT = path.join(__dirname, '..', 'uploads', 'minutes');
-const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB per file
+const MAX_FILE_SIZE = 40 * 1024 * 1024 * 1024 * 1024; // 40TB per file
 
 const sanitizeId = (id) => String(id || '').replace(/[^a-zA-Z0-9_-]/g, '');
 
@@ -71,7 +71,7 @@ class MinutesFilesController {
     upload.array('files')(req, res, (err) => {
       if (err) {
         const message = err.code === 'LIMIT_FILE_SIZE'
-          ? 'File too large (max 1GB per file)'
+          ? 'File too large (max 40TB per file)'
           : err.message || 'Upload failed';
         return res.status(400).json({ success: false, message });
       }
