@@ -28,7 +28,7 @@ const ADDABLE_TYPES = DCS_FIELD_TYPE_REGISTRY.filter((entry) => entry.category =
  * every other render engine in the system; the box is exactly the size
  * the author gave it, nothing auto-shrinks to force a fit.
  */
-export default function SectionField({ field, language, mode, onFieldChange, onOpenSettings, renderChildField }) {
+export default function SectionField({ field, language, mode, onFieldChange, onOpenSettings, renderChildField, getFieldError }) {
   const is_builder = mode === "builder";
   const { translate } = useDcsLanguage();
   const label = get_field_text(field.label, language);
@@ -223,6 +223,7 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
               onLayoutChange={(next_layout) => handle_child_layout_change(child.id, next_layout)}
               onOpenSettings={onOpenSettings}
               onDeleteChild={() => handle_delete_child(child.id)}
+              errorInfo={getFieldError ? getFieldError(child.id) : null}
             >
               <ChildComponent field={child} language={language} mode="builder" onFieldChange={(updated_child) => handle_child_field_change(child.id, updated_child)} />
             </SectionChildWrapper>
@@ -267,11 +268,29 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
         {stacked_children.map((child) => {
           const ChildComponent = DCS_FIELD_RENDERER_MAP[child.type];
           if (!ChildComponent) return null;
+          const child_error = getFieldError ? getFieldError(child.id) : null;
+          const child_has_error = !!(child_error && child_error.messages.length > 0);
           return (
-            <div key={child.id} className="border p-2 flex gap-2" style={{ borderColor: "#E0E0E0", marginBottom: get_spacing_below_px(child) }}>
+            <div
+              key={child.id}
+              className="border p-2 flex gap-2"
+              style={Object.assign(
+                { position: "relative", borderColor: "#E0E0E0", marginBottom: get_spacing_below_px(child) },
+                child_has_error ? { backgroundColor: "rgba(231,76,60,0.05)", borderColor: "#E74C3C" } : undefined,
+              )}
+            >
               <div className="flex-1 min-w-0">
                 <ChildComponent field={child} language={language} mode="builder" onFieldChange={(updated_child) => handle_child_field_change(child.id, updated_child)} />
               </div>
+              {child_has_error && (
+                <div
+                  title={child_error.messages.join(" ")}
+                  className="absolute flex items-center justify-center"
+                  style={{ top: -6, left: -6, width: 15, height: 15, borderRadius: "50%", backgroundColor: "#E74C3C", color: "#FFFFFF", fontSize: 10, fontWeight: 700, zIndex: 2 }}
+                >
+                  !
+                </div>
+              )}
               <div className="flex flex-col gap-2 flex-shrink-0">
                 <button
                   type="button"

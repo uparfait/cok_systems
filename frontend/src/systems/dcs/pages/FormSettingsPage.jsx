@@ -20,7 +20,18 @@ export default function FormSettingsPage() {
   const [fields, setFields] = useState(form.schema.fields);
   const [form_name, setFormName] = useState(form.form_name || "");
   const [publishing, setPublishing] = useState(false);
+  const [schema_errors, setSchemaErrors] = useState([]);
   const loaded_form_id_ref = useRef(form._id);
+
+  // A field's position in the backend's error paths (fields[2], etc.) is
+  // positional, not id-based - any edit (reorder, add, delete, or a drawer
+  // save) can shift what those indices point to, so stale errors are
+  // cleared on every change rather than risk highlighting the wrong field.
+  // They come back, freshly resolved, on the next failed publish attempt.
+  const handle_fields_change = (next_fields) => {
+    setSchemaErrors([]);
+    setFields(next_fields);
+  };
 
   // The shell's own `form` can change underneath this page - after
   // clicking the Settings tab forces a fresh reload, or after a different
@@ -47,11 +58,13 @@ export default function FormSettingsPage() {
     setPublishing(true);
     try {
       const response = await update_form(form_group_id, form_name, schema);
+      setSchemaErrors([]);
       showSuccess(response.message || translate("DCS_TOAST_FORM_PUBLISHED"));
       refreshForm();
       return true;
     } catch (error) {
       showError(error.message || translate("DCS_ERROR_GENERIC"));
+      setSchemaErrors(Array.isArray(error.errors) ? error.errors : []);
       return false;
     } finally {
       setPublishing(false);
@@ -74,7 +87,13 @@ export default function FormSettingsPage() {
 
       <div className="bg-white border-2 p-4 sm:p-6" style={{ borderColor: "#E0E0E0" }}>
         <DcsFormNameField value={form_name} onChange={setFormName} />
-        <DcFormBuilderSection fields={fields} onFieldsChange={setFields} onPublish={handle_publish} publishing={publishing} />
+        <DcFormBuilderSection
+          fields={fields}
+          onFieldsChange={handle_fields_change}
+          onPublish={handle_publish}
+          publishing={publishing}
+          schemaErrors={schema_errors}
+        />
       </div>
     </div>
   );

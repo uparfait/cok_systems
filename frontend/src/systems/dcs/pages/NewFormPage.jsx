@@ -20,6 +20,12 @@ export default function NewFormPage() {
   const [fields, setFields] = useState([]);
   const [form_name, setFormName] = useState("");
   const [publishing, setPublishing] = useState(false);
+  const [schema_errors, setSchemaErrors] = useState([]);
+
+  const handle_fields_change = (next_fields) => {
+    setSchemaErrors([]);
+    setFields(next_fields);
+  };
 
   const handle_publish = async (schema) => {
     setPublishing(true);
@@ -30,6 +36,7 @@ export default function NewFormPage() {
       return true;
     } catch (error) {
       showError(error.message || translate("DCS_ERROR_GENERIC"));
+      setSchemaErrors(Array.isArray(error.errors) ? error.errors : []);
       return false;
     } finally {
       setPublishing(false);
@@ -43,7 +50,13 @@ export default function NewFormPage() {
       </h2>
       <div className="bg-white border-2 p-4 sm:p-6" style={{ borderColor: "#E0E0E0" }}>
         <DcsFormNameField value={form_name} onChange={setFormName} />
-        <DcFormBuilderSection fields={fields} onFieldsChange={setFields} onPublish={handle_publish} publishing={publishing} />
+        <DcFormBuilderSection
+          fields={fields}
+          onFieldsChange={handle_fields_change}
+          onPublish={handle_publish}
+          publishing={publishing}
+          schemaErrors={schema_errors}
+        />
       </div>
     </div>
   );

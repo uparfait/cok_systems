@@ -12,7 +12,7 @@ const RESIZE_CURSOR_BY_DIRECTION = {
   corner: "nwse-resize",
 };
 
-export default function SectionChildWrapper({ child, layout, sectionRef, onLayoutChange, onOpenSettings, onDeleteChild, children }) {
+export default function SectionChildWrapper({ child, layout, sectionRef, onLayoutChange, onOpenSettings, onDeleteChild, errorInfo, children }) {
   const { translate } = useDcsLanguage();
   const drag_state_ref = useRef(null);
   const pending_move_ref = useRef(null);
@@ -141,6 +141,7 @@ export default function SectionChildWrapper({ child, layout, sectionRef, onLayou
   };
 
   const show_controls = is_hovering || is_dragging;
+  const has_error = !!(errorInfo && errorInfo.messages.length > 0);
 
   return (
     <div
@@ -152,12 +153,23 @@ export default function SectionChildWrapper({ child, layout, sectionRef, onLayou
         top: `${layout.y_percent}%`,
         width: `${layout.width_percent}%`,
         height: `${layout.height_percent}%`,
-        outline: show_controls ? "1px dashed #056daa" : "1px solid transparent",
+        outline: has_error ? "2px solid #E74C3C" : show_controls ? "1px dashed #056daa" : "1px solid transparent",
+        backgroundColor: has_error ? "rgba(231,76,60,0.08)" : undefined,
       }}
     >
       <div className="w-full h-full" style={{ overflow: "hidden", cursor: "move" }} onMouseDown={handle_content_mouse_down}>
         {children}
       </div>
+
+      {has_error && (
+        <div
+          title={errorInfo.messages.join(" ")}
+          className="absolute flex items-center justify-center"
+          style={{ top: -8, left: -8, width: 18, height: 18, borderRadius: "50%", backgroundColor: "#E74C3C", color: "#FFFFFF", fontSize: 12, fontWeight: 700, zIndex: 7 }}
+        >
+          !
+        </div>
+      )}
 
       {show_controls && (
         <>

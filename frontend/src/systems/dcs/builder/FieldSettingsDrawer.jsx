@@ -104,7 +104,7 @@ function compute_initial_position(anchorRect) {
  * horizontal line) only ever show Designs and Conditional Visibility,
  * since their own content is authored inline in the canvas.
  */
-export default function FieldSettingsDrawer({ field, allFields, onSave, onClose, anchorRect }) {
+export default function FieldSettingsDrawer({ field, allFields, onSave, onClose, anchorRect, fieldErrorInfo }) {
   const { translate } = useDcsLanguage();
   const [draft, setDraft] = useState(field);
   const [position, setPosition] = useState(() => compute_initial_position(anchorRect));
@@ -116,10 +116,18 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
   const is_content_field = registry_entry ? registry_entry.category === "content" : false;
   const tabs = is_content_field ? ["designs", "visibility"] : ["labels", "validation", "designs", "visibility"];
   const [active_tab, setActiveTab] = useState(tabs[0]);
+  const has_field_errors = !!(fieldErrorInfo && fieldErrorInfo.messages.length > 0);
 
   useEffect(() => {
     setDraft(field);
-    setActiveTab(tabs[0]);
+    // Jump straight to whichever tab the last failed publish attempt
+    // actually pointed at, rather than always Labels - the point of
+    // highlighting an error at all is to save the author from hunting for
+    // it across four tabs themselves.
+    const first_error_tab = fieldErrorInfo && fieldErrorInfo.tabs_with_errors.size > 0
+      ? tabs.find((tab_id) => fieldErrorInfo.tabs_with_errors.has(tab_id))
+      : null;
+    setActiveTab(first_error_tab || tabs[0]);
     setPosition(compute_initial_position(anchorRect));
     setPanelHeight(DEFAULT_PANEL_HEIGHT);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -173,6 +181,17 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
   const is_image_block = draft.type === "image_block";
   const design = draft.design || {};
   const other_fields = (allFields || []).filter((candidate_field) => candidate_field.id !== draft.id && has_field_label(candidate_field));
+
+  const labels_tab_errors = (fieldErrorInfo && fieldErrorInfo.tab_messages.labels) || [];
+  const label_required_error = labels_tab_errors.find((entry) => entry.reason === "field_label_required");
+  const options_required_error = labels_tab_errors.find((entry) => entry.reason === "options_required");
+  const cascading_parent_error = labels_tab_errors.find(
+    (entry) => entry.reason === "cascading_parent_field_id_not_found" || entry.reason === "cascading_parent_field_id_self_reference",
+  );
+  const computed_formula_error = labels_tab_errors.find((entry) => entry.reason.startsWith("computed_formula_"));
+  const visibility_tab_errors = (fieldErrorInfo && fieldErrorInfo.tab_messages.visibility) || [];
+  const rule_errors_by_index = (fieldErrorInfo && fieldErrorInfo.rule_errors) || {};
+  const option_errors_by_index = (fieldErrorInfo && fieldErrorInfo.option_errors) || {};
 
   const add_option = () => {
     const new_option_id = generate_field_id("option");
@@ -235,6 +254,16 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
         <DcsButtonOutlineReverse onClick={onClose}>{translate("DCS_BTN_CLOSE")}</DcsButtonOutlineReverse>
       </div>
 
+      {has_field_errors && (
+        <div className="px-4 py-2 flex-shrink-0" style={{ backgroundColor: "rgba(231,76,60,0.1)" }}>
+          {fieldErrorInfo.messages.map((message, index) => (
+            <p key={index} className="text-xs" style={{ color: "#E74C3C", fontFamily: "'Montserrat', sans-serif" }}>
+              {message}
+            </p>
+          ))}
+        </div>
+      )}
+
       <div className="flex-1 flex min-h-0">
         <div className="w-32 flex-shrink-0 border-r flex flex-col py-2 overflow-y-auto" style={{ borderColor: "#E0E0E0", backgroundColor: "#F7F9FB" }}>
           {tabs.map((tab_id) => (
@@ -242,7 +271,7 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
               key={tab_id}
               type="button"
               onClick={() => setActiveTab(tab_id)}
-              className="text-left px-3 py-2.5 text-xs font-semibold cursor-pointer"
+              className="text-left px-3 py-2.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5"
               style={{
                 color: active_tab === tab_id ? "#056daa" : "#555555",
                 backgroundColor: active_tab === tab_id ? "rgba(5,109,170,0.08)" : "transparent",
@@ -251,6 +280,9 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
               }}
             >
               {translate(tab_labels[tab_id])}
+              {fieldErrorInfo && fieldErrorInfo.tabs_with_errors.has(tab_id) && (
+                <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#E74C3C", flexShrink: 0 }} />
+              )}
             </button>
           ))}
         </div>
@@ -260,7 +292,12 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
           {active_tab === "labels" && (
             <>
               {has_label && (
-                <TranslatedTextRow labelKey="DCS_SETTINGS_LABEL" value={draft.label} onChange={(value) => update({ label: value })} translate={translate} />
+                <div style={label_required_error ? { outline: "2px solid #E74C3C", outlineOffset: 4 } : undefined}>
+                  <TranslatedTextRow labelKey="DCS_SETTINGS_LABEL" value={draft.label} onChange={(value) => update({ label: value })} translate={translate} />
+                  {label_required_error && (
+                    <p className="text-xs mt-1" style={{ color: "#E74C3C" }}>{label_required_error.message}</p>
+                  )}
+                </div>
               )}
 
               {is_input_field && !is_hidden && (
@@ -345,7 +382,7 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
               )}
 
               {is_cascading && (
-                <div>
+                <div style={cascading_parent_error ? { outline: "2px solid #E74C3C", outlineOffset: 4 } : undefined}>
                   <label className="cok-auth-label">{translate("DCS_SETTINGS_CASCADING_PARENT")}</label>
                   <select className="cok-auth-input w-full py-2" value={draft.parent_field_id || ""} onChange={(event) => update({ parent_field_id: event.target.value })}>
                     <option value="">{translate("DCS_RENDERER_SELECT_PLACEHOLDER")}</option>
@@ -355,41 +392,58 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
                       </option>
                     ))}
                   </select>
+                  {cascading_parent_error && (
+                    <p className="text-xs mt-1" style={{ color: "#E74C3C" }}>{cascading_parent_error.message}</p>
+                  )}
                 </div>
               )}
 
               {(has_options || is_cascading) && (
                 <div>
                   <label className="cok-auth-label">{translate("DCS_SETTINGS_OPTIONS_TITLE")}</label>
+                  {options_required_error && (
+                    <p className="text-xs mb-2" style={{ color: "#E74C3C" }}>{options_required_error.message}</p>
+                  )}
                   <div className="space-y-2">
-                    {(draft.options || []).map((option) => (
-                      <div key={option.id} className="border p-3 space-y-2" style={{ borderColor: "#E0E0E0" }}>
-                        {LANGUAGES.map((language_code) => (
+                    {(draft.options || []).map((option, option_index) => {
+                      const option_messages = option_errors_by_index[option_index] || [];
+                      const option_has_error = option_messages.length > 0;
+                      return (
+                        <div
+                          key={option.id}
+                          className="border p-3 space-y-2"
+                          style={{ borderColor: option_has_error ? "#E74C3C" : "#E0E0E0", backgroundColor: option_has_error ? "rgba(231,76,60,0.05)" : undefined }}
+                        >
+                          {LANGUAGES.map((language_code) => (
+                            <input
+                              key={language_code}
+                              className="cok-auth-input w-full py-3"
+                              placeholder={language_code.toUpperCase()}
+                              value={(option.label && option.label[language_code]) || ""}
+                              onChange={(event) => update_option(option.id, { label: Object.assign({}, option.label, { [language_code]: event.target.value }) })}
+                            />
+                          ))}
                           <input
-                            key={language_code}
                             className="cok-auth-input w-full py-3"
-                            placeholder={language_code.toUpperCase()}
-                            value={(option.label && option.label[language_code]) || ""}
-                            onChange={(event) => update_option(option.id, { label: Object.assign({}, option.label, { [language_code]: event.target.value }) })}
+                            placeholder="value"
+                            value={option.value}
+                            onChange={(event) => update_option(option.id, { value: event.target.value })}
                           />
-                        ))}
-                        <input
-                          className="cok-auth-input w-full py-3"
-                          placeholder="value"
-                          value={option.value}
-                          onChange={(event) => update_option(option.id, { value: event.target.value })}
-                        />
-                        {is_cascading && (
-                          <input
-                            className="cok-auth-input w-full py-3"
-                            placeholder="parent value"
-                            value={option.parent_value || ""}
-                            onChange={(event) => update_option(option.id, { parent_value: event.target.value })}
-                          />
-                        )}
-                        <DcsButtonOutline onClick={() => remove_option(option.id)}>{translate("DCS_SETTINGS_REMOVE")}</DcsButtonOutline>
-                      </div>
-                    ))}
+                          {is_cascading && (
+                            <input
+                              className="cok-auth-input w-full py-3"
+                              placeholder="parent value"
+                              value={option.parent_value || ""}
+                              onChange={(event) => update_option(option.id, { parent_value: event.target.value })}
+                            />
+                          )}
+                          {option_messages.map((message, message_index) => (
+                            <p key={message_index} className="text-xs" style={{ color: "#E74C3C" }}>{message}</p>
+                          ))}
+                          <DcsButtonOutline onClick={() => remove_option(option.id)}>{translate("DCS_SETTINGS_REMOVE")}</DcsButtonOutline>
+                        </div>
+                      );
+                    })}
                     <DcsButtonOutline onClick={add_option}>{translate("DCS_SETTINGS_ADD_OPTION")}</DcsButtonOutline>
                   </div>
                 </div>
@@ -407,7 +461,7 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
                     {translate("DCS_SETTINGS_COMPUTED_ENABLED")}
                   </label>
                   {draft.computed && draft.computed.enabled && (
-                    <div>
+                    <div style={computed_formula_error ? { outline: "2px solid #E74C3C", outlineOffset: 4 } : undefined}>
                       <label className="cok-auth-label">{translate("DCS_SETTINGS_COMPUTED_FORMULA")}</label>
                       <textarea
                         className="cok-auth-input w-full py-2"
@@ -424,6 +478,9 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
                           update({ computed: Object.assign({}, draft.computed, { formula_text, formula: parsed_formula }) });
                         }}
                       />
+                      {computed_formula_error && (
+                        <p className="text-xs mt-1" style={{ color: "#E74C3C" }}>{computed_formula_error.message}</p>
+                      )}
                     </div>
                   )}
                 </>
@@ -432,7 +489,7 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
           )}
 
           {active_tab === "validation" && is_input_field && (
-            <ValidationRuleEditor field={draft} allFields={other_fields} onChange={(rules) => update({ validation_rules: rules })} />
+            <ValidationRuleEditor field={draft} allFields={other_fields} onChange={(rules) => update({ validation_rules: rules })} ruleErrors={rule_errors_by_index} />
           )}
 
           {active_tab === "designs" && (
@@ -565,7 +622,7 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
               <p className="text-xs mb-3" style={{ color: "#9E9E9E" }}>
                 {translate("DCS_SETTINGS_VISIBILITY_DESCRIPTION")}
               </p>
-              <div className="space-y-3">
+              <div className="space-y-3" style={visibility_tab_errors.length > 0 ? { outline: "2px solid #E74C3C", outlineOffset: 4 } : undefined}>
                 <select className="cok-auth-input w-full py-3" value={visibility_ui.parent_field_id} onChange={(event) => update_visibility({ parent_field_id: event.target.value })}>
                   <option value="">{translate("DCS_RENDERER_SELECT_PLACEHOLDER")}</option>
                   {other_fields.map((candidate_field) => (
@@ -583,6 +640,9 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
                 </select>
                 <input className="cok-auth-input w-full py-3" value={visibility_ui.value} onChange={(event) => update_visibility({ value: event.target.value })} />
               </div>
+              {visibility_tab_errors.map((entry, index) => (
+                <p key={index} className="text-xs mt-1" style={{ color: "#E74C3C" }}>{entry.message}</p>
+              ))}
               <ParentValidationSummary parentField={visibility_parent_field} translate={translate} />
             </div>
           )}

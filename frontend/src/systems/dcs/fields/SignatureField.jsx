@@ -65,11 +65,21 @@ export default function SignatureField({ field, language, mode, value, onChange,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fills_container]);
 
+  // The canvas's own drawing resolution (canvas.width/height, the
+  // coordinate space every draw call uses) is not necessarily the same as
+  // its rendered CSS size (rect.width/height, e.g. stretched by "w-full").
+  // Using the raw CSS-pixel offset directly as a drawing coordinate only
+  // lined up with the cursor when those two happened to match; otherwise
+  // the stroke was drawn scaled and offset from wherever was actually
+  // clicked. Scaling the offset by the canvas-to-CSS ratio keeps the ink
+  // exactly under the pointer regardless of how the canvas is stretched.
   const get_position = (event) => {
     const canvas = canvas_ref.current;
     const rect = canvas.getBoundingClientRect();
     const point = event.touches ? event.touches[0] : event;
-    return { x: point.clientX - rect.left, y: point.clientY - rect.top };
+    const scale_x = canvas.width / rect.width;
+    const scale_y = canvas.height / rect.height;
+    return { x: (point.clientX - rect.left) * scale_x, y: (point.clientY - rect.top) * scale_y };
   };
 
   const start_drawing = (event) => {

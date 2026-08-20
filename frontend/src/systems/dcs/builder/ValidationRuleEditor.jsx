@@ -12,7 +12,7 @@ const LANGUAGES = ["en", "kn", "fr"];
  * hard error or a soft warning. Builds the underlying JSONLogic condition
  * automatically from the chosen operator.
  */
-export default function ValidationRuleEditor({ field, allFields, onChange }) {
+export default function ValidationRuleEditor({ field, allFields, onChange, ruleErrors }) {
   const { translate } = useDcsLanguage();
   const rules = field.validation_rules || [];
   const applicable_operators = get_applicable_operators(field.type);
@@ -57,10 +57,23 @@ export default function ValidationRuleEditor({ field, allFields, onChange }) {
 
   return (
     <div className="space-y-4">
-      {rules.map((rule) => {
+      {rules.map((rule, rule_index) => {
         const operator_meta = get_operator_meta(rule.operator);
+        const rule_messages = (ruleErrors && ruleErrors[rule_index]) || [];
+        const rule_has_error = rule_messages.length > 0;
         return (
-        <div key={rule.id} className="border p-4 space-y-3" style={{ borderColor: "#E0E0E0" }}>
+        <div
+          key={rule.id}
+          className="border p-4 space-y-3"
+          style={{ borderColor: rule_has_error ? "#E74C3C" : "#E0E0E0", backgroundColor: rule_has_error ? "rgba(231,76,60,0.05)" : undefined }}
+        >
+          {rule_has_error && (
+            <div className="space-y-1">
+              {rule_messages.map((message, message_index) => (
+                <p key={message_index} className="text-xs" style={{ color: "#E74C3C" }}>{message}</p>
+              ))}
+            </div>
+          )}
           <div>
             <label className="cok-auth-label">{translate("DCS_SETTINGS_VALIDATION_OPERATOR")}</label>
             <select

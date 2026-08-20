@@ -28,7 +28,7 @@ function extract_form_group_id(raw_id) {
 function PublicFormPageContent() {
   const { id } = useParams();
   const { translate, language } = useDcsLanguage();
-  const { showSuccess } = useToast();
+  const { showSuccess, showError } = useToast();
   const form_group_id = extract_form_group_id(id);
 
   const [form, setForm] = useState(null);
@@ -149,6 +149,7 @@ function PublicFormPageContent() {
           setFieldValidMessages({});
           setRevealAllErrors(true);
           setSubmitState("error");
+          showError(result.blocked_item.message || translate("DCS_ERROR_GENERIC"));
           return;
         }
       }
@@ -162,7 +163,7 @@ function PublicFormPageContent() {
       showSuccess(translate("DCS_PUBLIC_DATA_RECORDED"));
     } catch (submit_error) {
       setSubmitState("error");
-      throw submit_error;
+      showError(submit_error.message || translate("DCS_ERROR_GENERIC"));
     } finally {
       setSubmitting(false);
     }
