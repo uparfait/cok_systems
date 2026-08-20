@@ -12,6 +12,24 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const location = useLocation();
   const [isReady, setIsReady] = useState(false);
 
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        if (registrations.length > 0) {
+          // Unregister all found service workers
+          const unregisterPromises = registrations.map((registration) =>
+            registration.unregister()
+          );
+
+          // Reload only after all service workers are removed
+          Promise.all(unregisterPromises).then(() => {
+            window.location.reload();
+          });
+        }
+      });
+    }
+  }, []); // Empty dependency array ensures this runs once on mount
+
   // Wait for auth to be ready before making any decisions
   useEffect(() => {
     // Give a small delay to ensure auth state is initialized
