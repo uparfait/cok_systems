@@ -4,16 +4,12 @@ import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import DcsButtonOutline from "../../components/DcsButtonOutline.jsx";
 import DcsFilePreview from "../../components/DcsFilePreview.jsx";
 
-/**
- * A file attached ahead of time to the form (reference material, an
- * instructions document, and so on). Shows an inline preview based on the
- * file's type as soon as one is selected or dropped.
- */
 export default function FileBlock({ field, mode, onFieldChange }) {
   const is_builder = mode === "builder";
   const { translate } = useDcsLanguage();
   const input_ref = useRef(null);
   const [is_drag_over, setIsDragOver] = useState(false);
+  const fills_container = !!field.section_layout;
 
   const apply_selected_file = async (file) => {
     if (!file || !onFieldChange) return;
@@ -34,7 +30,7 @@ export default function FileBlock({ field, mode, onFieldChange }) {
   if (is_builder && !field.file_url) {
     return (
       <div
-        className="w-full border-2 p-4 text-center"
+        className={fills_container ? "w-full h-full border-2 p-2 text-center overflow-hidden" : "w-full border-2 p-4 text-center"}
         style={{
           borderColor: is_drag_over ? "#056daa" : "#E0E0E0",
           borderStyle: "dashed",
@@ -59,6 +55,27 @@ export default function FileBlock({ field, mode, onFieldChange }) {
   }
 
   if (!field.file_url) return null;
+
+  if (fills_container) {
+    return (
+      <div className="w-full h-full relative overflow-hidden">
+        <DcsFilePreview
+          fileUrl={field.file_url}
+          fileName={field.file_name}
+          fileType={field.file_type}
+          className="w-full h-full flex flex-col items-center justify-center gap-2 p-2"
+        />
+        {is_builder && (
+          <div className="absolute bottom-1 left-1">
+            <input ref={input_ref} type="file" className="hidden" onChange={handle_file_selected} />
+            <DcsButtonOutline onClick={() => input_ref.current && input_ref.current.click()}>
+              {translate("DCS_BTN_CHANGE")}
+            </DcsButtonOutline>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">

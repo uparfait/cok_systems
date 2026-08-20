@@ -7,39 +7,41 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
+let hasClearedStaleCaches = false;
+
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
   const [isReady, setIsReady] = useState(false);
 
-useEffect(() => {
-    if ('caches' in window) {
-      caches.keys().then(async (cacheNames) => {
-        let clearedAnyFile = false;
+  useEffect(() => {
+    if (hasClearedStaleCaches || !('caches' in window)) return;
+    hasClearedStaleCaches = true;
 
-        for (const cacheName of cacheNames) {
-          const cache = await caches.open(cacheName);
-          const requests = await cache.keys();
+    caches.keys().then(async (cacheNames) => {
+      let clearedAnyFile = false;
 
-          // Target files that do NOT include 'dc'
-          const requestsToDelete = requests.filter(
-            (request) => !request.url.includes('dc')
+      for (const cacheName of cacheNames) {
+        const cache = await caches.open(cacheName);
+        const requests = await cache.keys();
+
+        const requestsToDelete = requests.filter((request) => {
+          const requestPath = new URL(request.url).pathname;
+          return requestPath !== '/' && !requestPath.includes('/dcs-form/');
+        });
+
+        if (requestsToDelete.length > 0) {
+          await Promise.all(
+            requestsToDelete.map((request) => cache.delete(request))
           );
-
-          if (requestsToDelete.length > 0) {
-            await Promise.all(
-              requestsToDelete.map((request) => cache.delete(request))
-            );
-            clearedAnyFile = true;
-          }
+          clearedAnyFile = true;
         }
+      }
 
-       
-        if (clearedAnyFile) {
-          window.location.reload();
-        }
-      });
-    }
+      if (clearedAnyFile) {
+        window.location.reload();
+      }
+    });
   }, []);
 
   // Wait for auth to be ready before making any decisions

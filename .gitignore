@@ -5,7 +5,14 @@ yarn-error.log
 win_app_dir_exe/
 backend/uploads/tasks/attachments
 docker-compose.yml
-**/uploads/*
+# Ignore all files and subfolders within any 'upload' directory
+**/upload/**
+
+# Re-include subdirectories so Git tracks the directory tree
+!**/upload/**/
+
+# Re-include .gitkeep files so Git tracks empty folders
+!**/upload/**/.gitkeep
 
 # Environment variables
 .env
