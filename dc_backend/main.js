@@ -23,8 +23,8 @@ app.use(
   }),
 );
 
-app.use(express.json({ limit: config.max_request_body_size }));
-app.use(express.urlencoded({ extended: true, limit: config.max_request_body_size }));
+app.use(express.json({  }));
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(language_middleware);
 
