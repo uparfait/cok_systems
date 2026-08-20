@@ -7,10 +7,12 @@ import { get_submissions } from "../services/submissionsService.js";
 import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
 import { get_field_text } from "../fields/fieldText.js";
 import DcsDataTable from "../components/DcsDataTable.jsx";
+import DcsDataTableFileCell from "../components/DcsDataTableFileCell.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 
 const PAGE_SIZE = 20;
 const NON_DATA_TYPES = ["section", "paragraph", "header", "file", "group"];
+const MEDIA_ANSWER_TYPES = ["image", "video", "audio", "file_upload", "signature"];
 
 /**
  * Paginated view of every response collected against one specific,
@@ -51,7 +53,11 @@ export default function FormDataPage() {
     const row = { dcs_row_key: submission._id };
     data_fields.forEach((field) => {
       const raw_value = submission.data ? submission.data[field.id] : undefined;
-      row[field.id] = Array.isArray(raw_value) ? raw_value.join(", ") : raw_value != null ? String(raw_value) : "";
+      if (MEDIA_ANSWER_TYPES.includes(field.type)) {
+        row[field.id] = raw_value ? <DcsDataTableFileCell value={raw_value} fieldType={field.type} /> : "";
+      } else {
+        row[field.id] = Array.isArray(raw_value) ? raw_value.join(", ") : raw_value != null ? String(raw_value) : "";
+      }
     });
     row.submitted_at = submission.submitted_at ? new Date(submission.submitted_at).toLocaleString() : "";
     return row;

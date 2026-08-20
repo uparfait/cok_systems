@@ -102,8 +102,9 @@ export async function process_queue_once() {
       }
 
       const field_errors = (error && error.field_errors) || null;
+      const message = (error && error.message) || null;
       await update_queue_item(item.id, { status: "error", field_errors });
-      blocked_item = Object.assign({}, item, { field_errors });
+      blocked_item = Object.assign({}, item, { field_errors, message });
       break;
     }
   }

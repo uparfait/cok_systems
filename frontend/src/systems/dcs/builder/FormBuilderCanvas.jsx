@@ -15,7 +15,7 @@ import DcsEmptyState from "../components/DcsEmptyState.jsx";
  * below" trigger, a settings gear and a delete button, and can be
  * reordered by dragging its handle.
  */
-export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettings }) {
+export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettings, getFieldError }) {
   const { language } = useDcsLanguage();
 
   const handle_add_component = (field_type) => {
@@ -41,7 +41,7 @@ export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettin
   };
 
   const render_child_field = (child_field) => (
-    <BuilderStaticFieldPreview field={child_field} language={language} onOpenSettings={onOpenSettings} />
+    <BuilderStaticFieldPreview field={child_field} language={language} onOpenSettings={onOpenSettings} getFieldError={getFieldError} />
   );
 
   return (
@@ -64,6 +64,7 @@ export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettin
                 onDelete={() => handle_delete_field(field.id)}
                 onFieldChange={handle_field_inline_change}
                 renderChildField={render_child_field}
+                getFieldError={getFieldError}
               />
             </div>
           ))}

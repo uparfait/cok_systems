@@ -8,18 +8,22 @@ import { build_design_styles } from "../renderer/designStyles.js";
  * the top level) with just a settings trigger, reusing the exact same
  * field components as everywhere else in the system.
  */
-export default function BuilderStaticFieldPreview({ field, language, onOpenSettings }) {
+export default function BuilderStaticFieldPreview({ field, language, onOpenSettings, getFieldError }) {
   const { translate } = useDcsLanguage();
   const FieldComponent = DCS_FIELD_RENDERER_MAP[field.type];
   if (!FieldComponent) return null;
+
+  const field_error = getFieldError ? getFieldError(field.id) : null;
+  const has_error = !!(field_error && field_error.messages.length > 0);
 
   const field_preview = (
     <FieldComponent
       field={field}
       language={language}
       mode="builder"
+      getFieldError={getFieldError}
       renderChildField={(child_field) => (
-        <BuilderStaticFieldPreview field={child_field} language={language} onOpenSettings={onOpenSettings} />
+        <BuilderStaticFieldPreview field={child_field} language={language} onOpenSettings={onOpenSettings} getFieldError={getFieldError} />
       )}
     />
   );
@@ -33,7 +37,10 @@ export default function BuilderStaticFieldPreview({ field, language, onOpenSetti
   );
 
   return (
-    <div className="border p-2 flex gap-2" style={{ borderColor: "#E0E0E0" }}>
+    <div
+      className="border p-2 flex gap-2"
+      style={Object.assign({ position: "relative", borderColor: "#E0E0E0" }, has_error ? { backgroundColor: "rgba(231,76,60,0.05)", borderColor: "#E74C3C" } : undefined)}
+    >
       <div className="flex-1 min-w-0">{designed_field_preview}</div>
       <button
         type="button"
@@ -47,6 +54,16 @@ export default function BuilderStaticFieldPreview({ field, language, onOpenSetti
           <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
         </svg>
       </button>
+
+      {has_error && (
+        <div
+          title={field_error.messages.join(" ")}
+          className="absolute flex items-center justify-center"
+          style={{ top: -6, left: -6, width: 15, height: 15, borderRadius: "50%", backgroundColor: "#E74C3C", color: "#FFFFFF", fontSize: 10, fontWeight: 700, zIndex: 2 }}
+        >
+          !
+        </div>
+      )}
     </div>
   );
 }

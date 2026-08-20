@@ -14,12 +14,14 @@ import DesignableFieldWrapper from "./DesignableFieldWrapper.jsx";
  * without being individually draggable. Form design components are also
  * wrapped so they can be resized and repositioned right on the canvas.
  */
-export default function BuilderFieldRow({ field, language, onOpenSettings, onOpenChildSettings, onDelete, onFieldChange, renderChildField }) {
+export default function BuilderFieldRow({ field, language, onOpenSettings, onOpenChildSettings, onDelete, onFieldChange, renderChildField, getFieldError }) {
   const { translate } = useDcsLanguage();
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
   const FieldComponent = DCS_FIELD_RENDERER_MAP[field.type];
   const registry_entry = DCS_FIELD_TYPE_REGISTRY.find((entry) => entry.type === field.type);
   const is_content_field = registry_entry ? registry_entry.category === "content" : false;
+  const field_error = getFieldError ? getFieldError(field.id) : null;
+  const has_error = !!(field_error && field_error.messages.length > 0);
 
   const style = { transform: CSS.Transform.toString(transform), transition };
 
@@ -33,6 +35,7 @@ export default function BuilderFieldRow({ field, language, onOpenSettings, onOpe
       onFieldChange={onFieldChange}
       renderChildField={renderChildField}
       onOpenSettings={onOpenChildSettings}
+      getFieldError={getFieldError}
     />
   );
 
@@ -55,7 +58,11 @@ export default function BuilderFieldRow({ field, language, onOpenSettings, onOpe
   })();
 
   return (
-    <div ref={setNodeRef} style={style} className="border p-3 bg-white flex gap-3">
+    <div
+      ref={setNodeRef}
+      style={Object.assign({ position: "relative" }, style, has_error ? { backgroundColor: "rgba(231,76,60,0.05)", borderColor: "#E74C3C" } : undefined)}
+      className="border p-3 bg-white flex gap-3"
+    >
       <button
         type="button"
         {...attributes}
@@ -104,6 +111,16 @@ export default function BuilderFieldRow({ field, language, onOpenSettings, onOpe
           </svg>
         </button>
       </div>
+
+      {has_error && (
+        <div
+          title={field_error.messages.join(" ")}
+          className="absolute flex items-center justify-center"
+          style={{ top: -8, left: -8, width: 18, height: 18, borderRadius: "50%", backgroundColor: "#E74C3C", color: "#FFFFFF", fontSize: 12, fontWeight: 700, zIndex: 2 }}
+        >
+          !
+        </div>
+      )}
     </div>
   );
 }

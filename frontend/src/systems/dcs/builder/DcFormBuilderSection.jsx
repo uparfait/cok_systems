@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
+import { build_schema_error_index, get_field_error_entry } from "./schemaErrorParser.js";
 import FormBuilderCanvas from "./FormBuilderCanvas.jsx";
 import FieldSettingsDrawer from "./FieldSettingsDrawer.jsx";
 import ReviewOverlay from "../renderer/ReviewOverlay.jsx";
@@ -11,7 +12,7 @@ import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
  * Section two of project creation: the DC form builder itself - add
  * components, configure them, review the live renderer, then publish.
  */
-export default function DcFormBuilderSection({ fields, onFieldsChange, onPublish, publishing }) {
+export default function DcFormBuilderSection({ fields, onFieldsChange, onPublish, publishing, schemaErrors }) {
   const { translate } = useDcsLanguage();
   const [selected_field, setSelectedField] = useState(null);
   const [settings_anchor_rect, setSettingsAnchorRect] = useState(null);
@@ -19,6 +20,13 @@ export default function DcFormBuilderSection({ fields, onFieldsChange, onPublish
   const [is_code_overlay_open, setIsCodeOverlayOpen] = useState(false);
 
   const all_flat_fields = flatten_fields(fields);
+
+  const schema_error_index = useMemo(
+    () => build_schema_error_index(schemaErrors, fields, translate),
+    [schemaErrors, fields, translate],
+  );
+  const get_field_error = (field_id) => get_field_error_entry(schema_error_index, field_id);
+  const selected_field_error = selected_field ? get_field_error(selected_field.id) : null;
 
   // Ctrl+6 is a power-user shortcut for the JSON import/export overlay -
   // author a form externally (e.g. with an AI, given the copied creation
@@ -63,7 +71,13 @@ export default function DcFormBuilderSection({ fields, onFieldsChange, onPublish
 
   return (
     <div className="space-y-4">
-      <FormBuilderCanvas fields={fields} onFieldsChange={onFieldsChange} onOpenSettings={handle_open_settings} />
+      {schemaErrors && schemaErrors.length > 0 && (
+        <p className="text-sm px-3 py-2" style={{ backgroundColor: "rgba(231,76,60,0.1)", color: "#E74C3C", fontFamily: "'Montserrat', sans-serif" }}>
+          {translate("DCS_SCHEMA_ERROR_BANNER")}
+        </p>
+      )}
+
+      <FormBuilderCanvas fields={fields} onFieldsChange={onFieldsChange} onOpenSettings={handle_open_settings} getFieldError={get_field_error} />
 
       {fields.length > 0 && (
         <DcsButtonOutline className="w-full" onClick={() => setIsReviewing(true)}>
@@ -78,6 +92,7 @@ export default function DcFormBuilderSection({ fields, onFieldsChange, onPublish
           anchorRect={settings_anchor_rect}
           onSave={handle_settings_save}
           onClose={handle_close_settings}
+          fieldErrorInfo={selected_field_error}
         />
       )}
 
