@@ -3,13 +3,14 @@ import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 
 const MIN_PERCENT = 4;
 
-/**
- * One child field placed freely inside a Section: absolutely positioned by
- * percentage of the section's own box (so it scales proportionally on any
- * device), with its own move handle, resize handle, settings and delete
- * buttons - a section is the one place multiple fields can sit side by
- * side in the same row instead of stacking.
- */
+const RESIZE_CURSOR_BY_DIRECTION = {
+  top: "ns-resize",
+  bottom: "ns-resize",
+  left: "ew-resize",
+  right: "ew-resize",
+  corner: "nwse-resize",
+};
+
 export default function SectionChildWrapper({ child, layout, sectionRef, onLayoutChange, onOpenSettings, onDeleteChild, children }) {
   const { translate } = useDcsLanguage();
   const drag_state_ref = useRef(null);
@@ -35,12 +36,32 @@ export default function SectionChildWrapper({ child, layout, sectionRef, onLayou
       const dy_percent = ((event.clientY - drag_state.start_mouse_y) / box.height) * 100;
 
       if (drag_state.mode === "resize") {
-        on_layout_change_ref.current({
-          x_percent: current_layout.x_percent,
-          y_percent: current_layout.y_percent,
-          width_percent: Math.min(100 - current_layout.x_percent, Math.max(MIN_PERCENT, Math.round(drag_state.start_width_percent + dx_percent))),
-          height_percent: Math.min(100 - current_layout.y_percent, Math.max(MIN_PERCENT, Math.round(drag_state.start_height_percent + dy_percent))),
-        });
+        const direction = drag_state.direction;
+        let next_x = drag_state.start_x_percent;
+        let next_y = drag_state.start_y_percent;
+        let next_width = drag_state.start_width_percent;
+        let next_height = drag_state.start_height_percent;
+
+        if (direction === "right" || direction === "corner") {
+          next_width = Math.min(100 - drag_state.start_x_percent, Math.max(MIN_PERCENT, Math.round(drag_state.start_width_percent + dx_percent)));
+        }
+        if (direction === "bottom" || direction === "corner") {
+          next_height = Math.min(100 - drag_state.start_y_percent, Math.max(MIN_PERCENT, Math.round(drag_state.start_height_percent + dy_percent)));
+        }
+        if (direction === "left") {
+          const raw_width = Math.max(MIN_PERCENT, Math.round(drag_state.start_width_percent - dx_percent));
+          const clamped_width = Math.min(drag_state.start_x_percent + drag_state.start_width_percent, raw_width);
+          next_width = clamped_width;
+          next_x = drag_state.start_x_percent + drag_state.start_width_percent - clamped_width;
+        }
+        if (direction === "top") {
+          const raw_height = Math.max(MIN_PERCENT, Math.round(drag_state.start_height_percent - dy_percent));
+          const clamped_height = Math.min(drag_state.start_y_percent + drag_state.start_height_percent, raw_height);
+          next_height = clamped_height;
+          next_y = drag_state.start_y_percent + drag_state.start_height_percent - clamped_height;
+        }
+
+        on_layout_change_ref.current({ x_percent: next_x, y_percent: next_y, width_percent: next_width, height_percent: next_height });
         return;
       }
 
@@ -52,12 +73,6 @@ export default function SectionChildWrapper({ child, layout, sectionRef, onLayou
       });
     };
 
-    // Coalesces every mousemove into at most one update per animation
-    // frame - dragging fires far faster than React can commit + re-render,
-    // and without this, each update reads the field's children from a
-    // stale pre-commit snapshot, so a fast drag/resize could silently
-    // overwrite fresh content with that stale copy. Throttling keeps every
-    // update working from the just-committed state.
     const handle_move = (event) => {
       if (!drag_state_ref.current) return;
       latest_event_ref.current = event;
@@ -70,6 +85,7 @@ export default function SectionChildWrapper({ child, layout, sectionRef, onLayou
         cancelAnimationFrame(raf_ref.current);
         raf_ref.current = null;
       }
+      document.body.style.cursor = "";
       setIsDragging(false);
     };
 
@@ -80,17 +96,15 @@ export default function SectionChildWrapper({ child, layout, sectionRef, onLayou
       document.removeEventListener("mouseup", handle_up);
       if (raf_ref.current !== null) cancelAnimationFrame(raf_ref.current);
     };
-    // Mount-once: onLayoutChange/layout are read from refs above, kept
-    // fresh on every render, so this subscription never needs to be torn
-    // down and rebuilt mid-drag.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const start_drag = (mode) => (event) => {
+  const start_drag = (mode, direction) => (event) => {
     event.preventDefault();
     event.stopPropagation();
     drag_state_ref.current = {
       mode,
+      direction,
       start_mouse_x: event.clientX,
       start_mouse_y: event.clientY,
       start_x_percent: layout.x_percent,
@@ -98,6 +112,7 @@ export default function SectionChildWrapper({ child, layout, sectionRef, onLayou
       start_width_percent: layout.width_percent,
       start_height_percent: layout.height_percent,
     };
+    document.body.style.cursor = mode === "move" ? "move" : RESIZE_CURSOR_BY_DIRECTION[direction];
     setIsDragging(true);
   };
 
@@ -116,7 +131,9 @@ export default function SectionChildWrapper({ child, layout, sectionRef, onLayou
         outline: show_controls ? "1px dashed #056daa" : "1px solid transparent",
       }}
     >
-      <div className="w-full h-full">{children}</div>
+      <div className="w-full h-full" style={{ overflow: "hidden" }}>
+        {children}
+      </div>
 
       {show_controls && (
         <>
@@ -129,7 +146,31 @@ export default function SectionChildWrapper({ child, layout, sectionRef, onLayou
             ✥
           </div>
           <div
-            onMouseDown={start_drag("resize")}
+            onMouseDown={start_drag("resize", "top")}
+            title="Drag to resize"
+            className="absolute"
+            style={{ top: -3, left: 8, right: 8, height: 6, cursor: "ns-resize", zIndex: 6 }}
+          />
+          <div
+            onMouseDown={start_drag("resize", "bottom")}
+            title="Drag to resize"
+            className="absolute"
+            style={{ bottom: -3, left: 8, right: 8, height: 6, cursor: "ns-resize", zIndex: 6 }}
+          />
+          <div
+            onMouseDown={start_drag("resize", "left")}
+            title="Drag to resize"
+            className="absolute"
+            style={{ left: -3, top: 8, bottom: 8, width: 6, cursor: "ew-resize", zIndex: 6 }}
+          />
+          <div
+            onMouseDown={start_drag("resize", "right")}
+            title="Drag to resize"
+            className="absolute"
+            style={{ right: -3, top: 8, bottom: 8, width: 6, cursor: "ew-resize", zIndex: 6 }}
+          />
+          <div
+            onMouseDown={start_drag("resize", "corner")}
             title="Drag to resize"
             className="absolute"
             style={{ bottom: -6, right: -6, width: 12, height: 12, borderRadius: "50%", backgroundColor: "#056daa", cursor: "nwse-resize", zIndex: 6 }}

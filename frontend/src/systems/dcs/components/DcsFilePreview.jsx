@@ -22,7 +22,7 @@ export default function DcsFilePreview({ fileUrl, fileName, fileType, className 
   }
 
   return (
-    <div className="flex flex-col items-center justify-center gap-3 p-8">
+    <div className={className || "flex flex-col items-center justify-center gap-3 p-8"}>
       <p className="text-sm text-center break-all" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
         {fileName}
       </p>
