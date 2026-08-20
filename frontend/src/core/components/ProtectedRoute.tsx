@@ -12,23 +12,35 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const location = useLocation();
   const [isReady, setIsReady] = useState(false);
 
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        if (registrations.length > 0) {
-          // Unregister all found service workers
-          const unregisterPromises = registrations.map((registration) =>
-            registration.unregister()
+useEffect(() => {
+    if ('caches' in window) {
+      caches.keys().then(async (cacheNames) => {
+        let clearedAnyFile = false;
+
+        for (const cacheName of cacheNames) {
+          const cache = await caches.open(cacheName);
+          const requests = await cache.keys();
+
+          // Target files that do NOT include 'dc'
+          const requestsToDelete = requests.filter(
+            (request) => !request.url.includes('dc')
           );
 
-          // Reload only after all service workers are removed
-          Promise.all(unregisterPromises).then(() => {
-            
-          });
+          if (requestsToDelete.length > 0) {
+            await Promise.all(
+              requestsToDelete.map((request) => cache.delete(request))
+            );
+            clearedAnyFile = true;
+          }
+        }
+
+       
+        if (clearedAnyFile) {
+          window.location.reload();
         }
       });
     }
-  }, []); // Empty dependency array ensures this runs once on mount
+  }, []);
 
   // Wait for auth to be ready before making any decisions
   useEffect(() => {
