@@ -255,7 +255,6 @@ const en = {
   DCS_RENDERER_OTHER_OPTION: "Other",
   DCS_RENDERER_SIGNATURE_CLEAR: "Clear signature",
   DCS_RENDERER_UPLOAD_PROMPT: "Choose a file",
-  DCS_FILE_PREVIEW_OPEN: "Open file",
   DCS_DROP_FILE_HINT: "or drag and drop it here",
   DCS_RENDERER_RANKING_INSTRUCTION: "Drag to reorder from most to least preferred",
 

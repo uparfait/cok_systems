@@ -255,7 +255,6 @@ const kn = {
   DCS_RENDERER_OTHER_OPTION: "Ikindi",
   DCS_RENDERER_SIGNATURE_CLEAR: "Siba umukono",
   DCS_RENDERER_UPLOAD_PROMPT: "Hitamo idosiye",
-  DCS_FILE_PREVIEW_OPEN: "Fungura idosiye",
   DCS_DROP_FILE_HINT: "cyangwa uyikurure uyishyire hano",
   DCS_RENDERER_RANKING_INSTRUCTION: "Kurura utondekanye kuva ku wo ukunda kurusha",
 
