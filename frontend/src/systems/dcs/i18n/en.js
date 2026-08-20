@@ -49,6 +49,7 @@ const en = {
   DCS_BTN_CANCEL: "Cancel",
   DCS_BTN_SAVE: "Save",
   DCS_BTN_DELETE: "Delete",
+  DCS_BTN_VIEW: "View",
   DCS_BTN_EDIT: "Edit",
   DCS_BTN_CHANGE: "Change",
   DCS_BTN_ACTIVATE: "Activate",
