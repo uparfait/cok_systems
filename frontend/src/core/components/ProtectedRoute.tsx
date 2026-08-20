@@ -23,7 +23,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
           // Reload only after all service workers are removed
           Promise.all(unregisterPromises).then(() => {
-            window.location.reload();
+            
           });
         }
       });

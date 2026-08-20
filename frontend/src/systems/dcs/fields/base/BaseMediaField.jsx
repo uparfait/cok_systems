@@ -4,6 +4,8 @@ import { read_file_as_data_url } from "../fileHelpers.js";
 import { useDcsLanguage } from "../../i18n/LanguageContext.jsx";
 import DcsButtonOutline from "../../components/DcsButtonOutline.jsx";
 import DcsFilePreview from "../../components/DcsFilePreview.jsx";
+import DcsAudioPlayer from "../../components/DcsAudioPlayer.jsx";
+import DcsVideoPlayer from "../../components/DcsVideoPlayer.jsx";
 
 /**
  * Shared rendering for every media capture/upload field (image, video,
@@ -78,8 +80,8 @@ export default function BaseMediaField({ field, language, mode, value, onChange,
       {value && (
         <div className="mt-2">
           {previewKind === "image" && <img src={value.data_url} alt={value.name} className="max-w-full max-h-48" />}
-          {previewKind === "video" && <video src={value.data_url} controls className="max-w-full max-h-48" />}
-          {previewKind === "audio" && <audio src={value.data_url} controls className="w-full" />}
+          {previewKind === "video" && <DcsVideoPlayer src={value.data_url} className="max-w-full" />}
+          {previewKind === "audio" && <DcsAudioPlayer src={value.data_url} />}
           {previewKind === "file" && <DcsFilePreview fileUrl={value.data_url} fileName={value.name} fileType={value.type} />}
         </div>
       )}

@@ -255,7 +255,6 @@ const fr = {
   DCS_RENDERER_OTHER_OPTION: "Autre",
   DCS_RENDERER_SIGNATURE_CLEAR: "Effacer la signature",
   DCS_RENDERER_UPLOAD_PROMPT: "Choisir un fichier",
-  DCS_FILE_PREVIEW_OPEN: "Ouvrir le fichier",
   DCS_DROP_FILE_HINT: "ou glissez-déposez le ici",
   DCS_RENDERER_RANKING_INSTRUCTION: "Glissez pour réordonner du plus préféré au moins préféré",
 

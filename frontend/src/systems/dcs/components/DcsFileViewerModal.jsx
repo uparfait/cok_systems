@@ -3,7 +3,6 @@ import mammoth from "mammoth";
 import * as XLSX from "xlsx";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { get_file_kind } from "./fileKind.js";
-import DcsButtonOutline from "./DcsButtonOutline.jsx";
 import DcsButtonOutlineReverse from "./DcsButtonOutlineReverse.jsx";
 
 const DOC_PREVIEW_STYLE = `
