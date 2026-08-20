@@ -3,7 +3,7 @@ const config = require("../configurations/config.js");
 
 const LABEL_NOT_REQUIRED_TYPES = CONTENT_FIELD_TYPES.concat(["hidden"]);
 const { is_valid_rule_structure } = require("./engine.js");
-const { build_dependency_graph, flatten_fields } = require("./dependency_graph.js");
+const { build_dependency_graph } = require("./dependency_graph.js");
 
 const MAX_NESTING_DEPTH = config.max_group_nesting_depth;
 
@@ -148,10 +148,32 @@ function validate_section_layout(child, path, errors) {
 }
 
 /**
- * Validates one field definition (and, for groups, its children) and
- * appends any problems found to the errors array.
+ * Collects every field id anywhere in the tree, tolerating whatever
+ * malformed shapes a hand-authored or pasted-in schema might contain (a
+ * null entry, a non-object, a missing id) - this runs before validate_field
+ * has had a chance to flag those same problems, so it must never throw on
+ * exactly the input validate_field exists to catch.
  */
-function validate_field(field, path, depth, errors, seen_ids) {
+function collect_all_field_ids(fields, accumulator) {
+  const ids = accumulator || new Set();
+  (Array.isArray(fields) ? fields : []).forEach((field) => {
+    if (!field || typeof field !== "object") return;
+    if (typeof field.id === "string") ids.add(field.id);
+    if ((field.type === "group" || field.type === "section") && Array.isArray(field.children)) {
+      collect_all_field_ids(field.children, ids);
+    }
+  });
+  return ids;
+}
+
+/**
+ * Validates one field definition (and, for groups/sections, its children)
+ * and appends any problems found to the errors array. all_ids is the
+ * complete set of every field id anywhere in the schema, collected up
+ * front, so a forward-referencing cascading_select parent (or any other
+ * cross-field reference) resolves correctly regardless of array order.
+ */
+function validate_field(field, path, depth, errors, seen_ids, all_ids) {
   if (depth > MAX_NESTING_DEPTH) {
     errors.push({ path, reason: "nesting_too_deep" });
     return;
@@ -189,25 +211,67 @@ function validate_field(field, path, depth, errors, seen_ids) {
   }
 
   (field.validation_rules || []).forEach((validation_rule, index) => {
+    const rule_path = `${path}.validation_rules[${index}]`;
+    if (!validation_rule || typeof validation_rule !== "object") {
+      errors.push({ path: rule_path, reason: "validation_rule_not_object" });
+      return;
+    }
+    // operator is optional provenance metadata (which builder dropdown
+    // authored this rule) - only condition is ever evaluated at submission
+    // time, so a rule built directly from a raw condition (no operator) is
+    // legitimate and must not be rejected. When an operator IS given, it
+    // must be a real, recognized id that actually applies to this field's
+    // type.
+    if (validation_rule.operator !== undefined && validation_rule.operator !== null) {
+      if (!ALL_OPERATOR_IDS.has(validation_rule.operator)) {
+        errors.push({ path: rule_path, reason: "validation_operator_invalid" });
+      } else if (!get_applicable_operator_ids(field.type).includes(validation_rule.operator)) {
+        errors.push({ path: rule_path, reason: "validation_operator_not_applicable_to_field_type" });
+      }
+    }
     if (validation_rule.condition) {
       const check = is_valid_rule_structure(validation_rule.condition);
-      if (!check.valid) errors.push({ path: `${path}.validation_rules[${index}]`, reason: `condition_${check.reason}` });
+      if (!check.valid) errors.push({ path: rule_path, reason: `condition_${check.reason}` });
     }
     if (!has_any_translation(validation_rule.message)) {
-      errors.push({ path: `${path}.validation_rules[${index}]`, reason: "validation_message_required" });
+      errors.push({ path: rule_path, reason: "validation_message_required" });
     }
   });
 
+  if (OPTION_BASED_TYPES.includes(field.type)) {
+    validate_options(field, path, errors);
+  }
+
+  if (field.type === "cascading_select" && field.parent_field_id) {
+    if (typeof field.parent_field_id !== "string" || !all_ids.has(field.parent_field_id)) {
+      errors.push({ path, reason: "cascading_parent_field_id_not_found" });
+    } else if (field.parent_field_id === field.id) {
+      errors.push({ path, reason: "cascading_parent_field_id_self_reference" });
+    }
+  }
+
   if ((field.type === "group" || field.type === "section") && Array.isArray(field.children)) {
-    field.children.forEach((child, index) => validate_field(child, `${path}.children[${index}]`, depth + 1, errors, seen_ids));
+    field.children.forEach((child, index) => {
+      const child_path = `${path}.children[${index}]`;
+      if (field.type === "section") {
+        const child_type = child && child.type;
+        if (!CONTENT_FIELD_TYPES.includes(child_type) || child_type === "section") {
+          errors.push({ path: child_path, reason: "section_child_type_not_allowed" });
+        }
+        validate_section_layout(child, child_path, errors);
+      }
+      validate_field(child, child_path, depth + 1, errors, seen_ids, all_ids);
+    });
   }
 }
 
 /**
  * Server-side structural validation of an entire form schema: field types,
- * translated labels, JSONLogic rule structures, nesting depth and computed
- * field circular dependencies. This runs on every create/update so a broken
- * schema can never reach the database.
+ * translated labels, JSONLogic rule structures, nesting depth, computed
+ * field circular dependencies, choice-field options and cross-field
+ * references. This runs on every create/update so a broken schema - whether
+ * hand-authored or pasted in from an externally generated form - can never
+ * reach the database.
  */
 function validate_form_schema(schema) {
   const errors = [];
@@ -217,8 +281,10 @@ function validate_form_schema(schema) {
     return { valid: false, errors };
   }
 
+  const all_ids = collect_all_field_ids(schema.fields);
+
   const seen_ids = new Set();
-  schema.fields.forEach((field, index) => validate_field(field, `fields[${index}]`, 0, errors, seen_ids));
+  schema.fields.forEach((field, index) => validate_field(field, `fields[${index}]`, 0, errors, seen_ids, all_ids));
 
   if (errors.length === 0) {
     const dependency_result = build_dependency_graph(schema.fields);
