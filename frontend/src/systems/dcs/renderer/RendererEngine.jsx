@@ -11,7 +11,7 @@ const LANGUAGE_LABEL_KEYS = { en: "DCS_LANGUAGE_EN", kn: "DCS_LANGUAGE_KN", fr: 
  * Universal, schema-driven form renderer. Reads the JSON schema field by
  * field, maps each type to its component, applies visibility conditions,
  * and recurses into groups - it never hardcodes knowledge of any specific
- * form. Width always fills its container up to 650px and down to 100% on
+ * form. Width always fills its container up to 700px and down to 100% on
  * any smaller device; text wraps normally rather than being scaled.
  */
 export default function RendererEngine({ schema, mode, values, onValueChange, fieldErrors, fieldValidMessages, onFieldChange, wrapField, revealAllErrors }) {
@@ -105,7 +105,7 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
   };
 
   return (
-    <div className="w-full mx-auto" style={{ maxWidth: 650 }}>
+    <div className="w-full mx-auto" style={{ maxWidth: 700 }}>
       <div className="flex items-center justify-end mb-3">
         <select
           aria-label={translate("DCS_RENDERER_LANGUAGE_LABEL")}

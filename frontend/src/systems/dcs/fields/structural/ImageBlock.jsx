@@ -14,11 +14,17 @@ export default function ImageBlock({ field, mode, onFieldChange }) {
   const { translate } = useDcsLanguage();
   const input_ref = useRef(null);
   const [is_drag_over, setIsDragOver] = useState(false);
+  const [read_failed, setReadFailed] = useState(false);
 
   const apply_selected_file = async (file) => {
     if (!file || !onFieldChange) return;
-    const read_result = await read_file_as_data_url(file);
-    onFieldChange(Object.assign({}, field, { image_url: read_result.data_url }));
+    setReadFailed(false);
+    try {
+      const read_result = await read_file_as_data_url(file);
+      onFieldChange(Object.assign({}, field, { image_url: read_result.data_url }));
+    } catch (error) {
+      setReadFailed(true);
+    }
   };
 
   const handle_file_selected = (event) => {
@@ -57,6 +63,11 @@ export default function ImageBlock({ field, mode, onFieldChange }) {
         <p className="text-xs mt-2" style={{ color: "#9E9E9E" }}>
           {translate("DCS_DROP_FILE_HINT")}
         </p>
+        {read_failed && (
+          <p className="text-xs mt-2" style={{ color: "#E74C3C" }}>
+            {translate("DCS_FILE_READ_FAILED")}
+          </p>
+        )}
       </div>
     );
   }
@@ -65,17 +76,27 @@ export default function ImageBlock({ field, mode, onFieldChange }) {
   // determines this image's size, so it fills that box exactly instead of
   // rendering at its own width_px and leaving empty space around it.
   if (field.section_layout) {
+    if (!is_builder) {
+      return (
+        <div className="w-full h-full relative">
+          <img src={field.image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
+        </div>
+      );
+    }
     return (
-      <div className="w-full h-full relative">
-        <img src={field.image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
-        {is_builder && (
-          <div className="absolute bottom-1 left-1">
-            <input ref={input_ref} type="file" accept="image/*" className="hidden" onChange={handle_file_selected} />
-            <DcsButtonOutline onClick={() => input_ref.current && input_ref.current.click()}>
-              {translate("DCS_BTN_CHANGE")}
-            </DcsButtonOutline>
-          </div>
-        )}
+      <div className="w-full h-full flex flex-col">
+        <img src={field.image_url} alt="" style={{ width: "100%", flex: 1, minHeight: 0, objectFit: "contain", display: "block" }} />
+        <div className="flex-shrink-0 mt-1">
+          <input ref={input_ref} type="file" accept="image/*" className="hidden" onChange={handle_file_selected} />
+          <DcsButtonOutline onClick={() => input_ref.current && input_ref.current.click()}>
+            {translate("DCS_BTN_CHANGE")}
+          </DcsButtonOutline>
+          {read_failed && (
+            <p className="text-xs mt-1" style={{ color: "#E74C3C" }}>
+              {translate("DCS_FILE_READ_FAILED")}
+            </p>
+          )}
+        </div>
       </div>
     );
   }
@@ -90,6 +111,11 @@ export default function ImageBlock({ field, mode, onFieldChange }) {
             <DcsButtonOutline onClick={() => input_ref.current && input_ref.current.click()}>
               {translate("DCS_BTN_CHANGE")}
             </DcsButtonOutline>
+            {read_failed && (
+              <p className="text-xs mt-1" style={{ color: "#E74C3C" }}>
+                {translate("DCS_FILE_READ_FAILED")}
+              </p>
+            )}
           </div>
         )}
       </div>

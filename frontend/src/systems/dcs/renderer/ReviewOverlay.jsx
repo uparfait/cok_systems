@@ -66,14 +66,14 @@ export default function ReviewOverlay({ schema, onClose, onPublish, publishing }
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] overflow-y-auto p-0 min-[650px]:p-6 flex flex-col items-center" style={{ backgroundColor: "#F7F9FB" }}>
+    <div className="fixed inset-0 z-[10000] overflow-y-auto p-0 min-[700px]:p-6 flex flex-col items-center" style={{ backgroundColor: "#F7F9FB" }}>
       <div className="fixed" style={{ top: 16, right: 16, zIndex: 10001 }}>
         <DcsButtonOutlineReverse onClick={onClose} disabled={publishing}>
           {translate("DCS_BTN_CLOSE")}
         </DcsButtonOutlineReverse>
       </div>
 
-      <div className="w-full min-[650px]:max-w-[650px] bg-white p-4 min-[650px]:p-6 border-0 min-[650px]:border-2 min-[650px]:border-[#056daa]">
+      <div className="w-full min-[700px]:max-w-[700px] bg-white p-4 border-0 min-[700px]:border-2 min-[700px]:border-[#056daa]">
         <RendererEngine
           schema={schema}
           mode="renderer"

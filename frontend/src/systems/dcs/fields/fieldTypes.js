@@ -1,4 +1,4 @@
-export const DCS_CONTENT_FIELD_TYPES = ["paragraph", "header", "file", "image_block", "horizontal_line", "shape", "section"];
+export const DCS_CONTENT_FIELD_TYPES = ["paragraph", "header", "file", "image_block", "horizontal_line", "section"];
 
 export const DCS_DATA_FIELD_TYPES = [
   "text",
@@ -22,6 +22,7 @@ export const DCS_DATA_FIELD_TYPES = [
   "group",
   "hidden",
   "cascading_select",
+  "select_group",
 ];
 
 export const DCS_ALL_FIELD_TYPES = DCS_CONTENT_FIELD_TYPES.concat(DCS_DATA_FIELD_TYPES);
@@ -37,7 +38,6 @@ export const DCS_FIELD_TYPE_REGISTRY = [
   { type: "file", labelKey: "FIELD_TYPE_FILE", descriptionKey: "FIELD_TYPE_FILE_DESC", category: "content" },
   { type: "image_block", labelKey: "FIELD_TYPE_IMAGE_BLOCK", descriptionKey: "FIELD_TYPE_IMAGE_BLOCK_DESC", category: "content" },
   { type: "horizontal_line", labelKey: "FIELD_TYPE_HORIZONTAL_LINE", descriptionKey: "FIELD_TYPE_HORIZONTAL_LINE_DESC", category: "content" },
-  { type: "shape", labelKey: "FIELD_TYPE_SHAPE", descriptionKey: "FIELD_TYPE_SHAPE_DESC", category: "content" },
   { type: "section", labelKey: "FIELD_TYPE_SECTION", descriptionKey: "FIELD_TYPE_SECTION_DESC", category: "content" },
 
   { type: "text", labelKey: "FIELD_TYPE_TEXT", descriptionKey: "FIELD_TYPE_TEXT_DESC", category: "data" },
@@ -61,6 +61,7 @@ export const DCS_FIELD_TYPE_REGISTRY = [
   { type: "group", labelKey: "FIELD_TYPE_GROUP", descriptionKey: "FIELD_TYPE_GROUP_DESC", category: "data" },
   { type: "hidden", labelKey: "FIELD_TYPE_HIDDEN", descriptionKey: "FIELD_TYPE_HIDDEN_DESC", category: "data" },
   { type: "cascading_select", labelKey: "FIELD_TYPE_CASCADING_SELECT", descriptionKey: "FIELD_TYPE_CASCADING_SELECT_DESC", category: "data" },
+  { type: "select_group", labelKey: "FIELD_TYPE_SELECT_GROUP", descriptionKey: "FIELD_TYPE_SELECT_GROUP_DESC", category: "data" },
 ];
 
 /**
@@ -108,12 +109,14 @@ export function create_blank_field(field_type) {
     },
   };
 
-  if (["single_select", "multi_select"].includes(field_type)) {
-    base_field.options = [{ id: generate_field_id("option"), label: { en: "", kn: "", fr: "" }, value: "" }];
+  if (["single_select", "multi_select", "select_group"].includes(field_type)) {
+    const first_option_id = generate_field_id("option");
+    base_field.options = [{ id: first_option_id, label: { en: "", kn: "", fr: "" }, value: first_option_id }];
   }
   if (field_type === "cascading_select") {
     base_field.parent_field_id = null;
-    base_field.options = [{ id: generate_field_id("option"), label: { en: "", kn: "", fr: "" }, value: "", parent_value: "" }];
+    const first_option_id = generate_field_id("option");
+    base_field.options = [{ id: first_option_id, label: { en: "", kn: "", fr: "" }, value: first_option_id, parent_value: "" }];
   }
   if (field_type === "likert_scale") {
     base_field.scale_size = 5;
@@ -121,7 +124,8 @@ export function create_blank_field(field_type) {
     base_field.high_label = { en: "", kn: "", fr: "" };
   }
   if (field_type === "ranking") {
-    base_field.options = [{ id: generate_field_id("option"), label: { en: "", kn: "", fr: "" }, value: "" }];
+    const first_option_id = generate_field_id("option");
+    base_field.options = [{ id: first_option_id, label: { en: "", kn: "", fr: "" }, value: first_option_id }];
   }
   if (field_type === "group") {
     base_field.children = [];
@@ -157,16 +161,5 @@ export function create_blank_field(field_type) {
     base_field.design.width_percent = 100;
     base_field.design.border_color = "#E0E0E0";
   }
-  if (field_type === "shape") {
-    base_field.shape_kind = "rectangle";
-    base_field.width_px = 120;
-    base_field.height_px = 120;
-    base_field.offset_px = 0;
-    base_field.rotation_deg = 0;
-    base_field.fill_color = "#056daa";
-    base_field.text = { en: "", kn: "", fr: "" };
-    base_field.image_url = "";
-  }
-
   return base_field;
 }

@@ -173,8 +173,8 @@ function PublicFormPageContent() {
   if (load_state === "no_active_version") return <DcsEmptyState messageKey="DCS_PUBLIC_NO_ACTIVE_VERSION" />;
 
   return (
-    <div className="min-h-screen p-0 min-[650px]:p-6 flex flex-col items-center" style={{ backgroundColor: "#F7F9FB" }}>
-      <div className="w-full min-[650px]:max-w-[650px] bg-white p-4 min-[650px]:p-6 border-0 min-[650px]:border-2 min-[650px]:border-[#056daa]">
+    <div className="min-h-screen p-0 min-[700px]:p-6 flex flex-col items-center" style={{ backgroundColor: "#F7F9FB" }}>
+      <div className="w-full min-[700px]:max-w-[700px] bg-white p-4 border-0 min-[700px]:border-2 min-[700px]:border-[#056daa]">
         <RendererEngine
           key={render_reset_key}
           schema={form.schema}

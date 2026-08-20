@@ -9,17 +9,16 @@ const MAX_PIXEL_SIZE = 3000;
  * Wraps a form design component in the builder canvas so it sits exactly
  * where it will end up once published, and lets the author resize it
  * visually, right on top of the component itself - never in Field
- * Settings. Resizing a shape or an image changes ITS OWN pixel size
- * (width_px / height_px), exactly like resizing that object in any design
- * tool - not some invisible wrapper around it. Header, paragraph, file and
- * horizontal line have no independent size of their own, so resizing them
- * changes how wide their column is (width_percent). Position is fixed at
- * drop time; only size is adjustable afterward.
+ * Settings. Resizing an image changes ITS OWN pixel width (width_px),
+ * exactly like resizing that object in any design tool - not some
+ * invisible wrapper around it. Header, paragraph, file and horizontal
+ * line have no independent size of their own, so resizing them changes
+ * how wide their column is (width_percent). Position is fixed at drop
+ * time; only size is adjustable afterward.
  */
 export default function DesignableFieldWrapper({ field, onFieldChange, children }) {
   const design = field.design || {};
   const is_pixel_sized = PIXEL_SIZED_TYPES.includes(field.type);
-  const is_shape = field.type === "shape";
   const row_ref = useRef(null);
   const drag_state_ref = useRef(null);
   const field_ref = useRef(field);
@@ -42,12 +41,11 @@ export default function DesignableFieldWrapper({ field, onFieldChange, children 
       const current_design = current_field.design || {};
       const row_width = row_ref.current.getBoundingClientRect().width;
       const dx = event.clientX - drag_state.start_mouse_x;
-      const dy = event.clientY - drag_state.start_mouse_y;
 
       if (is_pixel_sized) {
-        const patch = { width_px: Math.min(MAX_PIXEL_SIZE, Math.max(MIN_PIXEL_SIZE, Math.round(drag_state.start_width_px + dx))) };
-        if (is_shape) patch.height_px = Math.min(MAX_PIXEL_SIZE, Math.max(MIN_PIXEL_SIZE, Math.round(drag_state.start_height_px + dy)));
-        on_field_change_ref.current(Object.assign({}, current_field, patch));
+        on_field_change_ref.current(
+          Object.assign({}, current_field, { width_px: Math.min(MAX_PIXEL_SIZE, Math.max(MIN_PIXEL_SIZE, Math.round(drag_state.start_width_px + dx))) }),
+        );
         return;
       }
 
@@ -86,7 +84,7 @@ export default function DesignableFieldWrapper({ field, onFieldChange, children 
     // on every render, so this subscription never needs to be torn down
     // and rebuilt mid-drag.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [is_pixel_sized, is_shape]);
+  }, [is_pixel_sized]);
 
   const start_resize = (event) => {
     event.preventDefault();
@@ -96,7 +94,6 @@ export default function DesignableFieldWrapper({ field, onFieldChange, children 
       start_mouse_y: event.clientY,
       start_width_percent: design.width_percent || 100,
       start_width_px: field.width_px || 120,
-      start_height_px: field.height_px || 120,
     };
     setIsDragging(true);
   };

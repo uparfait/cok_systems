@@ -1,4 +1,4 @@
-export const PIXEL_SIZED_TYPES = ["shape", "image_block"];
+export const PIXEL_SIZED_TYPES = ["image_block"];
 export const DEFAULT_SPACING_BELOW_PX = 16;
 
 /**
@@ -19,11 +19,11 @@ export function get_spacing_below_px(field) {
  * (the component's own box) styles for the div that wraps it.
  *
  * Two different sizing models, on purpose:
- * - Shape and Image are objects with their own real size (width_px /
- *   height_px, already read directly by ShapeBlock/ImageBlock) - resizing
- *   them means changing THAT size, in pixels, exactly like resizing an
- *   image or a shape in any design tool. Position is a pixel offset
- *   (offset_px) from the left edge of the row.
+ * - Image is an object with its own real size (width_px / height_px,
+ *   already read directly by ImageBlock) - resizing it means changing
+ *   THAT size, in pixels, exactly like resizing an image in any design
+ *   tool. Position is a pixel offset (offset_px) from the left edge of
+ *   the row.
  * - Header, paragraph, file and horizontal line are text/line blocks with
  *   no independent size of their own - their "size" IS how wide their
  *   column is, so width_percent/offset_percent (relative to the row)

@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
 import FormBuilderCanvas from "./FormBuilderCanvas.jsx";
 import FieldSettingsDrawer from "./FieldSettingsDrawer.jsx";
 import ReviewOverlay from "../renderer/ReviewOverlay.jsx";
+import DcsFormCodeOverlay from "./DcsFormCodeOverlay.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 
 /**
@@ -15,8 +16,24 @@ export default function DcFormBuilderSection({ fields, onFieldsChange, onPublish
   const [selected_field, setSelectedField] = useState(null);
   const [settings_anchor_rect, setSettingsAnchorRect] = useState(null);
   const [is_reviewing, setIsReviewing] = useState(false);
+  const [is_code_overlay_open, setIsCodeOverlayOpen] = useState(false);
 
   const all_flat_fields = flatten_fields(fields);
+
+  // Ctrl+6 is a power-user shortcut for the JSON import/export overlay -
+  // author a form externally (e.g. with an AI, given the copied creation
+  // rules) and bring it in as a single paste, rather than clicking through
+  // every component by hand.
+  useEffect(() => {
+    const handle_keydown = (event) => {
+      if (event.ctrlKey && event.key === "6") {
+        event.preventDefault();
+        setIsCodeOverlayOpen(true);
+      }
+    };
+    document.addEventListener("keydown", handle_keydown);
+    return () => document.removeEventListener("keydown", handle_keydown);
+  }, []);
 
   const handle_open_settings = (field, rect) => {
     setSelectedField(field);
@@ -73,6 +90,15 @@ export default function DcFormBuilderSection({ fields, onFieldsChange, onPublish
             const did_succeed = await onPublish(schema);
             if (did_succeed) setIsReviewing(false);
           }}
+        />
+      )}
+
+      {is_code_overlay_open && (
+        <DcsFormCodeOverlay
+          fields={fields}
+          allFields={all_flat_fields}
+          onCreateForm={(next_fields) => onFieldsChange(next_fields)}
+          onClose={() => setIsCodeOverlayOpen(false)}
         />
       )}
     </div>
