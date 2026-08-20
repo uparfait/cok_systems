@@ -160,11 +160,14 @@ class GetCalendarEventsController {
           ]
         }).lean(),
         isPastMonth ? Promise.resolve([]) : RecurringEvent.find({ 'eventRecurring.isExpired': false }).lean(),
-        isPastMonth ? PastEvent.find({
+        // Past events are queried for EVERY month window (not only past months):
+        // events that already ended earlier in the current month live in PastEvent
+        // and would otherwise never appear on the current month's calendar.
+        PastEvent.find({
           startedAt: { $lte: monthEnd },
           endedAt: { $gte: monthStart },
           isCancelled: { $ne: true }
-        }).lean() : Promise.resolve([])
+        }).lean()
       ]);
 
       for (const event of liveEvents) {
