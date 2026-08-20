@@ -17,16 +17,17 @@ const DANGER = "#E74C3C";
 const heading_style = { fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: 18, color: "#333333" };
 const hint_style = { color: "#9E9E9E", fontSize: 13 };
 
-// Same look as the project shell's tab bar, used for the two section links.
+// Section buttons on a solid primary-blue bar; the active one is solid white on blue.
 const section_tab_style = (is_active) => ({
   fontFamily: "'Montserrat', sans-serif",
   fontSize: 13,
   fontWeight: 600,
   textTransform: "uppercase",
   letterSpacing: "0.5px",
-  padding: "0.6rem 1rem",
-  color: is_active ? PRIMARY : "#9E9E9E",
-  borderBottom: is_active ? `2px solid ${PRIMARY}` : "2px solid transparent",
+  padding: "0.55rem 1rem",
+  color: is_active ? PRIMARY : "#FFFFFF",
+  backgroundColor: is_active ? "#FFFFFF" : "transparent",
+  border: is_active ? "1px solid #FFFFFF" : "1px solid rgba(255,255,255,0.5)",
   cursor: "pointer",
 });
 
@@ -203,7 +204,7 @@ export default function ProjectAccessControlPage() {
 
       {enabled && (
         <>
-          <div className="flex border-b flex-wrap" style={{ borderColor: "#E0E0E0" }}>
+          <div className="flex flex-wrap gap-2 p-2" style={{ backgroundColor: PRIMARY }}>
             <button type="button" style={section_tab_style(active_section === "departments")} onClick={() => setActiveSection("departments")}>
               {translate("DCS_ACCESS_DEPARTMENTS_TITLE")}
               {department_grants.length > 0 && ` (${department_grants.length})`}

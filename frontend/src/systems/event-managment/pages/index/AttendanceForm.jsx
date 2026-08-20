@@ -226,7 +226,10 @@ export default function AttendanceForm() {
     if (!formData.attendeeFullName.trim())
       newErrors.attendeeFullName = 'Full name is required';
 
-    if (formData.attendeeEmail.trim()) {
+    // Email is required for internal meetings, optional otherwise
+    if (isInternal && !formData.attendeeEmail.trim()) {
+      newErrors.attendeeEmail = 'Email is required for internal meetings';
+    } else if (formData.attendeeEmail.trim()) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.attendeeEmail.trim()))
         newErrors.attendeeEmail = 'Please enter a valid email address';
@@ -478,10 +481,13 @@ export default function AttendanceForm() {
             </div>
           )}
 
-          {/* Email: optional */}
+          {/* Email: required for internal meetings, optional otherwise */}
           <div>
             <label htmlFor="attendeeEmail" style={labelStyle}>
-              Email Address <span className="normal-case font-normal" style={{ color: GRAY_DISABLED }}>(optional)</span>
+              Email Address{' '}
+              {isInternal
+                ? <span style={{ color: DANGER }}>*</span>
+                : <span className="normal-case font-normal" style={{ color: GRAY_DISABLED }}>(optional)</span>}
             </label>
             <input
               type="email"
