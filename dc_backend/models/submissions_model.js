@@ -3,6 +3,23 @@ const { get_db } = require("../db_connection/db.js");
 const COLLECTION_NAME = "dcs_submissions";
 
 /**
+ * Every list_submissions() query filters by form_group_id (optionally also
+ * by version) and sorts by submitted_at descending. Without an index
+ * covering that, Mongo has to load and sort every matching document in
+ * memory - submissions embed uploaded files as base64, so that blows past
+ * the server's default 32MB in-memory sort limit on any form with a
+ * meaningful amount of data, aborting the query outright. This index lets
+ * Mongo serve both the equality filter and the sort order directly from
+ * the index, with version (when present) applied as a residual filter over
+ * the already-sorted-by-submitted_at index order - no in-memory sort at
+ * any data size. Called once at startup; createIndex is a no-op if an
+ * identical index already exists.
+ */
+async function ensure_submission_indexes() {
+  await get_db().collection(COLLECTION_NAME).createIndex({ form_group_id: 1, submitted_at: -1 }, { name: "form_group_submitted_at" });
+}
+
+/**
  * Stores a validated submission, permanently linked to the exact form
  * group and version it was collected against.
  */
@@ -33,7 +50,11 @@ async function list_submissions(form_group_id, version, page, limit) {
   const collection = get_db().collection(COLLECTION_NAME);
 
   const [items, total] = await Promise.all([
-    collection.find(filter).sort({ submitted_at: -1 }).skip(skip).limit(limit).toArray(),
+    // allowDiskUse is a defensive fallback, not the fix itself - the index
+    // above already keeps this off the in-memory sort path entirely; this
+    // only matters for the brief window before that index finishes
+    // building on an existing large collection.
+    collection.find(filter).sort({ submitted_at: -1 }).skip(skip).limit(limit).allowDiskUse(true).toArray(),
     collection.countDocuments(filter),
   ]);
 
@@ -72,6 +93,7 @@ async function delete_by_form_group_and_version(form_group_id, version) {
 }
 
 module.exports = {
+  ensure_submission_indexes,
   create_submission,
   find_by_client_submission_id,
   list_submissions,

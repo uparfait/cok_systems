@@ -17,8 +17,8 @@ const app = express();
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(compression());
 app.use(cors(config.cors));
-app.use(express.json({ limit: '250000mb' })); // allows base64 minutes file uploads (files capped at 14MB total client-side) and attendance signatures
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '40tb' })); // allows base64 minutes file uploads (files capped at 14MB total client-side) and attendance signatures
+app.use(express.urlencoded({ extended: true, limit: '40tb' }));
 
 // const limiter = rateLimit({
 //   windowMs: config.rateLimit.windowMs,

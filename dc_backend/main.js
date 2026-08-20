@@ -9,6 +9,7 @@ const swaggerUi = require("swagger-ui-express");
 const config = require("./configurations/config.js");
 const swagger_spec = require("./configurations/swaggerConfig.js");
 const connect_databases = require("./db_connection/main.js");
+const { ensure_submission_indexes } = require("./models/submissions_model.js");
 const language_middleware = require("./middlewares/language.js");
 const { not_found_handler, global_error_handler } = require("./middlewares/error_handler.js");
 const dcs_routes = require("./routes/main.js");
@@ -23,8 +24,8 @@ app.use(
   }),
 );
 
-app.use(express.json({  }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: config.max_request_body_size }));
+app.use(express.urlencoded({ extended: true, limit: config.max_request_body_size }));
 app.use(cookieParser());
 app.use(language_middleware);
 
@@ -36,11 +37,12 @@ app.use(not_found_handler);
 app.use(global_error_handler);
 
 connect_databases()
-  .then((result) => {
+  .then(async (result) => {
     if (!result.status) {
       console.error("Database connection failed:", result.error);
       return;
     }
+    await ensure_submission_indexes();
     app.listen(PORT, () => {
       console.log("Server is running on port " + PORT);
     });
