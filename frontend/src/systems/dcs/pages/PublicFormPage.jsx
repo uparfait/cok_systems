@@ -129,7 +129,7 @@ function PublicFormPageContent() {
     // transition, which some browsers miss (e.g. wifi still connected but
     // no internet) - polling navigator.onLine directly keeps the icon
     // accurate even when no event ever fires.
-    const online_poll_interval = window.setInterval(handle_online_change, 3000);
+    const online_poll_interval = window.setInterval(handle_online_change, 10000);
 
     const stop_auto_sync = start_auto_sync({
       onStart: () => setIsSyncing(true),
