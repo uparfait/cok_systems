@@ -22,7 +22,7 @@ import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
  * Submitting here only ever runs the validation: it never calls the
  * backend and never saves anything, it is a rehearsal.
  */
-export default function ReviewOverlay({ schema, onClose, onPublish, publishing }) {
+export default function ReviewOverlay({ schema, onClose, onPublish, publishing, uploadingFiles, uploadPercent }) {
   const { translate, language } = useDcsLanguage();
   const { showSuccess } = useToast();
   const [values, setValues] = useState({});
@@ -95,8 +95,8 @@ export default function ReviewOverlay({ schema, onClose, onPublish, publishing }
           {publishing ? (
             <SpiralLoader />
           ) : (
-            <DcsButtonPrimary className="w-full" onClick={onPublish} disabled={publishing}>
-              {translate("DCS_BTN_PUBLISH")}
+            <DcsButtonPrimary className="w-full" onClick={onPublish} disabled={publishing || uploadingFiles}>
+              {uploadingFiles ? translate("DCS_DESIGN_UPLOADING_PERCENT", { percent: uploadPercent }) : translate("DCS_BTN_PUBLISH")}
             </DcsButtonPrimary>
           )}
         </div>

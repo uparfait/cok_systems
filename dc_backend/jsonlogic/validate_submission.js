@@ -1,6 +1,42 @@
 const { evaluate_rule } = require("./engine.js");
 const { flatten_fields, build_dependency_graph } = require("./dependency_graph.js");
 const { translate } = require("../i18n/index.js");
+const { file_extension_allowed } = require("../constants/file_type_groups.js");
+
+const MEDIA_TYPES = ["image", "video", "audio", "file_upload", "signature"];
+
+/**
+ * True for anything that looks like a raw base64 data URL rather than an
+ * already-uploaded file's URL - a submission must never be allowed to
+ * smuggle file bytes back into MongoDB this way, regardless of what the
+ * client-side upload flow was supposed to have done first.
+ */
+function looks_like_embedded_data_url(value) {
+  return typeof value === "string" && value.startsWith("data:");
+}
+
+/**
+ * Re-validates one media answer against its field's own allowed file types
+ * - the same rule the upload endpoint already enforced when the file was
+ * saved to disk, checked again here so a tampered submission can never
+ * reference a URL for a file type the field never allowed in the first
+ * place. A respondent-pasted link (is_link) has no uploaded file behind it
+ * to re-check, so it is only ever screened for an embedded data URL.
+ */
+function validate_media_answer(field, value) {
+  if (value === null || value === undefined) return null;
+
+  if (looks_like_embedded_data_url(value)) return "SUBMISSION_FILE_EMBEDDED_NOT_ALLOWED";
+
+  if (typeof value === "object") {
+    if (value.data_url || looks_like_embedded_data_url(value.url)) return "SUBMISSION_FILE_EMBEDDED_NOT_ALLOWED";
+    if (!value.is_link && value.name && !file_extension_allowed(value.name, field.allowed_file_type_groups)) {
+      return "FILE_TYPE_NOT_ALLOWED";
+    }
+  }
+
+  return null;
+}
 
 /**
  * True when a submitted value should be treated as empty for the purposes
@@ -68,6 +104,13 @@ function validate_submission_data(schema, submitted_data, language) {
       field_errors[field_id] = (field_errors[field_id] || []).concat([
         pick_translated_message(field.required_message, language) || translate("VALIDATION_FIELD_REQUIRED", language),
       ]);
+    }
+
+    if (MEDIA_TYPES.includes(field.type)) {
+      const media_error_key = validate_media_answer(field, working_data[field_id]);
+      if (media_error_key) {
+        field_errors[field_id] = (field_errors[field_id] || []).concat([translate(media_error_key, language)]);
+      }
     }
 
     (field.validation_rules || []).forEach((validation_rule) => {

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { generate_field_id, DCS_FIELD_TYPE_REGISTRY } from "../fields/fieldTypes.js";
 import { build_validation_condition, DCS_VALIDATION_OPERATORS } from "./validationOperators.js";
+import { DCS_FILE_TYPE_GROUPS } from "../fields/fileTypeGroups.js";
+import { DCS_FILE_SIZE_UNITS } from "../fields/fileSizeLimit.js";
 import { get_field_text, has_field_label } from "../fields/fieldText.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
@@ -178,7 +180,6 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
   const is_placeholder_capable = ["text", "number", "email", "url", "phone"].includes(draft.type);
   const is_date_like = ["date", "date_time"].includes(draft.type);
   const is_horizontal_line = draft.type === "horizontal_line";
-  const is_image_block = draft.type === "image_block";
   const design = draft.design || {};
   const other_fields = (allFields || []).filter((candidate_field) => candidate_field.id !== draft.id && has_field_label(candidate_field));
 
@@ -343,23 +344,70 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
                 <div className="space-y-4">
                   <div>
                     <label className="cok-auth-label">{translate("DCS_SETTINGS_MAX_SIZE")}</label>
-                    <input
-                      type="number"
-                      className="cok-auth-input w-full py-3"
-                      placeholder={translate("DCS_SETTINGS_UNLIMITED")}
-                      value={draft.max_size_mb ?? ""}
-                      onChange={(event) => update({ max_size_mb: event.target.value ? Number(event.target.value) : null })}
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        className="cok-auth-input w-full py-3"
+                        placeholder={translate("DCS_SETTINGS_UNLIMITED")}
+                        value={draft.max_size_value ?? ""}
+                        onChange={(event) => update({ max_size_value: event.target.value ? Number(event.target.value) : null })}
+                      />
+                      <select
+                        className="cok-auth-input py-3"
+                        style={{ flexShrink: 0, width: 90 }}
+                        value={draft.max_size_unit || "mb"}
+                        onChange={(event) => update({ max_size_unit: event.target.value })}
+                      >
+                        {DCS_FILE_SIZE_UNITS.map((unit) => (
+                          <option key={unit.key} value={unit.key}>
+                            {translate(unit.labelKey)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <p className="text-xs mt-1" style={{ color: "#9E9E9E" }}>
+                      {translate("DCS_SETTINGS_MAX_SIZE_HINT")}
+                    </p>
                   </div>
                   <div>
-                    <label className="cok-auth-label">{translate("DCS_SETTINGS_ACCEPTED_TYPES")}</label>
-                    <input
-                      className="cok-auth-input w-full py-3"
-                      placeholder="image/png, application/pdf"
-                      value={(draft.accepted_types || []).join(", ")}
-                      onChange={(event) => update({ accepted_types: event.target.value.split(",").map((entry) => entry.trim()).filter(Boolean) })}
-                    />
+                    <label className="cok-auth-label">{translate("DCS_SETTINGS_ALLOWED_FILE_TYPES")}</label>
+                    <div className="space-y-1">
+                      {DCS_FILE_TYPE_GROUPS.map((group) => {
+                        const selected_groups = draft.allowed_file_type_groups || [];
+                        const is_checked = selected_groups.includes(group.key);
+                        return (
+                          <label key={group.key} className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={is_checked}
+                              onChange={(event) =>
+                                update({
+                                  allowed_file_type_groups: event.target.checked
+                                    ? selected_groups.concat([group.key])
+                                    : selected_groups.filter((key) => key !== group.key),
+                                })
+                              }
+                              style={{ accentColor: "#056daa" }}
+                            />
+                            {translate(group.labelKey)} ({group.extensions.join(", ")})
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs mt-1" style={{ color: "#9E9E9E" }}>
+                      {translate("DCS_SETTINGS_ALLOWED_FILE_TYPES_HINT")}
+                    </p>
                   </div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={!!draft.allow_link_input}
+                      onChange={(event) => update({ allow_link_input: event.target.checked })}
+                      style={{ accentColor: "#056daa" }}
+                    />
+                    {translate("DCS_SETTINGS_ALLOW_LINK_INPUT")}
+                  </label>
                 </div>
               )}
 
@@ -605,13 +653,6 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
                 <div>
                   <label className="cok-auth-label">{translate("DCS_DESIGN_THICKNESS")}</label>
                   <input type="number" min="1" max="20" className="cok-auth-input w-full py-2" value={draft.thickness_px || 2} onChange={(event) => update({ thickness_px: Number(event.target.value) })} />
-                </div>
-              )}
-
-              {is_image_block && (
-                <div>
-                  <label className="cok-auth-label">{translate("DCS_DESIGN_IMAGE_WIDTH")}</label>
-                  <input type="number" min="20" max="2000" className="cok-auth-input w-full py-2" value={draft.width_px || 200} onChange={(event) => update({ width_px: Number(event.target.value) })} />
                 </div>
               )}
             </div>

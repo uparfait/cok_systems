@@ -6,9 +6,12 @@ const COLLECTION_NAME = "dcs_submissions";
  * Every list_submissions() query filters by form_group_id (optionally also
  * by version) and sorts by submitted_at descending. Without an index
  * covering that, Mongo has to load and sort every matching document in
- * memory - submissions embed uploaded files as base64, so that blows past
- * the server's default 32MB in-memory sort limit on any form with a
- * meaningful amount of data, aborting the query outright. This index lets
+ * memory, which blows past the server's default 32MB in-memory sort limit
+ * on any form with a meaningful amount of data, aborting the query
+ * outright - true even now that uploaded files live on disk (referenced
+ * here only by a small {name,type,size,url} object) rather than embedded
+ * as base64, since a large enough form still means a lot of documents.
+ * This index lets
  * Mongo serve both the equality filter and the sort order directly from
  * the index, with version (when present) applied as a residual filter over
  * the already-sorted-by-submitted_at index order - no in-memory sort at

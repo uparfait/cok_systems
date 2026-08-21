@@ -145,16 +145,17 @@ export function create_blank_field(field_type) {
     base_field.file_name = "";
   }
   if (["image", "video", "audio", "file_upload"].includes(field_type)) {
-    base_field.max_size_mb = null;
+    base_field.max_size_value = null;
+    base_field.max_size_unit = "mb";
     base_field.accepted_types = [];
+    base_field.allowed_file_type_groups = [];
+    base_field.allow_link_input = false;
   }
   if (field_type === "date" || field_type === "date_time") {
     base_field.exclude_weekends = false;
   }
   if (field_type === "image_block") {
     base_field.image_url = "";
-    base_field.width_px = 200;
-    base_field.offset_px = 0;
   }
   if (field_type === "horizontal_line") {
     base_field.thickness_px = 2;

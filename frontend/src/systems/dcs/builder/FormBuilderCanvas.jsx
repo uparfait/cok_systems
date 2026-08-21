@@ -3,7 +3,9 @@ import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { create_blank_field } from "../fields/fieldTypes.js";
-import { update_field_by_id, delete_field_by_id, insert_field_at, reorder_fields } from "./builderUtils.js";
+import { update_field_by_id, delete_field_by_id, find_field_by_id, insert_field_at, reorder_fields } from "./builderUtils.js";
+import { collect_uploaded_file_urls } from "./collectUploadedFileUrls.js";
+import { delete_design_file } from "../services/designUploadService.js";
 import { get_spacing_below_px } from "../renderer/designStyles.js";
 import AddComponentPanel from "./AddComponentPanel.jsx";
 import BuilderFieldRow from "./BuilderFieldRow.jsx";
@@ -24,7 +26,9 @@ export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettin
   };
 
   const handle_delete_field = (field_id) => {
+    const removed_field = find_field_by_id(fields, field_id);
     onFieldsChange(delete_field_by_id(fields, field_id));
+    collect_uploaded_file_urls(removed_field).forEach((url) => delete_design_file(url));
   };
 
   const handle_field_inline_change = (updated_field) => {

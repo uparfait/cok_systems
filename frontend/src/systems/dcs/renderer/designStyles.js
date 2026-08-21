@@ -1,4 +1,3 @@
-export const PIXEL_SIZED_TYPES = ["image_block"];
 export const DEFAULT_SPACING_BELOW_PX = 16;
 
 /**
@@ -15,24 +14,16 @@ export function get_spacing_below_px(field) {
 }
 
 /**
- * Turns a field's own size/position into the outer (alignment) and inner
- * (the component's own box) styles for the div that wraps it.
- *
- * Two different sizing models, on purpose:
- * - Image is an object with its own real size (width_px / height_px,
- *   already read directly by ImageBlock) - resizing it means changing
- *   THAT size, in pixels, exactly like resizing an image in any design
- *   tool. Position is a pixel offset (offset_px) from the left edge of
- *   the row.
- * - Header, paragraph, file and horizontal line are text/line blocks with
- *   no independent size of their own - their "size" IS how wide their
- *   column is, so width_percent/offset_percent (relative to the row)
- *   already describes their own box correctly.
- *
- * Data fields never set any of this, so they default to flush-left, full
- * width - unchanged from before. Shared by the live renderer and the
- * builder canvas so a component sits exactly where it will end up once
- * published.
+ * Turns a field's own design settings into the outer (alignment) and inner
+ * (the component's own box) styles for the div that wraps it. Only ever
+ * used for the top-level field list - a component living directly in the
+ * form, outside any Section canvas - which always auto-fills the full row
+ * width; there is no per-field resize or reposition out here at all, on
+ * purpose (that is what a Section's own free-position canvas is for).
+ * width_percent/offset_percent/width_px/offset_px are intentionally never
+ * read here for that reason, even if an old schema still carries them from
+ * before this was locked down. Shared by the live renderer and the builder
+ * canvas so a component sits exactly where it will end up once published.
  */
 export function build_design_styles(field) {
   const design = (field && field.design) || {};
@@ -52,16 +43,7 @@ export function build_design_styles(field) {
   }
 
   const outer_style = { position: "relative", width: "100%" };
-  const inner_style = {};
-
-  if (PIXEL_SIZED_TYPES.includes(field && field.type)) {
-    inner_style.marginLeft = `${field.offset_px || 0}px`;
-  } else {
-    const width_percent = design.width_percent ? design.width_percent : 100;
-    const offset_percent = design.offset_percent ? design.offset_percent : 0;
-    inner_style.width = `${width_percent}%`;
-    inner_style.marginLeft = `${(offset_percent * (100 - width_percent)) / 100}%`;
-  }
+  const inner_style = { width: "100%", marginLeft: 0 };
 
   if (design.background_color) inner_style.backgroundColor = design.background_color;
   if (design.border_enabled) inner_style.border = `${design.border_width || 1}px solid ${design.border_color || "#E0E0E0"}`;

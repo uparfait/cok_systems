@@ -200,6 +200,17 @@ function validate_field(field, path, depth, errors, seen_ids, all_ids) {
     errors.push({ path, reason: "field_label_required" });
   }
 
+  // A content block's file/image is authored once by uploading to disk
+  // storage (or pasting an already-hosted link) - never embedded as base64
+  // - so a schema (hand-authored or pasted in via the JSON import overlay)
+  // can never smuggle file bytes into the forms collection this way either.
+  if (field.type === "file" && typeof field.file_url === "string" && field.file_url.startsWith("data:")) {
+    errors.push({ path, reason: "file_embedded_not_allowed" });
+  }
+  if (field.type === "image_block" && typeof field.image_url === "string" && field.image_url.startsWith("data:")) {
+    errors.push({ path, reason: "file_embedded_not_allowed" });
+  }
+
   if (field.visibility_condition) {
     const check = is_valid_rule_structure(field.visibility_condition);
     if (!check.valid) errors.push({ path, reason: `visibility_condition_${check.reason}` });

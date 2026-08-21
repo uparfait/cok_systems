@@ -42,6 +42,7 @@ const REASON_I18N_KEYS = {
   section_layout_width_percent_invalid: "DCS_SCHEMA_ERROR_SECTION_LAYOUT_INVALID",
   section_layout_height_percent_invalid: "DCS_SCHEMA_ERROR_SECTION_LAYOUT_INVALID",
   circular_dependency: "DCS_SCHEMA_ERROR_CIRCULAR_DEPENDENCY",
+  file_embedded_not_allowed: "DCS_SCHEMA_ERROR_FILE_EMBEDDED_NOT_ALLOWED",
 };
 
 export function humanize_schema_error_reason(reason, translate) {

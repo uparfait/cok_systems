@@ -8,6 +8,7 @@ import { cache_form, get_cached_form } from "../offline/formCache.js";
 import { enqueue_submission, update_queue_item, process_queue_once, list_queue, start_auto_sync } from "../offline/submissionQueue.js";
 import { save_form_draft, get_form_draft, clear_form_draft } from "../offline/draftStore.js";
 import { compute_derived_values, compute_form_progress_percent } from "../renderer/formEngine.js";
+import { MediaUploadProvider } from "../renderer/MediaUploadContext.jsx";
 import { validate_submission_client_side } from "../jsonlogic/validateSubmission.js";
 import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
 import { get_field_text } from "../fields/fieldText.js";
@@ -56,6 +57,7 @@ function PublicFormPageContent() {
   const [draft, setDraft] = useState(null);
   const [resume_prompt_visible, setResumePromptVisible] = useState(false);
   const [is_syncing, setIsSyncing] = useState(false);
+  const [file_upload_percent, setFileUploadPercent] = useState(null);
   const [is_online, setIsOnline] = useState(window.navigator.onLine);
   const [is_queue_open, setIsQueueOpen] = useState(false);
   // Set only while reviewing/fixing an already-queued (pending/error)
@@ -134,9 +136,11 @@ function PublicFormPageContent() {
     const stop_auto_sync = start_auto_sync({
       onStart: () => setIsSyncing(true),
       onItemResult: async () => refresh_queue(),
+      onFileProgress: ({ percent }) => setFileUploadPercent(percent),
       onComplete: async (result) => {
         await refresh_queue();
         setIsSyncing(false);
+        setFileUploadPercent(null);
         // A silent, empty tick (nothing queued) happens every single
         // minute the page is left open - toasting that would just be
         // background noise. Only something that actually happened (a
@@ -221,7 +225,7 @@ function PublicFormPageContent() {
     if (!window.navigator.onLine) return;
     setIsSyncing(true);
     try {
-      const result = await process_queue_once(async () => refresh_queue());
+      const result = await process_queue_once(async () => refresh_queue(), ({ percent }) => setFileUploadPercent(percent));
       await refresh_queue();
       if (result.blocked_item) {
         showError(result.blocked_item.message || translate("DCS_ERROR_GENERIC"));
@@ -232,13 +236,13 @@ function PublicFormPageContent() {
       }
     } finally {
       setIsSyncing(false);
+      setFileUploadPercent(null);
     }
   };
 
-  // A media answer's real value is a base64 data URL (or, for a
-  // signature, a bare data URL string) - dumping that into a spreadsheet
-  // cell would make the file enormous and unreadable, so only the
-  // filename (or a generic placeholder) is exported for those.
+  // A media answer's real value is {name, type, size, url} - the file
+  // itself lives on disk, not in this export - so only the filename (or a
+  // generic placeholder) is exported for those.
   const stringify_export_cell = (value) => {
     if (value === null || value === undefined) return "";
     if (Array.isArray(value)) return value.join(", ");
@@ -336,9 +340,10 @@ function PublicFormPageContent() {
 
       if (window.navigator.onLine) {
         setIsSyncing(true);
-        const result = await process_queue_once(async () => refresh_queue());
+        const result = await process_queue_once(async () => refresh_queue(), ({ percent }) => setFileUploadPercent(percent));
         await refresh_queue();
         setIsSyncing(false);
+        setFileUploadPercent(null);
 
         if (result.blocked_item) {
           reviewing_queue_id_ref.current = result.blocked_item.id;
@@ -486,16 +491,18 @@ function PublicFormPageContent() {
           </button>
         </div>
 
-        <RendererEngine
-          key={render_reset_key}
-          schema={form.schema}
-          mode="renderer"
-          values={values}
-          onValueChange={handle_value_change}
-          fieldErrors={field_errors}
-          fieldValidMessages={field_valid_messages}
-          revealAllErrors={reveal_all_errors}
-        />
+        <MediaUploadProvider formGroupId={form_group_id} version={form.version} isOnline={is_online}>
+          <RendererEngine
+            key={render_reset_key}
+            schema={form.schema}
+            mode="renderer"
+            values={values}
+            onValueChange={handle_value_change}
+            fieldErrors={field_errors}
+            fieldValidMessages={field_valid_messages}
+            revealAllErrors={reveal_all_errors}
+          />
+        </MediaUploadProvider>
 
         <DcsSubmitControl
           submitting={submitting}
@@ -530,7 +537,9 @@ function PublicFormPageContent() {
         >
           <span className="dcs-inline-spinner" style={{ color: "#056daa", flexShrink: 0 }} />
           <span className="text-xs font-semibold" style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}>
-            {translate("DCS_PUBLIC_SUBMITTING_INDICATOR")}
+            {file_upload_percent !== null
+              ? translate("DCS_PUBLIC_UPLOADING_FILES_INDICATOR", { percent: file_upload_percent })
+              : translate("DCS_PUBLIC_SUBMITTING_INDICATOR")}
           </span>
         </div>
       )}
