@@ -6,6 +6,17 @@ import { evaluate_field_visibility } from "./formEngine.js";
 import { build_design_styles, get_spacing_below_px } from "./designStyles.js";
 
 const LANGUAGE_LABEL_KEYS = { en: "DCS_LANGUAGE_EN", kn: "DCS_LANGUAGE_KN", fr: "DCS_LANGUAGE_FR" };
+const FORM_LANGUAGE_STORAGE_KEY = "dcs_form_language";
+
+/**
+ * Reads the language a respondent last picked to read the form in, so
+ * re-opening the same device (or resuming a draft) doesn't reset it back
+ * to the default every time.
+ */
+function read_stored_form_language() {
+  const stored_value = window.localStorage.getItem(FORM_LANGUAGE_STORAGE_KEY);
+  return dcs_supported_languages.includes(stored_value) ? stored_value : dcs_default_language;
+}
 
 /**
  * Universal, schema-driven form renderer. Reads the JSON schema field by
@@ -17,7 +28,11 @@ const LANGUAGE_LABEL_KEYS = { en: "DCS_LANGUAGE_EN", kn: "DCS_LANGUAGE_KN", fr: 
 export default function RendererEngine({ schema, mode, values, onValueChange, fieldErrors, fieldValidMessages, onFieldChange, wrapField, revealAllErrors }) {
   const render_mode = mode || "renderer";
   const { translate } = useDcsLanguage();
-  const [form_language, setFormLanguage] = useState(dcs_default_language);
+  const [form_language, setFormLanguageState] = useState(read_stored_form_language);
+  const setFormLanguage = (next_language) => {
+    window.localStorage.setItem(FORM_LANGUAGE_STORAGE_KEY, next_language);
+    setFormLanguageState(next_language);
+  };
   const [touched_fields, setTouchedFields] = useState(() => new Set());
 
   const mark_touched = (field_id) => {
@@ -71,13 +86,21 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
       />
     );
 
+    // A field that currently fails validation (and is actually being shown
+    // per is_shown above) gets a visible red outline around itself - input
+    // and its own error text together - so the respondent's eye lands on
+    // exactly which field needs fixing without having to re-read every
+    // label on the page.
+    const has_error_highlight = render_mode === "renderer" && !!format_error(field.id);
+    const error_highlight_class = has_error_highlight ? "dcs-field-error-highlight" : undefined;
+
     const { outer_style, inner_style } = build_design_styles(field);
     const designed_element = outer_style ? (
       <div key={field.id} style={outer_style}>
-        <div style={inner_style}>{element}</div>
+        <div style={inner_style} className={error_highlight_class}>{element}</div>
       </div>
     ) : (
-      <div key={field.id} style={inner_style}>
+      <div key={field.id} style={inner_style} className={error_highlight_class}>
         {element}
       </div>
     );
@@ -94,11 +117,15 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
   // Section/Group children) must never carry this spacing itself - it
   // would silently inflate every nested component's box on top of the
   // position the author actually designed.
+  // dcs-print-avoid-break: a question split across a page boundary when
+  // printed is unreadable - letting the browser's own pagination fall
+  // wherever it likes between fields (never inside one) is what "pages"
+  // for print actually means here, not any manual page-break authoring.
   const render_top_level_field = (field) => {
     const element = render_field(field);
     if (element === null) return null;
     return (
-      <div key={field.id} style={{ marginBottom: get_spacing_below_px(field) }}>
+      <div key={field.id} className="dcs-print-avoid-break" style={{ marginBottom: get_spacing_below_px(field) }}>
         {element}
       </div>
     );
@@ -106,7 +133,7 @@ export default function RendererEngine({ schema, mode, values, onValueChange, fi
 
   return (
     <div className="w-full mx-auto" style={{ maxWidth: 700 }}>
-      <div className="flex items-center justify-end mb-3">
+      <div className="flex items-center justify-end mb-3 dcs-no-print">
         <select
           aria-label={translate("DCS_RENDERER_LANGUAGE_LABEL")}
           value={form_language}

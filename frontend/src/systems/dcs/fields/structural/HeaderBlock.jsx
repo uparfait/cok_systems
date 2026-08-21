@@ -4,7 +4,18 @@ import DcsLinkedText from "../../components/DcsLinkedText.jsx";
 import DcsTextLinkMenu from "../../components/DcsTextLinkMenu.jsx";
 import { add_link_to_range, remove_links_overlapping_range, find_link_overlapping_range } from "../textLinkSegments.js";
 
-const HEADING_SIZES = { 1: 28, 2: 24, 3: 21, 4: 18, 5: 16, 6: 14 };
+// clamp(min, viewport-scaled, max) - the max is the original fixed size on
+// a wide enough screen, the min is a sane floor on a small phone, and the
+// vw term shrinks smoothly in between instead of a fixed size overflowing
+// or wrapping awkwardly on a narrow viewport.
+const HEADING_SIZES = {
+  1: "clamp(20px, 5vw, 28px)",
+  2: "clamp(18px, 4.5vw, 24px)",
+  3: "clamp(16px, 4vw, 21px)",
+  4: "clamp(15px, 3.5vw, 18px)",
+  5: "clamp(14px, 3.2vw, 16px)",
+  6: "clamp(13px, 3vw, 14px)",
+};
 
 export default function HeaderBlock({ field, language, mode, onFieldChange }) {
   const is_builder = mode === "builder";

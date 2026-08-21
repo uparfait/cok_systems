@@ -45,6 +45,18 @@ export default function SingleSelectField({ field, language, mode, value, onChan
               value={option.id}
               disabled={is_builder}
               checked={checked_option_id === option.id}
+              onClick={() => {
+                // Native radios can only ever be turned ON by a click, never
+                // back off - clicking one already selected fires no change
+                // event at all. Clicking always fires here regardless, so a
+                // second click on the already-checked option is what clears
+                // it - required or not; a still-required, now-empty field
+                // simply shows its own "required" error same as any other.
+                if (checked_option_id === option.id) {
+                  setLastClicked({ option_id: null, value: null });
+                  onChange && onChange(null);
+                }
+              }}
               onChange={() => {
                 setLastClicked({ option_id: option.id, value: option.value });
                 onChange && onChange(option.value);
