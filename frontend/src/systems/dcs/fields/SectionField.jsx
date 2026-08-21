@@ -6,6 +6,8 @@ import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import DcsFieldIcon from "../components/DcsFieldIcon.jsx";
 import SectionChildWrapper from "../builder/SectionChildWrapper.jsx";
 import { get_spacing_below_px } from "../renderer/designStyles.js";
+import { collect_uploaded_file_urls } from "../builder/collectUploadedFileUrls.js";
+import { delete_design_file } from "../services/designUploadService.js";
 
 const DEFAULT_LAYOUT = { x_percent: 0, y_percent: 0, width_percent: 30, height_percent: 40 };
 const MIN_HEIGHT_PX = 80;
@@ -53,7 +55,9 @@ export default function SectionField({ field, language, mode, onFieldChange, onO
   };
 
   const handle_delete_child = (child_id) => {
+    const removed_child = children.find((child) => child.id === child_id);
     update_children(children.filter((child) => child.id !== child_id));
+    collect_uploaded_file_urls(removed_child).forEach((url) => delete_design_file(url));
   };
 
   const handle_context_menu = (event) => {

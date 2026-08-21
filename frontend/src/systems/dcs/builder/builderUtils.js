@@ -14,6 +14,21 @@ export function update_field_by_id(fields, field_id, updater) {
 }
 
 /**
+ * Recursively finds the field matching field_id (searching into group/
+ * section children too), or null if no field has that id.
+ */
+export function find_field_by_id(fields, field_id) {
+  for (const field of fields) {
+    if (field.id === field_id) return field;
+    if ((field.type === "group" || field.type === "section") && Array.isArray(field.children)) {
+      const found = find_field_by_id(field.children, field_id);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/**
  * Recursively removes the field matching field_id.
  */
 export function delete_field_by_id(fields, field_id) {

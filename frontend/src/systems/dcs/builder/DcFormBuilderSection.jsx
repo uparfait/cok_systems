@@ -7,13 +7,23 @@ import FieldSettingsDrawer from "./FieldSettingsDrawer.jsx";
 import ReviewOverlay from "../renderer/ReviewOverlay.jsx";
 import DcsFormCodeOverlay from "./DcsFormCodeOverlay.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
+import { DesignUploadProvider, useDesignUpload } from "./DesignUploadContext.jsx";
 
 /**
  * Section two of project creation: the DC form builder itself - add
  * components, configure them, review the live renderer, then publish.
  */
-export default function DcFormBuilderSection({ fields, onFieldsChange, onPublish, publishing, schemaErrors }) {
+export default function DcFormBuilderSection(props) {
+  return (
+    <DesignUploadProvider>
+      <DcFormBuilderSectionInner {...props} />
+    </DesignUploadProvider>
+  );
+}
+
+function DcFormBuilderSectionInner({ fields, onFieldsChange, onPublish, publishing, schemaErrors }) {
   const { translate } = useDcsLanguage();
+  const { is_uploading, average_percent } = useDesignUpload();
   const [selected_field, setSelectedField] = useState(null);
   const [settings_anchor_rect, setSettingsAnchorRect] = useState(null);
   const [is_reviewing, setIsReviewing] = useState(false);
@@ -80,8 +90,8 @@ export default function DcFormBuilderSection({ fields, onFieldsChange, onPublish
       <FormBuilderCanvas fields={fields} onFieldsChange={onFieldsChange} onOpenSettings={handle_open_settings} getFieldError={get_field_error} />
 
       {fields.length > 0 && (
-        <DcsButtonOutline className="w-full" onClick={() => setIsReviewing(true)}>
-          {translate("DCS_BTN_REVIEW")}
+        <DcsButtonOutline className="w-full" onClick={() => setIsReviewing(true)} disabled={is_uploading}>
+          {is_uploading ? translate("DCS_DESIGN_UPLOADING_PERCENT", { percent: average_percent }) : translate("DCS_BTN_REVIEW")}
         </DcsButtonOutline>
       )}
 
@@ -100,6 +110,8 @@ export default function DcFormBuilderSection({ fields, onFieldsChange, onPublish
         <ReviewOverlay
           schema={schema}
           publishing={publishing}
+          uploadingFiles={is_uploading}
+          uploadPercent={average_percent}
           onClose={() => setIsReviewing(false)}
           onPublish={async () => {
             const did_succeed = await onPublish(schema);

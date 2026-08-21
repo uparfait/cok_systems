@@ -9,11 +9,7 @@ const DC_CONFIG = {
     "http://localhost:3000",
   ],
   upload_dir: "uploads",
-  // The actual, MongoDB-imposed ceiling on a single submission (fields are
-  // embedded as base64 directly in the document) is ~16MB regardless of
-  // this number - raising it only removes Express's own body-size gate, so
-  // a request is never rejected here before it even reaches that layer.
-  max_upload_size_mb: 41943040,
+  max_upload_size_mb: 9999999999999999999999999999999999999999999999,
   max_request_body_size: "40tb",
   // Generous ceilings for legitimate large forms - NOT meant to be truly
   // unlimited. These guard recursive traversals (group nesting, JSONLogic

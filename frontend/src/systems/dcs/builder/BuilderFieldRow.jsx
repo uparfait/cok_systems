@@ -2,24 +2,20 @@ import React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { DCS_FIELD_RENDERER_MAP } from "../renderer/fieldRendererMap.js";
-import { DCS_FIELD_TYPE_REGISTRY } from "../fields/fieldTypes.js";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { build_design_styles } from "../renderer/designStyles.js";
-import DesignableFieldWrapper from "./DesignableFieldWrapper.jsx";
 
 /**
  * One draggable field row inside the form builder canvas: a drag handle,
  * the field's own builder-mode preview, a settings button and a delete
  * button. Group children reuse this same renderer for their own preview
- * without being individually draggable. Form design components are also
- * wrapped so they can be resized and repositioned right on the canvas.
+ * without being individually draggable, and - unlike a Section's own
+ * children - are never individually resizable or repositionable here.
  */
 export default function BuilderFieldRow({ field, language, onOpenSettings, onOpenChildSettings, onDelete, onFieldChange, renderChildField, getFieldError }) {
   const { translate } = useDcsLanguage();
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
   const FieldComponent = DCS_FIELD_RENDERER_MAP[field.type];
-  const registry_entry = DCS_FIELD_TYPE_REGISTRY.find((entry) => entry.type === field.type);
-  const is_content_field = registry_entry ? registry_entry.category === "content" : false;
   const field_error = getFieldError ? getFieldError(field.id) : null;
   const has_error = !!(field_error && field_error.messages.length > 0);
 
@@ -39,14 +35,12 @@ export default function BuilderFieldRow({ field, language, onOpenSettings, onOpe
     />
   );
 
-  // Data-collection fields have their own Designs tab (background, border,
-  // width, alignment) same as form-design components, but only the latter
-  // go through DesignableFieldWrapper (which applies build_design_styles
-  // itself, alongside its resize handles). Without this, a data field's
-  // design settings were invisible while building and only ever appeared
-  // once published - the canvas must show the field exactly as it will
-  // render, same as designStyles.js already does for the live renderer.
-  const designed_field_preview = is_content_field ? null : (() => {
+  // Every top-level field - content or data - renders through the same
+  // build_design_styles used by the live renderer, with no resize/reposition
+  // handles of any kind: a component outside a Section's own free-position
+  // canvas always just auto-fills the row, exactly as it will once
+  // published, instead of being individually draggable here.
+  const designed_field_preview = (() => {
     const { outer_style, inner_style } = build_design_styles(field);
     return outer_style ? (
       <div style={outer_style}>
@@ -81,15 +75,7 @@ export default function BuilderFieldRow({ field, language, onOpenSettings, onOpe
         </svg>
       </button>
 
-      <div className="flex-1 min-w-0">
-        {is_content_field ? (
-          <DesignableFieldWrapper field={field} onFieldChange={onFieldChange}>
-            {field_preview}
-          </DesignableFieldWrapper>
-        ) : (
-          designed_field_preview
-        )}
-      </div>
+      <div className="flex-1 min-w-0">{designed_field_preview}</div>
 
       <div className="flex flex-col gap-2 flex-shrink-0">
         <button

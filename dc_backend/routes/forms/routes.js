@@ -7,6 +7,37 @@ const get_form_versions = require("../../controllers/forms/get_form_versions.js"
 const get_form_by_id = require("../../controllers/forms/get_form_by_id.js");
 const set_active_version = require("../../controllers/forms/set_active_version.js");
 const delete_form_version = require("../../controllers/forms/delete_form_version.js");
+const upload_design_file = require("../../controllers/forms/upload_design_file.js");
+const delete_design_file = require("../../controllers/forms/delete_design_file.js");
+const { upload_design_file: upload_design_file_middleware } = require("../../utilities/upload.js");
+
+/**
+ * @swagger
+ * /dcs/api/forms/upload:
+ *   post:
+ *     summary: Upload one content-block file (File/Image design component) while building a form
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       201:
+ *         description: File uploaded successfully
+ */
+Router.post("/upload", upload_design_file_middleware.single("file"), upload_design_file);
+
+/**
+ * @swagger
+ * /dcs/api/forms/upload:
+ *   delete:
+ *     summary: Delete a content-block file no longer referenced by any component (replaced or removed)
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: File deleted (or was already gone)
+ */
+Router.delete("/upload", delete_design_file);
 
 /**
  * @swagger
