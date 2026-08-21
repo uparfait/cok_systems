@@ -1,22 +1,11 @@
 import React, { useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import { dcs_supported_languages, dcs_default_language } from "../i18n/index.js";
+import { dcs_supported_languages } from "../i18n/index.js";
 import { DCS_FIELD_RENDERER_MAP } from "./fieldRendererMap.js";
 import { evaluate_field_visibility } from "./formEngine.js";
 import { build_design_styles, get_spacing_below_px } from "./designStyles.js";
 
 const LANGUAGE_LABEL_KEYS = { en: "DCS_LANGUAGE_EN", kn: "DCS_LANGUAGE_KN", fr: "DCS_LANGUAGE_FR" };
-const FORM_LANGUAGE_STORAGE_KEY = "dcs_form_language";
-
-/**
- * Reads the language a respondent last picked to read the form in, so
- * re-opening the same device (or resuming a draft) doesn't reset it back
- * to the default every time.
- */
-function read_stored_form_language() {
-  const stored_value = window.localStorage.getItem(FORM_LANGUAGE_STORAGE_KEY);
-  return dcs_supported_languages.includes(stored_value) ? stored_value : dcs_default_language;
-}
 
 /**
  * Universal, schema-driven form renderer. Reads the JSON schema field by
@@ -27,12 +16,11 @@ function read_stored_form_language() {
  */
 export default function RendererEngine({ schema, mode, values, onValueChange, fieldErrors, fieldValidMessages, onFieldChange, wrapField, revealAllErrors }) {
   const render_mode = mode || "renderer";
-  const { translate } = useDcsLanguage();
-  const [form_language, setFormLanguageState] = useState(read_stored_form_language);
-  const setFormLanguage = (next_language) => {
-    window.localStorage.setItem(FORM_LANGUAGE_STORAGE_KEY, next_language);
-    setFormLanguageState(next_language);
-  };
+  // The language dropdown below drives the whole page, not just the form
+  // fields - it is the same language DcsQueuePanel, toasts, and every
+  // other piece of chrome around the form read from, so switching it here
+  // must never diverge into a second, form-only language.
+  const { language: form_language, setLanguage: setFormLanguage, translate } = useDcsLanguage();
   const [touched_fields, setTouchedFields] = useState(() => new Set());
 
   const mark_touched = (field_id) => {
