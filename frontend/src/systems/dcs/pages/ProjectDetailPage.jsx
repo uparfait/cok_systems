@@ -21,10 +21,13 @@ export default function ProjectDetailPage() {
 
   const base_path = `/dcs-system/project/${project_id}`;
 
+  // The access-control tab only exists for the creator and grant-option holders.
   const TABS = [
     { key: "settings", labelKey: "DCS_PROJECT_NAV_SETTINGS", path: "settings" },
     { key: "forms", labelKey: "DCS_PROJECT_NAV_FORMS", path: "forms" },
-    { key: "access-control", labelKey: "DCS_SECTION_ACCESS_CONTROL", path: "access-control" },
+    ...(project.viewer_can_manage_access === true
+      ? [{ key: "access-control", labelKey: "DCS_SECTION_ACCESS_CONTROL", path: "access-control" }]
+      : []),
     { key: "dashboard", labelKey: "DCS_SECTION_BUILD_DASHBOARD", path: "dashboard" },
   ];
 

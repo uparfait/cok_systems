@@ -24,7 +24,12 @@ async function get_project_by_id(req, res) {
       return res.status(403).json(warning_response(req, "ACCESS_DENIED"));
     }
 
-    return res.status(200).json(success_response(req, "PROJECT_FETCHED", project));
+    // Tells the frontend whether to show the access-control tab to this viewer.
+    const viewer_can_manage_access = await project_access.can_manage_access(req.user, project);
+
+    return res
+      .status(200)
+      .json(success_response(req, "PROJECT_FETCHED", Object.assign({}, project, { viewer_can_manage_access })));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

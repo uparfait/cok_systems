@@ -9,6 +9,7 @@ import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import DcsAccessFormScope from "../components/DcsAccessFormScope.jsx";
+import DcsAccessLevelSelect from "../components/DcsAccessLevelSelect.jsx";
 import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
 
 const PRIMARY = "#056daa";
@@ -42,6 +43,7 @@ export default function ProjectAccessControlPage() {
   const { showSuccess, showError } = useToast();
 
   const [loading, setLoading] = useState(true);
+  const [forbidden, setForbidden] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [department_grants, setDepartmentGrants] = useState([]);
   const [individuals, setIndividuals] = useState([]);
@@ -77,7 +79,12 @@ export default function ProjectAccessControlPage() {
         setDepartments(departments_response.data || []);
         setForms(forms_response.data || []);
       })
-      .catch((error) => showError(error.message || translate("DCS_ERROR_GENERIC")))
+      .catch((error) => {
+        if (!is_mounted) return;
+        // A 403 means this viewer has plain access without the grant option.
+        if (error.status_code === 403) setForbidden(true);
+        else showError(error.message || translate("DCS_ERROR_GENERIC"));
+      })
       .finally(() => is_mounted && setLoading(false));
     return () => {
       is_mounted = false;
@@ -142,7 +149,7 @@ export default function ProjectAccessControlPage() {
       const user = response.data;
       setIndividuals([
         ...individuals,
-        { user_id: user.user_id, email: user.email, full_name: user.full_name, all_forms: true, form_group_ids: [] },
+        { user_id: user.user_id, email: user.email, full_name: user.full_name, can_grant: false, all_forms: true, form_group_ids: [] },
       ]);
       setEmail("");
       showSuccess(translate("DCS_ACCESS_EMAIL_ADDED", { name: user.full_name || user.email }));
@@ -179,6 +186,17 @@ export default function ProjectAccessControlPage() {
   };
 
   if (loading) return <DcsLoadingState />;
+
+  if (forbidden) {
+    return (
+      <div className="bg-white border-2 p-4 sm:p-6" style={{ borderColor: "#E0E0E0" }}>
+        <h2 style={heading_style}>{translate("DCS_SECTION_ACCESS_CONTROL")}</h2>
+        <p className="mt-2 text-sm" style={{ color: "#333333" }}>
+          {translate("DCS_ACCESS_MANAGE_FORBIDDEN")}
+        </p>
+      </div>
+    );
+  }
 
   const filtered_departments = departments.filter((department) =>
     department.name.toLowerCase().includes(department_search.toLowerCase()),
@@ -365,6 +383,14 @@ export default function ProjectAccessControlPage() {
                     <div className="min-w-0">
                       <p className="text-sm font-semibold truncate" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
                         {individual.full_name || individual.email}
+                        {individual.can_grant === true && (
+                          <span
+                            className="ml-2 align-middle text-xs font-semibold uppercase px-2 py-0.5"
+                            style={{ color: "#FFFFFF", backgroundColor: PRIMARY, fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.5px" }}
+                          >
+                            {translate("DCS_ACCESS_GRANT_BADGE")}
+                          </span>
+                        )}
                       </p>
                       <p className="text-xs truncate" style={{ color: "#9E9E9E" }}>
                         {individual.email}
@@ -379,12 +405,18 @@ export default function ProjectAccessControlPage() {
                       {translate("DCS_SETTINGS_REMOVE")}
                     </button>
                   </div>
-                  <DcsAccessFormScope
-                    forms={forms}
-                    allForms={individual.all_forms}
-                    formGroupIds={individual.form_group_ids}
-                    onChange={(changes) => update_individual(individual.user_id, changes)}
-                  />
+                  <div className="space-y-3">
+                    <DcsAccessLevelSelect
+                      canGrant={individual.can_grant === true}
+                      onChange={(can_grant) => update_individual(individual.user_id, { can_grant })}
+                    />
+                    <DcsAccessFormScope
+                      forms={forms}
+                      allForms={individual.all_forms}
+                      formGroupIds={individual.form_group_ids}
+                      onChange={(changes) => update_individual(individual.user_id, changes)}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
