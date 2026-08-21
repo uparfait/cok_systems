@@ -15,7 +15,7 @@ export default function DcsLanguageSwitcher({ className }) {
       aria-label={translate("DCS_LANGUAGE_LABEL")}
       value={language}
       onChange={(event) => setLanguage(event.target.value)}
-      className={className || ""}
+      className={`dcs-lang-switcher ${className || ""}`}
       style={{
         fontFamily: "'Montserrat', sans-serif",
         fontSize: 13,
@@ -25,6 +25,7 @@ export default function DcsLanguageSwitcher({ className }) {
         padding: "0.4rem 0.6rem",
         backgroundColor: "#FFFFFF",
         color: "#333333",
+        cursor: "pointer",
       }}
     >
       {supportedLanguages.map((language_code) => (

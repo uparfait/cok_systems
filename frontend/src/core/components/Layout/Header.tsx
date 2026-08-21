@@ -26,7 +26,7 @@ interface SidebarLink {
 
 interface HeaderProps {
   onMenuToggle: () => void;
-  currentSystem: string;
+  currentSystem: React.ReactNode;
   links: SidebarLink[];
   currentPath: string;
   onNavigate: (path: string) => void;
@@ -98,7 +98,7 @@ const Header: React.FC<HeaderProps> = ({
 
           <div className="flex flex-col">
             <span className="truncate text-xs font-semibold text-white sm:text-base md:text-lg">
-              {currentSystem?.split("-").join(" ").toLocaleUpperCase()}
+              {typeof currentSystem === "string" ? currentSystem.split("-").join(" ").toLocaleUpperCase() : currentSystem}
             </span>
           </div>
         </div>

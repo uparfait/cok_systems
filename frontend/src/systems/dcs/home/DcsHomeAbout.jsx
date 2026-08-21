@@ -1,10 +1,11 @@
 import React from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useScrollReveal } from "./useScrollReveal.js";
+import DcsHomeStatCard from "./DcsHomeStatCard.jsx";
 
 const STAT_KEYS = [
   { valueKey: "DCS_HOME_ABOUT_STAT_1_VALUE", labelKey: "DCS_HOME_ABOUT_STAT_1_LABEL" },
-  { valueKey: "DCS_HOME_ABOUT_STAT_2_VALUE", labelKey: "DCS_HOME_ABOUT_STAT_2_LABEL" },
+  { valueKey: "DCS_HOME_ABOUT_STAT_2_VALUE", labelKey: "DCS_HOME_ABOUT_STAT_2_LABEL", showOffline: true },
   { valueKey: "DCS_HOME_ABOUT_STAT_3_VALUE", labelKey: "DCS_HOME_ABOUT_STAT_3_LABEL" },
 ];
 
@@ -19,10 +20,7 @@ export default function DcsHomeAbout() {
         className={`dcs-home-reveal ${isVisible ? "is-visible" : ""} w-full flex flex-col items-center text-center gap-6 px-4 sm:px-8 py-16`}
         style={{ maxWidth: 820 }}
       >
-        <span
-          className="text-xs font-semibold tracking-[0.3em] uppercase px-3 py-1"
-          style={{ color: "#056daa", backgroundColor: "rgba(5,109,170,0.08)" }}
-        >
+        <span className="dcs-home-badge text-xs font-semibold tracking-[0.3em] uppercase px-3 py-1">
           {translate("DCS_HOME_ABOUT_EYEBROW")}
         </span>
         <h2
@@ -37,17 +35,14 @@ export default function DcsHomeAbout() {
 
         <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
           {STAT_KEYS.map((stat, index) => (
-            <div
+            <DcsHomeStatCard
               key={stat.valueKey}
+              valueKey={stat.valueKey}
+              labelKey={stat.labelKey}
+              showOffline={stat.showOffline}
+              isActive={isVisible}
               className={`dcs-home-glass-card dcs-home-reveal ${isVisible ? "is-visible" : ""} dcs-home-reveal-delay-${Math.min(index, 2)} p-5 flex flex-col items-center gap-1`}
-            >
-              <span className="font-bold" style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif", fontSize: "1.8rem" }}>
-                {translate(stat.valueKey)}
-              </span>
-              <span className="text-xs uppercase tracking-wide" style={{ color: "#555555", fontFamily: "'Montserrat', sans-serif" }}>
-                {translate(stat.labelKey)}
-              </span>
-            </div>
+            />
           ))}
         </div>
       </div>

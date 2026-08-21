@@ -10,6 +10,8 @@ const fr = {
   DCS_SIDEBAR_NEW_PROJECT: "Nouveau projet",
   DCS_SIDEBAR_NO_PROJECTS: "Aucun projet pour le moment",
   DCS_SIDEBAR_LOADING: "Chargement des projets",
+  DCS_SIDEBAR_SHOW: "Afficher les projets",
+  DCS_SIDEBAR_HIDE: "Masquer les projets",
 
   DCS_HOME_HERO_LINE_1: "Créez et gérez des projets",
   DCS_HOME_HERO_LINE_2: "Créez et partagez des questionnaires",
@@ -24,7 +26,7 @@ const fr = {
   DCS_HOME_ABOUT_STAT_1_VALUE: "20+",
   DCS_HOME_ABOUT_STAT_1_LABEL: "Types de questions disponibles",
   DCS_HOME_ABOUT_STAT_2_VALUE: "100%",
-  DCS_HOME_ABOUT_STAT_2_LABEL: "Fonctionne hors ligne",
+  DCS_HOME_ABOUT_STAT_2_LABEL: "Capacité hors ligne",
   DCS_HOME_ABOUT_STAT_3_VALUE: "Versionnés",
   DCS_HOME_ABOUT_STAT_3_LABEL: "Formulaires, en toute sécurité",
 
@@ -40,6 +42,7 @@ const fr = {
   DCS_HOME_FEATURE_FORMS_BULLET_2: "Ajoutez visibilité conditionnelle, valeurs calculées et règles de validation propulsées par une vraie logique, pas des approximations.",
   DCS_HOME_FEATURE_FORMS_BULLET_3: "Publiez une nouvelle version uniquement quand vos questions changent réellement - votre lien public ne se casse jamais.",
   DCS_HOME_FEATURE_FORMS_BULLET_4: "Les répondants peuvent remplir un formulaire entièrement hors ligne - leurs réponses se synchronisent automatiquement dès leur retour en ligne.",
+  DCS_HOME_FEATURE_FORMS_OFFLINE_BADGE: "Capacité hors ligne",
 
   DCS_HOME_FEATURE_ACCESS_TITLE: "Gérez qui peut accéder à vos projets",
   DCS_HOME_FEATURE_ACCESS_BODY: "Gardez les projets de collecte de données sensibles visibles uniquement par les personnes qui doivent les voir - accordez l'accès par département, unité de département ou par nom, et choisissez exactement quels formulaires chaque accès peut atteindre.",
@@ -98,6 +101,7 @@ const fr = {
   DCS_BTN_NEXT: "Suivant",
   DCS_BTN_PREVIOUS: "Précédent",
   DCS_BTN_BACK: "Retour",
+  DCS_BTN_HOME: "Accueil",
   DCS_BTN_LINK: "Lier",
   DCS_BTN_UNLINK: "Délier",
   DCS_BTN_DOWNLOAD: "Télécharger",

@@ -10,6 +10,8 @@ const kn = {
   DCS_SIDEBAR_NEW_PROJECT: "Poroje nshya",
   DCS_SIDEBAR_NO_PROJECTS: "Nta poroje ihari",
   DCS_SIDEBAR_LOADING: "Turimo gushakisha poroje",
+  DCS_SIDEBAR_SHOW: "Erekana poroje",
+  DCS_SIDEBAR_HIDE: "Hisha poroje",
 
   DCS_HOME_HERO_LINE_1: "Kurema no gucunga poroje",
   DCS_HOME_HERO_LINE_2: "Kurema no gusangira ibibazo (amafishi)",
@@ -24,7 +26,7 @@ const kn = {
   DCS_HOME_ABOUT_STAT_1_VALUE: "20+",
   DCS_HOME_ABOUT_STAT_1_LABEL: "Ubwoko bw'ibibazo wakoresha",
   DCS_HOME_ABOUT_STAT_2_VALUE: "100%",
-  DCS_HOME_ABOUT_STAT_2_LABEL: "Ikora nta murandasi uhari",
+  DCS_HOME_ABOUT_STAT_2_LABEL: "Ubushobozi bwo gukora nta murandasi uhari",
   DCS_HOME_ABOUT_STAT_3_VALUE: "Verisiyo",
   DCS_HOME_ABOUT_STAT_3_LABEL: "Amafishi abitswe neza",
 
@@ -40,6 +42,7 @@ const kn = {
   DCS_HOME_FEATURE_FORMS_BULLET_2: "Ongeraho amategeko yo kugaragara, uburyo bwo kubara agaciro, n'amategeko yo kugenzura bishingiye ku mategeko nyayo.",
   DCS_HOME_FEATURE_FORMS_BULLET_3: "Tangaza verisiyo nshya gusa igihe ibibazo byawe bihindutse by'ukuri - link yawe rusange ntizigera yangirika.",
   DCS_HOME_FEATURE_FORMS_BULLET_4: "Uwasubije ashobora kuzuza fishi nta murandasi uhari - ibisubizo bye bikohereza byikoresha igihe cyose amaze kuboneka murandasi.",
+  DCS_HOME_FEATURE_FORMS_OFFLINE_BADGE: "Ubushobozi bwo gukora nta murandasi uhari",
 
   DCS_HOME_FEATURE_ACCESS_TITLE: "Gucunga abemerewe kwinjira muri poroje zawe",
   DCS_HOME_FEATURE_ACCESS_BODY: "Bika poroje z'ibanga zigaragara gusa ku bantu bagomba kuzibona - emerera ishami, igice cy'ishami, cyangwa umuntu ku giti cye, hanyuma uhitemo neza amafishi buri wemerewe azabona.",
@@ -98,6 +101,7 @@ const kn = {
   DCS_BTN_NEXT: "Komeza",
   DCS_BTN_PREVIOUS: "Subira inyuma",
   DCS_BTN_BACK: "Subira inyuma",
+  DCS_BTN_HOME: "Ahabanza",
   DCS_BTN_LINK: "Huza",
   DCS_BTN_UNLINK: "Kuraho ihuza",
   DCS_BTN_DOWNLOAD: "Kuramo",

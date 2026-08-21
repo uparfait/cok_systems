@@ -8,7 +8,7 @@ import { useScrollReveal } from "./useScrollReveal.js";
  * the whole home page has visual rhythm instead of four identical rows.
  * Drops into place (never fixed) the first time it enters the viewport.
  */
-export default function DcsHomeFeatureSection({ titleKey, bodyKey, bulletKeys, badgeKey, Illustration, reverse, tinted }) {
+export default function DcsHomeFeatureSection({ titleKey, bodyKey, bulletKeys, badgeKey, offlineBadgeKey, Illustration, reverse, tinted }) {
   const { translate } = useDcsLanguage();
   const { ref, isVisible } = useScrollReveal();
 
@@ -25,13 +25,25 @@ export default function DcsHomeFeatureSection({ titleKey, bodyKey, bulletKeys, b
         <div
           className={`dcs-home-reveal ${isVisible ? "is-visible" : ""} flex flex-col gap-5 ${reverse ? "lg:order-2" : ""}`}
         >
-          {badgeKey && (
-            <span
-              className="self-start text-xs font-semibold uppercase tracking-wide px-3 py-1"
-              style={{ color: "#F5A623", backgroundColor: "rgba(245,166,35,0.12)" }}
-            >
-              {translate(badgeKey)}
-            </span>
+          {(badgeKey || offlineBadgeKey) && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {badgeKey && (
+                <span className="dcs-home-badge dcs-home-badge--amber self-start text-xs font-semibold uppercase tracking-wide px-3 py-1">
+                  {translate(badgeKey)}
+                </span>
+              )}
+              {offlineBadgeKey && (
+                <span className="dcs-home-badge dcs-home-badge--green self-start flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide px-3 py-1">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" strokeWidth="2.4">
+                    <path d="M2 8.5a15 15 0 0120 0" />
+                    <path d="M5.5 12.5a10 10 0 0113 0" />
+                    <path d="M9 16.5a5 5 0 016 0" />
+                    <circle cx="12" cy="20" r="1" fill="#4CAF50" stroke="none" />
+                  </svg>
+                  {translate(offlineBadgeKey)}
+                </span>
+              )}
+            </div>
           )}
           <h3
             className="font-bold"
