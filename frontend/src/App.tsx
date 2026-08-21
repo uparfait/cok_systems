@@ -75,7 +75,7 @@ import FollowUpManager from "./systems/taskManagement/FollowUpManager";
 
 // Data Collection System (DCS)
 import DcsShell from "./systems/dcs/layout/DcsShell.jsx";
-import DcsProjectsLandingPage from "./systems/dcs/pages/DcsProjectsLandingPage.jsx";
+import DcsHomePage from "./systems/dcs/pages/DcsHomePage.jsx";
 import NewProjectPage from "./systems/dcs/pages/NewProjectPage.jsx";
 import ProjectDetailPage from "./systems/dcs/pages/ProjectDetailPage.jsx";
 import ProjectSettingsPage from "./systems/dcs/pages/ProjectSettingsPage.jsx";
@@ -853,7 +853,7 @@ const App: React.FC = () => {
                     </ProtectedRoute>
                   }
                 >
-                  <Route index element={<DcsProjectsLandingPage />} />
+                  <Route index element={<DcsHomePage />} />
                   <Route path="new-project" element={<NewProjectPage />} />
                   <Route path="project/:project_id" element={<ProjectDetailPage />}>
                     <Route index element={<ProjectSettingsPage />} />

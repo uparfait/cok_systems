@@ -957,3 +957,194 @@ background-color: #056daa;
     background-position: 0% 50%;
   }
 }
+
+/* DCS home page (DcsHomePage.jsx) - the hero's own bg image is fixed so
+   every section beneath scrolls over it like a pane of glass, only ever
+   actually visible through the hero itself (transparent) before the first
+   white section's opaque background covers it for good. */
+.dcs-home-hero {
+  background-image: var(--dcs-home-hero-image);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+@media (max-width: 900px) {
+  /* background-attachment: fixed fights mobile Safari/Chrome's own address
+     bar resize behavior badly enough to visibly jitter the image - scroll
+     it normally with the page below that width instead. */
+  .dcs-home-hero {
+    background-attachment: scroll;
+  }
+}
+
+/* A frosted-glass tint over the hero image - dark, blurred, glass rather
+   than a flat drop shadow. Grows blacker toward the bottom (never fading
+   back to white before it gets there) so the subtitle and scroll hint,
+   which both sit low in the hero, stay on the darkest part of it instead
+   of drifting onto a whitish patch - the hand-off to the white section
+   below is the wave SVG's job, pinned right at the very bottom edge. */
+.dcs-home-hero-overlay {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.72) 100%);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* Rotating headline: every line is stacked in the same box (position:
+   absolute) and cross-fades in from above while the previous one keeps
+   sinking and fading out below it - never a hard cut between them. */
+.dcs-home-rotator {
+  position: relative;
+}
+
+.dcs-home-rotator-line {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: translateY(-28px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+  pointer-events: none;
+}
+
+.dcs-home-rotator-line.is-active {
+  position: relative;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.dcs-home-rotator-line.is-leaving {
+  opacity: 0;
+  transform: translateY(28px);
+}
+
+/* Water-wavering SVG strip pinned to the bottom of the hero - two layers,
+   each an intentionally double-width path scrolling left by exactly half
+   its own width so the loop seams invisibly, at different speeds/opacity
+   for a subtle parallax "water" feel rather than a flat scrolling sticker. */
+.dcs-home-wave-layer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 200%;
+  height: 100%;
+  animation: dcs-home-wave-drift linear infinite;
+}
+
+.dcs-home-wave-layer--back {
+  animation-duration: 14s;
+  opacity: 0.5;
+}
+
+.dcs-home-wave-layer--front {
+  animation-duration: 9s;
+  opacity: 0.9;
+}
+
+@keyframes dcs-home-wave-drift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Scroll-reveal: every section below the hero starts here and drops into
+   place once useScrollReveal.js flips is-visible - never fixed on the
+   page, always arriving as the respondent scrolls to it. */
+.dcs-home-reveal {
+  opacity: 0;
+  transform: translateY(48px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.dcs-home-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.dcs-home-reveal-delay-1.is-visible {
+  transition-delay: 0.12s;
+}
+
+.dcs-home-reveal-delay-2.is-visible {
+  transition-delay: 0.24s;
+}
+
+.dcs-home-glass-card {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid #E0E0E0;
+}
+
+.dcs-home-glass-card--tint {
+  background: rgba(5, 109, 170, 0.08);
+  border: 1px solid rgba(5, 109, 170, 0.18);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+@keyframes dcs-home-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes dcs-home-pulse-ring {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}
+
+.dcs-home-float {
+  animation: dcs-home-float 4s ease-in-out infinite;
+}
+
+.dcs-home-pulse-ring {
+  animation: dcs-home-pulse-ring 2.4s ease-out infinite;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dcs-home-hero {
+    background-attachment: scroll;
+  }
+  .dcs-home-rotator-line,
+  .dcs-home-reveal,
+  .dcs-home-wave-layer,
+  .dcs-home-float,
+  .dcs-home-pulse-ring {
+    animation: none !important;
+    transition: none !important;
+  }
+  .dcs-home-rotator-line {
+    position: relative;
+    opacity: 1;
+    transform: none;
+    display: none;
+  }
+  .dcs-home-rotator-line.is-active {
+    display: flex;
+  }
+  .dcs-home-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
