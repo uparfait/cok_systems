@@ -50,6 +50,7 @@ module.exports = {
   ACCESS_RULES_FETCHED: "Règles d'accès récupérées avec succès",
   ACCESS_RULES_SAVED: "Règles d'accès enregistrées avec succès",
   ACCESS_RULES_INVALID: "Les règles d'accès soumises ne sont pas valides",
+  ACCESS_MANAGE_FORBIDDEN: "Seul le créateur du projet ou les personnes ayant l'option d'attribution peuvent gérer l'accès à ce projet",
   USER_EMAIL_REQUIRED: "Une adresse e-mail est requise",
   USER_EMAIL_NOT_FOUND: "Aucun compte avec cet e-mail n'existe dans le système",
   USER_EMAIL_FOUND: "Un compte correspondant a été trouvé",

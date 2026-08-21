@@ -1,5 +1,6 @@
 const projects_model = require("../../models/projects_model.js");
 const project_access_model = require("../../models/project_access_model.js");
+const project_access = require("../../utilities/project_access.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { is_valid_object_id } = require("../../utilities/object_id.js");
 
@@ -29,6 +30,8 @@ function clean_department_grant(grant) {
 /**
  * Normalizes one individual grant - the email must already have been
  * checked against the main system through the check-email endpoint.
+ * can_grant is the "with grant option" level: the person may also manage
+ * this project's access rules, not just view its forms.
  */
 function clean_individual_grant(grant) {
   if (!grant || !grant.user_id || !grant.email) return null;
@@ -36,6 +39,7 @@ function clean_individual_grant(grant) {
     user_id: grant.user_id.toString(),
     email: grant.email.toString().trim().toLowerCase(),
     full_name: grant.full_name ? grant.full_name.toString() : "",
+    can_grant: grant.can_grant === true,
     all_forms: grant.all_forms === true,
     form_group_ids:
       grant.all_forms === true
@@ -59,6 +63,10 @@ async function save_project_access(req, res) {
     const project = await projects_model.find_project_by_id(project_id);
     if (!project) {
       return res.status(404).json(warning_response(req, "PROJECT_NOT_FOUND"));
+    }
+
+    if (!(await project_access.can_manage_access(req.user, project))) {
+      return res.status(403).json(warning_response(req, "ACCESS_MANAGE_FORBIDDEN"));
     }
 
     const { enabled, departments, individuals } = req.body || {};
