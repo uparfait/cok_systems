@@ -34,3 +34,33 @@ export function compute_derived_values(schema, values) {
 
   return working_values;
 }
+
+// Content-only blocks (paragraph, header, ...), groups/sections themselves
+// (their children are counted individually instead) and hidden fields
+// (never shown to the respondent, so there is nothing for them to "fill")
+// never count toward the completion percentage.
+const PROGRESS_EXCLUDED_TYPES = new Set([
+  "paragraph", "header", "file", "image_block", "horizontal_line", "section", "group", "hidden",
+]);
+
+function is_value_filled(value) {
+  if (value === null || value === undefined) return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "object") return Object.keys(value).length > 0;
+  return String(value).trim().length > 0;
+}
+
+/**
+ * Percentage of the form's currently-visible, answerable fields that
+ * already have a value - the respondent's own progress, not a fixed
+ * question count, since a field hidden by a conditional rule was never
+ * something they needed to fill in.
+ */
+export function compute_form_progress_percent(fields, values) {
+  const answerable_fields = flatten_fields(fields || []).filter(
+    (field) => !PROGRESS_EXCLUDED_TYPES.has(field.type) && evaluate_field_visibility(field, values),
+  );
+  if (answerable_fields.length === 0) return 100;
+  const filled_count = answerable_fields.filter((field) => is_value_filled(values ? values[field.id] : undefined)).length;
+  return Math.round((filled_count / answerable_fields.length) * 100);
+}

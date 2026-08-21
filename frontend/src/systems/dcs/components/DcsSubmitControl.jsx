@@ -26,7 +26,7 @@ export default function DcsSubmitControl({ submitting, submitState, onSubmit, on
 
   return (
     <>
-      <div className="w-full mt-4">
+      <div className="w-full mt-4 dcs-no-print">
         {submitting ? (
           <SpiralLoader />
         ) : (
@@ -42,7 +42,7 @@ export default function DcsSubmitControl({ submitting, submitState, onSubmit, on
       </div>
 
       {submitState === "error" && (
-        <div className="w-full mt-3">
+        <div className="w-full mt-3 dcs-no-print">
           <p className="text-xs px-3 py-2" style={{ backgroundColor: "rgba(231,76,60,0.1)", color: "#E74C3C" }}>
             {translate("DCS_PUBLIC_FIX_ERRORS")}
           </p>

@@ -1,17 +1,24 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
+import ExcelJS from "exceljs";
 import { DcsLanguageProvider, useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
 import { get_public_form } from "../services/formsService.js";
 import { cache_form, get_cached_form } from "../offline/formCache.js";
-import { enqueue_submission, process_queue_once, list_queue, start_auto_sync } from "../offline/submissionQueue.js";
-import { compute_derived_values } from "../renderer/formEngine.js";
+import { enqueue_submission, update_queue_item, process_queue_once, list_queue, start_auto_sync } from "../offline/submissionQueue.js";
+import { save_form_draft, get_form_draft, clear_form_draft } from "../offline/draftStore.js";
+import { compute_derived_values, compute_form_progress_percent } from "../renderer/formEngine.js";
 import { validate_submission_client_side } from "../jsonlogic/validateSubmission.js";
+import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
+import { get_field_text } from "../fields/fieldText.js";
 import RendererEngine from "../renderer/RendererEngine.jsx";
 import DcsSubmitControl from "../components/DcsSubmitControl.jsx";
-import DcsLoadingState from "../components/DcsLoadingState.jsx";
+import DcsFormLoadingSpinner from "../components/DcsFormLoadingSpinner.jsx";
 import DcsEmptyState from "../components/DcsEmptyState.jsx";
 import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
+import DcsQueuePanel from "../components/DcsQueuePanel.jsx";
+import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
+import DcsButtonOutlineDanger from "../components/DcsButtonOutlineDanger.jsx";
 
 /**
  * Strips any "__v<version>" suffix from a shared link - the public link
@@ -21,6 +28,11 @@ import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
 function extract_form_group_id(raw_id) {
   return raw_id.split("__v")[0];
 }
+
+const TOP_PROGRESS_BAR_HEIGHT_PX = 4;
+// Everything else fixed at the top (the status badge, the percent badge)
+// sits below the bar itself, never on top of it.
+const TOP_BADGE_OFFSET = `calc(${TOP_PROGRESS_BAR_HEIGHT_PX}px + 8px + env(safe-area-inset-top, 0px))`;
 
 /**
  * Public, offline-first data collection page behind /dcs-form/:id.
@@ -40,9 +52,16 @@ function PublicFormPageContent() {
   const [submit_state, setSubmitState] = useState("idle");
   const [reveal_all_errors, setRevealAllErrors] = useState(false);
   const [render_reset_key, setRenderResetKey] = useState(0);
-  const [pending_count, setPendingCount] = useState(0);
+  const [queue_records, setQueueRecords] = useState([]);
+  const [draft, setDraft] = useState(null);
+  const [resume_prompt_visible, setResumePromptVisible] = useState(false);
   const [is_syncing, setIsSyncing] = useState(false);
   const [is_online, setIsOnline] = useState(window.navigator.onLine);
+  const [is_queue_open, setIsQueueOpen] = useState(false);
+  // Set only while reviewing/fixing an already-queued (pending/error)
+  // record - submitting then updates that same record instead of both
+  // creating a duplicate AND clobbering the separate, single draft slot.
+  const reviewing_queue_id_ref = useRef(null);
 
   useEffect(() => {
     const prevent_default = (event) => event.preventDefault();
@@ -54,14 +73,25 @@ function PublicFormPageContent() {
     };
   }, []);
 
-  const refresh_pending_count = useCallback(async () => {
+  const refresh_queue = useCallback(async () => {
     try {
       const queue = await list_queue();
-      setPendingCount(queue.length);
+      setQueueRecords(queue.filter((item) => item.form_group_id === form_group_id));
     } catch (queue_error) {
       console.error(queue_error);
     }
-  }, []);
+  }, [form_group_id]);
+
+  const refresh_draft = useCallback(async () => {
+    try {
+      const stored_draft = await get_form_draft(form_group_id);
+      setDraft(stored_draft);
+      return stored_draft;
+    } catch (draft_error) {
+      console.error(draft_error);
+      return null;
+    }
+  }, [form_group_id]);
 
   useEffect(() => {
     let is_mounted = true;
@@ -87,28 +117,57 @@ function PublicFormPageContent() {
     }
 
     load_form();
-    refresh_pending_count();
+    refresh_queue();
+    refresh_draft().then((stored_draft) => {
+      if (stored_draft && is_mounted) setResumePromptVisible(true);
+    });
 
     const handle_online_change = () => setIsOnline(window.navigator.onLine);
     window.addEventListener("online", handle_online_change);
     window.addEventListener("offline", handle_online_change);
+    // The online/offline events only fire on an actual network interface
+    // transition, which some browsers miss (e.g. wifi still connected but
+    // no internet) - polling navigator.onLine directly keeps the icon
+    // accurate even when no event ever fires.
+    const online_poll_interval = window.setInterval(handle_online_change, 3000);
 
-    const stop_auto_sync = start_auto_sync(async (result) => {
-      await refresh_pending_count();
-      if (result.blocked_item) {
+    const stop_auto_sync = start_auto_sync({
+      onStart: () => setIsSyncing(true),
+      onItemResult: async () => refresh_queue(),
+      onComplete: async (result) => {
+        await refresh_queue();
         setIsSyncing(false);
-        return;
-      }
-      if (result.sent_count > 0) setIsSyncing(false);
+        // A silent, empty tick (nothing queued) happens every single
+        // minute the page is left open - toasting that would just be
+        // background noise. Only something that actually happened (a
+        // record went out, or one was rejected) is worth interrupting for.
+        if (result.blocked_item) {
+          showError(result.blocked_item.message || translate("DCS_ERROR_GENERIC"));
+        } else if (result.sent_count > 0) {
+          showSuccess(translate("DCS_TOAST_UPLOAD_SUCCESS", { count: result.sent_count }));
+        }
+      },
     });
 
     return () => {
       is_mounted = false;
       window.removeEventListener("online", handle_online_change);
       window.removeEventListener("offline", handle_online_change);
+      window.clearInterval(online_poll_interval);
       stop_auto_sync();
     };
-  }, [form_group_id, refresh_pending_count]);
+  }, [form_group_id, refresh_queue, refresh_draft]);
+
+  // Every answer, the instant it changes, overwrites the one draft slot
+  // for this form - never creating another - so nothing is lost to a
+  // closed tab, a dead battery or a lost connection mid-response. Skipped
+  // while reviewing an already-queued record: that is a separate editing
+  // session and must never overwrite the "new entry in progress" draft.
+  useEffect(() => {
+    if (!form || reviewing_queue_id_ref.current || Object.keys(values).length === 0) return;
+    save_form_draft(form_group_id, form.version, values).then(() => refresh_draft());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [values]);
 
   const handle_value_change = (field_id, next_value) => {
     setSubmitState("idle");
@@ -122,6 +181,121 @@ function PublicFormPageContent() {
     });
   };
 
+  const handle_save_draft_click = async () => {
+    if (reviewing_queue_id_ref.current) return;
+    const resolved_values = compute_derived_values(form.schema, values);
+    await save_form_draft(form_group_id, form.version, resolved_values);
+    await refresh_draft();
+    showSuccess(translate("DCS_TOAST_DRAFT_SAVED"));
+  };
+
+  const load_values_for_review = (data) => {
+    const resolved_values = compute_derived_values(form.schema, data || {});
+    const validation_result = validate_submission_client_side(form.schema, resolved_values, language, translate);
+    setValues(resolved_values);
+    setFieldErrors(validation_result.field_errors);
+    setFieldValidMessages(validation_result.field_valid_messages);
+    setRevealAllErrors(true);
+    setSubmitState("idle");
+  };
+
+  const handle_resume_draft = () => {
+    reviewing_queue_id_ref.current = null;
+    load_values_for_review(draft.data);
+    setResumePromptVisible(false);
+  };
+
+  const handle_discard_draft = async () => {
+    await clear_form_draft(form_group_id);
+    await refresh_draft();
+    setResumePromptVisible(false);
+  };
+
+  const handle_select_record = (record) => {
+    reviewing_queue_id_ref.current = record.id;
+    load_values_for_review(record.data);
+    setIsQueueOpen(false);
+  };
+
+  const handle_force_upload = async () => {
+    if (!window.navigator.onLine) return;
+    setIsSyncing(true);
+    try {
+      const result = await process_queue_once(async () => refresh_queue());
+      await refresh_queue();
+      if (result.blocked_item) {
+        showError(result.blocked_item.message || translate("DCS_ERROR_GENERIC"));
+      } else if (result.sent_count > 0) {
+        showSuccess(translate("DCS_TOAST_UPLOAD_SUCCESS", { count: result.sent_count }));
+      } else {
+        showSuccess(translate("DCS_TOAST_NOTHING_TO_UPLOAD"));
+      }
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // A media answer's real value is a base64 data URL (or, for a
+  // signature, a bare data URL string) - dumping that into a spreadsheet
+  // cell would make the file enormous and unreadable, so only the
+  // filename (or a generic placeholder) is exported for those.
+  const stringify_export_cell = (value) => {
+    if (value === null || value === undefined) return "";
+    if (Array.isArray(value)) return value.join(", ");
+    if (typeof value === "object") return value.name || "file";
+    return String(value);
+  };
+
+  const handle_export_ready = async () => {
+    const ready_records = queue_records.filter((record) => record.status === "pending");
+    if (ready_records.length === 0) {
+      showError(translate("DCS_TOAST_NOTHING_TO_EXPORT"));
+      return;
+    }
+
+    const fields_by_id = new Map(flatten_fields(form.schema.fields).map((field) => [field.id, field]));
+    const field_ids = [...new Set(ready_records.flatMap((record) => Object.keys(record.data || {})))];
+    const header_labels = ["Submitted at"].concat(
+      field_ids.map((field_id) => {
+        const field = fields_by_id.get(field_id);
+        return (field && get_field_text(field.label, language)) || field_id;
+      }),
+    );
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Submissions");
+    worksheet.columns = header_labels.map(() => ({ width: 26 }));
+
+    // The header row is the actual question text, highlighted so it reads
+    // as a label at a glance rather than a bare column key.
+    const header_row = worksheet.getRow(1);
+    header_labels.forEach((label_text, index) => {
+      const cell = header_row.getCell(index + 1);
+      cell.value = label_text;
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF056DAA" } };
+    });
+
+    ready_records.forEach((record, row_index) => {
+      const row = worksheet.getRow(row_index + 2);
+      row.getCell(1).value = record.created_at ? new Date(record.created_at).toLocaleString() : "";
+      field_ids.forEach((field_id, column_index) => {
+        row.getCell(column_index + 2).value = stringify_export_cell(record.data ? record.data[field_id] : undefined);
+      });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `dcs_ready_submissions_${Date.now()}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
   const handle_submit = async () => {
     setSubmitting(true);
     try {
@@ -132,18 +306,42 @@ function PublicFormPageContent() {
       if (!validation_result.valid) {
         setRevealAllErrors(true);
         setSubmitState("error");
+        // Invalid data is never queued for upload - it is not a completed
+        // response - but it must not simply vanish either, so a submit
+        // attempt on an incomplete/invalid form guarantees it is at least
+        // saved as the respondent's draft (autosave already does this on
+        // every value change, but this covers submitting before any change
+        // has fired that effect, e.g. a completely untouched form).
+        if (!reviewing_queue_id_ref.current) {
+          await save_form_draft(form_group_id, form.version, resolved_values);
+          await refresh_draft();
+        }
         return;
       }
-      await enqueue_submission(form_group_id, form.version, resolved_values);
-      await refresh_pending_count();
+
+      if (reviewing_queue_id_ref.current) {
+        await update_queue_item(reviewing_queue_id_ref.current, {
+          data: resolved_values,
+          version: form.version,
+          status: "pending",
+          field_errors: null,
+          updated_at: new Date().toISOString(),
+        });
+      } else {
+        await enqueue_submission(form_group_id, form.version, resolved_values);
+        await clear_form_draft(form_group_id);
+        await refresh_draft();
+      }
+      await refresh_queue();
 
       if (window.navigator.onLine) {
         setIsSyncing(true);
-        const result = await process_queue_once();
-        await refresh_pending_count();
+        const result = await process_queue_once(async () => refresh_queue());
+        await refresh_queue();
         setIsSyncing(false);
 
         if (result.blocked_item) {
+          reviewing_queue_id_ref.current = result.blocked_item.id;
           setValues(result.blocked_item.data || {});
           setFieldErrors(result.blocked_item.field_errors || {});
           setFieldValidMessages({});
@@ -154,6 +352,7 @@ function PublicFormPageContent() {
         }
       }
 
+      reviewing_queue_id_ref.current = null;
       setValues({});
       setFieldErrors({});
       setFieldValidMessages({});
@@ -169,13 +368,124 @@ function PublicFormPageContent() {
     }
   };
 
-  if (load_state === "loading") return <DcsLoadingState messageKey="DCS_PUBLIC_LOADING" />;
+  if (load_state === "loading") return <DcsFormLoadingSpinner />;
   if (load_state === "not_found") return <DcsEmptyState messageKey="DCS_PUBLIC_NOT_FOUND" />;
   if (load_state === "no_active_version") return <DcsEmptyState messageKey="DCS_PUBLIC_NO_ACTIVE_VERSION" />;
 
+  const progress_percent = compute_form_progress_percent(form.schema.fields, values);
+
   return (
-    <div className="min-h-screen p-0 min-[700px]:p-6 flex flex-col items-center" style={{ backgroundColor: "#F7F9FB" }}>
-      <div className="w-full min-[700px]:max-w-[700px] bg-white p-4 border-0 min-[700px]:border-2 min-[700px]:border-[#056daa]">
+    <div
+      className="min-h-screen p-0 min-[700px]:p-6 flex flex-col items-center dcs-print-page-bg"
+      style={{
+        backgroundColor: "#F7F9FB",
+        paddingTop: "calc(52px + env(safe-area-inset-top, 0px))",
+        paddingBottom: "calc(24px + env(safe-area-inset-bottom, 0px))",
+      }}
+    >
+      {/* Fixed to the true top of the viewport, outside the form and never
+          part of the scrollable page - a persistent indicator of how much
+          is left, not a progress bar that scrolls away with the content
+          it's meant to be tracking. */}
+      <div
+        className="dcs-no-print"
+        title={translate("DCS_RENDERER_PROGRESS_LABEL", { percent: progress_percent })}
+        style={{ position: "fixed", top: 0, left: 0, width: "100%", zIndex: 40, backgroundColor: "#E0E0E0" }}
+      >
+        <div style={{ height: TOP_PROGRESS_BAR_HEIGHT_PX, width: `${progress_percent}%`, backgroundColor: "#056daa", transition: "width 0.3s ease" }} />
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setIsQueueOpen(true)}
+        className="dcs-no-print cursor-pointer flex items-center justify-center"
+        title={translate("DCS_QUEUE_BUTTON_LABEL")}
+        style={{
+          position: "fixed",
+          left: 0,
+          top: "50%",
+          transform: "translateY(-50%)",
+          zIndex: 30,
+          backgroundColor: "#056daa",
+          border: "none",
+          width: 16,
+          height: 36,
+        }}
+      >
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3">
+          <polyline points="7 5 13 12 7 19" />
+          <polyline points="13 5 19 12 13 19" />
+        </svg>
+      </button>
+
+      <div
+        className="dcs-no-print flex items-center gap-2"
+        style={{
+          position: "fixed",
+          top: TOP_BADGE_OFFSET,
+          left: 26,
+          zIndex: 30,
+          backgroundColor: "rgba(255,255,255,0.55)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
+          border: "1px solid rgba(255,255,255,0.6)",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+          padding: "0.3rem 0.5rem",
+        }}
+      >
+        <span title={translate(is_online ? "DCS_QUEUE_STATUS_ONLINE" : "DCS_QUEUE_STATUS_OFFLINE")} className="flex items-center">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={is_online ? "#4CAF50" : "#E74C3C"} strokeWidth="2">
+            <path d="M2 8.5a15 15 0 0120 0" />
+            <path d="M5.5 12.5a10 10 0 0113 0" />
+            <path d="M9 16.5a5 5 0 016 0" />
+            <circle cx="12" cy="20" r="1" fill={is_online ? "#4CAF50" : "#E74C3C"} stroke="none" />
+            {!is_online && <line x1="3" y1="3" x2="21" y2="21" />}
+          </svg>
+        </span>
+        <span title={translate("DCS_QUEUE_TOTAL_SAVED")} className="flex items-center gap-1">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2">
+            <path d="M3 7l9-4 9 4-9 4-9-4z" />
+            <path d="M3 12l9 4 9-4" />
+            <path d="M3 17l9 4 9-4" />
+          </svg>
+          <span className="text-xs font-semibold" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
+            {queue_records.length}
+          </span>
+        </span>
+      </div>
+
+      {resume_prompt_visible && draft && (
+        <div className="dcs-no-print w-full min-[700px]:max-w-[700px] bg-white border-2 p-3 mb-3 flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: "#056daa" }}>
+          <span className="text-sm" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
+            {translate("DCS_PUBLIC_RESUME_DRAFT_TITLE")}
+          </span>
+          <div className="flex gap-2">
+            <DcsButtonOutline onClick={handle_resume_draft}>{translate("DCS_BTN_REFILL_FORM")}</DcsButtonOutline>
+            <DcsButtonOutlineDanger onClick={handle_discard_draft}>{translate("DCS_BTN_DISCARD_DRAFT")}</DcsButtonOutlineDanger>
+          </div>
+        </div>
+      )}
+
+      <div
+        className="w-full min-[700px]:max-w-[700px] bg-white p-4 border-0 min-[700px]:border-[5px] min-[700px]:rounded-[5px] dcs-print-form-card"
+        style={{ borderColor: "rgba(5,109,170,0.35)", marginTop: 12, marginBottom: 24 }}
+      >
+        <div className="flex items-center justify-end mb-3 dcs-no-print">
+          <button
+            type="button"
+            onClick={() => window.print()}
+            title={translate("DCS_BTN_PRINT")}
+            className="cursor-pointer flex items-center justify-center"
+            style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid #056daa" }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2">
+              <polyline points="6 9 6 2 18 2 18 9" />
+              <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
+              <rect x="6" y="14" width="12" height="8" />
+            </svg>
+          </button>
+        </div>
+
         <RendererEngine
           key={render_reset_key}
           schema={form.schema}
@@ -194,22 +504,54 @@ function PublicFormPageContent() {
           onIdle={() => setSubmitState("idle")}
         />
 
-        {!is_online && (
-          <div className="w-full mt-3">
-            <p className="text-xs px-3 py-2" style={{ backgroundColor: "rgba(243,156,18,0.12)", color: "#F39C12" }}>
-              {translate("DCS_PUBLIC_OFFLINE_BANNER")}
-            </p>
-          </div>
-        )}
-
-        {pending_count > 0 && (
-          <div className="w-full mt-3">
-            <p className="text-xs px-3 py-2" style={{ backgroundColor: "rgba(5,109,170,0.08)", color: "#056daa" }}>
-              {is_syncing ? translate("DCS_PUBLIC_SYNCING") : translate("DCS_PUBLIC_QUEUED_COUNT", { count: pending_count })}
-            </p>
-          </div>
-        )}
+        <div className="w-full mt-3 dcs-no-print">
+          <DcsButtonOutline className="w-full" onClick={handle_save_draft_click}>
+            {translate("DCS_BTN_SAVE_DRAFT")}
+          </DcsButtonOutline>
+        </div>
       </div>
+
+      {is_syncing && is_online && (
+        <div
+          className="dcs-no-print flex items-center gap-2"
+          style={{
+            position: "fixed",
+            bottom: "calc(16px + env(safe-area-inset-bottom, 0px))",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 30,
+            backgroundColor: "rgba(255,255,255,0.55)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+            border: "1px solid rgba(255,255,255,0.6)",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+            padding: "0.5rem 1rem",
+          }}
+        >
+          <span className="dcs-inline-spinner" style={{ color: "#056daa", flexShrink: 0 }} />
+          <span className="text-xs font-semibold" style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}>
+            {translate("DCS_PUBLIC_SUBMITTING_INDICATOR")}
+          </span>
+        </div>
+      )}
+
+      {is_queue_open && (
+        <DcsQueuePanel
+          records={queue_records}
+          draft={draft}
+          isOnline={is_online}
+          isSyncing={is_syncing}
+          onClose={() => setIsQueueOpen(false)}
+          onSelectRecord={handle_select_record}
+          onContinueDraft={() => {
+            handle_resume_draft();
+            setIsQueueOpen(false);
+          }}
+          onDeleteDraft={handle_discard_draft}
+          onUpload={handle_force_upload}
+          onExportReady={handle_export_ready}
+        />
+      )}
     </div>
   );
 }

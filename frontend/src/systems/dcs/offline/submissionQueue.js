@@ -2,7 +2,7 @@ import { get, set } from "idb-keyval";
 import { submit_response } from "../services/submissionsService.js";
 
 const QUEUE_KEY = "dcs_submission_queue";
-const RETRY_INTERVAL_MS = 10000;
+const RETRY_INTERVAL_MS = 60000;
 
 /**
  * Generates a client-side idempotency key so a retried submission can never
@@ -28,8 +28,12 @@ async function write_queue(queue) {
 }
 
 /**
- * Adds a filled-in response to the offline queue, always saved immediately
- * regardless of connectivity, before any network attempt is made.
+ * Adds a completed, ready-to-send response to the queue, always saved
+ * immediately regardless of connectivity, before any network attempt is
+ * made. This queue only ever holds responses the respondent has actually
+ * submitted (or is retrying after a failed attempt) - draftStore.js is the
+ * entirely separate store for a still-in-progress, not-yet-submitted
+ * response, so the two can never end up mixed together.
  */
 export async function enqueue_submission(form_group_id, version, data) {
   const queue = await read_queue();
@@ -43,6 +47,7 @@ export async function enqueue_submission(form_group_id, version, data) {
     attempts: 0,
     field_errors: null,
     created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   };
   queue.push(item);
   await write_queue(queue);
@@ -57,7 +62,8 @@ export async function list_queue() {
 }
 
 /**
- * Removes an item from the queue once it has been sent successfully.
+ * Removes an item from the queue once it has been sent successfully, or at
+ * the respondent's own request (e.g. discarding a failed one).
  */
 export async function remove_from_queue(item_id) {
   const queue = await read_queue();
@@ -74,12 +80,18 @@ export async function update_queue_item(item_id, patch) {
 }
 
 /**
- * Processes the queue strictly in submission order. A network error leaves
- * the item pending for the next tick. A definitive backend rejection halts
- * processing of every subsequent item so the caller can surface the error
- * and let the user fix and resubmit that specific response first.
+ * Processes the queue strictly in submission order, one item at a time -
+ * proceeding to the next only once the previous one actually succeeded. A
+ * network error leaves the item pending for the next tick. A definitive
+ * backend rejection halts processing of every subsequent item so the
+ * caller can surface the error and let the user fix and resubmit that
+ * specific response first. on_item_result, when given, fires after every
+ * single item (sent or rejected) - not just once at the very end - so a
+ * caller uploading several records at once can refresh its own state in
+ * real time as each one lands, instead of only once the whole batch
+ * finishes.
  */
-export async function process_queue_once() {
+export async function process_queue_once(on_item_result) {
   const queue = await read_queue();
   let sent_count = 0;
   let blocked_item = null;
@@ -95,6 +107,7 @@ export async function process_queue_once() {
       });
       await remove_from_queue(item.id);
       sent_count += 1;
+      if (on_item_result) await on_item_result({ item, sent: true });
     } catch (error) {
       if (error.is_network_error) {
         await update_queue_item(item.id, { attempts: (item.attempts || 0) + 1 });
@@ -105,6 +118,7 @@ export async function process_queue_once() {
       const message = (error && error.message) || null;
       await update_queue_item(item.id, { status: "error", field_errors });
       blocked_item = Object.assign({}, item, { field_errors, message });
+      if (on_item_result) await on_item_result({ item: blocked_item, sent: false });
       break;
     }
   }
@@ -114,18 +128,24 @@ export async function process_queue_once() {
 
 /**
  * Starts the background retry loop. Only ever attempts a sync while the
- * browser reports being online, checking every RETRY_INTERVAL_MS. Returns a
- * stop function to clear the interval on unmount.
+ * browser reports being online, checking every RETRY_INTERVAL_MS (and never
+ * overlapping a still-running attempt). onStart fires the instant a check
+ * actually begins (so the caller can show a "submitting" indicator only
+ * while something is really happening, not on every idle tick), onItemResult
+ * fires after each individual item, and onComplete fires once the whole
+ * attempt is done. Returns a stop function to clear the interval on
+ * unmount.
  */
-export function start_auto_sync(on_progress) {
+export function start_auto_sync({ onStart, onItemResult, onComplete } = {}) {
   let is_syncing = false;
 
   const interval_id = window.setInterval(async () => {
     if (!window.navigator.onLine || is_syncing) return;
     is_syncing = true;
+    if (onStart) onStart();
     try {
-      const result = await process_queue_once();
-      if (on_progress) on_progress(result);
+      const result = await process_queue_once(onItemResult);
+      if (onComplete) await onComplete(result);
     } catch (sync_error) {
       console.error(sync_error);
     } finally {
