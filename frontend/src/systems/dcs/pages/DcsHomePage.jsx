@@ -26,8 +26,10 @@ export default function DcsHomePage() {
   return (
     // Cancels DcsSidebarShell's own padding so the hero image and every
     // section background can run edge-to-edge instead of sitting inside a
-    // padded box next to the sidebar.
-    <div className="-m-3 sm:-m-4 lg:-m-6">
+    // padded box next to the sidebar. dcs-home-no-select: a presentational
+    // explainer page, not a document - dragging across it while scrolling
+    // must never highlight text.
+    <div className="-m-3 sm:-m-4 lg:-m-6 dcs-home-no-select">
       <DcsHomeHero />
       <DcsHomeAbout />
 
@@ -51,6 +53,7 @@ export default function DcsHomePage() {
           "DCS_HOME_FEATURE_FORMS_BULLET_3",
           "DCS_HOME_FEATURE_FORMS_BULLET_4",
         ]}
+        offlineBadgeKey="DCS_HOME_FEATURE_FORMS_OFFLINE_BADGE"
         Illustration={FormsIllustration}
         reverse
         tinted
@@ -94,7 +97,7 @@ export default function DcsHomePage() {
             {translate("DCS_HOME_CTA_BODY")}
           </p>
           <DcsButtonPrimary
-            className="mt-2"
+            className="dcs-home-cta-button mt-2"
             style={{ backgroundColor: "#FFFFFF", color: "#056daa" }}
             onClick={() => navigate("/dcs-system/new-project")}
           >

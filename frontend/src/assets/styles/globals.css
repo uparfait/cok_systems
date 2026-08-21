@@ -958,14 +958,24 @@ background-color: #056daa;
   }
 }
 
-/* DCS home page (DcsHomePage.jsx) - the hero's own bg image is fixed so
-   every section beneath scrolls over it like a pane of glass, only ever
-   actually visible through the hero itself (transparent) before the first
-   white section's opaque background covers it for good. */
+/* DCS home page (DcsHomePage.jsx) - defaults to a dark gradient (the same
+   background the fallback lamp sits on) so there is never a blank/white
+   flash while the real photo is still loading. Only once it's confirmed
+   loaded (DcsHomeHero.jsx sets .has-bg-image) does the photo itself take
+   over - fixed so every section beneath scrolls over it like a pane of
+   glass, only ever actually visible through the hero itself (transparent)
+   before the first white section's opaque background covers it for good.
+   A failed load simply never gets .has-bg-image - the gradient (and the
+   lamp drawn on top of it) stays forever, with no warning shown to the
+   respondent about it. */
 .dcs-home-hero {
-  background-image: var(--dcs-home-hero-image);
+  background-image: linear-gradient(160deg, #0f0c29 0%, #302b63 55%, #24243e 100%);
   background-size: cover;
   background-position: center;
+}
+
+.dcs-home-hero.has-bg-image {
+  background-image: var(--dcs-home-hero-image);
   background-attachment: fixed;
 }
 
@@ -973,9 +983,33 @@ background-color: #056daa;
   /* background-attachment: fixed fights mobile Safari/Chrome's own address
      bar resize behavior badly enough to visibly jitter the image - scroll
      it normally with the page below that width instead. */
-  .dcs-home-hero {
+  .dcs-home-hero.has-bg-image {
     background-attachment: scroll;
   }
+}
+
+/* Hero content entrance - on first load (never scroll-triggered, unlike
+   .dcs-home-reveal below - the hero is visible from the very first paint,
+   there's no "scrolling into view" for it to wait for) everything inside
+   rises up from below into its resting position, the same "dropped in"
+   feel every other section gets on scroll. */
+@keyframes dcs-home-hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(56px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dcs-home-hero-enter {
+  animation: dcs-home-hero-enter 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.dcs-home-hero-enter-delay {
+  animation-delay: 0.25s;
 }
 
 /* A frosted-glass tint over the hero image - dark, blurred, glass rather
@@ -991,8 +1025,10 @@ background-color: #056daa;
 }
 
 /* Rotating headline: every line is stacked in the same box (position:
-   absolute) and cross-fades in from above while the previous one keeps
-   sinking and fading out below it - never a hard cut between them. */
+   absolute). The one becoming active zooms in from a blurred, scaled-up,
+   transparent rest state to fully sharp and in focus; the one leaving
+   zooms back out to that same rest state, so there is no jump once the
+   is-leaving class is dropped and it settles back to plain "waiting". */
 .dcs-home-rotator {
   position: relative;
 }
@@ -1004,21 +1040,48 @@ background-color: #056daa;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transform: translateY(-28px);
-  transition: opacity 0.7s ease, transform 0.7s ease;
+  transform: scale(1.3);
+  filter: blur(4px);
+  transition: opacity 0.6s ease, transform 0.6s ease, filter 0.6s ease;
   pointer-events: none;
 }
 
 .dcs-home-rotator-line.is-active {
   position: relative;
   opacity: 1;
-  transform: translateY(0);
+  transform: scale(1);
+  filter: blur(0);
   pointer-events: auto;
 }
 
 .dcs-home-rotator-line.is-leaving {
   opacity: 0;
-  transform: translateY(28px);
+  transform: scale(1.3);
+  filter: blur(4px);
+}
+
+/* Each letter of the active line bounces in a staggered wave (like the
+   classic per-letter rainbow-wave effect) while it's the one on screen -
+   white, never colored, to match the rest of the hero's text. Inactive/
+   leaving lines' letters stay still - there is no point animating text
+   nobody can see. */
+.dcs-home-letter-wave {
+  display: inline-block;
+  color: #FFFFFF;
+}
+
+.dcs-home-rotator-line.is-active .dcs-home-letter-wave {
+  animation: dcs-home-letter-bounce 4.5s ease-in-out infinite;
+  animation-delay: var(--d, 0s);
+}
+
+@keyframes dcs-home-letter-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 /* Water-wavering SVG strip pinned to the bottom of the hero - two layers,
@@ -1089,6 +1152,55 @@ background-color: #056daa;
   -webkit-backdrop-filter: blur(10px);
 }
 
+/* Projects sidebar drawer - a real flex item whose own width animates
+   between 0 and its full size, so opening/closing it visibly pushes and
+   resizes the main content next to it (never an overlay floating on top). */
+.dcs-sidebar-drawer {
+  transition: width 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dcs-sidebar-toggle {
+  transition: left 0.32s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.dcs-sidebar-toggle:hover {
+  transform: scale(1.12);
+  border-color: #056daa;
+  box-shadow: 0 4px 14px rgba(5, 109, 170, 0.25);
+}
+
+.dcs-sidebar-toggle:active {
+  transform: scale(0.95);
+}
+
+.dcs-sub-header-home-link {
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.dcs-sub-header-home-link:hover {
+  text-decoration: underline;
+}
+
+/* The slim back/home/breadcrumb bar hides on scroll-down and reappears on
+   scroll-up (DcsShell.jsx decides which, based on the scrollable <main>
+   below it) - collapsed via max-height rather than display:none so the
+   slide is animated instead of an instant cut, and always shown outright
+   when there is nothing to scroll in the first place. */
+.dcs-sub-header {
+  max-height: 60px;
+  opacity: 1;
+  transform: translateY(0);
+  overflow: hidden;
+  transition: max-height 0.32s ease, opacity 0.25s ease, transform 0.32s ease;
+}
+
+.dcs-sub-header.is-hidden {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-12px);
+}
+
 @keyframes dcs-home-float {
   0%, 100% {
     transform: translateY(0);
@@ -1122,17 +1234,586 @@ background-color: #056daa;
   transform-origin: center;
 }
 
+/* The whole home page is a presentational explainer, not a document to
+   select/copy text from - dragging across it while scrolling must never
+   highlight text. */
+.dcs-home-no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Small badges (About's eyebrow, "Coming soon", "Offline ready") - a
+   dashed frame with a small dot at each corner, no rounding and
+   deliberately no hover reaction at all. currentColor drives the border,
+   the dots and the text together, so each color variant below only ever
+   needs to set one color instead of repeating it three times. The four
+   corner dots are plain radial-gradient background layers rather than
+   extra markup per badge. */
+.dcs-home-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0;
+  border: 1px dashed currentColor;
+  color: #056daa;
+  background-color: rgba(5, 109, 170, 0.08);
+  background-image:
+    radial-gradient(circle, currentColor 45%, transparent 46%),
+    radial-gradient(circle, currentColor 45%, transparent 46%),
+    radial-gradient(circle, currentColor 45%, transparent 46%),
+    radial-gradient(circle, currentColor 45%, transparent 46%);
+  background-repeat: no-repeat;
+  background-size: 5px 5px;
+  background-position:
+    top -2.5px left -2.5px,
+    top -2.5px right -2.5px,
+    bottom -2.5px right -2.5px,
+    bottom -2.5px left -2.5px;
+}
+
+.dcs-home-badge--amber {
+  color: #F5A623;
+  background-color: rgba(245, 166, 35, 0.1);
+}
+
+.dcs-home-badge--green {
+  color: #4CAF50;
+  background-color: rgba(76, 175, 80, 0.1);
+}
+
+/* About-section stat number - once its count-up finishes, a one-off spark
+   burst fires outward around it exactly once. No ongoing animation
+   afterward - it settles and stays put, including for a non-numeric stat
+   like "Versioned" which is never mid-count in the first place. */
+.dcs-home-stat-value {
+  position: relative;
+  display: inline-block;
+}
+
+.dcs-home-stat-spark-wrap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.dcs-home-stat-spark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.6);
+  animation: dcs-home-stat-spark-burst 0.9s ease-out forwards;
+  animation-delay: var(--sd, 0s);
+}
+
+@keyframes dcs-home-stat-spark-burst {
+  0% {
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0.2);
+    opacity: 0;
+  }
+}
+
+/* Bottom CTA button - a plain white rectangle otherwise, needs its own
+   hover lift since it isn't using cok-btn-primary's own hover rule (that
+   one assumes the button keeps its default blue background, not the
+   white-on-blue swap this button uses on the CTA section). */
+.dcs-home-cta-button {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dcs-home-cta-button:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25);
+}
+
+.dcs-home-cta-button:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Hero fallback lamp (DcsHeroLamp.jsx) - shown behind the hero's text
+   whenever the real background photo hasn't loaded yet (or never will).
+   Ported from a reference "hanging bell lamp" effect, but always in its
+   lit ("on") state, with no click-to-toggle, no button, and no motion
+   (the swing and the light-ray rotation are both dropped) - a static
+   decorative fallback, not an interactive toy. Every class is namespaced
+   under .dcs-hero-lamp so nothing here can ever leak onto the rest of the
+   page. Sizing uses the same "1em = 1% of a computed size" trick as the
+   source: font-size on the root sets what every em value below is
+   actually relative to, so the whole lamp scales as one unit. */
+.dcs-hero-lamp {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+  --_size: min(min(420px, 42vh), 42vw);
+  font-size: calc(var(--_size) * 0.01);
+}
+
+.dcs-hero-lamp-container {
+  position: relative;
+  width: 80em;
+  height: 80em;
+}
+
+.dcs-hero-lamp-container,
+.dcs-hero-lamp-container * {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  margin: auto;
+}
+
+.dcs-hero-lamp-rope {
+  height: 44em;
+  width: 2em;
+  translate: 0 -52%;
+  background:
+    linear-gradient(90deg, #2d54744d 0%, #000b 30%, transparent 100%),
+    repeating-linear-gradient(-70deg, #252525, #888 2%, #3a3a3a 3%);
+}
+
+.dcs-hero-lamp-top {
+  width: 14%;
+  height: 14%;
+  border-radius: 50%;
+  translate: 0 -28em;
+  background: #b7b5b4;
+  box-shadow: inset -1em -0.5em 2em 0.5em #fff, inset 1em -1em 2em 3em #000, 0 -0.1em 0.4em 0.3em #c6eaffa8;
+}
+
+.dcs-hero-lamp-base {
+  width: 50%;
+  height: 50%;
+  border-radius: 50%;
+  translate: 0 -24%;
+  background: #b7b5b4;
+  box-shadow: 0 -0.1em 0.4em 0.2em #c6eaffa8;
+}
+
+.dcs-hero-lamp-base:before {
+  content: "";
+  background-image: radial-gradient(circle at -80% -12%, transparent 50em, #b7b5b4 50em);
+  position: absolute;
+  translate: -18em 20em;
+  width: 100%;
+  height: 80%;
+}
+
+.dcs-hero-lamp-base:after {
+  content: "";
+  background-image: radial-gradient(circle at -80% -12%, transparent 50.1em, #cacaca 50.3em, #b7b5b4 50.5em);
+  position: absolute;
+  translate: 18em 20em;
+  width: 100%;
+  height: 80%;
+  transform: rotateY(180deg);
+}
+
+.dcs-hero-lamp-base:nth-child(2) {
+  filter: brightness(3) blur(1em);
+  scale: 0.74 0.84;
+  translate: 0 -11em;
+}
+
+.dcs-hero-lamp-shadow-l1 {
+  width: 30em;
+  height: 42em;
+  border-radius: 50%;
+  rotate: 12deg;
+  translate: -3em -6em;
+  filter: blur(2em);
+  background: #797a80;
+}
+
+.dcs-hero-lamp-shadow-l2 {
+  width: 130%;
+  height: 90%;
+  filter: blur(5em);
+  translate: -6em 9em;
+}
+
+.dcs-hero-lamp-shadow-l2::before {
+  display: block;
+  content: "";
+  width: 68%;
+  height: 64%;
+  border-radius: 50%;
+  rotate: -54deg;
+  translate: -8em 2em;
+  scale: 1;
+  background: #000000;
+}
+
+.dcs-hero-lamp-glow {
+  width: 100%;
+  height: 100%;
+  filter: brightness(2) blur(2em);
+}
+
+.dcs-hero-lamp-glow::before {
+  clip-path: polygon(
+    9% 83%, 12% 79%, 15% 74%, 18% 68%, 20% 62%, 22% 56%, 23% 50%, 24% 43%, 25% 38%, 25% 34%,
+    26% 29%, 26% 26%, 27% 22%, 29% 19%, 30% 15%, 32% 13%, 34% 10%, 37% 7%, 41% 5%, 44% 4%,
+    47% 3%, 51% 3%, 55% 3%, 58% 5%, 62% 6%, 73% 29%, 72% 25%, 70% 20%, 67% 16%, 63% 12%,
+    60% 9%, 58% 8%, 55% 7%, 52% 6%, 48% 6%, 44% 8%, 41% 9%, 37% 12%, 36% 14%, 33% 16%,
+    31% 20%, 30% 23%, 29% 26%, 28% 31%, 27% 36%, 27% 39%, 26% 44%, 26% 48%, 26% 52%, 25% 56%,
+    23% 61%, 22% 65%, 21% 69%, 19% 72%, 17% 75%, 15% 78%, 13% 81%
+  );
+  width: 100%;
+  height: 80%;
+  translate: 0 6em;
+  scale: 0.94 0.94;
+  background: #fff3;
+  display: block;
+  content: "";
+}
+
+.dcs-hero-lamp-glow2 {
+  width: 100%;
+  height: 100%;
+  filter: brightness(1) blur(0.3em);
+  opacity: 0.1;
+}
+
+.dcs-hero-lamp-glow2::before {
+  clip-path: polygon(
+    9.21% 83%, 12.28% 79%, 15.35% 74%, 18.41% 68%, 20.46% 62%, 22.51% 56%, 23.53% 50%, 24.55% 43%,
+    25.58% 34%, 26.6% 29%, 27.62% 22%, 29.16% 18.5%, 30.95% 15.75%, 32.74% 13%, 34.78% 10%, 37.85% 7%,
+    41.94% 5%, 45.01% 4%, 48.08% 3%, 52.17% 3%, 56.27% 3%, 64.01% 6.36%, 55.75% 4.5%, 47.83% 4.75%,
+    42.84% 5.88%, 39.51% 7.88%, 36.45% 10.38%, 33.38% 14.88%, 30.69% 19%, 29.67% 22.5%, 28.8% 26.72%,
+    28.21% 31.36%, 26.92% 38.44%, 26.57% 43.67%, 25.51% 48.34%, 25% 54.34%, 23.4% 60.69%, 21.23% 65.38%,
+    18.41% 71.5%, 16.88% 74.75%, 12.28% 80.5%
+  );
+  width: 100%;
+  height: 84%;
+  translate: -1em 8.4em;
+  scale: 1;
+  background: #fff3;
+  display: block;
+  content: "";
+}
+
+.dcs-hero-lamp-left-glow {
+  width: 50%;
+  height: 50%;
+  border-radius: 50%;
+  translate: 0 -24%;
+  background: transparent;
+  box-shadow: inset 1em 0 1em 0.2em #5d819666;
+  clip-path: polygon(0 0, 100% 0, 100% 50%, 0 50%);
+}
+
+.dcs-hero-lamp-left-glow2 {
+  width: 49%;
+  height: 50%;
+  background-image: radial-gradient(circle at -80% -12%, transparent 50em, #5d819666 50.3em, transparent 52em);
+  position: absolute;
+  translate: -19em 10.35em;
+  clip-path: polygon(0 0, 100% 0, 100% 78%, 0 78%);
+}
+
+.dcs-hero-lamp-r-glow {
+  width: 50%;
+  height: 50%;
+  border-radius: 50%;
+  translate: 0 -24%;
+  background: transparent;
+  box-shadow: inset 1em 0 1em 0.2em #fffaf680;
+  clip-path: polygon(0 0, 100% 0, 100% 50%, 0 50%);
+  transform: rotateY(180deg);
+}
+
+.dcs-hero-lamp-r-glow2 {
+  width: 49%;
+  height: 50%;
+  background-image: radial-gradient(circle at -80% -12%, transparent 50em, #fffaf680 50.3em, transparent 52em);
+  position: absolute;
+  translate: 18.2em 10.35em;
+  clip-path: polygon(0 0, 100% 0, 100% 78%, 0 78%);
+  transform: rotateY(180deg) rotateZ(-2deg);
+}
+
+.dcs-hero-lamp-mid-ring--small {
+  translate: 0.04em -8em;
+  scale: 0.8 0.5;
+}
+
+.dcs-hero-lamp-mid-ring {
+  width: 64%;
+  height: 10%;
+  border-radius: 50%;
+  translate: -0.1em 10em;
+  box-shadow:
+    inset -0.3em 1.3em 0.4em -1em #fff5,
+    -0.2em -1.2em 0.4em -0.4em #505050,
+    -0.1em -1.8em 0.4em -0.4em #fff5,
+    0 -2.5em 0.4em -1em #000000;
+  mix-blend-mode: hard-light;
+  filter: brightness(0.8);
+}
+
+.dcs-hero-lamp-mid-ring::before,
+.dcs-hero-lamp-mid-ring::after {
+  content: "";
+  display: block;
+  background: #000;
+  width: 2em;
+  height: 2em;
+  top: 10%;
+  border-radius: 50%;
+  position: absolute;
+}
+
+.dcs-hero-lamp-mid-ring::after {
+  right: -2%;
+}
+
+.dcs-hero-lamp-mid-ring::before {
+  left: -2%;
+}
+
+.dcs-hero-lamp-buff-t {
+  background: #fff2;
+  width: 72%;
+  height: 12%;
+  border-radius: 50%;
+  translate: 0 16em;
+  filter: blur(1em);
+}
+
+.dcs-hero-lamp-buff {
+  background: linear-gradient(90deg, black 40%, #b7b5b4 90%);
+  width: 88%;
+  height: 20%;
+  border-radius: 50% 50% 50% 50% / 50% 50% 30% 30%;
+  translate: 0 20em;
+  box-shadow: inset 1em 0 2em -1em #5d819666, inset -1em 0 2em -1em #fff;
+}
+
+.dcs-hero-lamp-btm {
+  width: 88%;
+  height: 18%;
+  border-radius: 50%;
+  translate: 0 23em;
+  background: linear-gradient(90deg, black 40%, #b7b5b4 90%);
+}
+
+.dcs-hero-lamp-btm2 {
+  width: 74%;
+  height: 12%;
+  border-radius: 50%;
+  translate: 0 24em;
+  background: #fffff6;
+  box-shadow:
+    0 0 1em 0.6em #ffe9d4,
+    -0.8em 0.2em 2em 1em #cca37f,
+    -5.4em -0.6em 3em -1em #ce6e1abb,
+    6em -0.6em 3em -1em #ce6e1abb,
+    inset 0 30.3em 0.3em -30em #c7962d,
+    inset 0 -2em 2em -2em #ffe9d4,
+    inset 0 -1em 2em 1em #ce6e1a66;
+}
+
+.dcs-hero-lamp-ring-container {
+  width: 74%;
+  height: 24%;
+  border-radius: 50% 50% 50% 50% / 25% 25% 0% 0%;
+  translate: 0 29.2em;
+  overflow: hidden;
+}
+
+.dcs-hero-lamp-ring {
+  width: 12em;
+  height: 12em;
+  background: #fff;
+  border-radius: 50%;
+  translate: 0 -6em;
+  box-shadow:
+    0 0.8em 1em -0.3em #f8e1d0,
+    inset 0 -6em 4em -4em #e3b695,
+    inset 0 1em 3em 1em #fff4,
+    inset 0 2em 3em 1em #fff,
+    inset 0 100em 0 100em #2c2c2c;
+}
+
+.dcs-hero-lamp-rays {
+  mix-blend-mode: soft-light;
+  box-shadow: inset 0 -21em 4em -20em #000;
+  width: 100%;
+  height: 140%;
+  translate: 0 -4em;
+  border-radius: 50%;
+}
+
+.dcs-hero-lamp-rays::before {
+  content: "";
+  display: block;
+  width: 100em;
+  height: 100em;
+  position: absolute;
+  left: -21em;
+  top: -77em;
+  border-radius: 100%;
+  filter: blur(0.6em);
+  background: repeating-conic-gradient(at 50% 50%, #fff2 0%, transparent 0.6%, #fff2 0.8%);
+}
+
+.dcs-hero-lamp-volumetric {
+  width: 98%;
+  height: 224%;
+  translate: 0 124em;
+  opacity: 0.2;
+}
+
+.dcs-hero-lamp-vl {
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 20em;
+  rotate: 22deg;
+  box-shadow: inset 40em 0 20em -20em #fff1;
+}
+
+.dcs-hero-lamp-vr {
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 20em;
+  rotate: -22deg;
+  box-shadow: inset -40em 0 20em -20em #fff1;
+}
+
+.dcs-hero-lamp-grain {
+  z-index: 10;
+  position: absolute;
+  pointer-events: none;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 50%, #000, #0000),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 600 600' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='dcsNoiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='2' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23dcsNoiseFilter)'/%3E%3C/svg%3E");
+  filter: contrast(100%) brightness(200%) grayscale(1) opacity(0.168);
+  mix-blend-mode: screen;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .dcs-home-hero {
+  .dcs-hero-lamp-rays::before {
+    display: none;
+  }
+}
+
+/* DCS header monogram - "DCS" drawn like handwriting rather than a plain
+   label: a hollow outline whose stroke animates from fully undrawn to
+   fully drawn, then loops (the classic handwriting-stroke technique). 260
+   is a flat, tuned-by-eye unit count for "DCS" at this exact font/size -
+   there is no reliable way to ask the browser for a <text> element's real
+   stroke length, so this is deliberately generous (better to finish
+   slightly early than leave the last letter visibly unfinished). */
+.dcs-logo-mark {
+  overflow: visible;
+  cursor: default;
+  transition: transform 0.25s ease, filter 0.25s ease;
+}
+
+.dcs-logo-mark:hover {
+  transform: scale(1.08);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+}
+
+.dcs-logo-mark-write {
+  fill: none;
+  stroke: #FFFFFF;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 260;
+  stroke-dashoffset: 260;
+  animation: dcs-logo-handwrite 3.2s ease-in-out infinite;
+}
+
+@keyframes dcs-logo-handwrite {
+  0% {
+    stroke-dashoffset: 260;
+  }
+  55%, 100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Language switcher hover - a plain native <select> otherwise. */
+.dcs-lang-switcher {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dcs-lang-switcher:hover {
+  border-color: #056daa !important;
+  box-shadow: 0 2px 8px rgba(5, 109, 170, 0.18);
+}
+
+/* Scroll hint - two downward chevrons bouncing in sequence with a soft
+   drop shadow, rather than a single static arrow. */
+.dcs-home-scroll-chevrons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.35));
+}
+
+.dcs-home-scroll-chevrons svg:nth-child(1) {
+  animation: dcs-home-scroll-bounce 1.6s ease-in-out infinite;
+}
+
+.dcs-home-scroll-chevrons svg:nth-child(2) {
+  animation: dcs-home-scroll-bounce 1.6s ease-in-out infinite;
+  animation-delay: 0.2s;
+  margin-top: -6px;
+}
+
+@keyframes dcs-home-scroll-bounce {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(6px);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dcs-home-hero.has-bg-image {
     background-attachment: scroll;
   }
+  .dcs-home-hero-enter,
   .dcs-home-rotator-line,
   .dcs-home-reveal,
   .dcs-home-wave-layer,
   .dcs-home-float,
-  .dcs-home-pulse-ring {
+  .dcs-home-pulse-ring,
+  .dcs-home-scroll-chevrons svg,
+  .dcs-home-rotator-line.is-active .dcs-home-letter-wave,
+  .dcs-logo-mark-write,
+  .dcs-home-stat-spark {
     animation: none !important;
     transition: none !important;
+  }
+  .dcs-home-stat-spark {
+    display: none;
+  }
+  .dcs-logo-mark-write {
+    fill: #FFFFFF;
+    stroke-dashoffset: 0;
   }
   .dcs-home-rotator-line {
     position: relative;

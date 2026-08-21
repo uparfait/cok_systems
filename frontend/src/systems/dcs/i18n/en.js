@@ -10,6 +10,8 @@ const en = {
   DCS_SIDEBAR_NEW_PROJECT: "New project",
   DCS_SIDEBAR_NO_PROJECTS: "No projects yet",
   DCS_SIDEBAR_LOADING: "Loading projects",
+  DCS_SIDEBAR_SHOW: "Show projects",
+  DCS_SIDEBAR_HIDE: "Hide projects",
 
   DCS_HOME_HERO_LINE_1: "Create and manage projects",
   DCS_HOME_HERO_LINE_2: "Create and share questionnaires",
@@ -24,7 +26,7 @@ const en = {
   DCS_HOME_ABOUT_STAT_1_VALUE: "20+",
   DCS_HOME_ABOUT_STAT_1_LABEL: "Question types to build with",
   DCS_HOME_ABOUT_STAT_2_VALUE: "100%",
-  DCS_HOME_ABOUT_STAT_2_LABEL: "Works offline",
+  DCS_HOME_ABOUT_STAT_2_LABEL: "Offline capability",
   DCS_HOME_ABOUT_STAT_3_VALUE: "Versioned",
   DCS_HOME_ABOUT_STAT_3_LABEL: "Forms, safely",
 
@@ -40,6 +42,7 @@ const en = {
   DCS_HOME_FEATURE_FORMS_BULLET_2: "Add conditional visibility, computed values, and validation rules powered by real logic, not guesswork.",
   DCS_HOME_FEATURE_FORMS_BULLET_3: "Publish a new version only when your questions actually change - your public link never breaks.",
   DCS_HOME_FEATURE_FORMS_BULLET_4: "Respondents can fill out a form fully offline - their answers sync automatically once they're back online.",
+  DCS_HOME_FEATURE_FORMS_OFFLINE_BADGE: "Offline capability",
 
   DCS_HOME_FEATURE_ACCESS_TITLE: "Manage who can access your projects",
   DCS_HOME_FEATURE_ACCESS_BODY: "Keep sensitive data collection projects visible only to the people who should see them - grant access by department, department unit, or by name, and choose exactly which forms each grant can reach.",
@@ -98,6 +101,7 @@ const en = {
   DCS_BTN_NEXT: "Next",
   DCS_BTN_PREVIOUS: "Previous",
   DCS_BTN_BACK: "Back",
+  DCS_BTN_HOME: "Home",
   DCS_BTN_LINK: "Link",
   DCS_BTN_UNLINK: "Unlink",
   DCS_BTN_DOWNLOAD: "Download",

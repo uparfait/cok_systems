@@ -38,8 +38,12 @@ export default function AccessControlIllustration() {
         <circle cx="320" cy="150" r="20" fill="#F7F9FB" stroke="#9E9E9E" strokeWidth="2.5" />
         <circle cx="320" cy="143" r="7" fill="#9E9E9E" />
         <path d="M308 158c2-8 8-10 12-10s10 2 12 10" stroke="#9E9E9E" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-        <line x1="278" y1="150" x2="300" y2="150" stroke="#E74C3C" strokeWidth="3" strokeLinecap="round" />
-        <line x1="285" y1="143" x2="285" y2="157" stroke="#E74C3C" strokeWidth="3" strokeLinecap="round" transform="rotate(45 285 150)" />
+        {/* "Denied" badge sitting on this avatar's own corner, same idea as
+            a notification badge - a clean X in a circle, not two
+            independently-drawn lines that never lined up into a real X. */}
+        <circle cx="334" cy="136" r="11" fill="#E74C3C" stroke="#FFFFFF" strokeWidth="2" />
+        <line x1="330" y1="132" x2="338" y2="140" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" />
+        <line x1="338" y1="132" x2="330" y2="140" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" />
       </g>
     </svg>
   );

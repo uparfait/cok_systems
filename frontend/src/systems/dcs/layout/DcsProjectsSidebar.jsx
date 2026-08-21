@@ -18,7 +18,7 @@ export default function DcsProjectsSidebar() {
   const { data, loading } = useSilentPolling(() => list_projects().then((res) => res.data || []), POLL_INTERVAL_MS);
 
   return (
-    <aside className="w-64 flex-shrink-0 bg-white border-r flex flex-col" style={{ borderColor: "#E0E0E0" }}>
+    <aside className="w-64 h-full bg-white border-r flex flex-col" style={{ borderColor: "#E0E0E0" }}>
       <div className="p-3 border-b" style={{ borderColor: "#E0E0E0" }}>
         <p
           className="text-xs font-semibold uppercase mb-2"
