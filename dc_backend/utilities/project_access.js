@@ -111,6 +111,24 @@ async function filter_projects_for_user(user, projects) {
 }
 
 /**
+ * Answers whether a user may manage a project's access rules: the creator
+ * always can, and so can any individual granted access "with grant option"
+ * (can_grant). Department grants never carry the grant option.
+ */
+async function can_manage_access(user, project, access_document) {
+  if (!user || !project) return false;
+  if (project.created_by === user.user_id.toString()) return true;
+
+  const access =
+    access_document !== undefined ? access_document : await project_access_model.get_access_by_project(project._id);
+  if (!access) return false;
+
+  return (access.individuals || []).some(
+    (individual) => individual.user_id === user.user_id.toString() && individual.can_grant === true,
+  );
+}
+
+/**
  * Answers whether a user may see one form, found via the form's project -
  * used by every form-scoped endpoint (details, versions, submissions).
  */
@@ -128,4 +146,5 @@ module.exports = {
   access_allows_form,
   filter_projects_for_user,
   can_view_form_group,
+  can_manage_access,
 };
