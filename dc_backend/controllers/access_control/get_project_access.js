@@ -1,11 +1,13 @@
 const projects_model = require("../../models/projects_model.js");
 const project_access_model = require("../../models/project_access_model.js");
+const project_access = require("../../utilities/project_access.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { is_valid_object_id } = require("../../utilities/object_id.js");
 
 /**
  * Returns a project's saved access rules, or an empty default when none
- * have been saved yet, for the access-control tab to edit.
+ * have been saved yet, for the access-control tab to edit. Only the project
+ * creator and individuals holding the grant option may read them.
  */
 async function get_project_access(req, res) {
   try {
@@ -21,6 +23,11 @@ async function get_project_access(req, res) {
     }
 
     const access = await project_access_model.get_access_by_project(project_id);
+
+    if (!(await project_access.can_manage_access(req.user, project, access))) {
+      return res.status(403).json(warning_response(req, "ACCESS_MANAGE_FORBIDDEN"));
+    }
+
     const rules = access || { project_id, enabled: false, departments: [], individuals: [] };
 
     return res.status(200).json(success_response(req, "ACCESS_RULES_FETCHED", rules));
