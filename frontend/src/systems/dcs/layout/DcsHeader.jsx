@@ -13,7 +13,7 @@ import { build_dcs_breadcrumb_path } from "./dcsBreadcrumbPath.js";
  * clickable) breadcrumb of the current route template with real ids
  * swapped for their param name, and the language switcher.
  */
-export default function DcsHeader({ subHeaderVisible = true }) {
+export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { translate } = useDcsLanguage();
@@ -22,11 +22,12 @@ export default function DcsHeader({ subHeaderVisible = true }) {
   return (
     <div className="flex-shrink-0">
       <Header
-        onMenuToggle={() => {}}
+        onMenuToggle={onMainMenuToggle || (() => {})}
         currentSystem={<DcsLogoMark title={translate("DCS_HEADER_TITLE")} />}
         links={[]}
         currentPath={location.pathname}
         onNavigate={(path) => navigate(path)}
+        alwaysShowMenuButton
       />
       <div className={`dcs-sub-header ${subHeaderVisible ? "" : "is-hidden"}`}>
         <div

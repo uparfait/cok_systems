@@ -30,6 +30,13 @@ interface HeaderProps {
   links: SidebarLink[];
   currentPath: string;
   onNavigate: (path: string) => void;
+  // MainLayout's own sidebar auto-pins open at the lg breakpoint, so the
+  // toggle button only needs to exist below it (lg:hidden). A consumer
+  // whose sidebar never auto-pins (it's always an overlay, at any screen
+  // size) needs the button reachable at every width instead - true here
+  // keeps it visible past lg: too, without changing anything for MainLayout
+  // and every other existing caller, which never pass this prop.
+  alwaysShowMenuButton?: boolean;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -38,6 +45,7 @@ const Header: React.FC<HeaderProps> = ({
   links,
   currentPath,
   onNavigate,
+  alwaysShowMenuButton,
 }) => {
   const { user, logout } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } =
@@ -91,7 +99,7 @@ const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-4">
           <button
             onClick={onMenuToggle}
-            className="lg:hidden p-2 rounded-none hover:bg-white/10 text-white"
+            className={`${alwaysShowMenuButton ? "" : "lg:hidden"} p-2 rounded-none hover:bg-white/10 text-white`}
           >
             <FiMenu className="w-5 h-5" />
           </button>
