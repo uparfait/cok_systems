@@ -1198,6 +1198,15 @@ background-color: #056daa;
   transform: scale(0.95);
 }
 
+/* Main app sidebar overlay in DCS (DcsShell.jsx) - the sidebar panel's own
+   slide is already animated via transition-transform; this just fades the
+   dark backdrop in behind it at the same time instead of it snapping into
+   existence instantly. */
+.dcs-main-sidebar-backdrop {
+  background-color: rgba(0, 0, 0, 0.5);
+  animation: dcs-fade-in 0.25s ease-out;
+}
+
 .dcs-sub-header-home-link {
   text-decoration: none;
   transition: color 0.2s ease;
