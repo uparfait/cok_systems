@@ -1020,8 +1020,8 @@ background-color: #056daa;
    below is the wave SVG's job, pinned right at the very bottom edge. */
 .dcs-home-hero-overlay {
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.72) 100%);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  /* backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px); */
 }
 
 /* Rotating headline: every line is stacked in the same box (position:
