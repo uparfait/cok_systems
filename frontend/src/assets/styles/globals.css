@@ -1163,11 +1163,28 @@ background-color: #056daa;
   transition-delay: 0.24s;
 }
 
+/* Same dashed-frame-plus-corner-dots treatment as .dcs-home-badge, in the
+   same default blue, so the About section's eyebrow label and its stat
+   cards read as one consistent border style rather than two different
+   ones on the same section. */
 .dcs-home-glass-card {
+  position: relative;
   background: rgba(255, 255, 255, 0.55);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid #E0E0E0;
+  border: 1px dashed #056daa;
+  background-image:
+    radial-gradient(circle, #056daa 45%, transparent 46%),
+    radial-gradient(circle, #056daa 45%, transparent 46%),
+    radial-gradient(circle, #056daa 45%, transparent 46%),
+    radial-gradient(circle, #056daa 45%, transparent 46%);
+  background-repeat: no-repeat;
+  background-size: 5px 5px;
+  background-position:
+    top -2.5px left -2.5px,
+    top -2.5px right -2.5px,
+    bottom -2.5px right -2.5px,
+    bottom -2.5px left -2.5px;
 }
 
 .dcs-home-glass-card--tint {
@@ -1313,14 +1330,6 @@ background-color: #056daa;
 .dcs-home-badge--green {
   color: #4CAF50;
   background-color: rgba(76, 175, 80, 0.1);
-}
-
-/* The About section's own eyebrow label sits directly under the hero's
-   wave, where a dashed frame read as a stray border right at that seam -
-   same badge otherwise, just without the border/corner dots. */
-.dcs-home-badge--plain {
-  border: none;
-  background-image: none;
 }
 
 /* About-section stat number - once its count-up finishes, a one-off spark

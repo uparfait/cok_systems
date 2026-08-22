@@ -20,7 +20,7 @@ export default function DcsHomeAbout() {
         className={`dcs-home-reveal ${isVisible ? "is-visible" : ""} w-full flex flex-col items-center text-center gap-6 px-4 sm:px-8 py-16`}
         style={{ maxWidth: 820 }}
       >
-        <span className="dcs-home-badge dcs-home-badge--plain text-xs font-semibold tracking-[0.3em] uppercase px-3 py-1">
+        <span className="dcs-home-badge text-xs font-semibold tracking-[0.3em] uppercase px-3 py-1">
           {translate("DCS_HOME_ABOUT_EYEBROW")}
         </span>
         <h2
