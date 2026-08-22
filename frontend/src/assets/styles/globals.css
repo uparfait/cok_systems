@@ -992,6 +992,84 @@ background-color: #056daa;
   }
 }
 
+/* Cursor-following water bubbles - DcsHomeHero.jsx writes --cursor-x/-y
+   straight onto .dcs-hero-cursor-bubbles on every mousemove (bypassing
+   React state entirely - a per-pixel handler has no business triggering a
+   re-render), and every bubble inside inherits those two custom
+   properties. translate (a standalone property, not the transform
+   shorthand) carries the cursor-following position so it composes freely
+   with the separate transform-driven bob keyframe below, instead of the
+   two fighting over one property. Each bubble also adds its own fixed
+   --bubble-offset-x/-y so they surround the cursor in a ring rather than
+   stacking exactly on top of each other. Hidden until the pointer actually
+   enters the hero (is-active) so nothing lingers at a stale position. */
+.dcs-hero-cursor-bubbles {
+  --cursor-x: -200px;
+  --cursor-y: -200px;
+}
+
+.dcs-hero-cursor-bubble {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--bubble-size, 16px);
+  height: var(--bubble-size, 16px);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.55), rgba(5, 109, 170, 0.32) 55%, rgba(5, 109, 170, 0.08) 100%);
+  border: 1px solid rgba(5, 109, 170, 0.25);
+  translate: calc(var(--cursor-x) + var(--bubble-offset-x, 0px)) calc(var(--cursor-y) + var(--bubble-offset-y, 0px));
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  animation: dcs-hero-bubble-bob 3.4s ease-in-out infinite;
+  animation-delay: var(--bubble-delay, 0s);
+  transition: translate 0.22s ease-out, opacity 0.4s ease;
+  will-change: translate;
+}
+
+.dcs-hero-cursor-bubbles.is-active .dcs-hero-cursor-bubble {
+  opacity: 0.85;
+}
+
+@keyframes dcs-hero-bubble-bob {
+  0%, 100% {
+    transform: translate(-50%, -50%) translateY(0) scale(1);
+  }
+  50% {
+    transform: translate(-50%, -50%) translateY(-9px) scale(1.08);
+  }
+}
+
+/* Click "disturbs" the water - every bubble briefly scatters further out
+   along its own existing --bubble-offset-x/-y direction (scaled up, not a
+   new direction) and springs back, like a ripple pushing them apart, then
+   the class comes off (DcsHomeHero.jsx) and the plain bob above resumes.
+   A one-shot animation (no infinite) replaces the bob for its own
+   duration, since one element can only run one value of the `animation`
+   shorthand at a time. */
+.dcs-hero-cursor-bubbles.is-disturbed .dcs-hero-cursor-bubble {
+  animation: dcs-hero-bubble-disturb 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes dcs-hero-bubble-disturb {
+  0% {
+    transform: translate(-50%, -50%) translate(0, 0) scale(1);
+  }
+  35% {
+    transform: translate(-50%, -50%) translate(calc(var(--bubble-offset-x, 0px) * 1.7), calc(var(--bubble-offset-y, 0px) * 1.7)) scale(1.4);
+  }
+  100% {
+    transform: translate(-50%, -50%) translate(0, 0) scale(1);
+  }
+}
+
+@media (hover: none) {
+  /* Touch devices have no persistent cursor to follow - never show a
+     ring of bubbles frozen at the last tapped spot. */
+  .dcs-hero-cursor-bubbles {
+    display: none;
+  }
+}
+
 /* Hero content entrance - on first load (never scroll-triggered, unlike
    .dcs-home-reveal below - the hero is visible from the very first paint,
    there's no "scrolling into view" for it to wait for) everything inside
@@ -1435,9 +1513,13 @@ background-color: #056daa;
   .dcs-home-pulse-ring,
   .dcs-home-scroll-chevrons svg,
   .dcs-logo-mark-write,
-  .dcs-home-stat-spark {
+  .dcs-home-stat-spark,
+  .dcs-hero-cursor-bubble {
     animation: none !important;
     transition: none !important;
+  }
+  .dcs-hero-cursor-bubbles {
+    display: none;
   }
   .dcs-home-stat-spark {
     display: none;
