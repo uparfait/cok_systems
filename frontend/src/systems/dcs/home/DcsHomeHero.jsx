@@ -4,7 +4,7 @@ import DcsHeroLamp from "./DcsHeroLamp.jsx";
 import heroBackground from "../../../assets/fixed-bg.jpg";
 
 const ROTATOR_KEYS = ["DCS_HOME_HERO_LINE_1", "DCS_HOME_HERO_LINE_2", "DCS_HOME_HERO_LINE_3", "DCS_HOME_HERO_LINE_4"];
-const ROTATE_INTERVAL_MS = 3200;
+const ROTATE_INTERVAL_MS = 6200;
 const HERO_GAP_PX = 24;
 const WAVE_HEIGHT_PX = 52;
 // The stagger repeats every 8 letters rather than growing for the whole
@@ -116,13 +116,13 @@ export default function DcsHomeHero() {
       // viewport, so the hero (and the wave pinned to its own bottom
       // edge) must shrink by that same amount to stay fully in view on
       // first load, before any scrolling happens.
-      style={{ minHeight: "calc(100vh - 115px)", "--dcs-home-hero-image": `url(${heroBackground})` }}
+      style={{ minHeight: "calc(100vh - 100px)", "--dcs-home-hero-image": `url(${heroBackground})` }}
     >
       {image_status !== "loaded" && <DcsHeroLamp />}
       <div className="dcs-home-hero-overlay absolute inset-0" style={{ zIndex: 5 }} />
 
       <div
-        className="dcs-home-hero-enter relative z-10 flex flex-col items-center px-4 sm:px-8"
+        className="dcs-home-hero-enter  w-full relative z-10 flex flex-col items-center px-4 sm:px-8"
         style={{ maxWidth: 900 }}
       >
         <span
@@ -138,22 +138,18 @@ export default function DcsHomeHero() {
             text stays tiny and symmetric - the label-to-rotator gap above
             and the rotator-to-subtitle gap below both come out to exactly
             HERO_GAP_PX either way. */}
-        <div
-          className="dcs-home-rotator w-full"
-          style={{ height: "calc(clamp(1.6rem, 4.4vw, 3.1rem) * 1.15)", marginBottom: HERO_GAP_PX }}
-        >
+        <div className="dcs-home-rotator  w-full" style={{ marginBottom: HERO_GAP_PX }}>
           {ROTATOR_KEYS.map((key, index) => (
             <h1
               key={key}
-              className={`dcs-home-rotator-line text-center font-bold px-2 ${
+              className={`dcs-home-rotator-line   text-center font-bold px-2 ${
                 index === active_index ? "is-active" : index === leaving_index ? "is-leaving" : ""
               }`}
               style={{
                 color: "#FFFFFF",
                 fontFamily: "'Montserrat', sans-serif",
-                fontSize: "clamp(1.6rem, 4.4vw, 3.1rem)",
+                fontSize: "clamp(1.2vw, 4.4vw, 3.1rem)",
                 lineHeight: 1.15,
-                whiteSpace: "nowrap",
               }}
             >
               {render_animated_letters(translate(key))}

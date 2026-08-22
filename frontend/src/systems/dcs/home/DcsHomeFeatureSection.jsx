@@ -7,6 +7,12 @@ import { useScrollReveal } from "./useScrollReveal.js";
  * self-drawn illustration on the other, alternating sides down the page so
  * the whole home page has visual rhythm instead of four identical rows.
  * Drops into place (never fixed) the first time it enters the viewport.
+ *
+ * On a small screen there's no room for a real two-column layout, so the
+ * desktop illustration panel is hidden there - instead a full-size copy of
+ * the same illustration is stacked directly under the title (before the
+ * body text and bullets), rather than at the very end of the whole block
+ * or squeezed down to a small inline icon next to the heading.
  */
 export default function DcsHomeFeatureSection({ titleKey, bodyKey, bulletKeys, badgeKey, offlineBadgeKey, Illustration, reverse, tinted }) {
   const { translate } = useDcsLanguage();
@@ -22,9 +28,7 @@ export default function DcsHomeFeatureSection({ titleKey, bodyKey, bulletKeys, b
         className="w-full grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center"
         style={{ maxWidth: 1080 }}
       >
-        <div
-          className={`dcs-home-reveal ${isVisible ? "is-visible" : ""} flex flex-col gap-5 ${reverse ? "lg:order-2" : ""}`}
-        >
+        <div className={`dcs-home-reveal ${isVisible ? "is-visible" : ""} flex flex-col gap-5 ${reverse ? "lg:order-2" : "lg:order-1"}`}>
           {(badgeKey || offlineBadgeKey) && (
             <div className="flex items-center gap-2 flex-wrap">
               {badgeKey && (
@@ -45,12 +49,20 @@ export default function DcsHomeFeatureSection({ titleKey, bodyKey, bulletKeys, b
               )}
             </div>
           )}
+
           <h3
             className="font-bold"
             style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif", fontSize: "clamp(1.4rem, 2.8vw, 2rem)" }}
           >
             {translate(titleKey)}
           </h3>
+
+          <div className="dcs-home-glass-card--tint lg:hidden flex items-center justify-center p-6" style={{ minHeight: 280 }}>
+            <div style={{ width: "100%", maxWidth: 360 }}>
+              <Illustration />
+            </div>
+          </div>
+
           <p style={{ color: "#555555", fontFamily: "'Montserrat', sans-serif", fontSize: "1rem", lineHeight: 1.7 }}>
             {translate(bodyKey)}
           </p>
@@ -74,7 +86,7 @@ export default function DcsHomeFeatureSection({ titleKey, bodyKey, bulletKeys, b
         </div>
 
         <div
-          className={`dcs-home-reveal dcs-home-reveal-delay-1 ${isVisible ? "is-visible" : ""} dcs-home-glass-card--tint flex items-center justify-center p-6 ${reverse ? "lg:order-1" : ""}`}
+          className={`dcs-home-reveal dcs-home-reveal-delay-1 ${isVisible ? "is-visible" : ""} dcs-home-glass-card--tint hidden lg:flex items-center justify-center p-6 ${reverse ? "lg:order-1" : "lg:order-2"}`}
           style={{ minHeight: 280 }}
         >
           <div style={{ width: "100%", maxWidth: 360 }}>
