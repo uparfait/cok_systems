@@ -1,63 +1,28 @@
 import React, { useEffect, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import DcsHeroLamp from "./DcsHeroLamp.jsx";
-import heroBackground from "../../../assets/fixed-bg.jpg";
 
-const ROTATOR_KEYS = ["DCS_HOME_HERO_LINE_1", "DCS_HOME_HERO_LINE_2", "DCS_HOME_HERO_LINE_3", "DCS_HOME_HERO_LINE_4"];
-const ROTATE_INTERVAL_MS = 6200;
-const HERO_GAP_PX = 24;
+const CARD_KEYS = ["DCS_HOME_HERO_LINE_1", "DCS_HOME_HERO_LINE_2", "DCS_HOME_HERO_LINE_3", "DCS_HOME_HERO_LINE_4"];
+const ROTATE_INTERVAL_MS = 4000;
 const WAVE_HEIGHT_PX = 52;
-// The stagger repeats every 8 letters rather than growing for the whole
-// sentence - these headlines run 25-40 characters long, and a delay that
-// just kept increasing would put the last few letters starting their
-// bounce seconds after the first, reading as unsynchronized rather than a
-// single wave rippling through the line.
-const LETTER_STAGGER_CYCLE = 8;
-const LETTER_STAGGER_STEP_S = 0.12;
-
-/**
- * Splits one headline into per-letter spans so CSS can bounce each one in a
- * staggered wave while its line is active. The parent <h1> is a flex
- * container (for centering) - flexbox drops whitespace-only text runs
- * between flex items entirely, which silently ate every space between
- * words, so a plain space character is swapped for a non-breaking one here
- * (never collapsed/dropped) instead of a literal " ".
- */
-function render_animated_letters(text) {
-  return Array.from(text).map((character, index) => {
-    if (character === " ") return " ";
-    const delay = (index % LETTER_STAGGER_CYCLE) * LETTER_STAGGER_STEP_S;
-    return (
-      <span key={index} className="dcs-home-letter-wave" style={{ "--d": `${delay}s` }}>
-        {character}
-      </span>
-    );
-  });
-}
 
 function WaveDivider() {
   return (
     <div
       className="absolute bottom-0 left-0 w-full overflow-hidden pointer-events-none"
-      // Explicit z-index: the fallback lamp behind it also sets one
-      // (z-index: 1), and an element with any positive z-index paints
-      // above a plain z-index:auto sibling regardless of DOM order - left
-      // unset, the wave would silently end up hidden behind the lamp
-      // whenever the fallback is showing.
       style={{ height: WAVE_HEIGHT_PX, zIndex: 6 }}
     >
       <svg className="dcs-home-wave-layer dcs-home-wave-layer--back" viewBox="0 0 1600 90" preserveAspectRatio="none">
         <path
           d="M0 45 C 100 90, 200 0, 300 45 S 500 90, 600 45 S 700 0, 800 45 L 800 90 L 0 90 Z
              M800 45 C 900 90, 1000 0, 1100 45 S 1300 90, 1400 45 S 1500 0, 1600 45 L 1600 90 L 800 90 Z"
-          fill="#FFFFFF"
+          fill="#9CCBEA"
         />
       </svg>
       <svg className="dcs-home-wave-layer dcs-home-wave-layer--front" viewBox="0 0 1600 90" preserveAspectRatio="none">
         <path
           d="M0 60 C 120 10, 220 100, 340 55 S 520 10, 640 55 S 720 100, 800 60 L 800 90 L 0 90 Z
              M800 60 C 920 10, 1020 100, 1140 55 S 1320 10, 1440 55 S 1520 100, 1600 60 L 1600 90 L 800 90 Z"
-          fill="#FFFFFF"
+          fill="#056daa"
         />
       </svg>
     </div>
@@ -65,109 +30,128 @@ function WaveDivider() {
 }
 
 /**
- * Full-viewport-height opener: the fixed illustration behind everything,
- * a translated headline that cycles through the system's four pillars,
- * and a water-like wave strip that hands off cleanly into the next
- * section's white background.
+ * Hero opener: a light dot-grid backdrop, in the system's own primary
+ * blue, pinned to the viewport (background-attachment: fixed on its own
+ * dedicated div, not the section - see .dcs-hero-grid-background) so
+ * later sections visibly stack over it while scrolling, the same way the
+ * old photo did. A small header + description sit on the left, and the
+ * system's four pillars cycle through on the right as a fanned stack of
+ * cards, like a hand of playing cards - every 4 seconds the front card
+ * steps back into the stack and the next one steps forward to the front.
  */
 export default function DcsHomeHero() {
   const { translate } = useDcsLanguage();
-  // "loading" and "error" both mean the same thing visually - show the
-  // dark gradient + lamp fallback - the only difference is whether we're
-  // still waiting or have given up for good. Preloaded via a plain Image
-  // rather than an <img> tag, since nothing about this needs to be in the
-  // DOM - only whether it succeeded.
-  const [image_status, setImageStatus] = useState("loading");
   const [active_index, setActiveIndex] = useState(0);
-  // The line that just stopped being active keeps rendering (with the
-  // is-leaving class) for exactly as long as its own CSS transition takes,
-  // so it visibly sinks and fades out below instead of snapping straight
-  // to the same "waiting above" position the next-up line starts from.
-  const [leaving_index, setLeavingIndex] = useState(null);
-
-  useEffect(() => {
-    const image = new Image();
-    image.onload = () => setImageStatus("loaded");
-    image.onerror = () => setImageStatus("error");
-    image.src = heroBackground;
-    return () => {
-      image.onload = null;
-      image.onerror = null;
-    };
-  }, []);
 
   useEffect(() => {
     const interval_id = window.setInterval(() => {
-      setActiveIndex((previous) => {
-        setLeavingIndex(previous);
-        window.setTimeout(() => setLeavingIndex((current) => (current === previous ? null : current)), 750);
-        return (previous + 1) % ROTATOR_KEYS.length;
-      });
+      setActiveIndex((previous) => (previous + 1) % CARD_KEYS.length);
     }, ROTATE_INTERVAL_MS);
     return () => window.clearInterval(interval_id);
   }, []);
 
   return (
     <section
-      className={`dcs-home-hero relative flex flex-col items-center justify-center overflow-hidden ${image_status === "loaded" ? "has-bg-image" : ""}`}
-      // 100vh alone overflows past what's actually visible before
-      // scrolling - the header (h-16 = 64px) plus the slim sub-header
-      // beneath it (~51px) sit above <main> and eat into that same
-      // viewport, so the hero (and the wave pinned to its own bottom
-      // edge) must shrink by that same amount to stay fully in view on
-      // first load, before any scrolling happens.
-      style={{ minHeight: "calc(100vh - 100px)", "--dcs-home-hero-image": `url(${heroBackground})` }}
+      className="dcs-home-hero relative flex flex-col items-center justify-center overflow-hidden"
+      style={{ minHeight: "calc(100vh - 100px)" }}
     >
-      {image_status !== "loaded" && <DcsHeroLamp />}
-      <div className="dcs-home-hero-overlay absolute inset-0" style={{ zIndex: 5 }} />
+      <div className="dcs-hero-grid-background absolute inset-0" style={{ zIndex: 1 }} />
 
       <div
-        className="dcs-home-hero-enter  w-full relative z-10 flex flex-col items-center px-4 sm:px-8"
-        style={{ maxWidth: 900 }}
+        className="dcs-home-hero-enter relative z-10 w-full flex flex-col lg:flex-row items-center justify-center lg:justify-between gap-10 lg:gap-16 px-4 sm:px-8"
+        style={{ maxWidth: 1180, margin: "0 auto" }}
       >
-        <span
-          className="text-xs sm:text-sm font-semibold tracking-[0.3em] uppercase"
-          style={{ color: "rgba(255,255,255,0.85)", fontFamily: "'Montserrat', sans-serif", marginBottom: HERO_GAP_PX }}
-        >
-          {translate("DCS_HEADER_TITLE")}
-        </span>
-
-        {/* Sized to one line's own line-height (not a viewport-relative
-            guess independent of the font-size clamp) so the empty space
-            the flex-centered rotator lines leave above/below their visible
-            text stays tiny and symmetric - the label-to-rotator gap above
-            and the rotator-to-subtitle gap below both come out to exactly
-            HERO_GAP_PX either way. */}
-        <div className="dcs-home-rotator  w-full" style={{ marginBottom: HERO_GAP_PX }}>
-          {ROTATOR_KEYS.map((key, index) => (
-            <h1
-              key={key}
-              className={`dcs-home-rotator-line   text-center font-bold px-2 ${
-                index === active_index ? "is-active" : index === leaving_index ? "is-leaving" : ""
-              }`}
-              style={{
-                color: "#FFFFFF",
-                fontFamily: "'Montserrat', sans-serif",
-                fontSize: "clamp(1.2vw, 4.4vw, 3.1rem)",
-                lineHeight: 1.15,
-              }}
-            >
-              {render_animated_letters(translate(key))}
-            </h1>
-          ))}
+        <div className="flex flex-col items-center lg:items-start gap-3 text-center lg:text-left" style={{ maxWidth: 380 }}>
+          <span
+            className="uppercase"
+            style={{
+              color: "#056daa",
+              fontFamily: "'Montserrat', sans-serif",
+              fontWeight: 800,
+              letterSpacing: "0.02em",
+              fontSize: "clamp(1.2rem, 3.6vw, 2.4rem)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {translate("DCS_HEADER_TITLE")}
+          </span>
+          <p
+            style={{
+              color: "#1F2937",
+              fontFamily: "'Montserrat', sans-serif",
+              fontWeight: 500,
+              fontSize: "clamp(0.9rem, 1.5vw, 1rem)",
+              lineHeight: 1.6,
+            }}
+          >
+            {translate("DCS_HOME_HERO_SUBTITLE")}
+          </p>
         </div>
 
-        <p
-          className="text-center max-w-xl"
-          style={{ color: "rgba(255,255,255,0.9)", fontFamily: "'Montserrat', sans-serif", fontSize: "1rem" }}
+        <div
+          className="dcs-hero-card-stack flex-shrink-0"
+          // Targets ~70% of the hero's own height (calc(100vh - 100px), see
+          // the section below) directly via vh math rather than a percent
+          // height, since this div's actual parent is a flex row sized to
+          // its content (auto height) - a plain "70%" would have nothing
+          // definite to resolve against and silently fall back to auto.
+          // clamped so it never gets absurdly huge on a tall desktop
+          // viewport or too small to read on a short phone one.
+          style={{ height: "clamp(260px, calc((100vh - 100px) * 0.7), 480px)", aspectRatio: "3 / 4" }}
         >
-          {translate("DCS_HOME_HERO_SUBTITLE")}
-        </p>
+          {CARD_KEYS.map((key, index) => {
+            // 0 for whichever card is currently at the front; 1, 2, 3 for
+            // the rest, in the order they'll each reach the front next -
+            // CSS reads this to fan each card further back/to the side the
+            // higher it is, so the whole stack visibly reshuffles (not
+            // just the front card changing) every time active_index ticks
+            // over.
+            const fan_index = (index - active_index + CARD_KEYS.length) % CARD_KEYS.length;
+            return (
+              <div key={key} className="dcs-hero-card" style={{ "--fan-i": fan_index }}>
+                <span
+                  className="absolute"
+                  style={{
+                    top: "0.75rem",
+                    left: "0.9rem",
+                    color: "#056daa",
+                    fontFamily: "'Montserrat', sans-serif",
+                    fontWeight: 800,
+                    fontSize: "0.8rem",
+                    letterSpacing: "0.05em",
+                    opacity: 0.6,
+                  }}
+                >
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span
+                  className="uppercase"
+                  style={{
+                    color: "#056daa",
+                    fontFamily: "'Montserrat', sans-serif",
+                    fontWeight: 700,
+                    fontSize: "clamp(0.95rem, 1.9vw, 1.25rem)",
+                    lineHeight: 1.35,
+                  }}
+                >
+                  {translate(key)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
+      {/* In normal flow (not absolutely positioned) below lg: the hero's
+          content stacks vertically there (header block, then the now-taller
+          portrait card stack), so a fixed bottom offset would just as
+          easily land the hint on top of the cards as below them depending
+          on how tall that stack happens to be. Only pinned to a fixed
+          bottom offset once the two-column layout (lg:) actually leaves a
+          clear horizontal band underneath everything for it. */}
       <div
-        className="dcs-home-hero-enter dcs-home-hero-enter-delay absolute z-10 flex flex-col items-center gap-1"
-        style={{ bottom: 96, color: "#FFFFFF" }}
+        className="dcs-home-hero-enter dcs-home-hero-enter-delay static lg:absolute z-10 flex flex-col items-center gap-1 mt-8 lg:mt-0 lg:bottom-24"
+        style={{ color: "#056daa" }}
       >
         <span className="text-xs uppercase tracking-widest" style={{ fontFamily: "'Montserrat', sans-serif" }}>
           {translate("DCS_HOME_SCROLL_HINT")}
