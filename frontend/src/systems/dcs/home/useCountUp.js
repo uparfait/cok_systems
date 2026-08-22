@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const COUNT_DURATION_MS = 4000;
+const COUNT_DURATION_MS = 2800;
 
 /**
  * Splits a stat string like "20+" or "100%" into its counted number and the

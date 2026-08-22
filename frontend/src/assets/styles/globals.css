@@ -1031,6 +1031,31 @@ background-color: #056daa;
    is-leaving class is dropped and it settles back to plain "waiting". */
 .dcs-home-rotator {
   position: relative;
+  /* Sized to one line's own line-height (matches the font-size clamp
+     exactly, not a viewport-relative guess independent of it) so the
+     absolutely-positioned lines inside stay tightly, symmetrically
+     wrapped - the box has to have a real height since every line inside
+     is position:absolute and can't drive it themselves. */
+  height: calc(clamp(1.6rem, 4.4vw, 3.1rem) * 1.15);
+}
+
+.dcs-home-rotator-line {
+  white-space: wrap;
+}
+
+@media (max-width: 640px) {
+  /* The longest headline ("Manage who can access your projects") doesn't
+     fit on one line at any width this narrow without shrinking the font
+     to the point of looking insignificant - wrapping to two lines reads
+     far better on a phone than either an overflowing single line or a
+     tiny one, so nowrap is dropped and the box grows to fit two lines
+     instead of one. */
+  .dcs-home-rotator {
+    height: calc(clamp(1.6rem, 4.4vw, 3.1rem) * 1.15 * 2);
+  }
+  .dcs-home-rotator-line {
+    white-space: normal;
+  }
 }
 
 .dcs-home-rotator-line {
@@ -1121,7 +1146,7 @@ background-color: #056daa;
    page, always arriving as the respondent scrolls to it. */
 .dcs-home-reveal {
   opacity: 0;
-  transform: translateY(48px);
+  transform: translateY(100px);
   transition: opacity 0.8s ease, transform 0.8s ease;
 }
 
@@ -1279,6 +1304,14 @@ background-color: #056daa;
 .dcs-home-badge--green {
   color: #4CAF50;
   background-color: rgba(76, 175, 80, 0.1);
+}
+
+/* The About section's own eyebrow label sits directly under the hero's
+   wave, where a dashed frame read as a stray border right at that seam -
+   same badge otherwise, just without the border/corner dots. */
+.dcs-home-badge--plain {
+  border: none;
+  background-image: none;
 }
 
 /* About-section stat number - once its count-up finishes, a one-off spark
