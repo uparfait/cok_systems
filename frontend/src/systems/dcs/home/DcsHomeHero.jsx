@@ -1,9 +1,49 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 
 const CARD_KEYS = ["DCS_HOME_HERO_LINE_1", "DCS_HOME_HERO_LINE_2", "DCS_HOME_HERO_LINE_3", "DCS_HOME_HERO_LINE_4"];
 const ROTATE_INTERVAL_MS = 4000;
 const WAVE_HEIGHT_PX = 52;
+// Matches .dcs-hero-cursor-bubble's own disturb-animation duration in
+// globals.css - the class comes off again right as that one-shot
+// animation finishes, handing control back to the regular infinite bob.
+const DISTURB_DURATION_MS = 700;
+// Fixed positions around the cursor (not random - Math.random isn't
+// available at module scope here, and a fixed ring looks just as
+// "bobbling" once each one is animating on its own phase-shifted delay).
+const CURSOR_BUBBLES = Array.from({ length: 6 }).map((_, i) => {
+  const angle = (i / 6) * Math.PI * 2;
+  return {
+    size: 12 + (i % 3) * 8,
+    offsetX: Math.round(Math.cos(angle) * 26),
+    offsetY: Math.round(Math.sin(angle) * 26),
+    delay: (i * 0.3).toFixed(2),
+  };
+});
+
+function CursorBubbles({ bubblesRef, isActive, isDisturbed }) {
+  return (
+    <div
+      ref={bubblesRef}
+      className={`dcs-hero-cursor-bubbles absolute inset-0 pointer-events-none ${isActive ? "is-active" : ""} ${isDisturbed ? "is-disturbed" : ""}`}
+      style={{ zIndex: 20 }}
+      aria-hidden="true"
+    >
+      {CURSOR_BUBBLES.map((bubble, i) => (
+        <span
+          key={i}
+          className="dcs-hero-cursor-bubble"
+          style={{
+            "--bubble-size": `${bubble.size}px`,
+            "--bubble-offset-x": `${bubble.offsetX}px`,
+            "--bubble-offset-y": `${bubble.offsetY}px`,
+            "--bubble-delay": `${bubble.delay}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 function WaveDivider() {
   return (
@@ -42,20 +82,54 @@ function WaveDivider() {
 export default function DcsHomeHero() {
   const { translate } = useDcsLanguage();
   const [active_index, setActiveIndex] = useState(0);
+  const [is_cursor_active, setIsCursorActive] = useState(false);
+  const [is_disturbed, setIsDisturbed] = useState(false);
+  // Position is written straight to the DOM (a CSS custom property on the
+  // bubbles layer, inherited by every bubble inside it) rather than kept
+  // in React state - a mousemove handler firing dozens of times a second
+  // has no business triggering a full re-render on every pixel.
+  const bubbles_ref = useRef(null);
+  const disturb_timeout_ref = useRef(null);
 
   useEffect(() => {
     const interval_id = window.setInterval(() => {
       setActiveIndex((previous) => (previous + 1) % CARD_KEYS.length);
     }, ROTATE_INTERVAL_MS);
-    return () => window.clearInterval(interval_id);
+    return () => {
+      window.clearInterval(interval_id);
+      if (disturb_timeout_ref.current) window.clearTimeout(disturb_timeout_ref.current);
+    };
   }, []);
+
+  const handle_mouse_move = (event) => {
+    if (!bubbles_ref.current) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    bubbles_ref.current.style.setProperty("--cursor-x", `${event.clientX - rect.left}px`);
+    bubbles_ref.current.style.setProperty("--cursor-y", `${event.clientY - rect.top}px`);
+  };
+
+  // A click "disturbs" the water - every bubble scatters outward from the
+  // cursor and settles back, then the class comes off so the normal
+  // gentle bob resumes. Re-triggering mid-scatter (another click before
+  // the timeout fires) just restarts the same one-shot animation cleanly
+  // rather than layering a second timeout on top of the first.
+  const handle_click = () => {
+    if (disturb_timeout_ref.current) window.clearTimeout(disturb_timeout_ref.current);
+    setIsDisturbed(true);
+    disturb_timeout_ref.current = window.setTimeout(() => setIsDisturbed(false), DISTURB_DURATION_MS);
+  };
 
   return (
     <section
       className="dcs-home-hero relative flex flex-col items-center justify-center overflow-hidden"
       style={{ minHeight: "calc(100vh - 100px)" }}
+      onMouseMove={handle_mouse_move}
+      onMouseEnter={() => setIsCursorActive(true)}
+      onMouseLeave={() => setIsCursorActive(false)}
+      onClick={handle_click}
     >
       <div className="dcs-hero-grid-background absolute inset-0" style={{ zIndex: 1 }} />
+      <CursorBubbles bubblesRef={bubbles_ref} isActive={is_cursor_active} isDisturbed={is_disturbed} />
 
       <div
         className="dcs-home-hero-enter relative z-10 w-full flex flex-col lg:flex-row items-center justify-center lg:justify-between gap-10 lg:gap-16 px-4 sm:px-8"
