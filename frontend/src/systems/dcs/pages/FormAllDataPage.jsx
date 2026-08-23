@@ -1,18 +1,17 @@
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 import { useParams } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useSilentPolling } from "../hooks/useSilentPolling.js";
+import { useSubmissionsTable } from "../hooks/useSubmissionsTable.js";
 import { get_form_versions } from "../services/formsService.js";
-import { get_submissions } from "../services/submissionsService.js";
 import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
 import { get_field_text } from "../fields/fieldText.js";
 import DcsDataTable from "../components/DcsDataTable.jsx";
 import DcsDataTableFileCell from "../components/DcsDataTableFileCell.jsx";
 import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
+import DcsTableSearchSort from "../components/DcsTableSearchSort.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 
-const PAGE_SIZE = 20;
-const REFRESH_INTERVAL_MS = 10000;
 const NON_DATA_TYPES = ["section", "paragraph", "header", "file", "group"];
 const MEDIA_ANSWER_TYPES = ["image", "video", "audio", "file_upload", "signature"];
 
@@ -32,16 +31,16 @@ function collect_data_fields(version_doc) {
  * other version but not the active one, marked red - both colors are a
  * visual diff against the active version, not a value judgement about
  * either version. Untouched fields (present in the active version and at
- * least one other) carry no tint at all.
+ * least one other) carry no tint at all. With only one version to begin
+ * with there's nothing to diff against, so every column stays untinted.
  */
-function build_diffed_columns(versions, language, translate) {
+function build_diffed_columns(versions, language) {
   const active_version_doc = versions.find((entry) => entry.is_active) || versions[0];
   if (!active_version_doc) return { columns: [], field_type_by_id: new Map(), has_diff: false };
 
   const active_fields = collect_data_fields(active_version_doc);
   const active_field_ids = new Set(active_fields.map((field) => field.id));
 
-  // Nothing to diff against with only one version - every column stays untinted.
   if (versions.length <= 1) {
     return {
       columns: [
@@ -118,19 +117,13 @@ function build_rows(submissions, field_type_by_id) {
  * once (no version filter at all) - unlike the per-version data page,
  * columns here are the union of every version's fields, colored to show
  * how the active version differs from the ones before it (see
- * build_diffed_columns). Same fill-height/sticky-header/silent-refresh
- * behavior as the per-version page.
+ * build_diffed_columns). Same fill-height/sticky-header/search/sort/
+ * silent-refresh behavior as the per-version page.
  */
 export default function FormAllDataPage() {
   const { form_group_id } = useParams();
-  const { translate, language } = useDcsLanguage();
-  const [page, setPage] = useState(1);
-  const [period, setPeriod] = useState("all");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [submission_result, setSubmissionResult] = useState(null);
-  const [table_loading, setTableLoading] = useState(true);
-  const applied_params_ref = useRef({ page: 1, period: "all", from: "", to: "" });
+  const { language } = useDcsLanguage();
+  const table = useSubmissionsTable(form_group_id, undefined);
 
   const { data: versions, loading: loading_versions } = useSilentPolling(
     () => get_form_versions(form_group_id).then((res) => res.data || []),
@@ -138,47 +131,10 @@ export default function FormAllDataPage() {
     [form_group_id],
   );
 
-  const fetch_submissions = (params, silent) => {
-    if (params.period === "custom" && !params.from) return;
-    applied_params_ref.current = params;
-    if (!silent) setTableLoading(true);
-    get_submissions(form_group_id, undefined, params.page, PAGE_SIZE, { period: params.period, from: params.from, to: params.to })
-      .then((response) => setSubmissionResult(response))
-      .catch(() => {
-        if (!silent) setSubmissionResult(null);
-      })
-      .finally(() => {
-        if (!silent) setTableLoading(false);
-      });
-  };
-
-  const handle_page_change = (next_page) => {
-    setPage(next_page);
-    fetch_submissions({ page: next_page, period, from, to }, false);
-  };
-
-  const handle_apply = () => fetch_submissions({ page: 1, period, from, to }, false);
-
-  useEffect(() => {
-    setPage(1);
-    if (period !== "custom") fetch_submissions({ page: 1, period, from: "", to: "" }, false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period, form_group_id]);
-
-  useEffect(() => {
-    const interval_id = window.setInterval(() => {
-      fetch_submissions(applied_params_ref.current, true);
-    }, REFRESH_INTERVAL_MS);
-    return () => window.clearInterval(interval_id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form_group_id]);
-
   if (loading_versions || !versions || versions.length === 0) return <DcsLoadingState />;
 
-  const { columns, field_type_by_id, has_diff } = build_diffed_columns(versions, language, translate);
-  const rows = build_rows(submission_result && submission_result.data, field_type_by_id);
-  const total = (submission_result && submission_result.total) || 0;
-  const total_pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const { columns, field_type_by_id, has_diff } = build_diffed_columns(versions, language);
+  const rows = build_rows(table.submissions, field_type_by_id);
 
   const legend_items = has_diff
     ? [
@@ -189,24 +145,23 @@ export default function FormAllDataPage() {
 
   return (
     <div className="h-full flex flex-col pb-4">
-      <div className="flex-shrink-0 mb-3 px-3 sm:px-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <DcsPeriodFilter period={period} onPeriodChange={setPeriod} from={from} onFromChange={setFrom} to={to} onToChange={setTo} onApply={handle_apply} includeAll />
-        <span className="text-sm" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
-          {translate("DCS_STATS_TOTAL_IN_RANGE", { count: total })}
-        </span>
+      <div className="flex-shrink-0 mb-3 pl-14 pr-3 sm:pl-16 sm:pr-4 flex flex-row items-center gap-2 overflow-x-auto">
+        <DcsPeriodFilter period={table.period} onPeriodChange={table.setPeriod} from={table.from} onFromChange={table.setFrom} to={table.to} onToChange={table.setTo} onApply={table.handle_apply} includeAll />
+        <DcsTableSearchSort search={table.search} onSearchChange={table.setSearch} onSearchSubmit={table.handle_apply} sort={table.sort} onSortChange={table.setSort} />
       </div>
 
       <div className="flex-1 min-h-0">
         <DcsDataTable
           columns={columns}
           rows={rows}
-          page={page}
-          totalPages={total_pages}
-          onPageChange={handle_page_change}
-          loading={table_loading}
-          scrollResetKey={page}
+          page={table.page}
+          totalPages={table.total_pages}
+          onPageChange={table.handle_page_change}
+          loading={table.loading}
+          scrollResetKey={table.page}
           columnTints={Object.fromEntries(columns.filter((column) => column.tint).map((column) => [column.key, column.tint]))}
           legendItems={legend_items}
+          totalCount={table.total}
         />
       </div>
     </div>

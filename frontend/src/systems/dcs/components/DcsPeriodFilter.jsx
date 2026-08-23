@@ -2,6 +2,10 @@ import React from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
 
+// Shared with DcsTableSearchSort's search input and sort toggle, so every
+// control across the whole filter bar lines up at exactly the same height.
+export const FILTER_CONTROL_HEIGHT_PX = 40;
+
 const PERIOD_OPTIONS = [
   { value: "all", labelKey: "DCS_STATS_PERIOD_ALL" },
   { value: "today", labelKey: "DCS_STATS_PERIOD_TODAY" },
@@ -23,12 +27,12 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
   const options = includeAll ? PERIOD_OPTIONS : PERIOD_OPTIONS.filter((option) => option.value !== "all");
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+    <div className="flex flex-row items-center gap-2 flex-shrink-0">
       <select
         value={period}
         onChange={(event) => onPeriodChange(event.target.value)}
-        className="cok-auth-input py-2 text-sm w-full sm:w-auto"
-        style={{ fontFamily: "'Montserrat', sans-serif" }}
+        className="cok-auth-input text-sm flex-shrink-0"
+        style={{ fontFamily: "'Montserrat', sans-serif", height: FILTER_CONTROL_HEIGHT_PX, minHeight: FILTER_CONTROL_HEIGHT_PX }}
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -38,9 +42,21 @@ export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromCh
       </select>
       {period === "custom" && (
         <>
-          <input type="date" value={from} onChange={(event) => onFromChange(event.target.value)} className="cok-auth-input py-2 text-sm w-full sm:w-auto" />
-          <input type="date" value={to} onChange={(event) => onToChange(event.target.value)} className="cok-auth-input py-2 text-sm w-full sm:w-auto" />
-          <DcsButtonPrimary onClick={onApply} disabled={!from} style={{ padding: "0.55rem 1.2rem", maxHeight: 44 }}>
+          <input
+            type="date"
+            value={from}
+            onChange={(event) => onFromChange(event.target.value)}
+            className="cok-auth-input text-sm flex-shrink-0"
+            style={{ minWidth: 150, height: FILTER_CONTROL_HEIGHT_PX, minHeight: FILTER_CONTROL_HEIGHT_PX }}
+          />
+          <input
+            type="date"
+            value={to}
+            onChange={(event) => onToChange(event.target.value)}
+            className="cok-auth-input text-sm flex-shrink-0"
+            style={{ minWidth: 150, height: FILTER_CONTROL_HEIGHT_PX, minHeight: FILTER_CONTROL_HEIGHT_PX }}
+          />
+          <DcsButtonPrimary onClick={onApply} disabled={!from} style={{ padding: "0 1.2rem", height: FILTER_CONTROL_HEIGHT_PX, flexShrink: 0 }}>
             {translate("DCS_BTN_APPLY")}
           </DcsButtonPrimary>
         </>

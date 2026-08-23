@@ -14,7 +14,7 @@ const DEFAULT_PAGE_SIZE = 20;
 async function get_submissions(req, res) {
   try {
     const { form_group_id } = req.params;
-    const { version, page = 1, limit = DEFAULT_PAGE_SIZE, period = "all", from, to } = req.query || {};
+    const { version, page = 1, limit = DEFAULT_PAGE_SIZE, period = "all", from, to, search, sort } = req.query || {};
 
     if (!form_group_id) {
       return res.status(400).json(warning_response(req, "FORM_ID_REQUIRED"));
@@ -33,7 +33,7 @@ async function get_submissions(req, res) {
     const page_number = Math.max(1, parseInt(page, 10) || 1);
     const page_size = Math.min(100, Math.max(1, parseInt(limit, 10) || DEFAULT_PAGE_SIZE));
 
-    const result = await submissions_model.list_submissions(form_group_id, version, page_number, page_size, bounds);
+    const result = await submissions_model.list_submissions(form_group_id, version, page_number, page_size, bounds, { search, sort });
 
     return res.status(200).json(
       Object.assign(success_response(req, "SUBMISSIONS_FETCHED", result.items), {

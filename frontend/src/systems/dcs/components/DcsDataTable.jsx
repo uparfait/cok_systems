@@ -81,8 +81,8 @@ function PageArrowButton({ direction, disabled, onClick }) {
       disabled={disabled}
       className="dcs-page-arrow flex-shrink-0 flex items-center justify-center"
       style={{
-        width: 30,
-        height: 30,
+        width: 38,
+        height: 38,
         borderRadius: "50%",
         border: "1px solid #E0E0E0",
         backgroundColor: "#FFFFFF",
@@ -91,7 +91,7 @@ function PageArrowButton({ direction, disabled, onClick }) {
       }}
       aria-label={direction === "prev" ? "Previous page" : "Next page"}
     >
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
         {direction === "prev" ? <polyline points="15 6 9 12 15 18" /> : <polyline points="9 6 15 12 9 18" />}
       </svg>
     </button>
@@ -103,17 +103,18 @@ function PageNumberButton({ number, isActive, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="dcs-page-number flex-shrink-0"
+      className={`dcs-page-number flex-shrink-0 ${isActive ? "is-active" : ""}`}
       style={{
-        minWidth: 30,
-        height: 30,
-        padding: "0 6px",
+        minWidth: 38,
+        height: 38,
+        padding: "0 7px",
         borderRadius: "50%",
         border: isActive ? "1px solid #056daa" : "1px solid transparent",
         backgroundColor: isActive ? "#056daa" : "transparent",
         color: isActive ? "#FFFFFF" : "#333333",
+        transform: isActive ? "scale(1)" : "scale(0.82)",
         fontFamily: "'Montserrat', sans-serif",
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: isActive ? 700 : 500,
         cursor: "pointer",
       }}
@@ -155,7 +156,7 @@ function PageNumberButton({ number, isActive, onClick }) {
  * seen starting from row one instead of wherever the previous page's
  * scroll happened to be.
  */
-export default function DcsDataTable({ columns, rows, page, totalPages, onPageChange, loading, columnTints, legendItems, scrollResetKey }) {
+export default function DcsDataTable({ columns, rows, page, totalPages, onPageChange, loading, columnTints, legendItems, scrollResetKey, totalCount }) {
   const { translate } = useDcsLanguage();
   const has_rows = rows && rows.length > 0;
   const scroll_container_ref = useRef(null);
@@ -292,28 +293,42 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
         </table>
       </div>
 
-      {legendItems && legendItems.length > 0 && (
-        <div className="flex flex-wrap items-center gap-4 mt-2 flex-shrink-0">
-          {legendItems.map((item) => (
-            <span key={item.labelKey} className="flex items-center gap-1.5 text-xs" style={{ color: "#555555", fontFamily: "'Montserrat', sans-serif" }}>
-              <span style={{ width: 9, height: 9, borderRadius: "50%", backgroundColor: item.color, flexShrink: 0 }} />
-              {translate(item.labelKey)}
-            </span>
-          ))}
+      {/* Legend, pagination and the total count all share this single
+          compact band instead of each getting their own - a 3-column grid
+          keeps pagination centered and the total pinned right regardless
+          of whether a legend is even present (an empty first column, when
+          there's no diff to explain, doesn't shift the other two). Sized
+          in rem rather than a fixed px height so it scales down smoothly
+          on a small screen instead of clipping its own content. */}
+      <div className="grid grid-cols-3 items-center flex-shrink-0 overflow-x-auto" style={{ height: "3.5rem", minHeight: 52 }}>
+        <div className="flex flex-wrap items-center gap-2">
+          {legendItems &&
+            legendItems.map((item) => (
+              <span key={item.labelKey} className="flex items-center gap-1" style={{ color: "#555555", fontFamily: "'Montserrat', sans-serif", fontSize: 11 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: item.color, flexShrink: 0 }} />
+                {translate(item.labelKey)}
+              </span>
+            ))}
         </div>
-      )}
 
-      <div className="flex items-center justify-center gap-1.5 flex-wrap mt-3 flex-shrink-0">
-        <PageArrowButton direction="prev" disabled={page <= 1} onClick={() => onPageChange(page - 1)} />
-        {page_numbers.map((number) => (
-          <PageNumberButton key={number} number={number} isActive={number === page} onClick={() => onPageChange(number)} />
-        ))}
-        {page_window.end < totalPages && (
-          <span className="px-1" style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif", fontSize: 13 }}>
-            …
+        <div className="flex items-center justify-center gap-1.5 flex-shrink-0">
+          <PageArrowButton direction="prev" disabled={page <= 1} onClick={() => onPageChange(page - 1)} />
+          {page_numbers.map((number) => (
+            <PageNumberButton key={number} number={number} isActive={number === page} onClick={() => onPageChange(number)} />
+          ))}
+          {page_window.end < totalPages && (
+            <span className="px-1" style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif", fontSize: 13 }}>
+              …
+            </span>
+          )}
+          <PageArrowButton direction="next" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} />
+        </div>
+
+        <div className="flex items-center justify-end">
+          <span className="text-sm font-semibold" style={{ color: "#056daa", fontFamily: "'Montserrat', sans-serif" }}>
+            {totalCount}
           </span>
-        )}
-        <PageArrowButton direction="next" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} />
+        </div>
       </div>
     </div>
   );

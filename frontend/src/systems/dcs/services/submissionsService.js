@@ -2,21 +2,25 @@ import { dcs_request } from "./dcsApiClient.js";
 
 /**
  * Paginated, authenticated list of collected submissions for a form,
- * optionally scoped to a single version and/or a date range. Leaving
- * version out returns submissions across every version of the form.
+ * optionally scoped to a single version, a date range, a free-text search
+ * (matched against every string/number field value within that range) and
+ * a sort direction (newest/oldest). Leaving version out returns
+ * submissions across every version of the form.
  */
-export function get_submissions(form_group_id, version, page, limit, date_range) {
+export function get_submissions(form_group_id, version, page, limit, options) {
   const params = new URLSearchParams();
   if (version !== undefined && version !== null) params.append("version", version);
   params.append("page", page || 1);
   params.append("limit", limit || 20);
-  if (date_range && date_range.period) {
-    params.append("period", date_range.period);
-    if (date_range.period === "custom") {
-      if (date_range.from) params.append("from", date_range.from);
-      if (date_range.to) params.append("to", date_range.to);
+  if (options && options.period) {
+    params.append("period", options.period);
+    if (options.period === "custom") {
+      if (options.from) params.append("from", options.from);
+      if (options.to) params.append("to", options.to);
     }
   }
+  if (options && options.search) params.append("search", options.search);
+  if (options && options.sort) params.append("sort", options.sort);
   return dcs_request(`/submissions/${form_group_id}?${params.toString()}`, "GET");
 }
 
