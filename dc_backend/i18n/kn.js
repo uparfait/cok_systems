@@ -35,6 +35,8 @@ module.exports = {
   FORM_VERSION_ACTIVE_CANNOT_DELETE: "Verisiyo ikoreshwa ntishobora gusibwa - banza ukoreshe indi verisiyo",
   FORM_VERSION_DELETED: "Verisiyo y'ifishi yasibwe neza",
   FORM_FETCHED: "Ifishi yabonetse neza",
+  FORMS_SEARCHED: "Gushakisha amafishi byagenze neza",
+  FORM_STATS_FETCHED: "Imibare y'ifishi yabonetse neza",
   FORM_PUBLIC_NOT_FOUND: "Iyi link y'ifishi ntibaho",
   FORM_PUBLIC_NO_ACTIVE_VERSION: "Iyi fishi nta verisiyo ikoreshwa ifite",
   SUBMISSION_CREATED: "Igisubizo cyawe cyoherejwe neza",

@@ -26,10 +26,14 @@ async function get_project_by_id(req, res) {
 
     // Tells the frontend whether to show the access-control tab to this viewer.
     const viewer_can_manage_access = await project_access.can_manage_access(req.user, project);
+    // forms_count/total_submissions are only ever read by the detail page's
+    // own stat cards, so they're joined in here rather than in the plain
+    // find_project_by_id() above, which every access/ownership check reuses.
+    const project_with_stats = await projects_model.find_project_with_stats(project_id);
 
     return res
       .status(200)
-      .json(success_response(req, "PROJECT_FETCHED", Object.assign({}, project, { viewer_can_manage_access })));
+      .json(success_response(req, "PROJECT_FETCHED", Object.assign({}, project_with_stats, { viewer_can_manage_access })));
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }

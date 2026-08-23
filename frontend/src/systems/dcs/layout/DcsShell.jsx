@@ -4,6 +4,8 @@ import { useAuth } from "../../../core/contexts/AuthContext";
 import Sidebar from "../../../core/components/Layout/Sidebar";
 import { getNavigationByPermissions, toSidebarLinks } from "../../../core/components/Layout/layoutUtils";
 import { DcsLanguageProvider } from "../i18n/LanguageContext.jsx";
+import { useSilentPolling } from "../hooks/useSilentPolling.js";
+import { list_projects } from "../services/projectsService.js";
 import DcsHeader from "./DcsHeader.jsx";
 import DcsSidebarShell from "./DcsSidebarShell.jsx";
 import DcsErrorBoundary from "../components/DcsErrorBoundary.jsx";
@@ -59,6 +61,15 @@ export default function DcsShell() {
 
   const main_sidebar_links = useMemo(() => toSidebarLinks(getNavigationByPermissions(user)), [user]);
   const user_department = user?.departmentName || user?.department_name || "";
+
+  // Polled once here rather than separately in the header and the projects
+  // sidebar - both need the same project list (the header only for its
+  // total projects/forms counts), and a single poller keeps them in sync
+  // with each other instead of drifting between two independent 5s cycles.
+  const { data: projects, loading: projects_loading } = useSilentPolling(
+    () => list_projects().then((res) => res.data || []),
+    10000,
+  );
 
   const handle_main_sidebar_navigate = (path) => {
     navigate(path);
@@ -158,8 +169,9 @@ export default function DcsShell() {
           <DcsHeader
             subHeaderVisible={is_sub_header_visible}
             onMainMenuToggle={() => setIsMainSidebarOpen((previous) => !previous)}
+            projects={projects}
           />
-          <DcsSidebarShell onMainScroll={handle_main_scroll}>
+          <DcsSidebarShell onMainScroll={handle_main_scroll} projects={projects} projectsLoading={projects_loading}>
             <Outlet />
           </DcsSidebarShell>
         </div>

@@ -54,6 +54,27 @@ export function delete_form_version(form_group_id, version, delete_data) {
 }
 
 /**
+ * Submissions time-series for a form, bucketed server-side into a
+ * granularity (hour/day/week/month/year) chosen from the selected period.
+ * params: { period: "today"|"this_month"|"this_year"|"custom", from, to }.
+ */
+export function get_form_submission_stats(form_group_id, params) {
+  const search_params = new URLSearchParams(
+    Object.fromEntries(Object.entries(params || {}).filter(([, value]) => value !== undefined && value !== null && value !== "")),
+  );
+  return dcs_request(`/forms/${form_group_id}/stats?${search_params.toString()}`, "GET");
+}
+
+/**
+ * Searches form names across every project the user has any access to -
+ * backs the sidebar's combined project/form search box. Access-filtered
+ * entirely on the backend, the same way a single project's form list is.
+ */
+export function search_forms(query) {
+  return dcs_request(`/forms/search?q=${encodeURIComponent(query)}`, "GET");
+}
+
+/**
  * Public, no-auth fetch of a form's active version, used by /dcs-form/:id.
  */
 export function get_public_form(form_group_id) {

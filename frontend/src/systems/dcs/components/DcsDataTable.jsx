@@ -1,12 +1,18 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import DcsButtonOutline from "./DcsButtonOutline.jsx";
 
 const MAX_COLUMN_WIDTH_PX = 400;
 const MIN_COLUMN_WIDTH_PX = 96;
 const CELL_HORIZONTAL_PADDING_PX = 28;
 const HEADER_FONT = "700 12px 'Montserrat', sans-serif";
 const DATA_FONT = "400 14px 'Montserrat', sans-serif";
+const SKELETON_ROW_COUNT = 8;
+const PAGE_WINDOW_SIZE = 10;
+
+const TINT_CELL_COLORS = {
+  green: "rgba(76,175,80,0.10)",
+  red: "rgba(231,76,60,0.10)",
+};
 
 let measure_context = null;
 
@@ -36,14 +42,6 @@ function measure_text_width(text, font) {
  * floored at MIN_COLUMN_WIDTH_PX. Non-text cell content (e.g. the file
  * "click to view" trigger) can't be measured this way and simply falls
  * back to the header driving that column's width instead.
- *
- * The header is measured as its actual rendered glyphs, not its raw
- * string - it's displayed uppercase with 0.5px of letter-spacing
- * (see the <th> style below), neither of which canvas.measureText can see
- * on its own. Measuring the original mixed-case text with no spacing
- * compensation under-measured the true rendered width, leaving so little
- * slack after padding that a second word tipped onto its own line the
- * moment the real (wider) glyphs rendered.
  */
 function compute_column_width(header_text, rows, column_key) {
   const uppercase_header = String(header_text ?? "").toUpperCase();
@@ -59,28 +57,112 @@ function compute_column_width(header_text, rows, column_key) {
 }
 
 /**
- * Generic paginated table used for collected submissions. Columns and rows
- * are supplied by the caller - this component never hardcodes any field
- * knowledge of its own. The header always renders, even with zero rows -
- * an author needs to see what columns a form actually produced just as
- * much when it has no submissions yet as when it has thousands.
+ * A contiguous run of up to `window_size` page numbers centered on the
+ * current page - "1 2 3 4 5 6 7 8 9 10 …" rather than every page ever, so
+ * the footer stays a fixed, glanceable width no matter how many pages
+ * exist.
+ */
+function build_page_window(current_page, total_pages, window_size) {
+  if (total_pages <= window_size) return { start: 1, end: total_pages };
+  let start = Math.max(1, current_page - Math.floor(window_size / 2));
+  let end = start + window_size - 1;
+  if (end > total_pages) {
+    end = total_pages;
+    start = Math.max(1, end - window_size + 1);
+  }
+  return { start, end };
+}
+
+function PageArrowButton({ direction, disabled, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="dcs-page-arrow flex-shrink-0 flex items-center justify-center"
+      style={{
+        width: 30,
+        height: 30,
+        borderRadius: "50%",
+        border: "1px solid #E0E0E0",
+        backgroundColor: "#FFFFFF",
+        opacity: disabled ? 0.35 : 1,
+        cursor: disabled ? "default" : "pointer",
+      }}
+      aria-label={direction === "prev" ? "Previous page" : "Next page"}
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#056daa" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+        {direction === "prev" ? <polyline points="15 6 9 12 15 18" /> : <polyline points="9 6 15 12 9 18" />}
+      </svg>
+    </button>
+  );
+}
+
+function PageNumberButton({ number, isActive, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="dcs-page-number flex-shrink-0"
+      style={{
+        minWidth: 30,
+        height: 30,
+        padding: "0 6px",
+        borderRadius: "50%",
+        border: isActive ? "1px solid #056daa" : "1px solid transparent",
+        backgroundColor: isActive ? "#056daa" : "transparent",
+        color: isActive ? "#FFFFFF" : "#333333",
+        fontFamily: "'Montserrat', sans-serif",
+        fontSize: 13,
+        fontWeight: isActive ? 700 : 500,
+        cursor: "pointer",
+      }}
+    >
+      {number}
+    </button>
+  );
+}
+
+/**
+ * Generic table used for collected submissions, always filling its parent's
+ * height exactly (the parent must give it a bounded height) rather than
+ * growing the page - a sticky header keeps column names visible while only
+ * the body scrolls, and the previous/next footer sits below that scrolling
+ * region entirely, so it can never scroll out of view itself. Columns and
+ * rows are supplied by the caller - this component never hardcodes any
+ * field knowledge of its own. The header always renders, even with zero
+ * rows - an author needs to see what columns a form actually produced just
+ * as much when it has no submissions yet as when it has thousands.
  *
  * Column widths are computed explicitly (see compute_column_width) and
  * applied via <colgroup> with table-layout:fixed, rather than left to the
- * browser's automatic table layout - that algorithm decides each column's
- * width from cells' intrinsic sizing, which text-wrapping rules are
- * allowed to shrink arbitrarily (down to a single character), making
- * columns collapse unpredictably depending on which rows happen to be
- * present. With an explicit, measured width driving a fixed layout, a
- * column's width is always exactly min(400px, max(header, content)) - not
- * a guess - and content simply wraps within that width once it doesn't
- * fit on one line; the table itself still grows past its container when
- * the sum of column widths calls for it, scrolling horizontally instead of
- * squeezing everything down to fit.
+ * browser's automatic table layout. The scroll container centers the table
+ * horizontally (flex + justify-content:center) whenever the sum of column
+ * widths is narrower than the container, instead of leaving it pinned to
+ * one edge with the leftover space on the other side; flexShrink:0 on the
+ * table itself means that centering can never shrink a column back down -
+ * once the table's natural width exceeds the container, it overflows and
+ * scrolls exactly as before.
+ *
+ * columnTints marks a whole column green/red (the version-diff feature: a
+ * field added in the active version, or removed from it) - every body cell
+ * in that column picks up a light tint, and legendItems renders the color
+ * key below the table.
+ *
+ * scrollResetKey resets the body's own scroll position to the top whenever
+ * it changes - the caller passes something that changes exactly when fresh
+ * data has landed (e.g. a page number), so a page/filter change is always
+ * seen starting from row one instead of wherever the previous page's
+ * scroll happened to be.
  */
-export default function DcsDataTable({ columns, rows, page, totalPages, onPageChange, loading }) {
+export default function DcsDataTable({ columns, rows, page, totalPages, onPageChange, loading, columnTints, legendItems, scrollResetKey }) {
   const { translate } = useDcsLanguage();
   const has_rows = rows && rows.length > 0;
+  const scroll_container_ref = useRef(null);
+
+  useEffect(() => {
+    if (scroll_container_ref.current) scroll_container_ref.current.scrollTop = 0;
+  }, [scrollResetKey]);
 
   const column_widths = useMemo(() => {
     const widths = {};
@@ -106,10 +188,30 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
     overflowWrap: "break-word",
   });
 
+  const get_cell_background = (column_key, row_index) => {
+    const tint = columnTints && columnTints[column_key];
+    if (tint && TINT_CELL_COLORS[tint]) return TINT_CELL_COLORS[tint];
+    return row_index % 2 === 1 ? "#F7F9FB" : "#FFFFFF";
+  };
+
+  const page_window = build_page_window(page, totalPages, PAGE_WINDOW_SIZE);
+  const page_numbers = [];
+  for (let number = page_window.start; number <= page_window.end; number += 1) page_numbers.push(number);
+
+  // width:100% lets table-layout:fixed scale every column up proportionally
+  // to actually fill the container when there are only a few of them - a
+  // bare content-sized table would otherwise sit flush at its natural
+  // width, leaving the rest of the container empty. minWidth is a floor,
+  // not a cap: once the real sum of column widths exceeds the container,
+  // 100% no longer reaches it, the floor takes over instead, and the table
+  // overflows into a horizontal scroll exactly as before - no column ever
+  // shrinks below what compute_column_width decided it needs.
+  const total_columns_width = columns.reduce((sum, column) => sum + (column_widths[column.key] || 0), 0);
+
   return (
-    <div className="w-full">
-      <div className="bg-white border-2 table-responsive-container" style={{ borderColor: "#E0E0E0" }}>
-        <table className="text-sm" style={{ borderCollapse: "collapse", tableLayout: "fixed" }}>
+    <div className="w-full h-full flex flex-col">
+      <div ref={scroll_container_ref} className="flex-1 min-h-0 bg-white border-2 overflow-auto" style={{ borderColor: "#E0E0E0" }}>
+        <table className="text-sm" style={{ borderCollapse: "collapse", tableLayout: "fixed", width: "100%", minWidth: `${total_columns_width}px` }}>
           <colgroup>
             {columns.map((column) => (
               <col key={column.key} style={{ width: `${column_widths[column.key]}px` }} />
@@ -122,6 +224,9 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
                   key={column.key}
                   className="text-left px-3 py-3"
                   style={{
+                    position: "sticky",
+                    top: 0,
+                    zIndex: 2,
                     fontFamily: "'Montserrat', sans-serif",
                     fontSize: 12,
                     fontWeight: 700,
@@ -139,15 +244,34 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
             </tr>
           </thead>
           <tbody>
-            {has_rows &&
+            {loading &&
+              Array.from({ length: SKELETON_ROW_COUNT }).map((_, row_index) => (
+                <tr key={`skeleton-${row_index}`} aria-hidden="true">
+                  {columns.map((column, column_index) => (
+                    <td
+                      key={column.key}
+                      className="px-3 py-2.5"
+                      style={{
+                        borderBottom: "1px solid #E0E0E0",
+                        borderRight: column_index < columns.length - 1 ? "1px solid #E0E0E0" : "none",
+                      }}
+                    >
+                      <div className="animate-pulse h-3.5" style={{ width: "70%", backgroundColor: "rgba(5,109,170,0.1)" }} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            {!loading &&
+              has_rows &&
               rows.map((row, row_index) => (
-                <tr key={row.dcs_row_key} style={{ backgroundColor: row_index % 2 === 1 ? "#F7F9FB" : "#FFFFFF" }}>
+                <tr key={row.dcs_row_key}>
                   {columns.map((column, column_index) => (
                     <td
                       key={column.key}
                       className="px-3 py-2.5 align-top"
                       style={{
                         color: "#333333",
+                        backgroundColor: get_cell_background(column.key, row_index),
                         borderBottom: "1px solid #E0E0E0",
                         borderRight: column_index < columns.length - 1 ? "1px solid #E0E0E0" : "none",
                       }}
@@ -157,7 +281,7 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
                   ))}
                 </tr>
               ))}
-            {!has_rows && !loading && (
+            {!loading && !has_rows && (
               <tr>
                 <td colSpan={columns.length} className="px-3 py-10 text-center" style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif" }}>
                   {translate("DCS_TABLE_NO_DATA")}
@@ -168,16 +292,28 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
         </table>
       </div>
 
-      <div className="flex items-center justify-between mt-4">
-        <DcsButtonOutline disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
-          {translate("DCS_TABLE_PREVIOUS")}
-        </DcsButtonOutline>
-        <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 13, color: "#333333" }}>
-          {translate("DCS_TABLE_PAGE_INFO", { page })}
-        </span>
-        <DcsButtonOutline disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
-          {translate("DCS_TABLE_NEXT")}
-        </DcsButtonOutline>
+      {legendItems && legendItems.length > 0 && (
+        <div className="flex flex-wrap items-center gap-4 mt-2 flex-shrink-0">
+          {legendItems.map((item) => (
+            <span key={item.labelKey} className="flex items-center gap-1.5 text-xs" style={{ color: "#555555", fontFamily: "'Montserrat', sans-serif" }}>
+              <span style={{ width: 9, height: 9, borderRadius: "50%", backgroundColor: item.color, flexShrink: 0 }} />
+              {translate(item.labelKey)}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center justify-center gap-1.5 flex-wrap mt-3 flex-shrink-0">
+        <PageArrowButton direction="prev" disabled={page <= 1} onClick={() => onPageChange(page - 1)} />
+        {page_numbers.map((number) => (
+          <PageNumberButton key={number} number={number} isActive={number === page} onClick={() => onPageChange(number)} />
+        ))}
+        {page_window.end < totalPages && (
+          <span className="px-1" style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif", fontSize: 13 }}>
+            …
+          </span>
+        )}
+        <PageArrowButton direction="next" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} />
       </div>
     </div>
   );

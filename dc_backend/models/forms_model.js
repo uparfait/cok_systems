@@ -5,6 +5,15 @@ const { to_object_id } = require("../utilities/object_id.js");
 const COLLECTION_NAME = "dcs_forms";
 
 /**
+ * Escapes a string so it can be used as a literal inside a regex, letting a
+ * search query match case-insensitively without being read as its own
+ * regex syntax.
+ */
+function escape_regex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
  * Creates version 1 of a brand new form under a project. form_group_id is
  * the stable identifier that never changes across versions, and is what
  * URLs like /dcs-form/:id and /dcs-system/project/forms/:form-id use.
@@ -108,6 +117,21 @@ async function is_form_name_taken(project_id, form_name, exclude_form_group_id) 
 }
 
 /**
+ * Returns version 1's own created_at - the form's true origin date. The
+ * currently active version's own created_at reflects whenever THAT version
+ * was published, which can be long after the form itself first existed.
+ */
+async function get_form_origin_created_at(form_group_id) {
+  const versions = await get_db()
+    .collection(COLLECTION_NAME)
+    .find({ form_group_id })
+    .sort({ version: 1 })
+    .limit(1)
+    .toArray();
+  return versions[0] ? versions[0].created_at : null;
+}
+
+/**
  * Returns whichever version is currently flagged as active for a form
  * group - this is the version that public data collection links resolve to.
  */
@@ -149,6 +173,26 @@ async function get_latest_forms_by_project(project_id) {
     ])
     .toArray();
   return latest_forms;
+}
+
+/**
+ * Every form group's latest version whose name matches a query, across
+ * every project at once - backs the sidebar's combined search box, which
+ * has no per-project scope to search within. Access filtering is entirely
+ * the caller's job, the same as get_latest_forms_by_project leaves it to
+ * its own caller.
+ */
+async function search_latest_forms_by_name(query) {
+  const regex = new RegExp(escape_regex(query), "i");
+  return get_db()
+    .collection(COLLECTION_NAME)
+    .aggregate([
+      { $sort: { version: -1 } },
+      { $group: { _id: "$form_group_id", latest: { $first: "$$ROOT" } } },
+      { $replaceRoot: { newRoot: "$latest" } },
+      { $match: { form_name: regex } },
+    ])
+    .toArray();
 }
 
 /**
@@ -204,9 +248,11 @@ module.exports = {
   get_versions_by_group,
   get_latest_version,
   get_active_version,
+  get_form_origin_created_at,
   get_version_document,
   get_form_by_document_id,
   get_latest_forms_by_project,
+  search_latest_forms_by_name,
   get_form_group_ids_by_project,
   delete_forms_by_project,
   delete_version,

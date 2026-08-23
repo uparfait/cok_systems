@@ -11,16 +11,21 @@ const { faker } = require("@faker-js/faker");
  * a0cc1789-682b-48f2-bfd6-fb614563f11f - see its schema fields:
  * date_recorded, date_birth, text_farmer_name, text_calf_breed,
  * text_mother_id). Every run first deletes every existing submission for
- * this form, then regenerates one submission per hour from 9:00 to 17:00
- * (9am-5pm) for every calendar day between FROM_DATE and TO_DATE below.
+ * this form, then regenerates data for every hour from 9:00 to 17:00
+ * (9am-5pm) for every calendar day between FROM_DATE and TO_DATE below -
+ * each hour gets its own random count of records between
+ * MIN_RECORDS_PER_HOUR and MAX_RECORDS_PER_HOUR, so the total is only
+ * known once the run finishes (logged at the end), never predictable in
+ * advance the way a fixed one-per-hour count would be.
  *
  * Usage: node scripts/insert_data_in_calves_recorded_in_records_form.js
  *
- * Change FROM_DATE/TO_DATE to control the range - the defaults span 26
- * years and generate ~9 records per day (one per business hour), so left
- * as-is this produces tens of thousands of documents.
+ * Change FROM_DATE/TO_DATE to control the range, and
+ * MIN_RECORDS_PER_HOUR/MAX_RECORDS_PER_HOUR to control how much data each
+ * hour gets - the defaults span 26 years, so left as-is this can produce a
+ * very large number of documents.
  */
-let FROM_DATE = "2000-12-30";
+let FROM_DATE = "2025-12-30";
 let TO_DATE = "2026-12-23";
 
 const PROJECT_ID = "6a8a8e553712274a2d5b0f3b";
@@ -29,8 +34,20 @@ const FORM_GROUP_ID = "a0cc1789-682b-48f2-bfd6-fb614563f11f";
 const START_HOUR = 9;
 const END_HOUR = 17;
 
+const MIN_RECORDS_PER_HOUR = 0;
+const MAX_RECORDS_PER_HOUR = 50;
+
 function format_date_only(date) {
   return date.toISOString().slice(0, 10);
+}
+
+// Every record generated for the same hour would otherwise share the exact
+// same HH:00:00 timestamp - scattering minutes/seconds within the hour
+// keeps them distinct and reads as real, independently-submitted entries.
+function random_time_within_hour(base_hour_datetime) {
+  const result = new Date(base_hour_datetime);
+  result.setUTCMinutes(faker.number.int({ min: 0, max: 59 }), faker.number.int({ min: 0, max: 59 }));
+  return result;
 }
 
 function random_mother_id() {
@@ -98,15 +115,20 @@ async function run() {
   const current_day = new Date(from_date);
   while (current_day <= to_date) {
     for (let hour = START_HOUR; hour <= END_HOUR; hour += 1) {
-      const record_datetime = new Date(
+      const hour_start = new Date(
         Date.UTC(current_day.getUTCFullYear(), current_day.getUTCMonth(), current_day.getUTCDate(), hour, 0, 0),
       );
-      pending_documents.push(build_submission_document(record_datetime, active_version.version));
+      const records_this_hour = faker.number.int({ min: MIN_RECORDS_PER_HOUR, max: MAX_RECORDS_PER_HOUR });
 
-      if (pending_documents.length >= BATCH_SIZE) {
-        await submissions_collection.insertMany(pending_documents);
-        total_created += pending_documents.length;
-        pending_documents = [];
+      for (let record_index = 0; record_index < records_this_hour; record_index += 1) {
+        const record_datetime = random_time_within_hour(hour_start);
+        pending_documents.push(build_submission_document(record_datetime, active_version.version));
+
+        if (pending_documents.length >= BATCH_SIZE) {
+          await submissions_collection.insertMany(pending_documents);
+          total_created += pending_documents.length;
+          pending_documents = [];
+        }
       }
     }
     current_day.setUTCDate(current_day.getUTCDate() + 1);

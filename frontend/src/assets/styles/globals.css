@@ -1259,6 +1259,124 @@ background-color: #056daa;
   animation: dcs-fade-in 0.25s ease-out;
 }
 
+/* Project detail page's flying settings toggle - fixed to the viewport so
+   it stays reachable regardless of scroll position, sitting above both the
+   projects sidebar and its own slide-in panel so it's always clickable to
+   close, even once the panel is open beneath it. Two icon layers are
+   stacked via absolute positioning and cross-faded/rotated between them
+   instead of swapping DOM nodes, so the morph itself animates. */
+.dcs-project-fab {
+  position: fixed;
+  top: 116px;
+  right: 20px;
+  z-index: 50;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border-color: #E0E0E0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.dcs-project-fab:hover {
+  transform: scale(1.08);
+  border-color: #056daa;
+  box-shadow: 0 4px 14px rgba(5, 109, 170, 0.25);
+}
+
+.dcs-project-fab:active {
+  transform: scale(0.94);
+}
+
+.dcs-project-fab-icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+
+/* Project detail page swaps its whole content in place (never an overlay
+   floating on top of it) between the overview and the Settings/Forms/
+   Access-control/Dashboard tabs - each side just mounts/unmounts via a
+   plain conditional, so this one-shot entrance animation is all that's
+   needed; opening slides in from the right, returning to the overview
+   slides in from the left, mirroring each other. */
+@keyframes dcs-project-slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes dcs-project-slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.dcs-project-slide-in-right {
+  animation: dcs-project-slide-in-right 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dcs-project-slide-in-left {
+  animation: dcs-project-slide-in-left 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Sidebar search box's clear ("x") button. */
+.dcs-sidebar-search-clear {
+  border-radius: 50%;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.dcs-sidebar-search-clear:hover {
+  background-color: rgba(5, 109, 170, 0.1);
+}
+
+.dcs-sidebar-search-clear:hover svg {
+  stroke: #056daa;
+}
+
+/* Data table pagination controls. */
+.dcs-page-arrow {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.dcs-page-arrow:hover:not(:disabled) {
+  transform: scale(1.12);
+  border-color: #056daa;
+  box-shadow: 0 3px 10px rgba(5, 109, 170, 0.22);
+}
+
+.dcs-page-arrow:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.dcs-page-number {
+  transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.dcs-page-number:hover {
+  background-color: rgba(5, 109, 170, 0.12);
+  transform: scale(1.1);
+}
+
+.dcs-page-number:active {
+  transform: scale(0.94);
+}
+
 .dcs-sub-header-home-link {
   text-decoration: none;
   transition: color 0.2s ease;
@@ -1514,7 +1632,11 @@ background-color: #056daa;
   .dcs-home-scroll-chevrons svg,
   .dcs-logo-mark-write,
   .dcs-home-stat-spark,
-  .dcs-hero-cursor-bubble {
+  .dcs-hero-cursor-bubble,
+  .dcs-project-fab,
+  .dcs-project-fab-icon,
+  .dcs-project-slide-in-right,
+  .dcs-project-slide-in-left {
     animation: none !important;
     transition: none !important;
   }
