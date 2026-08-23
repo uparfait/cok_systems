@@ -78,7 +78,7 @@ export default function DcsFormSubmissionsChart({ formGroupId }) {
         {translate("DCS_FORM_SUBMISSIONS_CHART_TITLE")}
       </p>
 
-      <div className="mb-4 overflow-x-auto">
+      <div className="mb-4">
         <DcsPeriodFilter
           period={period}
           onPeriodChange={setPeriod}
@@ -87,6 +87,7 @@ export default function DcsFormSubmissionsChart({ formGroupId }) {
           to={to}
           onToChange={setTo}
           onApply={handle_apply}
+          allowWrap
         />
       </div>
 

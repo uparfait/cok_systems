@@ -21,13 +21,21 @@ const PERIOD_OPTIONS = [
  * only fetches once Apply is clicked, so a partially-typed range is never
  * silently applied). includeAll shows the "All" preset - the tables' own
  * default - which the stats chart never offers itself.
+ *
+ * allowWrap: the submissions tables sit in a filter bar that also has a
+ * search box and sort toggle crammed into the same row, so THAT row must
+ * stay single-line and scroll horizontally instead of wrapping (see
+ * FormDataPage/FormAllDataPage) - this filter alone, though, is free to
+ * wrap onto a second line there's nothing else it needs to share space
+ * with. The chart uses this to stay responsive without ever needing a
+ * horizontal scrollbar of its own.
  */
-export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromChange, to, onToChange, onApply, includeAll }) {
+export default function DcsPeriodFilter({ period, onPeriodChange, from, onFromChange, to, onToChange, onApply, includeAll, allowWrap }) {
   const { translate } = useDcsLanguage();
   const options = includeAll ? PERIOD_OPTIONS : PERIOD_OPTIONS.filter((option) => option.value !== "all");
 
   return (
-    <div className="flex flex-row items-center gap-2 flex-shrink-0">
+    <div className={`flex items-center gap-2 ${allowWrap ? "flex-wrap" : "flex-row flex-shrink-0"}`}>
       <select
         value={period}
         onChange={(event) => onPeriodChange(event.target.value)}
