@@ -473,8 +473,11 @@ const en = {
   DCS_TABLE_VERSION: "Version",
   DCS_TABLE_VIEW_FILE: "Click to view",
   DCS_DATA_COLLECTED_CARD_TITLE: "Data collected",
-  DCS_DATA_LEGEND_ADDED: "Column marked with this color is added in the active version",
-  DCS_DATA_LEGEND_REMOVED: "Column marked with this color is removed from the active version",
+  DCS_DATA_LEGEND_ADDED: "Field added",
+  DCS_DATA_LEGEND_REMOVED: "Field removed",
+  DCS_TABLE_SEARCH_PLACEHOLDER: "Search",
+  DCS_TABLE_SORT_NEWEST: "Newest",
+  DCS_TABLE_SORT_OLDEST: "Oldest",
 
   DCS_BTN_PRINT: "Print",
   DCS_BTN_SAVE_DRAFT: "Save as draft",

@@ -1364,17 +1364,39 @@ background-color: #056daa;
   transform: scale(0.94);
 }
 
+/* The active page's highlight animates in/out with a slight springy
+   overshoot (cubic-bezier with a >1 midpoint) rather than snapping - the
+   page that's losing "active" shrinks back down as the newly active one
+   grows and its color fades in, instead of the highlight just teleporting
+   from one number to the other. */
 .dcs-page-number {
-  transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.25s ease, border-color 0.25s ease, color 0.2s ease;
 }
 
-.dcs-page-number:hover {
+.dcs-page-number:hover:not(.is-active) {
   background-color: rgba(5, 109, 170, 0.12);
-  transform: scale(1.1);
+  transform: scale(1.05);
+}
+
+.dcs-page-number.is-active:hover {
+  transform: scale(1.08);
 }
 
 .dcs-page-number:active {
-  transform: scale(0.94);
+  transform: scale(0.9);
+}
+
+.dcs-sort-toggle {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dcs-sort-toggle:hover {
+  border-color: #056daa;
+  box-shadow: 0 2px 8px rgba(5, 109, 170, 0.2);
+}
+
+.dcs-sort-icon {
+  transition: transform 0.25s ease;
 }
 
 .dcs-sub-header-home-link {
@@ -1636,7 +1658,11 @@ background-color: #056daa;
   .dcs-project-fab,
   .dcs-project-fab-icon,
   .dcs-project-slide-in-right,
-  .dcs-project-slide-in-left {
+  .dcs-project-slide-in-left,
+  .dcs-page-arrow,
+  .dcs-page-number,
+  .dcs-sort-toggle,
+  .dcs-sort-icon {
     animation: none !important;
     transition: none !important;
   }

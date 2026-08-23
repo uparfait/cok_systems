@@ -473,8 +473,11 @@ const kn = {
   DCS_TABLE_VERSION: "Verisiyo",
   DCS_TABLE_VIEW_FILE: "Kanda urebe",
   DCS_DATA_COLLECTED_CARD_TITLE: "Amakuru yakusanyijwe",
-  DCS_DATA_LEGEND_ADDED: "Inkingi ifite iri bara yongewemo muri verisiyo ikora",
-  DCS_DATA_LEGEND_REMOVED: "Inkingi ifite iri bara yavanyweho muri verisiyo ikora",
+  DCS_DATA_LEGEND_ADDED: "Umwanya wongeweho",
+  DCS_DATA_LEGEND_REMOVED: "Umwanya wakuweho",
+  DCS_TABLE_SEARCH_PLACEHOLDER: "Shakisha",
+  DCS_TABLE_SORT_NEWEST: "Bishya",
+  DCS_TABLE_SORT_OLDEST: "Bishaje",
 
   DCS_BTN_PRINT: "Gucapa",
   DCS_BTN_SAVE_DRAFT: "Bika nk'umushinga",

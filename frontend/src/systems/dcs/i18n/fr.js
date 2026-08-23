@@ -473,8 +473,11 @@ const fr = {
   DCS_TABLE_VERSION: "Version",
   DCS_TABLE_VIEW_FILE: "Cliquez pour voir",
   DCS_DATA_COLLECTED_CARD_TITLE: "Données collectées",
-  DCS_DATA_LEGEND_ADDED: "La colonne marquée de cette couleur est ajoutée dans la version active",
-  DCS_DATA_LEGEND_REMOVED: "La colonne marquée de cette couleur est supprimée de la version active",
+  DCS_DATA_LEGEND_ADDED: "Champ ajouté",
+  DCS_DATA_LEGEND_REMOVED: "Champ supprimé",
+  DCS_TABLE_SEARCH_PLACEHOLDER: "Rechercher",
+  DCS_TABLE_SORT_NEWEST: "Plus récent",
+  DCS_TABLE_SORT_OLDEST: "Plus ancien",
 
   DCS_BTN_PRINT: "Imprimer",
   DCS_BTN_SAVE_DRAFT: "Enregistrer comme brouillon",
