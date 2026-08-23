@@ -9,6 +9,8 @@ const set_active_version = require("../../controllers/forms/set_active_version.j
 const delete_form_version = require("../../controllers/forms/delete_form_version.js");
 const upload_design_file = require("../../controllers/forms/upload_design_file.js");
 const delete_design_file = require("../../controllers/forms/delete_design_file.js");
+const search_forms = require("../../controllers/forms/search_forms.js");
+const get_form_submission_stats = require("../../controllers/forms/get_form_submission_stats.js");
 const { upload_design_file: upload_design_file_middleware } = require("../../utilities/upload.js");
 
 /**
@@ -69,6 +71,20 @@ Router.post("/project/:project_id", create_form);
 
 /**
  * @swagger
+ * /dcs/api/forms/search:
+ *   get:
+ *     summary: Search form names across every project, access-filtered for the requesting user
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Forms searched successfully
+ */
+Router.get("/search", search_forms);
+
+/**
+ * @swagger
  * /dcs/api/forms/{form_group_id}:
  *   get:
  *     summary: Get the currently active version of a form
@@ -108,6 +124,20 @@ Router.put("/:form_group_id", update_form);
  *         description: Form versions fetched successfully
  */
 Router.get("/:form_group_id/versions", get_form_versions);
+
+/**
+ * @swagger
+ * /dcs/api/forms/{form_group_id}/stats:
+ *   get:
+ *     summary: Submissions time-series for a form, bucketed by a dynamic granularity based on the selected period
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Form stats fetched successfully
+ */
+Router.get("/:form_group_id/stats", get_form_submission_stats);
 
 /**
  * @swagger

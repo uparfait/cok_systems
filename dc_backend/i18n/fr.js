@@ -35,6 +35,8 @@ module.exports = {
   FORM_VERSION_ACTIVE_CANNOT_DELETE: "La version active ne peut pas être supprimée - activez d'abord une autre version",
   FORM_VERSION_DELETED: "Version du formulaire supprimée avec succès",
   FORM_FETCHED: "Formulaire récupéré avec succès",
+  FORMS_SEARCHED: "Recherche de formulaires effectuée avec succès",
+  FORM_STATS_FETCHED: "Statistiques du formulaire récupérées avec succès",
   FORM_PUBLIC_NOT_FOUND: "Ce lien de formulaire n'existe pas",
   FORM_PUBLIC_NO_ACTIVE_VERSION: "Ce formulaire n'a aucune version active pour collecter des données",
   SUBMISSION_CREATED: "Votre réponse a été soumise avec succès",

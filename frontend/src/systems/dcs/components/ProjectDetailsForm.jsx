@@ -29,6 +29,22 @@ export default function ProjectDetailsForm({ initialValues, onSave, saving, subm
       .finally(() => setDepartmentsLoading(false));
   }, []);
 
+  // ProjectSettingsPage stays mounted across a project switch (only the
+  // :project_id route param changes, not the matched route), so this form's
+  // own state would otherwise keep showing whichever project it first mounted
+  // with. Re-seeding only when the project's own id changes - not on every
+  // background poll refresh of the SAME project - avoids that stale display
+  // while still not wiping in-progress edits every few seconds.
+  useEffect(() => {
+    setName(initialValues?.name || "");
+    setDescription(initialValues?.description || "");
+    setDepartmentId(initialValues?.department_id || "");
+    setDepartmentName(initialValues?.department_name || "");
+    setDepartmentUnitId(initialValues?.department_unit_id || "");
+    setDepartmentUnitName(initialValues?.department_unit_name || "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialValues?._id]);
+
   useEffect(() => {
     if (!department_id) {
       setUnits([]);

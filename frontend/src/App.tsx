@@ -87,6 +87,7 @@ import FormDetailPage from "./systems/dcs/pages/FormDetailPage.jsx";
 import FormSettingsPage from "./systems/dcs/pages/FormSettingsPage.jsx";
 import FormVersionsPage from "./systems/dcs/pages/FormVersionsPage.jsx";
 import FormDataPage from "./systems/dcs/pages/FormDataPage.jsx";
+import FormAllDataPage from "./systems/dcs/pages/FormAllDataPage.jsx";
 import PublicFormPage from "./systems/dcs/pages/PublicFormPage.jsx";
 // Head of Department pages
 import HodEmployeesPage from "./systems/serviceDelivery/pages/hod/HodEmployeesPage";
@@ -868,6 +869,7 @@ const App: React.FC = () => {
                     <Route path="details" element={<FormSettingsPage />} />
                     <Route path="versions" element={<FormVersionsPage />} />
                   </Route>
+                  <Route path="project/:project_id/forms/:form_group_id/data" element={<FormAllDataPage />} />
                   <Route path="project/:project_id/forms/:form_group_id/:version/data" element={<FormDataPage />} />
                 </Route>
 

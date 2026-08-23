@@ -15,7 +15,7 @@ const TOGGLE_SIZE_PX = 34;
  * where the sidebar currently ends, whether that's the far left (closed)
  * or past the open drawer.
  */
-export default function DcsSidebarShell({ children, onMainScroll }) {
+export default function DcsSidebarShell({ children, onMainScroll, projects, projectsLoading }) {
   const { translate } = useDcsLanguage();
   const [is_sidebar_open, setIsSidebarOpen] = useState(false);
 
@@ -26,7 +26,7 @@ export default function DcsSidebarShell({ children, onMainScroll }) {
         style={{ width: is_sidebar_open ? SIDEBAR_WIDTH_PX : 0 }}
       >
         <div style={{ width: SIDEBAR_WIDTH_PX, height: "100%" }}>
-          <DcsProjectsSidebar />
+          <DcsProjectsSidebar projects={projects} loading={projectsLoading} />
         </div>
       </div>
 

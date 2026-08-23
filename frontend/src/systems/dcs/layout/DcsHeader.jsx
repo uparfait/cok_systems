@@ -13,11 +13,13 @@ import { build_dcs_breadcrumb_path } from "./dcsBreadcrumbPath.js";
  * clickable) breadcrumb of the current route template with real ids
  * swapped for their param name, and the language switcher.
  */
-export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle }) {
+export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle, projects }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { translate } = useDcsLanguage();
   const breadcrumb_path = build_dcs_breadcrumb_path(location.pathname);
+  const total_projects = projects ? projects.length : 0;
+  const total_forms = projects ? projects.reduce((sum, project) => sum + (project.forms_count || 0), 0) : 0;
 
   return (
     <div className="flex-shrink-0">
@@ -66,7 +68,17 @@ export default function DcsHeader({ subHeaderVisible = true, onMainMenuToggle })
               </span>
             )}
           </div>
-          <DcsLanguageSwitcher />
+          <div className="flex items-center gap-4 flex-shrink-0">
+            <div className="hidden sm:flex items-center gap-3">
+              <span className="text-xs" style={{ color: "#555555", fontFamily: "'Montserrat', sans-serif" }}>
+                {translate("DCS_HEADER_TOTAL_PROJECTS", { count: total_projects })}
+              </span>
+              <span className="text-xs" style={{ color: "#555555", fontFamily: "'Montserrat', sans-serif" }}>
+                {translate("DCS_HEADER_TOTAL_FORMS", { count: total_forms })}
+              </span>
+            </div>
+            <DcsLanguageSwitcher />
+          </div>
         </div>
       </div>
     </div>

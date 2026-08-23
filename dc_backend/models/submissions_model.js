@@ -43,11 +43,16 @@ async function find_by_client_submission_id(client_submission_id) {
 
 /**
  * Paginated list of submissions for one form group (optionally filtered to
- * a single version), newest first.
+ * a single version and/or a submitted_at date range), newest first. Only
+ * passing a version scopes it to one specific, immutable form version;
+ * leaving it out returns submissions collected against every version.
  */
-async function list_submissions(form_group_id, version, page, limit) {
+async function list_submissions(form_group_id, version, page, limit, date_bounds) {
   const filter = { form_group_id };
   if (version !== undefined && version !== null) filter.version = Number(version);
+  if (date_bounds && date_bounds.start && date_bounds.end) {
+    filter.submitted_at = { $gte: date_bounds.start, $lte: date_bounds.end };
+  }
 
   const skip = (page - 1) * limit;
   const collection = get_db().collection(COLLECTION_NAME);
@@ -62,6 +67,28 @@ async function list_submissions(form_group_id, version, page, limit) {
   ]);
 
   return { items, total };
+}
+
+/**
+ * Total submissions ever collected for a form, across every version - the
+ * form overview's all-time "total data collected" stat.
+ */
+async function count_by_form_group_id(form_group_id) {
+  return get_db().collection(COLLECTION_NAME).countDocuments({ form_group_id });
+}
+
+/**
+ * Just the submitted_at of every submission for a form within a date range
+ * (or every one it has, when no range is given) - backs the submissions
+ * time-series chart, which only ever needs the timestamp to bucket by.
+ */
+async function list_submitted_at_within(form_group_id, start, end) {
+  const filter = { form_group_id };
+  if (start && end) filter.submitted_at = { $gte: start, $lte: end };
+  return get_db()
+    .collection(COLLECTION_NAME)
+    .find(filter, { projection: { submitted_at: 1 } })
+    .toArray();
 }
 
 /**
@@ -100,6 +127,8 @@ module.exports = {
   create_submission,
   find_by_client_submission_id,
   list_submissions,
+  count_by_form_group_id,
+  list_submitted_at_within,
   delete_by_form_group_ids,
   count_submissions_for_version,
   delete_by_form_group_and_version,

@@ -35,6 +35,8 @@ module.exports = {
   FORM_VERSION_ACTIVE_CANNOT_DELETE: "The active version cannot be deleted - activate a different version first",
   FORM_VERSION_DELETED: "Form version deleted successfully",
   FORM_FETCHED: "Form fetched successfully",
+  FORMS_SEARCHED: "Forms searched successfully",
+  FORM_STATS_FETCHED: "Form stats fetched successfully",
   FORM_PUBLIC_NOT_FOUND: "This form link does not exist",
   FORM_PUBLIC_NO_ACTIVE_VERSION: "This form has no active version to collect data",
   SUBMISSION_CREATED: "Your response was submitted successfully",
