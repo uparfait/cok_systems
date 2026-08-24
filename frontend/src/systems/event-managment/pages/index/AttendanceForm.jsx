@@ -264,7 +264,12 @@ export default function AttendanceForm() {
     // Letters and symbols are dropped as they are typed in the phone field
     const cleaned = name === 'attendeePhoneNumber' ? value.replace(/[^\d+\s]/g, '') : value;
     setFormData((prev) => ({ ...prev, [name]: cleaned }));
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
+    // Tell the user why their character did not appear instead of silently dropping it
+    if (name === 'attendeePhoneNumber' && cleaned !== value) {
+      setErrors((prev) => ({ ...prev, attendeePhoneNumber: 'Phone number must contain numbers only' }));
+    } else if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: null }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -439,6 +444,9 @@ export default function AttendanceForm() {
               className={inputClassName}
               style={inputStyle}
             />
+            <p className="text-xs mt-1" style={{ color: GRAY_DISABLED }}>
+              Numbers only, e.g. +250 7XX XXX XXX
+            </p>
             {errors.attendeePhoneNumber && (
               <p className="text-xs mt-1" style={{ color: DANGER }}>{errors.attendeePhoneNumber}</p>
             )}
