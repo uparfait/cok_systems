@@ -1,9 +1,9 @@
-require("dotenv").config({ quiet: true });
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, ".env"), quiet: true });
 
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const path = require("path");
 const swaggerUi = require("swagger-ui-express");
 
 const config = require("./configurations/config.js");
@@ -13,6 +13,8 @@ const { ensure_submission_indexes } = require("./models/submissions_model.js");
 const language_middleware = require("./middlewares/language.js");
 const { not_found_handler, global_error_handler } = require("./middlewares/error_handler.js");
 const dcs_routes = require("./routes/main.js");
+
+
 
 const app = express();
 const PORT = config.port;

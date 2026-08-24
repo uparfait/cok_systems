@@ -1,4 +1,5 @@
-require("dotenv").config({ quiet: true });
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, "../.env"), quiet: true });
 const connect_databases = require("../db_connection/main.js");
 const projects_model = require("../models/projects_model.js");
 const forms_model = require("../models/forms_model.js");

@@ -1,4 +1,5 @@
-require("dotenv").config({ quiet: true });
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, "../.env"), quiet: true });
 const connect_databases = require("../db_connection/main.js");
 const { get_db } = require("../db_connection/db.js");
 const forms_model = require("../models/forms_model.js");
@@ -28,8 +29,8 @@ const { faker } = require("@faker-js/faker");
 let FROM_DATE = "2025-12-30";
 let TO_DATE = "2026-12-23";
 
-const PROJECT_ID = "6a8a8e553712274a2d5b0f3b";
-const FORM_GROUP_ID = "a0cc1789-682b-48f2-bfd6-fb614563f11f";
+const PROJECT_ID = "6a8beef09370789817de85cc";
+const FORM_GROUP_ID = "37be60dd-4b44-41bb-b601-01084524abc8";
 
 const START_HOUR = 9;
 const END_HOUR = 17;
