@@ -353,6 +353,8 @@ const en = {
   DCS_ACCESS_MANAGE_LABEL: "What this person can do",
   DCS_ACCESS_MANAGE_HINT: "Viewing the granted forms is always allowed - select the extra accesses this person may also have",
   DCS_ACCESS_SELECT_ACCESS: "Select access",
+  DCS_ACCESS_MANAGE_DEPT_LABEL: "What this department can do",
+  DCS_ACCESS_MANAGE_DEPT_HINT: "Viewing the granted forms is always allowed - select the extra accesses its members may also have",
   DCS_ACCESS_MANAGE_ADD: "Add new forms",
   DCS_ACCESS_MANAGE_ADD_HINT: "Can create new forms inside this project",
   DCS_ACCESS_MANAGE_EDIT: "Edit forms",
