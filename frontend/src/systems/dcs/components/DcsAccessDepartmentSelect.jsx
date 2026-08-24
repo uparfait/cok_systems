@@ -4,6 +4,9 @@ import { list_departments, list_department_units } from "../services/departments
 import DcsButtonPrimary from "./DcsButtonPrimary.jsx";
 import DcsSearchableSelect from "./DcsSearchableSelect.jsx";
 import DcsAccessFormScope from "./DcsAccessFormScope.jsx";
+import DcsGrantPermissionsSelect from "./DcsGrantPermissionsSelect.jsx";
+
+const EMPTY_MANAGE = { add_forms: false, edit_forms: false, delete_forms: false, share_forms: false };
 
 const PRIMARY = "#056daa";
 const PRIMARY_TINT = "#F0F7FB";
@@ -69,6 +72,7 @@ export default function DcsAccessDepartmentSelect({ grants, onChange, forms }) {
           units: unit ? [{ unit_id: unit.id, unit_name: unit.name }] : [],
           all_forms: true,
           form_group_ids: [],
+          manage: { ...EMPTY_MANAGE },
         },
       ]);
     } else if (!unit) {
@@ -142,6 +146,14 @@ export default function DcsAccessDepartmentSelect({ grants, onChange, forms }) {
             <div className="flex items-start justify-between gap-2 mb-2">
               <p className="text-sm font-semibold truncate" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
                 {grant.department_name}
+                {grant.manage?.share_forms === true && (
+                  <span
+                    className="ml-2 align-middle text-xs font-semibold uppercase px-2 py-0.5"
+                    style={{ color: "#FFFFFF", backgroundColor: PRIMARY, fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.5px" }}
+                  >
+                    {translate("DCS_ACCESS_GRANT_BADGE")}
+                  </span>
+                )}
               </p>
               <button
                 type="button"
@@ -191,6 +203,14 @@ export default function DcsAccessDepartmentSelect({ grants, onChange, forms }) {
                 allForms={grant.all_forms}
                 formGroupIds={grant.form_group_ids}
                 onChange={(changes) => update_grant(grant.department_id, changes)}
+              />
+
+              <DcsGrantPermissionsSelect
+                isProjectScope={grant.all_forms === true}
+                manage={grant.manage}
+                onChange={(manage) => update_grant(grant.department_id, { manage })}
+                labelKey="DCS_ACCESS_MANAGE_DEPT_LABEL"
+                hintKey="DCS_ACCESS_MANAGE_DEPT_HINT"
               />
             </div>
           </div>

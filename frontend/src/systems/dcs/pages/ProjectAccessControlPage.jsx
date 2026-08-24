@@ -25,6 +25,9 @@ const normalize_individual = (individual) => ({
   manage: individual.manage || { ...EMPTY_MANAGE, share_forms: individual.can_grant === true },
 });
 
+// Department grants saved before they could carry management actions.
+const normalize_department = (grant) => ({ ...grant, manage: grant.manage || { ...EMPTY_MANAGE } });
+
 // Section buttons on a solid primary-blue bar; the active one is solid white on blue.
 const section_tab_style = (is_active) => ({
   fontFamily: "'Montserrat', sans-serif",
@@ -76,7 +79,7 @@ export default function ProjectAccessControlPage() {
         if (!is_mounted) return;
         const rules = access_response.data || {};
         setEnabled(rules.enabled === true);
-        setDepartmentGrants(rules.departments || []);
+        setDepartmentGrants((rules.departments || []).map(normalize_department));
         setIndividuals((rules.individuals || []).map(normalize_individual));
         setForms(forms_response.data || []);
       })

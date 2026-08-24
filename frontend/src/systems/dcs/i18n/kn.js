@@ -353,6 +353,8 @@ const kn = {
   DCS_ACCESS_MANAGE_LABEL: "Ibyo uyu muntu ashobora gukora",
   DCS_ACCESS_MANAGE_HINT: "Kureba amafishi yemerewe byemewe buri gihe - toranya ubundi burenganzira uyu muntu ashobora guhabwa",
   DCS_ACCESS_SELECT_ACCESS: "Toranya uburenganzira",
+  DCS_ACCESS_MANAGE_DEPT_LABEL: "Ibyo iri shami rishobora gukora",
+  DCS_ACCESS_MANAGE_DEPT_HINT: "Kureba amafishi yemerewe byemewe buri gihe - toranya ubundi burenganzira abakozi baryo bashobora guhabwa",
   DCS_ACCESS_MANAGE_ADD: "Kongeraho amafishi mashya",
   DCS_ACCESS_MANAGE_ADD_HINT: "Ashobora gukora amafishi mashya muri iyi poroje",
   DCS_ACCESS_MANAGE_EDIT: "Guhindura amafishi",

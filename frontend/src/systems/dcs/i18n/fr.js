@@ -353,6 +353,8 @@ const fr = {
   DCS_ACCESS_MANAGE_LABEL: "Ce que cette personne peut faire",
   DCS_ACCESS_MANAGE_HINT: "La consultation des formulaires accordés est toujours permise - sélectionnez les accès supplémentaires autorisés",
   DCS_ACCESS_SELECT_ACCESS: "Sélectionner les accès",
+  DCS_ACCESS_MANAGE_DEPT_LABEL: "Ce que ce département peut faire",
+  DCS_ACCESS_MANAGE_DEPT_HINT: "La consultation des formulaires accordés est toujours permise - sélectionnez les accès supplémentaires autorisés à ses membres",
   DCS_ACCESS_MANAGE_ADD: "Ajouter de nouveaux formulaires",
   DCS_ACCESS_MANAGE_ADD_HINT: "Peut créer de nouveaux formulaires dans ce projet",
   DCS_ACCESS_MANAGE_EDIT: "Modifier les formulaires",
