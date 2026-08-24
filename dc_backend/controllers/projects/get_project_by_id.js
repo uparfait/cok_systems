@@ -24,7 +24,7 @@ async function get_project_by_id(req, res) {
       return res.status(403).json(warning_response(req, "ACCESS_DENIED"));
     }
 
-    // Tells the frontend whether to show the access-control tab to this viewer.
+    // Tells the frontend which tabs and form actions to show this viewer.
     const viewer_can_manage_access = await project_access.can_manage_access(req.user, project);
     // forms_count/total_submissions are only ever read by the detail page's
     // own stat cards, so they're joined in here rather than in the plain

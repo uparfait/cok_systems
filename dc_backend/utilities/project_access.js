@@ -13,6 +13,9 @@ const departments_model = require("../models/departments_model.js");
 const FULL_ACCESS = { can_view: true, all_forms: true, form_group_ids: [] };
 const NO_ACCESS = { can_view: false, all_forms: false, form_group_ids: [] };
 
+const FULL_MANAGEMENT = { add_forms: true, edit_forms: true, delete_forms: true, share_forms: true, edit_project: true };
+const NO_MANAGEMENT = { add_forms: false, edit_forms: false, delete_forms: false, share_forms: false, edit_project: false };
+
 /**
  * Resolves the requesting user's place in the org chart once per request:
  * their top-level department id plus their unit id when they sit in one.
@@ -112,8 +115,9 @@ async function filter_projects_for_user(user, projects) {
 
 /**
  * Answers whether a user may manage a project's access rules: the creator
- * always can, and so can any individual granted access "with grant option"
- * (can_grant). Department grants never carry the grant option.
+ * always can, and so can any individual - or member of a granted department
+ * or unit - holding the share/grant option (manage.share_forms, or the
+ * older can_grant flag on individuals).
  */
 async function can_manage_access(user, project, access_document) {
   if (!user || !project) return false;
@@ -123,9 +127,74 @@ async function can_manage_access(user, project, access_document) {
     access_document !== undefined ? access_document : await project_access_model.get_access_by_project(project._id);
   if (!access) return false;
 
-  return (access.individuals || []).some(
-    (individual) => individual.user_id === user.user_id.toString() && individual.can_grant === true,
+  const granted_as_individual = (access.individuals || []).some(
+    (individual) =>
+      individual.user_id === user.user_id.toString() &&
+      (individual.can_grant === true || individual.manage?.share_forms === true),
   );
+  if (granted_as_individual) return true;
+
+  const sharing_departments = (access.departments || []).filter((grant) => grant.manage?.share_forms === true);
+  if (sharing_departments.length === 0) return false;
+  const org = await get_user_org_context(user);
+  return sharing_departments.some((grant) => department_grant_matches(grant, org));
+}
+
+/**
+ * Answers which management actions a user may perform on a project
+ * (add/edit/delete/share its forms, edit the project's own details). The
+ * creator can do everything, and a project
+ * without enabled access rules keeps today's open behavior. Otherwise the
+ * user's individual grants - and the grants of their department or unit -
+ * decide: the grant option (share_forms) is the full level and implies
+ * every action, while hand-picked accesses apply one by one. add/delete
+ * only ever come from a project-wide (all_forms) grant; edit/share also
+ * apply to a form-specific grant - but only for the forms that grant
+ * covers, which is why form_group_id narrows the answer when checking one
+ * form.
+ */
+async function resolve_form_management(user, project, form_group_id, access_document) {
+  if (!user || !project) return NO_MANAGEMENT;
+  if (project.created_by === user.user_id.toString()) return FULL_MANAGEMENT;
+  if (project.access_control_enabled !== true) return FULL_MANAGEMENT;
+
+  const access =
+    access_document !== undefined ? access_document : await project_access_model.get_access_by_project(project._id);
+  if (!access || access.enabled !== true) return FULL_MANAGEMENT;
+
+  const matching = [];
+  (access.individuals || []).forEach((individual) => {
+    if (individual.user_id !== user.user_id.toString()) return;
+    matching.push({ grant: individual, legacy_can_grant: individual.can_grant === true });
+  });
+  // The org lookup is only paid when a department grant actually carries
+  // management actions - plain view-only department grants skip it.
+  const managing_departments = (access.departments || []).filter((grant) => grant.manage);
+  if (managing_departments.length > 0) {
+    const org = await get_user_org_context(user);
+    managing_departments.forEach((grant) => {
+      if (department_grant_matches(grant, org)) matching.push({ grant, legacy_can_grant: false });
+    });
+  }
+
+  const result = Object.assign({}, NO_MANAGEMENT);
+  matching.forEach(({ grant, legacy_can_grant }) => {
+    const manage = grant.manage || {};
+    const has_grant_option = manage.share_forms === true || legacy_can_grant;
+    const covers_form =
+      grant.all_forms === true || !form_group_id || (grant.form_group_ids || []).includes(form_group_id);
+
+    if (grant.all_forms === true) {
+      if (manage.add_forms === true || has_grant_option) result.add_forms = true;
+      if (manage.delete_forms === true || has_grant_option) result.delete_forms = true;
+      if (manage.edit_project === true || has_grant_option) result.edit_project = true;
+    }
+    if (covers_form) {
+      if (manage.edit_forms === true || has_grant_option) result.edit_forms = true;
+      if (has_grant_option) result.share_forms = true;
+    }
+  });
+  return result;
 }
 
 /**
@@ -147,4 +216,5 @@ module.exports = {
   filter_projects_for_user,
   can_view_form_group,
   can_manage_access,
+  resolve_form_management,
 };

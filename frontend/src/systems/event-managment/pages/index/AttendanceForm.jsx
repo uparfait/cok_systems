@@ -27,6 +27,7 @@ const labelStyle = {
   color: NEUTRAL_DARK,
   display: 'block',
   marginBottom: '6px',
+  textAlign: 'left',
 };
 
 const responsiveStyles = `
@@ -235,8 +236,12 @@ export default function AttendanceForm() {
         newErrors.attendeeEmail = 'Please enter a valid email address';
     }
 
-    if (!formData.attendeePhoneNumber.trim())
+    // Digits only (spaces allowed while typing, an optional leading +), 7-15 digits
+    const phoneDigits = formData.attendeePhoneNumber.replace(/\s/g, '');
+    if (!phoneDigits)
       newErrors.attendeePhoneNumber = 'Phone number is required';
+    else if (!/^\+?\d{7,15}$/.test(phoneDigits))
+      newErrors.attendeePhoneNumber = 'Please enter a valid phone number, e.g. +250 7XX XXX XXX';
 
     if (!isInternal && !formData.attendeeInstitution.trim())
       newErrors.attendeeInstitution = 'Institution is required';
@@ -256,8 +261,15 @@ export default function AttendanceForm() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
+    // Letters and symbols are dropped as they are typed in the phone field
+    const cleaned = name === 'attendeePhoneNumber' ? value.replace(/[^\d+\s]/g, '') : value;
+    setFormData((prev) => ({ ...prev, [name]: cleaned }));
+    // Tell the user why their character did not appear instead of silently dropping it
+    if (name === 'attendeePhoneNumber' && cleaned !== value) {
+      setErrors((prev) => ({ ...prev, attendeePhoneNumber: 'Phone number must contain numbers only' }));
+    } else if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: null }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -327,7 +339,7 @@ export default function AttendanceForm() {
   // Show loading while fetching room data
   if (fetchingData) {
     return (
-      <div className="w-full flex items-center justify-center px-4" style={{ paddingTop: '90px' }}>
+      <div className="w-full flex items-center justify-center px-4" style={{ paddingTop: '28px' }}>
         <div className="bg-white flex flex-row gap-6 items-center p-8 max-w-sm w-full" style={{ border: `1px solid ${BORDER}` }}>
           <SpiralLoader />
           <span className="text-sm" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
@@ -341,7 +353,7 @@ export default function AttendanceForm() {
   // Show fetch error if room-based lookup failed
   if (fetchError) {
     return (
-      <div className="w-full flex items-center justify-center px-4" style={{ paddingTop: '90px' }}>
+      <div className="w-full flex items-center justify-center px-4" style={{ paddingTop: '28px' }}>
         <div className="bg-white p-8 max-w-sm w-full text-center" style={{ border: `1px solid ${BORDER}` }}>
           <div className="w-14 h-14 flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: '#FEF5E7' }}>
             <svg className="w-7 h-7" style={{ color: '#F39C12' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -357,7 +369,7 @@ export default function AttendanceForm() {
 
   if ((!eventSpecialId && !isRoomOnly)) {
     return (
-      <div className="w-full flex items-center justify-center px-4" style={{ paddingTop: '90px' }}>
+      <div className="w-full flex items-center justify-center px-4" style={{ paddingTop: '28px' }}>
         <div className="bg-white p-8 max-w-sm w-full text-center" style={{ border: `1px solid ${BORDER}` }}>
           <div className="w-14 h-14 flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: '#FDECEA' }}>
             <svg className="w-7 h-7" style={{ color: DANGER }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -372,7 +384,7 @@ export default function AttendanceForm() {
   }
 
   return (
-    <div className="w-full flex flex-col items-center" style={{ paddingTop: '90px', paddingBottom: '32px' }}>
+    <div className="w-full flex flex-col items-center" style={{ paddingTop: '28px', paddingBottom: '32px' }}>
       <style>{responsiveStyles}</style>
       <div className="cok-attendance-wrap">
 
@@ -389,7 +401,7 @@ export default function AttendanceForm() {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="cok-attendance-form bg-white p-5 sm:p-6 space-y-5" style={{ borderTop: 'none' }}>
+        <form onSubmit={handleSubmit} className="cok-attendance-form bg-white p-5 sm:p-6 space-y-5 text-left" style={{ borderTop: 'none' }}>
 
           <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
             Fields marked with <span style={{ color: DANGER }}>*</span> are required
@@ -432,6 +444,9 @@ export default function AttendanceForm() {
               className={inputClassName}
               style={inputStyle}
             />
+            <p className="text-xs mt-1" style={{ color: GRAY_DISABLED }}>
+              Numbers only, e.g. +250 7XX XXX XXX
+            </p>
             {errors.attendeePhoneNumber && (
               <p className="text-xs mt-1" style={{ color: DANGER }}>{errors.attendeePhoneNumber}</p>
             )}

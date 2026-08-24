@@ -2,21 +2,31 @@ import React, { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { useToast } from "../../../core/contexts/ToastContext.tsx";
-import { list_departments, list_department_units } from "../services/departmentsService.js";
 import { get_forms_by_project } from "../services/formsService.js";
 import { get_project_access, save_project_access, check_access_email } from "../services/accessControlService.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsConfirmDialog from "../components/DcsConfirmDialog.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
 import DcsAccessFormScope from "../components/DcsAccessFormScope.jsx";
-import DcsAccessLevelSelect from "../components/DcsAccessLevelSelect.jsx";
-import SpiralLoader from "../../event-managment/components/SpiralLoader.jsx";
+import DcsAccessDepartmentSelect from "../components/DcsAccessDepartmentSelect.jsx";
+import DcsGrantPermissionsSelect from "../components/DcsGrantPermissionsSelect.jsx";
 
 const PRIMARY = "#056daa";
 const DANGER = "#E74C3C";
 
 const heading_style = { fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: 18, color: "#333333" };
 const hint_style = { color: "#9E9E9E", fontSize: 13 };
+
+const EMPTY_MANAGE = { add_forms: false, edit_forms: false, delete_forms: false, share_forms: false, edit_project: false };
+
+// Grants saved before the manage object existed only carry can_grant.
+const normalize_individual = (individual) => ({
+  ...individual,
+  manage: individual.manage || { ...EMPTY_MANAGE, share_forms: individual.can_grant === true },
+});
+
+// Department grants saved before they could carry management actions.
+const normalize_department = (grant) => ({ ...grant, manage: grant.manage || { ...EMPTY_MANAGE } });
 
 // Section buttons on a solid primary-blue bar; the active one is solid white on blue.
 const section_tab_style = (is_active) => ({
@@ -48,11 +58,7 @@ export default function ProjectAccessControlPage() {
   const [department_grants, setDepartmentGrants] = useState([]);
   const [individuals, setIndividuals] = useState([]);
 
-  const [departments, setDepartments] = useState([]);
   const [forms, setForms] = useState([]);
-  const [units_by_department, setUnitsByDepartment] = useState({});
-  const [department_search, setDepartmentSearch] = useState("");
-  const [unit_search, setUnitSearch] = useState({});
 
   const [email, setEmail] = useState("");
   const [checking_email, setCheckingEmail] = useState(false);
@@ -67,16 +73,14 @@ export default function ProjectAccessControlPage() {
     setLoading(true);
     Promise.all([
       get_project_access(project._id),
-      list_departments(),
       get_forms_by_project(project._id),
     ])
-      .then(([access_response, departments_response, forms_response]) => {
+      .then(([access_response, forms_response]) => {
         if (!is_mounted) return;
         const rules = access_response.data || {};
         setEnabled(rules.enabled === true);
-        setDepartmentGrants(rules.departments || []);
-        setIndividuals(rules.individuals || []);
-        setDepartments(departments_response.data || []);
+        setDepartmentGrants((rules.departments || []).map(normalize_department));
+        setIndividuals((rules.individuals || []).map(normalize_individual));
         setForms(forms_response.data || []);
       })
       .catch((error) => {
@@ -90,49 +94,6 @@ export default function ProjectAccessControlPage() {
       is_mounted = false;
     };
   }, [project._id]);
-
-  // Units of every granted department are fetched lazily (and only once),
-  // covering both freshly ticked departments and grants restored from a save.
-  useEffect(() => {
-    department_grants.forEach((grant) => load_units(grant.department_id));
-  }, [department_grants]);
-
-  const load_units = (department_id) => {
-    if (units_by_department[department_id]) return;
-    setUnitsByDepartment((previous) => ({ ...previous, [department_id]: { loading: true, units: [] } }));
-    list_department_units(department_id)
-      .then((response) =>
-        setUnitsByDepartment((previous) => ({ ...previous, [department_id]: { loading: false, units: response.data || [] } })),
-      )
-      .catch(() => setUnitsByDepartment((previous) => ({ ...previous, [department_id]: { loading: false, units: [] } })));
-  };
-
-  const find_grant = (department_id) => department_grants.find((grant) => grant.department_id === department_id);
-
-  const toggle_department = (department) => {
-    if (find_grant(department.id)) {
-      setDepartmentGrants(department_grants.filter((grant) => grant.department_id !== department.id));
-      return;
-    }
-    setDepartmentGrants([
-      ...department_grants,
-      { department_id: department.id, department_name: department.name, all_units: true, units: [], all_forms: true, form_group_ids: [] },
-    ]);
-  };
-
-  const update_grant = (department_id, changes) => {
-    setDepartmentGrants(
-      department_grants.map((grant) => (grant.department_id === department_id ? { ...grant, ...changes } : grant)),
-    );
-  };
-
-  const toggle_unit = (grant, unit) => {
-    const is_selected = grant.units.some((selected) => selected.unit_id === unit.id);
-    const units = is_selected
-      ? grant.units.filter((selected) => selected.unit_id !== unit.id)
-      : [...grant.units, { unit_id: unit.id, unit_name: unit.name }];
-    update_grant(grant.department_id, { all_units: false, units });
-  };
 
   const handle_add_individual = async (event) => {
     event.preventDefault();
@@ -149,7 +110,7 @@ export default function ProjectAccessControlPage() {
       const user = response.data;
       setIndividuals([
         ...individuals,
-        { user_id: user.user_id, email: user.email, full_name: user.full_name, can_grant: false, all_forms: true, form_group_ids: [] },
+        { user_id: user.user_id, email: user.email, full_name: user.full_name, manage: { ...EMPTY_MANAGE }, all_forms: true, form_group_ids: [] },
       ]);
       setEmail("");
       showSuccess(translate("DCS_ACCESS_EMAIL_ADDED", { name: user.full_name || user.email }));
@@ -198,10 +159,6 @@ export default function ProjectAccessControlPage() {
     );
   }
 
-  const filtered_departments = departments.filter((department) =>
-    department.name.toLowerCase().includes(department_search.toLowerCase()),
-  );
-
   return (
     <div className="pb-16 space-y-4">
       <div className="bg-white border-2 p-4 sm:p-6" style={{ borderColor: "#E0E0E0" }}>
@@ -239,99 +196,7 @@ export default function ProjectAccessControlPage() {
               {translate("DCS_ACCESS_DEPARTMENTS_HINT")}
             </p>
 
-            <input
-              className="cok-auth-input w-full py-3 mb-3"
-              placeholder={translate("DCS_ACCESS_SEARCH_DEPARTMENTS")}
-              value={department_search}
-              onChange={(event) => setDepartmentSearch(event.target.value)}
-            />
-
-            <div className="space-y-1 max-h-96 overflow-y-auto">
-              {filtered_departments.length === 0 && (
-                <p className="text-sm" style={{ color: "#9E9E9E" }}>
-                  {translate("DCS_SEARCH_NO_RESULTS")}
-                </p>
-              )}
-              {filtered_departments.map((department) => {
-                const grant = find_grant(department.id);
-                const unit_state = units_by_department[department.id];
-                const unit_query = unit_search[department.id] || "";
-                const filtered_units = (unit_state?.units || []).filter((unit) =>
-                  unit.name.toLowerCase().includes(unit_query.toLowerCase()),
-                );
-                return (
-                  <div key={department.id}>
-                    <label className="flex items-start gap-2 text-sm py-1" style={{ color: "#333333" }}>
-                      <input
-                        type="checkbox"
-                        checked={!!grant}
-                        onChange={() => toggle_department(department)}
-                        style={{ accentColor: PRIMARY, marginTop: 2 }}
-                      />
-                      <span className="font-medium">{department.name}</span>
-                    </label>
-
-                    {grant && (
-                      <div className="ml-5 mb-3 border-l-2 pl-4 space-y-3" style={{ borderColor: "#E0E0E0" }}>
-                        <div>
-                          <p className="text-xs font-semibold uppercase mb-1" style={{ color: "#9E9E9E", fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.5px" }}>
-                            {translate("DCS_ACCESS_UNITS_LABEL")}
-                          </p>
-                          <label className="flex items-start gap-2 text-sm mb-1" style={{ color: "#333333" }}>
-                            <input
-                              type="checkbox"
-                              checked={grant.all_units}
-                              onChange={(event) => update_grant(grant.department_id, { all_units: event.target.checked, units: [] })}
-                              style={{ accentColor: PRIMARY, marginTop: 2 }}
-                            />
-                            <span>{translate("DCS_ACCESS_ALL_UNITS")}</span>
-                          </label>
-
-                          {!grant.all_units && (
-                            <div className="pl-5 space-y-1">
-                              {unit_state?.loading && <SpiralLoader />}
-                              {unit_state && !unit_state.loading && unit_state.units.length === 0 && (
-                                <p className="text-sm" style={{ color: "#9E9E9E" }}>
-                                  {translate("DCS_ACCESS_NO_UNITS")}
-                                </p>
-                              )}
-                              {unit_state && !unit_state.loading && unit_state.units.length > 6 && (
-                                <input
-                                  className="cok-auth-input w-full py-2 mb-1"
-                                  placeholder={translate("DCS_ACCESS_SEARCH_UNITS")}
-                                  value={unit_query}
-                                  onChange={(event) =>
-                                    setUnitSearch((previous) => ({ ...previous, [department.id]: event.target.value }))
-                                  }
-                                />
-                              )}
-                              {filtered_units.map((unit) => (
-                                <label key={unit.id} className="flex items-start gap-2 text-sm" style={{ color: "#333333" }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={grant.units.some((selected) => selected.unit_id === unit.id)}
-                                    onChange={() => toggle_unit(grant, unit)}
-                                    style={{ accentColor: PRIMARY, marginTop: 2 }}
-                                  />
-                                  <span>{unit.name}</span>
-                                </label>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        <DcsAccessFormScope
-                          forms={forms}
-                          allForms={grant.all_forms}
-                          formGroupIds={grant.form_group_ids}
-                          onChange={(changes) => update_grant(grant.department_id, changes)}
-                        />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <DcsAccessDepartmentSelect grants={department_grants} onChange={setDepartmentGrants} forms={forms} />
           </div>
           )}
 
@@ -383,7 +248,7 @@ export default function ProjectAccessControlPage() {
                     <div className="min-w-0">
                       <p className="text-sm font-semibold truncate" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
                         {individual.full_name || individual.email}
-                        {individual.can_grant === true && (
+                        {individual.manage?.share_forms === true && (
                           <span
                             className="ml-2 align-middle text-xs font-semibold uppercase px-2 py-0.5"
                             style={{ color: "#FFFFFF", backgroundColor: PRIMARY, fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.5px" }}
@@ -406,15 +271,16 @@ export default function ProjectAccessControlPage() {
                     </button>
                   </div>
                   <div className="space-y-3">
-                    <DcsAccessLevelSelect
-                      canGrant={individual.can_grant === true}
-                      onChange={(can_grant) => update_individual(individual.user_id, { can_grant })}
-                    />
                     <DcsAccessFormScope
                       forms={forms}
                       allForms={individual.all_forms}
                       formGroupIds={individual.form_group_ids}
                       onChange={(changes) => update_individual(individual.user_id, changes)}
+                    />
+                    <DcsGrantPermissionsSelect
+                      isProjectScope={individual.all_forms === true}
+                      manage={individual.manage}
+                      onChange={(manage) => update_individual(individual.user_id, { manage })}
                     />
                   </div>
                 </div>
