@@ -60,6 +60,7 @@ module.exports = {
   ACCESS_RULES_SAVED: "Amategeko y'uburenganzira yabitswe neza",
   ACCESS_RULES_INVALID: "Amategeko y'uburenganzira yoherejwe ntabwo ari meza",
   ACCESS_MANAGE_FORBIDDEN: "Uwaremye iyi poroje cyangwa abahawe uburenganzira bwo gutanga uburenganzira ni bo bonyine bashobora gucunga uburenganzira bwayo",
+  FORM_ACTION_FORBIDDEN: "Ntabwo wahawe uburenganzira bwo gukora ibi ku mafishi yo muri iyi poroje",
   USER_EMAIL_REQUIRED: "Aderesi ya imeyili irasabwa",
   USER_EMAIL_NOT_FOUND: "Nta konti ifite iyi imeyili ibaho muri sisitemu",
   USER_EMAIL_FOUND: "Konti ihuye yabonetse",

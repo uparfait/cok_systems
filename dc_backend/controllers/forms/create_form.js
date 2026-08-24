@@ -1,5 +1,6 @@
 const forms_model = require("../../models/forms_model.js");
 const projects_model = require("../../models/projects_model.js");
+const project_access = require("../../utilities/project_access.js");
 const { validate_form_schema } = require("../../jsonlogic/validate_schema.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { is_valid_object_id } = require("../../utilities/object_id.js");
@@ -22,6 +23,11 @@ async function create_form(req, res) {
     const project = await projects_model.find_project_by_id(project_id);
     if (!project) {
       return res.status(404).json(warning_response(req, "PROJECT_NOT_FOUND"));
+    }
+
+    const management = await project_access.resolve_form_management(req.user, project);
+    if (!management.add_forms) {
+      return res.status(403).json(warning_response(req, "FORM_ACTION_FORBIDDEN"));
     }
 
     if (!form_name || !form_name.toString().trim()) {

@@ -1,4 +1,6 @@
 const forms_model = require("../../models/forms_model.js");
+const projects_model = require("../../models/projects_model.js");
+const project_access = require("../../utilities/project_access.js");
 const { validate_form_schema } = require("../../jsonlogic/validate_schema.js");
 const { has_data_field_set_changed } = require("../../jsonlogic/schema_diff.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
@@ -24,6 +26,12 @@ async function update_form(req, res) {
     const active_version = await forms_model.get_active_version(form_group_id);
     if (!active_version) {
       return res.status(404).json(warning_response(req, "FORM_NOT_FOUND"));
+    }
+
+    const project = await projects_model.find_project_by_id(active_version.project_id);
+    const management = await project_access.resolve_form_management(req.user, project, form_group_id);
+    if (!management.edit_forms) {
+      return res.status(403).json(warning_response(req, "FORM_ACTION_FORBIDDEN"));
     }
 
     const next_form_name = (form_name || active_version.form_name || "").toString().trim();

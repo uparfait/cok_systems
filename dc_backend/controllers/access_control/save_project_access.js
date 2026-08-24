@@ -28,23 +28,42 @@ function clean_department_grant(grant) {
 }
 
 /**
+ * Normalizes the management actions of one individual grant. add/delete
+ * only make sense on a project-wide (all_forms) grant, so they are forced
+ * off on form-specific grants; share_forms is the "with grant option"
+ * level - the person may also manage this project's access rules.
+ */
+function clean_manage_options(manage, all_forms, legacy_can_grant) {
+  // A payload without a manage object comes from an older client - its
+  // can_grant flag still decides the share level.
+  const options = manage && typeof manage === "object" ? manage : { share_forms: legacy_can_grant === true };
+  return {
+    add_forms: all_forms === true && options.add_forms === true,
+    edit_forms: options.edit_forms === true,
+    delete_forms: all_forms === true && options.delete_forms === true,
+    share_forms: options.share_forms === true,
+  };
+}
+
+/**
  * Normalizes one individual grant - the email must already have been
  * checked against the main system through the check-email endpoint.
- * can_grant is the "with grant option" level: the person may also manage
- * this project's access rules, not just view its forms.
+ * can_grant mirrors manage.share_forms for older readers of the document.
  */
 function clean_individual_grant(grant) {
   if (!grant || !grant.user_id || !grant.email) return null;
+  const all_forms = grant.all_forms === true;
+  const manage = clean_manage_options(grant.manage, all_forms, grant.can_grant);
   return {
     user_id: grant.user_id.toString(),
     email: grant.email.toString().trim().toLowerCase(),
     full_name: grant.full_name ? grant.full_name.toString() : "",
-    can_grant: grant.can_grant === true,
-    all_forms: grant.all_forms === true,
-    form_group_ids:
-      grant.all_forms === true
-        ? []
-        : (Array.isArray(grant.form_group_ids) ? grant.form_group_ids : []).map((id) => id.toString()),
+    manage,
+    can_grant: manage.share_forms,
+    all_forms,
+    form_group_ids: all_forms
+      ? []
+      : (Array.isArray(grant.form_group_ids) ? grant.form_group_ids : []).map((id) => id.toString()),
   };
 }
 
