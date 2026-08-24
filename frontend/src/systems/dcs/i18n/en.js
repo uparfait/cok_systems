@@ -371,7 +371,10 @@ const en = {
   DCS_GEO_ACCURACY_METERS: "{{value}} meters",
   DCS_GEO_MAP_PREVIEW_PLACEHOLDER: "Map preview (shown on the live form)",
   DCS_GEO_OFFLINE_HIDDEN_NOTICE: "Map and location details are hidden while you are offline. They will reappear once you're back online.",
-  DCS_GEO_TABLE_CELL_TITLE: "Map location recorded",
+  DCS_GEO_TABLE_CELL_TITLE: "Map location",
+  DCS_GEO_TABLE_HEADER_LABEL: "Map Location Data",
+  DCS_GEO_STATUS_RECORDED: "Recorded",
+  DCS_GEO_STATUS_MANUALLY_ENTERED: "Manually entered",
 
   DCS_RENDERER_LANGUAGE_LABEL: "Language",
   DCS_RENDERER_PROGRESS_LABEL: "{{percent}}% completed",

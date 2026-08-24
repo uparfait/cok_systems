@@ -1,6 +1,7 @@
 import React from "react";
 import { useParams } from "react-router-dom";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
+import { dcs_translate } from "../i18n/index.js";
 import { useSilentPolling } from "../hooks/useSilentPolling.js";
 import { useSubmissionsTable } from "../hooks/useSubmissionsTable.js";
 import { get_form_versions } from "../services/formsService.js";
@@ -8,7 +9,7 @@ import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
 import { get_field_text } from "../fields/fieldText.js";
 import DcsDataTable from "../components/DcsDataTable.jsx";
 import DcsDataTableFileCell from "../components/DcsDataTableFileCell.jsx";
-import DcsDataTableGeoCell from "../components/DcsDataTableGeoCell.jsx";
+import DcsDataTableGeoCell, { GEO_CELL_TABLE_MIN_WIDTH_PX } from "../components/DcsDataTableGeoCell.jsx";
 import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
 import DcsTableSearchSort from "../components/DcsTableSearchSort.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
@@ -35,6 +36,18 @@ function collect_data_fields(version_doc) {
  * least one other) carry no tint at all. With only one version to begin
  * with there's nothing to diff against, so every column stays untinted.
  */
+function build_column_entry(field, language, extra) {
+  // GeoLocation carries no question label of its own (see NON_LABEL_TYPES)
+  // - falling back to a fixed header keeps this column from ever showing
+  // up blank.
+  const label = get_field_text(field.label, language) || (field.type === "geolocation" ? dcs_translate("DCS_GEO_TABLE_HEADER_LABEL", language) : "");
+  return Object.assign(
+    { key: field.id, label },
+    field.type === "geolocation" ? { minWidthPx: GEO_CELL_TABLE_MIN_WIDTH_PX } : {},
+    extra || {},
+  );
+}
+
 function build_diffed_columns(versions, language) {
   const active_version_doc = versions.find((entry) => entry.is_active) || versions[0];
   if (!active_version_doc) return { columns: [], field_type_by_id: new Map(), has_diff: false };
@@ -45,7 +58,7 @@ function build_diffed_columns(versions, language) {
   if (versions.length <= 1) {
     return {
       columns: [
-        ...active_fields.map((field) => ({ key: field.id, label: get_field_text(field.label, language) })),
+        ...active_fields.map((field) => build_column_entry(field, language)),
         { key: "version", labelKey: "DCS_TABLE_VERSION" },
         { key: "submitted_at", labelKey: "DCS_TABLE_SUBMITTED_AT" },
       ],
@@ -73,16 +86,10 @@ function build_diffed_columns(versions, language) {
   active_fields.forEach((field) => field_type_by_id.set(field.id, field.type));
   removed_field_defs.forEach((field) => field_type_by_id.set(field.id, field.type));
 
-  const active_columns = active_fields.map((field) => ({
-    key: field.id,
-    label: get_field_text(field.label, language),
-    tint: field_ids_in_other_versions.has(field.id) ? undefined : "green",
-  }));
-  const removed_columns = removed_field_defs.map((field) => ({
-    key: field.id,
-    label: get_field_text(field.label, language),
-    tint: "red",
-  }));
+  const active_columns = active_fields.map((field) =>
+    build_column_entry(field, language, { tint: field_ids_in_other_versions.has(field.id) ? undefined : "green" }),
+  );
+  const removed_columns = removed_field_defs.map((field) => build_column_entry(field, language, { tint: "red" }));
 
   const has_diff = active_columns.some((column) => column.tint) || removed_columns.length > 0;
 

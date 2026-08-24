@@ -8,7 +8,7 @@ import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
 import { get_field_text } from "../fields/fieldText.js";
 import DcsDataTable from "../components/DcsDataTable.jsx";
 import DcsDataTableFileCell from "../components/DcsDataTableFileCell.jsx";
-import DcsDataTableGeoCell from "../components/DcsDataTableGeoCell.jsx";
+import DcsDataTableGeoCell, { GEO_CELL_TABLE_MIN_WIDTH_PX } from "../components/DcsDataTableGeoCell.jsx";
 import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
 import DcsTableSearchSort from "../components/DcsTableSearchSort.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
@@ -43,7 +43,7 @@ function build_rows(submissions, data_fields) {
  */
 export default function FormDataPage() {
   const { form_group_id, version } = useParams();
-  const { language } = useDcsLanguage();
+  const { language, translate } = useDcsLanguage();
   const table = useSubmissionsTable(form_group_id, version);
 
   const { data: versions, loading: loading_versions } = useSilentPolling(
@@ -59,7 +59,15 @@ export default function FormDataPage() {
   const data_fields = flatten_fields(version_doc.schema.fields).filter((field) => !NON_DATA_TYPES.includes(field.type));
 
   const columns = data_fields
-    .map((field) => ({ key: field.id, label: get_field_text(field.label, language) }))
+    .map((field) =>
+      Object.assign(
+        // GeoLocation carries no question label of its own (see
+        // NON_LABEL_TYPES) - falling back to a fixed header keeps this
+        // column from ever showing up blank.
+        { key: field.id, label: get_field_text(field.label, language) || (field.type === "geolocation" ? translate("DCS_GEO_TABLE_HEADER_LABEL") : "") },
+        field.type === "geolocation" ? { minWidthPx: GEO_CELL_TABLE_MIN_WIDTH_PX } : {},
+      ),
+    )
     .concat([{ key: "submitted_at", labelKey: "DCS_TABLE_SUBMITTED_AT" }]);
 
   const rows = build_rows(table.submissions, data_fields);

@@ -371,7 +371,10 @@ const fr = {
   DCS_GEO_ACCURACY_METERS: "{{value}} mètres",
   DCS_GEO_MAP_PREVIEW_PLACEHOLDER: "Aperçu de la carte (affichée sur le formulaire en direct)",
   DCS_GEO_OFFLINE_HIDDEN_NOTICE: "La carte et les détails du lieu sont masqués tant que vous êtes hors ligne. Ils réapparaîtront une fois la connexion rétablie.",
-  DCS_GEO_TABLE_CELL_TITLE: "Localisation enregistrée",
+  DCS_GEO_TABLE_CELL_TITLE: "Localisation",
+  DCS_GEO_TABLE_HEADER_LABEL: "Données de localisation",
+  DCS_GEO_STATUS_RECORDED: "Enregistrée",
+  DCS_GEO_STATUS_MANUALLY_ENTERED: "Saisie manuellement",
 
   DCS_RENDERER_LANGUAGE_LABEL: "Langue",
   DCS_RENDERER_PROGRESS_LABEL: "{{percent}}% complété",

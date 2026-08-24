@@ -371,7 +371,10 @@ const kn = {
   DCS_GEO_ACCURACY_METERS: "Metero {{value}}",
   DCS_GEO_MAP_PREVIEW_PLACEHOLDER: "Ikarita (izagaragara ku ifishi nyayo)",
   DCS_GEO_OFFLINE_HIDDEN_NOTICE: "Ikarita n'amakuru y'aho uherereye birahishwe igihe udafite interineti. Bizagaruka igihe uzongera kugira interineti.",
-  DCS_GEO_TABLE_CELL_TITLE: "Aho biherereye byanditswe",
+  DCS_GEO_TABLE_CELL_TITLE: "Aho biherereye",
+  DCS_GEO_TABLE_HEADER_LABEL: "Amakuru y'Aho Biherereye",
+  DCS_GEO_STATUS_RECORDED: "Byanditswe",
+  DCS_GEO_STATUS_MANUALLY_ENTERED: "Byinjijwe intoki",
 
   DCS_RENDERER_LANGUAGE_LABEL: "Ururimi",
   DCS_RENDERER_PROGRESS_LABEL: "Byarangiye {{percent}}%",
