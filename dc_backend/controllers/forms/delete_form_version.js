@@ -1,5 +1,7 @@
 const forms_model = require("../../models/forms_model.js");
 const submissions_model = require("../../models/submissions_model.js");
+const projects_model = require("../../models/projects_model.js");
+const project_access = require("../../utilities/project_access.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 
 /**
@@ -22,6 +24,12 @@ async function delete_form_version(req, res) {
     const version_doc = await forms_model.get_version_document(form_group_id, version);
     if (!version_doc) {
       return res.status(404).json(warning_response(req, "FORM_NOT_FOUND"));
+    }
+
+    const project = await projects_model.find_project_by_id(version_doc.project_id);
+    const management = await project_access.resolve_form_management(req.user, project, form_group_id);
+    if (!management.delete_forms) {
+      return res.status(403).json(warning_response(req, "FORM_ACTION_FORBIDDEN"));
     }
 
     if (version_doc.is_active) {
