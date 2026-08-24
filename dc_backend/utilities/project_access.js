@@ -145,10 +145,12 @@ async function can_manage_access(user, project, access_document) {
  * (add/edit/delete/share). The creator can do everything, and a project
  * without enabled access rules keeps today's open behavior. Otherwise the
  * user's individual grants - and the grants of their department or unit -
- * decide: add/delete only ever come from a project-wide (all_forms) grant,
- * while edit/share also apply to a form-specific grant - but only for the
- * forms that grant covers, which is why form_group_id narrows the answer
- * when checking one form.
+ * decide: the grant option (share_forms) is the full level and implies
+ * every action, while hand-picked accesses apply one by one. add/delete
+ * only ever come from a project-wide (all_forms) grant; edit/share also
+ * apply to a form-specific grant - but only for the forms that grant
+ * covers, which is why form_group_id narrows the answer when checking one
+ * form.
  */
 async function resolve_form_management(user, project, form_group_id, access_document) {
   if (!user || !project) return NO_MANAGEMENT;
@@ -177,16 +179,17 @@ async function resolve_form_management(user, project, form_group_id, access_docu
   const result = Object.assign({}, NO_MANAGEMENT);
   matching.forEach(({ grant, legacy_can_grant }) => {
     const manage = grant.manage || {};
+    const has_grant_option = manage.share_forms === true || legacy_can_grant;
     const covers_form =
       grant.all_forms === true || !form_group_id || (grant.form_group_ids || []).includes(form_group_id);
 
     if (grant.all_forms === true) {
-      if (manage.add_forms === true) result.add_forms = true;
-      if (manage.delete_forms === true) result.delete_forms = true;
+      if (manage.add_forms === true || has_grant_option) result.add_forms = true;
+      if (manage.delete_forms === true || has_grant_option) result.delete_forms = true;
     }
     if (covers_form) {
-      if (manage.edit_forms === true) result.edit_forms = true;
-      if (manage.share_forms === true || legacy_can_grant) result.share_forms = true;
+      if (manage.edit_forms === true || has_grant_option) result.edit_forms = true;
+      if (has_grant_option) result.share_forms = true;
     }
   });
   return result;

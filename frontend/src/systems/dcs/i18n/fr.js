@@ -362,7 +362,7 @@ const fr = {
   DCS_ACCESS_MANAGE_DELETE: "Supprimer des formulaires",
   DCS_ACCESS_MANAGE_DELETE_HINT: "Peut supprimer des versions de formulaires dans ce projet",
   DCS_ACCESS_MANAGE_SHARE: "Partager les formulaires (option d'attribution)",
-  DCS_ACCESS_MANAGE_SHARE_HINT: "Peut accorder et restreindre l'accès à ce projet pour d'autres personnes",
+  DCS_ACCESS_MANAGE_SHARE_HINT: "Accès complet - peut ajouter, modifier et supprimer des formulaires, et accorder ou restreindre l'accès à d'autres personnes",
   DCS_ACCESS_GRANT_BADGE: "Option d'attribution",
   DCS_ACCESS_MANAGE_FORBIDDEN: "Seul le créateur du projet ou les personnes ayant l'option d'attribution peuvent gérer l'accès à ce projet",
   DCS_BTN_SAVE_ACCESS: "Enregistrer les règles d'accès",

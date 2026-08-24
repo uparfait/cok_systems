@@ -362,7 +362,7 @@ const en = {
   DCS_ACCESS_MANAGE_DELETE: "Delete forms",
   DCS_ACCESS_MANAGE_DELETE_HINT: "Can delete form versions in this project",
   DCS_ACCESS_MANAGE_SHARE: "Share forms (grant option)",
-  DCS_ACCESS_MANAGE_SHARE_HINT: "Can grant and restrict access to this project for other people",
+  DCS_ACCESS_MANAGE_SHARE_HINT: "Full access - can add, edit and delete forms, and grant or restrict access for other people",
   DCS_ACCESS_GRANT_BADGE: "Grant option",
   DCS_ACCESS_MANAGE_FORBIDDEN: "Only the project creator or people given the grant option can manage access to this project",
   DCS_BTN_SAVE_ACCESS: "Save access rules",
