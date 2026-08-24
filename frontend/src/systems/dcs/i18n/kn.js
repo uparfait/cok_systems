@@ -362,7 +362,7 @@ const kn = {
   DCS_ACCESS_MANAGE_DELETE: "Gusiba amafishi",
   DCS_ACCESS_MANAGE_DELETE_HINT: "Ashobora gusiba verisiyo z'amafishi muri iyi poroje",
   DCS_ACCESS_MANAGE_SHARE: "Gusangiza amafishi (gutanga uburenganzira)",
-  DCS_ACCESS_MANAGE_SHARE_HINT: "Ashobora guha no kubuza abandi uburenganzira kuri iyi poroje",
+  DCS_ACCESS_MANAGE_SHARE_HINT: "Uburenganzira busesuye - ashobora kongeraho, guhindura no gusiba amafishi, no guha cyangwa kubuza abandi uburenganzira",
   DCS_ACCESS_GRANT_BADGE: "Gutanga uburenganzira",
   DCS_ACCESS_MANAGE_FORBIDDEN: "Uwaremye iyi poroje cyangwa abahawe uburenganzira bwo gutanga uburenganzira ni bo bonyine bashobora kubucunga",
   DCS_BTN_SAVE_ACCESS: "Bika amategeko y'uburenganzira",
