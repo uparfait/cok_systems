@@ -51,6 +51,21 @@ class SubmitAttendanceController {
         });
       }
 
+      // Prevent duplicate attendance by email
+      if (attendeeEmail) {
+        const existingEmailAttendance = await Attendance.findOne({
+          eventSpecialId,
+          attendeeEmail: attendeeEmail.toLowerCase().trim()
+        });
+
+        if (existingEmailAttendance) {
+          return res.status(409).json({
+            success: false,
+            message: 'Attendance for this email has already been recorded for this event'
+          });
+        }
+      }
+
       const attendance = new Attendance({
         attendeeFullName: attendeeFullName.trim(),
         attendeeEmail: attendeeEmail ? attendeeEmail.toLowerCase().trim() : undefined,
