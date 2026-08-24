@@ -91,6 +91,8 @@ const TaskNotifications: React.FC = () => {
         return <FiCheckCircle className="w-4 h-4 text-green-500" />
       case 'subtask_completed':
         return <FiCheckCircle className="w-4 h-4 text-blue-500" />
+      case 'task_stuck':
+        return <FiAlertTriangle className="w-4 h-4 text-red-500" />
       default:
         return <FiBell className="w-4 h-4 text-gray-500" />
     }

@@ -12,7 +12,7 @@ const createNotification = async (req, res) => {
             })
         }
 
-        const validTypes = ['deadline_reminder', 'task_completed', 'subtask_completed']
+        const validTypes = ['deadline_reminder', 'task_completed', 'subtask_completed', 'negative_feedback', 'announcement', 'task_assigned', 'task_stuck']
         if (!validTypes.includes(type)) {
             return res.status(StatusCodes.BAD_REQUEST).json({
                 status: false,

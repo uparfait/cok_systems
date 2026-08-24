@@ -1,6 +1,7 @@
 const { MongoClient } = require("mongodb");
 const config = require("../configurations/config.js");
 const { set_db_handles } = require("./db.js");
+require("dotenv").config({ quiet: true });
 
 /**
  * Connects a single MongoClient to the shared Mongo cluster and exposes two
@@ -11,7 +12,10 @@ const { set_db_handles } = require("./db.js");
 async function connect_databases() {
   try {
     const client = new MongoClient(config.connection_string);
+    console.log(config.connection_string)
     await client.connect();
+
+    console.log(process.env)
 
     const primary_db = client.db();
     const cok_db = client.db(config.cok_database_name);
