@@ -16,6 +16,9 @@ const OPERATOR_DESCRIPTIONS = {
   length_is: "Text/selection length must equal exactly the given number.",
   min_length: "Text/selection length must be at least the given number.",
   max_length: "Text/selection length must be at most the given number.",
+  words_is: "Text answer's word count must equal exactly the given number.",
+  min_words: "Text answer's word count must be at least the given number.",
+  max_words: "Text answer's word count must be at most the given number.",
   matches_pattern: "Text answer must match the given regular expression.",
   not_matches_pattern: "Text answer must NOT match the given regular expression.",
   greater_than: "Numeric answer must be greater than the given number.",
@@ -125,6 +128,15 @@ const FIELD_TYPE_DOCS = {
     usage_notes: "Applicable validation operators: equals, not_equals, includes, not_includes, starts_with, ends_with, length_is, min_length, max_length, matches_pattern, not_matches_pattern, must_equal_field, not_equal_field, depends_on_parent.",
     example: { id: "text_ab12cd", type: "text", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "Full name" }), mandatory: true, validation_rules: [], design: { spacing_below_px: 16 } },
   },
+  large_text: {
+    description: "Multi-line free text answer (a resizable text area), for longer responses than 'text' is meant for.",
+    extra_properties: {
+      rows: "Number - visible text area height in text rows (default 5).",
+      length_limit_ui: "{ unit: 'characters'|'words', min: number|'', max: number|'', severity: 'error'|'warning' } - authoring-only convenience state the settings drawer uses to generate the matching min_length/max_length or min_words/max_words validation_rules; not evaluated itself.",
+    },
+    usage_notes: "Applicable validation operators: equals, not_equals, includes, not_includes, starts_with, ends_with, length_is, min_length, max_length, words_is, min_words, max_words, matches_pattern, not_matches_pattern, must_equal_field, not_equal_field, depends_on_parent.",
+    example: { id: "large_text_ab12cd", type: "large_text", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "Describe the issue in detail" }), rows: 5, mandatory: false, validation_rules: [], design: { spacing_below_px: 16 } },
+  },
   number: {
     description: "Numeric answer.",
     extra_properties: {},
@@ -160,6 +172,13 @@ const FIELD_TYPE_DOCS = {
     extra_properties: { options: "Array of { id, label, value } - value is what gets stored/compared, must be unique across the field's own options." },
     usage_notes: "Applicable validation operators: equals, not_equals, includes, not_includes, depends_on_parent.",
     example: { id: "select_group_ab12cd", type: "select_group", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "District" }), options: [option_example(1), option_example(2)], mandatory: true, validation_rules: [], design: { spacing_below_px: 16 } },
+  },
+  geolocation: {
+    description: "Captures a location: search by place name or auto-detect the respondent's current position, reverse-geocoded into Rwanda's administrative levels (province/district/sector/cell/village/street) whenever online. Carries no question label of its own, like paragraph/file.",
+    extra_properties: {},
+    usage_notes:
+      "Has no Validation tab and no applicable validation operators - coordinates are always device-detected (never typed), falling back to (0, 0) when detection is unavailable, so there is nothing meaningful to validate. The stored answer is always an object: { latitude, longitude, accuracy, province, district, sector, cell, village, street, full_address, is_manual } - any address field the reverse geocoder could not resolve, or that was never looked up (offline), is null. 'mandatory' is satisfied once latitude/longitude are set, regardless of whether the address fields resolved.",
+    example: { id: "geolocation_ab12cd", type: "geolocation", mandatory: true, validation_rules: [], design: { spacing_below_px: 16 } },
   },
   cascading_select: {
     description: "A dropdown whose visible options are filtered by the current answer of another ('parent') single-choice field - e.g. District depends on Province.",
@@ -371,6 +390,7 @@ export function build_form_creation_guide() {
         "starts_with(value, prefix)", "ends_with(value, suffix)", "regex_match(value, pattern, flags?)",
         "in_array(value, arrayOrString)", "not_in_array(value, arrayOrString)",
         "length_is(value, n)", "min_length(value, n)", "max_length(value, n)",
+        "words_is(value, n)", "min_words(value, n)", "max_words(value, n)",
         "email_domain_in(email, csvDomains)", "email_domain_not_in(email, csvDomains)",
         "url_domain_in(url, csvDomains)", "url_domain_not_in(url, csvDomains)",
         "date_diff_days(dateA, dateB)", "gps_accuracy_ok(accuracyMeters, thresholdMeters)",

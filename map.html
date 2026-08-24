@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Rwanda Location Finder</title>
+
+    <!-- Leaflet CSS -->
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    >
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #222;
+        }
+
+        .container {
+            width: min(1100px, 95%);
+            margin: 30px auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .description {
+            text-align: center;
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        input {
+            flex: 1;
+            min-width: 250px;
+            padding: 14px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 14px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+            background: #1976d2;
+            color: white;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        #detectButton {
+            background: #198754;
+        }
+
+        #map {
+            height: 500px;
+            width: 100%;
+            border-radius: 12px;
+            margin-top: 15px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.15);
+        }
+
+        .status {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .loading {
+            display: block;
+            background: #e7f1ff;
+            color: #084298;
+        }
+
+        .error {
+            display: block;
+            background: #f8d7da;
+            color: #842029;
+        }
+
+        .success {
+            display: block;
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .info-card {
+            background: white;
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.08);
+        }
+
+        .info-card h2 {
+            margin-top: 0;
+        }
+
+        .location-grid {
+            display: grid;
+            grid-template-columns: repeat(
+                auto-fit,
+                minmax(220px, 1fr)
+            );
+            gap: 12px;
+        }
+
+        .location-item {
+            background: #f7f7f7;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .location-item label {
+            display: block;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .location-item span {
+            font-weight: bold;
+            word-break: break-word;
+        }
+
+        @media (max-width: 600px) {
+
+            .search-box {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+
+            #map {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>📍 Location Finder</h1>
+
+        <p class="description">
+            Detect your location automatically or search
+            by street, district, sector, village, cell,
+            province, or any other location.
+        </p>
+
+
+        <!-- SEARCH -->
+        <div class="search-box">
+
+            <input
+                type="text"
+                id="searchInput"
+                placeholder="Example: Nyamirambo, Kigali or KN 4 Ave, Rwanda"
+            >
+
+            <button onclick="searchLocation()">
+                🔎 Search Location
+            </button>
+
+            <button
+                id="detectButton"
+                onclick="detectMyLocation()"
+            >
+                📍 Detect My Location
+            </button>
+
+        </div>
+
+
+        <!-- STATUS -->
+        <div id="status"></div>
+
+
+        <!-- MAP -->
+        <div id="map"></div>
+
+
+        <!-- LOCATION INFORMATION -->
+        <div class="info-card">
+
+            <h2>Location Details</h2>
+
+            <div class="location-grid">
+
+                <div class="location-item">
+                    <label>Latitude</label>
+                    <span id="latitude">-</span>
+                </div>
+
+                <div class="location-item">
+                    <label>Longitude</label>
+                    <span id="longitude">-</span>
+                </div>
+
+                <div class="location-item">
+                    <label>Accuracy</label>
+                    <span id="accuracy">-</span>
+                </div>
+
+                <div class="location-item">
+                    <label>Province</label>
+                    <span id="province">-</span>
+                </div>
+
+                <div class="location-item">
+                    <label>District</label>
+                    <span id="district">-</span>
+                </div>
+
+                <div class="location-item">
+                    <label>Sector</label>
+                    <span id="sector">-</span>
+                </div>
+
+                <div class="location-item">
+                    <label>Cell</label>
+                    <span id="cell">-</span>
+                </div>
+
+                <div class="location-item">
+                    <label>Village</label>
+                    <span id="village">-</span>
+                </div>
+
+                <div class="location-item">
+                    <label>Street</label>
+                    <span id="street">-</span>
+                </div>
+
+                <div class="location-item">
+                    <label>Full Address</label>
+                    <span id="fullAddress">-</span>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- LEAFLET JAVASCRIPT -->
+    <script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    ></script>
+
+
+    <script>
+
+        /*
+        ========================================
+        MAP SETUP
+        Default: Rwanda
+        ========================================
+        */
+
+        const map = L.map("map").setView(
+            [-1.9403, 29.8739],
+            8
+        );
+
+
+        /*
+        ========================================
+        OPENSTREETMAP MAP LAYER
+        ========================================
+        */
+
+        L.tileLayer(
+            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            {
+                maxZoom: 19,
+
+                attribution:
+                    "&copy; OpenStreetMap contributors"
+            }
+        ).addTo(map);
+
+
+        /*
+        ========================================
+        MARKER
+        ========================================
+        */
+
+        let marker = null;
+
+
+        /*
+        ========================================
+        SHOW STATUS
+        ========================================
+        */
+
+        function showStatus(message, type) {
+
+            const status =
+                document.getElementById("status");
+
+            status.className = "status " + type;
+
+            status.textContent = message;
+        }
+
+
+        /*
+        ========================================
+        UPDATE LOCATION FIELD
+        ========================================
+        */
+
+        function updateField(id, value) {
+
+            document.getElementById(id).textContent =
+                value || "Not available";
+        }
+
+
+        /*
+        ========================================
+        PUT MARKER ON MAP
+        ========================================
+        */
+
+        function showOnMap(latitude, longitude, title) {
+
+            /*
+            Remove previous marker
+            */
+
+            if (marker) {
+                map.removeLayer(marker);
+            }
+
+
+            /*
+            Move map
+            */
+
+            map.setView(
+                [latitude, longitude],
+                17
+            );
+
+
+            /*
+            Add marker
+            */
+
+            marker = L.marker(
+                [latitude, longitude]
+            ).addTo(map);
+
+
+            /*
+            Marker popup
+            */
+
+            marker.bindPopup(`
+                <b>${title}</b>
+                <br><br>
+
+                Latitude: ${latitude}
+                <br>
+
+                Longitude: ${longitude}
+            `).openPopup();
+        }
+
+
+        /*
+        ========================================
+        REVERSE GEOCODING
+        COORDINATES -> LOCATION DETAILS
+        ========================================
+        */
+
+        async function getLocationDetails(
+            latitude,
+            longitude,
+            accuracy = null
+        ) {
+
+            try {
+
+                showStatus(
+                    "Finding address and administrative location details...",
+                    "loading"
+                );
+
+
+                const url =
+                    "https://nominatim.openstreetmap.org/reverse" +
+                    "?format=json" +
+                    "&lat=" + encodeURIComponent(latitude) +
+                    "&lon=" + encodeURIComponent(longitude) +
+                    "&addressdetails=1";
+
+
+                const response =
+                    await fetch(url);
+
+
+                if (!response.ok) {
+                    throw new Error(
+                        "Could not retrieve address"
+                    );
+                }
+
+
+                const data =
+                    await response.json();
+
+
+                const address =
+                    data.address || {};
+
+
+                /*
+                ====================================
+                EXTRACT AVAILABLE INFORMATION
+
+                Different OpenStreetMap areas use
+                different field names.
+                ====================================
+                */
+
+
+                const province =
+                    address.state ||
+                    address.region ||
+                    address.province;
+
+
+                const district =
+                    address.city_district ||
+                    address.district ||
+                    address.county;
+
+
+                /*
+                Rwanda sector may sometimes be
+                stored as municipality, town,
+                suburb or another administrative
+                field depending on OSM data.
+                */
+
+                const sector =
+                    address.sector ||
+                    address.municipality ||
+                    address.suburb;
+
+
+                const cell =
+                    address.cell ||
+                    address.neighbourhood ||
+                    address.quarter;
+
+
+                const village =
+                    address.village ||
+                    address.hamlet ||
+                    address.locality;
+
+
+                const street =
+                    address.road ||
+                    address.street ||
+                    address.pedestrian ||
+                    address.footway ||
+                    address.path;
+
+
+                /*
+                ====================================
+                UPDATE PAGE
+                ====================================
+                */
+
+                updateField(
+                    "latitude",
+                    latitude
+                );
+
+                updateField(
+                    "longitude",
+                    longitude
+                );
+
+                updateField(
+                    "accuracy",
+                    accuracy
+                        ? Math.round(accuracy) + " meters"
+                        : "Not available"
+                );
+
+                updateField(
+                    "province",
+                    province
+                );
+
+                updateField(
+                    "district",
+                    district
+                );
+
+                updateField(
+                    "sector",
+                    sector
+                );
+
+                updateField(
+                    "cell",
+                    cell
+                );
+
+                updateField(
+                    "village",
+                    village
+                );
+
+                updateField(
+                    "street",
+                    street
+                );
+
+                updateField(
+                    "fullAddress",
+                    data.display_name
+                );
+
+
+                /*
+                Update marker popup
+                */
+
+                if (marker) {
+
+                    marker.bindPopup(`
+                        <b>📍 Location Found</b>
+
+                        <br><br>
+
+                        <b>${data.display_name}</b>
+
+                        <br><br>
+
+                        Latitude: ${latitude}
+
+                        <br>
+
+                        Longitude: ${longitude}
+                    `).openPopup();
+                }
+
+
+                showStatus(
+                    "Location found successfully.",
+                    "success"
+                );
+
+            }
+            catch (error) {
+
+                console.error(error);
+
+
+                /*
+                Even if address lookup fails,
+                still show coordinates.
+                */
+
+                updateField(
+                    "latitude",
+                    latitude
+                );
+
+                updateField(
+                    "longitude",
+                    longitude
+                );
+
+                updateField(
+                    "accuracy",
+                    accuracy
+                        ? Math.round(accuracy) + " meters"
+                        : "Not available"
+                );
+
+
+                showStatus(
+                    "Coordinates were found, but some address details could not be retrieved.",
+                    "error"
+                );
+            }
+        }
+
+
+        /*
+        ========================================
+        DETECT USER LOCATION
+        ========================================
+        */
+
+        function detectMyLocation() {
+
+            /*
+            Check browser support
+            */
+
+            if (!navigator.geolocation) {
+
+                showStatus(
+                    "Your browser does not support location detection.",
+                    "error"
+                );
+
+                return;
+            }
+
+
+            showStatus(
+                "Detecting your location. Please allow location access if requested...",
+                "loading"
+            );
+
+
+            navigator.geolocation.getCurrentPosition(
+
+                /*
+                ====================================
+                SUCCESS
+                ====================================
+                */
+
+                async function(position) {
+
+                    const latitude =
+                        position.coords.latitude;
+
+                    const longitude =
+                        position.coords.longitude;
+
+                    const accuracy =
+                        position.coords.accuracy;
+
+
+                    /*
+                    Show on map
+                    */
+
+                    showOnMap(
+                        latitude,
+                        longitude,
+                        "Your Current Location"
+                    );
+
+
+                    /*
+                    Get address details
+                    */
+
+                    await getLocationDetails(
+                        latitude,
+                        longitude,
+                        accuracy
+                    );
+                },
+
+
+                /*
+                ====================================
+                ERROR
+                ====================================
+                */
+
+                function(error) {
+
+                    let message;
+
+
+                    switch (error.code) {
+
+                        case error.PERMISSION_DENIED:
+
+                            message =
+                                "Location permission was denied.";
+
+                            break;
+
+
+                        case error.POSITION_UNAVAILABLE:
+
+                            message =
+                                "Your location is currently unavailable.";
+
+                            break;
+
+
+                        case error.TIMEOUT:
+
+                            message =
+                                "Location detection took too long. Please try again.";
+
+                            break;
+
+
+                        default:
+
+                            message =
+                                "An unknown error occurred while detecting your location.";
+                    }
+
+
+                    showStatus(
+                        message,
+                        "error"
+                    );
+                },
+
+
+                /*
+                ====================================
+                LOCATION OPTIONS
+                ====================================
+                */
+
+                {
+                    enableHighAccuracy: true,
+
+                    timeout: 15000,
+
+                    maximumAge: 0
+                }
+            );
+        }
+
+
+        /*
+        ========================================
+        SEARCH LOCATION BY TEXT
+        TEXT -> COORDINATES
+        ========================================
+        */
+
+        async function searchLocation() {
+
+            const searchInput =
+                document.getElementById("searchInput");
+
+
+            const query =
+                searchInput.value.trim();
+
+
+            /*
+            Validate
+            */
+
+            if (!query) {
+
+                showStatus(
+                    "Please enter a location to search.",
+                    "error"
+                );
+
+                return;
+            }
+
+
+            try {
+
+                showStatus(
+                    "Searching for the location...",
+                    "loading"
+                );
+
+
+                /*
+                Search Rwanda first
+                You can remove countrycodes=rw
+                if you want worldwide search.
+                */
+
+                const url =
+                    "https://nominatim.openstreetmap.org/search" +
+                    "?format=json" +
+                    "&q=" + encodeURIComponent(query) +
+                    "&addressdetails=1" +
+                    "&limit=1" +
+                    "&countrycodes=rw";
+
+
+                const response =
+                    await fetch(url);
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        "Search request failed"
+                    );
+                }
+
+
+                const results =
+                    await response.json();
+
+
+                /*
+                No result
+                */
+
+                if (
+                    !results ||
+                    results.length === 0
+                ) {
+
+                    showStatus(
+                        "Location not found. Try adding more information, for example: Kigali, Rwanda.",
+                        "error"
+                    );
+
+                    return;
+                }
+
+
+                /*
+                Get first result
+                */
+
+                const location =
+                    results[0];
+
+
+                const latitude =
+                    parseFloat(location.lat);
+
+                const longitude =
+                    parseFloat(location.lon);
+
+
+                /*
+                Show map
+                */
+
+                showOnMap(
+                    latitude,
+                    longitude,
+                    location.display_name
+                );
+
+
+                /*
+                Get complete administrative details
+                */
+
+                await getLocationDetails(
+                    latitude,
+                    longitude
+                );
+
+
+                showStatus(
+                    "Location found successfully.",
+                    "success"
+                );
+
+            }
+            catch (error) {
+
+                console.error(error);
+
+
+                showStatus(
+                    "Something went wrong while searching for the location.",
+                    "error"
+                );
+            }
+        }
+
+
+        /*
+        ========================================
+        PRESS ENTER TO SEARCH
+        ========================================
+        */
+
+        document
+            .getElementById("searchInput")
+            .addEventListener(
+                "keydown",
+                function(event) {
+
+                    if (
+                        event.key === "Enter"
+                    ) {
+
+                        searchLocation();
+                    }
+                }
+            );
+
+    </script>
+
+</body>
+</html>

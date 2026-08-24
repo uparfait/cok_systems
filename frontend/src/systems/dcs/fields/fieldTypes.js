@@ -2,6 +2,7 @@ export const DCS_CONTENT_FIELD_TYPES = ["paragraph", "header", "file", "image_bl
 
 export const DCS_DATA_FIELD_TYPES = [
   "text",
+  "large_text",
   "number",
   "email",
   "url",
@@ -23,6 +24,7 @@ export const DCS_DATA_FIELD_TYPES = [
   "hidden",
   "cascading_select",
   "select_group",
+  "geolocation",
 ];
 
 export const DCS_ALL_FIELD_TYPES = DCS_CONTENT_FIELD_TYPES.concat(DCS_DATA_FIELD_TYPES);
@@ -41,6 +43,7 @@ export const DCS_FIELD_TYPE_REGISTRY = [
   { type: "section", labelKey: "FIELD_TYPE_SECTION", descriptionKey: "FIELD_TYPE_SECTION_DESC", category: "content" },
 
   { type: "text", labelKey: "FIELD_TYPE_TEXT", descriptionKey: "FIELD_TYPE_TEXT_DESC", category: "data" },
+  { type: "large_text", labelKey: "FIELD_TYPE_LARGE_TEXT", descriptionKey: "FIELD_TYPE_LARGE_TEXT_DESC", category: "data" },
   { type: "number", labelKey: "FIELD_TYPE_NUMBER", descriptionKey: "FIELD_TYPE_NUMBER_DESC", category: "data" },
   { type: "email", labelKey: "FIELD_TYPE_EMAIL", descriptionKey: "FIELD_TYPE_EMAIL_DESC", category: "data" },
   { type: "url", labelKey: "FIELD_TYPE_URL", descriptionKey: "FIELD_TYPE_URL_DESC", category: "data" },
@@ -62,6 +65,7 @@ export const DCS_FIELD_TYPE_REGISTRY = [
   { type: "hidden", labelKey: "FIELD_TYPE_HIDDEN", descriptionKey: "FIELD_TYPE_HIDDEN_DESC", category: "data" },
   { type: "cascading_select", labelKey: "FIELD_TYPE_CASCADING_SELECT", descriptionKey: "FIELD_TYPE_CASCADING_SELECT_DESC", category: "data" },
   { type: "select_group", labelKey: "FIELD_TYPE_SELECT_GROUP", descriptionKey: "FIELD_TYPE_SELECT_GROUP_DESC", category: "data" },
+  { type: "geolocation", labelKey: "FIELD_TYPE_GEOLOCATION", descriptionKey: "FIELD_TYPE_GEOLOCATION_DESC", category: "data" },
 ];
 
 /**
@@ -117,6 +121,14 @@ export function create_blank_field(field_type) {
     base_field.parent_field_id = null;
     const first_option_id = generate_field_id("option");
     base_field.options = [{ id: first_option_id, label: { en: "", kn: "", fr: "" }, value: first_option_id, parent_value: "" }];
+  }
+  if (field_type === "large_text") {
+    base_field.rows = 5;
+    // Authoring-only convenience state (mirrors the visibility_condition /
+    // visibility_condition_ui pattern below): the settings drawer derives
+    // the actual min_length/max_length or min_words/max_words validation
+    // rules from this, it is never itself read at submission time.
+    base_field.length_limit_ui = { unit: "characters", min: "", max: "", severity: "error" };
   }
   if (field_type === "likert_scale") {
     base_field.scale_size = 5;

@@ -8,6 +8,7 @@ const CONTENT_FIELD_TYPES = ["paragraph", "header", "file", "image_block", "hori
 
 const DATA_FIELD_TYPES = [
   "text",
+  "large_text",
   "number",
   "email",
   "url",
@@ -29,6 +30,7 @@ const DATA_FIELD_TYPES = [
   "hidden",
   "cascading_select",
   "select_group",
+  "geolocation",
 ];
 
 const ALL_FIELD_TYPES = CONTENT_FIELD_TYPES.concat(DATA_FIELD_TYPES);

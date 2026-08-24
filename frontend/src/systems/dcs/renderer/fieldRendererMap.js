@@ -1,4 +1,5 @@
 import TextField from "../fields/TextField.jsx";
+import TextareaField from "../fields/TextareaField.jsx";
 import NumberField from "../fields/NumberField.jsx";
 import EmailField from "../fields/EmailField.jsx";
 import UrlField from "../fields/UrlField.jsx";
@@ -21,6 +22,7 @@ import SectionField from "../fields/SectionField.jsx";
 import HiddenField from "../fields/HiddenField.jsx";
 import CascadingSelectField from "../fields/CascadingSelectField.jsx";
 import SelectGroupField from "../fields/SelectGroupField.jsx";
+import GeolocationField from "../fields/GeolocationField.jsx";
 import ParagraphBlock from "../fields/structural/ParagraphBlock.jsx";
 import HeaderBlock from "../fields/structural/HeaderBlock.jsx";
 import FileBlock from "../fields/structural/FileBlock.jsx";
@@ -33,6 +35,7 @@ import HorizontalLineBlock from "../fields/structural/HorizontalLineBlock.jsx";
  */
 export const DCS_FIELD_RENDERER_MAP = {
   text: TextField,
+  large_text: TextareaField,
   number: NumberField,
   email: EmailField,
   url: UrlField,
@@ -55,6 +58,7 @@ export const DCS_FIELD_RENDERER_MAP = {
   hidden: HiddenField,
   cascading_select: CascadingSelectField,
   select_group: SelectGroupField,
+  geolocation: GeolocationField,
   paragraph: ParagraphBlock,
   header: HeaderBlock,
   file: FileBlock,

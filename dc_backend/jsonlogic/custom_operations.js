@@ -112,6 +112,41 @@ function not_in_array(value, array) {
 }
 
 /**
+ * Word count of a text value: runs of non-whitespace separated by any
+ * whitespace, so extra spaces/newlines between words never inflate the
+ * count.
+ */
+function count_words(value) {
+  if (value === null || value === undefined) return 0;
+  const trimmed = String(value).trim();
+  return trimmed === "" ? 0 : trimmed.split(/\s+/).length;
+}
+
+/**
+ * True when the word count of a value exactly matches count.
+ */
+function words_is(value, count) {
+  if (value === null || value === undefined) return false;
+  return count_words(value) === Number(count);
+}
+
+/**
+ * True when the word count of a value is at least minimum.
+ */
+function min_words(value, minimum) {
+  if (value === null || value === undefined) return false;
+  return count_words(value) >= Number(minimum);
+}
+
+/**
+ * True when the word count of a value is at most maximum.
+ */
+function max_words(value, maximum) {
+  if (value === null || value === undefined) return true;
+  return count_words(value) <= Number(maximum);
+}
+
+/**
  * Lower-cased, trimmed comma-separated list, used by every domain-matching
  * operation below.
  */
@@ -169,6 +204,9 @@ const CUSTOM_OPERATIONS = {
   length_is,
   min_length,
   max_length,
+  words_is,
+  min_words,
+  max_words,
   email_domain_in,
   email_domain_not_in,
   url_domain_in,
