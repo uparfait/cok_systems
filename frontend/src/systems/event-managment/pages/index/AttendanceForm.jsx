@@ -27,6 +27,7 @@ const labelStyle = {
   color: NEUTRAL_DARK,
   display: 'block',
   marginBottom: '6px',
+  textAlign: 'left',
 };
 
 const responsiveStyles = `
@@ -235,8 +236,12 @@ export default function AttendanceForm() {
         newErrors.attendeeEmail = 'Please enter a valid email address';
     }
 
-    if (!formData.attendeePhoneNumber.trim())
+    // Digits only (spaces allowed while typing, an optional leading +), 7-15 digits
+    const phoneDigits = formData.attendeePhoneNumber.replace(/\s/g, '');
+    if (!phoneDigits)
       newErrors.attendeePhoneNumber = 'Phone number is required';
+    else if (!/^\+?\d{7,15}$/.test(phoneDigits))
+      newErrors.attendeePhoneNumber = 'Please enter a valid phone number, e.g. +250 7XX XXX XXX';
 
     if (!isInternal && !formData.attendeeInstitution.trim())
       newErrors.attendeeInstitution = 'Institution is required';
@@ -256,7 +261,9 @@ export default function AttendanceForm() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    // Letters and symbols are dropped as they are typed in the phone field
+    const cleaned = name === 'attendeePhoneNumber' ? value.replace(/[^\d+\s]/g, '') : value;
+    setFormData((prev) => ({ ...prev, [name]: cleaned }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
   };
 
@@ -389,7 +396,7 @@ export default function AttendanceForm() {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="cok-attendance-form bg-white p-5 sm:p-6 space-y-5" style={{ borderTop: 'none' }}>
+        <form onSubmit={handleSubmit} className="cok-attendance-form bg-white p-5 sm:p-6 space-y-5 text-left" style={{ borderTop: 'none' }}>
 
           <p className="text-xs" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
             Fields marked with <span style={{ color: DANGER }}>*</span> are required
