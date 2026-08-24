@@ -85,7 +85,7 @@ export interface Notification {
   _id?: string
   user: string
   task: string
-  type: 'deadline_reminder' | 'task_completed' | 'checklist_item_completed'
+  type: 'deadline_reminder' | 'task_completed' | 'subtask_completed' | 'negative_feedback' | 'announcement' | 'task_assigned' | 'task_stuck'
   title: string
   message: string
   isRead: boolean
