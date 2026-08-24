@@ -1,7 +1,7 @@
 const { ALL_FIELD_TYPES, CONTENT_FIELD_TYPES, SUPPORTED_LANGUAGES } = require("../constants/field_types.js");
 const config = require("../configurations/config.js");
 
-const LABEL_NOT_REQUIRED_TYPES = CONTENT_FIELD_TYPES.concat(["hidden"]);
+const LABEL_NOT_REQUIRED_TYPES = CONTENT_FIELD_TYPES.concat(["hidden", "geolocation"]);
 const { is_valid_rule_structure } = require("./engine.js");
 const { build_dependency_graph } = require("./dependency_graph.js");
 
@@ -12,6 +12,7 @@ const OPTION_BASED_TYPES = ["single_select", "multi_select", "ranking", "select_
 // Mirrors frontend/src/systems/dcs/builder/validationOperators.js exactly -
 // keep both in sync whenever an operator or its type applicability changes.
 const TEXT_LIKE_TYPES = ["text"];
+const LARGE_TEXT_TYPES = ["large_text"];
 const EMAIL_TYPES = ["email"];
 const URL_TYPES = ["url"];
 const PHONE_TYPES = ["phone"];
@@ -29,6 +30,7 @@ const TEXT_OPERATOR_IDS = [
   "length_is", "min_length", "max_length", "matches_pattern", "not_matches_pattern",
   "must_equal_field", "not_equal_field", "depends_on_parent",
 ];
+const LARGE_TEXT_OPERATOR_IDS = TEXT_OPERATOR_IDS.concat(["words_is", "min_words", "max_words"]);
 const EMAIL_OPERATOR_IDS = [
   "equals", "not_equals", "matches_pattern", "max_length",
   "email_domain_in", "email_domain_not_in", "must_equal_field", "depends_on_parent",
@@ -57,7 +59,7 @@ const MULTI_CHOICE_OPERATOR_IDS = ["includes", "not_includes", "min_selections",
 const DEFAULT_OPERATOR_IDS = ["equals", "not_equals", "depends_on_parent"];
 
 const ALL_OPERATOR_IDS = new Set([
-  ...TEXT_OPERATOR_IDS, ...EMAIL_OPERATOR_IDS, ...URL_OPERATOR_IDS, ...PHONE_OPERATOR_IDS,
+  ...TEXT_OPERATOR_IDS, ...LARGE_TEXT_OPERATOR_IDS, ...EMAIL_OPERATOR_IDS, ...URL_OPERATOR_IDS, ...PHONE_OPERATOR_IDS,
   ...NUMBER_OPERATOR_IDS, ...LIKERT_OPERATOR_IDS, ...RANKING_OPERATOR_IDS, ...DATE_OPERATOR_IDS,
   ...TIME_OPERATOR_IDS, ...MEDIA_OPERATOR_IDS, ...SINGLE_CHOICE_OPERATOR_IDS, ...MULTI_CHOICE_OPERATOR_IDS,
   ...DEFAULT_OPERATOR_IDS, "greater_than", "less_than",
@@ -72,6 +74,7 @@ const ALL_OPERATOR_IDS = new Set([
  */
 function get_applicable_operator_ids(field_type) {
   if (TEXT_LIKE_TYPES.includes(field_type)) return TEXT_OPERATOR_IDS;
+  if (LARGE_TEXT_TYPES.includes(field_type)) return LARGE_TEXT_OPERATOR_IDS;
   if (EMAIL_TYPES.includes(field_type)) return EMAIL_OPERATOR_IDS;
   if (URL_TYPES.includes(field_type)) return URL_OPERATOR_IDS;
   if (PHONE_TYPES.includes(field_type)) return PHONE_OPERATOR_IDS;

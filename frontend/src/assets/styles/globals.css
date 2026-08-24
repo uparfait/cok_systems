@@ -1322,6 +1322,56 @@ background-color: #056daa;
   transition: transform 0.25s ease;
 }
 
+.dcs-geo-icon-button {
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.dcs-geo-icon-button:hover {
+  background-color: rgba(5, 109, 170, 0.1);
+}
+
+.dcs-geo-icon-button:active {
+  transform: translateY(-50%) scale(0.85);
+}
+
+.dcs-geo-detect-button {
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.dcs-geo-detect-button:hover {
+  background-color: rgba(5, 109, 170, 0.08);
+  box-shadow: 0 2px 8px rgba(5, 109, 170, 0.2);
+}
+
+.dcs-geo-detect-button:active {
+  transform: scale(0.92);
+}
+
+/* Map height scales up once there is enough width to actually show detail
+   at a taller aspect ratio - kept short on a phone so the whole field
+   (search, coordinates, map, details) fits without excessive scrolling. */
+.dcs-geo-map {
+  height: 200px;
+}
+
+@media (min-width: 480px) {
+  .dcs-geo-map {
+    height: 260px;
+  }
+}
+
+@media (min-width: 640px) {
+  .dcs-geo-map {
+    height: 320px;
+  }
+}
+
+@media (max-width: 360px) {
+  .dcs-geo-coords-row {
+    flex-direction: column;
+  }
+}
+
 .dcs-sub-header-home-link {
   text-decoration: none;
   transition: color 0.2s ease;
@@ -1584,7 +1634,9 @@ background-color: #056daa;
   .dcs-page-arrow,
   .dcs-page-number,
   .dcs-sort-toggle,
-  .dcs-sort-icon {
+  .dcs-sort-icon,
+  .dcs-geo-icon-button,
+  .dcs-geo-detect-button {
     animation: none !important;
     transition: none !important;
   }

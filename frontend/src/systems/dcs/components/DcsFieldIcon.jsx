@@ -47,6 +47,14 @@ const FIELD_ICON_PATHS = {
       <line x1="4" y1="17" x2="12" y2="17" />
     </>
   ),
+  large_text: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="0" />
+      <line x1="6" y1="9" x2="18" y2="9" />
+      <line x1="6" y1="13" x2="18" y2="13" />
+      <line x1="6" y1="17" x2="13" y2="17" />
+    </>
+  ),
   number: (
     <>
       <line x1="9" y1="4" x2="7" y2="20" />
@@ -201,6 +209,12 @@ const FIELD_ICON_PATHS = {
       <rect x="3" y="13" width="18" height="5" rx="0" />
       <path d="M17 8l1.5 1.5L20 8" />
       <path d="M17 15l1.5 1.5L20 15" />
+    </>
+  ),
+  geolocation: (
+    <>
+      <path d="M12 21s-7-7.2-7-12a7 7 0 0114 0c0 4.8-7 12-7 12z" />
+      <circle cx="12" cy="9" r="2.5" />
     </>
   ),
 };

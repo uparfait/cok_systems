@@ -36,6 +36,27 @@ export const DCS_VALIDATION_OPERATORS = [
     invalidMessageLabelKey: "DCS_SETTINGS_LENGTH_RANGE_INVALID_MESSAGE",
     validMessageLabelKey: "DCS_SETTINGS_LENGTH_VALID_MESSAGE",
   },
+  {
+    id: "words_is",
+    labelKey: "OP_WORDS_IS",
+    needsValue: true,
+    invalidMessageLabelKey: "DCS_SETTINGS_LENGTH_EXACT_INVALID_MESSAGE",
+    validMessageLabelKey: "DCS_SETTINGS_LENGTH_VALID_MESSAGE",
+  },
+  {
+    id: "min_words",
+    labelKey: "OP_MIN_WORDS",
+    needsValue: true,
+    invalidMessageLabelKey: "DCS_SETTINGS_LENGTH_RANGE_INVALID_MESSAGE",
+    validMessageLabelKey: "DCS_SETTINGS_LENGTH_VALID_MESSAGE",
+  },
+  {
+    id: "max_words",
+    labelKey: "OP_MAX_WORDS",
+    needsValue: true,
+    invalidMessageLabelKey: "DCS_SETTINGS_LENGTH_RANGE_INVALID_MESSAGE",
+    validMessageLabelKey: "DCS_SETTINGS_LENGTH_VALID_MESSAGE",
+  },
   { id: "matches_pattern", labelKey: "OP_MATCHES_PATTERN", needsValue: true },
   { id: "not_matches_pattern", labelKey: "OP_NOT_MATCHES_PATTERN", needsValue: true },
   { id: "greater_than", labelKey: "OP_GREATER_THAN", needsValue: true },
@@ -64,6 +85,7 @@ export const DCS_VALIDATION_OPERATORS = [
 ];
 
 const TEXT_LIKE_TYPES = ["text"];
+const LARGE_TEXT_TYPES = ["large_text"];
 const EMAIL_TYPES = ["email"];
 const URL_TYPES = ["url"];
 const PHONE_TYPES = ["phone"];
@@ -81,6 +103,7 @@ const TEXT_OPERATOR_IDS = [
   "length_is", "min_length", "max_length", "matches_pattern", "not_matches_pattern",
   "must_equal_field", "not_equal_field", "depends_on_parent",
 ];
+const LARGE_TEXT_OPERATOR_IDS = TEXT_OPERATOR_IDS.concat(["words_is", "min_words", "max_words"]);
 const EMAIL_OPERATOR_IDS = [
   "equals", "not_equals", "matches_pattern", "max_length",
   "email_domain_in", "email_domain_not_in", "must_equal_field", "depends_on_parent",
@@ -118,6 +141,7 @@ const DEFAULT_OPERATOR_IDS = ["equals", "not_equals", "depends_on_parent"];
  */
 function get_applicable_operator_ids(field_type) {
   if (TEXT_LIKE_TYPES.includes(field_type)) return TEXT_OPERATOR_IDS;
+  if (LARGE_TEXT_TYPES.includes(field_type)) return LARGE_TEXT_OPERATOR_IDS;
   if (EMAIL_TYPES.includes(field_type)) return EMAIL_OPERATOR_IDS;
   if (URL_TYPES.includes(field_type)) return URL_OPERATOR_IDS;
   if (PHONE_TYPES.includes(field_type)) return PHONE_OPERATOR_IDS;
@@ -170,6 +194,12 @@ export function build_validation_condition(field_id, operator_id, value, parent_
       return { min_length: [field_var, numeric_value] };
     case "max_length":
       return { max_length: [field_var, numeric_value] };
+    case "words_is":
+      return { words_is: [field_var, numeric_value] };
+    case "min_words":
+      return { min_words: [field_var, numeric_value] };
+    case "max_words":
+      return { max_words: [field_var, numeric_value] };
     case "matches_pattern":
       return { regex_match: [field_var, value] };
     case "not_matches_pattern":

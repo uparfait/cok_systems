@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
+import { dcs_translate } from "../i18n/index.js";
 import { generate_field_id, DCS_FIELD_TYPE_REGISTRY } from "../fields/fieldTypes.js";
 import { build_validation_condition, DCS_VALIDATION_OPERATORS } from "./validationOperators.js";
 import { DCS_FILE_TYPE_GROUPS } from "../fields/fileTypeGroups.js";
@@ -11,7 +12,7 @@ import DcsButtonOutlineReverse from "../components/DcsButtonOutlineReverse.jsx";
 import ValidationRuleEditor from "./ValidationRuleEditor.jsx";
 
 const LANGUAGES = ["en", "kn", "fr"];
-const NON_LABEL_TYPES = ["paragraph", "file"];
+const NON_LABEL_TYPES = ["paragraph", "file", "geolocation"];
 const NON_INPUT_TYPES = ["paragraph", "header", "file", "group", "section"];
 const OPTION_TYPES = ["single_select", "multi_select", "ranking", "select_group"];
 const VISIBILITY_OPERATORS = DCS_VALIDATION_OPERATORS.filter((operator) => !operator.needsParent);
@@ -20,6 +21,72 @@ const LIST_TYPES = ["disc", "circle", "square", "decimal", "lower-roman", "upper
 const IDEAL_PANEL_WIDTH = 760;
 const DEFAULT_PANEL_HEIGHT = 500;
 const MIN_PANEL_HEIGHT = 260;
+const DEFAULT_LENGTH_LIMIT_UI = { unit: "characters", min: "", max: "", severity: "error" };
+const LENGTH_LIMIT_MIN_RULE_ID = "length_limit_min_rule";
+const LENGTH_LIMIT_MAX_RULE_ID = "length_limit_max_rule";
+const MESSAGE_LANGUAGES = ["en", "kn", "fr"];
+
+/**
+ * A translated-text object for a length-limit message: resolves the
+ * message key AND the "characters"/"words" unit word independently in each
+ * of the three languages, so e.g. the French copy reads "caracteres" not
+ * the English word interpolated into an otherwise-French sentence.
+ */
+function build_length_limit_message(message_key, unit_key, numeric_value) {
+  const message = {};
+  MESSAGE_LANGUAGES.forEach((language_code) => {
+    const unit_text = dcs_translate(unit_key, language_code);
+    message[language_code] = dcs_translate(message_key, language_code, { value: numeric_value, unit: unit_text });
+  });
+  return message;
+}
+
+/**
+ * Derives the min/max length_limit_ui quick-setup into its two underlying
+ * validation_rules entries (min_length/max_length for characters,
+ * min_words/max_words for words) - a blank min or max simply produces no
+ * rule for that side. Fixed rule ids let this replace the same two entries
+ * on every change without disturbing any other validation rules the author
+ * added by hand in the Validation tab.
+ */
+function build_length_limit_rules(field_id, length_limit_ui) {
+  const ui = length_limit_ui || DEFAULT_LENGTH_LIMIT_UI;
+  const is_words = ui.unit === "words";
+  const unit_key = is_words ? "DCS_UNIT_WORDS" : "DCS_UNIT_CHARACTERS";
+  const rules = [];
+
+  if (ui.min !== "" && ui.min !== null && ui.min !== undefined) {
+    const operator = is_words ? "min_words" : "min_length";
+    rules.push({
+      id: LENGTH_LIMIT_MIN_RULE_ID,
+      operator,
+      value: ui.min,
+      parent_field_id: null,
+      parent_value: "",
+      message: build_length_limit_message("DCS_VALIDATION_LENGTH_LIMIT_MIN_MESSAGE", unit_key, ui.min),
+      valid_message: { en: "", kn: "", fr: "" },
+      severity: ui.severity || "error",
+      condition: build_validation_condition(field_id, operator, ui.min),
+    });
+  }
+
+  if (ui.max !== "" && ui.max !== null && ui.max !== undefined) {
+    const operator = is_words ? "max_words" : "max_length";
+    rules.push({
+      id: LENGTH_LIMIT_MAX_RULE_ID,
+      operator,
+      value: ui.max,
+      parent_field_id: null,
+      parent_value: "",
+      message: build_length_limit_message("DCS_VALIDATION_LENGTH_LIMIT_MAX_MESSAGE", unit_key, ui.max),
+      valid_message: { en: "", kn: "", fr: "" },
+      severity: ui.severity || "error",
+      condition: build_validation_condition(field_id, operator, ui.max),
+    });
+  }
+
+  return rules;
+}
 
 /**
  * Wide enough that no label, button or select ever wraps mid-word, but
@@ -116,7 +183,14 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
 
   const registry_entry = DCS_FIELD_TYPE_REGISTRY.find((entry) => entry.type === draft.type);
   const is_content_field = registry_entry ? registry_entry.category === "content" : false;
-  const tabs = is_content_field ? ["designs", "visibility"] : ["labels", "validation", "designs", "visibility"];
+  // GeoLocation's answer is auto-detected/reverse-geocoded, never something
+  // an author would author a validation rule against - it never needs (or
+  // offers) the Validation tab at all, content fields aside.
+  const tabs = is_content_field
+    ? ["designs", "visibility"]
+    : draft.type === "geolocation"
+      ? ["labels", "designs", "visibility"]
+      : ["labels", "validation", "designs", "visibility"];
   const [active_tab, setActiveTab] = useState(tabs[0]);
   const has_field_errors = !!(fieldErrorInfo && fieldErrorInfo.messages.length > 0);
 
@@ -177,10 +251,12 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
   const is_paragraph = draft.type === "paragraph";
   const is_likert = draft.type === "likert_scale";
   const is_media = ["image", "video", "audio", "file_upload"].includes(draft.type);
-  const is_placeholder_capable = ["text", "number", "email", "url", "phone"].includes(draft.type);
+  const is_large_text = draft.type === "large_text";
+  const is_placeholder_capable = ["text", "large_text", "number", "email", "url", "phone"].includes(draft.type);
   const is_date_like = ["date", "date_time"].includes(draft.type);
   const is_horizontal_line = draft.type === "horizontal_line";
   const design = draft.design || {};
+  const length_limit_ui = draft.length_limit_ui || DEFAULT_LENGTH_LIMIT_UI;
   const other_fields = (allFields || []).filter((candidate_field) => candidate_field.id !== draft.id && has_field_label(candidate_field));
 
   const labels_tab_errors = (fieldErrorInfo && fieldErrorInfo.tab_messages.labels) || [];
@@ -208,6 +284,18 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
 
   const remove_option = (option_id) => {
     update({ options: draft.options.filter((option) => option.id !== option_id) });
+  };
+
+  // Regenerates the two fixed-id length-limit rules from the quick-setup
+  // state on every change - editing the same threshold later in the
+  // generic Validation tab is still possible, but the next quick-setup
+  // edit here will overwrite it back to whatever this panel says.
+  const update_length_limit = (patch) => {
+    const next_ui = Object.assign({}, length_limit_ui, patch);
+    const other_rules = (draft.validation_rules || []).filter(
+      (rule) => rule.id !== LENGTH_LIMIT_MIN_RULE_ID && rule.id !== LENGTH_LIMIT_MAX_RULE_ID,
+    );
+    update({ length_limit_ui: next_ui, validation_rules: other_rules.concat(build_length_limit_rules(draft.id, next_ui)) });
   };
 
   const visibility_ui = draft.visibility_condition_ui || { parent_field_id: "", operator: "equals", value: "" };
@@ -416,6 +504,83 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
                   <input type="checkbox" checked={!!draft.exclude_weekends} onChange={(event) => update({ exclude_weekends: event.target.checked })} style={{ accentColor: "#056daa" }} />
                   {translate("DCS_SETTINGS_EXCLUDE_WEEKENDS")}
                 </label>
+              )}
+
+              {is_large_text && (
+                <div className="space-y-3 border p-3" style={{ borderColor: "#E0E0E0" }}>
+                  <div>
+                    <label className="cok-auth-label">{translate("DCS_SETTINGS_ROWS")}</label>
+                    <input
+                      type="number"
+                      min="2"
+                      max="20"
+                      className="cok-auth-input w-full py-2"
+                      value={draft.rows || 5}
+                      onChange={(event) => update({ rows: Number(event.target.value) })}
+                    />
+                  </div>
+
+                  <label className="cok-auth-label mb-0">{translate("DCS_SETTINGS_LENGTH_LIMIT_TITLE")}</label>
+                  <p className="text-xs" style={{ color: "#9E9E9E" }}>{translate("DCS_SETTINGS_LENGTH_LIMIT_HINT")}</p>
+
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-1 text-sm">
+                      <input
+                        type="radio"
+                        checked={length_limit_ui.unit === "characters"}
+                        onChange={() => update_length_limit({ unit: "characters" })}
+                        style={{ accentColor: "#056daa" }}
+                      />
+                      {translate("DCS_SETTINGS_LENGTH_LIMIT_UNIT_CHARACTERS")}
+                    </label>
+                    <label className="flex items-center gap-1 text-sm">
+                      <input
+                        type="radio"
+                        checked={length_limit_ui.unit === "words"}
+                        onChange={() => update_length_limit({ unit: "words" })}
+                        style={{ accentColor: "#056daa" }}
+                      />
+                      {translate("DCS_SETTINGS_LENGTH_LIMIT_UNIT_WORDS")}
+                    </label>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <label className="cok-auth-label">{translate("DCS_SETTINGS_LENGTH_LIMIT_MIN")}</label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="cok-auth-input w-full py-2"
+                        placeholder={translate("DCS_SETTINGS_UNLIMITED")}
+                        value={length_limit_ui.min}
+                        onChange={(event) => update_length_limit({ min: event.target.value })}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="cok-auth-label">{translate("DCS_SETTINGS_LENGTH_LIMIT_MAX")}</label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="cok-auth-input w-full py-2"
+                        placeholder={translate("DCS_SETTINGS_UNLIMITED")}
+                        value={length_limit_ui.max}
+                        onChange={(event) => update_length_limit({ max: event.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="cok-auth-label">{translate("DCS_SETTINGS_VALIDATION_SEVERITY")}</label>
+                    <select
+                      className="cok-auth-input w-full py-2"
+                      value={length_limit_ui.severity}
+                      onChange={(event) => update_length_limit({ severity: event.target.value })}
+                    >
+                      <option value="error">{translate("DCS_SETTINGS_SEVERITY_ERROR")}</option>
+                      <option value="warning">{translate("DCS_SETTINGS_SEVERITY_WARNING")}</option>
+                    </select>
+                  </div>
+                </div>
               )}
 
               {is_likert && (
