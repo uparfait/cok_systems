@@ -3,6 +3,7 @@ import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { get_applicable_operators, build_validation_condition } from "./validationOperators.js";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import { get_field_text } from "../fields/fieldText.js";
+import { DCS_SELECT_LIKE_TYPES } from "../fields/fieldTypes.js";
 
 const LANGUAGES = ["en", "kn", "fr"];
 
@@ -91,11 +92,26 @@ export default function ValidationRuleEditor({ field, allFields, onChange, ruleE
           {operator_meta.needsValue && (
             <div>
               <label className="cok-auth-label">{translate("DCS_SETTINGS_VALIDATION_VALUE")}</label>
-              <input
-                className="cok-auth-input w-full py-3"
-                value={rule.value}
-                onChange={(event) => update_rule(rule.id, { value: event.target.value })}
-              />
+              {DCS_SELECT_LIKE_TYPES.includes(field.type) ? (
+                <select
+                  className="cok-auth-input w-full py-3"
+                  value={rule.value}
+                  onChange={(event) => update_rule(rule.id, { value: event.target.value })}
+                >
+                  <option value="">{translate("DCS_RENDERER_SELECT_PLACEHOLDER")}</option>
+                  {(field.options || []).map((option) => (
+                    <option key={option.id} value={option.value}>
+                      {get_field_text(option.label, "en") || option.value}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="cok-auth-input w-full py-3"
+                  value={rule.value}
+                  onChange={(event) => update_rule(rule.id, { value: event.target.value })}
+                />
+              )}
             </div>
           )}
 
@@ -118,16 +134,38 @@ export default function ValidationRuleEditor({ field, allFields, onChange, ruleE
                   ))}
                 </select>
               </div>
-              {operator_meta.needsParentValue && (
-                <div>
-                  <label className="cok-auth-label">{translate("DCS_SETTINGS_VALIDATION_VALUE")}</label>
-                  <input
-                    className="cok-auth-input w-full py-3"
-                    value={rule.parent_value}
-                    onChange={(event) => update_rule(rule.id, { parent_value: event.target.value })}
-                  />
-                </div>
-              )}
+              {operator_meta.needsParentValue && (() => {
+                const parent_field = other_fields.find((candidate_field) => candidate_field.id === rule.parent_field_id);
+                if (parent_field && DCS_SELECT_LIKE_TYPES.includes(parent_field.type)) {
+                  return (
+                    <div>
+                      <label className="cok-auth-label">{translate("DCS_SETTINGS_VALIDATION_VALUE")}</label>
+                      <select
+                        className="cok-auth-input w-full py-3"
+                        value={rule.parent_value}
+                        onChange={(event) => update_rule(rule.id, { parent_value: event.target.value })}
+                      >
+                        <option value="">{translate("DCS_RENDERER_SELECT_PLACEHOLDER")}</option>
+                        {(parent_field.options || []).map((option) => (
+                          <option key={option.id} value={option.value}>
+                            {get_field_text(option.label, "en") || option.value}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                }
+                return (
+                  <div>
+                    <label className="cok-auth-label">{translate("DCS_SETTINGS_VALIDATION_VALUE")}</label>
+                    <input
+                      className="cok-auth-input w-full py-3"
+                      value={rule.parent_value}
+                      onChange={(event) => update_rule(rule.id, { parent_value: event.target.value })}
+                    />
+                  </div>
+                );
+              })()}
             </>
           )}
 

@@ -1,19 +1,27 @@
 import React from "react";
-import { get_field_text } from "./fieldText.js";
+import { get_field_text, get_field_options_state } from "./fieldText.js";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 
 /**
  * Choose one option from a list, rendered as a native dropdown instead of
  * radio rows - useful when the option list is long and radios would take up
- * too much vertical space.
+ * too much vertical space. Optionally split into parent-driven condition
+ * groups (field.parent_dependency_enabled) - see get_field_options_state -
+ * in which case only the options belonging to a currently-matching group
+ * show, and the field is disabled while none match.
  */
-export default function SelectGroupField({ field, language, mode, value, onChange, error, ruleValidMessage }) {
+export default function SelectGroupField({ field, language, mode, value, onChange, error, ruleValidMessage, allValues }) {
   const is_builder = mode === "builder";
   const { translate } = useDcsLanguage();
   const label = get_field_text(field.label, language);
   const help_text = get_field_text(field.help_text, language);
   const valid_message = ruleValidMessage || (field.mandatory && get_field_text(field.valid_message, language));
-  const options = field.options || [];
+  const { visible_options: options, is_locked } = get_field_options_state(field, allValues, is_builder);
+
+  // No condition currently matches - there is nothing to answer, so the
+  // whole field (not just its control) disappears rather than showing an
+  // empty, disabled question.
+  if (is_locked) return null;
 
   return (
     <div className="w-full">

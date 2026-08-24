@@ -1,11 +1,13 @@
 import React from "react";
-import { get_field_text } from "./fieldText.js";
+import { get_field_text, get_parent_linked_options_state } from "./fieldText.js";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 
 /**
  * Filters its options based on the current answer of another field
  * (field.parent_field_id), only ever showing children that belong to the
- * parent's selected value.
+ * parent's selected value - see get_parent_linked_options_state, the same
+ * helper single/multi select and select group use for their own optional
+ * parent link.
  */
 export default function CascadingSelectField({ field, language, mode, value, onChange, error, allValues, ruleValidMessage }) {
   const is_builder = mode === "builder";
@@ -13,11 +15,12 @@ export default function CascadingSelectField({ field, language, mode, value, onC
   const label = get_field_text(field.label, language);
   const help_text = get_field_text(field.help_text, language);
   const valid_message = ruleValidMessage || (field.mandatory && get_field_text(field.valid_message, language));
-  const parent_value = allValues ? allValues[field.parent_field_id] : undefined;
+  const { visible_options, parent_unanswered } = get_parent_linked_options_state(field, allValues, is_builder);
 
-  const visible_options = is_builder
-    ? field.options || []
-    : (field.options || []).filter((option) => !field.parent_field_id || option.parent_value === parent_value);
+  // The parent has no answer yet - there is nothing to answer here either,
+  // so the whole field (not just its control) disappears rather than
+  // showing an empty, disabled question.
+  if (parent_unanswered) return null;
 
   return (
     <div className="w-full">
@@ -28,7 +31,7 @@ export default function CascadingSelectField({ field, language, mode, value, onC
       <select
         className="cok-auth-input w-full py-3"
         value={value || ""}
-        disabled={is_builder || (!is_builder && !parent_value && !!field.parent_field_id)}
+        disabled={is_builder}
         onChange={(event) => onChange && onChange(event.target.value)}
         title={help_text || undefined}
       >

@@ -30,6 +30,15 @@ export const DCS_DATA_FIELD_TYPES = [
 export const DCS_ALL_FIELD_TYPES = DCS_CONTENT_FIELD_TYPES.concat(DCS_DATA_FIELD_TYPES);
 
 /**
+ * Types whose answer is picked from a fixed options list - whenever a
+ * field of one of these is used as a "parent" (conditional visibility, or
+ * a validation rule's depends_on_parent), the value it must equal should
+ * be picked from that parent's own real options instead of hand-typed, so
+ * an author can never mistype a value that will silently never match.
+ */
+export const DCS_SELECT_LIKE_TYPES = ["single_select", "multi_select", "select_group"];
+
+/**
  * Registry entry shape: { type, labelKey, descriptionKey, category }.
  * category is "content" (layout/text blocks, no stored response) or
  * "data" (produces a value stored in a submission).
@@ -114,13 +123,16 @@ export function create_blank_field(field_type) {
   };
 
   if (["single_select", "multi_select", "select_group"].includes(field_type)) {
-    const first_option_id = generate_field_id("option");
-    base_field.options = [{ id: first_option_id, label: { en: "", kn: "", fr: "" }, value: first_option_id }];
+    base_field.options = [{ id: generate_field_id("option"), label: { en: "", kn: "", fr: "" }, value: "" }];
+    // Off by default - a plain select never needs this. See
+    // get_field_options_state (fields/fieldText.js) for how these are
+    // resolved at answer time once turned on.
+    base_field.parent_dependency_enabled = false;
+    base_field.parent_option_groups = [];
   }
   if (field_type === "cascading_select") {
     base_field.parent_field_id = null;
-    const first_option_id = generate_field_id("option");
-    base_field.options = [{ id: first_option_id, label: { en: "", kn: "", fr: "" }, value: first_option_id, parent_value: "" }];
+    base_field.options = [{ id: generate_field_id("option"), label: { en: "", kn: "", fr: "" }, value: "", parent_value: "" }];
   }
   if (field_type === "large_text") {
     base_field.rows = 5;
@@ -136,8 +148,7 @@ export function create_blank_field(field_type) {
     base_field.high_label = { en: "", kn: "", fr: "" };
   }
   if (field_type === "ranking") {
-    const first_option_id = generate_field_id("option");
-    base_field.options = [{ id: first_option_id, label: { en: "", kn: "", fr: "" }, value: first_option_id }];
+    base_field.options = [{ id: generate_field_id("option"), label: { en: "", kn: "", fr: "" }, value: "" }];
   }
   if (field_type === "group") {
     base_field.children = [];

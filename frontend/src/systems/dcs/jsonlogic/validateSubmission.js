@@ -1,6 +1,8 @@
 import { evaluate_rule } from "./engine.js";
 import { flatten_fields, build_dependency_graph } from "./dependencyGraph.js";
-import { get_field_text } from "../fields/fieldText.js";
+import { get_field_text, get_field_options_state } from "../fields/fieldText.js";
+
+const PARENT_GROUP_CAPABLE_TYPES = ["single_select", "multi_select", "select_group"];
 
 /**
  * True when a value should be treated as empty for a mandatory-response
@@ -56,7 +58,18 @@ export function validate_submission_client_side(schema, submitted_data, language
       : { value: true, error: null };
     const is_visible = visibility_result.error ? true : visibility_result.value !== false;
 
-    if (!is_visible) return;
+    // A select-family field split into parent-driven condition groups
+    // (field.parent_dependency_enabled) renders nothing at all once no
+    // group currently matches (see get_field_options_state in
+    // fields/fieldText.js) - it must be skipped here exactly like an
+    // invisible field, or a mandatory check would block submission over a
+    // question the respondent was never even shown.
+    const is_locked_by_parent_groups =
+      PARENT_GROUP_CAPABLE_TYPES.includes(field.type) && field.parent_dependency_enabled
+        ? get_field_options_state(field, working_data, false).is_locked
+        : false;
+
+    if (!is_visible || is_locked_by_parent_groups) return;
 
     if (field.mandatory && is_empty_value(working_data[field_id])) {
       field_errors[field_id] = (field_errors[field_id] || []).concat([

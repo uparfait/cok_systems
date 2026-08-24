@@ -8,6 +8,13 @@ const { build_dependency_graph } = require("./dependency_graph.js");
 const MAX_NESTING_DEPTH = config.max_group_nesting_depth;
 
 const OPTION_BASED_TYPES = ["single_select", "multi_select", "ranking", "select_group", "cascading_select"];
+// Single/multi select and select group may instead split their options
+// into parent-driven condition groups (see validate_parent_option_groups)
+// when parent_dependency_enabled is true - cascading_select keeps its own,
+// simpler, always-on single-parent mechanism (parent_field_id + a plain
+// per-option parent_value) unchanged.
+const PARENT_GROUP_CAPABLE_TYPES = ["single_select", "multi_select", "select_group"];
+const PARENT_GROUP_OPERATOR_IDS = ["equals", "not_equals", "includes", "not_includes", "less_than", "greater_than"];
 
 // Mirrors frontend/src/systems/dcs/builder/validationOperators.js exactly -
 // keep both in sync whenever an operator or its type applicability changes.
@@ -133,6 +140,41 @@ function validate_options(field, path, errors) {
 }
 
 /**
+ * Validates a single/multi select or select_group field's alternative to a
+ * flat option list: one or more parent-driven condition groups, each with
+ * its own parent field reference, comparison operator, trigger value and
+ * (via validate_options, reused as-is) its own non-empty, uniquely-valued
+ * option list.
+ */
+function validate_parent_option_groups(field, path, all_ids, errors) {
+  const groups = field.parent_option_groups;
+  if (!Array.isArray(groups) || groups.length === 0) {
+    errors.push({ path, reason: "parent_option_groups_required" });
+    return;
+  }
+
+  groups.forEach((group, index) => {
+    const group_path = `${path}.parent_option_groups[${index}]`;
+    if (!group || typeof group !== "object") {
+      errors.push({ path: group_path, reason: "parent_option_group_not_object" });
+      return;
+    }
+    if (typeof group.parent_field_id !== "string" || !group.parent_field_id || !all_ids.has(group.parent_field_id)) {
+      errors.push({ path: group_path, reason: "parent_option_group_parent_field_id_not_found" });
+    } else if (group.parent_field_id === field.id) {
+      errors.push({ path: group_path, reason: "parent_option_group_parent_field_id_self_reference" });
+    }
+    if (!PARENT_GROUP_OPERATOR_IDS.includes(group.operator)) {
+      errors.push({ path: group_path, reason: "parent_option_group_operator_invalid" });
+    }
+    if (group.value === undefined || group.value === null || group.value.toString().trim().length === 0) {
+      errors.push({ path: group_path, reason: "parent_option_group_value_required" });
+    }
+    validate_options({ options: group.options }, group_path, errors);
+  });
+}
+
+/**
  * Validates one child's section_layout - required on every direct child of
  * a section (never on a group's children, which stack normally instead).
  */
@@ -252,8 +294,14 @@ function validate_field(field, path, depth, errors, seen_ids, all_ids) {
     }
   });
 
-  if (OPTION_BASED_TYPES.includes(field.type)) {
+  const uses_parent_groups = PARENT_GROUP_CAPABLE_TYPES.includes(field.type) && field.parent_dependency_enabled;
+
+  if (OPTION_BASED_TYPES.includes(field.type) && !uses_parent_groups) {
     validate_options(field, path, errors);
+  }
+
+  if (uses_parent_groups) {
+    validate_parent_option_groups(field, path, all_ids, errors);
   }
 
   if (field.type === "cascading_select" && field.parent_field_id) {

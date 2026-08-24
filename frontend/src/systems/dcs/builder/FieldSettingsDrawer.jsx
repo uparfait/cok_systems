@@ -1,17 +1,25 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
 import { dcs_translate } from "../i18n/index.js";
-import { generate_field_id, DCS_FIELD_TYPE_REGISTRY } from "../fields/fieldTypes.js";
+import { generate_field_id, DCS_FIELD_TYPE_REGISTRY, DCS_SELECT_LIKE_TYPES } from "../fields/fieldTypes.js";
 import { build_validation_condition, DCS_VALIDATION_OPERATORS } from "./validationOperators.js";
 import { DCS_FILE_TYPE_GROUPS } from "../fields/fileTypeGroups.js";
 import { DCS_FILE_SIZE_UNITS } from "../fields/fileSizeLimit.js";
-import { get_field_text, has_field_label } from "../fields/fieldText.js";
+import { get_field_text, has_field_label, DCS_PARENT_GROUP_OPERATORS } from "../fields/fieldText.js";
 import DcsButtonPrimary from "../components/DcsButtonPrimary.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 import DcsButtonOutlineReverse from "../components/DcsButtonOutlineReverse.jsx";
 import ValidationRuleEditor from "./ValidationRuleEditor.jsx";
 
 const LANGUAGES = ["en", "kn", "fr"];
+const PARENT_GROUP_OPERATOR_LABEL_KEYS = {
+  equals: "OP_EQUALS",
+  not_equals: "OP_NOT_EQUALS",
+  includes: "OP_INCLUDES",
+  not_includes: "OP_NOT_INCLUDES",
+  less_than: "OP_LESS_THAN",
+  greater_than: "OP_GREATER_THAN",
+};
 const NON_LABEL_TYPES = ["paragraph", "file", "geolocation"];
 const NON_INPUT_TYPES = ["paragraph", "header", "file", "group", "section"];
 const OPTION_TYPES = ["single_select", "multi_select", "ranking", "select_group"];
@@ -39,6 +47,61 @@ function build_length_limit_message(message_key, unit_key, numeric_value) {
     message[language_code] = dcs_translate(message_key, language_code, { value: numeric_value, unit: unit_text });
   });
   return message;
+}
+
+// Lets one "Entered Data" line carry an explicit answer value alongside its
+// label, e.g. "Two$::->2" -> label "Two", value "2" - without it, an item's
+// value simply defaults to its own label text.
+const VALUE_OVERRIDE_DELIMITER = "$::->";
+
+/**
+ * Splits one "Entered Data" quick-entry line into its individual raw
+ * entries - comma-separated, blank entries and surrounding whitespace
+ * dropped so a trailing comma or extra spacing never produces a bogus
+ * empty option.
+ */
+function split_entered_values(text) {
+  return String(text || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
+/**
+ * Parses one raw entry into its label text and, when the
+ * VALUE_OVERRIDE_DELIMITER is present, the explicit value the author typed
+ * after it.
+ */
+function parse_entered_item(raw_item) {
+  const delimiter_index = raw_item.indexOf(VALUE_OVERRIDE_DELIMITER);
+  if (delimiter_index === -1) return { text: raw_item, explicit_value: null };
+  return {
+    text: raw_item.slice(0, delimiter_index).trim(),
+    explicit_value: raw_item.slice(delimiter_index + VALUE_OVERRIDE_DELIMITER.length).trim() || null,
+  };
+}
+
+/**
+ * Rebuilds the option label authoring text (used to pre-fill "Entered
+ * Data" when reopening a field, and to keep it in sync whenever an option
+ * is added/edited/removed directly below instead) from the field's own
+ * options array, one comma-joined line per language. A value that was
+ * hand-typed away from its English label round-trips back in using the
+ * same override syntax "Entered Data" itself accepts, so re-editing there
+ * never silently loses it.
+ */
+function build_entered_data_from_options(options) {
+  const list = options || [];
+  return {
+    en: list
+      .map((option) => {
+        const text = (option.label && option.label.en) || "";
+        return option.value && option.value !== text ? `${text}${VALUE_OVERRIDE_DELIMITER}${option.value}` : text;
+      })
+      .join(", "),
+    kn: list.map((option) => (option.label && option.label.kn) || "").join(", "),
+    fr: list.map((option) => (option.label && option.label.fr) || "").join(", "),
+  };
 }
 
 /**
@@ -176,6 +239,12 @@ function compute_initial_position(anchorRect) {
 export default function FieldSettingsDrawer({ field, allFields, onSave, onClose, anchorRect, fieldErrorInfo }) {
   const { translate } = useDcsLanguage();
   const [draft, setDraft] = useState(field);
+  const [entered_data, setEnteredData] = useState(() => build_entered_data_from_options(field.options));
+  // Same Entered Data convenience as the flat options editor, but one per
+  // parent-option-group (keyed by the group's own id) - a group not yet
+  // present here just falls back to whatever build_entered_data_from_options
+  // derives live from its current options.
+  const [group_entered_data, setGroupEnteredData] = useState({});
   const [position, setPosition] = useState(() => compute_initial_position(anchorRect));
   const [panel_height, setPanelHeight] = useState(DEFAULT_PANEL_HEIGHT);
   const panel_ref = useRef(null);
@@ -183,19 +252,29 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
 
   const registry_entry = DCS_FIELD_TYPE_REGISTRY.find((entry) => entry.type === draft.type);
   const is_content_field = registry_entry ? registry_entry.category === "content" : false;
-  // GeoLocation's answer is auto-detected/reverse-geocoded, never something
-  // an author would author a validation rule against - it never needs (or
-  // offers) the Validation tab at all, content fields aside.
+  // GeoLocation's answer is auto-detected/reverse-geocoded, and a group is
+  // purely an organizational wrapper around its own children - neither one
+  // is itself something an author would author a validation rule against,
+  // so neither ever needs (or offers) the Validation tab, content fields
+  // aside.
+  const NO_VALIDATION_TYPES = ["geolocation", "group"];
+  // Any type that authors its own answer options (or, for cascading_select,
+  // a parent-driven equivalent) gets its own "Answer options" tab, kept
+  // separate from Labels so that tab's growing "Quick entry" + options list
+  // doesn't crowd out the field's other everyday settings.
+  const has_options_tab = OPTION_TYPES.includes(draft.type) || draft.type === "cascading_select";
   const tabs = is_content_field
     ? ["designs", "visibility"]
-    : draft.type === "geolocation"
-      ? ["labels", "designs", "visibility"]
-      : ["labels", "validation", "designs", "visibility"];
+    : NO_VALIDATION_TYPES.includes(draft.type)
+      ? (has_options_tab ? ["labels", "options", "designs", "visibility"] : ["labels", "designs", "visibility"])
+      : (has_options_tab ? ["labels", "options", "validation", "designs", "visibility"] : ["labels", "validation", "designs", "visibility"]);
   const [active_tab, setActiveTab] = useState(tabs[0]);
   const has_field_errors = !!(fieldErrorInfo && fieldErrorInfo.messages.length > 0);
 
   useEffect(() => {
     setDraft(field);
+    setEnteredData(build_entered_data_from_options(field.options));
+    setGroupEnteredData({});
     // Jump straight to whichever tab the last failed publish attempt
     // actually pointed at, rather than always Labels - the point of
     // highlighting an error at all is to save the author from hunting for
@@ -246,6 +325,12 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
   const is_input_field = !NON_INPUT_TYPES.includes(draft.type) && !is_content_field;
   const has_options = OPTION_TYPES.includes(draft.type);
   const is_cascading = draft.type === "cascading_select";
+  const supports_entered_data = ["single_select", "multi_select", "select_group", "cascading_select"].includes(draft.type);
+  // Single/multi select and select group may optionally split their own
+  // options into parent-driven condition groups (see
+  // get_field_options_state) instead of one flat list - cascading_select
+  // already has its own, simpler, single-parent mechanism and keeps it.
+  const supports_parent_groups = ["single_select", "multi_select", "select_group"].includes(draft.type);
   const is_hidden = draft.type === "hidden";
   const is_header = draft.type === "header";
   const is_paragraph = draft.type === "paragraph";
@@ -260,8 +345,9 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
   const other_fields = (allFields || []).filter((candidate_field) => candidate_field.id !== draft.id && has_field_label(candidate_field));
 
   const labels_tab_errors = (fieldErrorInfo && fieldErrorInfo.tab_messages.labels) || [];
+  const options_tab_errors = (fieldErrorInfo && fieldErrorInfo.tab_messages.options) || [];
   const label_required_error = labels_tab_errors.find((entry) => entry.reason === "field_label_required");
-  const options_required_error = labels_tab_errors.find((entry) => entry.reason === "options_required");
+  const options_required_error = options_tab_errors.find((entry) => entry.reason === "options_required");
   const cascading_parent_error = labels_tab_errors.find(
     (entry) => entry.reason === "cascading_parent_field_id_not_found" || entry.reason === "cascading_parent_field_id_self_reference",
   );
@@ -270,20 +356,181 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
   const rule_errors_by_index = (fieldErrorInfo && fieldErrorInfo.rule_errors) || {};
   const option_errors_by_index = (fieldErrorInfo && fieldErrorInfo.option_errors) || {};
 
+  // Every mutation to draft.options made directly below (add/edit/remove)
+  // also refreshes the "Entered Data" quick-entry lines to match - so
+  // editing an option by hand and then glancing back up at Entered Data
+  // never shows stale text, and typing there afterward regenerates from
+  // what is actually now on screen rather than what was there when the
+  // drawer first opened.
+  const apply_options = (next_options) => {
+    update({ options: next_options });
+    setEnteredData(build_entered_data_from_options(next_options));
+  };
+
   const add_option = () => {
     const new_option_id = generate_field_id("option");
     const next_options = (draft.options || []).concat([
-      { id: new_option_id, label: { en: "", kn: "", fr: "" }, value: new_option_id, parent_value: is_cascading ? "" : undefined },
+      { id: new_option_id, label: { en: "", kn: "", fr: "" }, value: "", parent_value: is_cascading ? "" : undefined },
     ]);
-    update({ options: next_options });
+    apply_options(next_options);
   };
 
   const update_option = (option_id, patch) => {
-    update({ options: draft.options.map((option) => (option.id === option_id ? Object.assign({}, option, patch) : option)) });
+    apply_options(draft.options.map((option) => (option.id === option_id ? Object.assign({}, option, patch) : option)));
+  };
+
+  // The English label specifically doubles as the answer value by
+  // default - typing it fills "value" in step, right up until the author
+  // types their own value directly (tracked simply by whether the current
+  // value has already drifted away from the previous English label), at
+  // which point their own choice is left alone from then on.
+  const update_option_label = (option, language_code, text) => {
+    const patch = { label: Object.assign({}, option.label, { [language_code]: text }) };
+    if (language_code === "en") {
+      const previous_en = (option.label && option.label.en) || "";
+      const value_still_in_sync = !option.value || option.value === previous_en;
+      if (value_still_in_sync) patch.value = text;
+    }
+    update_option(option.id, patch);
   };
 
   const remove_option = (option_id) => {
-    update({ options: draft.options.filter((option) => option.id !== option_id) });
+    apply_options(draft.options.filter((option) => option.id !== option_id));
+  };
+
+  // Everything below manages field.parent_option_groups - single/multi
+  // select and select group's alternative to a flat option list, only
+  // relevant while draft.parent_dependency_enabled is true (see
+  // get_field_options_state for how it resolves at answer time).
+  const update_parent_option_groups = (next_groups) => update({ parent_option_groups: next_groups });
+
+  const build_blank_group_option = () => ({ id: generate_field_id("option"), label: { en: "", kn: "", fr: "" }, value: "" });
+
+  const add_parent_option_group = () => {
+    update_parent_option_groups(
+      (draft.parent_option_groups || []).concat([
+        { id: generate_field_id("group"), parent_field_id: "", operator: "equals", value: "", options: [build_blank_group_option()] },
+      ]),
+    );
+  };
+
+  const update_parent_option_group = (group_id, patch) => {
+    update_parent_option_groups((draft.parent_option_groups || []).map((group) => (group.id === group_id ? Object.assign({}, group, patch) : group)));
+  };
+
+  const remove_parent_option_group = (group_id) => {
+    update_parent_option_groups((draft.parent_option_groups || []).filter((group) => group.id !== group_id));
+  };
+
+  // Every mutation to one group's own options (add/edit/remove, mirroring
+  // apply_options for the flat editor) also refreshes that group's own
+  // Entered Data lines to match.
+  const apply_group_options = (group, next_options) => {
+    update_parent_option_group(group.id, { options: next_options });
+    setGroupEnteredData((previous) => Object.assign({}, previous, { [group.id]: build_entered_data_from_options(next_options) }));
+  };
+
+  const add_group_option = (group) => {
+    apply_group_options(group, (group.options || []).concat([build_blank_group_option()]));
+  };
+
+  const update_group_option = (group, option_id, patch) => {
+    apply_group_options(group, (group.options || []).map((option) => (option.id === option_id ? Object.assign({}, option, patch) : option)));
+  };
+
+  // Same English-label-doubles-as-value convenience as the flat options
+  // editor's own update_option_label.
+  const update_group_option_label = (group, option, language_code, text) => {
+    const patch = { label: Object.assign({}, option.label, { [language_code]: text }) };
+    if (language_code === "en") {
+      const previous_en = (option.label && option.label.en) || "";
+      const value_still_in_sync = !option.value || option.value === previous_en;
+      if (value_still_in_sync) patch.value = text;
+    }
+    update_group_option(group, option.id, patch);
+  };
+
+  const remove_group_option = (group, option_id) => {
+    apply_group_options(group, (group.options || []).filter((option) => option.id !== option_id));
+  };
+
+  const get_group_entered_data = (group) =>
+    group_entered_data[group.id] !== undefined ? group_entered_data[group.id] : build_entered_data_from_options(group.options);
+
+  // Same Quick Entry mechanism as update_entered_data, scoped to one
+  // group's own options instead of the field's flat top-level list.
+  const update_group_entered_data = (group, language_code, text) => {
+    const current = get_group_entered_data(group);
+    const next_entered_data = Object.assign({}, current, { [language_code]: text });
+    setGroupEnteredData((previous) => Object.assign({}, previous, { [group.id]: next_entered_data }));
+
+    const items_by_language = {
+      en: split_entered_values(next_entered_data.en).map(parse_entered_item),
+      kn: split_entered_values(next_entered_data.kn).map(parse_entered_item),
+      fr: split_entered_values(next_entered_data.fr).map(parse_entered_item),
+    };
+    const option_count = Math.max(items_by_language.en.length, items_by_language.kn.length, items_by_language.fr.length);
+    if (option_count === 0) return;
+
+    const existing_options = group.options || [];
+    const blank_item = { text: "", explicit_value: null };
+    const next_options = [];
+    for (let index = 0; index < option_count; index += 1) {
+      const en_item = items_by_language.en[index] || blank_item;
+      const kn_item = items_by_language.kn[index] || blank_item;
+      const fr_item = items_by_language.fr[index] || blank_item;
+      const existing_option = existing_options[index];
+      const option_id = (existing_option && existing_option.id) || generate_field_id("option");
+      const explicit_value = en_item.explicit_value || kn_item.explicit_value || fr_item.explicit_value;
+      const default_value = en_item.text || kn_item.text || fr_item.text || "";
+      next_options.push({ id: option_id, label: { en: en_item.text, kn: kn_item.text, fr: fr_item.text }, value: explicit_value || default_value });
+    }
+    update_parent_option_group(group.id, { options: next_options });
+  };
+
+  // Purely a client-side authoring shortcut - three comma-separated,
+  // position-matched lines (one per language) regenerate the whole options
+  // array below on every keystroke; an item may carry its own explicit
+  // value via VALUE_OVERRIDE_DELIMITER (e.g. "Two$::->2"), otherwise the
+  // value defaults to whatever the author typed as the label - English
+  // first, falling back to whichever language is available - never an
+  // opaque generated id. Never saved on its own (the schema only ever
+  // carries the resulting "options"), and editing an option by hand below
+  // keeps this in sync too (see apply_options).
+  const update_entered_data = (language_code, text) => {
+    const next_entered_data = Object.assign({}, entered_data, { [language_code]: text });
+    setEnteredData(next_entered_data);
+
+    const items_by_language = {
+      en: split_entered_values(next_entered_data.en).map(parse_entered_item),
+      kn: split_entered_values(next_entered_data.kn).map(parse_entered_item),
+      fr: split_entered_values(next_entered_data.fr).map(parse_entered_item),
+    };
+    const option_count = Math.max(items_by_language.en.length, items_by_language.kn.length, items_by_language.fr.length);
+    if (option_count === 0) return;
+
+    const existing_options = draft.options || [];
+    const blank_item = { text: "", explicit_value: null };
+    const next_options = [];
+    for (let index = 0; index < option_count; index += 1) {
+      const en_item = items_by_language.en[index] || blank_item;
+      const kn_item = items_by_language.kn[index] || blank_item;
+      const fr_item = items_by_language.fr[index] || blank_item;
+      const existing_option = existing_options[index];
+      const option_id = (existing_option && existing_option.id) || generate_field_id("option");
+      const explicit_value = en_item.explicit_value || kn_item.explicit_value || fr_item.explicit_value;
+      // Never an opaque generated id - a position with no label text in
+      // any language and no explicit override just gets a blank value,
+      // full stop, exactly like a brand new option added by hand.
+      const default_value = en_item.text || kn_item.text || fr_item.text || "";
+      next_options.push(
+        Object.assign(
+          { id: option_id, label: { en: en_item.text, kn: kn_item.text, fr: fr_item.text }, value: explicit_value || default_value },
+          is_cascading ? { parent_value: (existing_option && existing_option.parent_value) || "" } : {},
+        ),
+      );
+    }
+    update({ options: next_options });
   };
 
   // Regenerates the two fixed-id length-limit rules from the quick-setup
@@ -309,6 +556,7 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
 
   const tab_labels = {
     labels: "DCS_SETTINGS_TAB_LABELS",
+    options: "DCS_SETTINGS_TAB_OPTIONS",
     validation: "DCS_SETTINGS_TAB_VALIDATION",
     designs: "DCS_SETTINGS_TAB_DESIGNS",
     visibility: "DCS_SETTINGS_TAB_VISIBILITY",
@@ -594,74 +842,6 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
                 </>
               )}
 
-              {is_cascading && (
-                <div style={cascading_parent_error ? { outline: "2px solid #E74C3C", outlineOffset: 4 } : undefined}>
-                  <label className="cok-auth-label">{translate("DCS_SETTINGS_CASCADING_PARENT")}</label>
-                  <select className="cok-auth-input w-full py-2" value={draft.parent_field_id || ""} onChange={(event) => update({ parent_field_id: event.target.value })}>
-                    <option value="">{translate("DCS_RENDERER_SELECT_PLACEHOLDER")}</option>
-                    {other_fields.map((candidate_field) => (
-                      <option key={candidate_field.id} value={candidate_field.id}>
-                        {get_field_text(candidate_field.label, "en") || candidate_field.id}
-                      </option>
-                    ))}
-                  </select>
-                  {cascading_parent_error && (
-                    <p className="text-xs mt-1" style={{ color: "#E74C3C" }}>{cascading_parent_error.message}</p>
-                  )}
-                </div>
-              )}
-
-              {(has_options || is_cascading) && (
-                <div>
-                  <label className="cok-auth-label">{translate("DCS_SETTINGS_OPTIONS_TITLE")}</label>
-                  {options_required_error && (
-                    <p className="text-xs mb-2" style={{ color: "#E74C3C" }}>{options_required_error.message}</p>
-                  )}
-                  <div className="space-y-2">
-                    {(draft.options || []).map((option, option_index) => {
-                      const option_messages = option_errors_by_index[option_index] || [];
-                      const option_has_error = option_messages.length > 0;
-                      return (
-                        <div
-                          key={option.id}
-                          className="border p-3 space-y-2"
-                          style={{ borderColor: option_has_error ? "#E74C3C" : "#E0E0E0", backgroundColor: option_has_error ? "rgba(231,76,60,0.05)" : undefined }}
-                        >
-                          {LANGUAGES.map((language_code) => (
-                            <input
-                              key={language_code}
-                              className="cok-auth-input w-full py-3"
-                              placeholder={language_code.toUpperCase()}
-                              value={(option.label && option.label[language_code]) || ""}
-                              onChange={(event) => update_option(option.id, { label: Object.assign({}, option.label, { [language_code]: event.target.value }) })}
-                            />
-                          ))}
-                          <input
-                            className="cok-auth-input w-full py-3"
-                            placeholder="value"
-                            value={option.value}
-                            onChange={(event) => update_option(option.id, { value: event.target.value })}
-                          />
-                          {is_cascading && (
-                            <input
-                              className="cok-auth-input w-full py-3"
-                              placeholder="parent value"
-                              value={option.parent_value || ""}
-                              onChange={(event) => update_option(option.id, { parent_value: event.target.value })}
-                            />
-                          )}
-                          {option_messages.map((message, message_index) => (
-                            <p key={message_index} className="text-xs" style={{ color: "#E74C3C" }}>{message}</p>
-                          ))}
-                          <DcsButtonOutline onClick={() => remove_option(option.id)}>{translate("DCS_SETTINGS_REMOVE")}</DcsButtonOutline>
-                        </div>
-                      );
-                    })}
-                    <DcsButtonOutline onClick={add_option}>{translate("DCS_SETTINGS_ADD_OPTION")}</DcsButtonOutline>
-                  </div>
-                </div>
-              )}
-
               {is_hidden && (
                 <>
                   <label className="flex items-center gap-2 text-sm">
@@ -696,6 +876,287 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
                       )}
                     </div>
                   )}
+                </>
+              )}
+            </>
+          )}
+
+          {active_tab === "options" && (
+            <>
+              {supports_parent_groups && (
+                <div className="border p-3 space-y-2" style={{ borderColor: "#E0E0E0" }}>
+                  <label className="cok-auth-label mb-0">{translate("DCS_SETTINGS_PARENT_DEPENDENCY_TOGGLE")}</label>
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-1 text-sm">
+                      <input
+                        type="radio"
+                        checked={!draft.parent_dependency_enabled}
+                        onChange={() => update({ parent_dependency_enabled: false })}
+                        style={{ accentColor: "#056daa" }}
+                      />
+                      {translate("DCS_SETTINGS_NO")}
+                    </label>
+                    <label className="flex items-center gap-1 text-sm">
+                      <input
+                        type="radio"
+                        checked={!!draft.parent_dependency_enabled}
+                        onChange={() => update({ parent_dependency_enabled: true })}
+                        style={{ accentColor: "#056daa" }}
+                      />
+                      {translate("DCS_SETTINGS_YES")}
+                    </label>
+                  </div>
+                  <p className="text-xs" style={{ color: "#9E9E9E" }}>{translate("DCS_SETTINGS_PARENT_DEPENDENCY_HINT")}</p>
+                </div>
+              )}
+
+              {supports_parent_groups && draft.parent_dependency_enabled ? (
+                <div className="space-y-3">
+                  {(draft.parent_option_groups || []).map((group, group_index) => {
+                    const group_parent_field = other_fields.find((candidate_field) => candidate_field.id === group.parent_field_id);
+                    return (
+                      <div key={group.id} className="border p-3 space-y-2" style={{ borderColor: "#E0E0E0" }}>
+                        <p className="text-xs font-semibold uppercase" style={{ color: "#9E9E9E", letterSpacing: "0.5px" }}>
+                          {translate("DCS_SETTINGS_GROUP_CONDITION_TITLE", { number: group_index + 1 })}
+                        </p>
+                        <div>
+                          <label className="cok-auth-label">{translate("DCS_SETTINGS_PARENT_FIELD")}</label>
+                          <select
+                            className="cok-auth-input w-full py-2"
+                            value={group.parent_field_id || ""}
+                            onChange={(event) => update_parent_option_group(group.id, { parent_field_id: event.target.value, value: "" })}
+                          >
+                            <option value="">{translate("DCS_RENDERER_SELECT_PLACEHOLDER")}</option>
+                            {other_fields.map((candidate_field) => (
+                              <option key={candidate_field.id} value={candidate_field.id}>
+                                {get_field_text(candidate_field.label, "en") || candidate_field.id}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="cok-auth-label">{translate("DCS_SETTINGS_VALIDATION_OPERATOR")}</label>
+                          <select
+                            className="cok-auth-input w-full py-2"
+                            value={group.operator || "equals"}
+                            onChange={(event) => update_parent_option_group(group.id, { operator: event.target.value })}
+                          >
+                            {DCS_PARENT_GROUP_OPERATORS.map((operator_id) => (
+                              <option key={operator_id} value={operator_id}>
+                                {translate(PARENT_GROUP_OPERATOR_LABEL_KEYS[operator_id])}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="cok-auth-label">{translate("DCS_SETTINGS_VALIDATION_VALUE")}</label>
+                          {group_parent_field && DCS_SELECT_LIKE_TYPES.includes(group_parent_field.type) ? (
+                            <select
+                              className="cok-auth-input w-full py-2"
+                              value={group.value}
+                              onChange={(event) => update_parent_option_group(group.id, { value: event.target.value })}
+                            >
+                              <option value="">{translate("DCS_RENDERER_SELECT_PLACEHOLDER")}</option>
+                              {(group_parent_field.options || []).map((option) => (
+                                <option key={option.id} value={option.value}>
+                                  {get_field_text(option.label, "en") || option.value}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              className="cok-auth-input w-full py-2"
+                              value={group.value}
+                              onChange={(event) => update_parent_option_group(group.id, { value: event.target.value })}
+                            />
+                          )}
+                        </div>
+
+                        {(() => {
+                          const this_group_entered_data = get_group_entered_data(group);
+                          return (
+                            <div className="space-y-2 border p-2" style={{ borderColor: "#E0E0E0", backgroundColor: "#EFF4F8" }}>
+                              <label className="cok-auth-label mb-0">{translate("DCS_SETTINGS_ENTERED_DATA_TITLE")}</label>
+                              <p className="text-xs" style={{ color: "#9E9E9E" }}>{translate("DCS_SETTINGS_ENTERED_DATA_HINT")}</p>
+                              <input
+                                className="cok-auth-input w-full py-2"
+                                placeholder={translate("DCS_SETTINGS_ENTERED_DATA_EN")}
+                                value={this_group_entered_data.en}
+                                onChange={(event) => update_group_entered_data(group, "en", event.target.value)}
+                              />
+                              <input
+                                className="cok-auth-input w-full py-2"
+                                placeholder={translate("DCS_SETTINGS_ENTERED_DATA_KN")}
+                                value={this_group_entered_data.kn}
+                                onChange={(event) => update_group_entered_data(group, "kn", event.target.value)}
+                              />
+                              <input
+                                className="cok-auth-input w-full py-2"
+                                placeholder={translate("DCS_SETTINGS_ENTERED_DATA_FR")}
+                                value={this_group_entered_data.fr}
+                                onChange={(event) => update_group_entered_data(group, "fr", event.target.value)}
+                              />
+                            </div>
+                          );
+                        })()}
+
+                        <div className="border p-2 space-y-2" style={{ borderColor: "#E0E0E0", backgroundColor: "#F7F9FB" }}>
+                          <label className="cok-auth-label">{translate("DCS_SETTINGS_GROUP_OPTIONS_TITLE")}</label>
+                          {(group.options || []).map((option) => (
+                            <div key={option.id} className="border p-2 space-y-2" style={{ borderColor: "#E0E0E0", backgroundColor: "#FFFFFF" }}>
+                              {LANGUAGES.map((language_code) => (
+                                <input
+                                  key={language_code}
+                                  className="cok-auth-input w-full py-2"
+                                  placeholder={language_code.toUpperCase()}
+                                  value={(option.label && option.label[language_code]) || ""}
+                                  onChange={(event) => update_group_option_label(group, option, language_code, event.target.value)}
+                                />
+                              ))}
+                              <input
+                                className="cok-auth-input w-full py-2"
+                                placeholder="value"
+                                value={option.value}
+                                onChange={(event) => update_group_option(group, option.id, { value: event.target.value })}
+                              />
+                              <DcsButtonOutline onClick={() => remove_group_option(group, option.id)}>{translate("DCS_SETTINGS_REMOVE")}</DcsButtonOutline>
+                            </div>
+                          ))}
+                          <DcsButtonOutline onClick={() => add_group_option(group)}>{translate("DCS_SETTINGS_ADD_OPTION")}</DcsButtonOutline>
+                        </div>
+
+                        <DcsButtonOutline onClick={() => remove_parent_option_group(group.id)}>{translate("DCS_SETTINGS_REMOVE")}</DcsButtonOutline>
+                      </div>
+                    );
+                  })}
+                  <DcsButtonOutline className="w-full" onClick={add_parent_option_group}>{translate("DCS_SETTINGS_ADD_PARENT_GROUP")}</DcsButtonOutline>
+                </div>
+              ) : (
+                <>
+              {is_cascading && (
+                <div style={cascading_parent_error ? { outline: "2px solid #E74C3C", outlineOffset: 4 } : undefined}>
+                  <label className="cok-auth-label">{translate("DCS_SETTINGS_CASCADING_PARENT")}</label>
+                  <select className="cok-auth-input w-full py-2" value={draft.parent_field_id || ""} onChange={(event) => update({ parent_field_id: event.target.value })}>
+                    <option value="">{translate("DCS_RENDERER_SELECT_PLACEHOLDER")}</option>
+                    {other_fields.map((candidate_field) => (
+                      <option key={candidate_field.id} value={candidate_field.id}>
+                        {get_field_text(candidate_field.label, "en") || candidate_field.id}
+                      </option>
+                    ))}
+                  </select>
+                  {cascading_parent_error && (
+                    <p className="text-xs mt-1" style={{ color: "#E74C3C" }}>{cascading_parent_error.message}</p>
+                  )}
+                </div>
+              )}
+
+              {supports_entered_data && (
+                <div className="space-y-2 border p-3" style={{ borderColor: "#E0E0E0", backgroundColor: "#F7F9FB" }}>
+                  <label className="cok-auth-label mb-0">{translate("DCS_SETTINGS_ENTERED_DATA_TITLE")}</label>
+                  <p className="text-xs" style={{ color: "#9E9E9E" }}>{translate("DCS_SETTINGS_ENTERED_DATA_HINT")}</p>
+                  <div>
+                    <label className="cok-auth-label">{translate("DCS_SETTINGS_ENTERED_DATA_EN")}</label>
+                    <input
+                      className="cok-auth-input w-full py-2"
+                      placeholder={translate("DCS_SETTINGS_ENTERED_DATA_PLACEHOLDER")}
+                      value={entered_data.en}
+                      onChange={(event) => update_entered_data("en", event.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="cok-auth-label">{translate("DCS_SETTINGS_ENTERED_DATA_KN")}</label>
+                    <input
+                      className="cok-auth-input w-full py-2"
+                      placeholder={translate("DCS_SETTINGS_ENTERED_DATA_PLACEHOLDER")}
+                      value={entered_data.kn}
+                      onChange={(event) => update_entered_data("kn", event.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="cok-auth-label">{translate("DCS_SETTINGS_ENTERED_DATA_FR")}</label>
+                    <input
+                      className="cok-auth-input w-full py-2"
+                      placeholder={translate("DCS_SETTINGS_ENTERED_DATA_PLACEHOLDER")}
+                      value={entered_data.fr}
+                      onChange={(event) => update_entered_data("fr", event.target.value)}
+                    />
+                  </div>
+                  {(draft.options || []).length > 0 && (
+                    <p className="text-xs" style={{ color: "#056daa", wordBreak: "break-word" }}>
+                      {(draft.options || [])
+                        .map((option) => `${get_field_text(option.label, "en") || get_field_text(option.label, "kn") || get_field_text(option.label, "fr")}:${option.value}`)
+                        .join(", ")}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {(has_options || is_cascading) && (() => {
+                const cascading_parent_field = is_cascading ? other_fields.find((candidate_field) => candidate_field.id === draft.parent_field_id) : null;
+                return (
+                <div>
+                  <label className="cok-auth-label">{translate("DCS_SETTINGS_OPTIONS_TITLE")}</label>
+                  {options_required_error && (
+                    <p className="text-xs mb-2" style={{ color: "#E74C3C" }}>{options_required_error.message}</p>
+                  )}
+                  <div className="space-y-2">
+                    {(draft.options || []).map((option, option_index) => {
+                      const option_messages = option_errors_by_index[option_index] || [];
+                      const option_has_error = option_messages.length > 0;
+                      return (
+                        <div
+                          key={option.id}
+                          className="border p-3 space-y-2"
+                          style={{ borderColor: option_has_error ? "#E74C3C" : "#E0E0E0", backgroundColor: option_has_error ? "rgba(231,76,60,0.05)" : undefined }}
+                        >
+                          {LANGUAGES.map((language_code) => (
+                            <input
+                              key={language_code}
+                              className="cok-auth-input w-full py-3"
+                              placeholder={language_code.toUpperCase()}
+                              value={(option.label && option.label[language_code]) || ""}
+                              onChange={(event) => update_option_label(option, language_code, event.target.value)}
+                            />
+                          ))}
+                          <input
+                            className="cok-auth-input w-full py-3"
+                            placeholder="value"
+                            value={option.value}
+                            onChange={(event) => update_option(option.id, { value: event.target.value })}
+                          />
+                          {is_cascading && (cascading_parent_field && DCS_SELECT_LIKE_TYPES.includes(cascading_parent_field.type) ? (
+                            <select
+                              className="cok-auth-input w-full py-3"
+                              value={option.parent_value || ""}
+                              onChange={(event) => update_option(option.id, { parent_value: event.target.value })}
+                            >
+                              <option value="">{translate("DCS_RENDERER_SELECT_PLACEHOLDER")}</option>
+                              {(cascading_parent_field.options || []).map((parent_option) => (
+                                <option key={parent_option.id} value={parent_option.value}>
+                                  {get_field_text(parent_option.label, "en") || parent_option.value}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              className="cok-auth-input w-full py-3"
+                              placeholder="parent value"
+                              value={option.parent_value || ""}
+                              onChange={(event) => update_option(option.id, { parent_value: event.target.value })}
+                            />
+                          ))}
+                          {option_messages.map((message, message_index) => (
+                            <p key={message_index} className="text-xs" style={{ color: "#E74C3C" }}>{message}</p>
+                          ))}
+                          <DcsButtonOutline onClick={() => remove_option(option.id)}>{translate("DCS_SETTINGS_REMOVE")}</DcsButtonOutline>
+                        </div>
+                      );
+                    })}
+                    <DcsButtonOutline onClick={add_option}>{translate("DCS_SETTINGS_ADD_OPTION")}</DcsButtonOutline>
+                  </div>
+                </div>
+                );
+              })()}
                 </>
               )}
             </>
@@ -844,7 +1305,18 @@ export default function FieldSettingsDrawer({ field, allFields, onSave, onClose,
                     </option>
                   ))}
                 </select>
-                <input className="cok-auth-input w-full py-3" value={visibility_ui.value} onChange={(event) => update_visibility({ value: event.target.value })} />
+                {visibility_parent_field && DCS_SELECT_LIKE_TYPES.includes(visibility_parent_field.type) ? (
+                  <select className="cok-auth-input w-full py-3" value={visibility_ui.value} onChange={(event) => update_visibility({ value: event.target.value })}>
+                    <option value="">{translate("DCS_RENDERER_SELECT_PLACEHOLDER")}</option>
+                    {(visibility_parent_field.options || []).map((option) => (
+                      <option key={option.id} value={option.value}>
+                        {get_field_text(option.label, "en") || option.value}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input className="cok-auth-input w-full py-3" value={visibility_ui.value} onChange={(event) => update_visibility({ value: event.target.value })} />
+                )}
               </div>
               {visibility_tab_errors.map((entry, index) => (
                 <p key={index} className="text-xs mt-1" style={{ color: "#E74C3C" }}>{entry.message}</p>

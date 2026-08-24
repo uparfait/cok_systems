@@ -1,15 +1,19 @@
 import React, { useState } from "react";
-import { get_field_text } from "./fieldText.js";
+import { get_field_text, get_field_options_state } from "./fieldText.js";
 
 /**
  * Choose one option from a list, rendered as touch-friendly radio rows.
+ * Optionally split into parent-driven condition groups
+ * (field.parent_dependency_enabled) - see get_field_options_state - in
+ * which case only the options belonging to a currently-matching group
+ * show, and the field is disabled while none match.
  */
-export default function SingleSelectField({ field, language, mode, value, onChange, error, ruleValidMessage }) {
+export default function SingleSelectField({ field, language, mode, value, onChange, error, ruleValidMessage, allValues }) {
   const is_builder = mode === "builder";
   const label = get_field_text(field.label, language);
   const help_text = get_field_text(field.help_text, language);
   const valid_message = ruleValidMessage || (field.mandatory && get_field_text(field.valid_message, language));
-  const options = field.options || [];
+  const { visible_options: options, is_locked } = get_field_options_state(field, allValues, is_builder);
   const [last_clicked, setLastClicked] = useState(null);
 
   // Two options can end up sharing the same stored value (most commonly
@@ -25,6 +29,11 @@ export default function SingleSelectField({ field, language, mode, value, onChan
   const checked_option_id = last_clicked_is_current
     ? last_clicked.option_id
     : (value ? (options.find((option) => option.value === value) || {}).id : null);
+
+  // No condition currently matches - there is nothing to answer, so the
+  // whole field (not just its control) disappears rather than showing an
+  // empty, disabled question.
+  if (is_locked) return null;
 
   return (
     <div className="w-full">

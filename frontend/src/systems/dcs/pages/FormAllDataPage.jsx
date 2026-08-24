@@ -8,6 +8,7 @@ import { flatten_fields } from "../jsonlogic/dependencyGraph.js";
 import { get_field_text } from "../fields/fieldText.js";
 import DcsDataTable from "../components/DcsDataTable.jsx";
 import DcsDataTableFileCell from "../components/DcsDataTableFileCell.jsx";
+import DcsDataTableGeoCell from "../components/DcsDataTableGeoCell.jsx";
 import DcsPeriodFilter from "../components/DcsPeriodFilter.jsx";
 import DcsTableSearchSort from "../components/DcsTableSearchSort.jsx";
 import DcsLoadingState from "../components/DcsLoadingState.jsx";
@@ -102,6 +103,8 @@ function build_rows(submissions, field_type_by_id) {
       const raw_value = submission.data ? submission.data[field_id] : undefined;
       if (MEDIA_ANSWER_TYPES.includes(field_type)) {
         row[field_id] = raw_value ? <DcsDataTableFileCell value={raw_value} fieldType={field_type} /> : "";
+      } else if (field_type === "geolocation") {
+        row[field_id] = raw_value ? <DcsDataTableGeoCell value={raw_value} /> : "";
       } else {
         row[field_id] = Array.isArray(raw_value) ? raw_value.join(", ") : raw_value != null ? String(raw_value) : "";
       }

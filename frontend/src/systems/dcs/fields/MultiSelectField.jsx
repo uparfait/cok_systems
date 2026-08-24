@@ -1,16 +1,20 @@
 import React from "react";
-import { get_field_text } from "./fieldText.js";
+import { get_field_text, get_field_options_state } from "./fieldText.js";
 
 /**
  * Choose multiple options from a list, rendered as touch-friendly
- * checkbox rows.
+ * checkbox rows. Optionally split into parent-driven condition groups
+ * (field.parent_dependency_enabled) - see get_field_options_state - in
+ * which case only the options belonging to a currently-matching group
+ * show, and every checkbox is disabled while none match.
  */
-export default function MultiSelectField({ field, language, mode, value, onChange, error, ruleValidMessage }) {
+export default function MultiSelectField({ field, language, mode, value, onChange, error, ruleValidMessage, allValues }) {
   const is_builder = mode === "builder";
   const label = get_field_text(field.label, language);
   const help_text = get_field_text(field.help_text, language);
   const selected_values = Array.isArray(value) ? value : [];
   const valid_message = ruleValidMessage || (field.mandatory && get_field_text(field.valid_message, language));
+  const { visible_options, is_locked } = get_field_options_state(field, allValues, is_builder);
 
   const toggle_option = (option_value) => {
     if (!onChange) return;
@@ -21,6 +25,11 @@ export default function MultiSelectField({ field, language, mode, value, onChang
     }
   };
 
+  // No condition currently matches - there is nothing to answer, so the
+  // whole field (not just its controls) disappears rather than showing an
+  // empty, disabled question.
+  if (is_locked) return null;
+
   return (
     <div className="w-full">
       <label className="cok-auth-label" title={help_text || undefined}>
@@ -28,7 +37,7 @@ export default function MultiSelectField({ field, language, mode, value, onChang
         {field.mandatory && <span style={{ color: "#E74C3C" }}> *</span>}
       </label>
       <div className="space-y-2">
-        {(field.options || []).map((option) => (
+        {visible_options.map((option) => (
           <label
             key={option.id}
             className="flex items-center gap-2 px-3 py-2 border cursor-pointer"

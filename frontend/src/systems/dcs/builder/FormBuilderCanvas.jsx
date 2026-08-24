@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
@@ -19,9 +19,18 @@ import DcsEmptyState from "../components/DcsEmptyState.jsx";
  */
 export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettings, getFieldError }) {
   const { language } = useDcsLanguage();
+  // A brand new group starts with zero children - popping its own "Add
+  // field" menu open the instant it lands saves the extra click of finding
+  // and pressing that button on an otherwise-empty box. Keyed by the new
+  // field's own id, so only that exact group (never an older one reusing
+  // the UI) ever auto-opens; GroupField only reads this once, as its
+  // initial state on first mount, so a stale id lingering here afterward
+  // is harmless.
+  const [auto_open_group_id, setAutoOpenGroupId] = useState(null);
 
   const handle_add_component = (field_type) => {
     const new_field = create_blank_field(field_type);
+    if (field_type === "group") setAutoOpenGroupId(new_field.id);
     onFieldsChange(insert_field_at(fields, fields.length - 1, new_field));
   };
 
@@ -69,6 +78,7 @@ export default function FormBuilderCanvas({ fields, onFieldsChange, onOpenSettin
                 onFieldChange={handle_field_inline_change}
                 renderChildField={render_child_field}
                 getFieldError={getFieldError}
+                autoOpenAddMenu={field.id === auto_open_group_id}
               />
             </div>
           ))}
