@@ -5,13 +5,18 @@ import DcsFieldIcon from "../components/DcsFieldIcon.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
 
 /**
- * The "+" trigger that opens a scrollable picker of every form-design and
- * data-collection component. Opens as a fixed panel anchored to the top of
- * the viewport so it is always fully visible without scrolling the page.
+ * The "Choose a component to add" picker: a scrollable list of every
+ * form-design and data-collection component, opened as a fixed panel
+ * anchored to the top of the viewport so it is always fully visible
+ * without scrolling the page. Defaults to its own "+" trigger button, but
+ * any caller needing a differently-styled (or multiple) trigger - e.g. a
+ * group's own "Add field" button - can pass renderTrigger instead and get
+ * the exact same overlay/picker behavior. initialOpen lets a caller start
+ * it already open (e.g. a just-created, still-empty group).
  */
-export default function AddComponentPanel({ onSelect }) {
+export default function AddComponentPanel({ onSelect, renderTrigger, initialOpen }) {
   const { translate } = useDcsLanguage();
-  const [is_open, setIsOpen] = useState(false);
+  const [is_open, setIsOpen] = useState(!!initialOpen);
 
   const content_types = DCS_FIELD_TYPE_REGISTRY.filter((entry) => entry.category === "content");
   const data_types = DCS_FIELD_TYPE_REGISTRY.filter((entry) => entry.category === "data");
@@ -51,19 +56,25 @@ export default function AddComponentPanel({ onSelect }) {
   );
 
   return (
-    <div className="flex justify-center">
-      <button
-        type="button"
-        onClick={() => setIsOpen(true)}
-        className="cok-btn-outlined flex items-center justify-center"
-        style={{ width: 100, height: 40 }}
-        aria-label={translate("DCS_BTN_ADD_COMPONENT")}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-      </button>
+    <>
+      {renderTrigger ? (
+        renderTrigger(() => setIsOpen(true))
+      ) : (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            className="cok-btn-outlined flex items-center justify-center"
+            style={{ width: 100, height: 40 }}
+            aria-label={translate("DCS_BTN_ADD_COMPONENT")}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {is_open && (
         <div className="fixed inset-0 z-[10000] flex items-start justify-center pt-10 px-4">
@@ -85,6 +96,6 @@ export default function AddComponentPanel({ onSelect }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

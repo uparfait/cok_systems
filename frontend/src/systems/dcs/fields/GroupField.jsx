@@ -1,38 +1,28 @@
-import React, { useState } from "react";
+import React from "react";
 import { get_field_text } from "./fieldText.js";
 import { get_spacing_below_px } from "../renderer/designStyles.js";
 import { DCS_FIELD_RENDERER_MAP } from "../renderer/fieldRendererMap.js";
-import { DCS_FIELD_TYPE_REGISTRY, create_blank_field } from "./fieldTypes.js";
+import { create_blank_field } from "./fieldTypes.js";
 import { useDcsLanguage } from "../i18n/LanguageContext.jsx";
-import DcsFieldIcon from "../components/DcsFieldIcon.jsx";
 import DcsButtonOutline from "../components/DcsButtonOutline.jsx";
+import AddComponentPanel from "../builder/AddComponentPanel.jsx";
 import { collect_uploaded_file_urls } from "../builder/collectUploadedFileUrls.js";
 import { delete_design_file } from "../services/designUploadService.js";
-
-// A group may hold any field type at all (unlike a section, which is
-// restricted to form-design/content blocks only) - it is purely a visual
-// cluster of otherwise-ordinary questions.
-const ADDABLE_TYPES = DCS_FIELD_TYPE_REGISTRY;
 
 /**
  * Organizes related fields visually together. In the builder, each child
  * gets its own live preview plus settings/delete controls, and an "Add
- * field" trigger below the list lets the author populate the group
- * directly here - previously the only way in was the JSON import overlay.
- * The live renderer (and the read-only review) instead delegates each
- * child to renderChildField, exactly as before.
+ * field" trigger below the list opens the very same "Choose a component to
+ * add" picker the main canvas uses - previously the only way to populate a
+ * group's children was the JSON import overlay. The live renderer (and the
+ * read-only review) instead delegates each child to renderChildField,
+ * exactly as before.
  */
 export default function GroupField({ field, language, mode, onFieldChange, onOpenSettings, renderChildField, getFieldError, autoOpenAddMenu }) {
   const { translate } = useDcsLanguage();
   const is_builder = mode === "builder";
   const label = get_field_text(field.label, language);
   const children = field.children || [];
-  // autoOpenAddMenu is only ever read here, as the lazy initial state on
-  // this exact component instance's first mount - a brand new group (see
-  // FormBuilderCanvas) lands with its own "Add field" menu already open,
-  // instead of requiring an extra click to find and press that button on
-  // an otherwise-empty box.
-  const [is_add_menu_open, setIsAddMenuOpen] = useState(() => !!autoOpenAddMenu);
 
   if (!is_builder) {
     return (
@@ -59,7 +49,6 @@ export default function GroupField({ field, language, mode, onFieldChange, onOpe
 
   const handle_add_child = (field_type) => {
     update_children(children.concat([create_blank_field(field_type)]));
-    setIsAddMenuOpen(false);
   };
 
   const handle_child_field_change = (child_id, updated_child) => {
@@ -78,17 +67,6 @@ export default function GroupField({ field, language, mode, onFieldChange, onOpe
         <p className="text-sm font-semibold mb-3" style={{ color: "#333333", fontFamily: "'Montserrat', sans-serif" }}>
           {label}
         </p>
-      )}
-
-      {children.length === 0 && (
-        <button
-          type="button"
-          onClick={() => setIsAddMenuOpen(true)}
-          className="w-full cursor-pointer text-xs text-center px-4 py-6"
-          style={{ color: "#9E9E9E", background: "none", border: "none" }}
-        >
-          {translate("DCS_GROUP_EMPTY_HINT")}
-        </button>
       )}
 
       <div className="space-y-2">
@@ -155,29 +133,27 @@ export default function GroupField({ field, language, mode, onFieldChange, onOpe
         })}
       </div>
 
-      <div className="relative mt-2">
-        <DcsButtonOutline className="w-full" onClick={() => setIsAddMenuOpen((previous) => !previous)}>
-          {translate("DCS_GROUP_ADD_FIELD")}
-        </DcsButtonOutline>
-        {is_add_menu_open && (
-          <div
-            className="absolute z-[10001] bg-white border shadow-lg py-1"
-            style={{ top: "100%", left: 0, right: 0, marginTop: 4, maxHeight: 260, overflowY: "auto", borderColor: "#E0E0E0" }}
-          >
-            {ADDABLE_TYPES.map((entry) => (
+      <AddComponentPanel
+        onSelect={handle_add_child}
+        initialOpen={autoOpenAddMenu}
+        renderTrigger={(open) => (
+          <>
+            {children.length === 0 && (
               <button
-                key={entry.type}
                 type="button"
-                onClick={() => handle_add_child(entry.type)}
-                className="w-full cursor-pointer flex items-center gap-2 px-3 py-1.5 text-left hover:bg-gray-50"
+                onClick={open}
+                className="w-full cursor-pointer text-xs text-center px-4 py-6"
+                style={{ color: "#9E9E9E", background: "none", border: "none" }}
               >
-                <DcsFieldIcon type={entry.type} size={16} className="flex-shrink-0" />
-                <span className="text-xs" style={{ color: "#333333" }}>{translate(entry.labelKey)}</span>
+                {translate("DCS_GROUP_EMPTY_HINT")}
               </button>
-            ))}
-          </div>
+            )}
+            <DcsButtonOutline className="w-full mt-2" onClick={open}>
+              {translate("DCS_GROUP_ADD_FIELD")}
+            </DcsButtonOutline>
+          </>
         )}
-      </div>
+      />
     </div>
   );
 }
