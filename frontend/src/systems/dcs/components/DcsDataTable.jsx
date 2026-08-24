@@ -168,6 +168,15 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
   const column_widths = useMemo(() => {
     const widths = {};
     columns.forEach((column) => {
+      // A column whose cells render something other than plain text (e.g.
+      // a nested table) can't be measured by compute_column_width's
+      // text-only heuristic - the caller supplies the real width it needs
+      // directly instead, bypassing both the measurement and its normal
+      // MAX_COLUMN_WIDTH_PX cap.
+      if (column.minWidthPx) {
+        widths[column.key] = column.minWidthPx;
+        return;
+      }
       const header_text = column.label !== undefined ? column.label : translate(column.labelKey);
       widths[column.key] = compute_column_width(header_text, rows, column.key);
     });
@@ -180,7 +189,10 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
   // can never shrink it back down to a single word's width. word-break:
   // keep-all so ordinary words only ever wrap at spaces (never mid-word),
   // with overflow-wrap:break-word as the sole, last-resort fallback for a
-  // single token wider than the column itself.
+  // single token wider than the column itself. The actual clip/scroll
+  // boundary against content wider than the column (e.g. a nested table)
+  // lives on the enclosing <td> itself (see overflowX there), not here -
+  // keeping it off this div avoids a second, redundant scroll container.
   const get_cell_content_style = (column_key) => ({
     width: "100%",
     minWidth: `${column_widths[column_key]}px`,
@@ -275,6 +287,21 @@ export default function DcsDataTable({ columns, rows, page, totalPages, onPageCh
                         backgroundColor: get_cell_background(column.key, row_index),
                         borderBottom: "1px solid #E0E0E0",
                         borderRight: column_index < columns.length - 1 ? "1px solid #E0E0E0" : "none",
+                        // Only a column explicitly declaring its own width
+                        // (minWidthPx - content compute_column_width's plain
+                        // text measurement can't size, e.g. a nested table)
+                        // gets a scroll boundary here; an ordinary text
+                        // column is already sized to fit its own content
+                        // exactly and would otherwise risk showing a
+                        // needless scrollbar from nothing more than
+                        // sub-pixel layout rounding. table-layout:fixed pins
+                        // this cell to its column's exact pixel width either
+                        // way, but a table cell never clips its own content
+                        // by default - without this, content wider than the
+                        // cell (its own padding included) visually bleeds
+                        // into the next column instead of staying inside
+                        // its own boundary.
+                        overflowX: column.minWidthPx ? "auto" : "visible",
                       }}
                     >
                       <div style={get_cell_content_style(column.key)}>{row[column.key]}</div>

@@ -35,6 +35,13 @@ const GEO_DETAIL_ROWS = [
 function build_geo_value(overrides) {
   return Object.assign(
     {
+      // A fixed, unambiguous marker every geolocation answer carries -
+      // never toggled per-instance - so any code inspecting a submission's
+      // raw stored data (a generic export, a DB tool, a future field type
+      // that also happens to store a plain object) can tell a geolocation
+      // answer apart from anything else on sight, with no risk of
+      // confusing it for some other object-shaped answer.
+      __map__location__data: true,
       latitude: null,
       longitude: null,
       accuracy: null,
