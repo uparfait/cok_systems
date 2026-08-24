@@ -49,8 +49,20 @@ export default function DcsGrantPermissionsSelect({ isProjectScope, manage, onCh
   const selected_options = options.filter((option) => selections[option.key] === true);
   const has_grant_option = selections.share_forms === true;
 
+  // The grant option and hand-picked accesses are mutually exclusive:
+  // picking an access drops the grant option, and enabling the grant
+  // option clears every picked access.
   const toggle = (key) => {
-    onChange({ ...selections, [key]: selections[key] !== true });
+    if (key === "share_forms") {
+      const turning_on = selections.share_forms !== true;
+      onChange(
+        turning_on
+          ? { add_forms: false, edit_forms: false, delete_forms: false, share_forms: true }
+          : { ...selections, share_forms: false },
+      );
+      return;
+    }
+    onChange({ ...selections, [key]: selections[key] !== true, share_forms: false });
   };
 
   return (
