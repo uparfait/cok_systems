@@ -72,6 +72,21 @@ class SubmitAttendanceController {
         });
       }
 
+      // Prevent duplicate attendance by email
+      if (attendeeEmail) {
+        const existingEmailAttendance = await Attendance.findOne({
+          eventSpecialId,
+          attendeeEmail: attendeeEmail.toLowerCase().trim()
+        });
+
+        if (existingEmailAttendance) {
+          return res.status(409).json({
+            success: false,
+            message: 'Attendance for this email has already been recorded for this event'
+          });
+        }
+      }
+
       const hasDigitalCertificate = req.file
         ? `${config.api.basePath}/uploads/${req.file.filename}`
         : undefined;
