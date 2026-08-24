@@ -13,6 +13,9 @@ const departments_model = require("../models/departments_model.js");
 const FULL_ACCESS = { can_view: true, all_forms: true, form_group_ids: [] };
 const NO_ACCESS = { can_view: false, all_forms: false, form_group_ids: [] };
 
+const FULL_MANAGEMENT = { add_forms: true, edit_forms: true, delete_forms: true, share_forms: true };
+const NO_MANAGEMENT = { add_forms: false, edit_forms: false, delete_forms: false, share_forms: false };
+
 /**
  * Resolves the requesting user's place in the org chart once per request:
  * their top-level department id plus their unit id when they sit in one.
@@ -112,8 +115,9 @@ async function filter_projects_for_user(user, projects) {
 
 /**
  * Answers whether a user may manage a project's access rules: the creator
- * always can, and so can any individual granted access "with grant option"
- * (can_grant). Department grants never carry the grant option.
+ * always can, and so can any individual granted the share/grant option
+ * (manage.share_forms, or the older can_grant flag). Department grants
+ * never carry the grant option.
  */
 async function can_manage_access(user, project, access_document) {
   if (!user || !project) return false;
@@ -124,8 +128,47 @@ async function can_manage_access(user, project, access_document) {
   if (!access) return false;
 
   return (access.individuals || []).some(
-    (individual) => individual.user_id === user.user_id.toString() && individual.can_grant === true,
+    (individual) =>
+      individual.user_id === user.user_id.toString() &&
+      (individual.can_grant === true || individual.manage?.share_forms === true),
   );
+}
+
+/**
+ * Answers which management actions a user may perform on a project's forms
+ * (add/edit/delete/share). The creator can do everything, and a project
+ * without enabled access rules keeps today's open behavior. Otherwise the
+ * user's individual grants decide: add/delete only ever come from a
+ * project-wide (all_forms) grant, while edit/share also apply to a
+ * form-specific grant - but only for the forms that grant covers, which is
+ * why form_group_id narrows the answer when checking one form.
+ */
+async function resolve_form_management(user, project, form_group_id, access_document) {
+  if (!user || !project) return NO_MANAGEMENT;
+  if (project.created_by === user.user_id.toString()) return FULL_MANAGEMENT;
+  if (project.access_control_enabled !== true) return FULL_MANAGEMENT;
+
+  const access =
+    access_document !== undefined ? access_document : await project_access_model.get_access_by_project(project._id);
+  if (!access || access.enabled !== true) return FULL_MANAGEMENT;
+
+  const result = Object.assign({}, NO_MANAGEMENT);
+  (access.individuals || []).forEach((individual) => {
+    if (individual.user_id !== user.user_id.toString()) return;
+    const manage = individual.manage || {};
+    const covers_form =
+      individual.all_forms === true || !form_group_id || (individual.form_group_ids || []).includes(form_group_id);
+
+    if (individual.all_forms === true) {
+      if (manage.add_forms === true) result.add_forms = true;
+      if (manage.delete_forms === true) result.delete_forms = true;
+    }
+    if (covers_form) {
+      if (manage.edit_forms === true) result.edit_forms = true;
+      if (manage.share_forms === true || individual.can_grant === true) result.share_forms = true;
+    }
+  });
+  return result;
 }
 
 /**
@@ -147,4 +190,5 @@ module.exports = {
   filter_projects_for_user,
   can_view_form_group,
   can_manage_access,
+  resolve_form_management,
 };

@@ -24,12 +24,19 @@ async function get_project_by_id(req, res) {
       return res.status(403).json(warning_response(req, "ACCESS_DENIED"));
     }
 
-    // Tells the frontend whether to show the access-control tab to this viewer.
+    // Tells the frontend which tabs and form actions to show this viewer.
     const viewer_can_manage_access = await project_access.can_manage_access(req.user, project);
+    const viewer_form_permissions = await project_access.resolve_form_management(req.user, project);
 
     return res
       .status(200)
-      .json(success_response(req, "PROJECT_FETCHED", Object.assign({}, project, { viewer_can_manage_access })));
+      .json(
+        success_response(
+          req,
+          "PROJECT_FETCHED",
+          Object.assign({}, project, { viewer_can_manage_access, viewer_form_permissions }),
+        ),
+      );
   } catch (error) {
     return res.status(500).json(error_response(req, "SERVER_ERROR", null, error.message));
   }
