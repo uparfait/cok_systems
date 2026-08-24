@@ -1,5 +1,8 @@
 import { evaluate_rule } from "../jsonlogic/engine.js";
 import { build_dependency_graph, flatten_fields } from "../jsonlogic/dependencyGraph.js";
+import { get_field_options_state } from "../fields/fieldText.js";
+
+const PARENT_GROUP_CAPABLE_TYPES = ["single_select", "multi_select", "select_group"];
 
 /**
  * True when a field should currently be shown, given the rest of the
@@ -57,9 +60,16 @@ function is_value_filled(value) {
  * something they needed to fill in.
  */
 export function compute_form_progress_percent(fields, values) {
-  const answerable_fields = flatten_fields(fields || []).filter(
-    (field) => !PROGRESS_EXCLUDED_TYPES.has(field.type) && evaluate_field_visibility(field, values),
-  );
+  const answerable_fields = flatten_fields(fields || []).filter((field) => {
+    if (PROGRESS_EXCLUDED_TYPES.has(field.type) || !evaluate_field_visibility(field, values)) return false;
+    // A select-family field split into parent-driven condition groups
+    // renders nothing at all once no group currently matches - it was
+    // never something the respondent needed (or could) fill in either.
+    if (PARENT_GROUP_CAPABLE_TYPES.includes(field.type) && field.parent_dependency_enabled) {
+      return !get_field_options_state(field, values, false).is_locked;
+    }
+    return true;
+  });
   if (answerable_fields.length === 0) return 100;
   const filled_count = answerable_fields.filter((field) => is_value_filled(values ? values[field.id] : undefined)).length;
   return Math.round((filled_count / answerable_fields.length) * 100);

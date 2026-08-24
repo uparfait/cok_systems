@@ -163,14 +163,24 @@ const FIELD_TYPE_DOCS = {
   },
   single_select: {
     description: "Choose exactly one option, rendered as touch-friendly radio rows.",
-    extra_properties: { options: "Array of { id, label, value } - value is what gets stored/compared, must be unique across the field's own options." },
-    usage_notes: "Applicable validation operators: equals, not_equals, includes, not_includes, depends_on_parent. Prefer select_group instead when the option list is long (10+).",
+    extra_properties: {
+      options: "Array of { id, label, value } - value is what gets stored/compared, must be unique across the field's own options. Ignored when parent_dependency_enabled is true.",
+      parent_dependency_enabled: "Optional boolean, default false. When true, options come from parent_option_groups instead of the flat 'options' list.",
+      parent_option_groups: "Only used when parent_dependency_enabled is true - array of { id, parent_field_id, operator, value, options }. operator is one of equals/not_equals/includes/not_includes/less_than/greater_than, compared against the current answer of parent_field_id. Every group whose condition currently matches contributes its own 'options' (same shape as the top-level options) to what the respondent sees; with none matching, the field has nothing to select. Different groups may reference entirely different parent fields.",
+    },
+    usage_notes:
+      "Applicable validation operators: equals, not_equals, includes, not_includes, depends_on_parent. Prefer select_group instead when the option list is long (10+). For a single always-on parent link, cascading_select is simpler; parent_option_groups is for multiple different conditions/parents feeding into one field's own options.",
     example: { id: "single_select_ab12cd", type: "single_select", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "Gender" }), options: [option_example(1), option_example(2)], mandatory: true, validation_rules: [], design: { spacing_below_px: 16 } },
   },
   select_group: {
     description: "Choose exactly one option from a native dropdown - functionally identical to single_select but far more compact for long option lists.",
-    extra_properties: { options: "Array of { id, label, value } - value is what gets stored/compared, must be unique across the field's own options." },
-    usage_notes: "Applicable validation operators: equals, not_equals, includes, not_includes, depends_on_parent.",
+    extra_properties: {
+      options: "Array of { id, label, value } - value is what gets stored/compared, must be unique across the field's own options. Ignored when parent_dependency_enabled is true.",
+      parent_dependency_enabled: "Optional boolean, default false. When true, options come from parent_option_groups instead of the flat 'options' list.",
+      parent_option_groups: "Only used when parent_dependency_enabled is true - array of { id, parent_field_id, operator, value, options }. operator is one of equals/not_equals/includes/not_includes/less_than/greater_than, compared against the current answer of parent_field_id. Every group whose condition currently matches contributes its own 'options' (same shape as the top-level options) to what the respondent sees; with none matching, the field has nothing to select. Different groups may reference entirely different parent fields.",
+    },
+    usage_notes:
+      "Applicable validation operators: equals, not_equals, includes, not_includes, depends_on_parent. For a single always-on parent link, cascading_select is simpler; parent_option_groups is for multiple different conditions/parents feeding into one field's own options.",
     example: { id: "select_group_ab12cd", type: "select_group", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "District" }), options: [option_example(1), option_example(2)], mandatory: true, validation_rules: [], design: { spacing_below_px: 16 } },
   },
   geolocation: {
@@ -200,8 +210,13 @@ const FIELD_TYPE_DOCS = {
   },
   multi_select: {
     description: "Choose zero or more options, rendered as checkboxes.",
-    extra_properties: { options: "Array of { id, label, value } - value must be unique across the field's own options." },
-    usage_notes: "Applicable validation operators: includes, not_includes, min_selections, max_selections, exact_selections, depends_on_parent. Stored answer is an array of the selected values.",
+    extra_properties: {
+      options: "Array of { id, label, value } - value must be unique across the field's own options. Ignored when parent_dependency_enabled is true.",
+      parent_dependency_enabled: "Optional boolean, default false. When true, options come from parent_option_groups instead of the flat 'options' list.",
+      parent_option_groups: "Only used when parent_dependency_enabled is true - array of { id, parent_field_id, operator, value, options }. operator is one of equals/not_equals/includes/not_includes/less_than/greater_than, compared against the current answer of parent_field_id. Every group whose condition currently matches contributes its own 'options' (same shape as the top-level options) to what the respondent sees; with none matching, every checkbox is disabled. Different groups may reference entirely different parent fields.",
+    },
+    usage_notes:
+      "Applicable validation operators: includes, not_includes, min_selections, max_selections, exact_selections, depends_on_parent. Stored answer is an array of the selected values.",
     example: { id: "multi_select_ab12cd", type: "multi_select", label: Object.assign({}, TRANSLATED_TEXT_EXAMPLE, { en: "Which services did you use?" }), options: [option_example(1), option_example(2)], mandatory: false, validation_rules: [], design: { spacing_below_px: 16 } },
   },
   likert_scale: {

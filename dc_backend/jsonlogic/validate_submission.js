@@ -4,6 +4,55 @@ const { translate } = require("../i18n/index.js");
 const { file_extension_allowed } = require("../constants/file_type_groups.js");
 
 const MEDIA_TYPES = ["image", "video", "audio", "file_upload", "signature"];
+const PARENT_GROUP_CAPABLE_TYPES = ["single_select", "multi_select", "select_group"];
+
+// Mirrors the is_locked branch of get_field_options_state in
+// frontend/src/systems/dcs/fields/fieldText.js (there is no "builder" mode
+// to worry about server-side) - keep both in sync whenever the
+// parent-option-groups comparison logic changes.
+function evaluate_parent_group_condition(operator, actual_value, expected_value) {
+  switch (operator) {
+    case "not_equals":
+      return Array.isArray(actual_value) ? !actual_value.includes(expected_value) : actual_value !== expected_value;
+    case "includes":
+      return Array.isArray(actual_value)
+        ? actual_value.includes(expected_value)
+        : String(actual_value ?? "").toLowerCase().includes(String(expected_value ?? "").toLowerCase());
+    case "not_includes":
+      return !evaluate_parent_group_condition("includes", actual_value, expected_value);
+    case "less_than":
+      return Number(actual_value) < Number(expected_value);
+    case "greater_than":
+      return Number(actual_value) > Number(expected_value);
+    case "equals":
+    default:
+      return Array.isArray(actual_value) ? actual_value.includes(expected_value) : actual_value === expected_value;
+  }
+}
+
+function has_real_answer(value) {
+  if (value === undefined || value === null || value === "") return false;
+  if (Array.isArray(value)) return value.length > 0;
+  return true;
+}
+
+/**
+ * True when a select-family field split into parent-driven condition
+ * groups (field.parent_dependency_enabled) has no group currently matching
+ * - the client renders nothing at all for it in that state, so it must be
+ * skipped here exactly like an invisible field, or a mandatory check would
+ * block submission over a question the respondent was never even shown.
+ */
+function is_locked_by_parent_groups(field, working_data) {
+  if (!PARENT_GROUP_CAPABLE_TYPES.includes(field.type) || !field.parent_dependency_enabled) return false;
+  const groups = field.parent_option_groups || [];
+  return !groups.some((group) => {
+    if (!group || !group.parent_field_id) return false;
+    const actual_value = working_data[group.parent_field_id];
+    if (!has_real_answer(actual_value)) return false;
+    return evaluate_parent_group_condition(group.operator || "equals", actual_value, group.value);
+  });
+}
 
 /**
  * True for anything that looks like a raw base64 data URL rather than an
@@ -98,7 +147,7 @@ function validate_submission_data(schema, submitted_data, language) {
       : { value: true, error: null };
     const is_visible = visibility_result.error ? true : visibility_result.value !== false;
 
-    if (!is_visible) return;
+    if (!is_visible || is_locked_by_parent_groups(field, working_data)) return;
 
     if (field.mandatory && is_empty_value(working_data[field_id])) {
       field_errors[field_id] = (field_errors[field_id] || []).concat([

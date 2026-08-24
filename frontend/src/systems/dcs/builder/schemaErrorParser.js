@@ -35,6 +35,12 @@ const REASON_I18N_KEYS = {
   duplicate_option_value: "DCS_SCHEMA_ERROR_DUPLICATE_OPTION_VALUE",
   cascading_parent_field_id_not_found: "DCS_SCHEMA_ERROR_CASCADING_PARENT_NOT_FOUND",
   cascading_parent_field_id_self_reference: "DCS_SCHEMA_ERROR_CASCADING_PARENT_SELF",
+  parent_option_groups_required: "DCS_SCHEMA_ERROR_PARENT_GROUPS_REQUIRED",
+  parent_option_group_not_object: "DCS_SCHEMA_ERROR_PARENT_GROUP_NOT_OBJECT",
+  parent_option_group_parent_field_id_not_found: "DCS_SCHEMA_ERROR_CASCADING_PARENT_NOT_FOUND",
+  parent_option_group_parent_field_id_self_reference: "DCS_SCHEMA_ERROR_CASCADING_PARENT_SELF",
+  parent_option_group_operator_invalid: "DCS_SCHEMA_ERROR_PARENT_GROUP_OPERATOR_INVALID",
+  parent_option_group_value_required: "DCS_SCHEMA_ERROR_PARENT_GROUP_VALUE_REQUIRED",
   section_child_type_not_allowed: "DCS_SCHEMA_ERROR_SECTION_CHILD_TYPE",
   section_layout_required: "DCS_SCHEMA_ERROR_SECTION_LAYOUT_REQUIRED",
   section_layout_x_percent_invalid: "DCS_SCHEMA_ERROR_SECTION_LAYOUT_INVALID",
@@ -66,9 +72,15 @@ const SECTION_LAYOUT_SUFFIX_RE = /^\.section_layout/;
  */
 const FIELD_LEVEL_REASON_TAB = {
   field_label_required: "labels",
-  options_required: "labels",
+  options_required: "options",
   cascading_parent_field_id_not_found: "labels",
   cascading_parent_field_id_self_reference: "labels",
+  parent_option_groups_required: "options",
+  parent_option_group_not_object: "options",
+  parent_option_group_parent_field_id_not_found: "options",
+  parent_option_group_parent_field_id_self_reference: "options",
+  parent_option_group_operator_invalid: "options",
+  parent_option_group_value_required: "options",
   computed_formula_not_logic: "labels",
   computed_formula_too_large: "labels",
   computed_formula_too_deep: "labels",
@@ -173,7 +185,7 @@ export function build_schema_error_index(errors, fields, translate) {
     if (rule_match) {
       add_indexed_message(entry, "rule_errors", "validation", Number(rule_match[1]), message);
     } else if (option_match) {
-      add_indexed_message(entry, "option_errors", "labels", Number(option_match[1]), message);
+      add_indexed_message(entry, "option_errors", "options", Number(option_match[1]), message);
     } else if (SECTION_LAYOUT_SUFFIX_RE.test(suffix)) {
       // No drawer control edits section_layout directly (it's authored by
       // dragging on the canvas) - field-level message/badge only.
