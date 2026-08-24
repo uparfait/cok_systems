@@ -361,6 +361,8 @@ const fr = {
   DCS_ACCESS_MANAGE_EDIT_HINT: "Peut modifier la conception et les champs des formulaires accordés",
   DCS_ACCESS_MANAGE_DELETE: "Supprimer des formulaires",
   DCS_ACCESS_MANAGE_DELETE_HINT: "Peut supprimer des versions de formulaires dans ce projet",
+  DCS_ACCESS_MANAGE_EDIT_PROJECT: "Modifier le projet",
+  DCS_ACCESS_MANAGE_EDIT_PROJECT_HINT: "Peut modifier les détails de ce projet (nom, description, département)",
   DCS_ACCESS_MANAGE_SHARE: "Partager les formulaires (option d'attribution)",
   DCS_ACCESS_MANAGE_SHARE_HINT: "Accès complet - peut ajouter, modifier et supprimer des formulaires, et accorder ou restreindre l'accès à d'autres personnes",
   DCS_ACCESS_GRANT_BADGE: "Option d'attribution",

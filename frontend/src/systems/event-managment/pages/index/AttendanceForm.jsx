@@ -327,7 +327,7 @@ export default function AttendanceForm() {
   // Show loading while fetching room data
   if (fetchingData) {
     return (
-      <div className="w-full flex items-center justify-center px-4" style={{ paddingTop: '90px' }}>
+      <div className="w-full flex items-center justify-center px-4" style={{ paddingTop: '28px' }}>
         <div className="bg-white flex flex-row gap-6 items-center p-8 max-w-sm w-full" style={{ border: `1px solid ${BORDER}` }}>
           <SpiralLoader />
           <span className="text-sm" style={{ color: GRAY_DISABLED, fontFamily: fontHeading }}>
@@ -341,7 +341,7 @@ export default function AttendanceForm() {
   // Show fetch error if room-based lookup failed
   if (fetchError) {
     return (
-      <div className="w-full flex items-center justify-center px-4" style={{ paddingTop: '90px' }}>
+      <div className="w-full flex items-center justify-center px-4" style={{ paddingTop: '28px' }}>
         <div className="bg-white p-8 max-w-sm w-full text-center" style={{ border: `1px solid ${BORDER}` }}>
           <div className="w-14 h-14 flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: '#FEF5E7' }}>
             <svg className="w-7 h-7" style={{ color: '#F39C12' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -357,7 +357,7 @@ export default function AttendanceForm() {
 
   if ((!eventSpecialId && !isRoomOnly)) {
     return (
-      <div className="w-full flex items-center justify-center px-4" style={{ paddingTop: '90px' }}>
+      <div className="w-full flex items-center justify-center px-4" style={{ paddingTop: '28px' }}>
         <div className="bg-white p-8 max-w-sm w-full text-center" style={{ border: `1px solid ${BORDER}` }}>
           <div className="w-14 h-14 flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: '#FDECEA' }}>
             <svg className="w-7 h-7" style={{ color: DANGER }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -372,7 +372,7 @@ export default function AttendanceForm() {
   }
 
   return (
-    <div className="w-full flex flex-col items-center" style={{ paddingTop: '90px', paddingBottom: '32px' }}>
+    <div className="w-full flex flex-col items-center" style={{ paddingTop: '28px', paddingBottom: '32px' }}>
       <style>{responsiveStyles}</style>
       <div className="cok-attendance-wrap">
 

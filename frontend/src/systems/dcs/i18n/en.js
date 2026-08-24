@@ -361,6 +361,8 @@ const en = {
   DCS_ACCESS_MANAGE_EDIT_HINT: "Can change the design and fields of the granted forms",
   DCS_ACCESS_MANAGE_DELETE: "Delete forms",
   DCS_ACCESS_MANAGE_DELETE_HINT: "Can delete form versions in this project",
+  DCS_ACCESS_MANAGE_EDIT_PROJECT: "Edit project",
+  DCS_ACCESS_MANAGE_EDIT_PROJECT_HINT: "Can change this project's details (name, description, department)",
   DCS_ACCESS_MANAGE_SHARE: "Share forms (grant option)",
   DCS_ACCESS_MANAGE_SHARE_HINT: "Full access - can add, edit and delete forms, and grant or restrict access for other people",
   DCS_ACCESS_GRANT_BADGE: "Grant option",

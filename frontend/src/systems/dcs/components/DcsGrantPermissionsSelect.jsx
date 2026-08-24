@@ -9,6 +9,7 @@ const SELECT_OPTIONS = [
   { key: "add_forms", project_only: true, titleKey: "DCS_ACCESS_MANAGE_ADD", hintKey: "DCS_ACCESS_MANAGE_ADD_HINT" },
   { key: "edit_forms", project_only: false, titleKey: "DCS_ACCESS_MANAGE_EDIT", hintKey: "DCS_ACCESS_MANAGE_EDIT_HINT" },
   { key: "delete_forms", project_only: true, titleKey: "DCS_ACCESS_MANAGE_DELETE", hintKey: "DCS_ACCESS_MANAGE_DELETE_HINT" },
+  { key: "edit_project", project_only: true, titleKey: "DCS_ACCESS_MANAGE_EDIT_PROJECT", hintKey: "DCS_ACCESS_MANAGE_EDIT_PROJECT_HINT" },
 ];
 
 const tick_square = (is_selected) => ({
@@ -57,7 +58,7 @@ export default function DcsGrantPermissionsSelect({ isProjectScope, manage, onCh
       const turning_on = selections.share_forms !== true;
       onChange(
         turning_on
-          ? { add_forms: false, edit_forms: false, delete_forms: false, share_forms: true }
+          ? { add_forms: false, edit_forms: false, delete_forms: false, edit_project: false, share_forms: true }
           : { ...selections, share_forms: false },
       );
       return;

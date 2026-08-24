@@ -6,7 +6,7 @@ import DcsSearchableSelect from "./DcsSearchableSelect.jsx";
 import DcsAccessFormScope from "./DcsAccessFormScope.jsx";
 import DcsGrantPermissionsSelect from "./DcsGrantPermissionsSelect.jsx";
 
-const EMPTY_MANAGE = { add_forms: false, edit_forms: false, delete_forms: false, share_forms: false };
+const EMPTY_MANAGE = { add_forms: false, edit_forms: false, delete_forms: false, share_forms: false, edit_project: false };
 
 const PRIMARY = "#056daa";
 const PRIMARY_TINT = "#F0F7FB";

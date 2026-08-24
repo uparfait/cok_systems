@@ -361,6 +361,8 @@ const kn = {
   DCS_ACCESS_MANAGE_EDIT_HINT: "Ashobora guhindura imiterere n'ibibazo by'amafishi yemerewe",
   DCS_ACCESS_MANAGE_DELETE: "Gusiba amafishi",
   DCS_ACCESS_MANAGE_DELETE_HINT: "Ashobora gusiba verisiyo z'amafishi muri iyi poroje",
+  DCS_ACCESS_MANAGE_EDIT_PROJECT: "Guhindura poroje",
+  DCS_ACCESS_MANAGE_EDIT_PROJECT_HINT: "Ashobora guhindura umwirondoro w'iyi poroje (izina, ibisobanuro, ishami)",
   DCS_ACCESS_MANAGE_SHARE: "Gusangiza amafishi (gutanga uburenganzira)",
   DCS_ACCESS_MANAGE_SHARE_HINT: "Uburenganzira busesuye - ashobora kongeraho, guhindura no gusiba amafishi, no guha cyangwa kubuza abandi uburenganzira",
   DCS_ACCESS_GRANT_BADGE: "Gutanga uburenganzira",

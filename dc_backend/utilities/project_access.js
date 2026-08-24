@@ -13,8 +13,8 @@ const departments_model = require("../models/departments_model.js");
 const FULL_ACCESS = { can_view: true, all_forms: true, form_group_ids: [] };
 const NO_ACCESS = { can_view: false, all_forms: false, form_group_ids: [] };
 
-const FULL_MANAGEMENT = { add_forms: true, edit_forms: true, delete_forms: true, share_forms: true };
-const NO_MANAGEMENT = { add_forms: false, edit_forms: false, delete_forms: false, share_forms: false };
+const FULL_MANAGEMENT = { add_forms: true, edit_forms: true, delete_forms: true, share_forms: true, edit_project: true };
+const NO_MANAGEMENT = { add_forms: false, edit_forms: false, delete_forms: false, share_forms: false, edit_project: false };
 
 /**
  * Resolves the requesting user's place in the org chart once per request:
@@ -141,8 +141,9 @@ async function can_manage_access(user, project, access_document) {
 }
 
 /**
- * Answers which management actions a user may perform on a project's forms
- * (add/edit/delete/share). The creator can do everything, and a project
+ * Answers which management actions a user may perform on a project
+ * (add/edit/delete/share its forms, edit the project's own details). The
+ * creator can do everything, and a project
  * without enabled access rules keeps today's open behavior. Otherwise the
  * user's individual grants - and the grants of their department or unit -
  * decide: the grant option (share_forms) is the full level and implies
@@ -186,6 +187,7 @@ async function resolve_form_management(user, project, form_group_id, access_docu
     if (grant.all_forms === true) {
       if (manage.add_forms === true || has_grant_option) result.add_forms = true;
       if (manage.delete_forms === true || has_grant_option) result.delete_forms = true;
+      if (manage.edit_project === true || has_grant_option) result.edit_project = true;
     }
     if (covers_form) {
       if (manage.edit_forms === true || has_grant_option) result.edit_forms = true;

@@ -1,4 +1,5 @@
 const projects_model = require("../../models/projects_model.js");
+const project_access = require("../../utilities/project_access.js");
 const { success_response, warning_response, error_response } = require("../../utilities/response.js");
 const { is_valid_object_id } = require("../../utilities/object_id.js");
 
@@ -20,6 +21,13 @@ async function update_project(req, res) {
     const existing_project = await projects_model.find_project_by_id(project_id);
     if (!existing_project) {
       return res.status(404).json(warning_response(req, "PROJECT_NOT_FOUND"));
+    }
+
+    // Creator, grant-option holders and edit_project grants may edit;
+    // unrestricted projects keep their open behavior.
+    const management = await project_access.resolve_form_management(req.user, existing_project);
+    if (management.edit_project !== true) {
+      return res.status(403).json(warning_response(req, "PROJECT_EDIT_FORBIDDEN"));
     }
 
     if (req.body.name !== undefined && !req.body.name.toString().trim()) {
