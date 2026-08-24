@@ -43,6 +43,7 @@ function clean_manage_options(manage, all_forms, legacy_can_grant) {
     edit_forms: options.edit_forms === true,
     delete_forms: all_forms === true && options.delete_forms === true,
     share_forms: options.share_forms === true,
+    edit_project: all_forms === true && options.edit_project === true,
   };
 }
 

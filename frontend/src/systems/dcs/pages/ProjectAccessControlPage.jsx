@@ -17,7 +17,7 @@ const DANGER = "#E74C3C";
 const heading_style = { fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: 18, color: "#333333" };
 const hint_style = { color: "#9E9E9E", fontSize: 13 };
 
-const EMPTY_MANAGE = { add_forms: false, edit_forms: false, delete_forms: false, share_forms: false };
+const EMPTY_MANAGE = { add_forms: false, edit_forms: false, delete_forms: false, share_forms: false, edit_project: false };
 
 // Grants saved before the manage object existed only carry can_grant.
 const normalize_individual = (individual) => ({

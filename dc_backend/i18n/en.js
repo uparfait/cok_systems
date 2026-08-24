@@ -61,6 +61,7 @@ module.exports = {
   ACCESS_RULES_INVALID: "The access rules submitted are not valid",
   ACCESS_MANAGE_FORBIDDEN: "Only the project creator or people given the grant option can manage access to this project",
   FORM_ACTION_FORBIDDEN: "You have not been granted permission to do this on this project's forms",
+  PROJECT_EDIT_FORBIDDEN: "You have not been granted permission to edit this project's details",
   USER_EMAIL_REQUIRED: "An email address is required",
   USER_EMAIL_NOT_FOUND: "No account with this email exists in the system",
   USER_EMAIL_FOUND: "A matching account was found",
